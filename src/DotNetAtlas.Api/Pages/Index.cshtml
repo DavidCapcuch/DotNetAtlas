@@ -1,10 +1,29 @@
 ﻿@page
 @model DotNetAtlas.Api.Pages.IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = @Model.Title;
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width"/>
+    <title>@Model.Title</title>
+</head>
+<body>
+<h1>@Model.Title</h1>
+<h3>Deployment: @Model.Deployment</h3>
+<h3>@Model.Language</h3>
+
+@if (Model.IsLocal)
+{
+    <br/>
+    <h2>Docker compose services:</h2>
+    <h3><a href="http://localhost:5341/#/events?range=3h" target="_blank" rel="noopener noreferrer">Seq</a></h3>
+    <h3><a href="http://localhost:16686/jaeger/ui/search" target="_blank" rel="noopener noreferrer">Jaeger</a></h3>
+    <h3><a href="http://localhost:3000/dashboards" target="_blank" rel="noopener noreferrer">Grafana</a></h3>
+    <h3><a href="http://localhost:9090/query" target="_blank" rel="noopener noreferrer">Prometheus</a></h3>
+}
+</body>
+</html>
