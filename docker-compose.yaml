@@ -1,0 +1,128 @@
+﻿services:
+  seq:
+    image: datalust/seq:latest
+    container_name: seq5341
+    ports:
+      - "5341:80"
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+    volumes:
+      - seq_data:/data
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.66.0
+    container_name: jaeger16686ui4317grpc
+    command:
+      - "--memory.max-traces=25000"
+      - "--query.base-path=/jaeger/ui"
+      - "--prometheus.server-url=http://prometheus:9090"
+      - "--prometheus.query.normalize-calls=true"
+      - "--prometheus.query.normalize-duration=true"
+    deploy:
+      resources:
+        limits:
+          memory: 1200M
+    restart: unless-stopped
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317"
+    environment:
+      - METRICS_STORAGE_TYPE=prometheus
+  
+  prometheus:
+    image: quay.io/prometheus/prometheus:v3.2.0
+    container_name: prometheus9090
+    command:
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --storage.tsdb.retention.time=1h
+      - --config.file=/etc/prometheus/prometheus-config.yaml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --web.route-prefix=/
+      - --web.enable-otlp-receiver
+      - --enable-feature=exemplar-storage
+      - --enable-feature=otlp-write-receiver
+    volumes:
+      - ./src/prometheus/prometheus-config.yaml:/etc/prometheus/prometheus-config.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana3000
+    deploy:
+      resources:
+        limits:
+          memory: 120M
+    restart: unless-stopped
+    environment:
+      - GF_SERVER_ROOT_URL=http://my.grafana.server/
+    volumes:
+      - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./src/grafana/provisioning/:/etc/grafana/provisioning/
+    ports:
+      - "3000:3000"
+
+  otel-collector:
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.120.0
+    container_name: otel-collector
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    restart: unless-stopped
+    command: [ "--config=/etc/otelcol-config.yml" ]
+    user: 0:0
+    volumes:
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./src/otel-collector/otelcol-config.yml:/etc/otelcol-config.yml
+    ports:
+      - "4317:4317"
+      - "4318:4317"
+      - "8889:8889"
+    depends_on:
+      jaeger:
+        condition: service_started
+    environment:
+      - ENVOY_PORT
+      - HOST_FILESYSTEM
+      - OTEL_COLLECTOR_HOST
+      - OTEL_COLLECTOR_PORT_GRPC
+      - OTEL_COLLECTOR_PORT_HTTP
+      - GOMEMLIMIT=160MiB
+  
+  #  elasticsearch:
+  #    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
+  #    container_name: elasticsearch9200
+  #    environment:
+  #      - xpack.monitoring.enabled=true
+  #      - xpack.watcher.enabled=false
+  #      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #      - discovery.type=single-node
+  #    ports:
+  #      - "9200:9200"
+  #    volumes:
+  #      - elasticsearch-data:/usr/share/elasticsearch/data
+  #  
+  #  kibana:
+  #    image: docker.elastic.co/kibana/kibana:7.9.2
+  #    container_name: kibana5601
+  #    environment:
+  #      - ELASTICSEARCH_URL=http://elasticsearch:9200
+  #    depends_on:
+  #      - elasticsearch
+  #    ports:
+  #      - "5601:5601"
+
+volumes:
+  sqlserver_data:
+  elasticsearch-data:
+  seq_data:

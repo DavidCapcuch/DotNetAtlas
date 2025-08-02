@@ -1,7 +1,0 @@
-﻿services:
-  dotnetatlas:
-    image: dotnetatlas
-    build:
-      context: .
-      dockerfile: Dockerfile
-

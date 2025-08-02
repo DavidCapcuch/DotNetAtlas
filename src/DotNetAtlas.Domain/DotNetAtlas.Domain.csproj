@@ -6,4 +6,7 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\DotNetAtlas.Contracts\DotNetAtlas.Contracts.csproj"/>
+    </ItemGroup>
 </Project>

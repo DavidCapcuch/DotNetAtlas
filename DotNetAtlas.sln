@@ -2,12 +2,12 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DE2924E7-E317-48F0-9111-BF222738F09D}"
 	ProjectSection(SolutionItems) = preProject
-		src\DotNetAtlas.Api\compose.yaml = src\DotNetAtlas.Api\compose.yaml
-		src\DotNetAtlas.Api\Dockerfile = src\DotNetAtlas.Api\Dockerfile
 		NuGet.config = NuGet.config
 		.editorconfig = .editorconfig
 		Directory.Build.AppInfo.props = Directory.Build.AppInfo.props
 		Directory.Build.Dependencies.props = Directory.Build.Dependencies.props
+		Dockerfile = Dockerfile
+		docker-compose.yaml = docker-compose.yaml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetAtlas.Api", "src\DotNetAtlas.Api\DotNetAtlas.Api.csproj", "{DBBC00B0-A61A-4741-B87A-960F08A4426F}"

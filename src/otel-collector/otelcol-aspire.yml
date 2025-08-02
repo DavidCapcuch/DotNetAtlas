@@ -1,0 +1,68 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  transform:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - replace_pattern(name, "\\?.*", "")
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlp/aspire:
+    endpoint: ${env:ASPIRE_ENDPOINT}
+    headers:
+      x-otlp-api-key: ${env:ASPIRE_API_KEY}
+    tls:
+        insecure: ${env:ASPIRE_INSECURE}
+        insecure_skip_verify: true # Required in local development because cert is localhost and the endpoint is host.docker.internal
+  otlphttp/prometheus:
+    endpoint: ${env:PROMETHEUS_ENDPOINT}
+    tls:
+        insecure: true
+  otlp/jaeger:
+    endpoint: "jaeger:4317"
+    tls:
+      insecure: true        
+
+connectors:
+  spanmetrics:  
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, transform, batch]
+      exporters: [otlp/aspire, debug, spanmetrics, otlp/jaeger]
+    metrics:
+      receivers: [otlp, spanmetrics]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/aspire, otlphttp/prometheus, debug] 
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/aspire]
+#  telemetry:
+#    metrics:
+#      level: detailed
+#      readers:
+#        - periodic:
+#            interval: 10000
+#            timeout: 5000
+#            exporter:
+#              otlp:
+#                protocol: http/protobuf
+#                endpoint: localhost:4318
