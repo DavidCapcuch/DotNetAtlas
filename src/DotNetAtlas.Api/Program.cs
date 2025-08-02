@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Authentication.Negotiate;
-
 namespace DotNetAtlas.Api;
 
 public class Program
