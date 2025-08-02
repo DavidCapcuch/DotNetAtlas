@@ -1,0 +1,176 @@
+﻿   [*.cs]
+
+   # SA1309: Field names should not begin with underscore
+   dotnet_diagnostic.SA1309.severity = none
+
+   # Default severity for all analyzer diagnostics
+   csharp_indent_labels = one_less_than_current
+   csharp_using_directive_placement = outside_namespace:silent
+   csharp_prefer_simple_using_statement = true:suggestion
+   csharp_prefer_braces = true:silent
+   csharp_style_namespace_declarations = block_scoped:silent
+   csharp_style_prefer_method_group_conversion = true:silent
+   csharp_style_prefer_top_level_statements = true:silent
+   csharp_style_expression_bodied_methods = false:silent
+   csharp_style_expression_bodied_constructors = false:silent
+   csharp_style_expression_bodied_operators = false:silent
+   csharp_style_expression_bodied_properties = true:silent
+   csharp_style_expression_bodied_indexers = true:silent
+   csharp_style_expression_bodied_accessors = true:silent
+   csharp_style_expression_bodied_lambdas = true:silent
+   csharp_style_expression_bodied_local_functions = false:silent
+   csharp_style_prefer_null_check_over_type_check = true:suggestion
+   csharp_style_throw_expression = true:suggestion
+   csharp_prefer_simple_default_expression = true:suggestion
+   dotnet_diagnostic.SA1101.severity = silent
+   dotnet_diagnostic.SA1413.severity = silent
+   dotnet_diagnostic.SA1402.severity = suggestion
+   dotnet_diagnostic.SA1600.severity = silent
+   dotnet_diagnostic.SA1602.severity = silent
+   dotnet_diagnostic.SA1633.severity = silent
+   dotnet_diagnostic.SA1122.severity = silent
+   dotnet_diagnostic.SA1516.severity = silent
+   dotnet_diagnostic.SA1201.severity = silent
+   dotnet_diagnostic.SA1310.severity = silent
+   dotnet_diagnostic.SA1108.severity = silent
+   dotnet_diagnostic.SA1118.severity = silent
+   dotnet_diagnostic.SA1601.severity = silent
+   dotnet_diagnostic.SA1615.severity = suggestion
+   dotnet_diagnostic.SA1117.severity = silent
+   dotnet_diagnostic.SA1611.severity = suggestion
+   dotnet_diagnostic.AV1500.severity = silent
+   dotnet_diagnostic.AV1551.severity = silent
+   dotnet_diagnostic.AV1580.severity = silent
+   dotnet_diagnostic.AV1755.severity = silent
+   dotnet_diagnostic.AV1561.severity = silent
+   dotnet_diagnostic.AV1706.severity = silent
+   dotnet_diagnostic.AV1704.severity = silent
+   dotnet_diagnostic.SA1003.severity = silent
+   dotnet_diagnostic.MA0051.severity = silent
+   dotnet_diagnostic.AV2210.severity = silent
+   dotnet_diagnostic.MA0004.severity = silent
+   dotnet_diagnostic.MA0003.severity = silent
+   dotnet_diagnostic.MA0007.severity = silent
+   dotnet_diagnostic.MA0011.severity = suggestion
+   dotnet_diagnostic.CA1812.severity = silent
+   dotnet_diagnostic.MA0026.severity = silent
+   dotnet_diagnostic.SA1009.severity = silent
+   dotnet_diagnostic.AV1555.severity = silent
+   dotnet_diagnostic.AV1505.severity = silent
+   csharp_style_allow_embedded_statements_on_same_line_experimental = true:silent
+   dotnet_diagnostic.SA0001.severity = silent
+   dotnet_diagnostic.AV1115.severity = suggestion
+   dotnet_diagnostic.SA1202.severity = suggestion
+   dotnet_diagnostic.MA0006.severity = suggestion
+   dotnet_diagnostic.MA0016.severity = suggestion
+   dotnet_diagnostic.MA0048.severity = silent
+   dotnet_diagnostic.SA1204.severity = suggestion
+   dotnet_diagnostic.AV1000.severity = suggestion
+   dotnet_diagnostic.CA1001.severity = suggestion
+   dotnet_diagnostic.AV1532.severity = silent
+   dotnet_diagnostic.AV1210.severity = suggestion
+   dotnet_diagnostic.AV1710.severity = silent
+   dotnet_diagnostic.MA0074.severity = suggestion
+   dotnet_diagnostic.AV1135.severity = suggestion
+   dotnet_diagnostic.AV1130.severity = suggestion
+   dotnet_diagnostic.AV1250.severity = suggestion
+   dotnet_diagnostic.AV1564.severity = suggestion
+   dotnet_diagnostic.CS1591.severity = silent
+csharp_style_prefer_primary_constructors = true:suggestion
+csharp_prefer_system_threading_lock = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+csharp_prefer_static_local_function = true:suggestion
+csharp_prefer_static_anonymous_function = true:suggestion
+
+[*.{cs,vb}]
+#### Naming styles ####
+
+# Naming rules
+
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = suggestion
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
+
+dotnet_naming_rule.types_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.types_should_be_pascal_case.symbols = types
+dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
+
+dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_members
+dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
+
+# Symbol specifications
+
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_symbols.interface.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.interface.required_modifiers =
+
+dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum
+dotnet_naming_symbols.types.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.types.required_modifiers =
+
+dotnet_naming_symbols.non_field_members.applicable_kinds = property, event, method
+dotnet_naming_symbols.non_field_members.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.non_field_members.required_modifiers =
+
+# Naming styles
+
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.required_suffix =
+dotnet_naming_style.begins_with_i.word_separator =
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+dotnet_naming_style.pascal_case.required_prefix =
+dotnet_naming_style.pascal_case.required_suffix =
+dotnet_naming_style.pascal_case.word_separator =
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+dotnet_naming_style.pascal_case.required_prefix =
+dotnet_naming_style.pascal_case.required_suffix =
+dotnet_naming_style.pascal_case.word_separator =
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_style_operator_placement_when_wrapping = beginning_of_line
+tab_width = 4
+indent_size = 4
+end_of_line = crlf
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_prefer_auto_properties = true:silent
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_tuple_names = true:suggestion
+dotnet_style_prefer_compound_assignment = true:suggestion
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
+dotnet_style_namespace_match_folder = true:suggestion
+dotnet_style_prefer_simplified_interpolation = true:suggestion
+dotnet_diagnostic.CA2007.severity = silent
+dotnet_diagnostic.CA1031.severity = suggestion
+dotnet_diagnostic.CA1062.severity = suggestion
+dotnet_diagnostic.CA1305.severity = suggestion
+dotnet_diagnostic.CA5394.severity = suggestion
+dotnet_diagnostic.CA1303.severity = silent
+dotnet_diagnostic.CA1310.severity = suggestion
+dotnet_diagnostic.CA1852.severity = silent
+dotnet_diagnostic.CA1848.severity = silent
+dotnet_diagnostic.CA1056.severity = suggestion
+dotnet_diagnostic.CA1819.severity = suggestion
+dotnet_diagnostic.CA1806.severity = suggestion
+dotnet_diagnostic.CA1707.severity = silent
+dotnet_diagnostic.CA1002.severity = suggestion
+dotnet_diagnostic.CA1711.severity = silent
+dotnet_diagnostic.CA1008.severity = suggestion
+dotnet_diagnostic.CA1040.severity = suggestion
+dotnet_diagnostic.CA1307.severity = suggestion
+dotnet_diagnostic.CA1724.severity = suggestion
+dotnet_diagnostic.CA1716.severity = suggestion
+
+dotnet_diagnostic.RMG012.severity = error
+
+dotnet_style_predefined_type_for_locals_parameters_members = true:silent
+dotnet_style_predefined_type_for_member_access = true:silent
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:silent
