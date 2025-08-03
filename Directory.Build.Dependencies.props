@@ -1,4 +1,5 @@
 <Project>
-  <PropertyGroup Label="Package Versions">
-  </PropertyGroup>
+    <PropertyGroup Label="Package Versions">
+        <FastEndpointsVersion>7.0.1</FastEndpointsVersion>
+    </PropertyGroup>
 </Project>
