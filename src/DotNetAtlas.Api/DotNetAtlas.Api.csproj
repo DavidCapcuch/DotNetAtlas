@@ -1,21 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>CS1591</NoWarn>
+        <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+        <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
+        <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
     </PropertyGroup>
-
+    
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.7"/>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7"/>
-        <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning" Version="5.1.0"/>
+        <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.0-preview.6.25358.103">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="FastEndpoints" Version="$(FastEndpointsVersion)"/>
+        <PackageReference Include="FastEndpoints.Security" Version="$(FastEndpointsVersion)"/>
+        <PackageReference Include="FastEndpoints.Swagger" Version="$(FastEndpointsVersion)"/>
+        <PackageReference Include="FastEndpoints.ClientGen.Kiota" Version="$(FastEndpointsVersion)"/>
+        <PackageReference Include="FastEndpoints.Generator" Version="$(FastEndpointsVersion)">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\DotNetAtlas.Application\DotNetAtlas.Application.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Infrastructure\DotNetAtlas.Infrastructure.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="openapi\openapi.json" />
     </ItemGroup>
 
 </Project>

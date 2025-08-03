@@ -1,4 +1,3 @@
-using System.Reflection;
 using AspNetCore.SignalR.OpenTelemetry;
 using DotNetAtlas.Application.Observability;
 using DotNetAtlas.Infrastructure.Observability;
