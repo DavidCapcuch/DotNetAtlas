@@ -122,7 +122,6 @@ namespace DotNetAtlas.Api
 
                 app.UseStatusCodePages();
 
-
                 if (isClusterEnvironment)
                 {
                     app.UseHttpsRedirection();
@@ -135,8 +134,14 @@ namespace DotNetAtlas.Api
                 app.UseAuthentication();
                 app.UseRequestContextTelemetry();
                 app.UseAuthorization();
+
                 app.UseFastEndpoints(config =>
                     {
+                        config.Errors.UseProblemDetails(detailsConfig =>
+                        {
+                            detailsConfig.IndicateErrorCode = true;
+                            detailsConfig.IndicateErrorSeverity = false;
+                        });
                         config.Endpoints.RoutePrefix = "api";
                         config.Errors.UseProblemDetails();
                         config.Binding.ReflectionCache
