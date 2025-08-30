@@ -1,6 +1,6 @@
 ﻿using FastEndpoints;
 
-namespace DotNetAtlas.Api.Endpoints.WeatherForecast
+namespace DotNetAtlas.Api.Endpoints.Weather
 {
     public sealed class WeatherGroup : Group
     {
@@ -11,7 +11,6 @@ namespace DotNetAtlas.Api.Endpoints.WeatherForecast
                 ep.Description(builder => builder
                     .WithGroupName(EndpointGroupConstants.WEATHER));
                 ep.Tags(EndpointGroupConstants.WEATHER);
-                ep.AllowAnonymous();
             });
         }
     }

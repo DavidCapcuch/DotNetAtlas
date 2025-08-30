@@ -153,11 +153,13 @@ namespace DotNetAtlas.Api
                             return true;
                         };
 
+                        config.Versioning.Prefix = "v";
+                        config.Versioning.PrependToRoute = true;
+                        config.Versioning.DefaultVersion = 1;
                         config.Endpoints.RoutePrefix = "api";
-                        config.Errors.UseProblemDetails();
                         config.Binding.ReflectionCache
                             .AddFromDotNetAtlasApi()
-                            .AddFromDotNetAtlasContracts();
+                            .AddFromDotNetAtlasApplication();
                     })
                     .UseAuthSwaggerGen(app.Configuration);
 
