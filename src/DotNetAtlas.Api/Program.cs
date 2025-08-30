@@ -4,8 +4,11 @@ using DotNetAtlas.Api.Common.Authentication;
 using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Api.Common.Swagger;
-using DotNetAtlas.Contracts;
+using DotNetAtlas.Api.Endpoints;
+using DotNetAtlas.Application;
+using DotNetAtlas.Application.Common;
 using DotNetAtlas.Infrastructure.Common;
+using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using FastEndpoints;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
@@ -153,6 +156,13 @@ namespace DotNetAtlas.Api
                 app.MapStaticAssets();
                 app.MapRazorPages()
                     .WithStaticAssets();
+
+                // In production, flyway should be used, therefore also during
+                // integration tests to ensure the SQL scripts are applied correctly
+                if (!builder.Environment.IsProduction() && !builder.Environment.IsTesting())
+                {
+                    await app.InitialiseDatabaseAsync();
+                }
 
                 await app.RunAsync();
             }
