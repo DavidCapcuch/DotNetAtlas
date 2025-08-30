@@ -1,9 +1,17 @@
 using AspNetCore.SignalR.OpenTelemetry;
-using DotNetAtlas.Application.Observability;
-using DotNetAtlas.Infrastructure.Observability;
+using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.Common.Observability;
+using DotNetAtlas.Infrastructure.Persistence.Database;
+using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
+using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using Elastic.Serilog.Enrichers.Web;
+using EntityFramework.Exceptions.SqlServer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
@@ -29,10 +37,34 @@ namespace DotNetAtlas.Infrastructure.Common
             services.AddOptionsWithValidateOnStart<ApplicationOptions>()
                 .Bind(configuration.GetSection(ApplicationOptions.SECTION));
 
-            var applicationOptions =
-                configuration.GetRequiredSection(ApplicationOptions.SECTION).Get<ApplicationOptions>()!;
+            services.AddDatabase(configuration);
 
-            services.AddObservability(isClusterEnvironment, applicationOptions.AppName);
+            return services;
+        }
+
+        private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddScoped<UpdateAuditableEntitiesInterceptor>();
+            services.AddDbContext<WeatherForecastContext>((
+                sp,
+                options) => options
+                .UseSqlServer(
+                    configuration.GetConnectionString(ConnectionStrings.WEATHER),
+                    sqlServerOptions =>
+                    {
+                        sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, "weather");
+                        sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                        sqlServerOptions.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(3),
+                            errorNumbersToAdd: null);
+                    })
+                .UseExceptionProcessor()
+                .UseSeeding()
+                .UseAsyncSeeding()
+                .AddInterceptors(
+                    sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>()));
+            services.AddScoped<IWeatherForecastContext, WeatherForecastContext>();
 
             return services;
         }
