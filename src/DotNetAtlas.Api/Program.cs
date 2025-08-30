@@ -28,7 +28,7 @@ namespace DotNetAtlas.Api
             {
                 var builder = WebApplication.CreateBuilder(args);
 
-                var isClusterEnvironment = !(builder.Environment.IsLocal() || builder.Environment.IsTest());
+                var isClusterEnvironment = !(builder.Environment.IsLocal() || builder.Environment.IsTesting());
                 builder
                     .Host
                     .UseDefaultServiceProvider(options =>
