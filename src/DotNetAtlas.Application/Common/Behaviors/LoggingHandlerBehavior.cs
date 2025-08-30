@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using DotNetAtlas.Application.Common.CQS;
 using FluentResults;
 using Microsoft.Extensions.Logging;

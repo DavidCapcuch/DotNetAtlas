@@ -44,7 +44,7 @@ namespace DotNetAtlas.Api
                         reloadOnChange: true)
                     .AddEnvironmentVariables();
 
-                builder.UsePlatformSerilog(isClusterEnvironment);
+                builder.UseSerilogConfiguration(isClusterEnvironment);
 
                 if (builder.Environment.IsLocal())
                 {
@@ -85,22 +85,15 @@ namespace DotNetAtlas.Api
                                 .AllowAnyHeader();
                         });
                 });
-                
+
                 builder.Services.AddFastEndpoints(options =>
                     {
                         options.SourceGeneratorDiscoveredTypes.AddRange(DiscoveredTypes.All);
                     })
                     .AddAuthSwaggerDocument(builder);
                 builder.Services.AddOutputCache();
-                
+
                 builder.Services.AddHttpContextAccessor();
-                builder.Services.AddHttpLogging(httpOptions =>
-                {
-                    httpOptions.LoggingFields = HttpLoggingFields.RequestPath
-                                                | HttpLoggingFields.RequestProperties
-                                                | HttpLoggingFields.ResponsePropertiesAndHeaders
-                                                | HttpLoggingFields.ResponseStatusCode;
-                });
                 builder.Services.AddRazorPages();
                 builder.Services.AddApplication();
                 builder.Services.AddInfrastructure(builder.Configuration, isClusterEnvironment);
