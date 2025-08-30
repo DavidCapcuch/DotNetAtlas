@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>CS1591</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -8,6 +10,13 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="FastEndpoints.Attributes" Version="$(FastEndpointsVersion)"/>
+        <PackageReference Include="FastEndpoints.Generator" Version="$(FastEndpointsVersion)">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" Version="9.2.0"/>
+        <PackageReference Include="FluentValidation" Version="12.0.0" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0"/>
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0"/>
         <PackageReference Include="Scrutor" Version="6.1.0"/>
