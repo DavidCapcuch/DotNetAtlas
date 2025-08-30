@@ -1,10 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using DotNetAtlas.Application.Observability;
-using DotNetAtlas.Infrastructure.Common;
+using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Infrastructure.Common.Config;
 using Microsoft.Extensions.Options;
 
-namespace DotNetAtlas.Infrastructure.Observability
+namespace DotNetAtlas.Infrastructure.Common.Observability
 {
     public class DotNetAtlasInstrumentation : IDotNetAtlasInstrumentation
     {
@@ -20,8 +20,8 @@ namespace DotNetAtlas.Infrastructure.Observability
             var appMeter = meterFactory.Create($"{appName}.application", version);
         }
 
-        public Activity StartActivity(string name, ActivityKind activityKind = ActivityKind.Internal)
-            => _activitySource.StartActivity(name, activityKind) ?? new Activity(name).Start();
+        public Activity? StartActivity(string name, ActivityKind activityKind = ActivityKind.Internal)
+            => _activitySource.StartActivity(name, activityKind);
 
         public ActivitySource GetActivitySource() => _activitySource;
     }
