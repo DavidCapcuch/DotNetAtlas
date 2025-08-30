@@ -1,4 +1,16 @@
 ﻿services:
+  mssqldb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql12345
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=breK3k3$
+    ports:
+      - "12345:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
   seq:
     image: datalust/seq:latest
     container_name: seq5341
