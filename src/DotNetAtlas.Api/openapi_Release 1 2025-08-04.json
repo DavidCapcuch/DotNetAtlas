@@ -1,0 +1,380 @@
+{
+  "x-generator": "NSwag v14.4.0.0 (NJsonSchema v11.3.2.0 (Newtonsoft.Json v13.0.0.0))",
+  "openapi": "3.0.0",
+  "info": {
+    "title": "DotNetAtlas",
+    "description": "DotNet Atlas - Made with ❤️, Powered by ☕",
+    "contact": {
+      "name": "David Capcuch",
+      "url": "",
+      "email": "d.capcuch@gmail.com"
+    },
+    "version": "v1"
+  },
+  "paths": {
+    "/api/v1/weather/feedback/{id}": {
+      "put": {
+        "tags": [
+          "Weather"
+        ],
+        "summary": "Change weather feedback. Only user who created the feedback can change it. (Auth non-anonymous)",
+        "operationId": "DotNetAtlasApiEndpointsWeatherChangeFeedbackEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "example": "0198b2a9-cb8c-744b-8cdd-0b64727cf2fc"
+          }
+        ],
+        "requestBody": {
+          "x-name": "ChangeFeedbackCommand",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeFeedbackCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Weather"
+        ],
+        "summary": "Returns weather feedback by ID. (Auth non-anonymous)",
+        "operationId": "DotNetAtlasApiEndpointsWeatherGetFeedbackByIdEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of requested feedback.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "example": "0198b2a9-cb8c-744b-8cdd-0b64727cf2fc"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found"
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFeedbackByIdResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      }
+    },
+    "/api/v1/weather/forecast": {
+      "get": {
+        "tags": [
+          "Weather"
+        ],
+        "summary": "Returns weather forecast.",
+        "description": "Provides x days weather forecast with random temperatures and summaries.",
+        "operationId": "DotNetAtlasApiEndpointsWeatherGetForecastsEndpoint",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": true,
+            "description": "Number of days of forecast. (1-14)",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "example": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetForecastsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/weather/feedback": {
+      "post": {
+        "tags": [
+          "Weather"
+        ],
+        "summary": "Send weather forecast feedback. (Auth non-anonymous)",
+        "operationId": "DotNetAtlasApiEndpointsWeatherSendFeedbackEndpoint",
+        "requestBody": {
+          "x-name": "SendFeedbackCommand",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendFeedbackCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "409": {
+            "description": ""
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChangeFeedbackCommand": {
+        "type": "object",
+        "example": {
+          "feedback": "Nevermind, the tornado got me!",
+          "rating": 3
+        },
+        "additionalProperties": false,
+        "properties": {
+          "feedback": {
+            "type": "string",
+            "description": "Feedback message about the weather forecast.",
+            "example": "Nevermind, the tornado got me!"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "byte",
+            "example": 3
+          }
+        }
+      },
+      "GetFeedbackByIdResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier of the feedback.",
+            "format": "guid"
+          },
+          "feedback": {
+            "type": "string",
+            "description": "The weather feedback content."
+          },
+          "rating": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdByUser": {
+            "type": "string",
+            "description": "Who created the feedback.",
+            "format": "guid"
+          }
+        }
+      },
+      "GetForecastsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "forecasts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForecastResponse"
+            }
+          }
+        }
+      },
+      "ForecastResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "temperatureC": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "temperatureF": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "SendFeedbackCommand": {
+        "type": "object",
+        "example": {
+          "feedback": "The greatest weather forecast ever, saved me from a tornado!",
+          "rating": 5
+        },
+        "additionalProperties": false,
+        "properties": {
+          "feedback": {
+            "type": "string",
+            "description": "Feedback message about the weather forecast.",
+            "example": "The greatest weather forecast ever, saved me from a tornado!"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "byte",
+            "example": 5
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "description": "RFC7807 compatible problem details/ error response class. this can be used by configuring startup like so:\napp.UseFastEndpoints(c => c.Errors.UseProblemDetails())",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "default": "https://www.rfc-editor.org/rfc/rfc7231#section-6.5.1"
+          },
+          "title": {
+            "type": "string",
+            "default": "One or more validation errors occurred."
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "default": 400
+          },
+          "instance": {
+            "type": "string",
+            "default": "/api/route"
+          },
+          "traceId": {
+            "type": "string",
+            "default": "0HMPNHL0JHL76:00000001"
+          },
+          "detail": {
+            "type": "string",
+            "description": "the details of the error",
+            "nullable": true
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemDetails_Error"
+            }
+          }
+        }
+      },
+      "ProblemDetails_Error": {
+        "type": "object",
+        "description": "the error details object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the name of the error or property of the dto that caused the error",
+            "default": "Error or field name"
+          },
+          "reason": {
+            "type": "string",
+            "description": "the reason for the error",
+            "default": "Error reason"
+          },
+          "code": {
+            "type": "string",
+            "description": "the code of the error",
+            "nullable": true
+          },
+          "severity": {
+            "type": "string",
+            "description": "the severity of the error",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "IMPORTANT NOTE: If you do not specify any scope in the authentication request\r\n                        then generated access token gets all scopes the specified client_id is authorized for.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "http://localhost:9011/oauth2/authorize",
+            "tokenUrl": "http://localhost:9011/oauth2/token",
+            "scopes": {
+              "email": "Email.",
+              "openid": "OpenID.",
+              "profile": "Profile."
+            }
+          }
+        }
+      }
+    }
+  }
+}

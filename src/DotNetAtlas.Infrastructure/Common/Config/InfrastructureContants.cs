@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Infrastructure.Common
+﻿namespace DotNetAtlas.Infrastructure.Common.Config
 {
     public static class InfrastructureContants
     {

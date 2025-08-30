@@ -37,6 +37,7 @@ namespace DotNetAtlas.Infrastructure.Common
             services.AddOptionsWithValidateOnStart<ApplicationOptions>()
                 .Bind(configuration.GetSection(ApplicationOptions.SECTION));
 
+            services.AddObservability(isClusterEnvironment, configuration);
             services.AddDatabase(configuration);
 
             return services;
@@ -69,58 +70,68 @@ namespace DotNetAtlas.Infrastructure.Common
             return services;
         }
 
+
         private static IServiceCollection AddObservability(
             this IServiceCollection services,
             bool isClusterEnvironment,
-            string appName)
+            IConfiguration configuration)
         {
             services.AddMetrics();
 
             services.AddSingleton<IDotNetAtlasInstrumentation, DotNetAtlasInstrumentation>();
 
-            var otel = services.AddOpenTelemetry()
-                .ConfigureResource(resource => resource
-                    .AddService(serviceName: appName, serviceVersion: ApplicationInfo.Version)
-                    .AddContainerDetector()
-                    .AddHostDetector())
-                .WithTracing(tracing =>
-                {
-                    tracing.AddAspNetCoreInstrumentation(options =>
-                        {
-                            options.RecordException = true;
-                            options.Filter = context =>
-                                !context.Request.Path.StartsWithSegments(InfrastructureContants.HEALTH_ENDPOINT_PATH)
-                                && !context.Request.Path.StartsWithSegments(InfrastructureContants
-                                    .READINESS_ENDPOINT_PATH);
-                        })
-                        .AddHttpClientInstrumentation(options => { options.RecordException = true; })
-                        .AddEntityFrameworkCoreInstrumentation(options => { options.SetDbStatementForText = true; })
-                        .AddSignalRInstrumentation()
-                        .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
-                        .AddSource("*");
+            var applicationOptions =
+                configuration.GetRequiredSection(ApplicationOptions.SECTION).Get<ApplicationOptions>()!;
 
-                    tracing.AddOtlpExporter();
-                })
-                .WithMetrics(metrics =>
-                {
-                    metrics.AddMeter("*")
-                        // .AddSqlClientInstrumentation()
-                        .AddAspNetCoreInstrumentation()
-                        .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation()
-                        .AddProcessInstrumentation();
+            // Be careful of ENV variables overriding what is set in appsettings.json for otel collector
+            // OTEL_EXPORTER_OTLP_ENDPOINT is standardized can be set as ENV e.g., by Rider OpenTelemetry plugin
+            var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+            if (!string.IsNullOrWhiteSpace(oltpExporterEndpoint))
+            {
+                var otel = services.AddOpenTelemetry()
+                    .ConfigureResource(resource => resource
+                        .AddService(serviceName: applicationOptions.AppName, serviceVersion: ApplicationInfo.Version)
+                        .AddContainerDetector()
+                        .AddHostDetector())
+                    .WithTracing(tracing =>
+                    {
+                        tracing.AddAspNetCoreInstrumentation(options =>
+                            {
+                                options.RecordException = true;
+                                options.Filter = context =>
+                                    !context.Request.Path.StartsWithSegments(
+                                        InfrastructureContants.HEALTH_ENDPOINT_PATH)
+                                    && !context.Request.Path.StartsWithSegments(InfrastructureContants
+                                        .READINESS_ENDPOINT_PATH);
+                            })
+                            .AddHttpClientInstrumentation(options => { options.RecordException = true; })
+                            .AddEntityFrameworkCoreInstrumentation(options => { options.SetDbStatementForText = true; })
+                            .AddSignalRInstrumentation()
+                            .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
+                            .AddSource("*");
 
-                    metrics.SetExemplarFilter(isClusterEnvironment
-                        ? ExemplarFilterType.TraceBased
-                        : ExemplarFilterType.AlwaysOn);
+                        tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
+                    })
+                    .WithMetrics(metrics =>
+                    {
+                        metrics.AddMeter("*")
+                            .AddAspNetCoreInstrumentation()
+                            .AddHttpClientInstrumentation()
+                            .AddRuntimeInstrumentation()
+                            .AddProcessInstrumentation();
 
-                    metrics.AddOtlpExporter();
-                });
+                        metrics.SetExemplarFilter(isClusterEnvironment
+                            ? ExemplarFilterType.TraceBased
+                            : ExemplarFilterType.AlwaysOn);
+
+                        metrics.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
+                    });
+            }
 
             return services;
         }
 
-        public static void UsePlatformSerilog(this WebApplicationBuilder builder, bool isClusterEnvironment)
+        public static void UseSerilogConfiguration(this WebApplicationBuilder builder, bool isClusterEnvironment)
         {
             builder.Host.UseSerilog((context, services, configuration) =>
             {

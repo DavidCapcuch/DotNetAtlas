@@ -1,5 +1,6 @@
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Infrastructure.Common;
+using DotNetAtlas.Infrastructure.Common.Config;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 

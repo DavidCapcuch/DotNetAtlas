@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace DotNetAtlas.Application.Observability
+namespace DotNetAtlas.Application.Common.Observability
 {
     public interface IDotNetAtlasInstrumentation
     {
@@ -12,6 +12,6 @@ namespace DotNetAtlas.Application.Observability
         /// <summary>
         /// Creates activity from activity source.
         /// </summary>
-        Activity StartActivity(string name, ActivityKind activityKind = ActivityKind.Internal);
+        Activity? StartActivity(string name, ActivityKind activityKind = ActivityKind.Internal);
     }
 }
