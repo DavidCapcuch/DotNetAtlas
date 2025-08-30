@@ -99,6 +99,7 @@ namespace DotNetAtlas.Api
                                                 | HttpLoggingFields.ResponseStatusCode;
                 });
                 builder.Services.AddRazorPages();
+                builder.Services.AddApplication();
                 builder.Services.AddInfrastructure(builder.Configuration, isClusterEnvironment);
 
                 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
