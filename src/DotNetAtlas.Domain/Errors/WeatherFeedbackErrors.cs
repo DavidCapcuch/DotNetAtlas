@@ -20,5 +20,8 @@ namespace DotNetAtlas.Domain.Errors
         public static NotFoundError NotFound(Guid id)
             => new NotFoundError(nameof(WeatherFeedback), id, "WeatherFeedback.NotFound");
 
+        public static ConflictError Conflict(Guid id)
+            => new ConflictError(nameof(WeatherFeedback), $"User already created feedback with id {id}",
+                "WeatherFeedback.Conflict");
     }
 }
