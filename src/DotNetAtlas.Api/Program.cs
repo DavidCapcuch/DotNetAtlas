@@ -1,13 +1,13 @@
 using System.Reflection;
 using DotNetAtlas.Api.Common;
+using DotNetAtlas.Api.Common.Authentication;
 using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Api.Common.Swagger;
 using DotNetAtlas.Contracts;
 using DotNetAtlas.Infrastructure.Common;
 using FastEndpoints;
-using FastEndpoints.Swagger;
-using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
 
 namespace DotNetAtlas.Api
@@ -47,12 +47,47 @@ namespace DotNetAtlas.Api
                 {
                     builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
                 }
+
+                builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                    .AddJwtBearer(
+                        JwtBearerDefaults.AuthenticationScheme,
+                        options => { builder.Configuration.Bind(AuthConfigSections.Full.JWT_BEARER, options); })
+                    .AddOpenIdConnect(SecuritySchemes.OIDC, options =>
+                    {
+                        builder.Configuration.Bind(AuthConfigSections.Full.O_AUTH_CONFIG, options);
+                        foreach (var scope in Scopes.List)
+                        {
+                            options.Scope.Add(scope.Name);
+                        }
+                    });
+
+                builder.Services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicies.DEV_ONLY, policy =>
+                    {
+                        policy.RequireAuthenticatedUser();
+                        policy.RequireRole(Roles.DEVELOPER);
+                    });
+                });
+
+                builder.Services.AddCors(options =>
+                {
+                    options.AddPolicy(
+                        "AllowAnyOrigin",
+                        policy =>
+                        {
+                            policy
+                                .AllowAnyOrigin()
+                                .AllowAnyMethod()
+                                .AllowAnyHeader();
+                        });
+                });
                 
                 builder.Services.AddFastEndpoints(options =>
                     {
                         options.SourceGeneratorDiscoveredTypes.AddRange(DiscoveredTypes.All);
                     })
-                    .AddSwaggerDoc(builder);
+                    .AddAuthSwaggerDocument(builder);
                 builder.Services.AddOutputCache();
                 
                 builder.Services.AddHttpContextAccessor();
@@ -97,9 +132,11 @@ namespace DotNetAtlas.Api
                     app.UseHsts();
                 }
 
-                app.UseSerilogRequestLogging();
                 app.UseRouting();
+                app.UseCors("AllowAnyOrigin");
                 app.UseOutputCache();
+                app.UseAuthentication();
+                app.UseRequestContextTelemetry();
                 app.UseAuthorization();
                 app.UseFastEndpoints(config =>
                     {
@@ -109,11 +146,7 @@ namespace DotNetAtlas.Api
                             .AddFromDotNetAtlasApi()
                             .AddFromDotNetAtlasContracts();
                     })
-                    .UseSwaggerGen(null, uiSettings =>
-                    {
-                        uiSettings.ConfigureDefaults();
-                        uiSettings.DocExpansion = "list";
-                    });
+                    .UseAuthSwaggerGen(app.Configuration);
 
                 app.MapClientGenerationApis();
                 app.MapStaticAssets();
