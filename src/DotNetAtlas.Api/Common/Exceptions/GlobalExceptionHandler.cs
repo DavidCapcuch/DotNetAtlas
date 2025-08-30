@@ -32,7 +32,7 @@ namespace DotNetAtlas.Api.Common.Exceptions
             string detail;
             switch (exception)
             {
-                case ApplicationException or ArgumentOutOfRangeException:
+                case ApplicationException:
                     statusCode = StatusCodes.Status400BadRequest;
                     title = "Bad Request";
                     detail = exception.Message;
@@ -57,7 +57,7 @@ namespace DotNetAtlas.Api.Common.Exceptions
                 Exception = exception,
                 ProblemDetails = new ProblemDetails
                 {
-                    Type = exception.GetType().Name,
+                    Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.6.1",
                     Title = title,
                     Detail = detail
                 }

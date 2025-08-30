@@ -6,7 +6,7 @@ namespace DotNetAtlas.Api.Common
     public static class ApiDependencyInjection
     {
         /// <summary>
-        /// Maps client generation APIs for each supported <see cref="GenerationLanguage"/>. 
+        /// Maps client generation APIs for each supported <see cref="GenerationLanguage"/>.
         /// </summary>
         public static void MapClientGenerationApis(this WebApplication app)
         {
