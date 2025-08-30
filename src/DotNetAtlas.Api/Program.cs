@@ -142,6 +142,17 @@ namespace DotNetAtlas.Api
                             detailsConfig.IndicateErrorCode = true;
                             detailsConfig.IndicateErrorSeverity = false;
                         });
+                        config.Endpoints.Filter = ep =>
+                        {
+                            if (builder.Environment.IsProduction() &&
+                                ep.EndpointTags?.Contains(EndpointGroupConstants.DEV) is true)
+                            {
+                                return false;
+                            }
+
+                            return true;
+                        };
+
                         config.Endpoints.RoutePrefix = "api";
                         config.Errors.UseProblemDetails();
                         config.Binding.ReflectionCache
