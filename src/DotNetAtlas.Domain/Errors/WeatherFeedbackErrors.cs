@@ -16,5 +16,9 @@ namespace DotNetAtlas.Domain.Errors
                 propertyName: nameof(WeatherFeedback.Feedback),
                 errorMessage: $"Feedback cannot exceed {maxLength} characters.",
                 errorCode: "WeatherFeedback.FeedbackTooLong");
+
+        public static NotFoundError NotFound(Guid id)
+            => new NotFoundError(nameof(WeatherFeedback), id, "WeatherFeedback.NotFound");
+
     }
 }
