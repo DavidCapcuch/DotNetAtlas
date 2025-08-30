@@ -15,6 +15,7 @@ namespace DotNetAtlas.Application.Common
             services.AddValidatorsFromAssembly(typeof(ApplicationDependencyInjection).Assembly, includeInternalTypes: true);
             services.AddScoped<IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>, GetFeedbackByIdQueryHandler>();
             services.AddScoped<ICommandHandler<SendFeedbackCommand, Guid>, SendFeedbackCommandHandler>();
+            services.AddScoped<ICommandHandler<ChangeFeedbackCommand>, ChangeFeedbackCommandHandler>();
 
             services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationHandlerBehavior.CommandHandler<,>));
             services.Decorate(typeof(ICommandHandler<>), typeof(ValidationHandlerBehavior.CommandBaseHandler<>));
