@@ -29,9 +29,8 @@ namespace DotNetAtlas.Api.Endpoints.Weather
                 s.Summary = "Send weather forecast feedback.";
                 s.ExampleRequest = new SendFeedbackCommand
                 {
-                    Feedback = "The greatest weather forecast ever, saved me from a tornado!",
-                    Rating = 5,
-                    UserId = new Guid("14ebd293-d020-4729-a155-6b177d34f36f")
+                    Feedback = "Your radar is my spirit animal. Dodged the storm like Neo",
+                    Rating = 5
                 };
             });
             Description(b =>

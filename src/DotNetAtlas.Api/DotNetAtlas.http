@@ -1,6 +1,45 @@
-@DotNetAtlas_HostAddress = http://localhost:5159
+###
+# Get access token from FusionAuth (Resource Owner Password flow)
+# @name GetAndSetAuthToken
+POST {{Auth_Authority}}/oauth2/token
+Content-Type: application/x-www-form-urlencoded
 
-GET {{DotNetAtlas_HostAddress}}/api/weather/forecast/
-Accept: application/json
+grant_type=password&client_id={{Auth_ClientId}}&client_secret={{Auth_ClientSecret}}&username={{Auth_Username}}&password={{Auth_Password}}&scope={{Auth_Scopes}}
+
+> {% client.global.set("auth_token", response.body.access_token); %}
 
 ###
+# @name GetForecasts
+GET {{AppHostAddress}}/api/v1/weather/forecast?days=5
+
+###
+# @name GetFeedbackById
+GET {{AppHostAddress}}/api/v1/weather/feedback/0198B2A9-CB8C-744B-8CDD-0B64727CF2FC
+Authorization: Bearer {{auth_token}}
+
+###
+# @name SendFeedback
+POST {{AppHostAddress}}/api/v1/weather/feedback
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "feedback": "Your radar is my spirit animal. Dodged the storm like Neo",
+  "rating": 5
+}
+
+###
+# @name ChangeFeedback
+PUT {{AppHostAddress}}/api/v1/weather/feedback/0198B2A9-CB8C-744B-8CDD-0B64727CF2FC
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "feedback": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim",
+  "rating": 1
+}
+
+###
+# @name SeedDatabase
+POST {{AppHostAddress}}/api/v1/dev/seed-database?numberOfRecords=100
+Authorization: Bearer {{auth_token}}

@@ -30,8 +30,8 @@ namespace DotNetAtlas.Api.Endpoints.Weather
                 s.ExampleRequest = new ChangeFeedbackCommand
                 {
                     Id = new Guid("0198B2A9-CB8C-744B-8CDD-0B64727CF2FC"), // from deterministic seed test data
-                    Feedback = "Nevermind, the tornado got me!",
-                    Rating = 3
+                    Feedback = "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim",
+                    Rating = 1
                 };
             });
             Description(b =>
