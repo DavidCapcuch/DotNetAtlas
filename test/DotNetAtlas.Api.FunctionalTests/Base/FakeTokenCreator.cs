@@ -2,51 +2,50 @@
 using System.Security.Claims;
 using DotNetAtlas.Api.Common.Authentication;
 
-namespace DotNetAtlas.Api.FunctionalTests.Base
+namespace DotNetAtlas.Api.FunctionalTests.Base;
+
+/// <summary>
+/// In appsettings.Testing, issuer validation is turned off,
+/// else IDM would need to be permanently running for logins etc.
+/// </summary>
+internal static class FakeTokenCreator
 {
-    /// <summary>
-    /// In appsettings.Testing, issuer validation is turned off,
-    /// else IDM would need to be permanently running for logins etc.
-    /// </summary>
-    public class FakeTokenCreator
+    public static string GetAdminUserToken()
     {
-        public static string GetAdminUserToken()
-        {
-            var userName = "dev@dotnetatlas.com";
-            var roles = new[] {Roles.DEVELOPER};
+        const string userName = "dev@dotnetatlas.com";
+        var roles = new[] { Roles.Developer };
 
-            return CreateToken(userName, roles);
+        return CreateToken(userName, roles);
+    }
+
+    public static string GetNormalUserToken()
+    {
+        const string userName = "pleb@dotnetatlas.com";
+        var roles = Array.Empty<string>();
+
+        return CreateToken(userName, roles);
+    }
+
+    private static string CreateToken(string userName, string[] roles)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, userName),
+            new Claim(ClaimTypes.NameIdentifier, Guid.CreateVersion7().ToString())
+        };
+
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        public static string GetNormalUserToken()
-        {
-            var userName = "pleb@dotnetatlas.com";
-            var roles = new string[] { };
+        var token = new JwtSecurityToken(
+            issuer: "NOT CHECKED IN TESTING",
+            audience: "NOT CHECKED IN TESTING",
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: null,
+            claims: claims);
 
-            return CreateToken(userName, roles);
-        }
-
-        private static string CreateToken(string userName, string[] roles)
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, userName),
-                new Claim(ClaimTypes.NameIdentifier, Guid.CreateVersion7().ToString())
-            };
-
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var token = new JwtSecurityToken(
-                issuer: "NOT CHECKED IN TESTING",
-                audience: "NOT CHECKED IN TESTING",
-                expires: DateTime.UtcNow.AddHours(1),
-                signingCredentials: null,
-                claims: claims);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

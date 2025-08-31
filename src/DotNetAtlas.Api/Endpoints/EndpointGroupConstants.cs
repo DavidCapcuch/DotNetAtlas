@@ -1,8 +1,7 @@
-﻿namespace DotNetAtlas.Api.Endpoints
+﻿namespace DotNetAtlas.Api.Endpoints;
+
+internal static class EndpointGroupConstants
 {
-    public static class EndpointGroupConstants
-    {
-        public const string WEATHER = "weather";
-        public const string DEV = "dev";
-    }
+    public const string Weather = "weather";
+    public const string Dev = "dev";
 }

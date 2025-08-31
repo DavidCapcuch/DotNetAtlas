@@ -1,69 +1,68 @@
-﻿namespace DotNetAtlas.Domain.Entities.Base
+﻿namespace DotNetAtlas.Domain.Entities.Base;
+
+public abstract class Entity<TId> : IComparable, IComparable<Entity<TId>>
+    where TId : IComparable<TId>
 {
-    public abstract class Entity<TId> : IComparable, IComparable<Entity<TId>>
-        where TId : IComparable<TId>
+    public virtual TId Id { get; protected set; } = default!;
+
+    public virtual byte[]? Timestamp { get; set; }
+
+    protected Entity()
     {
-        public virtual TId Id { get; protected set; }
+    }
 
-        public virtual byte[]? Timestamp { get; set; }
+    protected Entity(TId id)
+    {
+        Id = id;
+    }
 
-        protected Entity()
+    public override bool Equals(object? obj)
+    {
+        if (obj is not Entity<TId> other)
         {
+            return false;
         }
 
-        protected Entity(TId id)
+        if (ReferenceEquals(this, other))
         {
-            Id = id;
+            return true;
         }
 
-        public override bool Equals(object? obj)
+        if (IsTransient() || other.IsTransient())
         {
-            if (obj is not Entity<TId> other)
-            {
-                return false;
-            }
-
-            if (ReferenceEquals(this, other))
-            {
-                return true;
-            }
-
-            if (IsTransient() || other.IsTransient())
-            {
-                return false;
-            }
-
-            return Id.Equals(other.Id);
+            return false;
         }
 
-        public override int GetHashCode()
+        return Id.Equals(other.Id);
+    }
+
+    public override int GetHashCode()
+    {
+        return Id.GetHashCode();
+    }
+
+    public virtual int CompareTo(Entity<TId>? other)
+    {
+        if (other is null)
         {
-            return Id.GetHashCode();
+            return 1;
         }
 
-        public virtual int CompareTo(Entity<TId>? other)
+        if (ReferenceEquals(this, other))
         {
-            if (other is null)
-            {
-                return 1;
-            }
-
-            if (ReferenceEquals(this, other))
-            {
-                return 0;
-            }
-
-            return Id.CompareTo(other.Id);
+            return 0;
         }
 
-        public virtual int CompareTo(object? other)
-        {
-            return CompareTo(other as Entity<TId>);
-        }
+        return Id.CompareTo(other.Id);
+    }
 
-        private bool IsTransient()
-        {
-            return Id is null || Id.Equals(default(TId));
-        }
+    public virtual int CompareTo(object? other)
+    {
+        return CompareTo(other as Entity<TId>);
+    }
+
+    private bool IsTransient()
+    {
+        return Id.Equals(default(TId));
     }
 }

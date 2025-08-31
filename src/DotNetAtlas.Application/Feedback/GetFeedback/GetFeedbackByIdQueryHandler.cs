@@ -6,41 +6,36 @@ using DotNetAtlas.Application.Common.Specifications;
 using DotNetAtlas.Domain.Errors;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
-namespace DotNetAtlas.Application.Feedback.GetFeedback
+namespace DotNetAtlas.Application.Feedback.GetFeedback;
+
+public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>
 {
-    public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>
+    private readonly IWeatherForecastContext _weatherForecastContext;
+
+    public GetFeedbackByIdQueryHandler(
+        IWeatherForecastContext weatherForecastContext)
     {
-        private readonly ILogger<GetFeedbackByIdQueryHandler> _logger;
-        private readonly IWeatherForecastContext _weatherForecastContext;
+        _weatherForecastContext = weatherForecastContext;
+    }
 
-        public GetFeedbackByIdQueryHandler(
-            ILogger<GetFeedbackByIdQueryHandler> logger,
-            IWeatherForecastContext weatherForecastContext)
+    public async Task<Result<GetFeedbackByIdResponse>> HandleAsync(
+        GetFeedbackByIdQuery query,
+        CancellationToken ct)
+    {
+        Activity.Current?.SetTag("feedback.id", query.Id.ToString());
+
+        var response = await _weatherForecastContext.WeatherFeedbacks
+            .AsNoTracking()
+            .WithSpecification(new WeatherFeedbackByIdSpec(query.Id))
+            .ProjectToFeedbackResponse()
+            .FirstOrDefaultAsync(ct);
+
+        if (response is null)
         {
-            _logger = logger;
-            _weatherForecastContext = weatherForecastContext;
+            return Result.Fail(WeatherFeedbackErrors.NotFound(query.Id));
         }
 
-        public async Task<Result<GetFeedbackByIdResponse>> HandleAsync(
-            GetFeedbackByIdQuery query,
-            CancellationToken ct)
-        {
-            Activity.Current?.SetTag("feedback.id", query.Id.ToString());
-
-            var response = await _weatherForecastContext.WeatherFeedbacks
-                .AsNoTracking()
-                .WithSpecification(new WeatherFeedbackByIdSpec(query.Id))
-                .ProjectToFeedbackResponse()
-                .FirstOrDefaultAsync(ct);
-
-            if (response is null)
-            {
-                return Result.Fail(WeatherFeedbackErrors.NotFound(query.Id));
-            }
-
-            return response;
-        }
+        return response;
     }
 }

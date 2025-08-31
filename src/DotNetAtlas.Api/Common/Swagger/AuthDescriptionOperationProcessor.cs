@@ -6,108 +6,115 @@ using NSwag.Generation.AspNetCore;
 using NSwag.Generation.Processors;
 using NSwag.Generation.Processors.Contexts;
 
-namespace DotNetAtlas.Api.Common.Swagger
+namespace DotNetAtlas.Api.Common.Swagger;
+
+internal class AuthDescriptionOperationProcessor : IOperationProcessor
 {
-    public class AuthDescriptionOperationProcessor : IOperationProcessor
+    private readonly IAuthorizationPolicyProvider _policyProvider;
+
+    public AuthDescriptionOperationProcessor(IAuthorizationPolicyProvider policyProvider)
     {
-        private readonly IAuthorizationPolicyProvider _policyProvider;
+        _policyProvider = policyProvider;
+    }
 
-        public AuthDescriptionOperationProcessor(IAuthorizationPolicyProvider policyProvider)
+    public bool Process(OperationProcessorContext context)
+    {
+        if (context is AspNetCoreOperationProcessorContext aspNetCoreContext)
         {
-            _policyProvider = policyProvider;
-        }
+            var authAttributes =
+                aspNetCoreContext.ApiDescription.ActionDescriptor.EndpointMetadata
+                    .OfType<AuthorizeAttribute>()
+                    .ToList();
 
-        public bool Process(OperationProcessorContext context)
-        {
-            if (context is AspNetCoreOperationProcessorContext aspNetCoreContext)
+            var authScopes = aspNetCoreContext.ApiDescription.ActionDescriptor.EndpointMetadata
+                .OfType<EndpointDefinition>()
+                .SelectMany(ed => ed.AllowedScopes ?? Enumerable.Empty<string>())
+                .Distinct()
+                .ToList();
+
+            if (authAttributes.Count != 0 || authScopes.Count != 0)
             {
-                var authAttributes =
-                    aspNetCoreContext.ApiDescription.ActionDescriptor.EndpointMetadata
-                        .OfType<AuthorizeAttribute>()
-                        .ToList();
-
-                var authScopes = aspNetCoreContext.ApiDescription.ActionDescriptor.EndpointMetadata
-                    .OfType<EndpointDefinition>()
-                    .SelectMany(ed => ed.AllowedScopes ?? Enumerable.Empty<string>())
+                var policies = authAttributes
+                    .Where(a => !string.IsNullOrWhiteSpace(a.Policy) && !a.Policy.StartsWith(
+                        "epPolicy",
+                        StringComparison.OrdinalIgnoreCase))
+                    .Select(a => a.Policy!)
                     .Distinct()
                     .ToList();
 
-                if (authAttributes.Count != 0 || authScopes.Count != 0)
+                var roles = authAttributes
+                    .Where(a => !string.IsNullOrWhiteSpace(a.Roles))
+                    .Select(a => a.Roles!)
+                    .Distinct()
+                    .ToList();
+
+                var authBuilder = new StringBuilder();
+                authBuilder.Append("(Auth");
+                if (policies.Count != 0)
                 {
-                    var policies = authAttributes
-                        .Where(a => !string.IsNullOrWhiteSpace(a.Policy) && !a.Policy.StartsWith("epPolicy"))
-                        .Select(a => a.Policy!)
-                        .Distinct()
-                        .ToList();
-
-                    var roles = authAttributes
-                        .Where(a => !string.IsNullOrWhiteSpace(a.Roles))
-                        .Select(a => a.Roles!)
-                        .Distinct()
-                        .ToList();
-
-                    var authBuilder = new StringBuilder();
-                    authBuilder.Append("(Auth");
-                    if (policies.Count != 0)
+                    authBuilder.Append(" policies: ");
+                    foreach (var policyName in policies)
                     {
-                        authBuilder.Append(" policies: ");
-                        foreach (var policyName in policies)
+                        authBuilder.Append(" '").Append(policyName).Append('\'');
+
+                        var policy = _policyProvider.GetPolicyAsync(policyName).GetAwaiter().GetResult();
+                        if (policy != null)
                         {
-                            authBuilder.Append($" '{policyName}'");
+                            var requiredClaims = policy.Requirements
+                                .OfType<ClaimsAuthorizationRequirement>()
+                                .ToArray();
 
-                            var policy = _policyProvider.GetPolicyAsync(policyName).GetAwaiter().GetResult();
-                            if (policy != null)
+                            foreach (var claimRequirement in requiredClaims)
                             {
-                                var requiredClaims = policy.Requirements
-                                    .OfType<ClaimsAuthorizationRequirement>()
-                                    .ToArray();
+                                var claimType = claimRequirement.ClaimType;
+                                var allowedValues = claimRequirement.AllowedValues?.ToList() ?? [];
 
-                                foreach (var claimRequirement in requiredClaims)
+                                if (allowedValues.Count > 0)
                                 {
-                                    var claimType = claimRequirement.ClaimType;
-                                    var allowedValues = claimRequirement.AllowedValues?.ToList() ?? [];
-
-                                    if (allowedValues.Count > 0)
-                                    {
-                                        authBuilder.Append($" {claimType}s: [{string.Join(", ", allowedValues)}]");
-                                    }
+                                    authBuilder.Append(' ')
+                                        .Append(claimType)
+                                        .Append("s: [")
+                                        .Append(string.Join(", ", allowedValues))
+                                        .Append(']');
                                 }
+                            }
 
-                                var roleRequirement = policy.Requirements
-                                    .OfType<RolesAuthorizationRequirement>()
-                                    .FirstOrDefault();
+                            var roleRequirement = policy.Requirements
+                                .OfType<RolesAuthorizationRequirement>()
+                                .FirstOrDefault();
 
-                                if (roleRequirement != null && roleRequirement.AllowedRoles.Any())
-                                {
-                                    authBuilder.Append($" roles: [{string.Join(", ", roleRequirement.AllowedRoles)}]");
-                                }
+                            if (roleRequirement != null && roleRequirement.AllowedRoles.Any())
+                            {
+                                authBuilder.Append(" roles: [")
+                                    .Append(string.Join(", ", roleRequirement.AllowedRoles))
+                                    .Append(']');
                             }
                         }
                     }
-
-                    if (roles.Count != 0)
-                    {
-                        authBuilder.Append($" roles: {string.Join(", ", roles)}");
-                    }
-
-                    if (authScopes.Count != 0)
-                    {
-                        authBuilder.Append($" scopes: {string.Join(", ", authScopes)}");
-                    }
-
-                    if (!roles.Any() && !authScopes.Any() && !policies.Any())
-                    {
-                        authBuilder.Append(" non-anonymous");
-                    }
-
-                    authBuilder.Append(')');
-
-                    var summary = context.OperationDescription.Operation.Summary ?? "";
-                    context.OperationDescription.Operation.Summary = $"{summary} {authBuilder}";
                 }
-            }
 
-            return true;
+                if (roles.Count != 0)
+                {
+                    authBuilder.Append(" roles: ").Append(string.Join(", ", roles));
+                }
+
+                if (authScopes.Count != 0)
+                {
+                    authBuilder.Append(" scopes: ").Append(string.Join(", ", authScopes));
+                }
+
+                if (roles.Count == 0 && authScopes.Count == 0 && policies.Count == 0)
+                {
+                    authBuilder.Append(" non-anonymous");
+                }
+
+                authBuilder.Append(')');
+
+                var summary = context.OperationDescription.Operation.Summary ?? "";
+                context.OperationDescription.Operation.Summary = $"{summary} {authBuilder}";
+            }
         }
+
+        return true;
     }
 }
