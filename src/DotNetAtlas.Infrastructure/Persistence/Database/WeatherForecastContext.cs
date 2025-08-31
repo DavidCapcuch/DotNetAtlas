@@ -2,21 +2,20 @@
 using DotNetAtlas.Domain.Entities.Weather;
 using Microsoft.EntityFrameworkCore;
 
-namespace DotNetAtlas.Infrastructure.Persistence.Database
+namespace DotNetAtlas.Infrastructure.Persistence.Database;
+
+public class WeatherForecastContext : DbContext, IWeatherForecastContext
 {
-    public class WeatherForecastContext : DbContext, IWeatherForecastContext
+    public WeatherForecastContext(DbContextOptions<WeatherForecastContext> options)
+        : base(options)
     {
-        public WeatherForecastContext(DbContextOptions<WeatherForecastContext> options)
-            : base(options)
-        {
-        }
+    }
 
-        public DbSet<WeatherFeedback> WeatherFeedbacks { get; set; }
+    public DbSet<WeatherFeedback> WeatherFeedbacks { get; set; }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.ApplyConfigurationsFromAssembly(GetType().Assembly)
-                .HasDefaultSchema("weather");
-        }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(GetType().Assembly)
+            .HasDefaultSchema("weather");
     }
 }

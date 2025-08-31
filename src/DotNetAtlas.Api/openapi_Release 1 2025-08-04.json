@@ -121,7 +121,7 @@
             "name": "days",
             "in": "query",
             "required": true,
-            "description": "Number of days of forecast. (1-14)",
+            "description": "Number of days of forecast (1-14).",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -197,20 +197,20 @@
       "ChangeFeedbackCommand": {
         "type": "object",
         "example": {
-          "feedback": "Nevermind, the tornado got me!",
-          "rating": 3
+          "feedback": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim",
+          "rating": 1
         },
         "additionalProperties": false,
         "properties": {
           "feedback": {
             "type": "string",
             "description": "Feedback message about the weather forecast.",
-            "example": "Nevermind, the tornado got me!"
+            "example": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim"
           },
           "rating": {
             "type": "integer",
             "format": "byte",
-            "example": 3
+            "example": 1
           }
         }
       },
@@ -275,7 +275,7 @@
       "SendFeedbackCommand": {
         "type": "object",
         "example": {
-          "feedback": "The greatest weather forecast ever, saved me from a tornado!",
+          "feedback": "Your radar is my spirit animal. Dodged the storm like Neo",
           "rating": 5
         },
         "additionalProperties": false,
@@ -283,7 +283,7 @@
           "feedback": {
             "type": "string",
             "description": "Feedback message about the weather forecast.",
-            "example": "The greatest weather forecast ever, saved me from a tornado!"
+            "example": "Your radar is my spirit animal. Dodged the storm like Neo"
           },
           "rating": {
             "type": "integer",

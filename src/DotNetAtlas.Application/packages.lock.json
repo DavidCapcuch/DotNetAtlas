@@ -22,15 +22,6 @@
           "Microsoft.Extensions.Primitives": "8.0.0"
         }
       },
-      "FastEndpoints.Generator": {
-        "type": "Direct",
-        "requested": "[7.0.1, )",
-        "resolved": "7.0.1",
-        "contentHash": "7vC05tw+TCOEkyqHz7VaIL5VuzuQJlWAxIajl8HIyoFfoByDaEnxuzgTGledGInQP26z1yagoK+hCBoOtIBbRw==",
-        "dependencies": {
-          "FastEndpoints.Attributes": "7.0.1"
-        }
-      },
       "FluentValidation": {
         "type": "Direct",
         "requested": "[12.0.0, )",

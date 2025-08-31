@@ -6,30 +6,29 @@ using DotNetAtlas.Application.Feedback.SendFeedback;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DotNetAtlas.Application.Common
+namespace DotNetAtlas.Application.Common;
+
+public static class ApplicationDependencyInjection
 {
-    public static class ApplicationDependencyInjection
+    public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        public static IServiceCollection AddApplication(this IServiceCollection services)
-        {
-            services.AddValidatorsFromAssembly(typeof(ApplicationDependencyInjection).Assembly, includeInternalTypes: true);
-            services.AddScoped<IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>, GetFeedbackByIdQueryHandler>();
-            services.AddScoped<ICommandHandler<SendFeedbackCommand, Guid>, SendFeedbackCommandHandler>();
-            services.AddScoped<ICommandHandler<ChangeFeedbackCommand>, ChangeFeedbackCommandHandler>();
+        services.AddValidatorsFromAssembly(typeof(ApplicationDependencyInjection).Assembly, includeInternalTypes: true);
+        services.AddScoped<IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>, GetFeedbackByIdQueryHandler>();
+        services.AddScoped<ICommandHandler<SendFeedbackCommand, Guid>, SendFeedbackCommandHandler>();
+        services.AddScoped<ICommandHandler<ChangeFeedbackCommand>, ChangeFeedbackCommandHandler>();
 
-            services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationHandlerBehavior.CommandHandler<,>));
-            services.Decorate(typeof(ICommandHandler<>), typeof(ValidationHandlerBehavior.CommandBaseHandler<>));
-            services.Decorate(typeof(IQueryHandler<,>), typeof(ValidationHandlerBehavior.QueryHandler<,>));
+        services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationHandlerBehavior.CommandHandler<,>));
+        services.Decorate(typeof(ICommandHandler<>), typeof(ValidationHandlerBehavior.CommandBaseHandler<>));
+        services.Decorate(typeof(IQueryHandler<,>), typeof(ValidationHandlerBehavior.QueryHandler<,>));
 
-            services.Decorate(typeof(IQueryHandler<,>), typeof(LoggingHandlerBehavior.QueryHandler<,>));
-            services.Decorate(typeof(ICommandHandler<,>), typeof(LoggingHandlerBehavior.CommandHandler<,>));
-            services.Decorate(typeof(ICommandHandler<>), typeof(LoggingHandlerBehavior.CommandBaseHandler<>));
+        services.Decorate(typeof(IQueryHandler<,>), typeof(LoggingHandlerBehavior.QueryHandler<,>));
+        services.Decorate(typeof(ICommandHandler<,>), typeof(LoggingHandlerBehavior.CommandHandler<,>));
+        services.Decorate(typeof(ICommandHandler<>), typeof(LoggingHandlerBehavior.CommandBaseHandler<>));
 
-            services.Decorate(typeof(IQueryHandler<,>), typeof(TracingHandlerBehavior.QueryHandler<,>));
-            services.Decorate(typeof(ICommandHandler<,>), typeof(TracingHandlerBehavior.CommandHandler<,>));
-            services.Decorate(typeof(ICommandHandler<>), typeof(TracingHandlerBehavior.CommandBaseHandler<>));
+        services.Decorate(typeof(IQueryHandler<,>), typeof(TracingHandlerBehavior.QueryHandler<,>));
+        services.Decorate(typeof(ICommandHandler<,>), typeof(TracingHandlerBehavior.CommandHandler<,>));
+        services.Decorate(typeof(ICommandHandler<>), typeof(TracingHandlerBehavior.CommandBaseHandler<>));
 
-            return services;
-        }
+        return services;
     }
 }

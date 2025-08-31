@@ -40,4 +40,8 @@
         <_ContentIncludedByDefault Remove="openapi\openapi.json"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="DotNetAtlas.Api.FunctionalTests"/>
+    </ItemGroup>
+
 </Project>

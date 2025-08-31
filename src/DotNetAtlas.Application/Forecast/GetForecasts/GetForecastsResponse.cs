@@ -1,7 +1,6 @@
-﻿namespace DotNetAtlas.Application.Forecast.GetForecasts
+﻿namespace DotNetAtlas.Application.Forecast.GetForecasts;
+
+public class GetForecastsResponse
 {
-    public class GetForecastsResponse
-    {
-        public required IAsyncEnumerable<ForecastResponse> Forecasts { get; set; }
-    }
+    public required IAsyncEnumerable<ForecastResponse> Forecasts { get; set; }
 }
