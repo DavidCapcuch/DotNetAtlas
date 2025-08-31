@@ -1,7 +1,6 @@
-﻿namespace DotNetAtlas.Infrastructure.Common.Config
+﻿namespace DotNetAtlas.Infrastructure.Common.Config;
+
+public static class ConnectionStrings
 {
-    public static class ConnectionStrings
-    {
-        public const string WEATHER = "Weather";
-    }
+    public const string Weather = "Weather";
 }

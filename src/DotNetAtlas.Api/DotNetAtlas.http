@@ -4,9 +4,16 @@
 POST {{Auth_Authority}}/oauth2/token
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=password&client_id={{Auth_ClientId}}&client_secret={{Auth_ClientSecret}}&username={{Auth_Username}}&password={{Auth_Password}}&scope={{Auth_Scopes}}
+grant_type = password &
+client_id = {{Auth_ClientId}} &
+client_secret = {{Auth_ClientSecret}} &
+username = {{Auth_Username}} &
+password = {{Auth_Password}} &
+scope = {{Auth_Scopes}}
 
-> {% client.global.set("auth_token", response.body.access_token); %}
+> {%
+    client.global.set("auth_token", response.body.access_token);
+%}
 
 ###
 # @name GetForecasts

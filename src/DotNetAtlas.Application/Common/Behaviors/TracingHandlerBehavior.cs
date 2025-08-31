@@ -5,145 +5,144 @@ using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Domain.Errors.Base;
 using FluentResults;
 
-namespace DotNetAtlas.Application.Common.Behaviors
+namespace DotNetAtlas.Application.Common.Behaviors;
+
+internal static class TracingHandlerBehavior
 {
-    internal static class TracingHandlerBehavior
+    internal sealed class CommandHandler<TCommand, TResponse> : ICommandHandler<TCommand, TResponse>
+        where TCommand : ICommand<TResponse>
     {
-        internal sealed class CommandHandler<TCommand, TResponse> : ICommandHandler<TCommand, TResponse>
-            where TCommand : ICommand<TResponse>
+        private readonly ICommandHandler<TCommand, TResponse> _innerHandler;
+        private readonly IDotNetAtlasInstrumentation _instrumentation;
+
+        public CommandHandler(
+            ICommandHandler<TCommand, TResponse> innerHandler,
+            IDotNetAtlasInstrumentation instrumentation)
         {
-            private readonly ICommandHandler<TCommand, TResponse> _innerHandler;
-            private readonly IDotNetAtlasInstrumentation _instrumentation;
-
-            public CommandHandler(
-                ICommandHandler<TCommand, TResponse> innerHandler,
-                IDotNetAtlasInstrumentation instrumentation)
-            {
-                _innerHandler = innerHandler;
-                _instrumentation = instrumentation;
-            }
-
-            public async Task<Result<TResponse>> HandleAsync(TCommand command, CancellationToken ct)
-            {
-                var commandName = typeof(TCommand).Name;
-
-                using var activity = _instrumentation.StartActivity(commandName);
-
-                var result = await _innerHandler.HandleAsync(command, ct);
-
-                if (result.IsSuccess)
-                {
-                    activity?.SetStatus(ActivityStatusCode.Ok);
-                }
-                else
-                {
-                    TraceResultFailure(activity, result);
-                }
-
-                return result;
-            }
+            _innerHandler = innerHandler;
+            _instrumentation = instrumentation;
         }
 
-        internal sealed class CommandBaseHandler<TCommand> : ICommandHandler<TCommand>
-            where TCommand : ICommand
+        public async Task<Result<TResponse>> HandleAsync(TCommand command, CancellationToken ct)
         {
-            private readonly ICommandHandler<TCommand> _innerHandler;
-            private readonly IDotNetAtlasInstrumentation _instrumentation;
+            var commandName = typeof(TCommand).Name;
 
-            public CommandBaseHandler(
-                ICommandHandler<TCommand> innerHandler,
-                IDotNetAtlasInstrumentation instrumentation)
+            using var activity = _instrumentation.StartActivity(commandName);
+
+            var result = await _innerHandler.HandleAsync(command, ct);
+
+            if (result.IsSuccess)
             {
-                _innerHandler = innerHandler;
-                _instrumentation = instrumentation;
+                activity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            else
+            {
+                TraceResultFailure(activity, result);
             }
 
-            public async Task<Result> HandleAsync(TCommand command, CancellationToken ct)
-            {
-                var commandName = typeof(TCommand).Name;
+            return result;
+        }
+    }
 
-                using var activity = _instrumentation.StartActivity(commandName);
+    internal sealed class CommandBaseHandler<TCommand> : ICommandHandler<TCommand>
+        where TCommand : ICommand
+    {
+        private readonly ICommandHandler<TCommand> _innerHandler;
+        private readonly IDotNetAtlasInstrumentation _instrumentation;
 
-                var result = await _innerHandler.HandleAsync(command, ct);
-
-                if (result.IsSuccess)
-                {
-                    activity?.SetStatus(ActivityStatusCode.Ok);
-                }
-                else
-                {
-                    TraceResultFailure(activity, result);
-                }
-
-                return result;
-            }
+        public CommandBaseHandler(
+            ICommandHandler<TCommand> innerHandler,
+            IDotNetAtlasInstrumentation instrumentation)
+        {
+            _innerHandler = innerHandler;
+            _instrumentation = instrumentation;
         }
 
-        internal sealed class QueryHandler<TQuery, TResponse> : IQueryHandler<TQuery, TResponse>
-            where TQuery : IQuery<TResponse>
+        public async Task<Result> HandleAsync(TCommand command, CancellationToken ct)
         {
-            private readonly IQueryHandler<TQuery, TResponse> _innerHandler;
-            private readonly IDotNetAtlasInstrumentation _instrumentation;
+            var commandName = typeof(TCommand).Name;
 
-            public QueryHandler(
-                IQueryHandler<TQuery, TResponse> innerHandler,
-                IDotNetAtlasInstrumentation instrumentation)
+            using var activity = _instrumentation.StartActivity(commandName);
+
+            var result = await _innerHandler.HandleAsync(command, ct);
+
+            if (result.IsSuccess)
             {
-                _innerHandler = innerHandler;
-                _instrumentation = instrumentation;
+                activity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            else
+            {
+                TraceResultFailure(activity, result);
             }
 
-            public async Task<Result<TResponse>> HandleAsync(TQuery query, CancellationToken ct)
-            {
-                var queryName = typeof(TQuery).Name;
-
-                using var activity = _instrumentation.StartActivity(queryName);
-
-                var result = await _innerHandler.HandleAsync(query, ct);
-
-                if (result.IsSuccess)
-                {
-                    activity?.SetStatus(ActivityStatusCode.Ok);
-                }
-                else
-                {
-                    TraceResultFailure(activity, result);
-                }
-
-                return result;
-            }
+            return result;
         }
+    }
 
-        private static void TraceResultFailure(Activity? activity, ResultBase result)
+    internal sealed class QueryHandler<TQuery, TResponse> : IQueryHandler<TQuery, TResponse>
+        where TQuery : IQuery<TResponse>
+    {
+        private readonly IQueryHandler<TQuery, TResponse> _innerHandler;
+        private readonly IDotNetAtlasInstrumentation _instrumentation;
+
+        public QueryHandler(
+            IQueryHandler<TQuery, TResponse> innerHandler,
+            IDotNetAtlasInstrumentation instrumentation)
         {
-            activity?.SetTag("domain.error", true);
-            activity?.SetTag("domain.error.count", result.Errors.Count);
-
-            if (activity?.IsAllDataRequested == true)
-            {
-                var detailsJson = BuildErrorDetailsJson(result);
-
-                activity?.AddEvent(new ActivityEvent(
-                    "Domain error",
-                    tags: new ActivityTagsCollection
-                    {
-                        ["error.count"] = result.Errors.Count,
-                        ["error.details"] = detailsJson
-                    }));
-            }
+            _innerHandler = innerHandler;
+            _instrumentation = instrumentation;
         }
 
-        private static string BuildErrorDetailsJson(ResultBase result)
+        public async Task<Result<TResponse>> HandleAsync(TQuery query, CancellationToken ct)
         {
-            var items = result.Errors
-                .Select(err => new
-                {
-                    code = err is DomainError de ? de.ErrorCode : null,
-                    message = err.Message
-                })
-                .ToList();
+            var queryName = typeof(TQuery).Name;
 
-            return JsonSerializer.Serialize(items);
+            using var activity = _instrumentation.StartActivity(queryName);
+
+            var result = await _innerHandler.HandleAsync(query, ct);
+
+            if (result.IsSuccess)
+            {
+                activity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            else
+            {
+                TraceResultFailure(activity, result);
+            }
+
+            return result;
         }
+    }
+
+    private static void TraceResultFailure(Activity? activity, ResultBase result)
+    {
+        activity?.SetTag("domain.error", true);
+        activity?.SetTag("domain.error.count", result.Errors.Count);
+
+        if (activity?.IsAllDataRequested == true)
+        {
+            var detailsJson = BuildErrorDetailsJson(result);
+
+            activity?.AddEvent(new ActivityEvent(
+                "Domain error",
+                tags: new ActivityTagsCollection
+                {
+                    ["error.count"] = result.Errors.Count,
+                    ["error.details"] = detailsJson
+                }));
+        }
+    }
+
+    private static string BuildErrorDetailsJson(ResultBase result)
+    {
+        var items = result.Errors
+            .Select(err => new
+            {
+                code = err is DomainError de ? de.ErrorCode : null,
+                message = err.Message
+            })
+            .ToList();
+
+        return JsonSerializer.Serialize(items);
     }
 }

@@ -1,7 +1,6 @@
-﻿namespace DotNetAtlas.Api.Common.Authentication
+﻿namespace DotNetAtlas.Api.Common.Authentication;
+
+internal static class AuthPolicies
 {
-    public static class AuthPolicies
-    {
-        public const string DEV_ONLY = "DevOnlyPolicy";
-    }
+    public const string DevOnly = "DevOnlyPolicy";
 }

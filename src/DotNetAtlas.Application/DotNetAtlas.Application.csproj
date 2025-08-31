@@ -11,10 +11,6 @@
 
     <ItemGroup>
         <PackageReference Include="FastEndpoints.Attributes" Version="$(FastEndpointsVersion)"/>
-        <PackageReference Include="FastEndpoints.Generator" Version="$(FastEndpointsVersion)">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
         <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" Version="9.2.0"/>
         <PackageReference Include="FluentValidation" Version="12.0.0" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0"/>
@@ -26,5 +22,9 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="DotNetAtlas.Application.IntegrationTests" />
     </ItemGroup>
 </Project>

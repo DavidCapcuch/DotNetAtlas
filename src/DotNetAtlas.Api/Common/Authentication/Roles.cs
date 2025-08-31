@@ -1,7 +1,6 @@
-﻿namespace DotNetAtlas.Api.Common.Authentication
+﻿namespace DotNetAtlas.Api.Common.Authentication;
+
+internal static class Roles
 {
-    public static class Roles
-    {
-        public const string DEVELOPER = "Developer";
-    }
+    public const string Developer = "Developer";
 }

@@ -1,9 +1,8 @@
-﻿namespace DotNetAtlas.Api.Common.Authentication
+﻿namespace DotNetAtlas.Api.Common.Authentication;
+
+internal static class SecuritySchemes
 {
-    public static class SecuritySchemes
-    {
-        public const string BEARER = "Bearer";
-        public const string OIDC = "oidc";
-        public const string O_AUTH2 = "OAuth2";
-    }
+    public const string Bearer = "Bearer";
+    public const string Oidc = "oidc";
+    public const string OAuth2 = "OAuth2";
 }
