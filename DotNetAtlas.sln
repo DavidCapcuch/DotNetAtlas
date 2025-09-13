@@ -4,12 +4,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		NuGet.config = NuGet.config
 		.editorconfig = .editorconfig
-		Directory.Build.AppInfo.props = Directory.Build.AppInfo.props
-		Directory.Build.Dependencies.props = Directory.Build.Dependencies.props
-		Dockerfile = Dockerfile
+		Directory.Packages.props = Directory.Packages.props
 		docker-compose.yaml = docker-compose.yaml
 		Directory.Build.props = Directory.Build.props
 		src\fusionauth\kickstart.json = src\fusionauth\kickstart.json
+		global.json = global.json
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetAtlas.Api", "src\DotNetAtlas.Api\DotNetAtlas.Api.csproj", "{DBBC00B0-A61A-4741-B87A-960F08A4426F}"
