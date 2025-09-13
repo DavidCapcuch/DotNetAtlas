@@ -5,10 +5,14 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Ardalis.SmartEnum.SystemTextJson"/>
         <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer" />
         <PackageReference Include="Bogus" />
         <PackageReference Include="Scrutor" />
@@ -42,6 +46,11 @@
         <PackageReference Include="SerilogTracing" />
         <PackageReference Include="SerilogTracing.Expressions" />
         <PackageReference Include="Elastic.Serilog.Enrichers.Web" />
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>

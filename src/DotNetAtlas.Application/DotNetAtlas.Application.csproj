@@ -17,6 +17,11 @@
         <PackageReference Include="Riok.Mapperly" />
         <PackageReference Include="Serilog.AspNetCore" />
         <PackageReference Include="Scrutor" />
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>

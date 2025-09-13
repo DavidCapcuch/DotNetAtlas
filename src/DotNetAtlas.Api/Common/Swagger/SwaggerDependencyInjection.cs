@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
-using DotNetAtlas.Api.Common.Authentication;
+using DotNetAtlas.Infrastructure.Common.Authentication;
+using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Config;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
