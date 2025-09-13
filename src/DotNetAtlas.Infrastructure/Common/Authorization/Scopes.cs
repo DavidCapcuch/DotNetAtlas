@@ -1,14 +1,8 @@
-﻿using Ardalis.SmartEnum;
+using Ardalis.SmartEnum;
 
-namespace DotNetAtlas.Api.Common.Authentication;
+namespace DotNetAtlas.Infrastructure.Common.Authorization;
 
-/// <summary>
-/// Bunch of scopes.
-/// </summary>
-/// <remarks>
-/// Be aware that scopes are case-sensitive, and you have to specify them exactly as they were defined and specified at Rights.
-/// </remarks>
-internal class Scopes : SmartEnum<Scopes>
+public class Scopes : SmartEnum<Scopes>
 {
     public static readonly Scopes Email = new("openid", "OpenID", 0, "OpenID.");
 

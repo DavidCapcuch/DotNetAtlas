@@ -1,8 +1,8 @@
-﻿namespace DotNetAtlas.Api.Common.Authentication;
+namespace DotNetAtlas.Infrastructure.Common.Authentication;
 
-internal static class AuthConfigSections
+public static class AuthConfigSections
 {
-    internal static class Full
+    public static class Full
     {
         public const string JwtBearer = $"{Parts.Authentication}:{Parts.JwtBearer}";
 
@@ -10,7 +10,7 @@ internal static class AuthConfigSections
         public const string OAuthConfig = $"{Parts.Swagger}:{Parts.OAuthConfig}";
     }
 
-    private static class Parts
+    public static class Parts
     {
         public const string Authentication = "Authentication";
         public const string JwtBearer = "JwtBearer";

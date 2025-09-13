@@ -1,7 +1,7 @@
 using System.Reflection;
 using DotNetAtlas.Api;
 using DotNetAtlas.Api.Common;
-using DotNetAtlas.Api.Common.Authentication;
+using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Api.Common.Swagger;
@@ -10,7 +10,6 @@ using DotNetAtlas.Application.Common;
 using DotNetAtlas.Infrastructure.Common;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using FastEndpoints;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
 using DiscoveredTypes = DotNetAtlas.Api.DiscoveredTypes;
 
@@ -45,47 +44,14 @@ try
         builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
     }
 
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme,
-            options =>
-            {
-                builder.Configuration.Bind(AuthConfigSections.Full.JwtBearer, options);
-            })
-        .AddOpenIdConnect(SecuritySchemes.Oidc, options =>
-        {
-            builder.Configuration.Bind(AuthConfigSections.Full.OAuthConfig, options);
-            foreach (var scope in Scopes.List)
-            {
-                options.Scope.Add(scope.Name);
-            }
-        });
-
-    builder.Services.AddAuthorizationBuilder()
-        .AddPolicy(AuthPolicies.DevOnly, policy =>
-        {
-            policy.RequireAuthenticatedUser();
-            policy.RequireRole(Roles.Developer);
-        });
-
-    builder.Services.AddCors(options =>
-    {
-        options.AddPolicy("AllowAnyOrigin", policy =>
-        {
-            policy
-                .AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        });
-    });
-
     builder.Services.AddFastEndpoints(options =>
         {
             options.SourceGeneratorDiscoveredTypes.AddRange(DiscoveredTypes.All);
         })
         .AddAuthSwaggerDocument(builder);
     builder.Services.AddOutputCache();
+    builder.Services.AddCorsInternal(builder.Configuration);
 
-    builder.Services.AddHttpContextAccessor();
     builder.Services.AddRazorPages();
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration, isClusterEnvironment);
@@ -117,11 +83,11 @@ try
     if (isClusterEnvironment)
     {
         app.UseHttpsRedirection();
-        app.UseHsts();
+        app.UseSecurityHeaders();
     }
 
     app.UseRouting();
-    app.UseCors("AllowAnyOrigin");
+    app.UseCors(CorsPolicyOptions.DefaultCorsPolicyName);
     app.UseOutputCache();
     app.UseAuthentication();
     app.UseRequestContextTelemetry();

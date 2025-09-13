@@ -1,6 +1,8 @@
 using AspNetCore.SignalR.OpenTelemetry;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Infrastructure.Common.Authentication;
+using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.Common.Observability;
 using DotNetAtlas.Infrastructure.Persistence.Database;
@@ -8,6 +10,7 @@ using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using Elastic.Serilog.Enrichers.Web;
 using EntityFramework.Exceptions.SqlServer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -38,12 +41,15 @@ public static class InfrastructureDependencyInjection
             .Bind(configuration.GetSection(ApplicationOptions.Section));
 
         services.AddObservability(isClusterEnvironment, configuration);
+        services.AddAuthenticationInternal(configuration, isClusterEnvironment);
+        services.AddAuthorizationInternal();
         services.AddDatabase(configuration);
 
         return services;
     }
 
-    public static WebApplicationBuilder UseSerilogConfiguration(this WebApplicationBuilder builder, bool isClusterEnvironment)
+    public static WebApplicationBuilder UseSerilogConfiguration(this WebApplicationBuilder builder,
+        bool isClusterEnvironment)
     {
         builder.Host.UseSerilog((context, services, configuration) =>
         {
@@ -63,16 +69,16 @@ public static class InfrastructureDependencyInjection
             else
             {
                 configuration.WriteTo.Async(sinkConf => sinkConf.Console(new ExpressionTemplate(
-                            "[{@t:HH:mm:ss} {@l:u3}] " +
-                            "[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1)}] " +
-                            "{#if IsRootSpan()}\u2514\u2500 {#else if IsSpan()}\u251c {#else if @sp is not null}\u2502 {#end}" +
-                            "{@m}" +
-                            "{#if IsSpan()} ({Milliseconds(Elapsed()):0.###} ms){#end}" +
-                            "\n" +
-                            "{@x}",
-                            theme: TemplateTheme.Code,
-                            nameResolver: new TracingNameResolver()))
-                        .WriteTo.Seq("http://localhost:5341"));
+                        "[{@t:HH:mm:ss} {@l:u3}] " +
+                        "[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1)}] " +
+                        "{#if IsRootSpan()}\u2514\u2500 {#else if IsSpan()}\u251c {#else if @sp is not null}\u2502 {#end}" +
+                        "{@m}" +
+                        "{#if IsSpan()} ({Milliseconds(Elapsed()):0.###} ms){#end}" +
+                        "\n" +
+                        "{@x}",
+                        theme: TemplateTheme.Code,
+                        nameResolver: new TracingNameResolver()))
+                    .WriteTo.Seq("http://localhost:5341"));
             }
         });
 
@@ -138,7 +144,7 @@ public static class InfrastructureDependencyInjection
                                     InfrastructureContants.HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
                                 && !context.Request.Path.StartsWithSegments(
                                     InfrastructureContants
-                                    .ReadinessEndpointPath,
+                                        .ReadinessEndpointPath,
                                     StringComparison.OrdinalIgnoreCase);
                         })
                         .AddHttpClientInstrumentation(options => options.RecordException = true)
@@ -164,6 +170,50 @@ public static class InfrastructureDependencyInjection
                     metrics.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 });
         }
+
+        return services;
+    }
+
+    private static IServiceCollection AddAuthenticationInternal(this IServiceCollection services,
+        IConfiguration configuration,
+        bool isClusterEnvironment)
+    {
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                configuration.Bind(AuthConfigSections.Full.JwtBearer, options);
+                if (isClusterEnvironment)
+                {
+                    options.RequireHttpsMetadata = true;
+                }
+            })
+            .AddOpenIdConnect(SecuritySchemes.Oidc, options =>
+            {
+                configuration.Bind(AuthConfigSections.Full.OAuthConfig, options);
+                foreach (var scope in Scopes.List)
+                {
+                    options.Scope.Add(scope.Name);
+                }
+
+                if (isClusterEnvironment)
+                {
+                    options.RequireHttpsMetadata = true;
+                }
+            });
+        services.AddHttpContextAccessor();
+
+        return services;
+    }
+
+    private static IServiceCollection AddAuthorizationInternal(this IServiceCollection services)
+    {
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AuthPolicies.DevOnly, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(Roles.Developer);
+            });
 
         return services;
     }

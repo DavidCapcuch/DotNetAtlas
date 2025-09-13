@@ -1,6 +1,6 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using DotNetAtlas.Api.Common.Authentication;
+using DotNetAtlas.Infrastructure.Common.Authorization;
 
 namespace DotNetAtlas.Api.FunctionalTests.Base;
 
@@ -13,7 +13,10 @@ internal static class FakeTokenCreator
     public static string GetAdminUserToken()
     {
         const string userName = "dev@dotnetatlas.com";
-        var roles = new[] { Roles.Developer };
+        var roles = new[]
+        {
+            Roles.Developer
+        };
 
         return CreateToken(userName, roles);
     }
