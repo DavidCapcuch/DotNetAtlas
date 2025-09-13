@@ -1,11 +1,4 @@
 <Project>
-    <Import Project="Directory.Build.AppInfo.props"/>
-    <Import Project="Directory.Build.Dependencies.props"/>
-
-    <PropertyGroup>
-        <Description>DotNetAtlas</Description>
-    </PropertyGroup>
-
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <LangVersion>latest</LangVersion>
@@ -19,4 +12,11 @@
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     </PropertyGroup>
+    
+    <ItemGroup Condition="'$(MSBuildProjectExtension)' != '.dcproj'">
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
 </Project>

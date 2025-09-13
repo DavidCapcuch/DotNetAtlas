@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -6,22 +6,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="FastEndpoints.Attributes" Version="$(FastEndpointsVersion)"/>
-        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" Version="9.2.0"/>
-        <PackageReference Include="FluentValidation" Version="12.0.0" />
-        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0"/>
-        <PackageReference Include="Riok.Mapperly" Version="4.2.1"/>
-        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0"/>
-        <PackageReference Include="Scrutor" Version="6.1.0"/>
-
-        <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
+        <PackageReference Include="FastEndpoints.Attributes" />
+        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" />
+        <PackageReference Include="FluentValidation" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+        <PackageReference Include="Riok.Mapperly" />
+        <PackageReference Include="Serilog.AspNetCore" />
+        <PackageReference Include="Scrutor" />
     </ItemGroup>
 
     <ItemGroup>
