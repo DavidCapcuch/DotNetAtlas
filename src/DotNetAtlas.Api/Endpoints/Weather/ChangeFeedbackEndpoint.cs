@@ -10,8 +10,7 @@ internal class ChangeFeedbackEndpoint : Endpoint<ChangeFeedbackCommand>
 {
     private readonly Application.Common.CQS.ICommandHandler<ChangeFeedbackCommand> _changeFeedbackHandler;
 
-    public ChangeFeedbackEndpoint(
-        Application.Common.CQS.ICommandHandler<ChangeFeedbackCommand> changeFeedbackHandler)
+    public ChangeFeedbackEndpoint(Application.Common.CQS.ICommandHandler<ChangeFeedbackCommand> changeFeedbackHandler)
     {
         _changeFeedbackHandler = changeFeedbackHandler;
     }

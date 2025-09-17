@@ -365,6 +365,9 @@ dotnet_diagnostic.SA1516.severity = none
 # SA1501: Line break lambdas
 dotnet_diagnostic.SA1501.severity = none
 
+# SA1602: Enumeration items should be documented
+dotnet_diagnostic.SA1602.severity = none
+
 # SA1623: The property's documentation summary text should begin with: 'Gets or sets'
 dotnet_diagnostic.SA1623.severity = none
 
@@ -385,6 +388,9 @@ dotnet_diagnostic.SA1116.severity = none
 
 # SA1117: Prefix local calls with this
 dotnet_diagnostic.SA1117.severity = none
+
+# SA1136: Enum values should be on separate lines
+dotnet_diagnostic.SA1136.severity = none
 
 # SA1615: Element return value should be documented
 dotnet_diagnostic.SA1615.severity = none

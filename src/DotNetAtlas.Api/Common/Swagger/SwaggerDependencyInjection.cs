@@ -16,7 +16,7 @@ internal static class SwaggerDependencyInjection
 {
     public static IServiceCollection AddAuthSwaggerDocument(
         this IServiceCollection services,
-        WebApplicationBuilder builder)
+        ConfigurationManager configuration)
     {
         services.SwaggerDocument(options =>
         {
@@ -41,12 +41,12 @@ internal static class SwaggerDependencyInjection
                     new AuthDescriptionOperationProcessor(
                         options.Services.GetRequiredService<IAuthorizationPolicyProvider>()));
 
-                var openApiInfo = builder.Configuration
+                var openApiInfo = configuration
                     .GetRequiredSection(AuthConfigSections.Full.OpenApiInfo)
                     .Get<OpenApiInfo>()!;
                 settings.PostProcess = document => document.Info = openApiInfo;
 
-                var jwtBearerOptions = builder.Configuration
+                var jwtBearerOptions = configuration
                     .GetRequiredSection(AuthConfigSections.Full.JwtBearer)
                     .Get<JwtBearerOptions>()!;
 
