@@ -2,7 +2,6 @@ using System.Reflection;
 using DotNetAtlas.Api;
 using DotNetAtlas.Api.Common;
 using DotNetAtlas.Api.Common.Config;
-using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Api.Common.Swagger;
 using DotNetAtlas.Api.Endpoints;
@@ -11,7 +10,6 @@ using DotNetAtlas.Infrastructure.Common;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using FastEndpoints;
 using Serilog;
-using DiscoveredTypes = DotNetAtlas.Api.DiscoveredTypes;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -44,28 +42,10 @@ try
         builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
     }
 
-    builder.Services.AddFastEndpoints(options =>
-        {
-            options.SourceGeneratorDiscoveredTypes.AddRange(DiscoveredTypes.All);
-        })
-        .AddAuthSwaggerDocument(builder);
     builder.Services.AddOutputCache();
-    builder.Services.AddCorsInternal(builder.Configuration);
-
-    builder.Services.AddRazorPages();
-    builder.Services.AddApplication();
+    builder.AddPresentation();
+    builder.Services.AddApplication(builder.Configuration);
     builder.Services.AddInfrastructure(builder.Configuration, isClusterEnvironment);
-
-    builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-
-    if (builder.Environment.IsProduction())
-    {
-        builder.Services.AddProblemDetails();
-    }
-    else
-    {
-        builder.Services.AddProblemDetailsWithExceptions();
-    }
 
     var app = builder.Build();
 

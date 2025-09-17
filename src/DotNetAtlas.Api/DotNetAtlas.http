@@ -17,7 +17,7 @@ scope = {{Auth_Scopes}}
 
 ###
 # @name GetForecasts
-GET {{AppHostAddress}}/api/v1/weather/forecast?days=5
+GET {{AppHostAddress}}/api/v1/weather/forecast?days=5&city=Prague&countryCode=Cz
 
 ###
 # @name GetFeedbackById

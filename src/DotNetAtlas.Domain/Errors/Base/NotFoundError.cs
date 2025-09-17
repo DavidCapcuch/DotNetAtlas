@@ -7,7 +7,7 @@ public class NotFoundError : DomainError
     public object Id { get; }
 
     public NotFoundError(string entityName, object id, string errorCode)
-        : base($"'{entityName}' with id '{id}' not found.", errorCode)
+        : base($"'{entityName}' '{id}' not found.", errorCode)
     {
         EntityName = entityName;
         Id = id;

@@ -1,0 +1,59 @@
+using AwesomeAssertions;
+using AwesomeAssertions.Execution;
+using DotNetAtlas.Application.Forecast.GetForecasts;
+using DotNetAtlas.Application.Forecast.Services.Requests;
+using DotNetAtlas.Domain.Errors.Base;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
+using DotNetAtlas.IntegrationTests.Base;
+using FluentResults.Extensions.FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace DotNetAtlas.IntegrationTests.Infrastructure.Weather;
+
+[Collection<CollectionA>]
+public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
+{
+    private readonly OpenMeteoWeatherProvider _provider;
+
+    public OpenMeteoWeatherProviderIntegrationTests(IntegrationTestFixture app, ITestOutputHelper output)
+        : base(app, output)
+    {
+        _provider = Scope.ServiceProvider.GetRequiredService<OpenMeteoWeatherProvider>();
+    }
+
+    [Fact]
+    public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
+    {
+        // Arrange
+        var forecastRequest = new ForecastRequest("Prague", CountryCode.Cz, 1);
+
+        // Act
+        var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            forecastResult.Should().BeSuccess();
+            forecastResult.Value.Should().ContainSingle();
+        }
+    }
+
+    [Fact]
+    public async Task WhenAskedForForecastWithNonExistentCity_ReturnsCityNotFoundError()
+    {
+        // Arrange
+        var forecastRequest = new ForecastRequest("asdfasdfsasdfsadsf", CountryCode.Cz, 1);
+
+        // Act
+        var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            forecastResult.Should().BeFailure();
+            forecastResult.Errors.Should().ContainSingle();
+            var error = forecastResult.Errors[0];
+            error.Should().BeAssignableTo<NotFoundError>();
+        }
+    }
+}

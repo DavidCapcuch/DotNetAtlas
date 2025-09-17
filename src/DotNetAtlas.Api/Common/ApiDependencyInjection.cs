@@ -1,4 +1,7 @@
 ﻿using DotNetAtlas.Api.Common.Config;
+using DotNetAtlas.Api.Common.Exceptions;
+using DotNetAtlas.Api.Common.Swagger;
+using FastEndpoints;
 using FastEndpoints.ClientGen.Kiota;
 using Kiota.Builder;
 
@@ -30,7 +33,31 @@ public static class ApiDependencyInjection
         }
     }
 
-    public static IServiceCollection AddCorsInternal(this IServiceCollection services, IConfiguration configuration)
+    public static WebApplicationBuilder AddPresentation(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddFastEndpoints(options =>
+            {
+                options.SourceGeneratorDiscoveredTypes.AddRange(DiscoveredTypes.All);
+            })
+            .AddAuthSwaggerDocument(builder.Configuration);
+
+        builder.Services.AddCorsInternal(builder.Configuration);
+        builder.Services.AddRazorPages();
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+        if (builder.Environment.IsProduction())
+        {
+            builder.Services.AddProblemDetails();
+        }
+        else
+        {
+            builder.Services.AddProblemDetailsWithExceptions();
+        }
+
+        return builder;
+    }
+
+    private static IServiceCollection AddCorsInternal(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<CorsPolicyOptions>()
             .Bind(configuration.GetSection(CorsPolicyOptions.Section));
@@ -47,8 +74,12 @@ public static class ApiDependencyInjection
                 }
                 else
                 {
-                    policy.WithOrigins(corsOptions.AllowedOrigins)
-                        .SetIsOriginAllowedToAllowWildcardSubdomains();
+                    policy.WithOrigins(corsOptions.AllowedOrigins);
+
+                    if (corsOptions.AllowWildcardSubdomains)
+                    {
+                        policy.SetIsOriginAllowedToAllowWildcardSubdomains();
+                    }
                 }
 
                 if (corsOptions.AllowCredentials)
@@ -74,8 +105,7 @@ public static class ApiDependencyInjection
                     policy.WithHeaders(corsOptions.AllowedHeaders);
                 }
 
-                if (corsOptions.ExposedHeaders is { Length: > 0 } &&
-                    corsOptions.ExposedHeaders.Contains("*"))
+                if (corsOptions.ExposedHeaders is { Length: > 0 })
                 {
                     policy.WithExposedHeaders(corsOptions.ExposedHeaders);
                 }
