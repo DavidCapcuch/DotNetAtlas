@@ -150,7 +150,7 @@
                 }
               ]
             },
-            "example": 55
+            "example": 0
           },
           {
             "name": "userId",
@@ -330,6 +330,9 @@
         "type": "string",
         "description": "",
         "x-enumNames": [
+          "Cz",
+          "Us",
+          "Gb",
           "Ad",
           "Ae",
           "Af",
@@ -385,7 +388,6 @@
           "Cw",
           "Cx",
           "Cy",
-          "Cz",
           "De",
           "Dj",
           "Dk",
@@ -406,7 +408,6 @@
           "Fo",
           "Fr",
           "Ga",
-          "Gb",
           "Gd",
           "Ge",
           "Gf",
@@ -562,7 +563,6 @@
           "Ua",
           "Ug",
           "Um",
-          "Us",
           "Uy",
           "Uz",
           "Va",
@@ -581,6 +581,9 @@
           "Zw"
         ],
         "enum": [
+          "Cz",
+          "Us",
+          "Gb",
           "Ad",
           "Ae",
           "Af",
@@ -636,7 +639,6 @@
           "Cw",
           "Cx",
           "Cy",
-          "Cz",
           "De",
           "Dj",
           "Dk",
@@ -657,7 +659,6 @@
           "Fo",
           "Fr",
           "Ga",
-          "Gb",
           "Gd",
           "Ge",
           "Gf",
@@ -813,7 +814,6 @@
           "Ua",
           "Ug",
           "Um",
-          "Us",
           "Uy",
           "Uz",
           "Va",

@@ -1,7 +1,7 @@
 using Ardalis.Specification.EntityFrameworkCore;
 using AwesomeAssertions.Execution;
 using DotNetAtlas.Application.Common.Specifications;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using FluentAssertions;
 
 namespace DotNetAtlas.UnitTests.Specifications;

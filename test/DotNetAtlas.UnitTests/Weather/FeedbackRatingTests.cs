@@ -1,6 +1,6 @@
 using AwesomeAssertions;
 using AwesomeAssertions.Execution;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using DotNetAtlas.Domain.Errors.Base;
 using FluentResults.Extensions.FluentAssertions;
 

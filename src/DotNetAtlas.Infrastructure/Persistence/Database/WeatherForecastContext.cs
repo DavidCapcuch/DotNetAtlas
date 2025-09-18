@@ -1,5 +1,5 @@
 ﻿using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.Infrastructure.Persistence.Database;

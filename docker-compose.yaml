@@ -1,6 +1,6 @@
 ﻿services:
   mssqldb:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
     container_name: mssql12345
     restart: always
     environment:
@@ -11,8 +11,24 @@
     volumes:
       - sqlserver_data:/var/opt/mssql
 
+  redis:
+    image: redis:7.4.2
+    container_name: redis12346
+    restart: always
+    ports:
+      - "12346:6379"
+    command: [ "redis-server", "--appendonly", "yes" ]
+
+  redis-insight:
+    image: redis/redisinsight:2.70
+    restart: always
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight:/data
+
   seq:
-    image: datalust/seq:latest
+    image: datalust/seq:2025.2
     container_name: seq5341
     ports:
       - "5341:80"
@@ -182,7 +198,7 @@
       - search_net
 
   fusionauth:
-    image: fusionauth/fusionauth-app:latest
+    image: fusionauth/fusionauth-app:1.60.0
     depends_on:
       db:
         condition: service_healthy
@@ -220,6 +236,7 @@ volumes:
   sqlserver_data:
   elasticsearch-data:
   seq_data:
+  redis-insight:
   db_data:
   fusionauth_config:
   search_data:

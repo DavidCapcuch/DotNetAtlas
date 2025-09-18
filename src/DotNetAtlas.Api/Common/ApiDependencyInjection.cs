@@ -27,7 +27,7 @@ public static class ApiDependencyInjection
                 },
                 options =>
                 {
-                    options.CacheOutput(p => p.Expire(TimeSpan.FromDays(365)));
+                    options.CacheOutput(p => p.Expire(TimeSpan.FromDays(1)));
                     options.ExcludeFromDescription();
                 });
         }

@@ -14,9 +14,12 @@
         <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" />
         <PackageReference Include="FluentValidation" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+        <PackageReference Include="MemoryPack.Core" />
         <PackageReference Include="Riok.Mapperly" />
         <PackageReference Include="Serilog.AspNetCore" />
         <PackageReference Include="Scrutor" />
+        <PackageReference Include="ZiggyCreatures.FusionCache" />
+        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack" />
 
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>

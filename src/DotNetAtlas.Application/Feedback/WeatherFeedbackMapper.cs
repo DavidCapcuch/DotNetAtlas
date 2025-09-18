@@ -1,5 +1,5 @@
 ﻿using DotNetAtlas.Application.Feedback.GetFeedback;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using Riok.Mapperly.Abstractions;
 
 namespace DotNetAtlas.Application.Feedback;

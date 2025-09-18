@@ -1,8 +1,7 @@
 using AwesomeAssertions;
 using AwesomeAssertions.Execution;
-using DotNetAtlas.Application.Forecast.GetForecasts;
 using DotNetAtlas.Application.Forecast.Services.Requests;
-using DotNetAtlas.Domain.Errors.Base;
+using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
 using DotNetAtlas.IntegrationTests.Base;
 using FluentResults.Extensions.FluentAssertions;

@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -34,6 +35,9 @@ using Serilog.Exceptions.EntityFrameworkCore.Destructurers;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
 using SerilogTracing.Expressions;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
+using ZiggyCreatures.Caching.Fusion.Serialization.CysharpMemoryPack;
 
 namespace DotNetAtlas.Infrastructure.Common;
 
@@ -53,6 +57,7 @@ public static class InfrastructureDependencyInjection
         services.AddAuthenticationInternal(configuration, isClusterEnvironment);
         services.AddAuthorizationInternal();
         services.AddDatabase(configuration);
+        services.AddCache(configuration);
         services.AddWeatherApiClients(configuration);
 
         return services;
@@ -126,7 +131,8 @@ public static class InfrastructureDependencyInjection
             .AddAsKeyed();
 
         services.AddKeyedScoped<IGeocodingService, OpenMeteoGeocodingService>(OpenMeteoGeocodingService.ServiceKey);
-        services.AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
+        services
+            .AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
         services.AddScoped<IMainWeatherForecastProvider, OpenMeteoWeatherProvider>();
         services.AddScoped<IWeatherForecastProvider, OpenMeteoWeatherProvider>();
         services.AddScoped<IWeatherForecastProvider, WeatherApiComProvider>();
@@ -170,6 +176,64 @@ public static class InfrastructureDependencyInjection
         });
 
         return builder;
+    }
+
+    private static IServiceCollection AddCache(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptionsWithValidateOnStart<DefaultCacheOptions>()
+            .Bind(configuration.GetSection(DefaultCacheOptions.Section));
+        var defaultCacheOptions =
+            configuration.GetRequiredSection(DefaultCacheOptions.Section)
+                .Get<DefaultCacheOptions>()!;
+
+        // App cache
+        services.AddFusionCache()
+            .WithOptions(options =>
+            {
+                options.DistributedCacheCircuitBreakerDuration =
+                    TimeSpan.FromSeconds(defaultCacheOptions.DistributedCacheCircuitBreakerSeconds);
+                options.IncludeTagsInLogs = defaultCacheOptions.IncludeTagsInLogs;
+                options.IncludeTagsInTraces = defaultCacheOptions.IncludeTagsInTraces;
+                options.IncludeTagsInMetrics = defaultCacheOptions.IncludeTagsInMetrics;
+            })
+            .WithDefaultEntryOptions(options =>
+            {
+                options.Duration = TimeSpan.FromMinutes(defaultCacheOptions.DefaultDurationMinutes);
+
+                options.FactorySoftTimeout = TimeSpan.FromMilliseconds(defaultCacheOptions.FactorySoftTimeoutMs);
+                options.FactoryHardTimeout = TimeSpan.FromMilliseconds(defaultCacheOptions.FactoryHardTimeoutMs);
+
+                options.DistributedCacheSoftTimeout =
+                    TimeSpan.FromSeconds(defaultCacheOptions.DistributedCacheSoftTimeoutSeconds);
+                options.DistributedCacheHardTimeout =
+                    TimeSpan.FromSeconds(defaultCacheOptions.DistributedCacheHardTimeoutSeconds);
+
+                options.AllowBackgroundDistributedCacheOperations =
+                    defaultCacheOptions.AllowBackgroundDistributedCacheOperations;
+                options.AllowBackgroundBackplaneOperations = defaultCacheOptions.AllowBackgroundBackplaneOperations;
+                options.JitterMaxDuration = TimeSpan.FromSeconds(defaultCacheOptions.JitterMaxDurationSeconds);
+            })
+            .WithSerializer(
+                new FusionCacheCysharpMemoryPackSerializer()
+            )
+            .WithDistributedCache(
+                new RedisCache(new RedisCacheOptions
+                {
+                    Configuration = configuration.GetConnectionString(ConnectionStrings.Redis)
+                })
+            )
+            .WithBackplane(
+                new RedisBackplane(new RedisBackplaneOptions
+                {
+                    Configuration = configuration.GetConnectionString(ConnectionStrings.Redis)
+                })
+            );
+
+        // Api output cache (for openapi, generated clients etc.)
+        services.AddFusionOutputCache();
+        services.AddOutputCache();
+
+        return services;
     }
 
     private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
@@ -238,6 +302,7 @@ public static class InfrastructureDependencyInjection
                         .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
                         .AddSignalRInstrumentation()
                         .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
+                        .AddFusionCacheInstrumentation()
                         .AddSource("*");
 
                     tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
@@ -248,6 +313,7 @@ public static class InfrastructureDependencyInjection
                         .AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
                         .AddRuntimeInstrumentation()
+                        .AddFusionCacheInstrumentation()
                         .AddProcessInstrumentation();
 
                     metrics.SetExemplarFilter(isClusterEnvironment
