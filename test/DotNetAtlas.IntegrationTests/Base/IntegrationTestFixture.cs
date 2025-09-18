@@ -17,6 +17,8 @@ using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using Testcontainers.MsSql;
+using Testcontainers.Redis;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace DotNetAtlas.IntegrationTests.Base;
 
@@ -29,9 +31,14 @@ public class IntegrationTestFixture : AppFixture<Program>
     private const string DATABASE = "Weather";
 
     private readonly MsSqlContainer _dbContainer = new MsSqlBuilder()
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
         .WithPassword("pass123*!QWER")
         .WithName($"TestSqlServerFixture-{Guid.NewGuid()}")
+        .Build();
+
+    private readonly RedisContainer _redisContainer = new RedisBuilder()
+        .WithImage("redis:7.4.2")
+        .WithCleanUp(true)
+        .WithName($"TestRedisFixture-{Guid.NewGuid()}")
         .Build();
 
     private string _dbContainerConnectionString = null!;
@@ -39,7 +46,9 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        await _dbContainer.StartAsync();
+        await Task.WhenAll(
+            _dbContainer.StartAsync(),
+            _redisContainer.StartAsync());
         _dbContainerConnectionString = new SqlConnectionStringBuilder(_dbContainer.GetConnectionString())
         {
             InitialCatalog = DATABASE,
@@ -90,7 +99,8 @@ public class IntegrationTestFixture : AppFixture<Program>
             {
                 configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    [$"ConnectionStrings:{ConnectionStrings.Weather}"] = _dbContainerConnectionString
+                    [$"ConnectionStrings:{ConnectionStrings.Weather}"] = _dbContainerConnectionString,
+                    [$"ConnectionStrings:{ConnectionStrings.Redis}"] = _redisContainer.GetConnectionString()
                 });
             });
     }
@@ -113,10 +123,13 @@ public class IntegrationTestFixture : AppFixture<Program>
     public async Task ResetDatabasesAsync()
     {
         await _respawner.ResetAsync(_dbContainerConnectionString);
+        var cache = Services.GetRequiredService<IFusionCache>();
+        await cache.ClearAsync(false);
     }
 
     protected override async ValueTask TearDownAsync()
     {
         await _dbContainer.DisposeAsync();
+        await _redisContainer.DisposeAsync();
     }
 }

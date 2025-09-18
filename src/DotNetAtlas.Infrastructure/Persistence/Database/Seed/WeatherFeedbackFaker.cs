@@ -1,5 +1,5 @@
 ﻿using Bogus;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 
 namespace DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 

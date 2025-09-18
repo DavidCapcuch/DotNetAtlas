@@ -2,7 +2,7 @@ using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Specifications;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using DotNetAtlas.Domain.Errors;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
