@@ -42,9 +42,9 @@ public sealed class WeatherApiComGeocodingService : IGeocodingService
         var geoLocation = geoResponse?.FirstOrDefault();
         if (geoLocation is null)
         {
-            _logger.LogDebug("Couldn't resolve location by: {CityWithCountry}", cityWithCountry);
+            _logger.LogInformation("Couldn't resolve location by: {CityWithCountry}", cityWithCountry);
 
-            return Result.Fail(WeatherForecastErrors.CityNotFoundError(request.City, countryCode));
+            return Result.Fail(WeatherForecastErrors.CityNotFoundError(request.City, request.CountryCode));
         }
 
         _logger.LogDebug("Resolved location: {@GeoLocation} by: {CityWithCountry}", geoLocation, cityWithCountry);

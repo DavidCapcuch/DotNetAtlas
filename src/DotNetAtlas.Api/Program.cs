@@ -42,7 +42,6 @@ try
         builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
     }
 
-    builder.Services.AddOutputCache();
     builder.AddPresentation();
     builder.Services.AddApplication(builder.Configuration);
     builder.Services.AddInfrastructure(builder.Configuration, isClusterEnvironment);

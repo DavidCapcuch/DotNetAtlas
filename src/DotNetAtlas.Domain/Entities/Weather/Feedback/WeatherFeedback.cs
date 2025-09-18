@@ -1,6 +1,6 @@
 ﻿using DotNetAtlas.Domain.Entities.Base;
 
-namespace DotNetAtlas.Domain.Entities.Weather;
+namespace DotNetAtlas.Domain.Entities.Weather.Feedback;
 
 public sealed class WeatherFeedback : Entity<Guid>, IAuditableEntity
 {

@@ -1,10 +1,10 @@
 using AwesomeAssertions;
 using AwesomeAssertions.Execution;
 using DotNetAtlas.Application.Common.Config;
-using DotNetAtlas.Application.Forecast.GetForecasts;
 using DotNetAtlas.Application.Forecast.Services;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using DotNetAtlas.Application.Forecast.Services.Requests;
+using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.IntegrationTests.Base;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
-namespace DotNetAtlas.IntegrationTests.Infrastructure.Weather;
+namespace DotNetAtlas.IntegrationTests.Application.Weather;
 
 [Collection<CollectionA>]
 public class HedgingWeatherForecastServiceTests : BaseIntegrationTest

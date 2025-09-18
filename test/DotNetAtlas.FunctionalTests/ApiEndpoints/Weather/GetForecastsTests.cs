@@ -3,6 +3,7 @@ using AwesomeAssertions;
 using AwesomeAssertions.Execution;
 using DotNetAtlas.Api.Endpoints.Weather;
 using DotNetAtlas.Application.Forecast.GetForecasts;
+using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.FunctionalTests.Base;
 using FastEndpoints;
 

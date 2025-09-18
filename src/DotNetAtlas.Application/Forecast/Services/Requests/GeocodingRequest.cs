@@ -1,4 +1,4 @@
-using DotNetAtlas.Application.Forecast.GetForecasts;
+using DotNetAtlas.Domain.Entities.Weather.Forecast;
 
 namespace DotNetAtlas.Application.Forecast.Services.Requests;
 

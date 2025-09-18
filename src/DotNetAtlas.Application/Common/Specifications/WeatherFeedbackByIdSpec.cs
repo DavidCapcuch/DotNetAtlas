@@ -1,5 +1,5 @@
 ﻿using Ardalis.Specification;
-using DotNetAtlas.Domain.Entities.Weather;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 
 namespace DotNetAtlas.Application.Common.Specifications;
 

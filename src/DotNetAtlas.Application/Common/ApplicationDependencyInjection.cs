@@ -24,7 +24,10 @@ public static class ApplicationDependencyInjection
 
         services.AddOptionsWithValidateOnStart<WeatherHedgingOptions>()
             .Bind(configuration.GetSection(WeatherHedgingOptions.Section));
+        services.AddOptionsWithValidateOnStart<ForecastCacheOptions>()
+            .Bind(configuration.GetSection(ForecastCacheOptions.Section));
         services.AddScoped<IWeatherForecastService, HedgingWeatherForecastService>();
+        services.Decorate<IWeatherForecastService, CachedWeatherForecastService>();
         services.AddScoped<IQueryHandler<GetForecastQuery, GetForecastResponse>, GetForecastQueryHandler>();
 
         services.Decorate(typeof(ICommandHandler<,>), typeof(ValidationHandlerBehavior.CommandHandler<,>));

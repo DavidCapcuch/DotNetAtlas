@@ -36,18 +36,20 @@ public sealed class OpenMeteoGeocodingService : IGeocodingService
             $"&language=en" +
             $"&format=json", ct);
 
-        var location = geoResponse?.Results?.FirstOrDefault();
-        if (location is null)
+        var geoLocation = geoResponse?.Results?.FirstOrDefault();
+        if (geoLocation is null)
         {
-            return Result.Fail(WeatherForecastErrors.CityNotFoundError(request.City, countryCode));
+            _logger.LogInformation("Couldn't resolve location by: {City},{CountryCode}", request.City, request.CountryCode);
+
+            return Result.Fail(WeatherForecastErrors.CityNotFoundError(request.City, request.CountryCode));
         }
 
-        _logger.LogDebug("Resolved location: {@GeoLocation} by: {City},{Code}", location, request.City, countryCode);
+        _logger.LogDebug("Resolved location: {@GeoLocation} by: {City},{Code}", geoLocation, request.City, countryCode);
 
         return Result.Ok(new GeoCoordinates
         {
-            Latitude = location.Latitude,
-            Longitude = location.Longitude
+            Latitude = geoLocation.Latitude,
+            Longitude = geoLocation.Longitude
         });
     }
 }

@@ -3,7 +3,7 @@ using DotNetAtlas.Domain.Entities.Base;
 using DotNetAtlas.Domain.Errors;
 using FluentResults;
 
-namespace DotNetAtlas.Domain.Entities.Weather;
+namespace DotNetAtlas.Domain.Entities.Weather.Feedback;
 
 [ComplexType]
 public record FeedbackRating : ValueObject
