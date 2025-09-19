@@ -1,6 +1,6 @@
 ﻿namespace DotNetAtlas.Infrastructure.Common.Config;
 
-public static class InfrastructureContants
+public static class InfrastructureConstants
 {
     public const string HealthEndpointPath = "/api/healthz";
     public const string ReadinessEndpointPath = "/api/readiness";

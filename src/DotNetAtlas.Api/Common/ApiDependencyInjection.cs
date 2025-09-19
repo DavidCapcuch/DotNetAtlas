@@ -44,20 +44,14 @@ public static class ApiDependencyInjection
         builder.Services.AddCorsInternal(builder.Configuration);
         builder.Services.AddRazorPages();
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-
-        if (builder.Environment.IsProduction())
-        {
-            builder.Services.AddProblemDetails();
-        }
-        else
-        {
-            builder.Services.AddProblemDetailsWithExceptions();
-        }
+        builder.Services.AddProblemDetails();
 
         return builder;
     }
 
-    private static IServiceCollection AddCorsInternal(this IServiceCollection services, ConfigurationManager configuration)
+    private static IServiceCollection AddCorsInternal(
+        this IServiceCollection services,
+        ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<CorsPolicyOptions>()
             .Bind(configuration.GetSection(CorsPolicyOptions.Section));

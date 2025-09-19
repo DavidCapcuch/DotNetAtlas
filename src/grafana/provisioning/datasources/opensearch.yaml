@@ -7,15 +7,15 @@ datasources:
   - name: OpenSearch
     uid: webstore-logs
     type: grafana-opensearch-datasource
-    url: http://opensearch:9200/
+    url: http://search:9200/
     access: proxy
     editable: true
     isDefault: false
     jsonData:
-      database: otel
+      database: otel-logs-*
       flavor: opensearch
       logLevelField: severity.text.keyword
       logMessageField: body
       pplEnabled: true
       timeField: observedTimestamp
-      version: 2.19.0
+      version: 3.2.0

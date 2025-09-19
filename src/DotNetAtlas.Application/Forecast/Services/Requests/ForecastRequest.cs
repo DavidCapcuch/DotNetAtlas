@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using DotNetAtlas.Application.Common.Cache;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
-using MemoryPack;
 
 namespace DotNetAtlas.Application.Forecast.Services.Requests;
 

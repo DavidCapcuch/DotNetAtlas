@@ -5,9 +5,9 @@ receivers:
   otlp:
     protocols:
       grpc:
-        endpoint: otel-collector:4317
+        endpoint: 0.0.0.0:4317
       http:
-        endpoint: otel-collector:4318
+        endpoint: 0.0.0.0:4318
         cors:
           allowed_origins:
             - "http://*"
@@ -21,6 +21,8 @@ receivers:
       cpu:
         metrics:
           system.cpu.utilization:
+            enabled: true
+          system.cpu.logical.count:
             enabled: true
       disk:
       load:
@@ -65,13 +67,23 @@ receivers:
         metrics:
           system.memory.utilization:
             enabled: true
+          system.memory.limit:
+            enabled: true
       network:
       paging:
+        metrics:
+          system.paging.usage:
+            enabled: true
+
       processes:
       process:
         mute_process_exe_error: true
         mute_process_io_error: true
         mute_process_user_error: true
+      system:
+        metrics:
+          system.uptime:
+            enabled: true
 
 exporters:
   debug:
@@ -79,6 +91,13 @@ exporters:
     endpoint: "jaeger:4317"
     tls:
       insecure: true
+  opensearch:
+    logs_index: otel-logs
+    logs_index_time_format: "yyyy-MM-dd"
+    http:
+      endpoint: "http://search:9200"
+      tls:
+        insecure: true
   prometheus:
     endpoint: "0.0.0.0:8889"
     enable_open_metrics: true
@@ -95,6 +114,8 @@ processors:
       - context: span
         statements:
           - replace_pattern(name, "\\?.*", "")
+  resourcedetection:
+    detectors: [env, docker, system]
 
 connectors:
   spanmetrics:
@@ -103,16 +124,16 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, transform, batch]
+      processors: [resourcedetection, memory_limiter, transform, batch]
       exporters: [otlp, debug, spanmetrics]
     metrics:
       receivers: [hostmetrics, docker_stats, otlp, spanmetrics]
-      processors: [memory_limiter, batch]
+      processors: [resourcedetection, memory_limiter, batch]
       exporters: [prometheus, debug]
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [debug]
+      processors: [resourcedetection, memory_limiter, batch]
+      exporters: [debug, opensearch]
   telemetry:
     metrics:
       level: detailed
@@ -123,4 +144,4 @@ service:
             exporter:
               otlp:
                 protocol: http/protobuf
-                endpoint: otel-collector:4318
+                endpoint: http://otel-collector:4318
