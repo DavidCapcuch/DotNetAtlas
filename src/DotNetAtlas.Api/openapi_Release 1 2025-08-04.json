@@ -12,6 +12,81 @@
     "version": "v1"
   },
   "paths": {
+    "/api/v1/admin/clear-all-cache": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Clears all cache entries. (Auth policies:  'DevOnlyPolicy' roles: [Developer])",
+        "description": "Purges the entire cache store. Use with caution in production environments.<br/><br/>AllowFailsafe - True: logical expire only, keep for failsafe. False: remove entries for good.",
+        "operationId": "DotNetAtlasApiEndpointsAdminClearAllCacheEndpoint",
+        "requestBody": {
+          "x-name": "ClearAllCacheRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearAllCacheRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/clear-cache-by-tag/{tag}": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Removes cache entries by tag. (Auth policies:  'DevOnlyPolicy' roles: [Developer])",
+        "operationId": "DotNetAtlasApiEndpointsAdminRemoveCacheByTagEndpoint",
+        "parameters": [
+          {
+            "name": "tag",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Cz"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      }
+    },
     "/api/v1/weather/feedback/{id}": {
       "put": {
         "tags": [
@@ -228,6 +303,19 @@
   },
   "components": {
     "schemas": {
+      "ClearAllCacheRequest": {
+        "type": "object",
+        "example": {
+          "allowFailsafe": false
+        },
+        "additionalProperties": false,
+        "properties": {
+          "allowFailsafe": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
       "ChangeFeedbackCommand": {
         "type": "object",
         "example": {
