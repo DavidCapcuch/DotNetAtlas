@@ -99,6 +99,7 @@ try
         })
         .UseAuthSwaggerGen(app.Configuration);
 
+    app.MapHealthChecksInternal();
     app.MapClientGenerationApis();
     app.MapStaticAssets();
     app.MapRazorPages()

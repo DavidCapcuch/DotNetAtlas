@@ -5,6 +5,13 @@
     <ItemGroup>
         <PackageVersion Include="Ardalis.SmartEnum.SystemTextJson" Version="8.1.0"/>
         <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="9.3.1"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.OpenIdConnectServer" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.Prometheus.Metrics" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.SignalR.OpenTelemetry" Version="1.7.0"/>
         <PackageVersion Include="AwesomeAssertions" Version="9.1.0"/>
         <PackageVersion Include="AwesomeAssertions.Analyzers" Version="9.0.3"/>
@@ -34,6 +41,7 @@
         <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0-rc.1.25451.107"/>
         <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0-rc.1.25451.107"/>
         <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.0-rc.1.25451.107"/>
+        <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.0-rc.1.25451.107"/>
         <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0"/>
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
         <PackageVersion Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.1.0"/>

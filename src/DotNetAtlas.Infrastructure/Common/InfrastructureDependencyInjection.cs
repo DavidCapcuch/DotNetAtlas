@@ -14,20 +14,24 @@ using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using Elastic.Serilog.Enrichers.Web;
 using EntityFramework.Exceptions.SqlServer;
+using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Polly;
+using Prometheus;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Exceptions.Core;
@@ -45,7 +49,7 @@ public static class InfrastructureDependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration,
+        ConfigurationManager configuration,
         bool isClusterEnvironment)
     {
         services.AddOptionsWithValidateOnStart<ApplicationOptions>()
@@ -59,13 +63,14 @@ public static class InfrastructureDependencyInjection
         services.AddDatabase(configuration);
         services.AddCache(configuration);
         services.AddWeatherApiClients(configuration);
+        services.AddHealthChecksInternal(configuration);
 
         return services;
     }
 
     private static IServiceCollection AddWeatherApiClients(
         this IServiceCollection services,
-        IConfiguration configuration)
+        ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<OpenMeteoOptions>()
             .Bind(configuration.GetSection(OpenMeteoOptions.Section));
@@ -78,7 +83,56 @@ public static class InfrastructureDependencyInjection
             .GetRequiredSection(HttpResilienceOptions.Section)
             .Get<HttpResilienceOptions>()!;
 
-        services.ConfigureHttpClientDefaults(clientBuilder => clientBuilder.AddResilienceHandler(
+        services.AddHttpClient(OpenMeteoWeatherProvider.HttpClientName, (sp, config) =>
+            {
+                var openMeteoOptions =
+                    sp.GetRequiredService<IOptions<OpenMeteoOptions>>().Value;
+                config.BaseAddress = new Uri(openMeteoOptions.BaseUrl);
+            })
+            .AddAsKeyed()
+            .AddDefaultResilienceHandler(httpResilienceOptions);
+
+        services.AddHttpClient(OpenMeteoGeocodingService.GeoHttpClientName, (sp, config) =>
+            {
+                var openMeteoOptions =
+                    sp.GetRequiredService<IOptions<OpenMeteoOptions>>().Value;
+                config.BaseAddress = new Uri(openMeteoOptions.GeoBaseUrl);
+            })
+            .AddAsKeyed()
+            .AddDefaultResilienceHandler(httpResilienceOptions);
+
+        services.AddHttpClient(WeatherApiComProvider.HttpClientName, (sp, config) =>
+            {
+                var weatherApiComOptions =
+                    sp.GetRequiredService<IOptions<WeatherApiComOptions>>().Value;
+                config.BaseAddress = new Uri(weatherApiComOptions.BaseUrl);
+            })
+            .AddAsKeyed()
+            .AddDefaultResilienceHandler(httpResilienceOptions);
+
+        services.AddKeyedScoped<IGeocodingService, OpenMeteoGeocodingService>(OpenMeteoGeocodingService.ServiceKey);
+
+        services
+            .AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
+
+        services.AddScoped<IMainWeatherForecastProvider, OpenMeteoWeatherProvider>();
+
+        services.AddScoped<IWeatherForecastProvider, OpenMeteoWeatherProvider>();
+
+        services.AddScoped<IWeatherForecastProvider, WeatherApiComProvider>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Cannot use ConfigureHttpClientDefaults because it is applied to health check clients too
+    /// which then fail if degraded service is encountered.
+    /// </summary>
+    private static IHttpResiliencePipelineBuilder AddDefaultResilienceHandler(
+        this IHttpClientBuilder builder,
+        HttpResilienceOptions httpResilienceOptions)
+    {
+        return builder.AddResilienceHandler(
             "DefaultResiliencePipeline",
             resilienceBuilder =>
             {
@@ -104,40 +158,7 @@ public static class InfrastructureDependencyInjection
                             new ValueTask<bool>(HttpClientResiliencePredicates.IsTransient(args.Outcome))
                     })
                     .AddTimeout(TimeSpan.FromSeconds(httpResilienceOptions.AttemptTimeoutSeconds));
-            }));
-
-        services.AddHttpClient(OpenMeteoWeatherProvider.HttpClientName, (sp, config) =>
-            {
-                var openMeteoOptions =
-                    sp.GetRequiredService<IOptions<OpenMeteoOptions>>().Value;
-                config.BaseAddress = new Uri(openMeteoOptions.BaseUrl);
-            })
-            .AddAsKeyed();
-
-        services.AddHttpClient(OpenMeteoGeocodingService.GeoHttpClientName, (sp, config) =>
-            {
-                var openMeteoOptions =
-                    sp.GetRequiredService<IOptions<OpenMeteoOptions>>().Value;
-                config.BaseAddress = new Uri(openMeteoOptions.GeoBaseUrl);
-            })
-            .AddAsKeyed();
-
-        services.AddHttpClient(WeatherApiComProvider.HttpClientName, (sp, config) =>
-            {
-                var weatherApiComOptions =
-                    sp.GetRequiredService<IOptions<WeatherApiComOptions>>().Value;
-                config.BaseAddress = new Uri(weatherApiComOptions.BaseUrl);
-            })
-            .AddAsKeyed();
-
-        services.AddKeyedScoped<IGeocodingService, OpenMeteoGeocodingService>(OpenMeteoGeocodingService.ServiceKey);
-        services
-            .AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
-        services.AddScoped<IMainWeatherForecastProvider, OpenMeteoWeatherProvider>();
-        services.AddScoped<IWeatherForecastProvider, OpenMeteoWeatherProvider>();
-        services.AddScoped<IWeatherForecastProvider, WeatherApiComProvider>();
-
-        return services;
+            });
     }
 
     public static WebApplicationBuilder UseSerilogConfiguration(
@@ -178,7 +199,7 @@ public static class InfrastructureDependencyInjection
         return builder;
     }
 
-    private static IServiceCollection AddCache(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddCache(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<DefaultCacheOptions>()
             .Bind(configuration.GetSection(DefaultCacheOptions.Section));
@@ -236,7 +257,7 @@ public static class InfrastructureDependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddDatabase(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddScoped<UpdateAuditableEntitiesInterceptor>();
         services.AddDbContext<WeatherForecastContext>((
@@ -266,7 +287,7 @@ public static class InfrastructureDependencyInjection
     private static IServiceCollection AddObservability(
         this IServiceCollection services,
         bool isClusterEnvironment,
-        IConfiguration configuration)
+        ConfigurationManager configuration)
     {
         services.AddMetrics();
 
@@ -327,8 +348,9 @@ public static class InfrastructureDependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddAuthenticationInternal(this IServiceCollection services,
-        IConfiguration configuration,
+    private static IServiceCollection AddAuthenticationInternal(
+        this IServiceCollection services,
+        ConfigurationManager configuration,
         bool isClusterEnvironment)
     {
         services
@@ -369,5 +391,109 @@ public static class InfrastructureDependencyInjection
             });
 
         return services;
+    }
+
+    private static IServiceCollection AddHealthChecksInternal(
+        this IServiceCollection services,
+        ConfigurationManager configuration)
+    {
+        var openMeteoOptions = configuration
+            .GetRequiredSection(OpenMeteoOptions.Section)
+            .Get<OpenMeteoOptions>()!;
+        var weatherApiComOptions = configuration
+            .GetRequiredSection(WeatherApiComOptions.Section)
+            .Get<WeatherApiComOptions>()!;
+        var fusionAuthUrl = configuration["Swagger:OAuthConfig:Authority"]!;
+
+        services.AddHealthChecks()
+            .AddCheck("self", () => HealthCheckResult.Healthy(),
+                tags: [InfrastructureContants.LivenessTag, InfrastructureContants.ReadinessTag],
+                timeout: TimeSpan.FromSeconds(2))
+            .AddDbContextCheck<WeatherForecastContext>(
+                name: "Weather DB",
+                tags: [InfrastructureContants.ReadinessTag, InfrastructureContants.DatabaseTag],
+                failureStatus: HealthStatus.Unhealthy)
+            .AddRedis(
+                configuration.GetConnectionString(ConnectionStrings.Redis)!,
+                tags: [InfrastructureContants.ReadinessTag, InfrastructureContants.DatabaseTag],
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: TimeSpan.FromSeconds(4))
+            .AddUrlGroup(
+                new Uri(weatherApiComOptions.BaseUrl), weatherApiComOptions.BaseUrl,
+                tags:
+                [
+                    InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag
+                ],
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: TimeSpan.FromSeconds(3))
+            .AddUrlGroup(
+                new Uri($"{openMeteoOptions.GeoBaseUrl}v1/search?name=Berlin&count=1"), openMeteoOptions.GeoBaseUrl,
+                tags:
+                [
+                    InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag
+                ],
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: TimeSpan.FromSeconds(3))
+            .AddUrlGroup(
+                new Uri($"{openMeteoOptions.BaseUrl}v1/forecast"), openMeteoOptions.BaseUrl,
+                tags:
+                [
+                    InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag
+                ],
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: TimeSpan.FromSeconds(3))
+            .AddOpenIdConnectServer(
+                oidcSvrUri: new Uri(fusionAuthUrl),
+                discoverConfigurationSegment: "/.well-known/openid-configuration",
+                name: "FusionAuth IDM",
+                tags: [InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag],
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: TimeSpan.FromSeconds(3));
+
+        services.AddHealthChecksUI(settings =>
+            {
+                settings.SetEvaluationTimeInSeconds(5);
+                settings.AddHealthCheckEndpoint("Liveness", InfrastructureContants.HealthEndpointPath);
+                settings.AddHealthCheckEndpoint("Readiness", InfrastructureContants.ReadinessEndpointPath);
+                settings.SetNotifyUnHealthyOneTimeUntilChange();
+            })
+            .AddSqlServerStorage(configuration.GetConnectionString(ConnectionStrings.Weather)!);
+
+        return services;
+    }
+
+    public static WebApplication MapHealthChecksInternal(this WebApplication app)
+    {
+        app.MapHealthChecks(InfrastructureContants.ReadinessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureContants.ReadinessTag),
+            ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+        }).ShortCircuit();
+
+        app.MapHealthChecks(InfrastructureContants.HealthEndpointPath, new HealthCheckOptions
+        {
+            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureContants.LivenessTag),
+            ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+        }).ShortCircuit();
+
+        app.MapHealthChecksUI();
+
+        // Suppress default prometheus-net collectors and collect only health-related metrics to avoid duplicated scraping.
+        // As of now, there is no standardized way to push health metrics through OTEL Collector
+        // all other collected metrics are unaffected and still exported through OTEL Collector to prometheus.
+        Metrics.SuppressDefaultMetrics();
+        app.UseHealthChecksPrometheusExporter(InfrastructureContants.PrometheusEndpointPath, options =>
+        {
+            options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureContants.ReadinessTag);
+            options.ResultStatusCodes = new Dictionary<HealthStatus, int>
+            {
+                // Prometheus expects 200 also for degraded state, otherwise throws in the scrape job
+                [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                [HealthStatus.Unhealthy] = StatusCodes.Status200OK
+            };
+        });
+
+        return app;
     }
 }
