@@ -60,3 +60,4 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 >>>>>>> 6a9c616 (feat: Init solution)
+.idea/*

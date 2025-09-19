@@ -16,7 +16,7 @@ public sealed class DefaultCacheOptions
     [Range(0, 7 * 24 * 60)]
     public int DefaultDurationMinutes { get; set; } = 1;
 
-+    [Range(0, 30_000)]
+    [Range(0, 30_000)]
     public int FactorySoftTimeoutMs { get; set; } = 300;
 
     [Range(0, 60_000)]

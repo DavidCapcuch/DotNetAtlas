@@ -48,13 +48,13 @@ try
 
     var app = builder.Build();
 
-    if (!app.Environment.IsProduction())
+    if (app.Environment.IsProduction())
     {
-        app.UseDeveloperExceptionPage();
+        app.UseExceptionHandler();
     }
     else
     {
-        app.UseExceptionHandler();
+        app.UseDeveloperExceptionPage();
     }
 
     app.UseStatusCodePages();

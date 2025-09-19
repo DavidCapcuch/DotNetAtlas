@@ -20,10 +20,9 @@ public sealed class ForecastCacheOptions
     [Range(0, 60_000)]
     public int FactorySoftTimeoutMs { get; set; } = 100;
 
-    [Range(0, 10 * 60_000)]
+    [Range(0, 10 * 30_000)]
     public int FactoryHardTimeoutMs { get; set; } = 2000;
 
     [Range(0.0, 1.0)]
     public float EagerRefreshThreshold { get; set; } = 0.9f;
 }
-
