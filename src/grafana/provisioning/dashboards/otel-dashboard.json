@@ -2009,7 +2009,7 @@
         "definition": "label_values(http_client_duration_milliseconds_bucket,net_peer_name)",
         "hide": 2,
         "includeAll": true,
-        "label": "HTTP Client Pear Name",
+        "label": "HTTP Client Peer Name",
         "multi": false,
         "name": "http_client_peer_name",
         "options": [],

@@ -6,11 +6,9 @@
 
     <ItemGroup>
         <PackageReference Include="AspNetCore.HealthChecks.OpenIdConnectServer" />
-        <PackageReference Include="AspNetCore.HealthChecks.Publisher.Prometheus" />
         <PackageReference Include="AspNetCore.HealthChecks.Redis" />
         <PackageReference Include="AspNetCore.HealthChecks.UI" />
         <PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
-        <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" />
         <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage" />
         <PackageReference Include="AspNetCore.HealthChecks.Uris" />
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics" />

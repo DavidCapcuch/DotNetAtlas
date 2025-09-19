@@ -59,7 +59,7 @@
       - METRICS_STORAGE_TYPE=prometheus
   
   prometheus:
-    image: quay.io/prometheus/prometheus:v3.2.0
+    image: quay.io/prometheus/prometheus:v3.5.0
     container_name: prometheus9090
     command:
       - --web.console.templates=/etc/prometheus/consoles
@@ -83,7 +83,7 @@
       - "9090:9090"
 
   grafana:
-    image: grafana/grafana:11.5.2
+    image: grafana/grafana:12.1.0
     container_name: grafana3000
     deploy:
       resources:
@@ -92,6 +92,7 @@
     restart: unless-stopped
     environment:
       - GF_SERVER_ROOT_URL=http://my.grafana.server/
+      - GF_INSTALL_PLUGINS=grafana-opensearch-datasource
     volumes:
       - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./src/grafana/provisioning/:/etc/grafana/provisioning/
@@ -99,7 +100,7 @@
       - "3000:3000"
 
   otel-collector:
-    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.120.0
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.133.0
     container_name: otel-collector
     deploy:
       resources:
@@ -114,7 +115,7 @@
       - ./src/otel-collector/otelcol-config.yml:/etc/otelcol-config.yml
     ports:
       - "4317:4317"
-      - "4318:4317"
+      - "4318:4318"
       - "8889:8889"
     depends_on:
       jaeger:
@@ -162,21 +163,21 @@
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - db_net
     restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
 
   search:
-    image: opensearchproject/opensearch:2.11.0
+    image: opensearchproject/opensearch:3.2.0
     environment:
-      cluster.name: fusionauth
-      discovery.type: single-node
-      node.name: search
-      plugins.security.disabled: true
-      bootstrap.memory_lock: true
-      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      - cluster.name=fusionauth
+      - discovery.type=single-node
+      - node.name=search
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - _JAVA_OPTIONS
     healthcheck:
       interval: 10s
       retries: 80
@@ -194,8 +195,6 @@
       - 9600:9600 # Performance Analyzer
     volumes:
       - search_data:/usr/share/opensearch/data
-    networks:
-      - search_net
 
   fusionauth:
     image: fusionauth/fusionauth-app:1.60.0
@@ -216,9 +215,6 @@
       SEARCH_SERVERS: http://search:9200
       SEARCH_TYPE: elasticsearch
       FUSIONAUTH_APP_KICKSTART_FILE: /usr/local/fusionauth/kickstart/kickstart.json
-    networks:
-      - db_net
-      - search_net
     restart: unless-stopped
     ports:
       - 9011:9011

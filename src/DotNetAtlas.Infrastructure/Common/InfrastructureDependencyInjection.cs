@@ -36,6 +36,7 @@ using Serilog;
 using Serilog.Exceptions;
 using Serilog.Exceptions.Core;
 using Serilog.Exceptions.EntityFrameworkCore.Destructurers;
+using Serilog.Sinks.OpenTelemetry;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
 using SerilogTracing.Expressions;
@@ -111,14 +112,10 @@ public static class InfrastructureDependencyInjection
             .AddDefaultResilienceHandler(httpResilienceOptions);
 
         services.AddKeyedScoped<IGeocodingService, OpenMeteoGeocodingService>(OpenMeteoGeocodingService.ServiceKey);
-
         services
             .AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
-
         services.AddScoped<IMainWeatherForecastProvider, OpenMeteoWeatherProvider>();
-
         services.AddScoped<IWeatherForecastProvider, OpenMeteoWeatherProvider>();
-
         services.AddScoped<IWeatherForecastProvider, WeatherApiComProvider>();
 
         return services;
@@ -167,6 +164,9 @@ public static class InfrastructureDependencyInjection
     {
         builder.Host.UseSerilog((context, services, configuration) =>
         {
+            var oltpExporterEndpoint = context.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]!;
+            var appName = context.Configuration[$"{ApplicationOptions.Section}:AppName"]!;
+
             var httpAccessor = services.GetRequiredService<IHttpContextAccessor>();
 
             configuration
@@ -182,17 +182,34 @@ public static class InfrastructureDependencyInjection
             }
             else
             {
-                configuration.WriteTo.Async(sinkConf => sinkConf.Console(new ExpressionTemplate(
-                        "[{@t:HH:mm:ss} {@l:u3}] " +
-                        "[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1)}] " +
-                        "{#if IsRootSpan()}\u2514\u2500 {#else if IsSpan()}\u251c {#else if @sp is not null}\u2502 {#end}" +
-                        "{@m}" +
-                        "{#if IsSpan()} ({Milliseconds(Elapsed()):0.###} ms){#end}" +
-                        "\n" +
-                        "{@x}",
-                        theme: TemplateTheme.Code,
-                        nameResolver: new TracingNameResolver()))
-                    .WriteTo.Seq("http://localhost:5341"));
+                configuration.WriteTo.Async(sinkConf =>
+                {
+                    var loggerConf = sinkConf.Console(new ExpressionTemplate(
+                            "[{@t:HH:mm:ss} {@l:u3}] " +
+                            "[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1)}] " +
+                            "{#if IsRootSpan()}\u2514\u2500 {#else if IsSpan()}\u251c {#else if @sp is not null}\u2502 {#end}" +
+                            "{@m}" +
+                            "{#if IsSpan()} ({Milliseconds(Elapsed()):0.###} ms){#end}" +
+                            "\n" +
+                            "{@x}",
+                            theme: TemplateTheme.Code,
+                            nameResolver: new TracingNameResolver()))
+                        .WriteTo.Seq("http://localhost:5341");
+
+                    if (!string.IsNullOrWhiteSpace(oltpExporterEndpoint))
+                    {
+                        loggerConf.WriteTo.OpenTelemetry(options =>
+                        {
+                            options.Endpoint = oltpExporterEndpoint;
+                            options.ResourceAttributes = new Dictionary<string, object>
+                            {
+                                ["service.name"] = appName
+                            };
+                            options.IncludedData = IncludedData.SpanIdField | IncludedData.TraceIdField |
+                                                   IncludedData.SourceContextAttribute;
+                        });
+                    }
+                });
             }
         });
 
@@ -313,9 +330,9 @@ public static class InfrastructureDependencyInjection
                             options.RecordException = true;
                             options.Filter = context =>
                                 !context.Request.Path.StartsWithSegments(
-                                    InfrastructureContants.HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
+                                    InfrastructureConstants.HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
                                 && !context.Request.Path.StartsWithSegments(
-                                    InfrastructureContants
+                                    InfrastructureConstants
                                         .ReadinessEndpointPath,
                                     StringComparison.OrdinalIgnoreCase);
                         })
@@ -407,22 +424,22 @@ public static class InfrastructureDependencyInjection
 
         services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(),
-                tags: [InfrastructureContants.LivenessTag, InfrastructureContants.ReadinessTag],
+                tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
                 timeout: TimeSpan.FromSeconds(2))
             .AddDbContextCheck<WeatherForecastContext>(
                 name: "Weather DB",
-                tags: [InfrastructureContants.ReadinessTag, InfrastructureContants.DatabaseTag],
+                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy)
             .AddRedis(
                 configuration.GetConnectionString(ConnectionStrings.Redis)!,
-                tags: [InfrastructureContants.ReadinessTag, InfrastructureContants.DatabaseTag],
+                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: TimeSpan.FromSeconds(4))
             .AddUrlGroup(
                 new Uri(weatherApiComOptions.BaseUrl), weatherApiComOptions.BaseUrl,
                 tags:
                 [
-                    InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag
+                    InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag
                 ],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: TimeSpan.FromSeconds(3))
@@ -430,7 +447,7 @@ public static class InfrastructureDependencyInjection
                 new Uri($"{openMeteoOptions.GeoBaseUrl}v1/search?name=Berlin&count=1"), openMeteoOptions.GeoBaseUrl,
                 tags:
                 [
-                    InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag
+                    InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag
                 ],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: TimeSpan.FromSeconds(3))
@@ -438,7 +455,7 @@ public static class InfrastructureDependencyInjection
                 new Uri($"{openMeteoOptions.BaseUrl}v1/forecast"), openMeteoOptions.BaseUrl,
                 tags:
                 [
-                    InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag
+                    InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag
                 ],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: TimeSpan.FromSeconds(3))
@@ -446,15 +463,15 @@ public static class InfrastructureDependencyInjection
                 oidcSvrUri: new Uri(fusionAuthUrl),
                 discoverConfigurationSegment: "/.well-known/openid-configuration",
                 name: "FusionAuth IDM",
-                tags: [InfrastructureContants.ReadinessTag, InfrastructureContants.ApiTag],
+                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: TimeSpan.FromSeconds(3));
 
         services.AddHealthChecksUI(settings =>
             {
                 settings.SetEvaluationTimeInSeconds(5);
-                settings.AddHealthCheckEndpoint("Liveness", InfrastructureContants.HealthEndpointPath);
-                settings.AddHealthCheckEndpoint("Readiness", InfrastructureContants.ReadinessEndpointPath);
+                settings.AddHealthCheckEndpoint("Liveness", InfrastructureConstants.HealthEndpointPath);
+                settings.AddHealthCheckEndpoint("Readiness", InfrastructureConstants.ReadinessEndpointPath);
                 settings.SetNotifyUnHealthyOneTimeUntilChange();
             })
             .AddSqlServerStorage(configuration.GetConnectionString(ConnectionStrings.Weather)!);
@@ -464,15 +481,15 @@ public static class InfrastructureDependencyInjection
 
     public static WebApplication MapHealthChecksInternal(this WebApplication app)
     {
-        app.MapHealthChecks(InfrastructureContants.ReadinessEndpointPath, new HealthCheckOptions
+        app.MapHealthChecks(InfrastructureConstants.ReadinessEndpointPath, new HealthCheckOptions
         {
-            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureContants.ReadinessTag),
+            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag),
             ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
         }).ShortCircuit();
 
-        app.MapHealthChecks(InfrastructureContants.HealthEndpointPath, new HealthCheckOptions
+        app.MapHealthChecks(InfrastructureConstants.HealthEndpointPath, new HealthCheckOptions
         {
-            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureContants.LivenessTag),
+            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.LivenessTag),
             ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
         }).ShortCircuit();
 
@@ -482,9 +499,9 @@ public static class InfrastructureDependencyInjection
         // As of now, there is no standardized way to push health metrics through OTEL Collector
         // all other collected metrics are unaffected and still exported through OTEL Collector to prometheus.
         Metrics.SuppressDefaultMetrics();
-        app.UseHealthChecksPrometheusExporter(InfrastructureContants.PrometheusEndpointPath, options =>
+        app.UseHealthChecksPrometheusExporter(InfrastructureConstants.PrometheusEndpointPath, options =>
         {
-            options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureContants.ReadinessTag);
+            options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag);
             options.ResultStatusCodes = new Dictionary<HealthStatus, int>
             {
                 // Prometheus expects 200 also for degraded state, otherwise throws in the scrape job
