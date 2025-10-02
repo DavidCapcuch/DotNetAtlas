@@ -32,6 +32,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetAtlas.ArchitectureTes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetAtlas.UnitTests", "test\DotNetAtlas.UnitTests\DotNetAtlas.UnitTests.csproj", "{C7F61021-47F3-416A-A9E1-31ED83860B0D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{00AA21A2-518B-41EF-971D-1E838334E459}"
+	ProjectSection(SolutionItems) = preProject
+		test\xunit.runner.json = test\xunit.runner.json
+		test\Directory.Packages.props = test\Directory.Packages.props
+		test\Directory.Build.props = test\Directory.Build.props
+		test\coverlet.runsettings = test\coverlet.runsettings
+		test\test-coverage.ps1 = test\test-coverage.ps1
+		test\README.md = test\README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,5 +90,6 @@ Global
 		{4F68E625-7E54-426A-8EEB-E24CADA155EF} = {8C86DA50-A203-40B6-BA98-6B6F5821F356}
 		{7A80BD56-8C71-406B-90E2-55CF9C8ACE71} = {8C86DA50-A203-40B6-BA98-6B6F5821F356}
 		{C7F61021-47F3-416A-A9E1-31ED83860B0D} = {8C86DA50-A203-40B6-BA98-6B6F5821F356}
+		{00AA21A2-518B-41EF-971D-1E838334E459} = {8C86DA50-A203-40B6-BA98-6B6F5821F356}
 	EndGlobalSection
 EndGlobal

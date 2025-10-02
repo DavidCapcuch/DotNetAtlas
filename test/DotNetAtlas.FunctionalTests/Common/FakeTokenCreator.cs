@@ -2,7 +2,7 @@
 using System.Security.Claims;
 using DotNetAtlas.Infrastructure.Common.Authorization;
 
-namespace DotNetAtlas.FunctionalTests.Base;
+namespace DotNetAtlas.FunctionalTests.Common;
 
 /// <summary>
 /// In appsettings.Testing, issuer validation is turned off,
@@ -10,7 +10,7 @@ namespace DotNetAtlas.FunctionalTests.Base;
 /// </summary>
 internal static class FakeTokenCreator
 {
-    public static string GetAdminUserToken()
+    public static string GenerateDevUserToken()
     {
         const string userName = "dev@dotnetatlas.com";
         var roles = new[]
@@ -21,7 +21,7 @@ internal static class FakeTokenCreator
         return CreateToken(userName, roles);
     }
 
-    public static string GetNormalUserToken()
+    public static string GenerateNormalUserToken()
     {
         const string userName = "pleb@dotnetatlas.com";
         var roles = Array.Empty<string>();

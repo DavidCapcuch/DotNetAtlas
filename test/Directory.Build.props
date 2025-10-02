@@ -1,0 +1,50 @@
+<Project>
+    <PropertyGroup>
+        <RootBuildPropsPath>$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))</RootBuildPropsPath>
+    </PropertyGroup>
+    <Import Project="$(RootBuildPropsPath)" Condition="Exists('$(RootBuildPropsPath)')"/>
+
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <SonarQubeTestProject>true</SonarQubeTestProject>
+        <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/</CoverletOutput>
+    </PropertyGroup>
+
+    <!-- Shared test configuration files -->
+    <ItemGroup>
+        <Content Include="$(MSBuildThisFileDirectory)xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Include="$(MSBuildThisFileDirectory)coverlet.runsettings" Link="coverlet.runsettings" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+    <!-- Common usings -->
+    <ItemGroup>
+        <Using Include="Xunit"/>
+        <Using Include="AwesomeAssertions"/>
+        <Using Include="AwesomeAssertions.Execution"/>
+    </ItemGroup>
+
+    <!-- Common test packages for all test projects -->
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="xunit.v3"/>
+        <PackageReference Include="xunit.runner.visualstudio">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="xunit.analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="AwesomeAssertions"/>
+        <PackageReference Include="AwesomeAssertions.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>

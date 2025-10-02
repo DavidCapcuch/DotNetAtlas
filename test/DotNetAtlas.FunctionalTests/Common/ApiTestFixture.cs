@@ -1,34 +1,41 @@
-﻿using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.ArchitectureTests;
+﻿using DotNetAtlas.ArchitectureTests;
+using DotNetAtlas.FunctionalTests.Common;
 using DotNetAtlas.Infrastructure.Common.Config;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
 using EvolveDb;
 using FastEndpoints.Testing;
+using Hangfire;
+using HealthChecks.UI.Core.HostedService;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
+using OpenTelemetry;
 using Respawn;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
+using StackExchange.Redis;
 using Testcontainers.MsSql;
 using Testcontainers.Redis;
-using ZiggyCreatures.Caching.Fusion;
 
-namespace DotNetAtlas.IntegrationTests.Base;
+[assembly: AssemblyFixture(typeof(ApiTestFixture))]
 
-internal sealed class CollectionA : TestCollection<IntegrationTestFixture>;
+namespace DotNetAtlas.FunctionalTests.Common;
 
-public class IntegrationTestFixture : AppFixture<Program>
+internal sealed class FeedbackTestCollection : TestCollection<ApiTestFixture>;
+
+internal sealed class ForecastTestCollection : TestCollection<ApiTestFixture>;
+
+internal sealed class SignalRTestCollection : TestCollection<ApiTestFixture>;
+
+[DisableWafCache]
+public class ApiTestFixture : AppFixture<Program>
 {
-    public IDotNetAtlasInstrumentation Instrumentation { get; private set; } = null!;
-
-    private const string DATABASE = "Weather";
+    private const string Database = "Weather";
 
     private readonly MsSqlContainer _dbContainer = new MsSqlBuilder()
         .WithPassword("pass123*!QWER")
@@ -51,14 +58,14 @@ public class IntegrationTestFixture : AppFixture<Program>
             _redisContainer.StartAsync());
         _dbContainerConnectionString = new SqlConnectionStringBuilder(_dbContainer.GetConnectionString())
         {
-            InitialCatalog = DATABASE,
+            InitialCatalog = Database,
             Encrypt = false,
             TrustServerCertificate = true,
             ConnectRetryCount = 10
         }.ToString();
 
-        await _dbContainer.ExecScriptAsync($"CREATE DATABASE [{DATABASE}]");
-        await _dbContainer.ExecScriptAsync($"ALTER LOGIN sa WITH DEFAULT DATABASE = [{DATABASE}]");
+        await _dbContainer.ExecScriptAsync($"CREATE DATABASE [{Database}]");
+        await _dbContainer.ExecScriptAsync($"ALTER LOGIN sa WITH DEFAULT DATABASE = [{Database}]");
         await ExecuteFlywayScriptsAsync();
         _respawner = await Respawner.CreateAsync(_dbContainerConnectionString, new RespawnerOptions
         {
@@ -71,8 +78,27 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     protected override ValueTask SetupAsync()
     {
-        Instrumentation = Services.GetRequiredService<IDotNetAtlasInstrumentation>();
         return ValueTask.CompletedTask;
+    }
+
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
+        redisOptions.AllowAdmin = true;
+        redisOptions.DefaultDatabase = 0;
+        redisOptions.AbortOnConnectFail = false;
+        redisOptions.ConnectRetry = 5;
+        redisOptions.ConnectTimeout = 15000;
+        redisOptions.SyncTimeout = 10000;
+        redisOptions.KeepAlive = 60;
+
+        a.ConfigureWebHost(builder =>
+        {
+            builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Weather}", _dbContainerConnectionString);
+            builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Redis}", redisOptions.ToString());
+        });
+
+        return base.ConfigureAppHost(a);
     }
 
     protected override void ConfigureApp(IWebHostBuilder builder)
@@ -82,8 +108,6 @@ public class IntegrationTestFixture : AppFixture<Program>
             .UseEnvironment("Testing")
             .ConfigureTestServices(services =>
             {
-                services.AddScoped<OpenMeteoWeatherProvider>();
-                services.AddScoped<WeatherApiComProvider>();
                 services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
                 services.AddSerilog((_, loggerConfiguration) =>
                 {
@@ -94,14 +118,10 @@ public class IntegrationTestFixture : AppFixture<Program>
 
                     loggerConfiguration.WriteTo.InjectableTestOutput(injectableTestOutputSink);
                     loggerConfiguration.Enrich.FromLogContext();
-                });
-            }).ConfigureAppConfiguration((_, configBuilder) =>
-            {
-                configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    [$"ConnectionStrings:{ConnectionStrings.Weather}"] = _dbContainerConnectionString,
-                    [$"ConnectionStrings:{ConnectionStrings.Redis}"] = _redisContainer.GetConnectionString()
-                });
+                }, true, true);
+                // Disable background jobs
+                services.AddSingleton<IRecurringJobManager>(Substitute.For<IRecurringJobManager>());
+                services.AddSingleton<IHealthCheckReportCollector>(Substitute.For<IHealthCheckReportCollector>());
             });
     }
 
@@ -122,9 +142,15 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     public async Task ResetDatabasesAsync()
     {
-        await _respawner.ResetAsync(_dbContainerConnectionString);
-        var cache = Services.GetRequiredService<IFusionCache>();
-        await cache.ClearAsync(false);
+        using var _ = SuppressInstrumentationScope.Begin();
+
+        var multiplexer = Services.GetRequiredService<IConnectionMultiplexer>();
+        var resetDbTasks = multiplexer.GetServers()
+            .Select(server => server.FlushAllDatabasesAsync())
+            .ToList();
+        resetDbTasks.Add(_respawner.ResetAsync(_dbContainerConnectionString));
+
+        await Task.WhenAll(resetDbTasks);
     }
 
     protected override async ValueTask TearDownAsync()

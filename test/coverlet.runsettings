@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <IncludeTestAssembly>False</IncludeTestAssembly>
+          <Format>cobertura</Format>
+          <Exclude>
+            <!-- Exclude auto-generated files/types by name -->
+            [*]*Generated*
+            [*]*.g.cs
+            [*]*.Designer.cs
+            [*]*AssemblyInfo.cs
+            [*]*GlobalUsings.g.cs
+          </Exclude>
+          <ExcludeByAttribute>
+            Obsolete,
+            GeneratedCodeAttribute,
+            CompilerGeneratedAttribute,
+            ExcludeFromCodeCoverageAttribute
+          </ExcludeByAttribute>
+          <ExcludeByFile>
+            <!-- Exclude files by path pattern -->
+            **/*Designer.cs,
+            **/*.g.cs,
+            **/*.g.i.cs,
+            **/obj/**,
+            **/bin/**,
+            **/Migrations/**,
+            **/test/**
+            ,
+            **/DotNetAtlas.Api/Common/Swagger/**,
+            **/DotNetAtlas.Api/Common/Exceptions/**,
+            **/DotNetAtlas.Api/Pages/Index*,
+            **/DotNetAtlas.Domain/Entities/Base/**,
+          </ExcludeByFile>
+          <IncludeDirectory>../src/**</IncludeDirectory>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

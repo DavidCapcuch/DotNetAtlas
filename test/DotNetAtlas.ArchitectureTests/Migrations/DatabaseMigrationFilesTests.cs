@@ -1,6 +1,4 @@
-﻿using AwesomeAssertions;
-
-namespace DotNetAtlas.ArchitectureTests.Migrations;
+﻿namespace DotNetAtlas.ArchitectureTests.Migrations;
 
 public class DatabaseMigrationFilesTests
 {
