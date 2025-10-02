@@ -1,30 +1,38 @@
-﻿using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.ArchitectureTests;
+﻿using DotNetAtlas.ArchitectureTests;
 using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+using DotNetAtlas.Infrastructure.SignalR;
+using DotNetAtlas.IntegrationTests.Common;
 using EvolveDb;
 using FastEndpoints.Testing;
+using HealthChecks.UI.Core.HostedService;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using OpenTelemetry;
-using OpenTelemetry.Trace;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
 using Respawn;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
+using StackExchange.Redis;
 using Testcontainers.MsSql;
 using Testcontainers.Redis;
-using ZiggyCreatures.Caching.Fusion;
 
-namespace DotNetAtlas.FunctionalTests.Base;
+[assembly: AssemblyFixture(typeof(IntegrationTestFixture))]
 
-internal sealed class CollectionA : TestCollection<ApiTestFixture>;
+namespace DotNetAtlas.IntegrationTests.Common;
 
-public class ApiTestFixture : AppFixture<Program>
+internal sealed class ForecastTestCollection : TestCollection<IntegrationTestFixture>;
+
+internal sealed class SignalRTestCollection : TestCollection<IntegrationTestFixture>;
+
+[DisableWafCache]
+public class IntegrationTestFixture : AppFixture<Program>
 {
     private const string Database = "Weather";
 
@@ -38,10 +46,6 @@ public class ApiTestFixture : AppFixture<Program>
         .WithCleanUp(true)
         .WithName($"TestRedisFixture-{Guid.NewGuid()}")
         .Build();
-
-    public IDotNetAtlasInstrumentation Instrumentation { get; private set; } = null!;
-
-    private TracerProvider? _testTracerProvider;
 
     private string _dbContainerConnectionString = null!;
     private Respawner _respawner = null!;
@@ -73,12 +77,27 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override ValueTask SetupAsync()
     {
-        Instrumentation = Services.GetRequiredService<IDotNetAtlasInstrumentation>();
-        _testTracerProvider = Sdk.CreateTracerProviderBuilder()
-            .AddHttpClientInstrumentation()
-            .AddSource("*")
-            .Build();
         return ValueTask.CompletedTask;
+    }
+
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
+        redisOptions.AllowAdmin = true;
+        redisOptions.DefaultDatabase = 0;
+        redisOptions.AbortOnConnectFail = false;
+        redisOptions.ConnectRetry = 5;
+        redisOptions.ConnectTimeout = 15000;
+        redisOptions.SyncTimeout = 10000;
+        redisOptions.KeepAlive = 60;
+
+        a.ConfigureWebHost(builder =>
+        {
+            builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Weather}", _dbContainerConnectionString);
+            builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Redis}", redisOptions.ToString());
+        });
+
+        return base.ConfigureAppHost(a);
     }
 
     protected override void ConfigureApp(IWebHostBuilder builder)
@@ -88,6 +107,9 @@ public class ApiTestFixture : AppFixture<Program>
             .UseEnvironment("Testing")
             .ConfigureTestServices(services =>
             {
+                services.AddScoped<OpenMeteoWeatherProvider>();
+                services.AddScoped<WeatherApiComProvider>();
+                services.AddSingleton<RedisSignalRGroupManager>();
                 services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
                 services.AddSerilog((_, loggerConfiguration) =>
                 {
@@ -98,15 +120,9 @@ public class ApiTestFixture : AppFixture<Program>
 
                     loggerConfiguration.WriteTo.InjectableTestOutput(injectableTestOutputSink);
                     loggerConfiguration.Enrich.FromLogContext();
-                });
-            })
-            .ConfigureAppConfiguration((_, configBuilder) =>
-            {
-                configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    [$"ConnectionStrings:{ConnectionStrings.Weather}"] = _dbContainerConnectionString,
-                    [$"ConnectionStrings:{ConnectionStrings.Redis}"] = _redisContainer.GetConnectionString()
-                });
+                }, true, true);
+                // Disable background jobs
+                services.AddSingleton<IHealthCheckReportCollector>(Substitute.For<IHealthCheckReportCollector>());
             });
     }
 
@@ -127,14 +143,17 @@ public class ApiTestFixture : AppFixture<Program>
 
     public async Task ResetDatabasesAsync()
     {
-        await _respawner.ResetAsync(_dbContainerConnectionString);
-        var cache = Services.GetRequiredService<IFusionCache>();
-        await cache.ClearAsync(false);
+        var multiplexer = Services.GetRequiredService<IConnectionMultiplexer>();
+        var resetDbTasks = multiplexer.GetServers()
+            .Select(server => server.FlushAllDatabasesAsync())
+            .ToList();
+        resetDbTasks.Add(_respawner.ResetAsync(_dbContainerConnectionString));
+
+        await Task.WhenAll(resetDbTasks);
     }
 
     protected override async ValueTask TearDownAsync()
     {
-        _testTracerProvider?.Dispose();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
     }

@@ -24,8 +24,13 @@
     restart: always
     ports:
       - "5540:5540"
+    environment:
+      - REDISINSIGHT_SKIP_EULA=true  # Skip the EULA
     volumes:
       - redis-insight:/data
+    depends_on:
+      - redis
+    command: ["redis-insight", "--auto-connect", "redis://redis:6379"]  # Auto-connect to Redis
 
   seq:
     image: datalust/seq:2025.2
@@ -92,7 +97,7 @@
     restart: unless-stopped
     environment:
       - GF_SERVER_ROOT_URL=http://my.grafana.server/
-      - GF_INSTALL_PLUGINS=grafana-opensearch-datasource
+      - GF_PLUGINS_PREINSTALL=grafana-opensearch-datasource
     volumes:
       - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./src/grafana/provisioning/:/etc/grafana/provisioning/
