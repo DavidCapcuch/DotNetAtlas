@@ -33,7 +33,7 @@ public class HedgingWeatherForecastService : IWeatherForecastService
     {
         // Try only the primary provider first
         using var primaryProviderCallCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        primaryProviderCallCts.CancelAfter(1000);
+        primaryProviderCallCts.CancelAfter(_hedgingOptions.PrimaryMaxDurationMs);
         try
         {
             var primaryResult =
