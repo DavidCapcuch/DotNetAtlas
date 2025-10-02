@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using DotNetAtlas.Application.Common.CQS;
+using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -19,8 +20,8 @@ public class GetForecastQueryHandler : IQueryHandler<GetForecastQuery, GetForeca
 
     public async Task<Result<GetForecastResponse>> HandleAsync(GetForecastQuery query, CancellationToken ct)
     {
-        Activity.Current?.SetTag("City", query.City);
-        Activity.Current?.SetTag("CountryCode", query.CountryCode.ToString());
+        Activity.Current?.SetTag(DiagnosticNames.City, query.City);
+        Activity.Current?.SetTag(DiagnosticNames.CountryCode, query.CountryCode.ToString());
 
         var forecastRequest = query.ToForecastRequest();
         var result = await _forecastService.GetForecastAsync(forecastRequest, ct);

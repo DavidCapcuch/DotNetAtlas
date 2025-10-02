@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using DotNetAtlas.Application.Feedback.Common.Validation;
+using FluentValidation;
 
 namespace DotNetAtlas.Application.Feedback.SendFeedback;
 
@@ -7,13 +8,9 @@ public class SendFeedbackCommandValidator : AbstractValidator<SendFeedbackComman
     public SendFeedbackCommandValidator()
     {
         RuleFor(sfr => sfr.Feedback)
-            .NotEmpty()
-            .WithMessage("Feedback cannot be empty.")
-            .MaximumLength(500)
-            .WithMessage("Feedback cannot exceed 500 characters.");
+            .SetValidator(new FeedbackTextValidator());
         RuleFor(sfr => sfr.Rating)
-            .InclusiveBetween((byte) 1, (byte) 5)
-            .WithMessage("Rating must be between 1 and 5.");
+            .SetValidator(new FeedbackRatingValidator());
         RuleFor(sfr => sfr.UserId)
             .NotEmpty()
             .WithMessage("UserId cannot be empty.");

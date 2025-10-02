@@ -14,13 +14,16 @@ public static class ApiDependencyInjection
     /// </summary>
     public static void MapClientGenerationApis(this WebApplication app)
     {
+        var documentName = app.Configuration[
+            $"{SwaggerConfigSections.OpenApiInfoSection}:DocumentName"]!;
+
         foreach (var generationLanguage in Enum.GetValues<GenerationLanguage>())
         {
             var route = $"/{generationLanguage}";
 
             app.MapApiClientEndpoint(route, genConfig =>
                 {
-                    genConfig.SwaggerDocumentName = "v1";
+                    genConfig.SwaggerDocumentName = documentName;
                     genConfig.Language = generationLanguage;
                     genConfig.ClientNamespaceName = "DotNetAtlas";
                     genConfig.ClientClassName = $"{generationLanguage}Client";

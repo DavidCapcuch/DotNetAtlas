@@ -13,6 +13,7 @@ public class SendFeedbackCommand : ICommand<Guid>
 
     public required byte Rating { get; set; }
 
-    [FromClaim(ClaimTypes.NameIdentifier)]
+    [FromClaim(ClaimTypes.NameIdentifier, true, true)]
+    [HideFromDocs]
     public Guid UserId { get; set; }
 }

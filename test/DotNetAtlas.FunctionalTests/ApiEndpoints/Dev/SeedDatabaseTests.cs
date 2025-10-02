@@ -1,14 +1,12 @@
 ﻿using System.Net;
-using AwesomeAssertions;
-using AwesomeAssertions.Execution;
 using DotNetAtlas.Api.Endpoints.Dev;
-using DotNetAtlas.FunctionalTests.Base;
+using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.FunctionalTests.ApiEndpoints.Dev;
 
-[Collection<CollectionA>]
+[Collection<FeedbackTestCollection>]
 public class SeedDatabaseTests : BaseApiTest
 {
     public SeedDatabaseTests(ApiTestFixture app, ITestOutputHelper testOutputHelper)

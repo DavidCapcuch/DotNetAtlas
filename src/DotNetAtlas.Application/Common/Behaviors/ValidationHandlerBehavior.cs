@@ -88,11 +88,11 @@ internal static class ValidationHandlerBehavior
         }
     }
 
-    private static async Task<ValidationError[]> ValidateAsync<TCommand>(
-        TCommand command,
-        IEnumerable<IValidator<TCommand>> validators)
+    private static async Task<ValidationError[]> ValidateAsync<TRequest>(
+        TRequest command,
+        IEnumerable<IValidator<TRequest>> validators)
     {
-        var context = new ValidationContext<TCommand>(command);
+        var context = new ValidationContext<TRequest>(command);
 
         var validationResults = await Task.WhenAll(
             validators.Select(validator => validator.ValidateAsync(context)));

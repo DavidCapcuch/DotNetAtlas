@@ -20,6 +20,11 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    if (builder.IsOpenApiGenerationBuild())
+    {
+        builder.Environment.EnvironmentName = "Local";
+    }
+
     var isClusterEnvironment = !(builder.Environment.IsLocal() || builder.Environment.IsTesting());
     builder
         .Host
@@ -35,7 +40,7 @@ try
         .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
         .AddEnvironmentVariables();
 
-    builder.UseSerilogConfiguration(isClusterEnvironment);
+    builder.UseSerilogInternal(isClusterEnvironment);
 
     if (builder.Environment.IsLocal())
     {

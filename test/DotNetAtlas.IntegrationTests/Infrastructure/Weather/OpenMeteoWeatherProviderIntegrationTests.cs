@@ -1,16 +1,14 @@
-using AwesomeAssertions;
-using AwesomeAssertions.Execution;
 using DotNetAtlas.Application.Forecast.Services.Requests;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.Domain.Errors.Base;
 using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
-using DotNetAtlas.IntegrationTests.Base;
+using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DotNetAtlas.IntegrationTests.Infrastructure.Weather;
 
-[Collection<CollectionA>]
+[Collection<ForecastTestCollection>]
 public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
 {
     private readonly OpenMeteoWeatherProvider _provider;

@@ -25,8 +25,7 @@ public sealed class WeatherApiComGeocodingService : IGeocodingService
     {
         _httpClient = httpClient;
         _logger = logger;
-        _apiKey = options.Value.ApiKey ??
-                  throw new ArgumentNullException(nameof(options), "WeatherAPI.com ApiKey not configured");
+        _apiKey = options.Value.ApiKey;
     }
 
     public async Task<Result<GeoCoordinates>> GetCoordinatesAsync(GeocodingRequest request, CancellationToken ct)
@@ -49,11 +48,7 @@ public sealed class WeatherApiComGeocodingService : IGeocodingService
 
         _logger.LogDebug("Resolved location: {@GeoLocation} by: {CityWithCountry}", geoLocation, cityWithCountry);
 
-        return new GeoCoordinates
-        {
-            Latitude = geoLocation.Lat,
-            Longitude = geoLocation.Lon
-        };
+        return new GeoCoordinates(geoLocation.Lat, geoLocation.Lon);
     }
 
     private sealed class LocationSearchItem

@@ -26,8 +26,7 @@ public class WeatherApiComProvider : IWeatherForecastProvider
         IGeocodingService geocodingService)
     {
         _httpClient = httpClient;
-        _apiKey = options.Value.ApiKey ??
-                  throw new ArgumentNullException(nameof(options), "WeatherAPI.com ApiKey not configured");
+        _apiKey = options.Value.ApiKey;
         _geocodingService = geocodingService;
     }
 

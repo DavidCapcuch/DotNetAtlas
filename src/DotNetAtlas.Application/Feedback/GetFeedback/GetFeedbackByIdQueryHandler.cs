@@ -2,7 +2,8 @@ using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Specifications;
+using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Feedback.Common.Specifications;
 using DotNetAtlas.Domain.Errors;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,7 @@ public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, G
         GetFeedbackByIdQuery query,
         CancellationToken ct)
     {
-        Activity.Current?.SetTag("feedback.id", query.Id.ToString());
+        Activity.Current?.SetTag(DiagnosticNames.FeedbackId, query.Id.ToString());
 
         var response = await _weatherForecastContext.WeatherFeedbacks
             .AsNoTracking()
