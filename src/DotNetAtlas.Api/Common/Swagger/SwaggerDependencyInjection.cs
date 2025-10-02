@@ -1,10 +1,9 @@
-﻿using System.Reflection;
-using DotNetAtlas.Infrastructure.Common.Authentication;
+﻿using DotNetAtlas.Infrastructure.Common.Authentication;
 using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Config;
 using FastEndpoints.Swagger;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using NSwag;
 using NSwag.AspNetCore;
@@ -22,16 +21,13 @@ internal static class SwaggerDependencyInjection
         {
             options.DocumentSettings = settings =>
             {
-                if (IsOpenApiGenerationBuild())
+                settings.PostProcess = document =>
                 {
-                    settings.PostProcess = document =>
+                    document.Servers.Add(new OpenApiServer
                     {
-                        document.Servers.Add(new OpenApiServer
-                        {
-                            Url = "http://localhost:5159"
-                        });
-                    };
-                }
+                        Url = configuration["Swagger:ServerUrl"]
+                    });
+                };
 
                 settings.DocumentName = "Release 1 2025-08-04";
                 settings.Title = "DotNetAtlas API";
@@ -40,21 +36,22 @@ internal static class SwaggerDependencyInjection
                 settings.OperationProcessors.Add(
                     new AuthDescriptionOperationProcessor(
                         options.Services.GetRequiredService<IAuthorizationPolicyProvider>()));
+                settings.DocumentProcessors.Add(new SignalRTypesDocumentProcessor());
 
                 var openApiInfo = configuration
-                    .GetRequiredSection(AuthConfigSections.Full.OpenApiInfo)
+                    .GetRequiredSection(SwaggerConfigSections.OpenApiInfoSection)
                     .Get<OpenApiInfo>()!;
                 settings.PostProcess = document => document.Info = openApiInfo;
 
-                var jwtBearerOptions = configuration
-                    .GetRequiredSection(AuthConfigSections.Full.JwtBearer)
-                    .Get<JwtBearerOptions>()!;
+                var openIdConnectOptions = configuration
+                    .GetRequiredSection(AuthConfigSections.JwtBearerConfigSection)
+                    .Get<OpenIdConnectOptions>()!;
 
-                var tokenUrl = $"{jwtBearerOptions.Authority}/oauth2/token";
-                var authorizationUrl = $"{jwtBearerOptions.Authority}/oauth2/authorize";
+                var tokenUrl = $"{openIdConnectOptions.Authority}/oauth2/token";
+                var authorizationUrl = $"{openIdConnectOptions.Authority}/oauth2/authorize";
 
-                var scopes = Scopes.List.ToDictionary(s1 => s1.Name, s2 => s2.Description);
-                settings.AddAuth(SecuritySchemes.OAuth2, new OpenApiSecurityScheme
+                var scopes = AuthScopes.List.ToDictionary(s1 => s1.Name, s2 => s2.Description);
+                settings.AddAuth(nameof(OpenApiSecuritySchemeType.OAuth2), new OpenApiSecurityScheme
                 {
                     Type = OpenApiSecuritySchemeType.OAuth2,
                     Flows = new OpenApiOAuthFlows
@@ -63,9 +60,11 @@ internal static class SwaggerDependencyInjection
                         {
                             AuthorizationUrl = authorizationUrl,
                             TokenUrl = tokenUrl,
+                            RefreshUrl = tokenUrl,
                             Scopes = scopes
                         }
                     },
+                    Flow = OpenApiOAuth2Flow.AccessCode,
                     Description = @"IMPORTANT NOTE: If you do not specify any scope in the authentication request
                         then generated access token gets all scopes the specified client_id is authorized for."
                 });
@@ -90,7 +89,7 @@ internal static class SwaggerDependencyInjection
 
             var appName = configuration[$"{ApplicationOptions.Section}:AppName"];
             var oAuthConfig = configuration
-                .GetRequiredSection(AuthConfigSections.Full.OAuthConfig)
+                .GetRequiredSection(AuthConfigSections.OAuthConfigSection)
                 .Get<OAuthOptions>()!;
 
             uiSettings.OAuth2Client = new OAuth2ClientSettings
@@ -101,30 +100,12 @@ internal static class SwaggerDependencyInjection
                 UsePkceWithAuthorizationCodeGrant = true
             };
 
-            foreach (var scope in Scopes.List)
+            foreach (var scope in AuthScopes.List)
             {
                 uiSettings.OAuth2Client.Scopes.Add(scope.Name);
             }
         });
 
         return app;
-    }
-
-    /// <summary>
-    /// Determines if the current execution is part of the build-time OpenAPI document generation process.
-    /// This method checks whether the entry assembly's name matches "GetDocument.Insider", which is used
-    /// during the build-time document generation in ASP.NET Core when generating OpenAPI documents.
-    /// </summary>
-    /// <returns>
-    /// <c>true</c> if the current execution is part of the OpenAPI document generation process during the build; otherwise, <c>false</c>.
-    /// </returns>
-    /// <remarks>
-    /// This method is typically used to conditionally execute logic that should only occur during build time.
-    /// For more information refer to the official documentation:
-    /// <see href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi">Generate OpenAPI Documents at Build Time</see>.
-    /// </remarks>
-    public static bool IsOpenApiGenerationBuild()
-    {
-        return Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
     }
 }

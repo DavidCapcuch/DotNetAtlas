@@ -1,4 +1,5 @@
 ﻿@page
+@using DotNetAtlas.Infrastructure.Common.Extensions
 @model DotNetAtlas.Api.Pages.IndexModel
 @{
     ViewData["Title"] = Model.Title;
@@ -13,19 +14,62 @@
 </head>
 <body>
 <h1>@Model.Title</h1>
-<h3>Deployment: @Model.Deployment</h3>
-<h3>@Model.Language</h3>
+<h3>Deployment: @Model.Env.EnvironmentName</h3>
 
-<h3><a href="/swagger">Swagger</a></h3>
-<h3><a href="/healthchecks-ui" target="_blank" rel="noopener noreferrer">Health Checks UI</a></h3>
+<h3><a href="/swagger" target="_blank" rel="noopener noreferrer">Swagger</a></h3>
+@if (!Model.Env.IsProduction())
+{
+    <h3><a href="/signalr-dev/index.html" target="_blank" rel="noopener noreferrer">SignalR UI</a></h3>
+}
 
-@if (Model.IsLocal)
+<br/>
+
+@{
+    var isAuthenticated = User?.Identity?.IsAuthenticated ?? false;
+}
+
+@if (isAuthenticated)
+{
+    <form action="/api/v1/auth/logout" method="POST" style="display:inline;">
+        <button type="submit">Logout</button>
+    </form>
+}
+else
+{
+    <form action="/api/v1/auth/login" method="GET" style="display:inline;">
+        <button type="submit">Login</button>
+    </form>
+    <h3 style="display: inline; margin-left: 10px;">(user: dev@dotnetatlas.com password: 123456789)</h3>
+}
+
+<h3>
+    <a href="/healthchecks-ui" target="_blank" class="@(isAuthenticated ? "" : "disabled-link")"
+       rel="noopener noreferrer">Health Checks
+        UI</a>
+    @if (!isAuthenticated)
+    {
+        <span> (login required)</span>
+    }
+</h3>
+
+<h3>
+    <a href="/hangfire-dashboard" target="_blank" class="@(isAuthenticated ? "" : "disabled-link")"
+       rel="noopener noreferrer">Hangfire
+        Dashboard</a>
+    @if (!isAuthenticated)
+    {
+        <span> (login required)</span>
+    }
+</h3>
+
+@if (Model.Env.IsLocal())
 {
     <br/>
     <h2>Docker compose services:</h2>
     <h3><a href="http://localhost:5341/#/events?range=3h" target="_blank" rel="noopener noreferrer">Seq</a></h3>
     <h3>
-        <a href="http://localhost:5540/484a0520-f569-45ea-a027-909b81903784/browser" target="_blank" rel="noopener noreferrer">
+        <a href="http://localhost:5540/484a0520-f569-45ea-a027-909b81903784/browser" target="_blank"
+           rel="noopener noreferrer">
             Redis Insight
         </a>
         (connect to "redis12346:6379" - db 0)
@@ -34,5 +78,16 @@
     <h3><a href="http://localhost:3000/dashboards" target="_blank" rel="noopener noreferrer">Grafana</a></h3>
     <h3><a href="http://localhost:9090/query" target="_blank" rel="noopener noreferrer">Prometheus</a></h3>
 }
+
+<style>
+    .disabled-link {
+        pointer-events: none;
+        color: gray;
+        opacity: 0.6;
+        text-decoration: none;
+        cursor: default;
+    }
+</style>
+
 </body>
 </html>
