@@ -46,10 +46,6 @@ public sealed class OpenMeteoGeocodingService : IGeocodingService
 
         _logger.LogDebug("Resolved location: {@GeoLocation} by: {City},{Code}", geoLocation, request.City, countryCode);
 
-        return Result.Ok(new GeoCoordinates
-        {
-            Latitude = geoLocation.Latitude,
-            Longitude = geoLocation.Longitude
-        });
+        return new GeoCoordinates(geoLocation.Latitude, geoLocation.Longitude);
     }
 }

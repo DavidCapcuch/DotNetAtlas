@@ -34,7 +34,6 @@ internal class GetForecastEndpoint : Endpoint<GetForecastQuery, GetForecastRespo
                 CountryCode = CountryCode.Cz
             };
         });
-        Validator<GetForecastQueryValidator>();
     }
 
     public override async Task HandleAsync(GetForecastQuery query, CancellationToken ct)
