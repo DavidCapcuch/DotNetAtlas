@@ -323,6 +323,16 @@
           }
         ]
       }
+    },
+    "/signalr-dev/spec.json": {
+      "get": {
+        "operationId": "GetSignalrDevSpec.json",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
     }
   },
   "components": {

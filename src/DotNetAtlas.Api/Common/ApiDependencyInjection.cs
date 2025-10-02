@@ -42,6 +42,12 @@ public static class ApiDependencyInjection
 
     public static void MapSignalRHubsInternal(this WebApplication app)
     {
+        if (!app.Environment.IsProduction())
+        {
+            app.UseSignalRHubDevelopmentUI();
+        }
+
+        app.UseSignalRHubSpecification();
         app.MapHub<WeatherAlertHub>(WeatherAlertHub.RoutePattern);
     }
 
