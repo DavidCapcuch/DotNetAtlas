@@ -7,8 +7,11 @@ using DotNetAtlas.Api.Common.Swagger;
 using DotNetAtlas.Api.Endpoints;
 using DotNetAtlas.Application.Common;
 using DotNetAtlas.Infrastructure.Common;
+using DotNetAtlas.Infrastructure.Common.Authorization;
+using DotNetAtlas.Infrastructure.Common.Extensions;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using FastEndpoints;
+using Hangfire;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -104,7 +107,9 @@ try
         })
         .UseAuthSwaggerGen(app.Configuration);
 
+    app.MapHangfireDashboardWithAuthorizationPolicy(AuthPolicies.DevOnly, "/hangfire-dashboard");
     app.MapHealthChecksInternal();
+    app.MapSignalRHubsInternal();
     app.MapClientGenerationApis();
     app.MapStaticAssets();
     app.MapRazorPages()

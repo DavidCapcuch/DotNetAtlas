@@ -3,7 +3,6 @@ using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Config;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using NSwag;
 using NSwag.AspNetCore;
@@ -29,7 +28,7 @@ internal static class SwaggerDependencyInjection
                 {
                     document.Servers.Add(new OpenApiServer
                     {
-                        Url = configuration["Swagger:ServerUrl"]
+                        Url = configuration[$"{SwaggerConfigSections.OpenApiInfoSection}:ServerUrl"]
                     });
                     document.Info = openApiInfo;
                 };

@@ -6,20 +6,21 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj" />
+        <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="FastEndpoints.Attributes" />
-        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" />
-        <PackageReference Include="FluentValidation" />
-        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
-        <PackageReference Include="MemoryPack.Core" />
-        <PackageReference Include="Riok.Mapperly" />
-        <PackageReference Include="Serilog.AspNetCore" />
-        <PackageReference Include="Scrutor" />
-        <PackageReference Include="ZiggyCreatures.FusionCache" />
-        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack" />
+        <PackageReference Include="FastEndpoints.Attributes"/>
+        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore"/>
+        <PackageReference Include="FluentValidation"/>
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions"/>
+        <PackageReference Include="Riok.Mapperly"/>
+        <PackageReference Include="Serilog.AspNetCore"/>
+        <PackageReference Include="Scrutor"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack"/>
+        <PackageReference Include="MessagePack.Annotations"/>
+        <PackageReference Include="TypedSignalR.Client.Attributes"/>
 
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
@@ -28,6 +29,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="DotNetAtlas.Application.IntegrationTests" />
+        <InternalsVisibleTo Include="DotNetAtlas.Application.IntegrationTests"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Forecast\Common\"/>
     </ItemGroup>
 </Project>
