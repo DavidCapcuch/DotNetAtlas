@@ -2,7 +2,7 @@
   "x-generator": "NSwag v14.4.0.0 (NJsonSchema v11.3.2.0 (Newtonsoft.Json v13.0.0.0))",
   "openapi": "3.0.0",
   "info": {
-    "title": "DotNetAtlas",
+    "title": "DotNetAtlas API",
     "description": "DotNet Atlas - Made with ❤️, Powered by ☕",
     "contact": {
       "name": "David Capcuch",
@@ -11,6 +11,11 @@
     },
     "version": "v1"
   },
+  "servers": [
+    {
+      "url": "http://localhost:5159"
+    }
+  ],
   "paths": {
     "/api/v1/admin/clear-all-cache": {
       "post": {
@@ -67,6 +72,45 @@
               "type": "string"
             },
             "example": "Cz"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      }
+    },
+    "/api/v1/dev/seed-database": {
+      "post": {
+        "tags": [
+          "Dev"
+        ],
+        "summary": "Seeds the database with a specified number of active callout items for testing purposes. (Auth policies:  'DevOnlyPolicy' roles: [Developer])",
+        "description": "Generates a specified number of weather forecast feedbacks.",
+        "operationId": "DotNetAtlasApiEndpointsDevSeedDatabaseEndpoint",
+        "parameters": [
+          {
+            "name": "numberOfRecords",
+            "in": "query",
+            "required": true,
+            "description": "Number of records to generate.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            }
           }
         ],
         "responses": {
@@ -226,16 +270,6 @@
               ]
             },
             "example": 0
-          },
-          {
-            "name": "userId",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "guid",
-              "nullable": true
-            },
-            "example": null
           }
         ],
         "responses": {
@@ -245,16 +279,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetForecastResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -920,69 +944,39 @@
           "Zw"
         ]
       },
-      "ProblemDetails": {
+      "AlertSubscriptionDto": {
         "type": "object",
-        "description": "RFC7807 compatible problem details/ error response class. this can be used by configuring startup like so:\napp.UseFastEndpoints(c => c.Errors.UseProblemDetails())",
         "additionalProperties": false,
         "properties": {
-          "type": {
-            "type": "string",
-            "default": "https://www.rfc-editor.org/rfc/rfc7231#section-6.5.1"
+          "city": {
+            "type": "string"
           },
-          "title": {
-            "type": "string",
-            "default": "One or more validation errors occurred."
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32",
-            "default": 400
-          },
-          "instance": {
-            "type": "string",
-            "default": "/api/route"
-          },
-          "traceId": {
-            "type": "string",
-            "default": "0HMPNHL0JHL76:00000001"
-          },
-          "detail": {
-            "type": "string",
-            "description": "the details of the error",
-            "nullable": true
-          },
-          "errors": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProblemDetails_Error"
-            }
+          "countryCode": {
+            "$ref": "#/components/schemas/CountryCode"
           }
         }
       },
-      "ProblemDetails_Error": {
+      "WeatherAlert": {
         "type": "object",
-        "description": "the error details object",
         "additionalProperties": false,
         "properties": {
-          "name": {
-            "type": "string",
-            "description": "the name of the error or property of the dto that caused the error",
-            "default": "Error or field name"
+          "city": {
+            "type": "string"
           },
-          "reason": {
-            "type": "string",
-            "description": "the reason for the error",
-            "default": "Error reason"
+          "countryCode": {
+            "$ref": "#/components/schemas/CountryCode"
           },
-          "code": {
-            "type": "string",
-            "description": "the code of the error",
-            "nullable": true
-          },
-          "severity": {
-            "type": "string",
-            "description": "the severity of the error",
-            "nullable": true
+          "alertMessage": {
+            "type": "string"
+          }
+        }
+      },
+      "WeatherAlertMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
           }
         }
       }
@@ -997,6 +991,7 @@
             "tokenUrl": "http://localhost:9011/oauth2/token",
             "scopes": {
               "email": "Email.",
+              "offline_access": "Generate refresh token.",
               "openid": "OpenID.",
               "profile": "Profile."
             }
