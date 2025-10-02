@@ -5,18 +5,24 @@ using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.Forecast.Common.Config;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
+using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 using DotNetAtlas.Infrastructure.Common.Authentication;
 using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.Common.Observability;
 using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
 using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+using DotNetAtlas.Infrastructure.Jobs;
 using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
+using DotNetAtlas.Infrastructure.SignalR;
 using Elastic.Serilog.Enrichers.Web;
 using EntityFramework.Exceptions.SqlServer;
+using Hangfire;
 using HealthChecks.UI.Client;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -44,6 +50,7 @@ using Serilog.Sinks.OpenTelemetry;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
 using SerilogTracing.Expressions;
+using StackExchange.Redis;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.CysharpMemoryPack;
@@ -63,12 +70,17 @@ public static class InfrastructureDependencyInjection
         services.AddObservability(isClusterEnvironment, configuration);
         services.AddOptionsWithValidateOnStart<WeatherHedgingOptions>()
             .Bind(configuration.GetSection(WeatherHedgingOptions.Section));
+
         services.AddAuthenticationInternal(configuration, isClusterEnvironment);
         services.AddAuthorizationInternal();
+
         services.AddDatabase(configuration);
         services.AddCache(configuration);
+
+        services.AddSignalRInfrastructure(configuration);
         services.AddWeatherApiClients(configuration);
         services.AddHealthChecksInternal(configuration);
+        services.AddBackgroundJobs(configuration);
 
         return services;
     }
@@ -118,6 +130,7 @@ public static class InfrastructureDependencyInjection
         services.AddKeyedScoped<IGeocodingService, OpenMeteoGeocodingService>(OpenMeteoGeocodingService.ServiceKey);
         services
             .AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
+        services.AddScoped<IGeocodingService, OpenMeteoGeocodingService>();
         services.AddScoped<IMainWeatherForecastProvider, OpenMeteoWeatherProvider>();
         services.AddScoped<IWeatherForecastProvider, OpenMeteoWeatherProvider>();
         services.AddScoped<IWeatherForecastProvider, WeatherApiComProvider>();
@@ -127,7 +140,7 @@ public static class InfrastructureDependencyInjection
 
     /// <summary>
     /// Cannot use ConfigureHttpClientDefaults because it is applied to health check clients too
-    /// which then fail if degraded service is encountered.
+    /// which then fail if a degraded service is encountered.
     /// </summary>
     private static IHttpResiliencePipelineBuilder AddDefaultResilienceHandler(
         this IHttpClientBuilder builder,
@@ -349,6 +362,10 @@ public static class InfrastructureDependencyInjection
                         .AddSignalRInstrumentation()
                         .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
                         .AddFusionCacheInstrumentation()
+                        .AddHangfireInstrumentation(options =>
+                        {
+                            options.RecordException = true;
+                        })
                         .AddSource("*");
 
                     tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
@@ -518,6 +535,63 @@ public static class InfrastructureDependencyInjection
         return services;
     }
 
+    private static IServiceCollection AddSignalRInfrastructure(
+        this IServiceCollection services,
+        ConfigurationManager configuration)
+    {
+        IConnectionMultiplexer redisMultiplexer =
+            ConnectionMultiplexer.Connect(configuration.GetConnectionString(ConnectionStrings.Redis)!);
+        services.AddSingleton<IConnectionMultiplexer>(redisMultiplexer);
+        services.AddSingleton<IGroupManager, RedisSignalRGroupManager>();
+
+        services.AddSignalR(options =>
+            {
+                options.EnableDetailedErrors = true;
+                options.ClientTimeoutInterval = TimeSpan.FromSeconds(120);
+            })
+            .AddJsonProtocol()
+            .AddMessagePackProtocol(options =>
+            {
+                options.SerializerOptions = MessagePackSerializerOptions.Standard
+                    .WithResolver(ContractlessStandardResolver.Instance)
+                    .WithSecurity(MessagePackSecurity.UntrustedData);
+            })
+            .AddHubInstrumentation()
+            .AddStackExchangeRedis(options =>
+            {
+                options.ConnectionFactory = _ => Task.FromResult(redisMultiplexer);
+                options.Configuration.ChannelPrefix = RedisChannel.Literal("signalr.dotnetatlas");
+            });
+
+        return services;
+    }
+
+    private static IServiceCollection AddBackgroundJobs(
+        this IServiceCollection services,
+        ConfigurationManager configuration)
+    {
+        services.AddOptionsWithValidateOnStart<FakeWeatherAlertJobOptions>()
+            .Bind(configuration.GetSection(FakeWeatherAlertJobOptions.Section));
+
+        services.AddHangfire(config =>
+        {
+            config.UseRecommendedSerializerSettings();
+            config.UseSimpleAssemblyNameTypeSerializer();
+            config.UseSerilogLogProvider();
+            config.UseSqlServerStorage(configuration.GetConnectionString(ConnectionStrings.Weather));
+        });
+
+        services.AddHangfireServer(options =>
+        {
+            options.SchedulePollingInterval = TimeSpan.FromSeconds(5);
+            options.CancellationCheckInterval = TimeSpan.FromSeconds(5);
+        });
+
+        services.AddScoped<IWeatherAlertJobScheduler, HangfireWeatherAlertJobScheduler>();
+
+        return services;
+    }
+
     private static IServiceCollection AddHealthChecksInternal(
         this IServiceCollection services,
         ConfigurationManager configuration)
@@ -528,10 +602,10 @@ public static class InfrastructureDependencyInjection
         var weatherApiComOptions = configuration
             .GetRequiredSection(WeatherApiComOptions.Section)
             .Get<WeatherApiComOptions>()!;
-        var fusionAuthUrl = configuration["Swagger:OAuthConfig:Authority"]!;
+        var fusionAuthUrl = configuration[$"{AuthConfigSections.OAuthConfigSection}:Authority"]!;
 
         services.AddHealthChecks()
-            .AddCheck("self", () => HealthCheckResult.Healthy(),
+            .AddCheck("Self", () => HealthCheckResult.Healthy(),
                 tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
                 timeout: TimeSpan.FromSeconds(2))
             .AddDbContextCheck<WeatherForecastContext>(
@@ -539,10 +613,11 @@ public static class InfrastructureDependencyInjection
                 tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy)
             .AddRedis(
-                configuration.GetConnectionString(ConnectionStrings.Redis)!,
+                sp => sp.GetRequiredService<IConnectionMultiplexer>(),
                 tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: TimeSpan.FromSeconds(4))
+                timeout: TimeSpan.FromSeconds(4),
+                name: "Redis")
             .AddUrlGroup(
                 new Uri(weatherApiComOptions.BaseUrl), weatherApiComOptions.BaseUrl,
                 tags:
@@ -573,6 +648,18 @@ public static class InfrastructureDependencyInjection
                 name: "FusionAuth IDM",
                 tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
+                timeout: TimeSpan.FromSeconds(3))
+            .AddHangfire(options => options.MaximumJobsFailed = 3, "Hangfire Degraded Check",
+                failureStatus: HealthStatus.Degraded,
+                tags: [InfrastructureConstants.ReadinessTag],
+                timeout: TimeSpan.FromSeconds(3))
+            .AddHangfire(options =>
+                {
+                    options.MaximumJobsFailed = 10;
+                    options.MinimumAvailableServers = 1;
+                }, "Hangfire Unhealthy Check",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: [InfrastructureConstants.ReadinessTag],
                 timeout: TimeSpan.FromSeconds(3));
 
         services.AddHealthChecksUI(settings =>

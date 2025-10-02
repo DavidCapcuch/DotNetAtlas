@@ -1,9 +1,13 @@
 ﻿using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.Common.Swagger;
+using DotNetAtlas.Api.SignalR.WeatherAlerts;
+using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
+using DotNetAtlas.Infrastructure.Common.Config;
 using FastEndpoints;
 using FastEndpoints.ClientGen.Kiota;
 using Kiota.Builder;
+using TypedSignalR.Client.DevTools;
 
 namespace DotNetAtlas.Api.Common;
 
@@ -36,6 +40,11 @@ public static class ApiDependencyInjection
         }
     }
 
+    public static void MapSignalRHubsInternal(this WebApplication app)
+    {
+        app.MapHub<WeatherAlertHub>(WeatherAlertHub.RoutePattern);
+    }
+
     public static WebApplicationBuilder AddPresentation(this WebApplicationBuilder builder)
     {
         builder.Services.AddFastEndpoints(options =>
@@ -48,6 +57,9 @@ public static class ApiDependencyInjection
         builder.Services.AddRazorPages();
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
+
+        builder.Services.AddSignalR();
+        builder.Services.AddScoped<IWeatherAlertNotifier, WeatherAlertNotifier>();
 
         return builder;
     }
