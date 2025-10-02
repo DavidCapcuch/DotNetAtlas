@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Specifications;
+using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Feedback.Common.Specifications;
 using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using DotNetAtlas.Domain.Errors;
 using FluentResults;
@@ -48,6 +50,7 @@ public class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, G
         await _weatherForecastContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Weather feedback created with ID: {FeedbackId}", weatherFeedback.Id);
+        Activity.Current?.SetTag(DiagnosticNames.FeedbackId, weatherFeedback.Id);
 
         return Result.Ok(weatherFeedback.Id);
     }

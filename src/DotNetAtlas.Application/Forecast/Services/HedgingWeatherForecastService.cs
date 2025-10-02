@@ -1,4 +1,4 @@
-using DotNetAtlas.Application.Common.Config;
+using DotNetAtlas.Application.Forecast.Common.Config;
 using DotNetAtlas.Application.Forecast.GetForecasts;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using DotNetAtlas.Application.Forecast.Services.Requests;
@@ -33,7 +33,7 @@ public class HedgingWeatherForecastService : IWeatherForecastService
     {
         // Try only the primary provider first
         using var primaryProviderCallCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        primaryProviderCallCts.CancelAfter(_hedgingOptions.PrimaryMaxDurationMs);
+        primaryProviderCallCts.CancelAfter(1000);
         try
         {
             var primaryResult =

@@ -162,7 +162,7 @@ public static class InfrastructureDependencyInjection
             });
     }
 
-    public static WebApplicationBuilder UseSerilogConfiguration(
+    public static WebApplicationBuilder UseSerilogInternal(
         this WebApplicationBuilder builder,
         bool isClusterEnvironment)
     {
@@ -258,16 +258,20 @@ public static class InfrastructureDependencyInjection
             .WithSerializer(
                 new FusionCacheCysharpMemoryPackSerializer()
             )
-            .WithDistributedCache(
+            // Use the centralized multiplexer for the distributed cache
+            .WithDistributedCache(sp =>
                 new RedisCache(new RedisCacheOptions
                 {
-                    Configuration = configuration.GetConnectionString(ConnectionStrings.Redis)
+                    ConnectionMultiplexerFactory =
+                        () => Task.FromResult(sp.GetRequiredService<IConnectionMultiplexer>())
                 })
             )
-            .WithBackplane(
+            // Use the centralized multiplexer for the backplane
+            .WithBackplane(sp =>
                 new RedisBackplane(new RedisBackplaneOptions
                 {
-                    Configuration = configuration.GetConnectionString(ConnectionStrings.Redis)
+                    ConnectionMultiplexerFactory =
+                        () => Task.FromResult(sp.GetRequiredService<IConnectionMultiplexer>())
                 })
             );
 

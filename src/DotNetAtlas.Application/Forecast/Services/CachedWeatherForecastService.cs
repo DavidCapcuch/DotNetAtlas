@@ -1,4 +1,4 @@
-using DotNetAtlas.Application.Common.Config;
+using DotNetAtlas.Application.Forecast.Common.Config;
 using DotNetAtlas.Application.Forecast.GetForecasts;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using DotNetAtlas.Application.Forecast.Services.Requests;

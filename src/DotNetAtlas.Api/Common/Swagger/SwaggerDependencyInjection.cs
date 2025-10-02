@@ -21,34 +21,32 @@ internal static class SwaggerDependencyInjection
         {
             options.DocumentSettings = settings =>
             {
+                var openApiInfo = configuration
+                    .GetRequiredSection(SwaggerConfigSections.OpenApiInfoSection)
+                    .Get<OpenApiInfo>()!;
+
                 settings.PostProcess = document =>
                 {
                     document.Servers.Add(new OpenApiServer
                     {
                         Url = configuration["Swagger:ServerUrl"]
                     });
+                    document.Info = openApiInfo;
                 };
 
-                settings.DocumentName = "Release 1 2025-08-04";
-                settings.Title = "DotNetAtlas API";
-                settings.Version = "v1";
+                var documentName = configuration[$"{SwaggerConfigSections.OpenApiInfoSection}:DocumentName"]!;
+                settings.DocumentName = documentName;
+                settings.Title = openApiInfo.Title;
+                settings.Version = openApiInfo.Version;
 
                 settings.OperationProcessors.Add(
                     new AuthDescriptionOperationProcessor(
                         options.Services.GetRequiredService<IAuthorizationPolicyProvider>()));
                 settings.DocumentProcessors.Add(new SignalRTypesDocumentProcessor());
 
-                var openApiInfo = configuration
-                    .GetRequiredSection(SwaggerConfigSections.OpenApiInfoSection)
-                    .Get<OpenApiInfo>()!;
-                settings.PostProcess = document => document.Info = openApiInfo;
-
-                var openIdConnectOptions = configuration
-                    .GetRequiredSection(AuthConfigSections.JwtBearerConfigSection)
-                    .Get<OpenIdConnectOptions>()!;
-
-                var tokenUrl = $"{openIdConnectOptions.Authority}/oauth2/token";
-                var authorizationUrl = $"{openIdConnectOptions.Authority}/oauth2/authorize";
+                var authority = configuration[$"{AuthConfigSections.JwtBearerConfigSection}:Authority"]!;
+                var tokenUrl = $"{authority}/oauth2/token";
+                var authorizationUrl = $"{authority}/oauth2/authorize";
 
                 var scopes = AuthScopes.List.ToDictionary(s1 => s1.Name, s2 => s2.Description);
                 settings.AddAuth(nameof(OpenApiSecuritySchemeType.OAuth2), new OpenApiSecurityScheme

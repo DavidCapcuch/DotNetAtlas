@@ -116,8 +116,8 @@ internal static class TracingHandlerBehavior
 
     private static void TraceResultFailure(Activity? activity, ResultBase result)
     {
-        activity?.SetTag("domain.error", true);
-        activity?.SetTag("domain.error.count", result.Errors.Count);
+        activity?.SetTag(DiagnosticNames.DomainError, true);
+        activity?.SetTag(DiagnosticNames.DomainErrorCount, result.Errors.Count);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -127,22 +127,21 @@ internal static class TracingHandlerBehavior
                 "Domain error",
                 tags: new ActivityTagsCollection
                 {
-                    ["error.count"] = result.Errors.Count,
-                    ["error.details"] = detailsJson
+                    [DiagnosticNames.DomainErrorCount] = result.Errors.Count,
+                    [DiagnosticNames.DomainErrorDetails] = detailsJson
                 }));
         }
     }
 
     private static string BuildErrorDetailsJson(ResultBase result)
     {
-        var items = result.Errors
+        var errorDetails = result.Errors
             .Select(err => new
             {
                 code = err is DomainError de ? de.ErrorCode : null,
                 message = err.Message
-            })
-            .ToList();
+            });
 
-        return JsonSerializer.Serialize(items);
+        return JsonSerializer.Serialize(errorDetails);
     }
 }

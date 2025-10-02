@@ -16,6 +16,7 @@ public class ChangeFeedbackCommand : ICommand
 
     public required byte Rating { get; set; }
 
-    [FromClaim(ClaimTypes.NameIdentifier)]
+    [FromClaim(ClaimTypes.NameIdentifier, true, true)]
+    [HideFromDocs]
     public Guid UserId { get; set; }
 }
