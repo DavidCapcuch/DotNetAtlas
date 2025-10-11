@@ -27,6 +27,16 @@ public static class HostEnvironmentExtensions
     }
 
     /// <summary>
+    /// Checks if the current host environment name is deployed in any non-local cluster.
+    /// </summary>
+    /// <param name="hostEnvironment">An instance of <see cref="Microsoft.Extensions.Hosting.IHostEnvironment" />.</param>
+    /// <returns>True if the environment is in a cluster, otherwise false.</returns>
+    public static bool IsInCluster(this IHostEnvironment hostEnvironment)
+    {
+        return !(hostEnvironment.IsLocal() || hostEnvironment.IsTesting());
+    }
+
+    /// <summary>
     /// Determines if the current execution is part of the build-time OpenAPI document generation process.
     /// This method checks whether the entry assembly's name matches "GetDocument.Insider", which is used
     /// during the build-time document generation in ASP.NET Core when generating OpenAPI documents.
