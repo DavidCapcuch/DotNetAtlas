@@ -11,7 +11,7 @@
     Clean generated test results per project used for generating aggregated reports (default: true).
 
 .PARAMETER ReportTypes
-    Report types to generate. Default: "Html_Dark"
+    Report types to generate. Default: "HtmlInline"
     See https://github.com/danielpalme/ReportGenerator/wiki/Output-formats
     for available options.
 
@@ -26,7 +26,7 @@
 
 param(
     [switch]$CleanTestResults = $true,
-    [string]$ReportTypes = "Html_Dark"
+    [string]$ReportTypes = "HtmlInline"
 )
 
 $ErrorActionPreference = "Stop"
