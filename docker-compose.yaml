@@ -1,6 +1,6 @@
 ﻿services:
   mssqldb:
-    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04@sha256:c1aa8afe9b06eab64c9774a4802dcd032205d1be785b1fd51e1c0151e7586b74
     container_name: mssql12345
     restart: always
     environment:
@@ -12,7 +12,7 @@
       - sqlserver_data:/var/opt/mssql
 
   redis:
-    image: redis:7.4.2
+    image: redis:7.4.2@sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9
     container_name: redis12346
     restart: always
     ports:
@@ -20,7 +20,7 @@
     command: [ "redis-server", "--appendonly", "yes" ]
 
   redis-insight:
-    image: redis/redisinsight:2.70
+    image: redis/redisinsight:2.70@sha256:b7aa18e73329ebb2e3d9e949b8d35193bf5415ef35c16fd9a50e6f832922b296
     restart: always
     ports:
       - "5540:5540"
@@ -33,7 +33,7 @@
     command: ["redis-insight", "--auto-connect", "redis://redis:6379"]  # Auto-connect to Redis
 
   seq:
-    image: datalust/seq:2025.2
+    image: datalust/seq:2025.2@sha256:080ccf44e0593cd4698ba1404b90b4f8bf51ff342e45242f611c91e329554f50
     container_name: seq5341
     ports:
       - "5341:80"
@@ -44,7 +44,7 @@
       - seq_data:/data
 
   jaeger:
-    image: jaegertracing/all-in-one:1.66.0
+    image: jaegertracing/all-in-one:1.66.0@sha256:9864182b4e01350fcc64631bdba5f4085f87daae9d477a04c25d9cb362e787a9
     container_name: jaeger16686ui4317grpc
     command:
       - "--memory.max-traces=25000"
@@ -64,7 +64,7 @@
       - METRICS_STORAGE_TYPE=prometheus
   
   prometheus:
-    image: quay.io/prometheus/prometheus:v3.5.0
+    image: quay.io/prometheus/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
     container_name: prometheus9090
     command:
       - --web.console.templates=/etc/prometheus/consoles
@@ -88,7 +88,7 @@
       - "9090:9090"
 
   grafana:
-    image: grafana/grafana:12.1.0
+    image: grafana/grafana:12.1.0@sha256:6ac590e7cabc2fbe8d7b8fc1ce9c9f0582177b334e0df9c927ebd9670469440f
     container_name: grafana3000
     deploy:
       resources:
@@ -105,7 +105,7 @@
       - "3000:3000"
 
   otel-collector:
-    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.133.0
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.133.0@sha256:98274b756324abdb2473fa0c898247a246091e861e61d1548f9be483198eecea
     container_name: otel-collector
     deploy:
       resources:
@@ -158,7 +158,7 @@
 
   # FUSION AUTH SERVICES
   db:
-    image: postgres:16.0-bookworm
+    image: postgres:16.0-bookworm@sha256:a80d0c1b119cf3d6bab27f72782f16e47ab8534ced937fa813ec2ab26e1fd81e
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: postgres
@@ -173,7 +173,7 @@
       - db_data:/var/lib/postgresql/data
 
   search:
-    image: opensearchproject/opensearch:3.2.0
+    image: opensearchproject/opensearch:3.2.0@sha256:23297b8d8545e129dd58c254ed08d786dc552410ba772983ad2af31048d2f04b
     environment:
       - cluster.name=fusionauth
       - discovery.type=single-node
@@ -202,7 +202,7 @@
       - search_data:/usr/share/opensearch/data
 
   fusionauth:
-    image: fusionauth/fusionauth-app:1.60.0
+    image: fusionauth/fusionauth-app:1.60.0@sha256:85e1a73cc82a6b4b2ced923bbec5a050589be23d98dbcf130794b11ce00bcb74
     depends_on:
       db:
         condition: service_healthy
