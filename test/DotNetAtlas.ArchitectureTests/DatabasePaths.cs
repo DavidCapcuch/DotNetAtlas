@@ -4,7 +4,7 @@ namespace DotNetAtlas.ArchitectureTests;
 
 public static class DatabasePaths
 {
-    private const string SolutionFileName = "DotNetAtlas.sln";
+    private const string SolutionFileName = "DotNetAtlas.slnx";
 
     public static string DatabaseRootDirectory =>
         Path.Combine(GetSolutionRootDirectory(), "src", "DotNetAtlas.Infrastructure", "Persistence", "Database");

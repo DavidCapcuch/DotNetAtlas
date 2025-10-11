@@ -1,0 +1,33 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docker-compose.yaml" />
+    <File Path="global.json" />
+    <File Path="NuGet.config" />
+    <File Path="README.md" />
+    <File Path="src/fusionauth/kickstart.json" />
+    <File Path="Dockerfile" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DotNetAtlas.Api/DotNetAtlas.Api.csproj" />
+    <Project Path="src/DotNetAtlas.Application/DotNetAtlas.Application.csproj" />
+    <Project Path="src/DotNetAtlas.Domain/DotNetAtlas.Domain.csproj" />
+    <Project Path="src/DotNetAtlas.Infrastructure/DotNetAtlas.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/DotNetAtlas.ArchitectureTests/DotNetAtlas.ArchitectureTests.csproj" />
+    <Project Path="test/DotNetAtlas.FunctionalTests/DotNetAtlas.FunctionalTests.csproj" />
+    <Project Path="test/DotNetAtlas.IntegrationTests/DotNetAtlas.IntegrationTests.csproj" />
+    <Project Path="test/DotNetAtlas.UnitTests/DotNetAtlas.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/test/Common/">
+    <File Path="test/coverlet.runsettings" />
+    <File Path="test/Directory.Build.props" />
+    <File Path="test/Directory.Packages.props" />
+    <File Path="test/README.md" />
+    <File Path="test/test-coverage.ps1" />
+    <File Path="test/xunit.runner.json" />
+  </Folder>
+</Solution>
