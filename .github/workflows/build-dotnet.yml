@@ -1,0 +1,56 @@
+name: Reusable - Build
+
+on:
+  workflow_call:
+    inputs:
+      semVer:
+        required: true
+        type: string
+      assemblySemVer:
+        required: true
+        type: string
+      assemblySemFileVer:
+        required: true
+        type: string
+      informationalVersion:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Setup .NET SDK (10.0.100-rc.1.25451.107)
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.100-rc.1.25451.107"
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - name: Show .NET info
+        run: dotnet --info
+      - name: Restore
+        run: dotnet restore --locked-mode
+      - name: Build
+        env:
+          SEMVER: ${{ inputs.semVer }}
+          ASSEMBLY_SEMVER: ${{ inputs.assemblySemVer }}
+          ASSEMBLY_SEMFILEVER: ${{ inputs.assemblySemFileVer }}
+          INFORMATIONAL_VERSION: ${{ inputs.informationalVersion }}
+        run: |
+          dotnet build \
+            --no-restore \
+            -c Release \
+            -p:TreatWarningsAsErrors=true \
+            -p:Version=$SEMVER \
+            -p:AssemblyVersion=$ASSEMBLY_SEMVER \
+            -p:FileVersion=$ASSEMBLY_SEMFILEVER \
+            -p:InformationalVersion=$INFORMATIONAL_VERSION
+
