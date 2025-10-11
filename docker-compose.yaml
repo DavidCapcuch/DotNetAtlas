@@ -12,7 +12,7 @@
       - sqlserver_data:/var/opt/mssql
 
   redis:
-    image: redis:7.4.2@sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9
+    image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
     container_name: redis12346
     restart: always
     ports:
@@ -44,7 +44,7 @@
       - seq_data:/data
 
   jaeger:
-    image: jaegertracing/all-in-one:1.66.0@sha256:9864182b4e01350fcc64631bdba5f4085f87daae9d477a04c25d9cb362e787a9
+    image: jaegertracing/all-in-one:1.74.0@sha256:c87fc1d9b22766284168abb2ac57ac2160dfc26484e4f965ff2dcc6b849b263a
     container_name: jaeger16686ui4317grpc
     command:
       - "--memory.max-traces=25000"
@@ -64,7 +64,7 @@
       - METRICS_STORAGE_TYPE=prometheus
   
   prometheus:
-    image: quay.io/prometheus/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    image: quay.io/prometheus/prometheus:v3.6.0@sha256:76947e7ef22f8a698fc638f706685909be425dbe09bd7a2cd7aca849f79b5f64
     container_name: prometheus9090
     command:
       - --web.console.templates=/etc/prometheus/consoles
@@ -88,7 +88,7 @@
       - "9090:9090"
 
   grafana:
-    image: grafana/grafana:12.1.0@sha256:6ac590e7cabc2fbe8d7b8fc1ce9c9f0582177b334e0df9c927ebd9670469440f
+    image: grafana/grafana:12.2.0@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
     container_name: grafana3000
     deploy:
       resources:
@@ -105,7 +105,7 @@
       - "3000:3000"
 
   otel-collector:
-    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.133.0@sha256:98274b756324abdb2473fa0c898247a246091e861e61d1548f9be483198eecea
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.137.0@sha256:886722fe0f37af9d1fe24d29529253ec59fbf263b3b1df4facaf221373e19d23
     container_name: otel-collector
     deploy:
       resources:
@@ -158,7 +158,7 @@
 
   # FUSION AUTH SERVICES
   db:
-    image: postgres:16.0-bookworm@sha256:a80d0c1b119cf3d6bab27f72782f16e47ab8534ced937fa813ec2ab26e1fd81e
+    image: postgres:16.10-bookworm@sha256:4f70c01cd4db87706cea6eabee1f8a93340dc493a46f6fbe206750f273d21949
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: postgres
@@ -202,7 +202,7 @@
       - search_data:/usr/share/opensearch/data
 
   fusionauth:
-    image: fusionauth/fusionauth-app:1.60.0@sha256:85e1a73cc82a6b4b2ced923bbec5a050589be23d98dbcf130794b11ce00bcb74
+    image: fusionauth/fusionauth-app:1.60.2@sha256:fb1eda06fc9665b6212dadf2619f82cf9b6333d6dee9c7785d7847ca7d4037f0
     depends_on:
       db:
         condition: service_healthy
