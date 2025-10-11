@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  OTEL_SDK_DISABLED: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate-pr-title:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/pr-conventional-commit-validation.yml
+
+  determine-version:
+    needs: [validate-pr-title]
+    uses: ./.github/workflows/determine-git-version.yml
+
+  build-dotnet:
+    needs: [determine-version]
+    uses: ./.github/workflows/build-dotnet.yml
+    with:
+      semVer: ${{ needs.determine-version.outputs.semVer }}
+      assemblySemVer: ${{ needs.determine-version.outputs.assemblySemVer }}
+      assemblySemFileVer: ${{ needs.determine-version.outputs.assemblySemFileVer }}
+      informationalVersion: ${{ needs.determine-version.outputs.informationalVersion }}
+
+  test-with-coverage:
+    needs: [build-dotnet]
+    uses: ./.github/workflows/test-with-coverage.yml
+    with:
+      configuration: Release
+
+  publish-coverage:
+    needs: [test-with-coverage]
+    uses: ./.github/workflows/publish-test-coverage.yml
+
+  push-coverage-site:
+    needs: [publish-coverage]
+    permissions:
+      contents: write
+      pages: write
+    uses: ./.github/workflows/publish-coverage-site.yml
+
+  sonar:
+    needs: [publish-coverage]
+    uses: ./.github/workflows/sonar-cloud-analysis.yml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  docker:
+    needs: [determine-version, test-with-coverage]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/build-and-push-docker-image.yml
+    with:
+      semVer: ${{ needs.determine-version.outputs.semVer }}
+      assemblySemVer: ${{ needs.determine-version.outputs.assemblySemVer }}
+      assemblySemFileVer: ${{ needs.determine-version.outputs.assemblySemFileVer }}
+      informationalVersion: ${{ needs.determine-version.outputs.informationalVersion }}

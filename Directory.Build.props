@@ -10,6 +10,15 @@
         <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
+        <!-- Temp hotfix for .NET 10 RC1 bug https://github.com/dotnet/sdk/issues/50656-->
+        <AttachWeakETagToCompressedAssetsDuringDevelopment>true</AttachWeakETagToCompressedAssetsDuringDevelopment>
+        <!-- For GitVersion-->
+        <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+        <AssemblyVersion>$(Version)</AssemblyVersion>
+        <FileVersion>$(Version)</FileVersion>
+        <InformationalVersion>$(Version)</InformationalVersion>
     </PropertyGroup>
 </Project>
