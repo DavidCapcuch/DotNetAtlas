@@ -1,33 +1,21 @@
-name: CI
+name: CI Main pipeline
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   OTEL_SDK_DISABLED: true
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
-
 permissions:
   contents: read
 
 jobs:
-  validate-pr-title:
-    permissions:
-      contents: read
-      pull-requests: write
-    uses: ./.github/workflows/pr-conventional-commit-validation.yml
-
   determine-version:
-    needs: [validate-pr-title]
     uses: ./.github/workflows/determine-git-version.yml
 
   build-dotnet:
