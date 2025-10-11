@@ -118,7 +118,7 @@ public sealed class RedisSignalRGroupManager : IGroupManager
         {
             var groupCountValue = groupCountValues[i];
             var memberCount = 0;
-            if (groupCountValue.HasValue && int.TryParse(groupCountValue, out var parsed))
+            if (groupCountValue.HasValue && int.TryParse(groupCountValue.ToString(), out var parsed))
             {
                 memberCount = parsed < 0 ? 0 : parsed;
             }

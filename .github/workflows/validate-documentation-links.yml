@@ -1,0 +1,48 @@
+name: Validate Documentation Links
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    branches:
+      - main
+    paths:
+      - '**.md'
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-broken-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check broken Paths
+        uses: john0isaac/action-check-markdown@274ad7e69a147c37274e1a94fb01ddb175c57bed #1.1.0
+        with:
+          command: check_broken_paths
+          directory: ./
+          guide-url: 'https://github.com/DavidCapcuch/DotNetAtlas/blob/main/CONTRIBUTING.md'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  check-broken-urls:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check broken URLs
+        uses: john0isaac/action-check-markdown@274ad7e69a147c37274e1a94fb01ddb175c57bed #1.1.0
+        with:
+          command: check_broken_urls
+          directory: ./
+          guide-url: 'https://github.com/DavidCapcuch/DotNetAtlas/blob/main/CONTRIBUTING.md'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+

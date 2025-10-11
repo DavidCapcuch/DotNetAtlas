@@ -1,0 +1,46 @@
+name: Reusable - Publish Test Coverage
+
+on:
+  workflow_call:
+
+jobs:
+  publish_coverage:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Download raw coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: raw-coverage
+          path: artifacts/raw-coverage
+      - name: Combine Coverage Reports
+        uses: danielpalme/ReportGenerator-GitHub-Action@9870ed167742d546b99962ff815fcc1098355ed8 #5.4.17
+        with:
+          reports: "artifacts/raw-coverage/**/*.cobertura.xml"
+          targetdir: "${{ runner.temp }}/coveragereport"
+          reporttypes: "Cobertura;Html;Badges;MarkdownSummaryGithub"
+          verbosity: "Info"
+          title: "Code Coverage"
+          tag: "${{ github.run_number }}_${{ github.run_id }}"
+          customSettings: ""
+          toolpath: "reportgeneratortool"
+      - name: Publish coverage report in build summary
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/coveragereport/SummaryGithub.md" ]; then
+            cat "$RUNNER_TEMP/coveragereport/SummaryGithub.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload Coverage Site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-site
+          path: ${{ runner.temp }}/coveragereport
+          retention-days: 7
+      - name: Upload Combined Coverage XML
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: ${{ runner.temp }}/coveragereport/Cobertura.xml
+          retention-days: 30
