@@ -10,9 +10,9 @@
       },
       "AwesomeAssertions.Analyzers": {
         "type": "Direct",
-        "requested": "[9.0.3, )",
-        "resolved": "9.0.3",
-        "contentHash": "0VCdGUtyNc2KsYxKrngTAOcBo5kVdc1GniUoTYGTmbrIFGq6TyyZGs3EpnUNhW/Rb/60DtHVdlglXQRJ4nOITQ=="
+        "requested": "[9.0.6, )",
+        "resolved": "9.0.6",
+        "contentHash": "AewFfAhS8gGWl7R+iNw8winOi8T0LN2rcxCdrMhsCvb0i/1JQkzupP8vuVSb1WQk7cqOou9hhN+2z9r1GnosNA=="
       },
       "coverlet.collector": {
         "type": "Direct",
