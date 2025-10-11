@@ -51,23 +51,25 @@ public static class ApiDependencyInjection
         app.MapHub<WeatherAlertHub>(WeatherAlertHub.RoutePattern);
     }
 
-    public static WebApplicationBuilder AddPresentation(this WebApplicationBuilder builder)
+    public static IServiceCollection AddPresentation(
+        this IServiceCollection services,
+        ConfigurationManager configuration)
     {
-        builder.Services.AddFastEndpoints(options =>
+        services.AddFastEndpoints(options =>
             {
                 options.SourceGeneratorDiscoveredTypes.AddRange(DiscoveredTypes.All);
             })
-            .AddAuthSwaggerDocument(builder.Configuration);
+            .AddAuthSwaggerDocument(configuration);
 
-        builder.Services.AddCorsInternal(builder.Configuration);
-        builder.Services.AddRazorPages();
-        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-        builder.Services.AddProblemDetails();
+        services.AddCorsInternal(configuration);
+        services.AddRazorPages();
+        services.AddExceptionHandler<GlobalExceptionHandler>();
+        services.AddProblemDetails();
 
-        builder.Services.AddSignalR();
-        builder.Services.AddScoped<IWeatherAlertNotifier, WeatherAlertNotifier>();
+        services.AddSignalR();
+        services.AddScoped<IWeatherAlertNotifier, WeatherAlertNotifier>();
 
-        return builder;
+        return services;
     }
 
     private static IServiceCollection AddCorsInternal(

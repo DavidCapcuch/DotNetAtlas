@@ -28,7 +28,7 @@ try
         builder.Environment.EnvironmentName = "Local";
     }
 
-    var isClusterEnvironment = !(builder.Environment.IsLocal() || builder.Environment.IsTesting());
+    var isClusterEnvironment = builder.Environment.IsInCluster();
     builder
         .Host
         .UseDefaultServiceProvider(options =>
@@ -50,9 +50,10 @@ try
         builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
     }
 
-    builder.AddPresentation();
-    builder.Services.AddApplication(builder.Configuration);
-    builder.Services.AddInfrastructure(builder.Configuration, isClusterEnvironment);
+    builder.Services
+        .AddPresentation(builder.Configuration)
+        .AddApplication(builder.Configuration)
+        .AddInfrastructure(builder.Configuration, isClusterEnvironment);
 
     var app = builder.Build();
 
