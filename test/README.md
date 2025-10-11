@@ -87,25 +87,18 @@ Shared xUnit runner configuration:
 
 Shared code coverage configuration for Coverlet:
 
-- **Output Format:**
-
-- Cobertura XML (`coverage.cobertura.xml`)
-
-- **Collector:**
-
-- Coverlet XPlat Code Coverage (`--collect:"XPlat Code Coverage"`)
+- **Output Format:** Cobertura XML (`coverage.cobertura.xml`)
+- **Collector:** Coverlet XPlat Code Coverage (`--collect:"XPlat Code Coverage"`)
 - Defines test coverage exclusions:
-  - Excluded by File Path (`ExcludeByFile`)
-  - `**/test/**` - All test project files
-  - **Auto-generated and build artifacts:**
-    - `**/*Designer.cs` - Designer-generated files
-    - `**/*.g.cs`, `**/*.g.i.cs` - Generated code files
-    - `**/obj/**`, `**/bin/**` - Build output directories
-    - `**/Migrations/**` - Database migrations
-  - Exlusion by Attributes `[ExcludeFromCodeCoverage]`, `[GeneratedCode]`, `[CompilerGenerated]`
-  eg from Mapperly, MessagePack, FastEndpoints, TypedSignalR..
-
-### Excluded by Attribute (`ExcludeByAttribute`)
+    - Excluded by File Path (`ExcludeByFile`)
+    - `**/test/**` - All test project files
+    - **Auto-generated and build artifacts:**
+        - `**/*Designer.cs` - Designer-generated files
+        - `**/*.g.cs`, `**/*.g.i.cs` - Generated code files
+        - `**/obj/**`, `**/bin/**` - Build output directories
+        - `**/Migrations/**` - Database migrations
+        - Exclusion by Attributes `[ExcludeFromCodeCoverage]`, `[GeneratedCode]`, `[CompilerGenerated]`
+      eg from Mapperly, MessagePack, FastEndpoints, TypedSignalR..
 
 ## Test Collections
 
@@ -113,10 +106,10 @@ Integration and Functional tests that have infrastructure dependencies (Database
 
 **Within a collection, tests run sequentially; across collections, tests run in parallel. This ensures:**
 
-- Fixture state is reset between tests than run within a collection (e.g., using 
-[Respawn](https://github.com/jbogard/Respawn) to clean database tables)
+- Fixture state is reset between tests than run within a collection (e.g., using
+  [Respawn](https://github.com/jbogard/Respawn) to clean database tables)
 - Safe parallel execution across collections without interference with each other
 
-For example, in [Functional Tests](DotNetAtlas.FunctionalTests), there are three collections 
-(each with its own Fixture): `FeedbackTestCollection`, `ForecastTestCollection`, 
+For example, in [Functional Tests](DotNetAtlas.FunctionalTests), there are three collections
+(each with its own Fixture): `FeedbackTestCollection`, `ForecastTestCollection`,
 `SignalRTestCollection`, which run in parallel to each other.
