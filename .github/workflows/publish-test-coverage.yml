@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 jobs:
-  publish_coverage:
+  publish-coverage:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -20,7 +20,7 @@ jobs:
         with:
           reports: "artifacts/raw-coverage/**/*.cobertura.xml"
           targetdir: "${{ runner.temp }}/coveragereport"
-          reporttypes: "Cobertura;Html;Badges;MarkdownSummaryGithub"
+          reporttypes: "Cobertura;OpenCover;HtmlInline;MarkdownSummaryGithub"
           verbosity: "Info"
           title: "Code Coverage"
           tag: "${{ github.run_number }}_${{ github.run_id }}"
@@ -32,15 +32,15 @@ jobs:
           if [ -f "$RUNNER_TEMP/coveragereport/SummaryGithub.md" ]; then
             cat "$RUNNER_TEMP/coveragereport/SummaryGithub.md" >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload Coverage Site artifact
+      - name: Upload Coverage Site artifact (single index.html)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-site
-          path: ${{ runner.temp }}/coveragereport
+          path: ${{ runner.temp }}/coveragereport/index.html
           retention-days: 7
-      - name: Upload Combined Coverage XML
+      - name: Upload OpenCover coverage XML
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage
-          path: ${{ runner.temp }}/coveragereport/Cobertura.xml
+          path: ${{ runner.temp }}/coveragereport/OpenCover.xml
           retention-days: 30

@@ -432,7 +432,7 @@ dotnet_diagnostic.SA1009.severity = none
 dotnet_diagnostic.SA1003.severity = none
 
 # SA1633: File should have header
-dotnet_diagnostic.SA1633.severity = suggestion
+dotnet_diagnostic.SA1633.severity = none
 
 # SA1649: File name should match first type name
 dotnet_diagnostic.SA1649.severity = suggestion
@@ -528,7 +528,7 @@ dotnet_diagnostic.CA1812.severity = suggestion
 dotnet_diagnostic.CA1816.severity = suggestion
 
 # CA1819: Properties should not return arrays
-dotnet_diagnostic.CA1819.severity = suggestion
+dotnet_diagnostic.CA1819.severity = silent
 
 # CA1822: Mark members as static
 dotnet_diagnostic.CA1822.severity = suggestion
@@ -597,6 +597,9 @@ dotnet_diagnostic.IDE0090.severity = none
 
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = suggestion
+
+# IDE0058: Expression value is never used
+dotnet_diagnostic.IDE0053.severity = silent
 
 # IDE0058: Expression value is never used
 dotnet_diagnostic.IDE0058.severity = suggestion

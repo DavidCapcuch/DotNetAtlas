@@ -17,7 +17,7 @@ on:
         type: string
 
 jobs:
-  build:
+  build-dotnet:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:

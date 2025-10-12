@@ -4,16 +4,16 @@ on:
   workflow_call:
     outputs:
       semVer:
-        value: ${{ jobs.determine.outputs.semVer }}
+        value: ${{ jobs.determine-version.outputs.semVer }}
       assemblySemVer:
-        value: ${{ jobs.determine.outputs.assemblySemVer }}
+        value: ${{ jobs.determine-version.outputs.assemblySemVer }}
       assemblySemFileVer:
-        value: ${{ jobs.determine.outputs.assemblySemFileVer }}
+        value: ${{ jobs.determine-version.outputs.assemblySemFileVer }}
       informationalVersion:
-        value: ${{ jobs.determine.outputs.informationalVersion }}
+        value: ${{ jobs.determine-version.outputs.informationalVersion }}
 
 jobs:
-  determine:
+  determine-version:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:

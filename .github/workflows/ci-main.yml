@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
   workflow_call:
+    secrets:
+      SONAR_TOKEN:
+        required: true
 
 env:
   REGISTRY: ghcr.io
@@ -44,20 +47,20 @@ jobs:
       pages: write
     uses: ./.github/workflows/publish-coverage-site.yml
 
-  sonar:
+  sonar-cloud:
     needs: [publish-coverage]
     uses: ./.github/workflows/sonar-cloud-analysis.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  docker:
+  docker-image-build-push-sign:
     needs: [determine-version, test-with-coverage]
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    uses: ./.github/workflows/build-and-push-docker-image.yml
+    uses: ./.github/workflows/docker-image-build-push-sign.yml
     with:
       semVer: ${{ needs.determine-version.outputs.semVer }}
       assemblySemVer: ${{ needs.determine-version.outputs.assemblySemVer }}

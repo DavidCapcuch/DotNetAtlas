@@ -17,7 +17,7 @@ on:
         type: string
 
 jobs:
-  build-and-push:
+  build-and-push-image:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -25,7 +25,7 @@ jobs:
       packages: write
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
-      digest: ${{ steps.build-and-push.outputs.digest }}
+      digest: ${{ steps.build-and-push-image.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -46,7 +46,7 @@ jobs:
             type=raw,value=${{ inputs.semVer }}
             type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
       - name: Build and push Docker image
-        id: build-and-push
+        id: build-and-push-image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           context: .
@@ -64,7 +64,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   sign-image:
-    needs: [build-and-push]
+    needs: [build-and-push-image]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -84,12 +84,12 @@ jobs:
           cosign-release: 'v2.2.4'
       - name: Sign the published Docker image
         env:
-          TAGS: ${{ needs.build-and-push.outputs.tags }}
-          DIGEST: ${{ needs.build-and-push.outputs.digest }}
+          TAGS: ${{ needs.build-and-push-image.outputs.tags }}
+          DIGEST: ${{ needs.build-and-push-image.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
   attest-image:
-    needs: [build-and-push]
+    needs: [build-and-push-image]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -108,5 +108,5 @@ jobs:
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ needs.build-and-push.outputs.digest }}
+          subject-digest: ${{ needs.build-and-push-image.outputs.digest }}
           push-to-registry: true
