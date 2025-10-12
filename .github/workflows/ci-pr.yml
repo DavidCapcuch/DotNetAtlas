@@ -20,5 +20,13 @@ jobs:
 
   run-ci:
     needs: [validate-pr-title]
+    permissions:
+      contents: write
+      pages: write
+      packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/ci-main.yml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 

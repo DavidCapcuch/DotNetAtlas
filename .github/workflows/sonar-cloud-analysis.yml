@@ -7,7 +7,7 @@ on:
         required: true
 
 jobs:
-  sonar:
+  sonar-cloud-analysis:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -27,27 +27,39 @@ jobs:
           cache-dependency-path: "**/packages.lock.json"
       - name: Download coverage artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        continue-on-error: true
         with:
           name: coverage
-          path: artifacts/coverage
-      - name: Download test results artifact
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
-        with:
-          name: test-results
-          path: artifacts/test-results
+          path: ${{ runner.temp }}/coveragereport
+      - name: Resolve coverage arg
+        run: |
+          if [ -s "$RUNNER_TEMP/coveragereport/OpenCover.xml" ]; then
+            echo "COVERAGE_ARG=/d:sonar.cs.opencover.reportsPaths=$RUNNER_TEMP/coveragereport/OpenCover.xml" >> $GITHUB_ENV
+          else
+            echo "No OpenCover.xml found; proceeding without coverage"
+          fi
       - name: Cache SonarQube Cloud packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
+      - name: Cache SonarQube Cloud scanner
+        id: cache-sonar-scanner
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
       - name: Install SonarQube Cloud scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         run: |
+          mkdir -p "${{ runner.temp }}/scanner"
           dotnet tool update dotnet-sonarscanner --tool-path "${{ runner.temp }}/scanner"
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          "${{ runner.temp }}/scanner/dotnet-sonarscanner" begin /k:"DavidCapcuch_DotNetAtlas" /o:"davidcapcuch" /d:sonar.token="$SONAR_TOKEN" /d:sonar.sources="src" /d:sonar.tests="test" /d:sonar.cs.vstest.reportsPaths="artifacts/test-results/**/*.trx" /d:sonar.cs.cobertura.reportsPaths="artifacts/coverage/Cobertura.xml"
+          "${{ runner.temp }}/scanner/dotnet-sonarscanner" begin /k:"DavidCapcuch_DotNetAtlas" /o:"davidcapcuch" /d:sonar.token="$SONAR_TOKEN" ${COVERAGE_ARG}
           dotnet build -c Release -p:OpenApiGenerateDocuments=false
           "${{ runner.temp }}/scanner/dotnet-sonarscanner" end /d:sonar.token="$SONAR_TOKEN"
