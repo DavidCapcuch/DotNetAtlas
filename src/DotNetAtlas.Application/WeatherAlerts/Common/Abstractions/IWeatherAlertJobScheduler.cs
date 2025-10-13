@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
+using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 
 namespace DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 

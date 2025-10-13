@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Application.Feedback.GetFeedback;
+namespace DotNetAtlas.Application.Feedback.GetFeedback;
 
 public class GetFeedbackByIdResponse
 {

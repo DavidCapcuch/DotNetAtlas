@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Application.Common.Cache;
+namespace DotNetAtlas.Application.Common.Cache;
 
 public interface ICacheableItem
 {

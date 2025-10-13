@@ -1,4 +1,4 @@
-﻿using NetArchTest.Rules;
+using NetArchTest.Rules;
 
 namespace DotNetAtlas.ArchitectureTests.CleanArchitecture;
 

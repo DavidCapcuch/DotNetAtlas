@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Common.Validation;
+using DotNetAtlas.Application.Common.Validation;
 using FluentValidation;
 
 namespace DotNetAtlas.Application.Forecast.GetForecasts;

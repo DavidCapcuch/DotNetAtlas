@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using DotNetAtlas.Api.Endpoints.Weather;
 using DotNetAtlas.Application.Feedback.GetFeedback;
 using DotNetAtlas.FunctionalTests.Common;

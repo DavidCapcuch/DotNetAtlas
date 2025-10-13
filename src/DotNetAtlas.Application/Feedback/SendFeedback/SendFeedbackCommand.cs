@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using DotNetAtlas.Application.Common.CQS;
 using FastEndpoints;
 

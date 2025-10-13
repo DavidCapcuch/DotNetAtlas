@@ -1,4 +1,4 @@
-﻿using Ardalis.Specification;
+using Ardalis.Specification;
 using DotNetAtlas.Domain.Entities.Weather.Feedback;
 
 namespace DotNetAtlas.Application.Feedback.Common.Specifications;

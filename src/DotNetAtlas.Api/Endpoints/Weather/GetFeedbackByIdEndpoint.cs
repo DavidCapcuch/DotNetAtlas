@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Feedback.GetFeedback;
@@ -30,7 +30,7 @@ internal class GetFeedbackByIdEndpoint : Endpoint<GetFeedbackByIdQuery, GetFeedb
                 Id = new Guid("0198B2A9-CB8C-744B-8CDD-0B64727CF2FC") // from deterministic seed test data
             };
         });
-        Description(b => b.Produces((int) HttpStatusCode.NotFound));
+        Description(b => b.Produces((int)HttpStatusCode.NotFound));
     }
 
     public override async Task HandleAsync(GetFeedbackByIdQuery query, CancellationToken ct)

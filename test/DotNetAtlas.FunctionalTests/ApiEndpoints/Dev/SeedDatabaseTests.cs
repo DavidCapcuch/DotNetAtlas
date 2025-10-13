@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using DotNetAtlas.Api.Endpoints.Dev;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;

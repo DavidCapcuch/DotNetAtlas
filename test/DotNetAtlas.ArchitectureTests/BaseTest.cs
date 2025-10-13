@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using DotNetAtlas.Api.Common;
 using DotNetAtlas.Application.Common;
 using DotNetAtlas.Domain.Entities.Base;

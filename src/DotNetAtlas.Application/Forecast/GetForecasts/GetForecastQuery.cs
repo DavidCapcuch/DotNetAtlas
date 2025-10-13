@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;

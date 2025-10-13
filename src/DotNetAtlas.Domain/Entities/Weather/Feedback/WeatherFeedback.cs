@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Domain.Entities.Base;
+using DotNetAtlas.Domain.Entities.Base;
 
 namespace DotNetAtlas.Domain.Entities.Weather.Feedback;
 

@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using MessagePack;
 
 namespace DotNetAtlas.Application.WeatherAlerts.Common.Contracts;

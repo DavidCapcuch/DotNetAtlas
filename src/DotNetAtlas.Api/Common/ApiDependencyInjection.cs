@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Api.Common.Config;
+using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.Common.Swagger;
 using DotNetAtlas.Api.SignalR.WeatherAlerts;
