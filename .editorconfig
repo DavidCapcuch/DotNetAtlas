@@ -11,9 +11,9 @@ indent_style = space
 tab_width = 4
 
 # New line preferences
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = true
-
+charset = utf-8
 #### .NET Coding Conventions ####
 
 # Organize usings

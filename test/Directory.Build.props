@@ -47,4 +47,9 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
     </ItemGroup>
+
+    <!-- Suppress VSTHRD200 (Async suffix) for test projects only -->
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);VSTHRD200</NoWarn>
+    </PropertyGroup>
 </Project>
