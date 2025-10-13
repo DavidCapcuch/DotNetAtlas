@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Domain.Entities.Base;
+namespace DotNetAtlas.Domain.Entities.Base;
 
 /// <summary>
 /// Marker class for value objects.

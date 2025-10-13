@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Application.Feedback.ChangeFeedback;
 using FastEndpoints;
@@ -32,8 +32,8 @@ internal class ChangeFeedbackEndpoint : Endpoint<ChangeFeedbackCommand>
         });
         Description(b =>
         {
-            b.Produces((int) HttpStatusCode.NotFound);
-            b.Produces((int) HttpStatusCode.Forbidden);
+            b.Produces((int)HttpStatusCode.NotFound);
+            b.Produces((int)HttpStatusCode.Forbidden);
         });
     }
 

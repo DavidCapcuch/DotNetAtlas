@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -61,7 +61,7 @@ public static class DatabaseSeedExtensions
     /// </summary>
     private static async Task SeedDatabaseAsync(DbContext dbContext, CancellationToken ct = default)
     {
-        var weatherDbContext = (WeatherForecastContext) dbContext;
+        var weatherDbContext = (WeatherForecastContext)dbContext;
         var itemsExist = await weatherDbContext.WeatherFeedbacks.AnyAsync(ct);
         if (!itemsExist)
         {

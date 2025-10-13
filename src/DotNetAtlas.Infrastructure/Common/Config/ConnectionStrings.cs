@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Infrastructure.Common.Config;
+namespace DotNetAtlas.Infrastructure.Common.Config;
 
 public static class ConnectionStrings
 {

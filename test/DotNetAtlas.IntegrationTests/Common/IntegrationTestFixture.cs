@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.ArchitectureTests;
+using DotNetAtlas.ArchitectureTests;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
 using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;

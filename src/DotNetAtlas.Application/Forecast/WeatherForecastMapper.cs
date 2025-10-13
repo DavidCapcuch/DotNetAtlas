@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Forecast.GetForecasts;
+using DotNetAtlas.Application.Forecast.GetForecasts;
 using DotNetAtlas.Application.Forecast.Services.Requests;
 using Riok.Mapperly.Abstractions;
 

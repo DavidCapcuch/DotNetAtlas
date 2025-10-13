@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using DotNetAtlas.Api.Endpoints.Weather;
 using DotNetAtlas.Application.Forecast.GetForecasts;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;

@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Application.Common.Observability;
+namespace DotNetAtlas.Application.Common.Observability;
 
 public static class DiagnosticNames
 {

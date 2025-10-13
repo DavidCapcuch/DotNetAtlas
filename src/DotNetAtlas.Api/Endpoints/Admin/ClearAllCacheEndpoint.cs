@@ -1,4 +1,4 @@
-﻿using FastEndpoints;
+using FastEndpoints;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace DotNetAtlas.Api.Endpoints.Admin;

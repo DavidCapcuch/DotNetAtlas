@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Infrastructure.Common.Authorization;
+using DotNetAtlas.Infrastructure.Common.Authorization;
 using FastEndpoints;
 
 namespace DotNetAtlas.Api.Endpoints.Dev;

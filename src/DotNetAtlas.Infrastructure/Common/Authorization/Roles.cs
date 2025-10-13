@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Infrastructure.Common.Authorization;
+namespace DotNetAtlas.Infrastructure.Common.Authorization;
 
 public static class Roles
 {

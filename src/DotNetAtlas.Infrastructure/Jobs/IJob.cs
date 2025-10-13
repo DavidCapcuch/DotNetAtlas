@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Infrastructure.Jobs;
+namespace DotNetAtlas.Infrastructure.Jobs;
 
 /// <summary>
 /// Marker for a hangfire job.

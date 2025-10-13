@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Domain.Entities.Base;
+namespace DotNetAtlas.Domain.Entities.Base;
 
 public abstract class Entity<TId> : IComparable, IComparable<Entity<TId>>
     where TId : IComparable<TId>

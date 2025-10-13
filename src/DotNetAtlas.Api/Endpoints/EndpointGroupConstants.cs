@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Api.Endpoints;
+namespace DotNetAtlas.Api.Endpoints;
 
 internal static class EndpointGroupConstants
 {

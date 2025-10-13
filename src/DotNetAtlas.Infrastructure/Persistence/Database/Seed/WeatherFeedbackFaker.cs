@@ -1,4 +1,4 @@
-﻿using Bogus;
+using Bogus;
 using DotNetAtlas.Domain.Entities.Weather.Feedback;
 
 namespace DotNetAtlas.Infrastructure.Persistence.Database.Seed;

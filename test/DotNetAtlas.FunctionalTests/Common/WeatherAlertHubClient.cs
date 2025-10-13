@@ -1,4 +1,4 @@
-﻿using System.Threading.Channels;
+using System.Threading.Channels;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;

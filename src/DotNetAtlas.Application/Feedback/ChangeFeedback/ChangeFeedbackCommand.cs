@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using FastEndpoints;
 using ICommand = DotNetAtlas.Application.Common.CQS.ICommand;
 

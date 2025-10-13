@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Domain.Errors.Base;
+namespace DotNetAtlas.Domain.Errors.Base;
 
 public class NotFoundError : DomainError
 {

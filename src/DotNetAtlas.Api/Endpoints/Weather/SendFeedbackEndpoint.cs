@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Application.Feedback.GetFeedback;
 using DotNetAtlas.Application.Feedback.SendFeedback;
@@ -31,9 +31,9 @@ internal class SendFeedbackEndpoint : Endpoint<SendFeedbackCommand>
         });
         Description(b =>
         {
-            b.ClearDefaultProduces((int) HttpStatusCode.NoContent);
-            b.Produces((int) HttpStatusCode.Created);
-            b.Produces((int) HttpStatusCode.Conflict);
+            b.ClearDefaultProduces((int)HttpStatusCode.NoContent);
+            b.Produces((int)HttpStatusCode.Created);
+            b.Produces((int)HttpStatusCode.Conflict);
         });
     }
 

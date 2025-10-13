@@ -1,4 +1,4 @@
-﻿namespace DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
+namespace DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 
 public interface IGroupManager
 {

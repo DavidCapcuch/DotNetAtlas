@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 using DotNetAtlas.Domain.Entities.Base;
 using DotNetAtlas.Domain.Errors;
 using FluentResults;

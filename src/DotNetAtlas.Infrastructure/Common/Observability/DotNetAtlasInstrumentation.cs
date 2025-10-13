@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Infrastructure.Common.Config;

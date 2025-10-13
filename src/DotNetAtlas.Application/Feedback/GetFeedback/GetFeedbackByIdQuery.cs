@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Common.CQS;
+using DotNetAtlas.Application.Common.CQS;
 using FastEndpoints;
 
 namespace DotNetAtlas.Application.Feedback.GetFeedback;

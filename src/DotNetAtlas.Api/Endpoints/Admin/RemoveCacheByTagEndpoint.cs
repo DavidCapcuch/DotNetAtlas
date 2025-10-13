@@ -1,4 +1,4 @@
-﻿using FastEndpoints;
+using FastEndpoints;
 using FluentValidation.Results;
 using ZiggyCreatures.Caching.Fusion;
 
