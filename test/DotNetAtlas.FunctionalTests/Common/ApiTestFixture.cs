@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.ArchitectureTests;
+using DotNetAtlas.ArchitectureTests;
 using DotNetAtlas.FunctionalTests.Common;
 using DotNetAtlas.Infrastructure.Common.Config;
 using EvolveDb;

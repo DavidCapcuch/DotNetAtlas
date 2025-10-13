@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Bogus;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Infrastructure.Persistence.Database;

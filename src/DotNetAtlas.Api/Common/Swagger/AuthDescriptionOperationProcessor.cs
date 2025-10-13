@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;

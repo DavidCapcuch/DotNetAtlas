@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Domain.Entities.Base;
+using DotNetAtlas.Domain.Entities.Base;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 

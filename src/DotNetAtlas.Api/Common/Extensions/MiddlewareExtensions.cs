@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Api.Common.Middlewares;
+using DotNetAtlas.Api.Common.Middlewares;
 using Serilog;
 
 namespace DotNetAtlas.Api.Common.Extensions;

@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Common.CQS;
+using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Domain.Errors.Base;
 using FluentResults;
 using FluentValidation;

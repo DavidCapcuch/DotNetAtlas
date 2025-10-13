@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Common.CQS;
+using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using DotNetAtlas.Application.WeatherAlerts.SendWeatherAlert;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;

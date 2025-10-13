@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Application.Feedback.Common.Validation;
+using DotNetAtlas.Application.Feedback.Common.Validation;
 using FluentValidation;
 
 namespace DotNetAtlas.Application.Feedback.ChangeFeedback;

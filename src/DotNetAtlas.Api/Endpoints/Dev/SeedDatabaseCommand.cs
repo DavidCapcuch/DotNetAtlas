@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using FastEndpoints;
 using ICommand = DotNetAtlas.Application.Common.CQS.ICommand;
 

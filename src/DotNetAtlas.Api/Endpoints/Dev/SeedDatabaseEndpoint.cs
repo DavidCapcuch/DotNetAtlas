@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Infrastructure.Persistence.Database;
+using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using FastEndpoints;
 
