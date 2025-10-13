@@ -1,0 +1,33 @@
+name: Create Release tag on Main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  determine-version:
+    uses: ./.github/workflows/determine-git-version.yml
+
+  create-release-tag:
+    needs: [determine-version]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Create and push release tag
+        env:
+          TAG: v${{ needs.determine-version.outputs.semVer }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping."
+            exit 0
+          fi
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
