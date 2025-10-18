@@ -30,7 +30,7 @@
       - redis-insight:/data
     depends_on:
       - redis
-    command: ["redis-insight", "--auto-connect", "redis://redis:6379"]  # Auto-connect to Redis
+    command: [ "redis-insight", "--auto-connect", "redis://redis:6379" ]  # Auto-connect to Redis
 
   seq:
     image: datalust/seq:2025.2@sha256:080ccf44e0593cd4698ba1404b90b4f8bf51ff342e45242f611c91e329554f50
@@ -133,6 +133,89 @@
       - OTEL_COLLECTOR_PORT_HTTP
       - GOMEMLIMIT=160MiB
   
+  kafka:
+    image: confluentinc/cp-kafka:7.5.9
+    container_name: broker
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_KRAFT_MODE: "true"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: "-Xmx2G -Xms2G"
+      CLUSTER_ID: "EmptNWtoR4GGWx-BH6nGLQ"
+    ports:
+      - "9094:9094"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - kafka_metadata:/var/lib/kafka/metadata
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  kafka-create-topic:
+    container_name: kafka-create-topic
+    image: confluentinc/cp-kafka:7.5.9
+    command: >
+      bash -c "
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists
+      "
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: schema-registry
+    healthcheck:
+      test: curl --output /dev/null --silent --head --fail http://schema-registry:8081/subjects
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kafka
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  akhq:
+    container_name: akhq
+    image: tchiotludo/akhq:0.26.0
+    depends_on:
+      - kafka
+    ports:
+      - "9000:8080"
+    restart: always
+    environment:
+      AKHQ_CONFIGURATION: >
+        akhq:
+          server:
+            servlet:
+              context-path: /
+          security:
+            default-group: admin
+            enabled: false
+          connections:
+            local:
+              properties:
+                bootstrap.servers: "kafka:9092"
+              schema-registry:
+                url: "http://schema-registry:8081"
+
   #  elasticsearch:
   #    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
   #    container_name: elasticsearch9200
@@ -241,3 +324,5 @@ volumes:
   db_data:
   fusionauth_config:
   search_data:
+  kafka_data:
+  kafka_metadata:

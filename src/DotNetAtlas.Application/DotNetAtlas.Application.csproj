@@ -6,10 +6,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj"/>
-    </ItemGroup>
-
-    <ItemGroup>
         <PackageReference Include="FastEndpoints.Attributes"/>
         <PackageReference Include="Ardalis.Specification.EntityFrameworkCore"/>
         <PackageReference Include="FluentValidation"/>
@@ -30,6 +26,10 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="DotNetAtlas.Application.IntegrationTests"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

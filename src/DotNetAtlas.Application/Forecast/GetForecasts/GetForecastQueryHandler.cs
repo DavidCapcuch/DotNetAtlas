@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Forecast.Common.Abstractions;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -11,11 +12,16 @@ public class GetForecastQueryHandler : IQueryHandler<GetForecastQuery, GetForeca
 {
     private readonly ILogger<GetForecastQueryHandler> _logger;
     private readonly IWeatherForecastService _forecastService;
+    private readonly IForecastEventsProducer _forecastEventsProducer;
 
-    public GetForecastQueryHandler(IWeatherForecastService forecastService, ILogger<GetForecastQueryHandler> logger)
+    public GetForecastQueryHandler(
+        IWeatherForecastService forecastService,
+        ILogger<GetForecastQueryHandler> logger,
+        IForecastEventsProducer eventsPublisher)
     {
         _forecastService = forecastService;
         _logger = logger;
+        _forecastEventsProducer = eventsPublisher;
     }
 
     public async Task<Result<GetForecastResponse>> HandleAsync(GetForecastQuery query, CancellationToken ct)
@@ -23,18 +29,30 @@ public class GetForecastQueryHandler : IQueryHandler<GetForecastQuery, GetForeca
         Activity.Current?.SetTag(DiagnosticNames.City, query.City);
         Activity.Current?.SetTag(DiagnosticNames.CountryCode, query.CountryCode.ToString());
 
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _forecastEventsProducer.PublishForecastRequestedAsync(query, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish forecast request");
+            }
+        }, ct);
+
         var forecastRequest = query.ToForecastRequest();
-        var result = await _forecastService.GetForecastAsync(forecastRequest, ct);
-        if (result.IsFailed)
+        var forecastResult = await _forecastService.GetForecastAsync(forecastRequest, ct);
+        if (forecastResult.IsFailed)
         {
             _logger.LogError("Failed to serve forecast for '{City},{CountryCode}'", query.City, query.CountryCode);
 
-            return Result.Fail(result.Errors);
+            return Result.Fail(forecastResult.Errors);
         }
 
         return new GetForecastResponse
         {
-            Forecasts = result.Value
+            Forecasts = forecastResult.Value
         };
     }
 }
