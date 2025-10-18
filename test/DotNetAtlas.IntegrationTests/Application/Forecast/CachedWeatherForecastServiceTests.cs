@@ -49,7 +49,7 @@ public class CachedWeatherForecastServiceTests : BaseIntegrationTest
 
         var sut = new CachedWeatherForecastService(decoratedMock, cache, logger, options);
 
-        var request = new ForecastRequest("Prague", CountryCode.Cz, 1);
+        var request = new ForecastRequest("Prague", CountryCode.CZ, 11);
 
         // Act
         var firstResult = await sut.GetForecastAsync(request, TestContext.Current.CancellationToken);
@@ -75,11 +75,11 @@ public class CachedWeatherForecastServiceTests : BaseIntegrationTest
         var decoratedMock = Substitute.For<IWeatherForecastService>();
         decoratedMock.GetForecastAsync(Arg.Any<ForecastRequest>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<IReadOnlyList<ForecastDto>>(
-                WeatherForecastErrors.CityNotFoundError("UnknownCity", CountryCode.Cz)));
+                WeatherForecastErrors.CityNotFoundError("UnknownCity", CountryCode.CZ)));
 
         var sut = new CachedWeatherForecastService(decoratedMock, cache, logger, options);
 
-        var request = new ForecastRequest("UnknownCity", CountryCode.Cz, 2);
+        var request = new ForecastRequest("UnknownCity", CountryCode.CZ, 2);
 
         // Act
         var first = await sut.GetForecastAsync(request, TestContext.Current.CancellationToken);

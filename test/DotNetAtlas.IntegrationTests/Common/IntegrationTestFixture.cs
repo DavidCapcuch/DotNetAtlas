@@ -1,17 +1,22 @@
+using System.Collections.Frozen;
 using DotNetAtlas.ArchitectureTests;
 using DotNetAtlas.Infrastructure.Common.Config;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
 using DotNetAtlas.Infrastructure.SignalR;
 using DotNetAtlas.IntegrationTests.Common;
 using EvolveDb;
 using FastEndpoints.Testing;
+using Hangfire;
+using Hangfire.Storage;
 using HealthChecks.UI.Core.HostedService;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Respawn;
 using Serilog;
@@ -22,6 +27,7 @@ using Serilog.Sinks.XUnit.Injectable.Extensions;
 using StackExchange.Redis;
 using Testcontainers.MsSql;
 using Testcontainers.Redis;
+using Weather.Contracts;
 
 [assembly: AssemblyFixture(typeof(IntegrationTestFixture))]
 
@@ -43,18 +49,28 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     private readonly RedisContainer _redisContainer = new RedisBuilder()
         .WithImage("redis:7.4.2")
-        .WithCleanUp(true)
         .WithName($"TestRedisFixture-{Guid.NewGuid()}")
+        .WithCleanUp(true)
         .Build();
+
+    private readonly KafkaTestContainer _kafkaContainer = new KafkaTestContainer();
 
     private string _dbContainerConnectionString = null!;
     private Respawner _respawner = null!;
+    private FrozenDictionary<string, object> _kafkaTestConsumers = null!;
+
+    /// <summary>
+    /// Shared Kafka test consumers reused across all tests for better performance.
+    /// </summary>
+    public FrozenDictionary<string, object> KafkaTestConsumers => _kafkaTestConsumers;
 
     protected override async ValueTask PreSetupAsync()
     {
         await Task.WhenAll(
             _dbContainer.StartAsync(),
-            _redisContainer.StartAsync());
+            _redisContainer.StartAsync(),
+            _kafkaContainer.StartAsync());
+
         _dbContainerConnectionString = new SqlConnectionStringBuilder(_dbContainer.GetConnectionString())
         {
             InitialCatalog = Database,
@@ -70,17 +86,35 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             SchemasToInclude =
             [
-                "weather"
-            ]
+                "weather",
+                "HangFire"
+            ],
+            WithReseed = true
         });
     }
 
     protected override ValueTask SetupAsync()
     {
+        // Initialize shared Kafka consumers after the app is fully configured
+        _kafkaTestConsumers = SetupKafkaTestConsumers();
         return ValueTask.CompletedTask;
     }
 
-    protected override IHost ConfigureAppHost(IHostBuilder a)
+    private FrozenDictionary<string, object> SetupKafkaTestConsumers()
+    {
+        var kafkaOptions = Services.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        var topicsOptions = Services.GetRequiredService<IOptions<TopicsOptions>>().Value;
+
+        return new Dictionary<string, object>
+        {
+            [topicsOptions.ForecastRequested] = new KafkaTestConsumer<ForecastRequestedEvent>(
+                kafkaOptions.BrokersFlat,
+                kafkaOptions.SchemaRegistry.Url,
+                topicsOptions.ForecastRequested)
+        }.ToFrozenDictionary();
+    }
+
+    protected override IHost ConfigureAppHost(IHostBuilder builder)
     {
         var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
         redisOptions.AllowAdmin = true;
@@ -91,13 +125,25 @@ public class IntegrationTestFixture : AppFixture<Program>
         redisOptions.SyncTimeout = 10000;
         redisOptions.KeepAlive = 60;
 
-        a.ConfigureWebHost(builder =>
+        var kafkaOptions = _kafkaContainer.KafkaOptions;
+        builder.ConfigureWebHost(builder =>
         {
             builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Weather}", _dbContainerConnectionString);
             builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Redis}", redisOptions.ToString());
+
+            for (var i = 0; i < kafkaOptions.Brokers.Length; i++)
+            {
+                builder.UseSetting($"{KafkaOptions.Section}:Brokers:{i}", kafkaOptions.Brokers[i]);
+            }
+
+            builder.UseSetting($"{SchemaRegistryOptions.Section}:Url", kafkaOptions.SchemaRegistry.Url);
+            builder.UseSetting($"{AvroSerializerOptions.Section}:AutoRegisterSchemas",
+                kafkaOptions.AvroSerializer.AutoRegisterSchemas.ToString());
+            builder.UseSetting($"{AvroSerializerOptions.Section}:SubjectNameStrategy",
+                kafkaOptions.AvroSerializer.SubjectNameStrategy.ToString());
         });
 
-        return base.ConfigureAppHost(a);
+        return base.ConfigureAppHost(builder);
     }
 
     protected override void ConfigureApp(IWebHostBuilder builder)
@@ -121,7 +167,6 @@ public class IntegrationTestFixture : AppFixture<Program>
                     loggerConfiguration.WriteTo.InjectableTestOutput(injectableTestOutputSink);
                     loggerConfiguration.Enrich.FromLogContext();
                 }, true, true);
-                // Disable background jobs
                 services.AddSingleton<IHealthCheckReportCollector>(Substitute.For<IHealthCheckReportCollector>());
             });
     }
@@ -143,6 +188,16 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     public async Task ResetDatabasesAsync()
     {
+        // Clear all recurring Hangfire jobs explicitly, SQL clean up is not enough
+        // internal states of hangfire etc. need to be cleaned up
+        var recurringJobManager = Services.GetRequiredService<IRecurringJobManager>();
+        var recurringJobs = Services.GetRequiredService<IBackgroundJobClientV2>().Storage.GetConnection()
+            .GetRecurringJobs();
+        foreach (var job in recurringJobs)
+        {
+            recurringJobManager.RemoveIfExists(job.Id);
+        }
+
         var multiplexer = Services.GetRequiredService<IConnectionMultiplexer>();
         var resetDbTasks = multiplexer.GetServers()
             .Select(server => server.FlushAllDatabasesAsync())
@@ -154,7 +209,17 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        // Dispose all Kafka test consumers
+        if (_kafkaTestConsumers != null)
+        {
+            foreach (var consumer in _kafkaTestConsumers.Values.OfType<IKafkaTestConsumer>())
+            {
+                consumer.Dispose();
+            }
+        }
+
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
+        await _kafkaContainer.DisposeAsync();
     }
 }

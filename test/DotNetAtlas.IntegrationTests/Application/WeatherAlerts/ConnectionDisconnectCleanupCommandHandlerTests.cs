@@ -48,13 +48,13 @@ public class ConnectionDisconnectCleanupCommandHandlerTests : BaseIntegrationTes
         var subscribePrague = new SubscribeForCityAlertsCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             ConnectionId = connectionId
         };
         var subscribeBerlin = new SubscribeForCityAlertsCommand
         {
             City = "Berlin",
-            CountryCode = CountryCode.De,
+            CountryCode = CountryCode.DE,
             ConnectionId = connectionId
         };
 
@@ -94,7 +94,7 @@ public class ConnectionDisconnectCleanupCommandHandlerTests : BaseIntegrationTes
         const string connectionA = "conn-a";
         const string connectionB = "conn-b";
         const string city = "Vienna";
-        const CountryCode country = CountryCode.At;
+        const CountryCode country = CountryCode.AT;
         var groupManager = Scope.ServiceProvider.GetRequiredService<IGroupManager>();
 
         var expectedGroupName =

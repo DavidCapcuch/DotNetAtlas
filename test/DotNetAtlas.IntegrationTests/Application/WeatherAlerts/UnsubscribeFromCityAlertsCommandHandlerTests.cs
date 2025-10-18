@@ -43,7 +43,7 @@ public class UnsubscribeFromCityAlertsCommandHandlerTests : BaseIntegrationTest
         var subscribeCommand = new SubscribeForCityAlertsCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             ConnectionId = "conn-1"
         };
         var unsubscribeCommand = new UnsubscribeFromCityAlertsCommand
@@ -78,7 +78,7 @@ public class UnsubscribeFromCityAlertsCommandHandlerTests : BaseIntegrationTest
         var subscribeCommand = new SubscribeForCityAlertsCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             ConnectionId = "conn-1"
         };
         var unsubscribeCommand = new UnsubscribeFromCityAlertsCommand

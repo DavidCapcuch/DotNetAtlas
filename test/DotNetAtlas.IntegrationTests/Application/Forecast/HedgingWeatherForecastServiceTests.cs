@@ -44,7 +44,7 @@ public class HedgingWeatherForecastServiceTests : BaseIntegrationTest
         IEnumerable<IWeatherForecastProvider> badProviders = [badProvider1, badProvider2];
 
         var sut = new HedgingWeatherForecastService(realPrimary, badProviders, _logger, options);
-        var request = new ForecastRequest("Prague", CountryCode.Cz, 3);
+        var request = new ForecastRequest("Prague", CountryCode.CZ, 3);
 
         // Act
         var forecastResult = await sut.GetForecastAsync(request, TestContext.Current.CancellationToken);
@@ -76,7 +76,7 @@ public class HedgingWeatherForecastServiceTests : BaseIntegrationTest
             badMainProvider
         };
         var sut = new HedgingWeatherForecastService(badMainProvider, mixedProviders, _logger, options);
-        var request = new ForecastRequest("Prague", CountryCode.Cz, 2);
+        var request = new ForecastRequest("Prague", CountryCode.CZ, 2);
 
         // Act
         var forecastResult = await sut.GetForecastAsync(request, TestContext.Current.CancellationToken);
@@ -106,7 +106,7 @@ public class HedgingWeatherForecastServiceTests : BaseIntegrationTest
             .ThrowsAsync<InvalidOperationException>();
 
         var sut = new HedgingWeatherForecastService(primary, [primary, secondary], _logger, options);
-        var request = new ForecastRequest("Prague", CountryCode.Cz, 1);
+        var request = new ForecastRequest("Prague", CountryCode.CZ, 1);
 
         // Act
         var act = () => sut.GetForecastAsync(request, TestContext.Current.CancellationToken);

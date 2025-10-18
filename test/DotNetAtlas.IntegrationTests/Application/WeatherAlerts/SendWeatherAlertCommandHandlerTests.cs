@@ -28,7 +28,7 @@ public class SendWeatherAlertCommandHandlerTests : BaseIntegrationTest
         var sendWeatherAlertCommand = new SendWeatherAlertCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             Message = "Heads up!"
         };
 

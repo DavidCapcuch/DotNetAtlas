@@ -15,7 +15,7 @@ public class UnsubscribeFromCityAlertsCommandValidatorTests
         var unsubscribeFromCityAlertsCommand = new UnsubscribeFromCityAlertsCommand
         {
             City = "Berlin",
-            CountryCode = CountryCode.De,
+            CountryCode = CountryCode.DE,
             ConnectionId = "conn-1"
         };
 
@@ -33,7 +33,7 @@ public class UnsubscribeFromCityAlertsCommandValidatorTests
         var cmd = new UnsubscribeFromCityAlertsCommand
         {
             City = "",
-            CountryCode = CountryCode.De,
+            CountryCode = CountryCode.DE,
             ConnectionId = "conn-1"
         };
 
