@@ -31,7 +31,7 @@ internal class GetForecastEndpoint : Endpoint<GetForecastQuery, GetForecastRespo
             {
                 Days = 5,
                 City = "Prague",
-                CountryCode = CountryCode.Cz
+                CountryCode = CountryCode.CZ
             };
         });
     }

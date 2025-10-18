@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+namespace DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
 
 public sealed record WeatherApiForecastResponse
 {

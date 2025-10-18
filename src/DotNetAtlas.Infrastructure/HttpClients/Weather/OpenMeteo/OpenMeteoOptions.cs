@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
+namespace DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
 
 public sealed class OpenMeteoOptions
 {

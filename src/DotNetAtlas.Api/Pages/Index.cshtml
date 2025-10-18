@@ -44,8 +44,7 @@ else
 
 <h3>
     <a href="/healthchecks-ui" target="_blank" class="@(isAuthenticated ? "" : "disabled-link")"
-       rel="noopener noreferrer">Health Checks
-        UI</a>
+       rel="noopener noreferrer">Health Checks UI</a>
     @if (!isAuthenticated)
     {
         <span> (login required)</span>
@@ -54,8 +53,7 @@ else
 
 <h3>
     <a href="/hangfire-dashboard" target="_blank" class="@(isAuthenticated ? "" : "disabled-link")"
-       rel="noopener noreferrer">Hangfire
-        Dashboard</a>
+       rel="noopener noreferrer">Hangfire Dashboard</a>
     @if (!isAuthenticated)
     {
         <span> (login required)</span>
@@ -67,6 +65,8 @@ else
     <br/>
     <h2>Docker compose services:</h2>
     <h3><a href="http://localhost:5341/#/events?range=3h" target="_blank" rel="noopener noreferrer">Seq</a></h3>
+    <h3><a href="http://localhost:3000/dashboards" target="_blank" rel="noopener noreferrer">Grafana</a></h3>
+    <h3><a href="http://localhost:16686/jaeger/ui/search" target="_blank" rel="noopener noreferrer">Jaeger</a></h3>
     <h3>
         <a href="http://localhost:5540/484a0520-f569-45ea-a027-909b81903784/browser" target="_blank"
            rel="noopener noreferrer">
@@ -74,8 +74,6 @@ else
         </a>
         (connect to "redis12346:6379" - db 0)
     </h3>
-    <h3><a href="http://localhost:16686/jaeger/ui/search" target="_blank" rel="noopener noreferrer">Jaeger</a></h3>
-    <h3><a href="http://localhost:3000/dashboards" target="_blank" rel="noopener noreferrer">Grafana</a></h3>
     <h3><a href="http://localhost:9090/query" target="_blank" rel="noopener noreferrer">Prometheus</a></h3>
 }
 

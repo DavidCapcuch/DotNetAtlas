@@ -1,5 +1,23 @@
 ﻿root = true
 
+# All files
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
 # C# files
 [*.cs]
 
@@ -70,7 +88,7 @@ dotnet_code_quality_unused_parameters = all:warning
 #### C# Coding Conventions ####
 
 # Namespace preferences
-csharp_style_namespace_declarations= file_scoped:error
+csharp_style_namespace_declarations = file_scoped:error
 
 # Expression-bodied members
 csharp_style_expression_bodied_accessors = true:suggestion
@@ -116,9 +134,9 @@ csharp_using_directive_placement = outside_namespace:error
 #### C# Formatting Rules ####
 
 # New line preferences
-csharp_new_line_before_catch =true
-csharp_new_line_before_else =true
-csharp_new_line_before_finally =true
+csharp_new_line_before_catch = true
+csharp_new_line_before_else = true
+csharp_new_line_before_finally = true
 csharp_new_line_before_members_in_anonymous_types = true
 csharp_new_line_before_members_in_object_initializers = true
 csharp_new_line_before_open_brace = all
@@ -491,6 +509,9 @@ dotnet_diagnostic.CA1056.severity = suggestion
 # CA1062: Validate arguments of public methods
 dotnet_diagnostic.CA1062.severity = none
 
+# CA1054: Pass urls as Uri
+dotnet_diagnostic.CA1054.severity = silent
+
 # CA1063: Implement IDisposable Correctly
 dotnet_diagnostic.CA1063.severity = suggestion
 
@@ -590,13 +611,16 @@ dotnet_diagnostic.CS8618.severity = suggestion
 dotnet_diagnostic.IDE0005.severity = suggestion
 
 # IDE0032
-dotnet_diagnostic.IDE0032.severity = suggestion
+dotnet_diagnostic.IDE0032.severity = silent
 
 # IDE0090
 dotnet_diagnostic.IDE0090.severity = none
 
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = suggestion
+
+# IDE0041: Null check can be simplified
+dotnet_diagnostic.IDE0041.severity = suggestion
 
 # IDE0058: Expression value is never used
 dotnet_diagnostic.IDE0053.severity = silent
@@ -654,10 +678,14 @@ dotnet_diagnostic.S6605.severity = suggestion
 # S6781: JWT secret keys should not be disclosed
 dotnet_diagnostic.S6781.severity = suggestion
 
+# CS1591 // Missing XML comment for publicly visible type or member
+dotnet_diagnostic.CS1591.severity = suggestion
+
 
 ### Resharper
-resharper_convert_to_primary_constructor_highlighting=none
+resharper_convert_to_primary_constructor_highlighting = none
 resharper_csharp_wrap_object_and_collection_initializer_style = chop_always
 
 ### VSTHRD
-dotnet_diagnostic.VSTHRD002.severity = suggestion;
+dotnet_diagnostic.VSTHRD002.severity = suggestion
+dotnet_diagnostic.VSTHRD200.severity = suggestion

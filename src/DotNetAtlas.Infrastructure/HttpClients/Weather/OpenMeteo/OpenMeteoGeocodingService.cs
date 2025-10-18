@@ -7,7 +7,7 @@ using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
+namespace DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
 
 public sealed class OpenMeteoGeocodingService : IGeocodingService
 {
