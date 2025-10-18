@@ -6,6 +6,9 @@
         <PackageReference Include="Testcontainers.Redis"/>
         <PackageReference Include="Evolve"/>
         <PackageReference Include="Testcontainers.MsSql"/>
+        <PackageReference Include="Testcontainers.Kafka"/>
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable"/>
         <PackageReference Include="Respawn"/>
         <PackageReference Include="FluentResults.Extensions.FluentAssertions"/>
@@ -19,6 +22,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\DotNetAtlas.Api\DotNetAtlas.Api.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.ArchitectureTests\DotNetAtlas.ArchitectureTests.csproj"/>
+        <ProjectReference Include="..\..\shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
     </ItemGroup>
 
 </Project>

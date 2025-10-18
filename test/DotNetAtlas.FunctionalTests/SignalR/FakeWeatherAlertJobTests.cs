@@ -27,7 +27,7 @@ public class FakeWeatherAlertJobTests : BaseApiTest
     {
         // Arrange
         await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
-        var alertSubscriptionDto = new AlertSubscriptionDto("Prague", CountryCode.Cz);
+        var alertSubscriptionDto = new AlertSubscriptionDto("Prague", CountryCode.CZ);
         await plebSignalRClient.SubscribeForCityAlertsAsync(alertSubscriptionDto);
 
         // Act

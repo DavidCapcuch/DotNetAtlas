@@ -1,4 +1,6 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
+using Avro.Specific;
 using Bogus;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Infrastructure.Persistence.Database;
@@ -15,6 +17,12 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
     private readonly Func<Task> _resetDatabases;
     private readonly Activity? _testActivity;
 
+    /// <summary>
+    /// Shared Kafka test consumers reused across all tests.
+    /// Consumers are created once in the fixture and shared for better performance.
+    /// </summary>
+    protected FrozenDictionary<string, object> KafkaTestConsumers { get; }
+
     protected BaseIntegrationTest(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
     {
         var outputSink = app.Services.GetRequiredService<IInjectableTestOutputSink>();
@@ -25,6 +33,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         Scope = app.Services.CreateScope();
         DbContext = Scope.ServiceProvider.GetRequiredService<WeatherForecastContext>();
 
+        // Use shared Kafka consumers from the fixture
+        KafkaTestConsumers = app.KafkaTestConsumers;
+
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
         _testActivity = Scope.ServiceProvider.GetRequiredService<IDotNetAtlasInstrumentation>()
@@ -32,6 +43,18 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         _testActivity?.SetTag("test_trace", true);
         _testActivity?.SetTag("test.run_id", TestContext.Current.TestCase?.UniqueID);
         _testActivity?.SetTag("test_type", "integration");
+    }
+
+    /// <summary>
+    /// Gets a strongly-typed Kafka consumer for the specified topic.
+    /// </summary>
+    /// <typeparam name="TValue">The Avro message type.</typeparam>
+    /// <param name="topic">The topic name to get the consumer for.</param>
+    /// <returns>The shared Kafka consumer for the topic.</returns>
+    protected KafkaTestConsumer<TValue> GetConsumer<TValue>(string topic)
+        where TValue : class, ISpecificRecord
+    {
+        return (KafkaTestConsumer<TValue>)KafkaTestConsumers[topic];
     }
 
     public ValueTask InitializeAsync()

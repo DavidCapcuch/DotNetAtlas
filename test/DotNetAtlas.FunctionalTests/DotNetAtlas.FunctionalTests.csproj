@@ -16,6 +16,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\DotNetAtlas.Api\DotNetAtlas.Api.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.ArchitectureTests\DotNetAtlas.ArchitectureTests.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.IntegrationTests\DotNetAtlas.IntegrationTests.csproj" />
     </ItemGroup>
 
 </Project>

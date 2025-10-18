@@ -15,7 +15,7 @@ public class SubscribeForCityAlertsCommandValidatorTests
         var subscribeForCityAlertsCommand = new SubscribeForCityAlertsCommand
         {
             City = "Berlin",
-            CountryCode = CountryCode.De,
+            CountryCode = CountryCode.DE,
             ConnectionId = "conn-1"
         };
 
@@ -33,7 +33,7 @@ public class SubscribeForCityAlertsCommandValidatorTests
         var subscribeForCityAlertsCommand = new SubscribeForCityAlertsCommand
         {
             City = "Berlin",
-            CountryCode = CountryCode.De,
+            CountryCode = CountryCode.DE,
             ConnectionId = string.Empty
         };
 

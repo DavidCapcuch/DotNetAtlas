@@ -28,7 +28,7 @@ public class GetForecastsTests : BaseApiTest
                 {
                     Days = numberOfDaysForecast,
                     City = "Prague",
-                    CountryCode = CountryCode.Cz
+                    CountryCode = CountryCode.CZ
                 });
 
         // Assert
@@ -49,7 +49,7 @@ public class GetForecastsTests : BaseApiTest
                 {
                     Days = 20,
                     City = "Prague",
-                    CountryCode = CountryCode.Cz
+                    CountryCode = CountryCode.CZ
                 });
 
         // Assert
@@ -72,7 +72,7 @@ public class GetForecastsTests : BaseApiTest
                 {
                     Days = 3,
                     City = "TotallyNotACity",
-                    CountryCode = CountryCode.Cz
+                    CountryCode = CountryCode.CZ
                 });
 
         // Assert
@@ -93,7 +93,7 @@ public class GetForecastsTests : BaseApiTest
                 {
                     Days = 3,
                     City = new string('a', 101),
-                    CountryCode = CountryCode.Cz
+                    CountryCode = CountryCode.CZ
                 });
 
         // Assert
