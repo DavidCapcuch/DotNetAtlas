@@ -1,6 +1,9 @@
+using DotNetAtlas.Application.Forecast.Common.Abstractions;
 using DotNetAtlas.ArchitectureTests;
 using DotNetAtlas.FunctionalTests.Common;
 using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.IntegrationTests.Common;
 using EvolveDb;
 using FastEndpoints.Testing;
 using Hangfire;
@@ -48,6 +51,8 @@ public class ApiTestFixture : AppFixture<Program>
         .WithName($"TestRedisFixture-{Guid.NewGuid()}")
         .Build();
 
+    private readonly KafkaTestContainer _kafkaContainer = new KafkaTestContainer();
+
     private string _dbContainerConnectionString = null!;
     private Respawner _respawner = null!;
 
@@ -55,7 +60,9 @@ public class ApiTestFixture : AppFixture<Program>
     {
         await Task.WhenAll(
             _dbContainer.StartAsync(),
-            _redisContainer.StartAsync());
+            _redisContainer.StartAsync(),
+            _kafkaContainer.StartAsync());
+
         _dbContainerConnectionString = new SqlConnectionStringBuilder(_dbContainer.GetConnectionString())
         {
             InitialCatalog = Database,
@@ -71,7 +78,8 @@ public class ApiTestFixture : AppFixture<Program>
         {
             SchemasToInclude =
             [
-                "weather"
+                "weather",
+                "HangFire"
             ]
         });
     }
@@ -81,7 +89,7 @@ public class ApiTestFixture : AppFixture<Program>
         return ValueTask.CompletedTask;
     }
 
-    protected override IHost ConfigureAppHost(IHostBuilder a)
+    protected override IHost ConfigureAppHost(IHostBuilder builder)
     {
         var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
         redisOptions.AllowAdmin = true;
@@ -92,13 +100,25 @@ public class ApiTestFixture : AppFixture<Program>
         redisOptions.SyncTimeout = 10000;
         redisOptions.KeepAlive = 60;
 
-        a.ConfigureWebHost(builder =>
+        var kafkaOptions = _kafkaContainer.KafkaOptions;
+        builder.ConfigureWebHost(builder =>
         {
             builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Weather}", _dbContainerConnectionString);
             builder.UseSetting($"ConnectionStrings:{ConnectionStrings.Redis}", redisOptions.ToString());
+
+            for (var i = 0; i < kafkaOptions.Brokers.Length; i++)
+            {
+                builder.UseSetting($"{KafkaOptions.Section}:Brokers:{i}", kafkaOptions.Brokers[i]);
+            }
+
+            builder.UseSetting($"{SchemaRegistryOptions.Section}:Url", kafkaOptions.SchemaRegistry.Url);
+            builder.UseSetting($"{AvroSerializerOptions.Section}:AutoRegisterSchemas",
+                kafkaOptions.AvroSerializer.AutoRegisterSchemas.ToString());
+            builder.UseSetting($"{AvroSerializerOptions.Section}:SubjectNameStrategy",
+                kafkaOptions.AvroSerializer.SubjectNameStrategy.ToString());
         });
 
-        return base.ConfigureAppHost(a);
+        return base.ConfigureAppHost(builder);
     }
 
     protected override void ConfigureApp(IWebHostBuilder builder)
@@ -122,6 +142,9 @@ public class ApiTestFixture : AppFixture<Program>
                 // Disable background jobs
                 services.AddSingleton<IRecurringJobManager>(Substitute.For<IRecurringJobManager>());
                 services.AddSingleton<IHealthCheckReportCollector>(Substitute.For<IHealthCheckReportCollector>());
+
+                // Mock Kafka producer - API tests don't need real Kafka
+                services.AddSingleton<IForecastEventsProducer>(Substitute.For<IForecastEventsProducer>());
             });
     }
 

@@ -1,7 +1,7 @@
 using DotNetAtlas.Application.Forecast.Services.Requests;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.Domain.Errors.Base;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +23,7 @@ public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
     public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
     {
         // Arrange
-        var forecastRequest = new ForecastRequest("Prague", CountryCode.Cz, 1);
+        var forecastRequest = new ForecastRequest("Prague", CountryCode.CZ, 1);
 
         // Act
         var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
@@ -40,7 +40,7 @@ public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
     public async Task WhenAskedForForecastWithNonExistentCity_ReturnsCityNotFoundError()
     {
         // Arrange
-        var forecastRequest = new ForecastRequest("asdfasdfsasdfsadsf", CountryCode.Cz, 1);
+        var forecastRequest = new ForecastRequest("asdfasdfsasdfsadsf", CountryCode.CZ, 1);
 
         // Act
         var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);

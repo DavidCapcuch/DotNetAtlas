@@ -52,7 +52,7 @@ public abstract class BaseApiTest : IAsyncLifetime
         NonAuthClient = CreateHttpClient(app, null, traceParent);
     }
 
-    private HttpClient CreateHttpClient(ApiTestFixture app, string? accessToken, string? traceParent)
+    private static HttpClient CreateHttpClient(ApiTestFixture app, string? accessToken, string? traceParent)
     {
         return app.CreateClient(httpClient =>
         {

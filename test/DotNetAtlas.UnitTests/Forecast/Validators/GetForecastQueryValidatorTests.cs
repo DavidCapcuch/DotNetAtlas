@@ -16,7 +16,7 @@ public class GetForecastQueryValidatorTests
         {
             Days = 5,
             City = "Prague",
-            CountryCode = CountryCode.Cz
+            CountryCode = CountryCode.CZ
         };
 
         // Act
@@ -34,7 +34,7 @@ public class GetForecastQueryValidatorTests
         {
             Days = 20,
             City = "Prague",
-            CountryCode = CountryCode.Cz
+            CountryCode = CountryCode.CZ
         };
 
         // Act

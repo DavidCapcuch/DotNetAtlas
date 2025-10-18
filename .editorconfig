@@ -510,7 +510,7 @@ dotnet_diagnostic.CA1056.severity = suggestion
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1054: Pass urls as Uri
-dotnet_diagnostic.CA1054.severity = silent
+dotnet_diagnostic.CA1054.severity = suggestion
 
 # CA1063: Implement IDisposable Correctly
 dotnet_diagnostic.CA1063.severity = suggestion

@@ -22,7 +22,6 @@
         <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
         <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack"/>
         <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis"/>
-        <PackageReference Include="Microsoft.Build.Tasks.Core" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>

@@ -15,7 +15,7 @@ public class ConnectionDisconnectCleanupCommandValidatorTests
         var sendWeatherAlertCommand = new SendWeatherAlertCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             Message = new string('a', 50)
         };
 
@@ -33,7 +33,7 @@ public class ConnectionDisconnectCleanupCommandValidatorTests
         var sendWeatherAlertCommand = new SendWeatherAlertCommand
         {
             City = string.Empty,
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             Message = "msg"
         };
 
@@ -51,7 +51,7 @@ public class ConnectionDisconnectCleanupCommandValidatorTests
         var sendWeatherAlertCommand = new SendWeatherAlertCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             Message = new string('x', 501)
         };
 

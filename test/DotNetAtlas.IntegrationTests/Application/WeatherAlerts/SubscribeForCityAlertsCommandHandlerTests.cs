@@ -39,7 +39,7 @@ public class SubscribeForCityAlertsCommandHandlerTests : BaseIntegrationTest
         var subscribeCommand = new SubscribeForCityAlertsCommand
         {
             City = "Prague",
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             ConnectionId = "conn-1"
         };
         var expectedGroupName =
@@ -70,7 +70,7 @@ public class SubscribeForCityAlertsCommandHandlerTests : BaseIntegrationTest
         var cmd = new SubscribeForCityAlertsCommand
         {
             City = new string('X', 10),
-            CountryCode = CountryCode.Cz,
+            CountryCode = CountryCode.CZ,
             ConnectionId = "conn-2"
         };
 

@@ -22,7 +22,7 @@ public class WeatherAlertHubTests : BaseApiTest
         // Arrange
         await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
         await using var devSignalRClient = await CreateSignalRClientAsync(ClientTypes.Dev);
-        var alertSubscriptionDto = new AlertSubscriptionDto("Prague", CountryCode.Cz);
+        var alertSubscriptionDto = new AlertSubscriptionDto("Prague", CountryCode.CZ);
         var weatherAlerts = new[]
         {
             new WeatherAlert(alertSubscriptionDto.City, alertSubscriptionDto.CountryCode, "Storm Warning")
@@ -47,7 +47,7 @@ public class WeatherAlertHubTests : BaseApiTest
     {
         // Arrange
         await using var devSignalRClient = await CreateSignalRClientAsync(ClientTypes.Dev);
-        var alertSubscriptionDto = new AlertSubscriptionDto("Berlin", CountryCode.De);
+        var alertSubscriptionDto = new AlertSubscriptionDto("Berlin", CountryCode.DE);
         var weatherAlerts = new[]
         {
             new WeatherAlert(alertSubscriptionDto.City, alertSubscriptionDto.CountryCode, "A1"),
@@ -81,7 +81,7 @@ public class WeatherAlertHubTests : BaseApiTest
         await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
         await using var devSignalRClient = await CreateSignalRClientAsync(ClientTypes.Dev);
 
-        var subscription = new AlertSubscriptionDto("Madrid", CountryCode.Es);
+        var subscription = new AlertSubscriptionDto("Madrid", CountryCode.ES);
         var weatherAlerts = new[]
         {
             new WeatherAlert(subscription.City, subscription.CountryCode, "ShouldNotArrive")
@@ -103,7 +103,7 @@ public class WeatherAlertHubTests : BaseApiTest
         // Arrange
         await using var nonAuthSignalRClient = await CreateSignalRClientAsync(ClientTypes.NonAuth);
 
-        var alertSubscriptionDto = new AlertSubscriptionDto("Vienna", CountryCode.At);
+        var alertSubscriptionDto = new AlertSubscriptionDto("Vienna", CountryCode.AT);
         await nonAuthSignalRClient.SubscribeForCityAlertsAsync(alertSubscriptionDto);
         await Task.Delay(200, TestContext.Current.CancellationToken);
         var connectionId = nonAuthSignalRClient.Connection.ConnectionId!;
@@ -134,7 +134,7 @@ public class WeatherAlertHubTests : BaseApiTest
         await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
         var weatherAlerts = new[]
         {
-            new WeatherAlert("Rome", CountryCode.It, "Denied"),
+            new WeatherAlert("Rome", CountryCode.IT, "Denied"),
         }.ToAsyncEnumerable();
 
         // Act + Assert

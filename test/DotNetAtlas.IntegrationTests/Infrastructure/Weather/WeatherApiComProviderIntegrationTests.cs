@@ -1,6 +1,6 @@
 using DotNetAtlas.Application.Forecast.Services.Requests;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +22,7 @@ public class WeatherApiComProviderIntegrationTests : BaseIntegrationTest
     public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
     {
         // Arrange
-        var forecastRequest = new ForecastRequest("Prague", CountryCode.Cz, 1);
+        var forecastRequest = new ForecastRequest("Prague", CountryCode.CZ, 1);
 
         // Act
         var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
