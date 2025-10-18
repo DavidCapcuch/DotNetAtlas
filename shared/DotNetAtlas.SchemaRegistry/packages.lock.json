@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Apache.Avro": {
+        "type": "Direct",
+        "requested": "[1.12.0, )",
+        "resolved": "1.12.0",
+        "contentHash": "gFFnQ8j91zdbs5QvGo79139WnLpQB4rPbDx2Bnr664uBMSGhh422QsHd89Vv7WyT0+eT7qPL+6rZlnyor3aATw==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.1",
+          "System.CodeDom": "8.0.0"
+        }
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "System.CodeDom": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "WTlRjL6KWIMr/pAaq3rYqh0TJlzpouaQ/W1eelssHgtlwHAH25jXTkUphTYx9HaIIf7XA6qs/0+YhtLEQRkJ+Q=="
+      }
+    },
+    "net10.0/linux-x64": {},
+    "net10.0/win-x64": {}
+  }
+}

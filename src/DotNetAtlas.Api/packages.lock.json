@@ -122,6 +122,33 @@
           "Microsoft.Identity.Client.Extensions.Msal": "4.73.1"
         }
       },
+      "Confluent.Kafka": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "i5Qb5BPthGXmLRSZWXVLPVNfo9Mxt+UieC+E/ZTFmlGIuPPd57g7Sxp8QP7fYp7qEBXs561jvWDLGaCZqV9ycg==",
+        "dependencies": {
+          "librdkafka.redist": "2.8.0"
+        }
+      },
+      "Confluent.SchemaRegistry": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "VsiRejfhBBfg7ODBzyWB9Abd/AG8+duUIyLEu+wzt2HS9WaWaGtlN5udBbkvy4wehJLgWS6SDUtvw2Pzzic1kA==",
+        "dependencies": {
+          "Confluent.Kafka": "2.8.0",
+          "Newtonsoft.Json": "13.0.1"
+        }
+      },
+      "Confluent.SchemaRegistry.Serdes.Avro": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "MYA8H2HY4A6eaO0inkcbyY+lR3LGYua9KENbP5cE4gwuqtgpgbaADQ+gME2WM919SZyNnTdEelZK2Rql9lZBpw==",
+        "dependencies": {
+          "Apache.Avro": "1.12.0",
+          "Confluent.Kafka": "2.8.0",
+          "Confluent.SchemaRegistry": "2.8.0"
+        }
+      },
       "DotNet.Glob": {
         "type": "Transitive",
         "resolved": "3.1.3",
@@ -229,6 +256,40 @@
           "IdentityModel": "5.2.0"
         }
       },
+      "KafkaFlow": {
+        "type": "Transitive",
+        "resolved": "4.0.1",
+        "contentHash": "mAeoKJBy8/cQpjk7wa7QGNka4j9tL8lB+KGM6Je2HwQrvUvGOq+eHYPl5okJlF0nIQyOdLlld/TNsgJauKHydw==",
+        "dependencies": {
+          "Confluent.Kafka": "2.8.0",
+          "KafkaFlow.Abstractions": "4.0.1",
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.IO.RecyclableMemoryStream": "3.0.1"
+        }
+      },
+      "KafkaFlow.Abstractions": {
+        "type": "Transitive",
+        "resolved": "4.0.1",
+        "contentHash": "MuK5Kv7JzfICJ8bp+jBdo0MPzKLpgRKGQgtBZm61XrS1vkaG/6Zh2M0rpjcg0yL8RYCDnhfo715bKzl4ZuPbFg=="
+      },
+      "KafkaFlow.SchemaRegistry": {
+        "type": "Transitive",
+        "resolved": "4.0.1",
+        "contentHash": "W62QhymXDx6IFlT0v0IJW3i8z/qcIwpNW37zZfO13jCO4276u3YD/ddTZsyDg188mS0NNArmihr6gpBRAhcoNg==",
+        "dependencies": {
+          "Confluent.SchemaRegistry": "2.8.0",
+          "KafkaFlow": "4.0.1",
+          "KafkaFlow.Abstractions": "4.0.1"
+        }
+      },
+      "KafkaFlow.Serializer": {
+        "type": "Transitive",
+        "resolved": "1.5.8",
+        "contentHash": "0X+lke7aa9nTnpLc6rdL0cRuM5MBPYmf9Ad06hBfz6ACLblbD2MdnqJB7plhg6CEDdj5lWSXywUCmQDKOa9SqA==",
+        "dependencies": {
+          "KafkaFlow.Abstractions": "1.5.8"
+        }
+      },
       "KubernetesClient": {
         "type": "Transitive",
         "resolved": "15.0.1",
@@ -239,6 +300,11 @@
           "System.IdentityModel.Tokens.Jwt": "7.1.2",
           "YamlDotNet": "16.0.0"
         }
+      },
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
       },
       "MemoryPack": {
         "type": "Transitive",
@@ -265,8 +331,8 @@
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "3WA9q9yVqJp222P3x1wYIGDAkpjAku0TMUaaQV22g6L67AI0LdOIrVS7Ht2vJfLHGSPVuqN94vIr15qn+HEkHw=="
+        "resolved": "9.0.3",
+        "contentHash": "oFFX9Ls8dnNUBCD9yzRzHTY8tqvv+CiX43B8L8DjrM8BqYTAlORYaJf6+KXNtSC2bD1135yV8OxzcZFaluow5w=="
       },
       "Microsoft.Bcl.Cryptography": {
         "type": "Transitive",
@@ -471,6 +537,11 @@
         "dependencies": {
           "Microsoft.IdentityModel.Logging": "8.0.1"
         }
+      },
+      "Microsoft.IO.RecyclableMemoryStream": {
+        "type": "Transitive",
+        "resolved": "3.0.1",
+        "contentHash": "s/s20YTVY9r9TPfTrN5g8zPF1YhwxyqO6PxUkrYTGI2B+OGPe9AdajWZrLhFqXIvqIW23fnUE4+ztrUWNU1+9g=="
       },
       "Microsoft.Kiota.Abstractions": {
         "type": "Transitive",
@@ -929,6 +1000,7 @@
         "dependencies": {
           "Ardalis.SmartEnum.SystemTextJson": "[8.1.0, )",
           "AspNetCore.HealthChecks.Hangfire": "[9.0.0, )",
+          "AspNetCore.HealthChecks.Kafka": "[9.0.0, )",
           "AspNetCore.HealthChecks.OpenIdConnectServer": "[9.0.0, )",
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
@@ -939,10 +1011,16 @@
           "AspNetCore.SignalR.OpenTelemetry": "[1.7.0, )",
           "Bogus": "[35.6.3, )",
           "DotNetAtlas.Application": "[1.0.0, )",
+          "DotNetAtlas.SchemaRegistry": "[1.0.0, )",
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
           "EntityFrameworkCore.Exceptions.SqlServer": "[8.1.3, )",
           "Hangfire.AspNetCore": "[1.8.21, )",
           "Hangfire.SqlServer": "[1.8.21, )",
+          "KafkaFlow.LogHandler.Microsoft": "[4.0.1, )",
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
+          "KafkaFlow.OpenTelemetry": "[4.0.1, )",
+          "KafkaFlow.Serializer.ApacheAvro": "[1.5.8, )",
+          "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.0.1, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.0-rc.1.25451.107, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.0-rc.1.25451.107, )",
           "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": "[10.0.0-rc.1.25451.107, )",
@@ -984,6 +1062,22 @@
           "ZiggyCreatures.FusionCache.OpenTelemetry": "[2.4.0, )"
         }
       },
+      "dotnetatlas.schemaregistry": {
+        "type": "Project",
+        "dependencies": {
+          "Apache.Avro": "[1.12.0, )"
+        }
+      },
+      "Apache.Avro": {
+        "type": "CentralTransitive",
+        "requested": "[1.12.0, )",
+        "resolved": "1.12.0",
+        "contentHash": "gFFnQ8j91zdbs5QvGo79139WnLpQB4rPbDx2Bnr664uBMSGhh422QsHd89Vv7WyT0+eT7qPL+6rZlnyor3aATw==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.1",
+          "System.CodeDom": "8.0.0"
+        }
+      },
       "Ardalis.SmartEnum.SystemTextJson": {
         "type": "CentralTransitive",
         "requested": "[8.1.0, )",
@@ -1011,6 +1105,15 @@
         "contentHash": "aLlKEZ+lB+MzynIH3z+qXwD2/qteO72oDvIfy0seV05coddnCbo9gUSugHSeDz7x4QEzjmEDFnbR5UE/Pziddg==",
         "dependencies": {
           "Hangfire.Core": "1.8.6"
+        }
+      },
+      "AspNetCore.HealthChecks.Kafka": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.0, )",
+        "resolved": "9.0.0",
+        "contentHash": "RZur8bOLjg/odBq495aT2x606kaO8j/nq/FFvc4CKtRGR8Seh7PGlbVKsGR7cjwUVFkorxNCdlJ8JFvdzXP9jQ==",
+        "dependencies": {
+          "Confluent.Kafka": "2.3.0"
         }
       },
       "AspNetCore.HealthChecks.OpenIdConnectServer": {
@@ -1153,6 +1256,63 @@
         "contentHash": "uGz9yfyC9hrI4zGWQivpdOv4tLlueKRc1tYN/+/NcsAcW3ciN0fmG4OPpCb7je0+7z/SGBGDpzNrXUiF2x7rHQ==",
         "dependencies": {
           "Hangfire.Core": "[1.8.21]"
+        }
+      },
+      "KafkaFlow.LogHandler.Microsoft": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "6gyP3A6WsvyAb7iiRwcivNPHZ8X6G44pfFG+JGAd/BKCb70YFlcH4FtYwjDyA+9xjHotYct5wunN0Zcd+5ci5w==",
+        "dependencies": {
+          "KafkaFlow.Abstractions": "4.0.1"
+        }
+      },
+      "KafkaFlow.Microsoft.DependencyInjection": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "3HvXMDEXYfYh4f76s4pBToptJW7NG9lf/KL3LepTh2GQxmZKexzGQZVuPTs+20Y8uoZsqiZ6w6BpP8VzlF+c5A==",
+        "dependencies": {
+          "KafkaFlow": "4.0.1",
+          "KafkaFlow.Abstractions": "4.0.1"
+        }
+      },
+      "KafkaFlow.OpenTelemetry": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "DNQKiyNngy924D+lESxidffzQBcoRwQHX4qdol6FjxgOWZpiKgHPndoAAMNCwQoRMaY8/AH0Lx/snOHHFMuNzg==",
+        "dependencies": {
+          "KafkaFlow.Abstractions": "4.0.1",
+          "OpenTelemetry.Api": "1.11.2"
+        }
+      },
+      "KafkaFlow.Serializer.ApacheAvro": {
+        "type": "CentralTransitive",
+        "requested": "[1.5.8, )",
+        "resolved": "1.5.8",
+        "contentHash": "c3BPw6mIXbRvudTkVwlWDuLtXuHcLzk4gQVw0auKqP7/HXPzmXLCM7/IzdWLcQg9jOjXgyPrMNx/lAKKqMcrhA==",
+        "dependencies": {
+          "Apache.Avro": "1.10.1",
+          "Confluent.Kafka": "1.5.3",
+          "Confluent.SchemaRegistry": "1.5.3",
+          "Confluent.SchemaRegistry.Serdes.Avro": "1.5.3",
+          "KafkaFlow.Abstractions": "1.5.8",
+          "KafkaFlow.Serializer": "1.5.8"
+        }
+      },
+      "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "3v/C9KI87Bvj4UJYjesnhpp69yRDYLtds+P5nUQvsLTXZbJ38QrMY/CFPSw5dzh2X2T/9FlZ/waarxQsrf+7MA==",
+        "dependencies": {
+          "Apache.Avro": "1.12.0",
+          "Confluent.Kafka": "2.8.0",
+          "Confluent.SchemaRegistry": "2.8.0",
+          "Confluent.SchemaRegistry.Serdes.Avro": "2.8.0",
+          "KafkaFlow.Abstractions": "4.0.1",
+          "KafkaFlow.SchemaRegistry": "4.0.1"
         }
       },
       "MemoryPack.Core": {
@@ -1592,6 +1752,11 @@
       }
     },
     "net10.0/linux-x64": {
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+      },
       "Microsoft.Data.SqlClient": {
         "type": "Transitive",
         "resolved": "6.1.1",
@@ -1620,6 +1785,11 @@
       }
     },
     "net10.0/win-x64": {
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+      },
       "Microsoft.Data.SqlClient": {
         "type": "Transitive",
         "resolved": "6.1.1",

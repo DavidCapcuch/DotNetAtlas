@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- exclusions for generated code -->
+    <PropertyGroup>
+        <NoWarn>CS0162</NoWarn> <!-- unreachable code -->
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Apache.Avro"/>
+    </ItemGroup>
+
+</Project>
