@@ -31,6 +31,7 @@
         <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer"/>
         <PackageReference Include="Bogus"/>
         <PackageReference Include="Hangfire.AspNetCore"/>
+        <PackageReference Include="Microsoft.Build.Tasks.Core"/>
         <PackageReference Include="Scrutor"/>
 
         <PackageReference Include="AspNetCore.SignalR.OpenTelemetry"/>
