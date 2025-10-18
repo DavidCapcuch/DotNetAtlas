@@ -21,7 +21,7 @@ public class HedgingWeatherForecastService : IWeatherForecastService
         ILogger<HedgingWeatherForecastService> logger,
         IOptions<WeatherHedgingOptions> hedgingOptions)
     {
-        _weatherForecastProviders = weatherProviders.ToList();
+        _weatherForecastProviders = [.. weatherProviders];
         _logger = logger;
         _mainWeatherForecastProvider = mainWeatherForecastProvider;
         _hedgingOptions = hedgingOptions.Value;

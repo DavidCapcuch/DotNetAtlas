@@ -7,7 +7,7 @@ using DotNetAtlas.Application.Forecast.Services.Requests;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
+namespace DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
 
 public class OpenMeteoWeatherProvider : IMainWeatherForecastProvider
 {

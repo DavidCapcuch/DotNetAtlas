@@ -8,7 +8,7 @@ using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+namespace DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
 
 public class WeatherApiComProvider : IWeatherForecastProvider
 {

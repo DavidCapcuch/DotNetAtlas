@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+namespace DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
 
 public sealed class WeatherApiComOptions
 {

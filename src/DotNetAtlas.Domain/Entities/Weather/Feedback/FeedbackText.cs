@@ -14,7 +14,7 @@ public record FeedbackText : ValueObject
     {
     }
 
-    public static Result<FeedbackText> Create(string feedback)
+    public static Result<FeedbackText> Create(string? feedback)
     {
         feedback = feedback?.Trim();
 
