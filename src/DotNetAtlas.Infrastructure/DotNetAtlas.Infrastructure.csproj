@@ -6,6 +6,7 @@
 
     <ItemGroup>
         <PackageReference Include="AspNetCore.HealthChecks.Hangfire"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.OpenIdConnectServer"/>
         <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
         <PackageReference Include="AspNetCore.HealthChecks.UI"/>
@@ -14,8 +15,14 @@
         <PackageReference Include="AspNetCore.HealthChecks.Uris"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
         <PackageReference Include="Hangfire.SqlServer"/>
+        <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="KafkaFlow.OpenTelemetry"/>
+        <PackageReference Include="KafkaFlow.Serializer.ApacheAvro"/>
+        <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
         <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack"/>
         <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis"/>
+        <PackageReference Include="Microsoft.Build.Tasks.Core" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
@@ -76,6 +83,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DotNetAtlas.Application\DotNetAtlas.Application.csproj"/>
+        <ProjectReference Include="..\..\shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

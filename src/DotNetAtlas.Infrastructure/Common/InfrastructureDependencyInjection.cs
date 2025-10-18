@@ -1,8 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using AspNetCore.SignalR.OpenTelemetry;
+using Confluent.Kafka;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Forecast.Common.Abstractions;
 using DotNetAtlas.Application.Forecast.Common.Config;
 using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
@@ -10,8 +12,10 @@ using DotNetAtlas.Infrastructure.Common.Authentication;
 using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.Common.Observability;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteoProvider;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiComProvider;
+using DotNetAtlas.Infrastructure.Communication.Kafka;
+using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
+using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
 using DotNetAtlas.Infrastructure.Jobs;
 using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
@@ -21,6 +25,8 @@ using Elastic.Serilog.Enrichers.Web;
 using EntityFramework.Exceptions.SqlServer;
 using Hangfire;
 using HealthChecks.UI.Client;
+using KafkaFlow;
+using KafkaFlow.Configuration;
 using MessagePack;
 using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -81,6 +87,49 @@ public static class InfrastructureDependencyInjection
         services.AddWeatherApiClients(configuration);
         services.AddHealthChecksInternal(configuration);
         services.AddBackgroundJobs(configuration);
+        services.AddKafkaMessaging(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddKafkaMessaging(
+        this IServiceCollection services,
+        ConfigurationManager configuration)
+    {
+        services.AddOptionsWithValidateOnStart<KafkaOptions>()
+            .Bind(configuration.GetSection(KafkaOptions.Section))
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .Bind(configuration.GetSection(TopicsOptions.Section))
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<KafkaForecastEventsProducerOptions>()
+            .Bind(configuration.GetSection(KafkaForecastEventsProducerOptions.Section))
+            .ValidateDataAnnotations();
+
+        var kafkaOptions = configuration
+            .GetRequiredSection(KafkaOptions.Section)
+            .Get<KafkaOptions>()!;
+
+        var producerOptions = configuration
+            .GetRequiredSection(KafkaForecastEventsProducerOptions.Section)
+            .Get<KafkaForecastEventsProducerOptions>()!;
+
+        services.AddKafka(kafka => kafka
+            .AddCluster(cluster => cluster
+                .WithBrokers(kafkaOptions.Brokers)
+                .WithSchemaRegistry(config => config.Url = kafkaOptions.SchemaRegistry.Url)
+                .AddProducer<KafkaForecastEventsProducer>(producer =>
+                    producer
+                        .WithProducerConfig(producerOptions)
+                        .AddMiddlewares(m =>
+                            m.AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer))
+                ))
+            .UseMicrosoftLog()
+            .AddOpenTelemetryInstrumentation());
+
+        services.AddSingleton<IForecastEventsProducer, KafkaForecastEventsProducer>();
 
         return services;
     }
@@ -604,6 +653,14 @@ public static class InfrastructureDependencyInjection
             .Get<WeatherApiComOptions>()!;
         var fusionAuthUrl = configuration[$"{AuthConfigSections.OAuthConfigSection}:Authority"]!;
 
+        var kafkaOptions = configuration
+            .GetRequiredSection(KafkaOptions.Section)
+            .Get<KafkaOptions>()!;
+        var producerConfig = new ProducerConfig
+        {
+            BootstrapServers = kafkaOptions.BrokersFlat
+        };
+
         services.AddHealthChecks()
             .AddCheck("Self", () => HealthCheckResult.Healthy(),
                 tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
@@ -660,7 +717,10 @@ public static class InfrastructureDependencyInjection
                 }, "Hangfire Unhealthy Check",
                 failureStatus: HealthStatus.Unhealthy,
                 tags: [InfrastructureConstants.ReadinessTag],
-                timeout: TimeSpan.FromSeconds(3));
+                timeout: TimeSpan.FromSeconds(3))
+            .AddKafka(producerConfig, "healthchecks", "Kafka",
+                tags: [InfrastructureConstants.ReadinessTag],
+                failureStatus: HealthStatus.Unhealthy);
 
         services.AddHealthChecksUI(settings =>
             {
