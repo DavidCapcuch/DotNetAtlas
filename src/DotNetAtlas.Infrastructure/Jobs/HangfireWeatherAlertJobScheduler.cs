@@ -30,8 +30,11 @@ internal sealed class HangfireWeatherAlertJobScheduler : IWeatherAlertJobSchedul
             methodCall: job =>
                 job.SendWeatherAlert(alertSubscriptionDto,
                     CancellationToken.None), // hangfire resolves cancellation token on its own
-            cronExpression: _fakeWeatherAlertJobOptions.Cron);
-        _logger.LogInformation("Scheduled alerts for {Group}", groupName);
+            cronExpression: _fakeWeatherAlertJobOptions.Cron,
+            queue: _fakeWeatherAlertJobOptions.Queue);
+
+        _logger.LogInformation(
+            "Scheduled alerts for {Group} on queue {Queue}", groupName, _fakeWeatherAlertJobOptions.Queue);
     }
 
     public void TriggerAlertJobForGroup(AlertSubscriptionDto alertSubscriptionDto, string groupName)
