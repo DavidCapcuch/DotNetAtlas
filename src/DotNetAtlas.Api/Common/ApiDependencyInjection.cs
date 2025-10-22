@@ -77,7 +77,9 @@ public static class ApiDependencyInjection
         ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<CorsPolicyOptions>()
-            .Bind(configuration.GetSection(CorsPolicyOptions.Section));
+            .Bind(configuration.GetSection(CorsPolicyOptions.Section))
+            .ValidateDataAnnotations();
+
         var corsOptions =
             configuration.GetRequiredSection(CorsPolicyOptions.Section).Get<CorsPolicyOptions>()!;
 

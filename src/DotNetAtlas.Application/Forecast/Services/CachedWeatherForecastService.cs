@@ -4,6 +4,7 @@ using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using DotNetAtlas.Application.Forecast.Services.Requests;
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace DotNetAtlas.Application.Forecast.Services;
@@ -19,7 +20,7 @@ public class CachedWeatherForecastService : IWeatherForecastService
         IWeatherForecastService decoratedForecastService,
         IFusionCache fusionCache,
         ILogger<CachedWeatherForecastService> logger,
-        Microsoft.Extensions.Options.IOptions<ForecastCacheOptions> options)
+        IOptions<ForecastCacheOptions> options)
     {
         _decoratedForecastService = decoratedForecastService;
         _fusionCache = fusionCache;

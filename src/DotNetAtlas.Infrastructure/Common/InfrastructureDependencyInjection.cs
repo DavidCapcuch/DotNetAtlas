@@ -24,6 +24,7 @@ using DotNetAtlas.Infrastructure.SignalR;
 using Elastic.Serilog.Enrichers.Web;
 using EntityFramework.Exceptions.SqlServer;
 using Hangfire;
+using Hangfire.SqlServer;
 using HealthChecks.UI.Client;
 using KafkaFlow;
 using KafkaFlow.Configuration;
@@ -71,11 +72,13 @@ public static class InfrastructureDependencyInjection
         bool isClusterEnvironment)
     {
         services.AddOptionsWithValidateOnStart<ApplicationOptions>()
-            .Bind(configuration.GetSection(ApplicationOptions.Section));
+            .Bind(configuration.GetSection(ApplicationOptions.Section))
+            .ValidateDataAnnotations();
 
         services.AddObservability(isClusterEnvironment, configuration);
         services.AddOptionsWithValidateOnStart<WeatherHedgingOptions>()
-            .Bind(configuration.GetSection(WeatherHedgingOptions.Section));
+            .Bind(configuration.GetSection(WeatherHedgingOptions.Section))
+            .ValidateDataAnnotations();
 
         services.AddAuthenticationInternal(configuration, isClusterEnvironment);
         services.AddAuthorizationInternal();
@@ -139,11 +142,16 @@ public static class InfrastructureDependencyInjection
         ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<OpenMeteoOptions>()
-            .Bind(configuration.GetSection(OpenMeteoOptions.Section));
+            .Bind(configuration.GetSection(OpenMeteoOptions.Section))
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<WeatherApiComOptions>()
-            .Bind(configuration.GetSection(WeatherApiComOptions.Section));
+            .Bind(configuration.GetSection(WeatherApiComOptions.Section))
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<HttpResilienceOptions>()
-            .Bind(configuration.GetSection(HttpResilienceOptions.Section));
+            .Bind(configuration.GetSection(HttpResilienceOptions.Section))
+            .ValidateDataAnnotations();
 
         var httpResilienceOptions = configuration
             .GetRequiredSection(HttpResilienceOptions.Section)
@@ -285,7 +293,9 @@ public static class InfrastructureDependencyInjection
     private static IServiceCollection AddCache(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<DefaultCacheOptions>()
-            .Bind(configuration.GetSection(DefaultCacheOptions.Section));
+            .Bind(configuration.GetSection(DefaultCacheOptions.Section))
+            .ValidateDataAnnotations();
+
         var defaultCacheOptions =
             configuration.GetRequiredSection(DefaultCacheOptions.Section)
                 .Get<DefaultCacheOptions>()!;
@@ -620,20 +630,36 @@ public static class InfrastructureDependencyInjection
         ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<FakeWeatherAlertJobOptions>()
-            .Bind(configuration.GetSection(FakeWeatherAlertJobOptions.Section));
+            .Bind(configuration.GetSection(FakeWeatherAlertJobOptions.Section))
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<HangfireOptions>()
+            .Bind(configuration.GetSection(HangfireOptions.Section))
+            .ValidateDataAnnotations();
+
+        var hangfireOptions = configuration
+            .GetRequiredSection(HangfireOptions.Section)
+            .Get<HangfireOptions>()!;
 
         services.AddHangfire(config =>
         {
             config.UseRecommendedSerializerSettings();
             config.UseSimpleAssemblyNameTypeSerializer();
             config.UseSerilogLogProvider();
-            config.UseSqlServerStorage(configuration.GetConnectionString(ConnectionStrings.Weather));
+            config.UseSqlServerStorage(configuration.GetConnectionString(ConnectionStrings.Weather),
+                new SqlServerStorageOptions()
+                {
+                    JobExpirationCheckInterval =
+                        TimeSpan.FromMilliseconds(hangfireOptions.JobExpirationCheckIntervalMs),
+                    QueuePollInterval = TimeSpan.FromMilliseconds(hangfireOptions.QueuePollIntervalMs)
+                });
         });
 
         services.AddHangfireServer(options =>
         {
-            options.SchedulePollingInterval = TimeSpan.FromSeconds(5);
-            options.CancellationCheckInterval = TimeSpan.FromSeconds(5);
+            options.SchedulePollingInterval = TimeSpan.FromMilliseconds(hangfireOptions.SchedulePollingIntervalMs);
+            options.CancellationCheckInterval = TimeSpan.FromMilliseconds(hangfireOptions.CancellationCheckIntervalMs);
+            options.Queues = hangfireOptions.Queues;
         });
 
         services.AddScoped<IWeatherAlertJobScheduler, HangfireWeatherAlertJobScheduler>();

@@ -6,6 +6,6 @@ public sealed class WeatherHedgingOptions
 {
     public const string Section = "Weather:Hedging";
 
-    [Range(1, 1_000)]
+    [Range(1, 10_000)]
     public int PrimaryMaxDurationMs { get; set; }
 }

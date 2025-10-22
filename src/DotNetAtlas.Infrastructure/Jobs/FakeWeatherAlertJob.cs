@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.Infrastructure.Jobs;
 
-[AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
+[AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Fail, LogEvents = true)]
 internal sealed class FakeWeatherAlertJob : IJob
 {
     private static readonly string[] AlertMessages =

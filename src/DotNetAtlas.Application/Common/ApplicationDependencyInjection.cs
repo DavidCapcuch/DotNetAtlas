@@ -35,9 +35,11 @@ public static class ApplicationDependencyInjection
     private static IServiceCollection AddForecast(this IServiceCollection services, ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<WeatherHedgingOptions>()
-            .Bind(configuration.GetSection(WeatherHedgingOptions.Section));
+            .Bind(configuration.GetSection(WeatherHedgingOptions.Section))
+            .ValidateDataAnnotations();
         services.AddOptionsWithValidateOnStart<ForecastCacheOptions>()
-            .Bind(configuration.GetSection(ForecastCacheOptions.Section));
+            .Bind(configuration.GetSection(ForecastCacheOptions.Section))
+            .ValidateDataAnnotations();
 
         services.AddScoped<IWeatherForecastService, HedgingWeatherForecastService>();
         services.Decorate<IWeatherForecastService, CachedWeatherForecastService>();
