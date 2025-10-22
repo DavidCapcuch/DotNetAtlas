@@ -7,5 +7,8 @@ public sealed class FakeWeatherAlertJobOptions
     public const string Section = "Jobs:FakeWeatherAlert";
 
     [Required(AllowEmptyStrings = false)]
-    public string Cron { get; set; } = "*/10 * * * * *"; // default every 10 seconds
+    public required string Cron { get; set; }
+
+    [Required(AllowEmptyStrings = false)]
+    public required string Queue { get; set; }
 }
