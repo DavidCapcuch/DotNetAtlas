@@ -176,7 +176,7 @@
         condition: service_healthy
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.0
+    image: confluentinc/cp-schema-registry:8.1.0@sha256:385c157f9cef42aa65e5c95050d85a439bcb0c897826aeabb3e10d36127ea223
     container_name: schema-registry
     healthcheck:
       test: curl --output /dev/null --silent --head --fail http://schema-registry:8081/subjects
