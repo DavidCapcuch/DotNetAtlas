@@ -64,7 +64,7 @@
       - METRICS_STORAGE_TYPE=prometheus
   
   prometheus:
-    image: quay.io/prometheus/prometheus:v3.6.0@sha256:76947e7ef22f8a698fc638f706685909be425dbe09bd7a2cd7aca849f79b5f64
+    image: quay.io/prometheus/prometheus:v3.7.2@sha256:23031bfe0e74a13004252caaa74eccd0d62b6c6e7a04711d5b8bf5b7e113adc7
     container_name: prometheus9090
     command:
       - --web.console.templates=/etc/prometheus/consoles
@@ -88,7 +88,7 @@
       - "9090:9090"
 
   grafana:
-    image: grafana/grafana:12.2.0@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
+    image: grafana/grafana:12.2.1@sha256:35c41e0fd0295f5d0ee5db7e780cf33506abfaf47686196f825364889dee878b
     container_name: grafana3000
     deploy:
       resources:
@@ -105,7 +105,7 @@
       - "3000:3000"
 
   otel-collector:
-    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.137.0@sha256:886722fe0f37af9d1fe24d29529253ec59fbf263b3b1df4facaf221373e19d23
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.138.0@sha256:4a951ff0a9772f4fa8e9c7a326434370301b98b2b813933468dcb54aa6a6b5e5
     container_name: otel-collector
     deploy:
       resources:
@@ -134,7 +134,7 @@
       - GOMEMLIMIT=160MiB
   
   kafka:
-    image: confluentinc/cp-kafka:7.5.9
+    image: confluentinc/cp-kafka:7.9.4@sha256:0142ea2a6606e967ac22b5d58f6ba36de3e649980e6ac723a6341fc3c0406888
     container_name: broker
     environment:
       KAFKA_NODE_ID: 1
@@ -165,7 +165,7 @@
 
   kafka-create-topic:
     container_name: kafka-create-topic
-    image: confluentinc/cp-kafka:7.5.9
+    image: confluentinc/cp-kafka:7.9.4@sha256:0142ea2a6606e967ac22b5d58f6ba36de3e649980e6ac723a6341fc3c0406888
     command: >
       bash -c "
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
@@ -176,7 +176,7 @@
         condition: service_healthy
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.0
+    image: confluentinc/cp-schema-registry:7.9.4@sha256:4b052dbb95b1e099d3c48ba6ea27b8e8d76dac0dc7b2f7d4933284a287300bbc
     container_name: schema-registry
     healthcheck:
       test: curl --output /dev/null --silent --head --fail http://schema-registry:8081/subjects
@@ -256,7 +256,7 @@
       - db_data:/var/lib/postgresql/data
 
   search:
-    image: opensearchproject/opensearch:3.2.0@sha256:23297b8d8545e129dd58c254ed08d786dc552410ba772983ad2af31048d2f04b
+    image: opensearchproject/opensearch:3.3.1@sha256:773b05b026c01e7d520f6b857f486b7312d9290e14f2aebe4630eb80787e9eb3
     environment:
       - cluster.name=fusionauth
       - discovery.type=single-node
