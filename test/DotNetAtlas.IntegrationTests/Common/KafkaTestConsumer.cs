@@ -32,13 +32,13 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
             Url = schemaRegistryUrl
         });
         _consumer = new ConsumerBuilder<string, TValue>(new ConsumerConfig
-            {
-                BootstrapServers = bootstrapServers,
-                GroupId = $"test-consumer-{Guid.NewGuid():N}",
-                AutoOffsetReset = AutoOffsetReset.Latest,
-                EnableAutoCommit = false,
-                AllowAutoCreateTopics = true
-            })
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = $"test-consumer-{Guid.NewGuid():N}",
+            AutoOffsetReset = AutoOffsetReset.Latest,
+            EnableAutoCommit = false,
+            AllowAutoCreateTopics = true
+        })
             .SetValueDeserializer(new AvroDeserializer<TValue>(_schemaClient).AsSyncOverAsync())
             .Build();
 
