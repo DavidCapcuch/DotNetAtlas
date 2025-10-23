@@ -241,7 +241,7 @@
 
   # FUSION AUTH SERVICES
   db:
-    image: postgres:16.10-bookworm@sha256:4f70c01cd4db87706cea6eabee1f8a93340dc493a46f6fbe206750f273d21949
+    image: postgres:18.0-bookworm@sha256:cc2d9c63f59149c2060e2b228d31de2df4d919f130e1b4166a0ad1afdb0cbda0
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: postgres
