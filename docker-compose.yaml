@@ -12,7 +12,7 @@
       - sqlserver_data:/var/opt/mssql
 
   redis:
-    image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
+    image: redis:8.2.2@sha256:4521b581dbddea6e7d81f8fe95ede93f5648aaa66a9dacd581611bf6fe7527bd
     container_name: redis12346
     restart: always
     ports:
