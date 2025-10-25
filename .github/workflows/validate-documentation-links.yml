@@ -2,47 +2,53 @@ name: Validate Documentation Links
 
 on:
   workflow_dispatch:
-  pull_request_target:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches-ignore:
+      - "**/graphite-base/**"
+    paths:
+      - '**.md'
+      - '**.MD'
+  push:
     branches:
       - main
     paths:
       - '**.md'
-  push:
-    branches:
-      - main
+      - '**.MD'
+  schedule:
+    - cron: '0 0 */3 * *' # Every 3 days
 
 permissions:
   contents: read
-  pull-requests: write
+  issues: write  # For creating issues from scheduled runs
 
 jobs:
-  check-broken-paths:
+  check-links:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Check broken Paths
-        uses: john0isaac/action-check-markdown@274ad7e69a147c37274e1a94fb01ddb175c57bed #1.1.0
-        with:
-          command: check_broken_paths
-          directory: ./
-          guide-url: 'https://github.com/DavidCapcuch/DotNetAtlas/blob/main/CONTRIBUTING.md'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  check-broken-urls:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Restore lychee cache
+        uses: actions/cache@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Check broken URLs
-        uses: john0isaac/action-check-markdown@274ad7e69a147c37274e1a94fb01ddb175c57bed #1.1.0
-        with:
-          command: check_broken_urls
-          directory: ./
-          guide-url: 'https://github.com/DavidCapcuch/DotNetAtlas/blob/main/CONTRIBUTING.md'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
+          restore-keys: cache-lychee-
 
+      - name: Check broken links
+        uses: lycheeverse/lychee-action@885c65f3dc543b57c898c8099f4e08c8afd178a2 # v2.6.1
+        with:
+          args: --cache --max-cache-age 1d --verbose --no-progress './**/*.md' './**/*.MD' './**/*.html' './**/*.rst'
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Issue on Scheduled Run Failure
+        # Only create issues from scheduled runs, not from PRs or pushes
+        if: failure() && github.event_name == 'schedule'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: 'Broken links detected in documentation'
+          content-filepath: ./lychee/out.md
+          labels: documentation, bug

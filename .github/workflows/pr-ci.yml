@@ -2,13 +2,14 @@ name: CI (PR)
 
 on:
   pull_request:
-    branches: [main]
-
+    types: [opened, reopened, synchronize]
+    branches-ignore:
+      - "**/graphite-base/**"
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
@@ -18,15 +19,21 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/pr-conventional-commit-validation.yml
 
-  run-ci:
+  enforce-format:
     needs: [validate-pr-title]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pr-enforce-format.yml
+
+  run-ci:
+    needs: [enforce-format]
     permissions:
       contents: write
       pages: write
       packages: write
       id-token: write
       attestations: write
-    uses: ./.github/workflows/ci-main.yml
+    uses: ./.github/workflows/main-ci.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
