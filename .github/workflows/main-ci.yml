@@ -19,13 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  enforce-format:
-    permissions:
-      contents: write
-    uses: ./.github/workflows/enforce-format.yml
 
   determine-version:
-    needs: [enforce-format]
     uses: ./.github/workflows/determine-git-version.yml
 
   build-dotnet:
