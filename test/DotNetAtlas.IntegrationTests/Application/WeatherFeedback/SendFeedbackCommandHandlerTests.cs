@@ -6,15 +6,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace DotNetAtlas.IntegrationTests.Application.Feedback;
+namespace DotNetAtlas.IntegrationTests.Application.WeatherFeedback;
 
 [Collection<ForecastTestCollection>]
 public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
 {
     private readonly SendFeedbackCommandHandler _sendFeedbackCommandHandler;
 
-    public SendFeedbackCommandHandlerTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public SendFeedbackCommandHandlerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _sendFeedbackCommandHandler =
             new SendFeedbackCommandHandler(

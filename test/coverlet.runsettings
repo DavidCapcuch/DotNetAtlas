@@ -33,7 +33,7 @@
             **/DotNetAtlas.Api/Common/Swagger/**,
             **/DotNetAtlas.Api/Common/Exceptions/**,
             **/DotNetAtlas.Api/Pages/Index*,
-            **/DotNetAtlas.Domain/Entities/Base/**,
+            **/DotNetAtlas.Domain/Common/Entity.cs
           </ExcludeByFile>
           <IncludeDirectory>../src/**</IncludeDirectory>
         </Configuration>

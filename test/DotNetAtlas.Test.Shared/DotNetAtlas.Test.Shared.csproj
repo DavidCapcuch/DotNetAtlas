@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <!-- Database -->
+        <PackageReference Include="Testcontainers.MsSql"/>
+        <PackageReference Include="Evolve"/>
+        <PackageReference Include="Respawn"/>
+        <PackageReference Include="Microsoft.Data.SqlClient"/>
+
+        <!-- Redis -->
+        <PackageReference Include="Testcontainers.Redis"/>
+        <PackageReference Include="StackExchange.Redis"/>
+
+        <!-- Kafka -->
+        <PackageReference Include="Testcontainers.Kafka"/>
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+
+        <!-- Testing Infrastructure -->
+        <PackageReference Include="FastEndpoints.Testing"/>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"/>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client"/>
+        <PackageReference Include="TypedSignalR.Client"/>
+
+        <!-- OpenTelemetry -->
+        <PackageReference Include="OpenTelemetry"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\DotNetAtlas.Infrastructure\DotNetAtlas.Infrastructure.csproj"/>
+    </ItemGroup>
+</Project>

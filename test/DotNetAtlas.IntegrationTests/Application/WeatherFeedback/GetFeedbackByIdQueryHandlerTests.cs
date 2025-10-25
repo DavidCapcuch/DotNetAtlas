@@ -4,15 +4,15 @@ using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 
-namespace DotNetAtlas.IntegrationTests.Application.Feedback;
+namespace DotNetAtlas.IntegrationTests.Application.WeatherFeedback;
 
 [Collection<ForecastTestCollection>]
 public class GetFeedbackByIdQueryHandlerTests : BaseIntegrationTest
 {
     private readonly GetFeedbackByIdQueryHandler _getFeedbackByIdQueryHandler;
 
-    public GetFeedbackByIdQueryHandlerTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public GetFeedbackByIdQueryHandlerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _getFeedbackByIdQueryHandler =
             new GetFeedbackByIdQueryHandler(DbContext);

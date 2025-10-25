@@ -6,6 +6,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\DotNetAtlas.Api\DotNetAtlas.Api.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.Test.Shared\DotNetAtlas.Test.Shared.csproj"/>
     </ItemGroup>
 
 </Project>

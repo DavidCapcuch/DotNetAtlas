@@ -1,6 +1,7 @@
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.FunctionalTests.Common;
+using DotNetAtlas.FunctionalTests.Common.Clients;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,8 +12,8 @@ namespace DotNetAtlas.FunctionalTests.SignalR;
 [Collection<SignalRTestCollection>]
 public class WeatherAlertHubTests : BaseApiTest
 {
-    public WeatherAlertHubTests(ApiTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public WeatherAlertHubTests(ApiTestFixture app)
+        : base(app)
     {
     }
 
@@ -20,8 +21,8 @@ public class WeatherAlertHubTests : BaseApiTest
     public async Task Subscribe_Unsubscribe_And_SendAlert_ShouldDeliverMessageToGroup()
     {
         // Arrange
-        await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
-        await using var devSignalRClient = await CreateSignalRClientAsync(ClientTypes.Dev);
+        await using var plebSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Pleb);
+        await using var devSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Dev);
         var alertSubscriptionDto = new AlertSubscriptionDto("Prague", CountryCode.CZ);
         var weatherAlerts = new[]
         {
@@ -33,40 +34,51 @@ public class WeatherAlertHubTests : BaseApiTest
 
         await devSignalRClient.SendWeatherAlertAsync(weatherAlerts);
 
-        var receivedAlertMessages =
-            await plebSignalRClient.GetAllReceivedMessagesAsync();
+        var receivedAlertMessage =
+            await plebSignalRClient.ConsumeOne(
+                TimeSpan.FromMilliseconds(500),
+                TestContext.Current.CancellationToken);
 
         await plebSignalRClient.UnsubscribeFromCityAlertsAsync(alertSubscriptionDto);
 
         // Assert
-        receivedAlertMessages.Should().ContainSingle(m => m.Message == "Storm Warning");
+        using (new AssertionScope())
+        {
+            receivedAlertMessage.Should().NotBeNull();
+            receivedAlertMessage.Message.Should().Be("Storm Warning");
+        }
     }
 
     [Fact]
     public async Task MultipleAlerts_ShouldDeliverAllInOrder()
     {
         // Arrange
-        await using var devSignalRClient = await CreateSignalRClientAsync(ClientTypes.Dev);
+        await using var devSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Dev);
         var alertSubscriptionDto = new AlertSubscriptionDto("Berlin", CountryCode.DE);
         var weatherAlerts = new[]
         {
             new WeatherAlert(alertSubscriptionDto.City, alertSubscriptionDto.CountryCode, "A1"),
             new WeatherAlert(alertSubscriptionDto.City, alertSubscriptionDto.CountryCode, "A2"),
             new WeatherAlert(alertSubscriptionDto.City, alertSubscriptionDto.CountryCode, "A3")
-        }.ToAsyncEnumerable();
+        };
+        var expectedAlertCount = weatherAlerts.Length;
         await devSignalRClient.SubscribeForCityAlertsAsync(alertSubscriptionDto);
 
         // Act
-        await devSignalRClient.SendWeatherAlertAsync(weatherAlerts);
+        await devSignalRClient.SendWeatherAlertAsync(weatherAlerts.ToAsyncEnumerable());
 
-        var receivedAlertMessages = await devSignalRClient.GetAllReceivedMessagesAsync();
+        var receivedAlertMessages =
+            await devSignalRClient.ConsumeMultiple(
+                TimeSpan.FromMilliseconds(500),
+                maxCount: expectedAlertCount,
+                TestContext.Current.CancellationToken);
 
         await devSignalRClient.UnsubscribeFromCityAlertsAsync(alertSubscriptionDto);
 
         // Assert
         using (new AssertionScope())
         {
-            receivedAlertMessages.Should().HaveCount(3);
+            receivedAlertMessages.Should().HaveCount(expectedAlertCount);
             receivedAlertMessages.Should().ContainInOrder(
                 new WeatherAlertMessage("A1"),
                 new WeatherAlertMessage("A2"),
@@ -78,8 +90,8 @@ public class WeatherAlertHubTests : BaseApiTest
     public async Task Unsubscribe_ShouldStopFurtherDeliveries()
     {
         // Arrange
-        await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
-        await using var devSignalRClient = await CreateSignalRClientAsync(ClientTypes.Dev);
+        await using var plebSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Pleb);
+        await using var devSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Dev);
 
         var subscription = new AlertSubscriptionDto("Madrid", CountryCode.ES);
         var weatherAlerts = new[]
@@ -101,7 +113,7 @@ public class WeatherAlertHubTests : BaseApiTest
     public async Task Disconnect_ShouldRemoveMembershipFromGroupManager()
     {
         // Arrange
-        await using var nonAuthSignalRClient = await CreateSignalRClientAsync(ClientTypes.NonAuth);
+        var nonAuthSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.NonAuth);
 
         var alertSubscriptionDto = new AlertSubscriptionDto("Vienna", CountryCode.AT);
         await nonAuthSignalRClient.SubscribeForCityAlertsAsync(alertSubscriptionDto);
@@ -131,7 +143,7 @@ public class WeatherAlertHubTests : BaseApiTest
     public async Task NormalUser_ShouldNotBeAbleToSendAlerts()
     {
         // Arrange
-        await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
+        await using var plebSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Pleb);
         var weatherAlerts = new[]
         {
             new WeatherAlert("Rome", CountryCode.IT, "Denied"),

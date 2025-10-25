@@ -21,8 +21,8 @@ public class ConnectionDisconnectCleanupCommandHandlerTests : BaseIntegrationTes
     private readonly ConnectionDisconnectCleanupHandler _connectionDisconnectCleanupHandler;
     private readonly IStorageConnection _jobStorageConnection;
 
-    public ConnectionDisconnectCleanupCommandHandlerTests(IntegrationTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public ConnectionDisconnectCleanupCommandHandlerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _subscribeForCityAlertsHandler = new SubscribeForCityAlertsCommandHandler(
             Scope.ServiceProvider.GetRequiredService<IGroupManager>(),
