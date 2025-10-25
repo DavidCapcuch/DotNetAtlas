@@ -14,13 +14,13 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using ZiggyCreatures.Caching.Fusion;
 
-namespace DotNetAtlas.IntegrationTests.Application.Forecast;
+namespace DotNetAtlas.IntegrationTests.Application.WeatherForecast;
 
 [Collection<ForecastTestCollection>]
 public class CachedWeatherForecastServiceTests : BaseIntegrationTest
 {
-    public CachedWeatherForecastServiceTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public CachedWeatherForecastServiceTests(IntegrationTestFixture app)
+        : base(app)
     {
     }
 

@@ -1,6 +1,8 @@
+using Bogus;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry;
 using Serilog;
 
 namespace DotNetAtlas.Infrastructure.Persistence.Database.Seed;
@@ -61,12 +63,16 @@ public static class DatabaseSeedExtensions
     /// </summary>
     private static async Task SeedDatabaseAsync(DbContext dbContext, CancellationToken ct = default)
     {
+        using var _ = SuppressInstrumentationScope.Begin();
+
+        // deterministic seed for data consistency
+        Randomizer.Seed = new Random(420_69);
+
         var weatherDbContext = (WeatherForecastContext)dbContext;
         var itemsExist = await weatherDbContext.WeatherFeedbacks.AnyAsync(ct);
         if (!itemsExist)
         {
-            var activeCalloutFaker = new WeatherFeedbackFaker()
-                .UseSeed(420_69); // deterministic seed for all developers
+            var activeCalloutFaker = new WeatherFeedbackFaker();
             var weatherFeedbacksToSeed = activeCalloutFaker.Generate(99);
 
             // for deterministic seed test data in endpoint example

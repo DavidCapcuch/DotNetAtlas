@@ -19,8 +19,8 @@ public class SubscribeForCityAlertsCommandHandlerTests : BaseIntegrationTest
     private readonly SubscribeForCityAlertsCommandHandler _subscribeHandler;
     private readonly IStorageConnection _jobStorageConnection;
 
-    public SubscribeForCityAlertsCommandHandlerTests(IntegrationTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public SubscribeForCityAlertsCommandHandlerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _subscribeHandler = new SubscribeForCityAlertsCommandHandler(
             Scope.ServiceProvider.GetRequiredService<IGroupManager>(),

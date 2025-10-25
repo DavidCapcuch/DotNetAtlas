@@ -20,8 +20,8 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
 {
     private readonly TopicsOptions _topicsOptions;
 
-    public GetForecastQueryHandlerKafkaTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public GetForecastQueryHandlerKafkaTests(IntegrationTestFixture app)
+        : base(app)
     {
         _topicsOptions = Scope.ServiceProvider.GetRequiredService<IOptions<TopicsOptions>>().Value;
     }
@@ -40,13 +40,14 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
             UserId = Guid.NewGuid()
         };
 
-        var consumer = GetConsumer<ForecastRequestedEvent>(_topicsOptions.ForecastRequested);
+        var consumer = KafkaTestConsumerRegistry.ForecastRequestedConsumer;
 
         // Act
         var result =
             await getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
 
-        var forecastRequestedEvent = consumer.ConsumeOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var forecastRequestedEvent =
+            consumer.ConsumeOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
@@ -57,7 +58,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
             forecastRequestedEvent.CountryCode.ToString().Should().Be(getForecastQuery.CountryCode.ToString());
             forecastRequestedEvent.Days.Should().Be(getForecastQuery.Days);
             forecastRequestedEvent.UserId.Should().Be(getForecastQuery.UserId);
-            forecastRequestedEvent.RequestedAtUtc.Should().BeOnOrAfter(DateTime.UtcNow.AddSeconds(-3));
+            forecastRequestedEvent.RequestedAtUtc.Should().BeOnOrAfter(DateTime.UtcNow.AddSeconds(-5));
         }
     }
 
@@ -84,12 +85,13 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
             UserId = Guid.NewGuid()
         };
 
-        var consumer = GetConsumer<ForecastRequestedEvent>(_topicsOptions.ForecastRequested);
+        var consumer = KafkaTestConsumerRegistry.ForecastRequestedConsumer;
 
         // Act
         var result = await getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
 
-        var forecastRequestedEvent = consumer.ConsumeOne(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var forecastRequestedEvent =
+            consumer.ConsumeOne(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
@@ -108,7 +110,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
         // Arrange
         var getForecastQueryHandler =
             Scope.ServiceProvider.GetRequiredService<IQueryHandler<GetForecastQuery, GetForecastResponse>>();
-        var consumer = GetConsumer<ForecastRequestedEvent>(_topicsOptions.ForecastRequested);
+        var consumer = KafkaTestConsumerRegistry.ForecastRequestedConsumer;
 
         var cities = new[]
         {

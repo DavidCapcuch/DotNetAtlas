@@ -9,8 +9,8 @@ public class RedisSignalRGroupManagerTests : BaseIntegrationTest
 {
     private readonly RedisSignalRGroupManager _signalRGroupManager;
 
-    public RedisSignalRGroupManagerTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public RedisSignalRGroupManagerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _signalRGroupManager = Scope.ServiceProvider.GetRequiredService<RedisSignalRGroupManager>();
     }
@@ -27,7 +27,7 @@ public class RedisSignalRGroupManagerTests : BaseIntegrationTest
         var infoAfterAddConn1 = await _signalRGroupManager.AddConnectionIdToGroup(group, conn1);
         var infoAfterAddConn2 = await _signalRGroupManager.AddConnectionIdToGroup(group, conn2);
         var groupsForConn1 = await _signalRGroupManager.GetGroupsByConnectionIdAsync(conn1);
-        var infoafterRemoveConn1 = await _signalRGroupManager.RemoveConnectionFromGroup(group, conn1);
+        var infoAfterRemoveConn1 = await _signalRGroupManager.RemoveConnectionFromGroup(group, conn1);
         var groupsAfterRemoveConn1 = await _signalRGroupManager.GetGroupsByConnectionIdAsync(conn1);
 
         // Assert
@@ -36,7 +36,7 @@ public class RedisSignalRGroupManagerTests : BaseIntegrationTest
             infoAfterAddConn1.MemberCount.Should().Be(1);
             infoAfterAddConn2.MemberCount.Should().Be(2);
             groupsForConn1.Should().ContainSingle(g => g.GroupName == group && g.MemberCount == 2);
-            infoafterRemoveConn1.MemberCount.Should().Be(1);
+            infoAfterRemoveConn1.MemberCount.Should().Be(1);
             groupsAfterRemoveConn1.Should().BeEmpty();
         }
     }

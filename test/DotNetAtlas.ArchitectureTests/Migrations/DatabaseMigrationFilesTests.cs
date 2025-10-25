@@ -1,3 +1,5 @@
+using DotNetAtlas.Test.Shared;
+
 namespace DotNetAtlas.ArchitectureTests.Migrations;
 
 public class DatabaseMigrationFilesTests
@@ -7,12 +9,12 @@ public class DatabaseMigrationFilesTests
     {
         // Arrange
         var migrationsCount = Directory
-            .GetFiles(DatabasePaths.EfMigrationsDirectory, "2*.cs", SearchOption.TopDirectoryOnly)
+            .GetFiles(SolutionPaths.EfMigrationsDirectory, "2*.cs", SearchOption.TopDirectoryOnly)
             .Count(f => !f.EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase));
 
         var sqlCount = Directory
             .GetFiles(
-                DatabasePaths.FlywayMigrationsDirectory,
+                SolutionPaths.FlywayMigrationsDirectory,
                 "V*.sql",
                 SearchOption.TopDirectoryOnly).Length;
 
