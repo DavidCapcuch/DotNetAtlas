@@ -1,0 +1,71 @@
+name: Reusable - PR Enforce Format
+
+on:
+  workflow_call:
+
+jobs:
+  enforce-format:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Setup .NET SDK (10.0.100-rc.1.25451.107)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5
+        with:
+          dotnet-version: "10.0.100-rc.1.25451.107"
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Restore
+        run: dotnet restore --locked-mode
+
+      - name: Verify format
+        id: verify
+        continue-on-error: true
+        run: |
+          # Get changed files and convert to array
+          mapfile -t FILES < <(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+
+          # Exit early if no files to format
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No files changed, skipping format check"
+            exit 0
+          fi
+
+          dotnet format whitespace --no-restore --verify-no-changes --include "${FILES[@]}"
+          dotnet format style --no-restore --verify-no-changes --include "${FILES[@]}"
+
+      - name: Auto-fix formatting with new commit
+        if: steps.verify.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get changed files and convert to array
+          mapfile -t FILES < <(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+
+          # Apply formatting
+          dotnet format whitespace --no-restore --include "${FILES[@]}"
+          dotnet format style --no-restore --include "${FILES[@]}"
+
+          # Only commit if there are actual changes
+          if git diff --quiet; then
+            echo "No formatting changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(format): Fix formatting"
+          git push -u origin HEAD
