@@ -16,11 +16,18 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.Client"/>
+
         <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
         <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+
         <PackageReference Include="FastEndpoints.Security"/>
         <PackageReference Include="FastEndpoints.Swagger"/>
         <PackageReference Include="FastEndpoints.ClientGen.Kiota"/>
@@ -28,6 +35,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+
         <PackageReference Include="TypedSignalR.Client.DevTools"/>
 
         <PackageReference Include="StyleCop.Analyzers">

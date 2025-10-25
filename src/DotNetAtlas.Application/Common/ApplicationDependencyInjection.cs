@@ -1,16 +1,16 @@
-using DotNetAtlas.Application.Common.Behaviors;
 using DotNetAtlas.Application.Common.CQS;
-using DotNetAtlas.Application.Feedback.ChangeFeedback;
-using DotNetAtlas.Application.Feedback.GetFeedback;
-using DotNetAtlas.Application.Feedback.SendFeedback;
-using DotNetAtlas.Application.Forecast.Common.Config;
-using DotNetAtlas.Application.Forecast.GetForecasts;
-using DotNetAtlas.Application.Forecast.Services;
-using DotNetAtlas.Application.Forecast.Services.Abstractions;
+using DotNetAtlas.Application.Common.CQS.Behaviors;
 using DotNetAtlas.Application.WeatherAlerts.DisconnectCleanup;
 using DotNetAtlas.Application.WeatherAlerts.SendWeatherAlert;
 using DotNetAtlas.Application.WeatherAlerts.SubscribeForCityAlerts;
 using DotNetAtlas.Application.WeatherAlerts.UnsubscribeFromCityAlerts;
+using DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
+using DotNetAtlas.Application.WeatherFeedback.GetFeedback;
+using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
+using DotNetAtlas.Application.WeatherForecast.Common.Config;
+using DotNetAtlas.Application.WeatherForecast.GetForecasts;
+using DotNetAtlas.Application.WeatherForecast.Services;
+using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,26 +19,25 @@ namespace DotNetAtlas.Application.Common;
 
 public static class ApplicationDependencyInjection
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services,
-        ConfigurationManager configuration)
+    public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssembly(typeof(ApplicationDependencyInjection).Assembly, includeInternalTypes: true);
         services
             .AddFeedback()
-            .AddForecast(configuration)
+            .AddForecast()
             .AddWeatherAlert()
             .AddHandlerBehaviors();
 
         return services;
     }
 
-    private static IServiceCollection AddForecast(this IServiceCollection services, ConfigurationManager configuration)
+    private static IServiceCollection AddForecast(this IServiceCollection services)
     {
         services.AddOptionsWithValidateOnStart<WeatherHedgingOptions>()
-            .Bind(configuration.GetSection(WeatherHedgingOptions.Section))
+            .BindConfiguration(WeatherHedgingOptions.Section)
             .ValidateDataAnnotations();
         services.AddOptionsWithValidateOnStart<ForecastCacheOptions>()
-            .Bind(configuration.GetSection(ForecastCacheOptions.Section))
+            .BindConfiguration(ForecastCacheOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddScoped<IWeatherForecastService, HedgingWeatherForecastService>();

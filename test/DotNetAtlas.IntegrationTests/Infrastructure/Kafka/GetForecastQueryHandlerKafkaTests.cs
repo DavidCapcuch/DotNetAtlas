@@ -1,9 +1,9 @@
 using Confluent.Kafka;
 using DotNetAtlas.Application.Common.CQS;
-using DotNetAtlas.Application.Forecast.Common.Abstractions;
-using DotNetAtlas.Application.Forecast.GetForecasts;
-using DotNetAtlas.Application.Forecast.Services.Abstractions;
-using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.Application.WeatherForecast.Common.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.GetForecasts;
+using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;

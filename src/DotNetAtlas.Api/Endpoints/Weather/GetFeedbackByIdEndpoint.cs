@@ -1,7 +1,7 @@
 using System.Net;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Application.Common.CQS;
-using DotNetAtlas.Application.Feedback.GetFeedback;
+using DotNetAtlas.Application.WeatherFeedback.GetFeedback;
 using FastEndpoints;
 using Serilog.Context;
 

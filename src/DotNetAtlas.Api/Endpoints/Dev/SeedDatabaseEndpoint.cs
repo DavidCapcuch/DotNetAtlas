@@ -9,15 +9,15 @@ namespace DotNetAtlas.Api.Endpoints.Dev;
 /// </summary>
 internal class SeedDatabaseEndpoint : Endpoint<SeedDatabaseCommand>
 {
-    private readonly WeatherForecastContext _weatherForecastContext;
+    private readonly WeatherContext _weatherContext;
     private readonly ILogger<SeedDatabaseEndpoint> _logger;
 
     public SeedDatabaseEndpoint(
         ILogger<SeedDatabaseEndpoint> logger,
-        WeatherForecastContext weatherForecastContext)
+        WeatherContext weatherContext)
     {
         _logger = logger;
-        _weatherForecastContext = weatherForecastContext;
+        _weatherContext = weatherContext;
     }
 
     public override void Configure()
@@ -41,8 +41,8 @@ internal class SeedDatabaseEndpoint : Endpoint<SeedDatabaseCommand>
 
         var feedbackFaker = new WeatherFeedbackFaker();
         var weatherFeedbacks = feedbackFaker.Generate(req.NumberOfRecords);
-        _weatherForecastContext.AddRange(weatherFeedbacks);
-        await _weatherForecastContext.SaveChangesAsync(ct);
+        _weatherContext.AddRange(weatherFeedbacks);
+        await _weatherContext.SaveChangesAsync(ct);
 
         await Send.NoContentAsync(ct);
     }

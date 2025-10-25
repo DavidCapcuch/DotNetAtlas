@@ -1,10 +1,10 @@
-using DotNetAtlas.Application.Forecast.Common.Config;
-using DotNetAtlas.Application.Forecast.GetForecasts;
-using DotNetAtlas.Application.Forecast.Services;
-using DotNetAtlas.Application.Forecast.Services.Abstractions;
-using DotNetAtlas.Application.Forecast.Services.Requests;
+using DotNetAtlas.Application.WeatherForecast.Common.Config;
+using DotNetAtlas.Application.WeatherForecast.GetForecasts;
+using DotNetAtlas.Application.WeatherForecast.Services;
+using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.Services.Requests;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
-using DotNetAtlas.Domain.Errors;
+using DotNetAtlas.Domain.Entities.Weather.Forecast.Errors;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
@@ -75,7 +75,7 @@ public class CachedWeatherForecastServiceTests : BaseIntegrationTest
         var decoratedMock = Substitute.For<IWeatherForecastService>();
         decoratedMock.GetForecastAsync(Arg.Any<ForecastRequest>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<IReadOnlyList<ForecastDto>>(
-                WeatherForecastErrors.CityNotFoundError("UnknownCity", CountryCode.CZ)));
+                ForecastErrors.CityNotFoundError("UnknownCity", CountryCode.CZ)));
 
         var sut = new CachedWeatherForecastService(decoratedMock, cache, logger, options);
 

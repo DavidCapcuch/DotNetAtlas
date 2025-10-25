@@ -1,4 +1,4 @@
-using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using Weather.Contracts;
 
 namespace DotNetAtlas.Test.Shared.Kafka;

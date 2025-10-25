@@ -1,5 +1,5 @@
-using DotNetAtlas.Application.Feedback.SendFeedback;
-using DotNetAtlas.Domain.Errors.Base;
+using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
+using DotNetAtlas.Domain.Common.Errors;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -44,7 +44,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         {
             result.Should().BeSuccess();
             var createdId = result.Value;
-            var exists = await DbContext.WeatherFeedbacks
+            var exists = await DbContext.Feedbacks
                 .AsNoTracking()
                 .AnyAsync(wf => wf.Id == createdId, TestContext.Current.CancellationToken);
             exists.Should().BeTrue();

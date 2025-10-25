@@ -1,6 +1,6 @@
 using System.Net;
 using DotNetAtlas.Api.Endpoints.Weather;
-using DotNetAtlas.Application.Forecast.GetForecasts;
+using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;

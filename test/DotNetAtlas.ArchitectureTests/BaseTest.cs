@@ -1,7 +1,7 @@
 using System.Reflection;
 using DotNetAtlas.Api.Common;
 using DotNetAtlas.Application.Common;
-using DotNetAtlas.Domain.Entities.Base;
+using DotNetAtlas.Domain.Common;
 using DotNetAtlas.Infrastructure.Common;
 
 namespace DotNetAtlas.ArchitectureTests;

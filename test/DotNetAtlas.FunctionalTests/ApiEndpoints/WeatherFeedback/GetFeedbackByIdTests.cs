@@ -1,7 +1,7 @@
 using System.Net;
 using DotNetAtlas.Api.Endpoints.Weather;
-using DotNetAtlas.Application.Feedback.GetFeedback;
-using DotNetAtlas.Application.Feedback.SendFeedback;
+using DotNetAtlas.Application.WeatherFeedback.GetFeedback;
+using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;
 

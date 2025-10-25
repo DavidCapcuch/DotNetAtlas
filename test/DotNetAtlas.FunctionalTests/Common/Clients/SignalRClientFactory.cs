@@ -1,4 +1,4 @@
-using DotNetAtlas.Api.SignalR.WeatherAlerts;
+using DotNetAtlas.Api.SignalRHubs.WeatherAlerts;
 using DotNetAtlas.Application.Common.Observability;
 using MessagePack;
 using Microsoft.AspNetCore.Http.Connections;

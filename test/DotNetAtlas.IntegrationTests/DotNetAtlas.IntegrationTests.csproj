@@ -2,7 +2,6 @@
     <!-- Project-specific packages only (common packages in Directory.Build.props) -->
     <ItemGroup>
         <PackageReference Include="FastEndpoints.Testing"/>
-        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"/>
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable"/>
         <PackageReference Include="FluentResults.Extensions.FluentAssertions"/>
         <PackageReference Include="NSubstitute"/>
@@ -15,7 +14,6 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\DotNetAtlas.Api\DotNetAtlas.Api.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Test.Shared\DotNetAtlas.Test.Shared.csproj"/>
-        <ProjectReference Include="..\..\shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
     </ItemGroup>
 
 </Project>

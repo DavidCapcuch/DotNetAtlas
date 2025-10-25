@@ -10,35 +10,38 @@
         <PackageReference Include="AspNetCore.HealthChecks.OpenIdConnectServer"/>
         <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
         <PackageReference Include="AspNetCore.HealthChecks.UI"/>
-        <PackageReference Include="AspNetCore.HealthChecks.UI.Client"/>
         <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
         <PackageReference Include="AspNetCore.HealthChecks.Uris"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
-        <PackageReference Include="Hangfire.SqlServer"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
+
         <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
         <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
         <PackageReference Include="KafkaFlow.OpenTelemetry"/>
         <PackageReference Include="KafkaFlow.Serializer.ApacheAvro"/>
         <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
+
+        <PackageReference Include="Microsoft.Build.Tasks.Core"/>
         <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack"/>
         <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
         <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
-        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
+
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Ardalis.SmartEnum.SystemTextJson"/>
         <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer"/>
-        <PackageReference Include="Bogus"/>
+
         <PackageReference Include="Hangfire.AspNetCore"/>
-        <PackageReference Include="Microsoft.Build.Tasks.Core"/>
-        <PackageReference Include="Scrutor"/>
+        <PackageReference Include="Hangfire.SqlServer"/>
+
+        <PackageReference Include="Ardalis.SmartEnum.SystemTextJson"/>
+        <PackageReference Include="Bogus"/>
 
         <PackageReference Include="AspNetCore.SignalR.OpenTelemetry"/>
         <PackageReference Include="OpenTelemetry.Exporter.Console"/>
@@ -55,18 +58,15 @@
         <PackageReference Include="OpenTelemetry.Resources.Container"/>
         <PackageReference Include="OpenTelemetry.Resources.Host"/>
 
-        <PackageReference Include="Serilog.Exceptions"/>
         <PackageReference Include="Serilog.Exceptions.EntityFrameworkCore"/>
         <PackageReference Include="Serilog.Extensions.Hosting"/>
         <PackageReference Include="Serilog.Extensions.Logging"/>
         <PackageReference Include="Serilog.Sinks.Console"/>
         <PackageReference Include="Serilog.Sinks.OpenTelemetry"/>
-        <PackageReference Include="Serilog.Sinks.Elasticsearch"/>
         <PackageReference Include="Serilog.Sinks.Seq"/>
         <PackageReference Include="Serilog.Sinks.Async"/>
         <PackageReference Include="Serilog.Settings.Configuration"/>
         <PackageReference Include="Serilog.Expressions"/>
-        <PackageReference Include="SerilogTracing"/>
         <PackageReference Include="SerilogTracing.Expressions"/>
         <PackageReference Include="Elastic.Serilog.Enrichers.Web"/>
 
@@ -88,6 +88,11 @@
     <ItemGroup>
         <InternalsVisibleTo Include="DotNetAtlas.FunctionalTests"/>
         <InternalsVisibleTo Include="DotNetAtlas.IntegrationTests"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="BackgroundJobs\Common\"/>
+        <Folder Include="Persistence\Database\Migrations\Flyway\" />
     </ItemGroup>
 
 </Project>

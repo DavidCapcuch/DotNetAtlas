@@ -1,4 +1,4 @@
-using DotNetAtlas.Application.Common.Validation;
+using DotNetAtlas.Application.Common.Validators;
 using FluentValidation;
 
 namespace DotNetAtlas.Application.WeatherAlerts.SubscribeForCityAlerts;

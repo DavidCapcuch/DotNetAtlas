@@ -35,25 +35,4 @@ public static class HostEnvironmentExtensions
     {
         return !(hostEnvironment.IsLocal() || hostEnvironment.IsTesting());
     }
-
-    /// <summary>
-    /// Determines if the current execution is part of the build-time OpenAPI document generation process.
-    /// This method checks whether the entry assembly's name matches "GetDocument.Insider", which is used
-    /// during the build-time document generation in ASP.NET Core when generating OpenAPI documents.
-    /// </summary>
-    /// <param name="webApplicationBuilder">An instance of <see cref="WebApplicationBuilder" />.</param>
-    /// <returns>
-    /// <c>true</c> if the current execution is part of the OpenAPI document generation process during the build; otherwise, <c>false</c>.
-    /// </returns>
-    /// <remarks>
-    /// This method is typically used to conditionally execute logic that should only occur during build time.
-    /// For more information refer to the official documentation:
-    /// <see href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi">Generate OpenAPI Documents at Build Time</see>.
-    /// </remarks>
-#pragma warning disable IDE0060
-    public static bool IsOpenApiGenerationBuild(this WebApplicationBuilder webApplicationBuilder)
-#pragma warning restore IDE0060
-    {
-        return Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
-    }
 }

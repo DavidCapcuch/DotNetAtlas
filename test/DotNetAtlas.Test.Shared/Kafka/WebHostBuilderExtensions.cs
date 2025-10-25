@@ -1,11 +1,11 @@
-using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using Microsoft.AspNetCore.Hosting;
 
 namespace DotNetAtlas.Test.Shared.Kafka;
 
 public static class WebHostBuilderExtensions
 {
-    public static IWebHostBuilder RegisterKafkaOptions(this IWebHostBuilder webBuilder, KafkaOptions kafkaOptions)
+    public static IWebHostBuilder UseKafkaSettings(this IWebHostBuilder webBuilder, KafkaOptions kafkaOptions)
     {
         for (var i = 0; i < kafkaOptions.Brokers.Length; i++)
         {

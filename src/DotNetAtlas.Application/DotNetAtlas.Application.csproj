@@ -33,6 +33,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Forecast\Common\"/>
+        <Folder Include="WeatherForecast\Common\"/>
     </ItemGroup>
 </Project>

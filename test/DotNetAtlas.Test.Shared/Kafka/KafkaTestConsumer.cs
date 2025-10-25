@@ -72,6 +72,11 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
             {
                 // Ignore non-fatal transient errors and retry
             }
+            catch (OperationCanceledException)
+            {
+                // Expected when timeout is reached
+                break;
+            }
         }
 
         return default;
@@ -91,19 +96,14 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
+        // Short poll timeout for each ConsumeOne call to be responsive
+        var pollTimeout = TimeSpan.FromMilliseconds(100);
         while (!cts.IsCancellationRequested && results.Count < maxCount)
         {
-            try
+            var message = ConsumeOne(pollTimeout, cts.Token);
+            if (message != null)
             {
-                var consumeResult = _consumer.Consume(timeout);
-                if (consumeResult?.Message != null)
-                {
-                    results.Add(consumeResult.Message.Value);
-                }
-            }
-            catch (ConsumeException e) when (!e.Error.IsFatal)
-            {
-                // Ignore non-fatal transient errors and retry
+                results.Add(message);
             }
         }
 

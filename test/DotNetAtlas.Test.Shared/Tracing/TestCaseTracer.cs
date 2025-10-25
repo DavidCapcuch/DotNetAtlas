@@ -8,7 +8,7 @@ namespace DotNetAtlas.Test.Shared.Tracing;
 /// <summary>
 /// Manages OpenTelemetry activity lifecycle for test execution, providing distributed tracing
 /// for test runs with automatic activity creation, tagging, failure tracking, and cleanup.
-/// Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
+/// Inspired by https://github.com/martinjt/unittest-with-otel/tree/main.
 /// </summary>
 public sealed class TestCaseTracer : IDisposable
 {
@@ -47,7 +47,7 @@ public sealed class TestCaseTracer : IDisposable
     /// </summary>
     /// <remarks>
     /// Follows OpenTelemetry test attributes conventions
-    /// https://opentelemetry.io/docs/specs/semconv/registry/attributes/test/
+    /// https://opentelemetry.io/docs/specs/semconv/registry/attributes/test/.
     /// </remarks>
     /// <param name="exceptionMessages">Collection of exception messages from the failed test.</param>
     public void RecordTestFailure(IEnumerable<string>? exceptionMessages)

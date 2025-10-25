@@ -30,6 +30,6 @@ public static class SolutionPaths
         }
 
         throw new InvalidOperationException(
-            $"Could not locate solution root ({SolutionFileName}) starting from assembly location: ${assemblyLocation}");
+            $"Could not locate solution root ({SolutionFileName}) starting from assembly location: {assemblyLocation}");
     }
 }

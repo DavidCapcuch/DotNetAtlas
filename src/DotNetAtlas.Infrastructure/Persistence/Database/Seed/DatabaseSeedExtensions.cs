@@ -41,7 +41,7 @@ public static class DatabaseSeedExtensions
     public static async Task InitialiseDatabaseAsync(this WebApplication app)
     {
         await using var scope = app.Services.CreateAsyncScope();
-        await using var dbContext = scope.ServiceProvider.GetRequiredService<WeatherForecastContext>();
+        await using var dbContext = scope.ServiceProvider.GetRequiredService<WeatherContext>();
 
         try
         {
@@ -68,8 +68,8 @@ public static class DatabaseSeedExtensions
         // deterministic seed for data consistency
         Randomizer.Seed = new Random(420_69);
 
-        var weatherDbContext = (WeatherForecastContext)dbContext;
-        var itemsExist = await weatherDbContext.WeatherFeedbacks.AnyAsync(ct);
+        var weatherDbContext = (WeatherContext)dbContext;
+        var itemsExist = await weatherDbContext.Feedbacks.AnyAsync(ct);
         if (!itemsExist)
         {
             var activeCalloutFaker = new WeatherFeedbackFaker();
@@ -80,7 +80,7 @@ public static class DatabaseSeedExtensions
             weatherFeedbacksToSeed.AddRange(activeCalloutFaker.Generate());
 
             Log.Logger.Information("Seeding {Count} weather feedbacks", weatherFeedbacksToSeed.Count);
-            weatherDbContext.WeatherFeedbacks.AddRange(weatherFeedbacksToSeed);
+            weatherDbContext.Feedbacks.AddRange(weatherFeedbacksToSeed);
             await weatherDbContext.SaveChangesAsync(ct);
             Log.Logger.Information("Seeded {Count} weather feedbacks", weatherFeedbacksToSeed.Count);
         }
