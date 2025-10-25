@@ -4,12 +4,8 @@ using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 
-namespace DotNetAtlas.IntegrationTests.Common;
+namespace DotNetAtlas.Test.Shared.Kafka;
 
-/// <summary>
-/// Non-generic interface for Kafka test consumers.
-/// Used for storing different consumer types in a typed collection.
-/// </summary>
 public interface IKafkaTestConsumer : IDisposable
 {
 }
@@ -25,6 +21,12 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
     private readonly CachedSchemaRegistryClient _schemaClient;
     private readonly IConsumer<string, TValue> _consumer;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KafkaTestConsumer{TValue}"/> class.
+    /// </summary>
+    /// <param name="bootstrapServers">Kafka bootstrap servers address.</param>
+    /// <param name="schemaRegistryUrl">Schema Registry URL.</param>
+    /// <param name="topic">Topic to subscribe to.</param>
     public KafkaTestConsumer(string bootstrapServers, string schemaRegistryUrl, string topic)
     {
         _schemaClient = new CachedSchemaRegistryClient(new SchemaRegistryConfig
@@ -32,13 +34,13 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
             Url = schemaRegistryUrl
         });
         _consumer = new ConsumerBuilder<string, TValue>(new ConsumerConfig
-            {
-                BootstrapServers = bootstrapServers,
-                GroupId = $"test-consumer-{Guid.NewGuid():N}",
-                AutoOffsetReset = AutoOffsetReset.Latest,
-                EnableAutoCommit = false,
-                AllowAutoCreateTopics = true
-            })
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = $"test-consumer-{Guid.NewGuid():N}",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false,
+            AllowAutoCreateTopics = true
+        })
             .SetValueDeserializer(new AvroDeserializer<TValue>(_schemaClient).AsSyncOverAsync())
             .Build();
 
@@ -49,27 +51,26 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
     /// Consumes one message from the specified topic within the timeout period.
     /// </summary>
     /// <param name="timeout">Maximum time to wait for a message.</param>
-    /// <param name="cancellationToken">Optional cancellation token to cancel the operation.</param>
+    /// <param name="ct">Optional cancellation token to cancel the operation.</param>
     /// <returns>The deserialized message value, or null if no message was received within the timeout.</returns>
-    public TValue? ConsumeOne(TimeSpan timeout, CancellationToken cancellationToken = default)
+    public TValue? ConsumeOne(TimeSpan timeout, CancellationToken ct = default)
     {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
-        while (!cts.Token.IsCancellationRequested)
+        while (!cts.IsCancellationRequested)
         {
             try
             {
                 var consumeResult = _consumer.Consume(timeout);
                 if (consumeResult?.Message != null)
                 {
-                    _consumer.Commit(consumeResult);
                     return consumeResult.Message.Value;
                 }
             }
-            catch (ConsumeException)
+            catch (ConsumeException e) when (!e.Error.IsFatal)
             {
-                // ignore transient errors in polling loop
+                // Ignore non-fatal transient errors and retry
             }
         }
 
@@ -82,15 +83,15 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
     /// </summary>
     /// <param name="timeout">Maximum time to wait for messages.</param>
     /// <param name="maxCount">Maximum number of messages to consume (default 10 for individual test runs).</param>
-    /// <param name="cancellationToken">Optional cancellation token to cancel the operation.</param>
+    /// <param name="ct">Optional cancellation token to cancel the operation.</param>
     /// <returns>Array of all consumed messages.</returns>
-    public TValue[] ConsumeAll(TimeSpan timeout, int maxCount = 10, CancellationToken cancellationToken = default)
+    public TValue[] ConsumeAll(TimeSpan timeout, int maxCount = 10, CancellationToken ct = default)
     {
         var results = new List<TValue>();
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
-        while (!cts.Token.IsCancellationRequested && results.Count < maxCount)
+        while (!cts.IsCancellationRequested && results.Count < maxCount)
         {
             try
             {
@@ -100,9 +101,9 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
                     results.Add(consumeResult.Message.Value);
                 }
             }
-            catch (ConsumeException)
+            catch (ConsumeException e) when (!e.Error.IsFatal)
             {
-                // ignore transient errors in polling loop
+                // Ignore non-fatal transient errors and retry
             }
         }
 

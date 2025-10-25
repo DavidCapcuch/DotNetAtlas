@@ -270,11 +270,6 @@
         "resolved": "9.0.8",
         "contentHash": "tizSIOEsIgSNSSh+hKeUVPK7xmTIjR8s+mJWOu1KXV3htvNQiPMFRMO17OdI1y/4ZApdBVk49u/08QGC9yvLug=="
       },
-      "Newtonsoft.Json": {
-        "type": "Transitive",
-        "resolved": "13.0.1",
-        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
-      },
       "Serilog": {
         "type": "Transitive",
         "resolved": "4.2.0",
@@ -309,31 +304,10 @@
         "resolved": "1.2.0.556",
         "contentHash": "zvn9Mqs/ox/83cpYPignI8hJEM2A93s2HkHs8HYMOAQW0PkampyoErAiIyKxgTLqbbad29HX/shv/6LGSjPJNQ=="
       },
-      "System.CodeDom": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "WTlRjL6KWIMr/pAaq3rYqh0TJlzpouaQ/W1eelssHgtlwHAH25jXTkUphTYx9HaIIf7XA6qs/0+YhtLEQRkJ+Q=="
-      },
       "dotnetatlas.domain": {
         "type": "Project",
         "dependencies": {
           "FluentResults": "[4.0.0, )"
-        }
-      },
-      "dotnetatlas.schemaregistry": {
-        "type": "Project",
-        "dependencies": {
-          "Apache.Avro": "[1.12.0, )"
-        }
-      },
-      "Apache.Avro": {
-        "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "gFFnQ8j91zdbs5QvGo79139WnLpQB4rPbDx2Bnr664uBMSGhh422QsHd89Vv7WyT0+eT7qPL+6rZlnyor3aATw==",
-        "dependencies": {
-          "Newtonsoft.Json": "13.0.1",
-          "System.CodeDom": "8.0.0"
         }
       },
       "FluentResults": {

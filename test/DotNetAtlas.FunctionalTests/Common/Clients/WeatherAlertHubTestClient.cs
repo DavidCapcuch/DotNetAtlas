@@ -4,9 +4,9 @@ using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
 using TypedSignalR.Client;
 
-namespace DotNetAtlas.FunctionalTests.Common;
+namespace DotNetAtlas.FunctionalTests.Common.Clients;
 
-public class WeatherAlertHubClient : IWeatherAlertClientContract, IAsyncDisposable
+public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisposable
 {
     protected internal HubConnection Connection { get; }
     protected internal Channel<WeatherAlertMessage> ReceivedMessages { get; }
@@ -15,7 +15,7 @@ public class WeatherAlertHubClient : IWeatherAlertClientContract, IAsyncDisposab
     private readonly IDisposable _subscription;
     private readonly CancellationToken _cancellationToken;
 
-    public WeatherAlertHubClient(
+    public WeatherAlertHubTestClient(
         HubConnection connection,
         IDotNetAtlasInstrumentation dotNetAtlasInstrumentation,
         CancellationToken cancellationToken)
@@ -53,22 +53,60 @@ public class WeatherAlertHubClient : IWeatherAlertClientContract, IAsyncDisposab
         await _server.SendWeatherAlert(alerts);
     }
 
-    public async Task<List<WeatherAlertMessage>> GetAllReceivedMessagesAsync()
+    /// <summary>
+    /// Consumes one message from the SignalR hub within the timeout period.
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for a message.</param>
+    /// <param name="ct">Optional cancellation token to cancel the operation.</param>
+    /// <returns>The received message, or null if no message was received within the timeout.</returns>
+    public async Task<WeatherAlertMessage?> ConsumeOne(TimeSpan timeout, CancellationToken ct = default)
     {
-        var weatherAlertMessages = new List<WeatherAlertMessage>();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
 
-        using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(500));
         try
         {
-            while (await ReceivedMessages.Reader.WaitToReadAsync(cts.Token))
+            if (await ReceivedMessages.Reader.WaitToReadAsync(cts.Token))
             {
-                weatherAlertMessages.Add(await ReceivedMessages.Reader.ReadAsync(cts.Token));
+                return await ReceivedMessages.Reader.ReadAsync(cts.Token);
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            // Expected when timeout is reached
+        }
 
-        return weatherAlertMessages;
+        return null;
+    }
+
+    /// <summary>
+    /// Consumes multiple messages from the SignalR hub within the specified timeout.
+    /// Continues reading until the timeout expires or maxCount is reached.
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for messages.</param>
+    /// <param name="maxCount">Maximum number of messages to consume (default 10 for individual test runs).</param>
+    /// <param name="ct">Optional cancellation token to cancel the operation.</param>
+    /// <returns>List of all consumed messages.</returns>
+    public async Task<List<WeatherAlertMessage>> ConsumeMultiple(
+        TimeSpan timeout,
+        int maxCount = 10,
+        CancellationToken ct = default)
+    {
+        var messages = new List<WeatherAlertMessage>();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
+
+        while (!cts.IsCancellationRequested && messages.Count < maxCount)
+        {
+            var message = await ConsumeOne(timeout, cts.Token);
+            if (message != null)
+            {
+                messages.Add(message);
+            }
+        }
+
+        return messages;
     }
 
     public async Task ReceiveWeatherAlert(WeatherAlertMessage weatherAlertMessage)

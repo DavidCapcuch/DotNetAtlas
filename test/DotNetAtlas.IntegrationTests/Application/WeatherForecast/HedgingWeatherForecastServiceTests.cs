@@ -11,15 +11,15 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
-namespace DotNetAtlas.IntegrationTests.Application.Forecast;
+namespace DotNetAtlas.IntegrationTests.Application.WeatherForecast;
 
 [Collection<ForecastTestCollection>]
 public class HedgingWeatherForecastServiceTests : BaseIntegrationTest
 {
     private readonly ILogger<HedgingWeatherForecastService> _logger;
 
-    public HedgingWeatherForecastServiceTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public HedgingWeatherForecastServiceTests(IntegrationTestFixture app)
+        : base(app)
     {
         _logger = Scope.ServiceProvider.GetRequiredService<ILogger<HedgingWeatherForecastService>>();
     }

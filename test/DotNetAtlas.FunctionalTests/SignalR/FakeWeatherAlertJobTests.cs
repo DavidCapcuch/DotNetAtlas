@@ -1,42 +1,42 @@
-using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
-using DotNetAtlas.Application.WeatherAlerts.SendWeatherAlert;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.FunctionalTests.Common;
+using DotNetAtlas.FunctionalTests.Common.Clients;
 using DotNetAtlas.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.FunctionalTests.SignalR;
 
 [Collection<SignalRTestCollection>]
 public class FakeWeatherAlertJobTests : BaseApiTest
 {
-    private readonly FakeWeatherAlertJob _fakeWeatherAlertJob;
-
-    public FakeWeatherAlertJobTests(ApiTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public FakeWeatherAlertJobTests(ApiTestFixture app)
+        : base(app)
     {
-        _fakeWeatherAlertJob = new FakeWeatherAlertJob(
-            Scope.ServiceProvider.GetRequiredService<ILogger<FakeWeatherAlertJob>>(),
-            Scope.ServiceProvider.GetRequiredService<ICommandHandler<SendWeatherAlertCommand>>());
     }
 
     [Fact]
-    public async Task WhenTriggered_ShouldSendAlertToGroup()
+    public async Task WhenJobExecutes_ShouldSendWeatherAlertToSubscribedClients()
     {
         // Arrange
-        await using var plebSignalRClient = await CreateSignalRClientAsync(ClientTypes.Pleb);
+        await using var plebSignalRClient = await SignalRClientFactory.CreateAsync(ClientType.Pleb);
         var alertSubscriptionDto = new AlertSubscriptionDto("Prague", CountryCode.CZ);
         await plebSignalRClient.SubscribeForCityAlertsAsync(alertSubscriptionDto);
 
         // Act
-        await _fakeWeatherAlertJob.SendWeatherAlert(alertSubscriptionDto, TestContext.Current.CancellationToken);
+        var jobInstance = Scope.ServiceProvider.GetRequiredService<FakeWeatherAlertJob>();
+        await jobInstance.SendWeatherAlert(alertSubscriptionDto, TestContext.Current.CancellationToken);
 
-        var receivedAlertMessages =
-            await plebSignalRClient.GetAllReceivedMessagesAsync();
+        var receivedAlertMessage =
+            await plebSignalRClient.ConsumeOne(
+                TimeSpan.FromMilliseconds(1000),
+                TestContext.Current.CancellationToken);
 
         // Assert
-        receivedAlertMessages.Should().ContainSingle();
+        using (new AssertionScope())
+        {
+            receivedAlertMessage.Should().NotBeNull();
+            receivedAlertMessage.Message.Should().NotBeNullOrEmpty();
+        }
     }
 }

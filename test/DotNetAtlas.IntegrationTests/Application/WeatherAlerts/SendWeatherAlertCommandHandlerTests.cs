@@ -13,8 +13,8 @@ public class SendWeatherAlertCommandHandlerTests : BaseIntegrationTest
 {
     private readonly SendWeatherAlertCommandHandler _sendWeatherAlertCommandHandler;
 
-    public SendWeatherAlertCommandHandlerTests(IntegrationTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public SendWeatherAlertCommandHandlerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _sendWeatherAlertCommandHandler = new SendWeatherAlertCommandHandler(
             Scope.ServiceProvider.GetRequiredService<IWeatherAlertNotifier>(),

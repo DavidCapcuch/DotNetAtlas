@@ -19,8 +19,8 @@ public class UnsubscribeFromCityAlertsCommandHandlerTests : BaseIntegrationTest
     private readonly UnsubscribeFromCityAlertsCommandHandler _unsubscribeHandler;
     private readonly IStorageConnection _jobStorageConnection;
 
-    public UnsubscribeFromCityAlertsCommandHandlerTests(IntegrationTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public UnsubscribeFromCityAlertsCommandHandlerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _subscribeHandler = new SubscribeForCityAlertsCommandHandler(
             Scope.ServiceProvider.GetRequiredService<IGroupManager>(),

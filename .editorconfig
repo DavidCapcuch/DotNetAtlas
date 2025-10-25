@@ -504,7 +504,7 @@ dotnet_diagnostic.CA1040.severity = none
 dotnet_diagnostic.CA1051.severity = suggestion
 
 # CA1056: URI-like properties should not be strings
-dotnet_diagnostic.CA1056.severity = suggestion
+dotnet_diagnostic.CA1056.severity = silent
 
 # CA1062: Validate arguments of public methods
 dotnet_diagnostic.CA1062.severity = none
@@ -611,7 +611,7 @@ dotnet_diagnostic.CS8618.severity = suggestion
 dotnet_diagnostic.IDE0005.severity = suggestion
 
 # IDE0032
-dotnet_diagnostic.IDE0032.severity = silent
+dotnet_diagnostic.IDE0032.severity = suggestion
 
 # IDE0090
 dotnet_diagnostic.IDE0090.severity = none
