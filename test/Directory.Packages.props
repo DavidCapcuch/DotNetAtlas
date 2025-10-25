@@ -21,6 +21,8 @@
         <PackageVersion Include="Evolve" Version="3.2.0"/>
         <PackageVersion Include="Respawn" Version="6.2.1"/>
         <PackageVersion Include="Serilog.Sinks.XUnit.Injectable" Version="4.0.138"/>
+        <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.1.1"/>
+        <PackageVersion Include="StackExchange.Redis" Version="2.8.31"/>
 
         <!-- Assertion libraries -->
         <PackageVersion Include="AwesomeAssertions" Version="9.1.0"/>
@@ -32,6 +34,9 @@
         <!-- SignalR testing -->
         <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0-rc.1.25451.107"/>
         <PackageVersion Include="TypedSignalR.Client" Version="3.6.0"/>
+
+        <!-- OpenTelemetry -->
+        <PackageVersion Include="OpenTelemetry" Version="1.12.0"/>
 
         <!-- Architecture testing -->
         <PackageVersion Include="NetArchTest.eNhancedEdition" Version="1.4.5"/>

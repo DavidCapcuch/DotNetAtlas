@@ -5,13 +5,13 @@ using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;
 
-namespace DotNetAtlas.FunctionalTests.ApiEndpoints.Forecast;
+namespace DotNetAtlas.FunctionalTests.ApiEndpoints.WeatherForecast;
 
 [Collection<ForecastTestCollection>]
 public class GetForecastsTests : BaseApiTest
 {
-    public GetForecastsTests(ApiTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public GetForecastsTests(ApiTestFixture app)
+        : base(app)
     {
     }
 
@@ -20,16 +20,17 @@ public class GetForecastsTests : BaseApiTest
     {
         // Arrange
         const int numberOfDaysForecast = 5;
+        var getForecastQuery = new GetForecastQuery
+        {
+            Days = numberOfDaysForecast,
+            City = "Prague",
+            CountryCode = CountryCode.CZ
+        };
 
         // Act
         var (httpResponse, forecastResponse) =
-            await NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, GetForecastResponse>(
-                new GetForecastQuery
-                {
-                    Days = numberOfDaysForecast,
-                    City = "Prague",
-                    CountryCode = CountryCode.CZ
-                });
+            await HttpClientRegistry.NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, GetForecastResponse>(
+                getForecastQuery);
 
         // Assert
         using (new AssertionScope())
@@ -42,15 +43,18 @@ public class GetForecastsTests : BaseApiTest
     [Fact]
     public async Task WhenRequestingTooManyDays_ReturnsBadRequest()
     {
-        // Arrange and Act
+        // Arrange
+        var getForecastQuery = new GetForecastQuery
+        {
+            Days = 20,
+            City = "Prague",
+            CountryCode = CountryCode.CZ
+        };
+
+        // Act
         var (httpResponse, problemDetails) =
-            await NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, ProblemDetails>(
-                new GetForecastQuery
-                {
-                    Days = 20,
-                    City = "Prague",
-                    CountryCode = CountryCode.CZ
-                });
+            await HttpClientRegistry.NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, ProblemDetails>(
+                getForecastQuery);
 
         // Assert
         var error = problemDetails.Errors.First();
@@ -65,15 +69,18 @@ public class GetForecastsTests : BaseApiTest
     [Fact]
     public async Task WhenRequestingUnknownCity_ReturnsNotFound()
     {
-        // Arrange and Act
+        // Arrange
+        var getForecastQuery = new GetForecastQuery
+        {
+            Days = 3,
+            City = "TotallyNotACity",
+            CountryCode = CountryCode.CZ
+        };
+
+        // Act
         var (httpResponse, problemDetails) =
-            await NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, ProblemDetails>(
-                new GetForecastQuery
-                {
-                    Days = 3,
-                    City = "TotallyNotACity",
-                    CountryCode = CountryCode.CZ
-                });
+            await HttpClientRegistry.NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, ProblemDetails>(
+                getForecastQuery);
 
         // Assert
         using (new AssertionScope())
@@ -86,15 +93,18 @@ public class GetForecastsTests : BaseApiTest
     [Fact]
     public async Task WhenRequestingTooLongCity_ReturnsBadRequest()
     {
-        // Arrange and Act
+        // Arrange
+        var getForecastQuery = new GetForecastQuery
+        {
+            Days = 3,
+            City = new string('a', 101),
+            CountryCode = CountryCode.CZ
+        };
+
+        // Act
         var (httpResponse, problemDetails) =
-            await NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, ProblemDetails>(
-                new GetForecastQuery
-                {
-                    Days = 3,
-                    City = new string('a', 101),
-                    CountryCode = CountryCode.CZ
-                });
+            await HttpClientRegistry.NonAuthClient.GETAsync<GetForecastEndpoint, GetForecastQuery, ProblemDetails>(
+                getForecastQuery);
 
         // Assert
         var error = problemDetails.Errors.First();

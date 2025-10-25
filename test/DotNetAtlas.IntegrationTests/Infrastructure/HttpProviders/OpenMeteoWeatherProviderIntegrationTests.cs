@@ -6,15 +6,15 @@ using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DotNetAtlas.IntegrationTests.Infrastructure.Weather;
+namespace DotNetAtlas.IntegrationTests.Infrastructure.HttpProviders;
 
 [Collection<ForecastTestCollection>]
 public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
 {
     private readonly OpenMeteoWeatherProvider _provider;
 
-    public OpenMeteoWeatherProviderIntegrationTests(IntegrationTestFixture app, ITestOutputHelper output)
-        : base(app, output)
+    public OpenMeteoWeatherProviderIntegrationTests(IntegrationTestFixture app)
+        : base(app)
     {
         _provider = Scope.ServiceProvider.GetRequiredService<OpenMeteoWeatherProvider>();
     }
