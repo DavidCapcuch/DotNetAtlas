@@ -1,7 +1,7 @@
-using DotNetAtlas.Application.Forecast.Common.Config;
-using DotNetAtlas.Application.Forecast.Services;
-using DotNetAtlas.Application.Forecast.Services.Abstractions;
-using DotNetAtlas.Application.Forecast.Services.Requests;
+using DotNetAtlas.Application.WeatherForecast.Common.Config;
+using DotNetAtlas.Application.WeatherForecast.Services;
+using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.Services.Requests;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;

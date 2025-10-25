@@ -1,16 +1,12 @@
 using System.Reflection;
-using DotNetAtlas.Api;
 using DotNetAtlas.Api.Common;
 using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Extensions;
-using DotNetAtlas.Api.Common.Swagger;
-using DotNetAtlas.Api.Endpoints;
 using DotNetAtlas.Application.Common;
 using DotNetAtlas.Infrastructure.Common;
 using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Extensions;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
-using FastEndpoints;
 using Hangfire;
 using Serilog;
 
@@ -23,11 +19,6 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    if (builder.IsOpenApiGenerationBuild())
-    {
-        builder.Environment.EnvironmentName = "Local";
-    }
-
     var isClusterEnvironment = builder.Environment.IsInCluster();
     builder
         .Host
@@ -36,12 +27,6 @@ try
             options.ValidateScopes = !isClusterEnvironment;
             options.ValidateOnBuild = !isClusterEnvironment;
         });
-
-    builder.Configuration
-        .SetBasePath(Directory.GetCurrentDirectory())
-        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
-        .AddEnvironmentVariables();
 
     builder.UseSerilogInternal(isClusterEnvironment);
 
@@ -52,7 +37,7 @@ try
 
     builder.Services
         .AddPresentation(builder.Configuration)
-        .AddApplication(builder.Configuration)
+        .AddApplication()
         .AddInfrastructure(builder.Configuration, isClusterEnvironment);
 
     var app = builder.Build();
@@ -70,60 +55,38 @@ try
 
     if (isClusterEnvironment)
     {
-        app.UseHttpsRedirection();
-        app.UseSecurityHeaders();
+        app.UseHttpsRedirection()
+            .UseSecurityHeaders();
     }
 
-    app.UseRouting();
-    app.UseCors(CorsPolicyOptions.DefaultCorsPolicyName);
-    app.UseOutputCache();
-    app.UseAuthentication();
-    app.UseRequestContextTelemetry();
-    app.UseAuthorization();
+    app.UseRouting()
+        .UseCors(CorsPolicyOptions.DefaultCorsPolicyName)
+        .UseOutputCache()
+        .UseAuthentication()
+        .UseRequestContextTelemetry()
+        .UseAuthorization();
 
-    app.UseFastEndpoints(config =>
-        {
-            config.Errors.UseProblemDetails(detailsConfig =>
-            {
-                detailsConfig.IndicateErrorCode = true;
-                detailsConfig.IndicateErrorSeverity = false;
-            });
-            config.Endpoints.Filter = ep =>
-            {
-                if (builder.Environment.IsProduction() &&
-                    ep.EndpointTags?.Contains(EndpointGroupConstants.Dev) is true)
-                {
-                    return false;
-                }
+    app.UseFastEndpointsInternal();
 
-                return true;
-            };
+    app.MapHealthChecksInternal()
+        .MapSignalRWithDevTools()
+        .MapClientGenerationApis()
+        .MapHangfireDashboardWithAuthorizationPolicy(AuthPolicies.DevOnly, "/hangfire-dashboard");
+    app.UseHealthChecksPrometheusExporterInternal();
 
-            config.Versioning.Prefix = "v";
-            config.Versioning.PrependToRoute = true;
-            config.Versioning.DefaultVersion = 1;
-            config.Endpoints.RoutePrefix = "api";
-            config.Binding.ReflectionCache
-                .AddFromDotNetAtlasApi();
-        })
-        .UseAuthSwaggerGen(app.Configuration);
-
-    app.MapHangfireDashboardWithAuthorizationPolicy(AuthPolicies.DevOnly, "/hangfire-dashboard");
-    app.MapHealthChecksInternal();
-    app.MapSignalRHubsInternal();
-    app.MapClientGenerationApis();
     app.MapStaticAssets();
     app.MapRazorPages()
         .WithStaticAssets();
 
     // In production, flyway should be used, therefore also during
     // integration tests to ensure the SQL scripts are applied correctly
-    if (!builder.Environment.IsProduction() && !builder.Environment.IsTesting())
+    if (!app.Environment.IsProduction() && !app.Environment.IsTesting())
     {
         await app.InitialiseDatabaseAsync();
     }
 
     await app.RunAsync();
+#pragma warning restore CS0162 // Unreachable code detected
 }
 catch (HostAbortedException)
 {

@@ -1,8 +1,7 @@
-using System.Diagnostics;
 using System.Net;
 using DotNetAtlas.Api.Endpoints.Weather;
-using DotNetAtlas.Application.Feedback.ChangeFeedback;
-using DotNetAtlas.Application.Feedback.SendFeedback;
+using DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
+using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
 using DotNetAtlas.FunctionalTests.Common;
 using DotNetAtlas.FunctionalTests.Common.Clients;
 using FastEndpoints;
@@ -102,7 +101,7 @@ public class ChangeFeedbackTests : BaseApiTest
         var locationPath = createResponse.Headers.Location!.OriginalString;
         var createdFeedbackId = Guid.Parse(locationPath.Split('/').Last());
 
-        using var otherUser = HttpClientRegistry.CreateHttpClient(ClientType.Pleb, Activity.Current?.Id);
+        using var otherUser = HttpClientRegistry.CreateHttpClient(ClientType.Pleb, TestCaseTracer.TraceId);
 
         // Act
         var (httpResponse, problemDetails) =
@@ -157,8 +156,8 @@ public class ChangeFeedbackTests : BaseApiTest
         {
             httpResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
             var updatedFeedback =
-                await DbContext.WeatherFeedbacks.FindAsync([feedbackId], TestContext.Current.CancellationToken);
-            updatedFeedback!.Feedback.Value.Should().Be(updatedFeedbackText);
+                await DbContext.Feedbacks.FindAsync([feedbackId], TestContext.Current.CancellationToken);
+            updatedFeedback!.FeedbackText.Value.Should().Be(updatedFeedbackText);
             updatedFeedback.Rating.Value.Should().Be(5);
         }
     }

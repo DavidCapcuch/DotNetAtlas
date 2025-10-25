@@ -92,45 +92,6 @@
         ]
       }
     },
-    "/api/v1/dev/seed-database": {
-      "post": {
-        "tags": [
-          "Dev"
-        ],
-        "summary": "Seeds the database with a specified number of active callout items for testing purposes. (Auth policies:  'DevOnlyPolicy' roles: [Developer])",
-        "description": "Generates a specified number of weather forecast feedbacks.",
-        "operationId": "DotNetAtlasApiEndpointsDevSeedDatabaseEndpoint",
-        "parameters": [
-          {
-            "name": "numberOfRecords",
-            "in": "query",
-            "required": true,
-            "description": "Number of records to generate.",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 100
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
-          }
-        },
-        "security": [
-          {
-            "OAuth2": []
-          }
-        ]
-      }
-    },
     "/api/v1/weather/feedback/{id}": {
       "put": {
         "tags": [
