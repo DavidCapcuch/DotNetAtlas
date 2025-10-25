@@ -83,7 +83,7 @@ public static class InfrastructureDependencyInjection
         services.AddAuthenticationInternal(configuration, isClusterEnvironment);
         services.AddAuthorizationInternal();
 
-        services.AddDatabase(configuration);
+        services.AddDatabase(configuration, isClusterEnvironment);
         services.AddCache(configuration);
 
         services.AddSignalRInfrastructure(configuration);
@@ -354,10 +354,21 @@ public static class InfrastructureDependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddDatabase(this IServiceCollection services, ConfigurationManager configuration)
+    private static IServiceCollection AddDatabase(
+        this IServiceCollection services,
+        ConfigurationManager configuration,
+        bool isClusterEnvironment)
     {
-        services.AddScoped<UpdateAuditableEntitiesInterceptor>();
-        services.AddDbContext<WeatherForecastContext>((
+        services.AddOptionsWithValidateOnStart<EfCoreOptions>()
+            .Bind(configuration.GetSection(EfCoreOptions.Section))
+            .ValidateDataAnnotations();
+
+        var efCoreOptions = configuration
+            .GetRequiredSection(EfCoreOptions.Section)
+            .Get<EfCoreOptions>()!;
+
+        services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
+        services.AddDbContextPool<WeatherForecastContext>((
             sp,
             options) => options
             .UseSqlServer(
@@ -365,17 +376,23 @@ public static class InfrastructureDependencyInjection
                 sqlServerOptions =>
                 {
                     sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, "weather");
-                    sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                    sqlServerOptions.UseQuerySplittingBehavior(
+                        efCoreOptions.UseQuerySplitting
+                            ? QuerySplittingBehavior.SplitQuery
+                            : QuerySplittingBehavior.SingleQuery);
                     sqlServerOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(3),
+                        maxRetryCount: efCoreOptions.RetryMaxCount,
+                        maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
                         errorNumbersToAdd: null);
                 })
+            .EnableSensitiveDataLogging(!isClusterEnvironment)
+            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
             .UseExceptionProcessor()
             .UseSeeding()
             .UseAsyncSeeding()
             .AddInterceptors(
-                sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>()));
+                sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>()),
+            poolSize: efCoreOptions.DbContextPoolSize);
         services.AddScoped<IWeatherForecastContext, WeatherForecastContext>();
 
         return services;
