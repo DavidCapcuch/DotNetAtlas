@@ -1,7 +1,7 @@
-using DotNetAtlas.Application.Forecast.Services.Abstractions;
 using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 using DotNetAtlas.Application.WeatherAlerts.SubscribeForCityAlerts;
 using DotNetAtlas.Application.WeatherAlerts.UnsubscribeFromCityAlerts;
+using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
 using DotNetAtlas.Domain.Entities.Weather.Forecast;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;

@@ -1,0 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace DotNetAtlas.Application.WeatherForecast.Common.Config;
+
+public sealed class WeatherHedgingOptions
+{
+    public const string Section = "Weather:Hedging";
+
+    [Range(1, 10_000)]
+    public int PrimaryMaxDurationMs { get; set; }
+}

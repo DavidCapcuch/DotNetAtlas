@@ -1,4 +1,4 @@
-using DotNetAtlas.Infrastructure.SignalR;
+using DotNetAtlas.Infrastructure.Messaging.SignalR;
 using DotNetAtlas.IntegrationTests.Common;
 using Microsoft.Extensions.DependencyInjection;
 

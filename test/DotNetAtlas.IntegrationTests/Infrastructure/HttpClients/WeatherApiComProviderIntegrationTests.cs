@@ -1,0 +1,37 @@
+using DotNetAtlas.Application.WeatherForecast.Services.Requests;
+using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
+using DotNetAtlas.IntegrationTests.Common;
+using FluentResults.Extensions.FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace DotNetAtlas.IntegrationTests.Infrastructure.HttpClients;
+
+[Collection<ForecastTestCollection>]
+public class WeatherApiComProviderIntegrationTests : BaseIntegrationTest
+{
+    private readonly WeatherApiComProvider _provider;
+
+    public WeatherApiComProviderIntegrationTests(IntegrationTestFixture app)
+        : base(app)
+    {
+        _provider = Scope.ServiceProvider.GetRequiredService<WeatherApiComProvider>();
+    }
+
+    [Fact]
+    public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
+    {
+        // Arrange
+        var forecastRequest = new ForecastRequest("Prague", CountryCode.CZ, 1);
+
+        // Act
+        var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            forecastResult.Should().BeSuccess();
+            forecastResult.Value.Should().ContainSingle();
+        }
+    }
+}

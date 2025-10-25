@@ -1,5 +1,5 @@
-using DotNetAtlas.Application.Feedback.GetFeedback;
-using DotNetAtlas.Domain.Errors.Base;
+using DotNetAtlas.Application.WeatherFeedback.GetFeedback;
+using DotNetAtlas.Domain.Common.Errors;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;

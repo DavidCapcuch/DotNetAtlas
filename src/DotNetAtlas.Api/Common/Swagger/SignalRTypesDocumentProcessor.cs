@@ -1,5 +1,5 @@
 using System.Reflection;
-using DotNetAtlas.Api.SignalR.WeatherAlerts;
+using DotNetAtlas.Api.SignalRHubs.WeatherAlerts;
 using Microsoft.AspNetCore.SignalR;
 using NSwag.Generation.Processors;
 using NSwag.Generation.Processors.Contexts;

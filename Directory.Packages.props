@@ -76,10 +76,8 @@
         <PackageVersion Include="Serilog.Settings.Configuration" Version="9.0.0"/>
         <PackageVersion Include="Serilog.Sinks.Async" Version="2.1.0"/>
         <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0"/>
-        <PackageVersion Include="Serilog.Sinks.Elasticsearch" Version="10.0.0"/>
         <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0"/>
         <PackageVersion Include="Serilog.Sinks.Seq" Version="9.0.0"/>
-        <PackageVersion Include="SerilogTracing" Version="2.3.1"/>
         <PackageVersion Include="SerilogTracing.Expressions" Version="2.3.1"/>
         <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556"/>
         <PackageVersion Include="TypedSignalR.Client.Attributes" Version="1.1.0"/>

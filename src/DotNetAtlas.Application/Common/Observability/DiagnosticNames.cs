@@ -12,5 +12,5 @@ public static class DiagnosticNames
     public const string DomainErrorDetails = "domain.error.details";
 
     public const string SignalRGroup = "signalr.group";
-    public const string SignalRPayloadSize = "signalr.payload.size";
+    public const string SignalRPayloadLength = "signalr.payload.length";
 }

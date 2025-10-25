@@ -8,10 +8,10 @@ namespace DotNetAtlas.FunctionalTests.Common;
 
 public abstract class BaseApiTest : IAsyncLifetime
 {
-    private readonly TestCaseTracer _testCaseTracer;
     private readonly Func<Task> _resetFixtureStateAsync;
+    protected TestCaseTracer TestCaseTracer { get; }
     protected IServiceScope Scope { get; }
-    protected WeatherForecastContext DbContext { get; }
+    protected WeatherContext DbContext { get; }
     protected HttpClientRegistry<Program> HttpClientRegistry { get; }
     protected SignalRClientFactory SignalRClientFactory { get; }
 
@@ -22,22 +22,22 @@ public abstract class BaseApiTest : IAsyncLifetime
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        DbContext = Scope.ServiceProvider.GetRequiredService<WeatherForecastContext>();
+        DbContext = Scope.ServiceProvider.GetRequiredService<WeatherContext>();
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
-        _testCaseTracer = new TestCaseTracer(
+        TestCaseTracer = new TestCaseTracer(
             Scope.ServiceProvider,
             TestContext.Current.TestMethod!.MethodName,
             TestContext.Current.TestCase!.UniqueID,
             testType: "functional");
 
         HttpClientRegistry = app.HttpClientRegistry;
-        HttpClientRegistry.SetTraceParent(_testCaseTracer.TraceId);
+        HttpClientRegistry.SetTraceParent(TestCaseTracer.TraceId);
 
         SignalRClientFactory = new SignalRClientFactory(
             app.Server,
-            _testCaseTracer.TraceId,
+            TestCaseTracer.TraceId,
             Scope,
             TestContext.Current.CancellationToken);
     }
@@ -51,12 +51,12 @@ public abstract class BaseApiTest : IAsyncLifetime
     {
         if (TestContext.Current.TestState?.Result == TestResult.Failed)
         {
-            _testCaseTracer.RecordTestFailure(
+            TestCaseTracer.RecordTestFailure(
                 TestContext.Current.TestState.ExceptionMessages);
         }
 
         await _resetFixtureStateAsync();
-        _testCaseTracer.Dispose();
+        TestCaseTracer.Dispose();
         Scope.Dispose();
     }
 }

@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using DotNetAtlas.Domain.Errors.Base;
+using DotNetAtlas.Domain.Common.Errors;
 using FastEndpoints;
 using FluentResults;
 using FluentValidation.Results;

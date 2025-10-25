@@ -1,7 +1,7 @@
 using Confluent.SchemaRegistry;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
-using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using DotNetAtlas.Test.Shared.Common;
 using Testcontainers.Kafka;
 

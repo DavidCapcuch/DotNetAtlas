@@ -1,8 +1,8 @@
 using DotNetAtlas.Infrastructure.Common.Config;
-using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.OpenMeteo;
-using DotNetAtlas.Infrastructure.HttpClients.Weather.WeatherApiCom;
-using DotNetAtlas.Infrastructure.SignalR;
+using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
+using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
+using DotNetAtlas.Infrastructure.Messaging.SignalR;
 using DotNetAtlas.Test.Shared;
 using DotNetAtlas.Test.Shared.Database;
 using DotNetAtlas.Test.Shared.Kafka;
@@ -67,9 +67,9 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             var redisConfig = _redisContainer.ConfigurationOptions;
             webBuilder
-                .UseSetting($"ConnectionStrings:{ConnectionStrings.Weather}", _dbContainer.ConnectionString)
-                .UseSetting($"ConnectionStrings:{ConnectionStrings.Redis}", redisConfig.ToString())
-                .RegisterKafkaOptions(_kafkaContainer.KafkaOptions);
+                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Weather)}", _dbContainer.ConnectionString)
+                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Redis)}", redisConfig.ToString())
+                .UseKafkaSettings(_kafkaContainer.KafkaOptions);
         });
 
         return base.ConfigureAppHost(builder);

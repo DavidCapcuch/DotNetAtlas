@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.Application.Forecast.Services.Abstractions;
-using DotNetAtlas.Application.Forecast.Services.Requests;
 using DotNetAtlas.Application.WeatherAlerts.Common;
 using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
+using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.Services.Requests;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
