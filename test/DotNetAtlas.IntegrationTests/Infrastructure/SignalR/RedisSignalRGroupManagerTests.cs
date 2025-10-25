@@ -9,8 +9,8 @@ public class RedisSignalRGroupManagerTests : BaseIntegrationTest
 {
     private readonly RedisSignalRGroupManager _signalRGroupManager;
 
-    public RedisSignalRGroupManagerTests(IntegrationTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public RedisSignalRGroupManagerTests(IntegrationTestFixture app)
+        : base(app)
     {
         _signalRGroupManager = Scope.ServiceProvider.GetRequiredService<RedisSignalRGroupManager>();
     }

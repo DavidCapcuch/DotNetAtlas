@@ -611,7 +611,7 @@ dotnet_diagnostic.CS8618.severity = suggestion
 dotnet_diagnostic.IDE0005.severity = suggestion
 
 # IDE0032
-dotnet_diagnostic.IDE0032.severity = silent
+dotnet_diagnostic.IDE0032.severity = suggestion
 
 # IDE0090
 dotnet_diagnostic.IDE0090.severity = none

@@ -1,8 +1,8 @@
 using System.Reflection;
 
-namespace DotNetAtlas.ArchitectureTests;
+namespace DotNetAtlas.Test.Shared;
 
-public static class DatabasePaths
+public static class SolutionPaths
 {
     private const string SolutionFileName = "DotNetAtlas.slnx";
 

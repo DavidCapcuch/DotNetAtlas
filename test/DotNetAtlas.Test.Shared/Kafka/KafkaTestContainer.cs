@@ -4,14 +4,20 @@ using DotNet.Testcontainers.Containers;
 using DotNetAtlas.Infrastructure.Communication.Kafka.Config;
 using Testcontainers.Kafka;
 
-namespace DotNetAtlas.IntegrationTests.Common;
+namespace DotNetAtlas.Test.Shared.Kafka;
 
 /// <summary>
-/// Encapsulates Kafka and Schema Registry test containers with fluent configuration.
+/// Encapsulates Kafka and Schema Registry test containers.
 /// Provides a clean abstraction for integration tests requiring Kafka infrastructure.
 /// </summary>
+/// <remarks>
+/// Keep the container images in sync with production.
+/// When upgrading infrastructure, update the images here early to catch breaking changes sooner.
+/// </remarks>
 public sealed class KafkaTestContainer : IAsyncDisposable
 {
+    private const string DefaultImage = "confluentinc/cp-kafka:7.5.9";
+
     private readonly KafkaContainer _kafkaContainer;
     private IContainer? _schemaRegistryContainer;
 
@@ -19,7 +25,7 @@ public sealed class KafkaTestContainer : IAsyncDisposable
     /// Gets the KafkaOptions for this container.
     /// This property is populated after StartAsync is called.
     /// </summary>
-    public KafkaOptions KafkaOptions { get; private set; }
+    public KafkaOptions KafkaOptions { get; private set; } = null!;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="KafkaTestContainer"/> class.
@@ -27,16 +33,21 @@ public sealed class KafkaTestContainer : IAsyncDisposable
     public KafkaTestContainer()
     {
         _kafkaContainer = new KafkaBuilder()
-            .WithImage("confluentinc/cp-kafka:7.5.9")
+            .WithImage(DefaultImage)
             .WithName($"TestKafkaFixture-{Guid.NewGuid()}")
             .WithKRaft()
             .WithCleanUp(true)
             .Build();
     }
 
-    public async Task StartAsync()
+    /// <summary>
+    /// Starts the Kafka and Schema Registry containers.
+    /// Call this during test fixture initialization (e.g., in PreSetupAsync or constructor).
+    /// </summary>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        await _kafkaContainer.StartAsync();
+        await _kafkaContainer.StartAsync(cancellationToken);
 
         // Get the mapped port for the BROKER listener (port 9093 inside container)
         var brokerPort = _kafkaContainer.GetMappedPublicPort(9093);
@@ -57,7 +68,7 @@ public sealed class KafkaTestContainer : IAsyncDisposable
             .WithCleanUp(true)
             .Build();
 
-        await _schemaRegistryContainer.StartAsync();
+        await _schemaRegistryContainer.StartAsync(cancellationToken);
 
         var schemaRegistryUrl = $"http://localhost:{_schemaRegistryContainer.GetMappedPublicPort(8081)}";
         var bootstrapServers = _kafkaContainer.GetBootstrapAddress();
@@ -68,7 +79,7 @@ public sealed class KafkaTestContainer : IAsyncDisposable
     /// <summary>
     /// Creates a KafkaOptions from the container values.
     /// </summary>
-    private KafkaOptions CreateKafkaOptions(string bootstrapServers, string schemaRegistryUrl)
+    private static KafkaOptions CreateKafkaOptions(string bootstrapServers, string schemaRegistryUrl)
     {
         return new KafkaOptions
         {

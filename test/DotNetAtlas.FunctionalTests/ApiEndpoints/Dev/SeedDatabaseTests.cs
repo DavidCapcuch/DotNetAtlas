@@ -9,21 +9,24 @@ namespace DotNetAtlas.FunctionalTests.ApiEndpoints.Dev;
 [Collection<FeedbackTestCollection>]
 public class SeedDatabaseTests : BaseApiTest
 {
-    public SeedDatabaseTests(ApiTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public SeedDatabaseTests(ApiTestFixture app)
+        : base(app)
     {
     }
 
     [Fact]
     public async Task WhenNotInRoleDeveloper_ReturnsForbidden()
     {
-        // Arrange and Act
+        // Arrange
+        var seedDatabaseCommand = new SeedDatabaseCommand
+        {
+            NumberOfRecords = 100
+        };
+
+        // Act
         var httpResponse =
-            await PlebClient.POSTAsync<SeedDatabaseEndpoint, SeedDatabaseCommand>(
-                new SeedDatabaseCommand
-                {
-                    NumberOfRecords = 100
-                });
+            await HttpClientRegistry.PlebClient.POSTAsync<SeedDatabaseEndpoint, SeedDatabaseCommand>(
+                seedDatabaseCommand);
 
         // Assert
         httpResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -37,14 +40,15 @@ public class SeedDatabaseTests : BaseApiTest
             await DbContext.WeatherFeedbacks.CountAsync(TestContext.Current.CancellationToken);
         const int recordsToAdd = 100;
         var expectedRecords = currentRecords + recordsToAdd;
+        var seedDatabaseCommand = new SeedDatabaseCommand
+        {
+            NumberOfRecords = recordsToAdd
+        };
 
         // Act
         var httpResponse =
-            await DevClient.POSTAsync<SeedDatabaseEndpoint, SeedDatabaseCommand>(
-                new SeedDatabaseCommand
-                {
-                    NumberOfRecords = recordsToAdd
-                });
+            await HttpClientRegistry.DevClient.POSTAsync<SeedDatabaseEndpoint, SeedDatabaseCommand>(
+                seedDatabaseCommand);
 
         // Assert
         var totalRecords =

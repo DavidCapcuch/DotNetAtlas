@@ -4,9 +4,9 @@ using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
 using TypedSignalR.Client;
 
-namespace DotNetAtlas.FunctionalTests.Common;
+namespace DotNetAtlas.FunctionalTests.Common.Clients;
 
-public class WeatherAlertHubClient : IWeatherAlertClientContract, IAsyncDisposable
+public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisposable
 {
     protected internal HubConnection Connection { get; }
     protected internal Channel<WeatherAlertMessage> ReceivedMessages { get; }
@@ -15,7 +15,7 @@ public class WeatherAlertHubClient : IWeatherAlertClientContract, IAsyncDisposab
     private readonly IDisposable _subscription;
     private readonly CancellationToken _cancellationToken;
 
-    public WeatherAlertHubClient(
+    public WeatherAlertHubTestClient(
         HubConnection connection,
         IDotNetAtlasInstrumentation dotNetAtlasInstrumentation,
         CancellationToken cancellationToken)
@@ -53,15 +53,18 @@ public class WeatherAlertHubClient : IWeatherAlertClientContract, IAsyncDisposab
         await _server.SendWeatherAlert(alerts);
     }
 
-    public async Task<List<WeatherAlertMessage>> GetAllReceivedMessagesAsync()
+    public async Task<List<WeatherAlertMessage>> GetAllReceivedMessagesAsync(
+        TimeSpan timeout,
+        CancellationToken ct = default)
     {
         var weatherAlertMessages = new List<WeatherAlertMessage>();
 
-        using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(500));
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
         try
         {
-            while (await ReceivedMessages.Reader.WaitToReadAsync(cts.Token))
+            while (!cts.IsCancellationRequested
+                   && await ReceivedMessages.Reader.WaitToReadAsync(cts.Token))
             {
                 weatherAlertMessages.Add(await ReceivedMessages.Reader.ReadAsync(cts.Token));
             }

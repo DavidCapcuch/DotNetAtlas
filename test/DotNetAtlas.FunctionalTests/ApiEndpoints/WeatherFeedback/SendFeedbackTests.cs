@@ -4,28 +4,31 @@ using DotNetAtlas.Application.Feedback.SendFeedback;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;
 
-namespace DotNetAtlas.FunctionalTests.ApiEndpoints.Feedback;
+namespace DotNetAtlas.FunctionalTests.ApiEndpoints.WeatherFeedback;
 
 [Collection<FeedbackTestCollection>]
 public class SendFeedbackTests : BaseApiTest
 {
-    public SendFeedbackTests(ApiTestFixture app, ITestOutputHelper testOutputHelper)
-        : base(app, testOutputHelper)
+    public SendFeedbackTests(ApiTestFixture app)
+        : base(app)
     {
     }
 
     [Fact]
     public async Task WhenSendingTooLongFeedback_ReturnsTooLongError()
     {
-        // Arrange and Act
+        // Arrange
+        var sendFeedbackCommand = new SendFeedbackCommand
+        {
+            Feedback = new string('a', 501),
+            Rating = 6,
+            UserId = Guid.CreateVersion7()
+        };
+
+        // Act
         var (httpResponse, problemDetails) =
-            await PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand, ProblemDetails>(
-                new SendFeedbackCommand
-                {
-                    Feedback = new string('a', 501),
-                    Rating = 6,
-                    UserId = Guid.CreateVersion7()
-                });
+            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand, ProblemDetails>(
+                sendFeedbackCommand);
 
         // Assert
         using (new AssertionScope())
@@ -41,15 +44,18 @@ public class SendFeedbackTests : BaseApiTest
     [Fact]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
-        // Arrange and Act
+        // Arrange
+        var sendFeedbackCommand = new SendFeedbackCommand
+        {
+            Feedback = "",
+            Rating = 5,
+            UserId = Guid.Empty
+        };
+
+        // Act
         var httpResponse =
-            await NonAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
-                new SendFeedbackCommand
-                {
-                    Feedback = "",
-                    Rating = 5,
-                    UserId = Guid.Empty
-                });
+            await HttpClientRegistry.NonAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
+                sendFeedbackCommand);
 
         // Assert
         httpResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
