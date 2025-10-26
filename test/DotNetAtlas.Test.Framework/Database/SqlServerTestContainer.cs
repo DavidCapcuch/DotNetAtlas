@@ -1,10 +1,10 @@
-using DotNetAtlas.Test.Shared.Common;
+using DotNetAtlas.Test.Framework.Common;
 using EvolveDb;
 using Microsoft.Data.SqlClient;
 using Respawn;
 using Testcontainers.MsSql;
 
-namespace DotNetAtlas.Test.Shared.Database;
+namespace DotNetAtlas.Test.Framework.Database;
 
 /// <summary>
 /// Manages a SQL Server test container: creates the database, runs Flyway-style migrations via Evolve, and configures Respawn for fast resets between tests.

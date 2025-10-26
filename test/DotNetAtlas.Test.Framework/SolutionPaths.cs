@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace DotNetAtlas.Test.Shared;
+namespace DotNetAtlas.Test.Framework;
 
 public static class SolutionPaths
 {

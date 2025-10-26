@@ -3,7 +3,7 @@ using DotNetAtlas.Application.Common.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 
-namespace DotNetAtlas.Test.Shared.Tracing;
+namespace DotNetAtlas.Test.Framework.Tracing;
 
 /// <summary>
 /// Manages OpenTelemetry activity lifecycle for test execution, providing distributed tracing

@@ -2,10 +2,10 @@ using Confluent.SchemaRegistry;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
-using DotNetAtlas.Test.Shared.Common;
+using DotNetAtlas.Test.Framework.Common;
 using Testcontainers.Kafka;
 
-namespace DotNetAtlas.Test.Shared.Kafka;
+namespace DotNetAtlas.Test.Framework.Kafka;
 
 /// <summary>
 /// Encapsulates Kafka and Schema Registry test containers.
