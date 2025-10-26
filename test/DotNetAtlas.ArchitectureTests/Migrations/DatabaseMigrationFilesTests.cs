@@ -1,4 +1,4 @@
-using DotNetAtlas.Test.Shared;
+using DotNetAtlas.Test.Framework;
 
 namespace DotNetAtlas.ArchitectureTests.Migrations;
 

@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/shared/">
-    <Project Path="shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj" Type="Classic C#" />
+    <Project Path="shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj" Type="C#" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
@@ -23,8 +23,8 @@
     <Project Path="test/DotNetAtlas.ArchitectureTests/DotNetAtlas.ArchitectureTests.csproj" />
     <Project Path="test/DotNetAtlas.FunctionalTests/DotNetAtlas.FunctionalTests.csproj" />
     <Project Path="test/DotNetAtlas.IntegrationTests/DotNetAtlas.IntegrationTests.csproj" />
+    <Project Path="test/DotNetAtlas.Test.Framework/DotNetAtlas.Test.Framework.csproj" Type="C#" />
     <Project Path="test/DotNetAtlas.UnitTests/DotNetAtlas.UnitTests.csproj" />
-    <Project Path="test\DotNetAtlas.Test.Shared\DotNetAtlas.Test.Shared.csproj" Type="Classic C#" />
   </Folder>
   <Folder Name="/test/Common/">
     <File Path="test/coverlet.runsettings" />

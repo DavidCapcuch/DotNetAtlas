@@ -1,6 +1,6 @@
 using DotNetAtlas.Infrastructure.Persistence.Database;
-using DotNetAtlas.Test.Shared.Kafka;
-using DotNetAtlas.Test.Shared.Tracing;
+using DotNetAtlas.Test.Framework.Kafka;
+using DotNetAtlas.Test.Framework.Tracing;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
