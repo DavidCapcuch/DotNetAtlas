@@ -1,9 +1,9 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Networks;
-using DotNetAtlas.Test.Shared.Common;
+using DotNetAtlas.Test.Framework.Common;
 
-namespace DotNetAtlas.Test.Shared.Kafka;
+namespace DotNetAtlas.Test.Framework.Kafka;
 
 public sealed class SchemaRegistryTestContainer : ITestContainer
 {

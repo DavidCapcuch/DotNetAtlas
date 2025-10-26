@@ -4,7 +4,7 @@ using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 
-namespace DotNetAtlas.Test.Shared.Kafka;
+namespace DotNetAtlas.Test.Framework.Kafka;
 
 public interface IKafkaTestConsumer : IDisposable
 {
@@ -16,7 +16,7 @@ public interface IKafkaTestConsumer : IDisposable
 /// </summary>
 /// <typeparam name="TValue">The Avro message type to deserialize.</typeparam>
 public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
-    where TValue : ISpecificRecord
+    where TValue : class, ISpecificRecord
 {
     private readonly CachedSchemaRegistryClient _schemaClient;
     private readonly IConsumer<string, TValue> _consumer;
@@ -75,11 +75,10 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
             catch (OperationCanceledException)
             {
                 // Expected when timeout is reached
-                break;
             }
         }
 
-        return default;
+        return null;
     }
 
     /// <summary>
@@ -90,24 +89,23 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
     /// <param name="maxCount">Maximum number of messages to consume (default 10 for individual test runs).</param>
     /// <param name="ct">Optional cancellation token to cancel the operation.</param>
     /// <returns>Array of all consumed messages.</returns>
-    public TValue[] ConsumeAll(TimeSpan timeout, int maxCount = 10, CancellationToken ct = default)
+    public List<TValue> ConsumeMultiple(TimeSpan timeout, int maxCount = 10, CancellationToken ct = default)
     {
-        var results = new List<TValue>();
+        var messages = new List<TValue>();
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
-        // Short poll timeout for each ConsumeOne call to be responsive
-        var pollTimeout = TimeSpan.FromMilliseconds(100);
-        while (!cts.IsCancellationRequested && results.Count < maxCount)
+        while (!cts.IsCancellationRequested && messages.Count < maxCount)
         {
-            var message = ConsumeOne(pollTimeout, cts.Token);
+            var message = ConsumeOne(timeout, cts.Token);
             if (message != null)
             {
-                results.Add(message);
+                messages.Add(message);
             }
         }
 
-        return [.. results];
+        return messages;
     }
 
     public void Dispose()

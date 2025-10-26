@@ -1,8 +1,8 @@
-using DotNetAtlas.Test.Shared.Common;
+using DotNetAtlas.Test.Framework.Common;
 using StackExchange.Redis;
 using Testcontainers.Redis;
 
-namespace DotNetAtlas.Test.Shared.Redis;
+namespace DotNetAtlas.Test.Framework.Redis;
 
 /// <summary>
 /// Manages a Redis test container with optimal configuration for test scenarios.

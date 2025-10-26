@@ -91,7 +91,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
         var result = await getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
 
         var forecastRequestedEvent =
-            consumer.ConsumeOne(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            consumer.ConsumeOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
@@ -131,6 +131,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
             Days = i + 1,
             UserId = Guid.NewGuid()
         }).ToList();
+        var expectedCount = getForecastQueries.Count;
 
         // Act
         var getForecastTasks = getForecastQueries
@@ -138,13 +139,14 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
 
         var results = await Task.WhenAll(getForecastTasks);
 
-        var events = consumer.ConsumeAll(TimeSpan.FromSeconds(10), 5, TestContext.Current.CancellationToken);
+        var events = consumer
+            .ConsumeMultiple(TimeSpan.FromSeconds(3), expectedCount, TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
         {
             results.Should().AllSatisfy(r => r.Should().BeSuccess());
-            events.Should().HaveCount(5);
+            events.Should().HaveCount(expectedCount);
 
             foreach (var getForecastQuery in getForecastQueries)
             {

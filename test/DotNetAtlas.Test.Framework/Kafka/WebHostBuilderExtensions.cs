@@ -1,7 +1,7 @@
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using Microsoft.AspNetCore.Hosting;
 
-namespace DotNetAtlas.Test.Shared.Kafka;
+namespace DotNetAtlas.Test.Framework.Kafka;
 
 public static class WebHostBuilderExtensions
 {

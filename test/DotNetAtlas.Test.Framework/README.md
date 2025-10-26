@@ -1,6 +1,7 @@
-# DotNetAtlas.Test.Shared
+# DotNetAtlas.Test.Framework
 
-Testcontainers‑based components for integration/functional tests for spinning up infrastructure setup in integration and functional tests, encapsulating setup, DI config, and fast state resets via simple StartAsync/CleanDataAsync/DisposeAsync.
+TestContainers‑based components for simplyfing spinning up infrastructure setup and state management in integration and functional tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
+
 - **SQL Server**: Flyway-style migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
 - **Redis**: flush-all resets, pre-configured ConfigurationOptions.
 - **Kafka + Schema Registry** with config encapsulation
@@ -10,7 +11,7 @@ Testcontainers‑based components for integration/functional tests for spinning 
 ### [SQL Server](Database/SqlServerTestContainer.cs)
 
 ```csharp
-using DotNetAtlas.Test.Shared.Database;
+using DotNetAtlas.Test.Framework.Database;
 
 var sqlServer = new SqlServerTestContainer(
     databaseName: "Weather",
@@ -23,7 +24,7 @@ var sqlServer = new SqlServerTestContainer(
 await sqlServer.StartAsync();
 
 // Use for DI
-builder.UseSetting("ConnectionStrings:Database", sqlServer.ConnectionString);
+builder.UseSetting("ConnectionStrings:Weather", sqlServer.ConnectionString);
 
 // Between tests
 await sqlServer.CleanDataAsync();
@@ -35,7 +36,7 @@ await sqlServer.DisposeAsync();
 ### [Redis](Redis/RedisTestContainer.cs)
 
 ```csharp
-using DotNetAtlas.Test.Shared.Redis;
+using DotNetAtlas.Test.Framework.Redis;
 
 var redis = new RedisTestContainer();
 
@@ -56,7 +57,7 @@ await redis.DisposeAsync();
 Kafka and Schema Registry use dedicated network and connect via alias to avoid hangs in CI.
 
 ```csharp
-using DotNetAtlas.Test.Shared.Kafka;
+using DotNetAtlas.Test.Framework.Kafka;
 
 var kafka = new KafkaTestContainer();
 
@@ -76,7 +77,7 @@ await kafka.DisposeAsync();
 See also [KafkaTestConsumerRegistry](Kafka/KafkaTestConsumerRegistry.cs)
 
 ```csharp
-using DotNetAtlas.Test.Shared.Kafka;
+using DotNetAtlas.Test.Framework.Kafka;
 using Weather.Contracts;
 
 // Assumes KafkaTestContainer was started and provides options
@@ -104,7 +105,7 @@ consumer.Dispose();
 - Wrap each integration/functional test, or create/dispose in your fixture's setup/teardown.
 - Pass your test DI ServiceProvider so it uses the same tracing pipeline as the app under test.
 ```csharp
-using DotNetAtlas.Test.Shared.Tracing;
+using DotNetAtlas.Test.Framework.Tracing;
 
 // Create in test base/fixture constructor
 var tracer = new TestCaseTracer(

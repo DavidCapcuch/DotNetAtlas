@@ -1,4 +1,4 @@
-namespace DotNetAtlas.Test.Shared.Common;
+namespace DotNetAtlas.Test.Framework.Common;
 
 public interface ITestContainer : IAsyncDisposable
 {

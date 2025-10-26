@@ -1,7 +1,7 @@
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using Weather.Contracts;
 
-namespace DotNetAtlas.Test.Shared.Kafka;
+namespace DotNetAtlas.Test.Framework.Kafka;
 
 /// <summary>
 /// Centralized registry for managing Kafka test consumers in integration tests.

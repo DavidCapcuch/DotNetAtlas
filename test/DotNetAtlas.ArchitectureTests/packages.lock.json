@@ -2130,7 +2130,7 @@
           "Apache.Avro": "[1.12.0, )"
         }
       },
-      "dotnetatlas.test.shared": {
+      "dotnetatlas.test.framework": {
         "type": "Project",
         "dependencies": {
           "AwesomeAssertions": "[9.1.0, )",
