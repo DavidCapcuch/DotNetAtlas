@@ -33,6 +33,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      actions: write
     uses: ./.github/workflows/main-ci.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

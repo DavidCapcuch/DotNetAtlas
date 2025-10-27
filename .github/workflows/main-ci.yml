@@ -34,6 +34,9 @@ jobs:
 
   test-with-coverage:
     needs: [build-dotnet]
+    permissions:
+      contents: read
+      actions: write
     uses: ./.github/workflows/test-with-coverage.yml
     with:
       configuration: Release
