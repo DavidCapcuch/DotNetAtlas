@@ -16,7 +16,7 @@ public class ApplicationTests : BaseTest
             .HaveNameEndingWith("Validator")
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public class ApplicationTests : BaseTest
             .HaveNameEndingWith("Handler")
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class ApplicationTests : BaseTest
             .HaveNameEndingWith("Command")
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -58,6 +58,6 @@ public class ApplicationTests : BaseTest
             .HaveNameEndingWith("Query")
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 }
