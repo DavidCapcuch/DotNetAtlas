@@ -11,7 +11,8 @@ public class CleanArchitectureLayerTests : BaseTest
             .Should()
             .NotHaveDependencyOnAny(ApplicationAssembly.GetName().Name)
             .GetResult();
-        result.IsSuccessful.Should().BeTrue();
+
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -22,7 +23,7 @@ public class CleanArchitectureLayerTests : BaseTest
             .NotHaveDependencyOnAny(InfrastructureAssembly.GetName().Name)
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -33,7 +34,7 @@ public class CleanArchitectureLayerTests : BaseTest
             .NotHaveDependencyOnAny(PresentationAssembly.GetName().Name)
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -44,7 +45,7 @@ public class CleanArchitectureLayerTests : BaseTest
             .NotHaveDependencyOnAny(InfrastructureAssembly.GetName().Name)
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -55,7 +56,7 @@ public class CleanArchitectureLayerTests : BaseTest
             .NotHaveDependencyOnAny(PresentationAssembly.GetName().Name)
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -66,6 +67,6 @@ public class CleanArchitectureLayerTests : BaseTest
             .NotHaveDependencyOnAny(PresentationAssembly.GetName().Name)
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue();
+        result.FailingTypes.Should().BeEmpty();
     }
 }
