@@ -11,7 +11,7 @@ on:
 jobs:
   test-with-coverage:
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -29,6 +29,11 @@ jobs:
         env:
           CONFIGURATION: ${{ inputs.configuration }}
         run: dotnet build -c "$CONFIGURATION" --no-restore
+      - name: Cache Docker images
+        uses: ScribeMD/docker-cache@0.5.0
+        continue-on-error: true
+        with:
+          key: docker-${{ runner.os }}-${{ hashFiles('test/DotNetAtlas.Test.Framework/**/*Container.cs') }}
       - name: Test with coverage
         env:
           CONFIGURATION: ${{ inputs.configuration }}
