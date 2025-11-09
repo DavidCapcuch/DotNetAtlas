@@ -13,4 +13,5 @@ public static class InfrastructureConstants
     public const string LivenessTag = "live";
     public const string DatabaseTag = "database";
     public const string ApiTag = "api";
+    public const string MessagingTag = "messaging";
 }

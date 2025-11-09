@@ -4,7 +4,6 @@ using DotNetAtlas.Infrastructure.BackgroundJobs.Config;
 using DotNetAtlas.Infrastructure.Common.Config;
 using Hangfire;
 using Hangfire.SqlServer;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 

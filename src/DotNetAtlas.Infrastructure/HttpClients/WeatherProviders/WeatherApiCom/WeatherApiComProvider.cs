@@ -1,12 +1,12 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using DotNetAtlas.Application.WeatherForecast;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
 using DotNetAtlas.Application.WeatherForecast.Services.Requests;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using WeatherForecastMapper = DotNetAtlas.Application.WeatherForecast.WeatherForecastMapper;
 
 namespace DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
 
@@ -34,7 +34,7 @@ public class WeatherApiComProvider : IWeatherForecastProvider
         ForecastRequest forecastRequest,
         CancellationToken ct)
     {
-        var geoRequest = WeatherForecastMapper.ToGeocodingRequest(forecastRequest);
+        var geoRequest = forecastRequest.ToGeocodingRequest();
         var geoResult = await _geocodingService.GetCoordinatesAsync(geoRequest, ct);
         if (geoResult.IsFailed)
         {
