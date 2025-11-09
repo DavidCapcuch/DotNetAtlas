@@ -1,0 +1,50 @@
+{
+    "type": "record",
+    "name": "FeedbackCreatedEvent",
+    "namespace": "Weather.Feedback",
+    "doc": "Event emitted when user creates new feedback.",
+    "fields": [
+        {
+            "name": "EventId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique event identifier."
+        },
+        {
+            "name": "FeedbackId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the feedback aggregate."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who created the feedback."
+        },
+        {
+            "name": "Text",
+            "type": "string",
+            "doc": "Feedback text."
+        },
+        {
+            "name": "Rating",
+            "type": "int",
+            "doc": "Feedback rating (1-5)."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when event occurred."
+        }
+    ]
+}

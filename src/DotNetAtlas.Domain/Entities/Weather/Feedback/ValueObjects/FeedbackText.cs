@@ -8,6 +8,8 @@ namespace DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
 [ComplexType]
 public record FeedbackText : ValueObject
 {
+    public const int TextMaxLength = 500;
+
     public string Value { get; private set; } = null!;
 
     private FeedbackText()
@@ -20,7 +22,7 @@ public record FeedbackText : ValueObject
 
         var result = Result.Merge(
             Result.FailIf(string.IsNullOrWhiteSpace(feedback), FeedbackErrors.FeedbackRequired()),
-            Result.FailIf(feedback?.Length > 500, FeedbackErrors.FeedbackTooLong(500)));
+            Result.FailIf(feedback?.Length > TextMaxLength, FeedbackErrors.FeedbackTooLong(TextMaxLength)));
 
         if (result.IsFailed)
         {
