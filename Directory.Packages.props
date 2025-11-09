@@ -16,6 +16,9 @@
         <PackageVersion Include="AspNetCore.HealthChecks.Prometheus.Metrics" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.SignalR.OpenTelemetry" Version="1.7.0"/>
+        <PackageVersion Include="BenchmarkDotNet.Diagnostics.dotMemory" Version="0.15.6"/>
+        <PackageVersion Include="BenchmarkDotNet.Diagnostics.dotTrace" Version="0.15.6"/>
+        <PackageVersion Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.15.6"/>
         <PackageVersion Include="Bogus" Version="35.6.3"/>
         <PackageVersion Include="Confluent.Kafka" Version="2.6.1"/>
         <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.6.1"/>

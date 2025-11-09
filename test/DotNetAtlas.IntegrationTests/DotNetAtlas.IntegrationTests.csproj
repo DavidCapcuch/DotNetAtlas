@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <!-- Project-specific packages only (common packages in Directory.Build.props) -->
     <ItemGroup>
-        <PackageReference Include="FastEndpoints.Testing"/>
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable"/>
         <PackageReference Include="FluentResults.Extensions.FluentAssertions"/>
         <PackageReference Include="NSubstitute"/>
