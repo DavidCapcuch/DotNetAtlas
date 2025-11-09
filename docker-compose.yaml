@@ -1,4 +1,4 @@
-﻿services:
+services:
   mssqldb:
     image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04@sha256:c1aa8afe9b06eab64c9774a4802dcd032205d1be785b1fd51e1c0151e7586b74
     container_name: mssql12345
@@ -10,6 +10,66 @@
       - "12345:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
+      - ./src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/Flyway:/migrations
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: |
+      bash -c '
+        # Wait for SQL Server to be ready (max 60 seconds)
+        /opt/mssql/bin/sqlservr &
+        echo "Waiting for SQL Server to be ready..."
+        for i in {1..60}; do
+          if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -Q "SELECT 1" &> /dev/null; then
+            echo "SQL Server is ready!"
+            break
+          fi
+          echo \"Attempt $$i/60: Waiting for SQL Server...\"
+          sleep 1
+        done
+
+        # Create Weather database if not exists
+        echo "Creating Weather database..."
+        /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -Q \
+        "IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'Weather') \
+        CREATE DATABASE Weather;" || {
+          echo "ERROR: Failed to create Weather database"
+          exit 1
+        }
+
+        # Wait for database to be fully initialized
+        echo "Waiting for Weather database to be ready..."
+        for i in {1..30}; do
+          if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -d Weather -Q "SELECT 1" &> /dev/null; then
+            echo "Weather database is ready!"
+            break
+          fi
+          echo "Attempt $$i/30: Waiting for Weather database..."
+          sleep 1
+        done
+
+        # Verify database is accessible
+        if ! /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -d Weather -Q "SELECT 1" &> /dev/null; then
+          echo "ERROR: Weather database is not accessible after 30 seconds"
+          exit 1
+        fi
+
+        # Run all migration scripts in order
+        echo "Running database migrations..." &&
+        for file in /migrations/V*.sql; do
+          echo "Running: $$file" &&
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -d Weather -i "$$file" || {
+            echo "ERROR: Migration failed: $$file"
+            exit 1
+          }
+        done &&
+
+        echo "All migrations completed successfully" &&
+        wait
+      '
 
   redis:
     image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
@@ -136,6 +196,7 @@
   kafka:
     image: confluentinc/cp-kafka:7.5.9
     container_name: broker
+    restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_KRAFT_MODE: "true"
@@ -158,7 +219,7 @@
       - kafka_data:/var/lib/kafka/data
       - kafka_metadata:/var/lib/kafka/metadata
     healthcheck:
-      test: ["CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092"]
+      test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092" ]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -178,6 +239,7 @@
   schema-registry:
     image: confluentinc/cp-schema-registry:7.5.0
     container_name: schema-registry
+    restart: unless-stopped
     healthcheck:
       test: curl --output /dev/null --silent --head --fail http://schema-registry:8081/subjects
       interval: 30s
