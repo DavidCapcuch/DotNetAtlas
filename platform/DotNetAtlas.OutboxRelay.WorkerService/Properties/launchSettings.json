@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "DotNetAtlas.OutboxRelay.WorkerService.Local": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Local"
+      },
+      "applicationUrl": "https://localhost:65409;http://localhost:65410"
+    }
+  }
+}
