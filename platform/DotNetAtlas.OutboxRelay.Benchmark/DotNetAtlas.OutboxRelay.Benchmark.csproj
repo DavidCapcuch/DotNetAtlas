@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>false</IsTestProject>
+        <NoWarn>CS7022</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet.Diagnostics.dotMemory"/>
+        <PackageReference Include="BenchmarkDotNet.Diagnostics.dotTrace"/>
+        <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows"/>
+
+        <PackageReference Include="Bogus"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\test\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.OutboxRelay.WorkerService\DotNetAtlas.OutboxRelay.WorkerService.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.Outbox.Core\DotNetAtlas.Outbox.Core.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.Outbox.EntityFrameworkCore\DotNetAtlas.Outbox.EntityFrameworkCore.csproj"/>
+    </ItemGroup>
+
+</Project>
