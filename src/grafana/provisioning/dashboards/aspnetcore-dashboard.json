@@ -36,6 +36,16 @@
       "title": "Health Checks",
       "type": "link",
       "url": "/d/f594ea85-45f2-4019-b988-2d17638b5cf3/health-checks"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "OutboxRelay",
+      "type": "link",
+      "url": "/d/outbox-relay-dashboard/outbox-relay-dashboard"
     }
   ],
   "panels": [

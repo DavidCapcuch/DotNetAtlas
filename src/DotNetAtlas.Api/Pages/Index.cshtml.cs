@@ -9,8 +9,6 @@ internal class IndexModel : PageModel
 
     public string Title { get; private set; } = string.Empty;
 
-    public string Language { get; private set; } = string.Empty;
-
     public IndexModel(IWebHostEnvironment env)
     {
         Env = env;
@@ -20,9 +18,5 @@ internal class IndexModel : PageModel
     {
         var version = ApplicationInfo.Version;
         Title = $"{ApplicationInfo.AppName} - {version}";
-
-        Language = Request.Headers.TryGetValue("accept-language", out var langs)
-            ? $"accept-language: {string.Join(";", langs.Select(l => l?.ToString()))}"
-            : "accept-language: [Default]";
     }
 }
