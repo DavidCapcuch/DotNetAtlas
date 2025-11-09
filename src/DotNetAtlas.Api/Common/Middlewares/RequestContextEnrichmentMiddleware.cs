@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using OpenTelemetry;
 using Serilog.Context;
 
 namespace DotNetAtlas.Api.Common.Middlewares;
@@ -25,12 +26,13 @@ internal class RequestContextEnrichmentMiddleware
                      ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!string.IsNullOrWhiteSpace(userId))
         {
-            Activity.Current?.SetBaggage("user.id", userId);
+            Baggage.SetBaggage("user.id", userId);
             Activity.Current?.SetTag("user.id", userId);
         }
 
         var correlationId = ResolveCorrelationId(context);
         context.Response.Headers[CorrelationIdHeaderName] = correlationId;
+        Baggage.SetBaggage("correlation.id", correlationId);
 
         using (LogContext.PushProperty("CorrelationId", correlationId))
         using (LogContext.PushProperty("UserId", userId))

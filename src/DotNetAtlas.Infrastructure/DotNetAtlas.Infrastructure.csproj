@@ -64,7 +64,6 @@
         <PackageReference Include="Serilog.Sinks.Console"/>
         <PackageReference Include="Serilog.Sinks.OpenTelemetry"/>
         <PackageReference Include="Serilog.Sinks.Seq"/>
-        <PackageReference Include="Serilog.Sinks.Async"/>
         <PackageReference Include="Serilog.Settings.Configuration"/>
         <PackageReference Include="Serilog.Expressions"/>
         <PackageReference Include="SerilogTracing.Expressions"/>
@@ -81,8 +80,9 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.Outbox.EntityFrameworkCore\DotNetAtlas.Outbox.EntityFrameworkCore.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Application\DotNetAtlas.Application.csproj"/>
-        <ProjectReference Include="..\..\shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -91,8 +91,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="BackgroundJobs\Common\"/>
-        <Folder Include="Persistence\Database\Migrations\Flyway\" />
+      <Folder Include="Persistence\Database\Migrations\Flyway\" />
     </ItemGroup>
-
 </Project>

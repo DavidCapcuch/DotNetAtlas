@@ -12,7 +12,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
     private readonly Func<Task> _resetFixtureStateAsync;
 
     protected IServiceScope Scope { get; }
-    protected WeatherContext DbContext { get; }
+    protected WeatherDbContext WeatherDbContext { get; }
     protected KafkaTestConsumerRegistry KafkaTestConsumerRegistry { get; }
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
@@ -22,7 +22,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        DbContext = Scope.ServiceProvider.GetRequiredService<WeatherContext>();
+        WeatherDbContext = Scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
         KafkaTestConsumerRegistry = app.KafkaConsumerRegistry;
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.

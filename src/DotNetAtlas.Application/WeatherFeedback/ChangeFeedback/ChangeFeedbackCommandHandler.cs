@@ -15,14 +15,14 @@ namespace DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
 public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackCommand>
 {
     private readonly ILogger<ChangeFeedbackCommandHandler> _logger;
-    private readonly IWeatherContext _weatherContext;
+    private readonly IWeatherDbContext _weatherDbContext;
 
     public ChangeFeedbackCommandHandler(
         ILogger<ChangeFeedbackCommandHandler> logger,
-        IWeatherContext weatherContext)
+        IWeatherDbContext weatherDbContext)
     {
         _logger = logger;
-        _weatherContext = weatherContext;
+        _weatherDbContext = weatherDbContext;
     }
 
     public async Task<Result> HandleAsync(
@@ -31,7 +31,7 @@ public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackComman
     {
         Activity.Current?.SetTag(DiagnosticNames.FeedbackId, command.Id.ToString());
 
-        var existingFeedback = await _weatherContext.Feedbacks
+        var existingFeedback = await _weatherDbContext.Feedbacks
             .WithSpecification(new WeatherFeedbackByIdSpec(command.Id))
             .FirstOrDefaultAsync(ct);
 
@@ -55,7 +55,7 @@ public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackComman
 
         existingFeedback.ChangeFeedback(feedbackResult.Value, ratingResult.Value);
 
-        await _weatherContext.SaveChangesAsync(ct);
+        await _weatherDbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Updated weather feedback with ID: {FeedbackId}", existingFeedback.Id);
 

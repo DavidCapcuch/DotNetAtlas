@@ -12,7 +12,7 @@ GO
 BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [weather].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20251026190419_CreateFeedbackTable'
+    WHERE [MigrationId] = N'20251108150508_CreateFeedbackTable'
 )
 BEGIN
     IF SCHEMA_ID(N'weather') IS NULL EXEC(N'CREATE SCHEMA [weather];');
@@ -20,14 +20,14 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [weather].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20251026190419_CreateFeedbackTable'
+    WHERE [MigrationId] = N'20251108150508_CreateFeedbackTable'
 )
 BEGIN
     CREATE TABLE [weather].[Feedbacks] (
         [Id] uniqueidentifier NOT NULL,
         [CreatedByUser] uniqueidentifier NOT NULL,
-        [CreatedUtc] datetime2 NOT NULL,
-        [LastModifiedUtc] datetime2 NOT NULL,
+        [CreatedUtc] datetimeoffset NOT NULL,
+        [LastModifiedUtc] datetimeoffset NOT NULL,
         [Feedback] nvarchar(500) NOT NULL,
         [Rating] int NOT NULL,
         [Timestamp] rowversion NULL,
@@ -54,7 +54,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [weather].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20251026190419_CreateFeedbackTable'
+    WHERE [MigrationId] = N'20251108150508_CreateFeedbackTable'
 )
 BEGIN
     CREATE UNIQUE INDEX [UX_WeatherFeedback_CreatedByUser] ON [weather].[Feedbacks] ([CreatedByUser]);
@@ -62,11 +62,11 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [weather].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20251026190419_CreateFeedbackTable'
+    WHERE [MigrationId] = N'20251108150508_CreateFeedbackTable'
 )
 BEGIN
     INSERT INTO [weather].[__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20251026190419_CreateFeedbackTable', N'10.0.0-rc.1.25451.107');
+    VALUES (N'20251108150508_CreateFeedbackTable', N'10.0.0-rc.1.25451.107');
 END;
 
 COMMIT;

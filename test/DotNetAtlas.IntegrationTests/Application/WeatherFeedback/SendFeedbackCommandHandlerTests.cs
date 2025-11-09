@@ -19,7 +19,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         _sendFeedbackCommandHandler =
             new SendFeedbackCommandHandler(
                 Scope.ServiceProvider.GetRequiredService<ILogger<SendFeedbackCommandHandler>>(),
-                DbContext);
+                WeatherDbContext);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var result =
+        var sendFeedbackResult =
             await _sendFeedbackCommandHandler.HandleAsync(
                 sendFeedbackCommand,
                 TestContext.Current.CancellationToken);
@@ -42,9 +42,9 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         // Assert
         using (new AssertionScope())
         {
-            result.Should().BeSuccess();
-            var createdId = result.Value;
-            var exists = await DbContext.Feedbacks
+            sendFeedbackResult.Should().BeSuccess();
+            var createdId = sendFeedbackResult.Value;
+            var exists = await WeatherDbContext.Feedbacks
                 .AsNoTracking()
                 .AnyAsync(wf => wf.Id == createdId, TestContext.Current.CancellationToken);
             exists.Should().BeTrue();
@@ -63,7 +63,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var result =
+        var sendFeedbackResult =
             await _sendFeedbackCommandHandler.HandleAsync(
                 sendFeedbackCommand,
                 TestContext.Current.CancellationToken);
@@ -71,9 +71,9 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         // Assert
         using (new AssertionScope())
         {
-            result.IsFailed.Should().BeTrue();
-            result.Errors.Should().NotBeEmpty();
-            var validationError = result.Errors[0] as ValidationError;
+            sendFeedbackResult.IsFailed.Should().BeTrue();
+            sendFeedbackResult.Errors.Should().NotBeEmpty();
+            var validationError = sendFeedbackResult.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
             validationError!.ErrorCode.Should().Be("FeedbackRating.OutOfRange");
         }
@@ -91,7 +91,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var result =
+        var sendFeedbackResult =
             await _sendFeedbackCommandHandler.HandleAsync(
                 sendFeedbackCommand,
                 TestContext.Current.CancellationToken);
@@ -99,16 +99,16 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         // Assert
         using (new AssertionScope())
         {
-            result.Should().BeFailure();
-            result.Errors.Should().ContainSingle();
-            var validationError = result.Errors[0] as ValidationError;
+            sendFeedbackResult.Should().BeFailure();
+            sendFeedbackResult.Errors.Should().ContainSingle();
+            var validationError = sendFeedbackResult.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
             validationError!.ErrorCode.Should().Be("WeatherFeedback.FeedbackRequired");
         }
     }
 
     [Fact]
-    public async Task WhenAllPropertiesInvavlid_ReturnsValidationErrorForAll()
+    public async Task WhenAllPropertiesInvalid_ReturnsValidationErrorForAll()
     {
         // Arrange
         var sendFeedbackCommand = new SendFeedbackCommand
@@ -119,7 +119,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var result =
+        var sendFeedbackResult =
             await _sendFeedbackCommandHandler.HandleAsync(
                 sendFeedbackCommand,
                 TestContext.Current.CancellationToken);
@@ -127,10 +127,10 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
         // Assert
         using (new AssertionScope())
         {
-            result.Should().BeFailure();
-            result.Errors.Should().HaveCount(2);
-            result.Errors.Should().AllBeAssignableTo<ValidationError>();
-            var errors = result.Errors.OfType<ValidationError>().ToList();
+            sendFeedbackResult.Should().BeFailure();
+            sendFeedbackResult.Errors.Should().HaveCount(2);
+            sendFeedbackResult.Errors.Should().AllBeAssignableTo<ValidationError>();
+            var errors = sendFeedbackResult.Errors.OfType<ValidationError>().ToList();
             errors.Should().HaveCount(2);
             errors.Should()
                 .ContainSingle(err => err.ErrorCode == "WeatherFeedback.FeedbackTooLong")

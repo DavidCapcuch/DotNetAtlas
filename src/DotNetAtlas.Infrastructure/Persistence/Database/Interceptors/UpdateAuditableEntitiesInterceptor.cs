@@ -7,6 +7,13 @@ namespace DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
 public sealed class UpdateAuditableEntitiesInterceptor
     : SaveChangesInterceptor
 {
+    private readonly TimeProvider _timeProvider;
+
+    public UpdateAuditableEntitiesInterceptor(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
+    }
+
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
@@ -22,7 +29,7 @@ public sealed class UpdateAuditableEntitiesInterceptor
         }
 
         var auditableEntries = dbContext.ChangeTracker.Entries<IAuditableEntity>();
-        var utcNow = DateTime.UtcNow;
+        var utcNow = _timeProvider.GetUtcNow();
         foreach (var auditableEntry in auditableEntries)
         {
             if (auditableEntry.State == EntityState.Added)

@@ -5,19 +5,19 @@ using FastEndpoints;
 namespace DotNetAtlas.Api.Endpoints.Dev;
 
 /// <summary>
-/// Seeds the database with a specified number of active callout items for testing purposes.
+/// Seeds the database with a specified number of weather feedbacks for testing purposes.
 /// </summary>
 internal class SeedDatabaseEndpoint : Endpoint<SeedDatabaseCommand>
 {
-    private readonly WeatherContext _weatherContext;
+    private readonly WeatherDbContext _weatherDbContext;
     private readonly ILogger<SeedDatabaseEndpoint> _logger;
 
     public SeedDatabaseEndpoint(
         ILogger<SeedDatabaseEndpoint> logger,
-        WeatherContext weatherContext)
+        WeatherDbContext weatherDbContext)
     {
         _logger = logger;
-        _weatherContext = weatherContext;
+        _weatherDbContext = weatherDbContext;
     }
 
     public override void Configure()
@@ -41,8 +41,8 @@ internal class SeedDatabaseEndpoint : Endpoint<SeedDatabaseCommand>
 
         var feedbackFaker = new WeatherFeedbackFaker();
         var weatherFeedbacks = feedbackFaker.Generate(req.NumberOfRecords);
-        _weatherContext.AddRange(weatherFeedbacks);
-        await _weatherContext.SaveChangesAsync(ct);
+        _weatherDbContext.AddRange(weatherFeedbacks);
+        await _weatherDbContext.SaveChangesAsync(ct);
 
         await Send.NoContentAsync(ct);
     }

@@ -11,7 +11,7 @@ public abstract class BaseApiTest : IAsyncLifetime
     private readonly Func<Task> _resetFixtureStateAsync;
     protected TestCaseTracer TestCaseTracer { get; }
     protected IServiceScope Scope { get; }
-    protected WeatherContext DbContext { get; }
+    protected WeatherDbContext WeatherDbContext { get; }
     protected HttpClientRegistry<Program> HttpClientRegistry { get; }
     protected SignalRClientFactory SignalRClientFactory { get; }
 
@@ -22,7 +22,7 @@ public abstract class BaseApiTest : IAsyncLifetime
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        DbContext = Scope.ServiceProvider.GetRequiredService<WeatherContext>();
+        WeatherDbContext = Scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main

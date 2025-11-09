@@ -156,7 +156,7 @@ public class ChangeFeedbackTests : BaseApiTest
         {
             httpResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
             var updatedFeedback =
-                await DbContext.Feedbacks.FindAsync([feedbackId], TestContext.Current.CancellationToken);
+                await WeatherDbContext.Feedbacks.FindAsync([feedbackId], TestContext.Current.CancellationToken);
             updatedFeedback!.FeedbackText.Value.Should().Be(updatedFeedbackText);
             updatedFeedback.Rating.Value.Should().Be(5);
         }

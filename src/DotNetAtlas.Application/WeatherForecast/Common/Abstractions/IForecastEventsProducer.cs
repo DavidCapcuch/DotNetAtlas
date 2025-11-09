@@ -4,5 +4,5 @@ namespace DotNetAtlas.Application.WeatherForecast.Common.Abstractions;
 
 public interface IForecastEventsProducer
 {
-    Task PublishForecastRequestedAsync(GetForecastQuery message, CancellationToken ct);
+    Task PublishForecastRequestedAsync(GetForecastQuery message);
 }

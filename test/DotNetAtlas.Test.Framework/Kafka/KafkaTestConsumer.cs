@@ -75,6 +75,7 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
             catch (OperationCanceledException)
             {
                 // Expected when timeout is reached
+                break;
             }
         }
 

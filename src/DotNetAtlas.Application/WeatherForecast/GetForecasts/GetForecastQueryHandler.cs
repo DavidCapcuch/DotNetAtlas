@@ -33,7 +33,7 @@ public class GetForecastQueryHandler : IQueryHandler<GetForecastQuery, GetForeca
         {
             try
             {
-                await _forecastEventsProducer.PublishForecastRequestedAsync(query, ct);
+                await _forecastEventsProducer.PublishForecastRequestedAsync(query);
             }
             catch (Exception ex)
             {

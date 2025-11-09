@@ -12,7 +12,6 @@ using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
 using FluentValidation;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DotNetAtlas.Application.Common;

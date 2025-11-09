@@ -20,6 +20,9 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     var isClusterEnvironment = builder.Environment.IsInCluster();
+
+    builder.Configuration.AddEnvironmentVariables();
+
     builder
         .Host
         .UseDefaultServiceProvider(options =>
@@ -86,7 +89,6 @@ try
     }
 
     await app.RunAsync();
-#pragma warning restore CS0162 // Unreachable code detected
 }
 catch (HostAbortedException)
 {

@@ -3,11 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.Application.Common.Data;
 
-public interface IWeatherContext
+public interface IWeatherDbContext
 {
-    DbSet<Feedback> Feedbacks { get; set; }
+    DbSet<Feedback> Feedbacks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
-
-    Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken);
 }
