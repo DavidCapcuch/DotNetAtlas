@@ -8,12 +8,15 @@ public sealed class WeatherFeedbackFaker : Faker<Feedback>
 {
     public WeatherFeedbackFaker()
     {
-        var utcNow = DateTime.UtcNow;
-        RuleFor(aci => aci.Id, _ => Guid.CreateVersion7())
-        .RuleFor(wf => wf.FeedbackText, f => FeedbackText.Create(f.Lorem.Sentence(5, 2)).Value)
-        .RuleFor(wf => wf.Rating, f => FeedbackRating.Create(f.Random.Byte(1, 5)).Value)
-        .RuleFor(aci => aci.CreatedByUser, _ => Guid.CreateVersion7())
-        .RuleFor(aci => aci.CreatedUtc, _ => utcNow)
-        .RuleFor(aci => aci.LastModifiedUtc, _ => utcNow);
+        CustomInstantiator(f => new Feedback(
+            FeedbackText.Create(f.Lorem.Sentence()).Value,
+            FeedbackRating.Create(f.Random.Int(1, 5)).Value,
+            f.Random.Guid()
+        ));
+
+        var utcNow = DateTimeOffset.UtcNow;
+        RuleFor(wf => wf.FeedbackText, f => FeedbackText.Create(f.Lorem.Sentence(5, 2)).Value)
+            .RuleFor(aci => aci.CreatedUtc, _ => utcNow)
+            .RuleFor(aci => aci.LastModifiedUtc, _ => utcNow);
     }
 }

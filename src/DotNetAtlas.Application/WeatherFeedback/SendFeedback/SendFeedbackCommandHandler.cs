@@ -16,23 +16,24 @@ namespace DotNetAtlas.Application.WeatherFeedback.SendFeedback;
 public class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, Guid>
 {
     private readonly ILogger<SendFeedbackCommandHandler> _logger;
-    private readonly IWeatherContext _weatherContext;
+    private readonly IWeatherDbContext _weatherDbContext;
 
     public SendFeedbackCommandHandler(
         ILogger<SendFeedbackCommandHandler> logger,
-        IWeatherContext weatherContext)
+        IWeatherDbContext weatherDbContext)
     {
         _logger = logger;
-        _weatherContext = weatherContext;
+        _weatherDbContext = weatherDbContext;
     }
 
     public async Task<Result<Guid>> HandleAsync(
         SendFeedbackCommand command,
         CancellationToken ct)
     {
-        var existingFeedback = await _weatherContext.Feedbacks
+        var existingFeedback = await _weatherDbContext.Feedbacks
             .WithSpecification(new WeatherFeedbackByUserIdSpec(command.UserId))
             .FirstOrDefaultAsync(ct);
+
         if (existingFeedback is not null)
         {
             return Result.Fail(FeedbackErrors.Conflict(existingFeedback.Id));
@@ -46,11 +47,9 @@ public class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, G
             return Result.Fail(merged.Errors);
         }
 
-        var weatherFeedback =
-            new Feedback(feedbackResult.Value, ratingResult.Value,
-                command.UserId);
-        _weatherContext.Feedbacks.Add(weatherFeedback);
-        await _weatherContext.SaveChangesAsync(ct);
+        var weatherFeedback = new Feedback(feedbackResult.Value, ratingResult.Value, command.UserId);
+        _weatherDbContext.Feedbacks.Add(weatherFeedback);
+        await _weatherDbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Weather feedback created with ID: {FeedbackId}", weatherFeedback.Id);
         Activity.Current?.SetTag(DiagnosticNames.FeedbackId, weatherFeedback.Id);

@@ -92,7 +92,8 @@ public sealed class KafkaTestContainer : ITestContainer
             AvroSerializer = new AvroSerializerOptions
             {
                 AutoRegisterSchemas = true,
-                SubjectNameStrategy = SubjectNameStrategy.TopicRecord
+                SubjectNameStrategy = SubjectNameStrategy.Record,
+                NormalizeSchemas = true
             }
         };
     }

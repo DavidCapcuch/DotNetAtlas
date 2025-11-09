@@ -1,8 +1,14 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Domain.Common;
+using DotNetAtlas.Domain.Entities.Weather.Feedback.Events;
 using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
+using DotNetAtlas.Infrastructure.Messaging.Kafka.DomainToAvroMappings;
 using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
+using DotNetAtlas.Outbox.EntityFrameworkCore.Common;
+using DotNetAtlas.Outbox.EntityFrameworkCore.Core;
 using EntityFramework.Exceptions.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -24,12 +30,8 @@ public static class PersistenceDependencyInjection
 {
     /// <summary>
     /// Configures Entity Framework Core database context with SQL Server.
-    /// Sets up connection pooling, interceptors, retry policies, and seeding.
+    /// Sets up connection pooling, interceptors, retry policies, seeding, and outbox pattern.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration manager.</param>
-    /// <param name="isClusterEnvironment">Whether running in a cluster environment.</param>
-    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddDatabase(
         this IServiceCollection services,
         ConfigurationManager configuration,
@@ -49,7 +51,7 @@ public static class PersistenceDependencyInjection
             .ValidateDataAnnotations();
 
         services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
-        services.AddDbContextPool<WeatherContext>((
+        services.AddDbContextPool<WeatherDbContext>((
                 sp,
                 options) => options
                 .UseSqlServer(
@@ -71,10 +73,33 @@ public static class PersistenceDependencyInjection
                 .UseExceptionProcessor()
                 .UseSeeding()
                 .UseAsyncSeeding()
+                .UseOutboxEventsInterceptor(sp)
                 .AddInterceptors(
                     sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>()),
             poolSize: efCoreOptions.DbContextPoolSize);
-        services.AddScoped<IWeatherContext, WeatherContext>();
+
+        services.AddScoped<IWeatherDbContext, WeatherDbContext>();
+
+        services.AddOutbox<WeatherDbContext>(outbox =>
+        {
+            outbox.ConfigureAvroSerializerConfig(options =>
+            {
+                configuration.Bind(AvroSerializerOptions.Section, options);
+            });
+            outbox.ConfigureSchemaRegistryConfig(options =>
+            {
+                configuration.Bind(SchemaRegistryOptions.Section, options);
+            });
+
+            outbox.RegisterOutboxMessagesBatchExtractionFor<AggregateRoot<Guid>>(agg =>
+                new OutboxMessagesBatch(agg.Id.ToString(), agg.PopDomainEvents())
+            );
+
+            outbox.RegisterAvroMapperFor<FeedbackChangedDomainEvent>(domainEvent =>
+                domainEvent.ToFeedbackChangedEvent());
+            outbox.RegisterAvroMapperFor<FeedbackCreatedDomainEvent>(domainEvent =>
+                domainEvent.ToFeedbackCreatedEvent());
+        });
 
         return services;
     }
@@ -83,9 +108,6 @@ public static class PersistenceDependencyInjection
     /// Configures distributed caching with Redis and FusionCache.
     /// Sets up memory cache, distributed cache, backplane, and output cache.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration manager.</param>
-    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddCache(
         this IServiceCollection services,
         ConfigurationManager configuration)
@@ -128,7 +150,6 @@ public static class PersistenceDependencyInjection
             .WithSerializer(
                 new FusionCacheCysharpMemoryPackSerializer()
             )
-            // Use the centralized multiplexer for the distributed cache
             .WithDistributedCache(sp =>
                 new RedisCache(new RedisCacheOptions
                 {
@@ -136,7 +157,6 @@ public static class PersistenceDependencyInjection
                         () => Task.FromResult(sp.GetRequiredService<IConnectionMultiplexer>())
                 })
             )
-            // Use the centralized multiplexer for the backplane
             .WithBackplane(sp =>
                 new RedisBackplane(new RedisBackplaneOptions
                 {

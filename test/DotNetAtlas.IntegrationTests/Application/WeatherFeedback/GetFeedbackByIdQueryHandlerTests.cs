@@ -15,7 +15,7 @@ public class GetFeedbackByIdQueryHandlerTests : BaseIntegrationTest
         : base(app)
     {
         _getFeedbackByIdQueryHandler =
-            new GetFeedbackByIdQueryHandler(DbContext);
+            new GetFeedbackByIdQueryHandler(WeatherDbContext);
     }
 
     [Fact]
@@ -23,8 +23,8 @@ public class GetFeedbackByIdQueryHandlerTests : BaseIntegrationTest
     {
         // Arrange
         var seedFeedback = new WeatherFeedbackFaker().Generate();
-        DbContext.Add(seedFeedback);
-        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        WeatherDbContext.Add(seedFeedback);
+        await WeatherDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _getFeedbackByIdQueryHandler.HandleAsync(

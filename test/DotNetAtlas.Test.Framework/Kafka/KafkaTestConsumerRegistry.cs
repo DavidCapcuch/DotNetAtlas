@@ -1,5 +1,5 @@
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
-using Weather.Contracts;
+using Weather.Forecast;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 

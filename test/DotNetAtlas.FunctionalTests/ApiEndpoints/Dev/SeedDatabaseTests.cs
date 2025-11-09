@@ -37,7 +37,7 @@ public class SeedDatabaseTests : BaseApiTest
     {
         // Arrange
         var currentRecords =
-            await DbContext.Feedbacks.CountAsync(TestContext.Current.CancellationToken);
+            await WeatherDbContext.Feedbacks.CountAsync(TestContext.Current.CancellationToken);
         const int recordsToAdd = 100;
         var expectedRecords = currentRecords + recordsToAdd;
         var seedDatabaseCommand = new SeedDatabaseCommand
@@ -52,7 +52,7 @@ public class SeedDatabaseTests : BaseApiTest
 
         // Assert
         var totalRecords =
-            await DbContext.Feedbacks.CountAsync(TestContext.Current.CancellationToken);
+            await WeatherDbContext.Feedbacks.CountAsync(TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
