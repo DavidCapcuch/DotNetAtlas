@@ -1,4 +1,3 @@
-using DotNetAtlas.Infrastructure.Common.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
