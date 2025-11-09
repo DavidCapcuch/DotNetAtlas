@@ -2,7 +2,7 @@ namespace DotNetAtlas.Domain.Common;
 
 public interface IAuditableEntity
 {
-    DateTime CreatedUtc { get; set; }
+    DateTimeOffset CreatedUtc { get; set; }
 
-    DateTime LastModifiedUtc { get; set; }
+    DateTimeOffset LastModifiedUtc { get; set; }
 }

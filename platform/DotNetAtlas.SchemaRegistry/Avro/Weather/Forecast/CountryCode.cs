@@ -5,18 +5,15 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Weather.Contracts
+
+using System.CodeDom.Compiler;
+
+namespace Weather.Forecast
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Text;
-	using global::Avro;
-	using global::Avro.Specific;
-	
-	/// <summary>
+    /// <summary>
 	/// ISO 3166-1 alpha-2 country codes (uppercase two-letter codes).
 	/// </summary>
-	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.0+8c27801dc8d42ccc00997f25c0b8f45f8d4a233e")]
+	[GeneratedCode("avrogen", "1.12.0+8c27801dc8d42ccc00997f25c0b8f45f8d4a233e")]
 	public enum CountryCode
 	{
 		CZ,

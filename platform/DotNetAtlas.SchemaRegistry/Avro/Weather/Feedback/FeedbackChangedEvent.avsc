@@ -1,0 +1,60 @@
+{
+    "type": "record",
+    "name": "FeedbackChangedEvent",
+    "namespace": "Weather.Feedback",
+    "doc": "Event emitted when user updates their feedback. Contains complete before/after state. Compare old vs new values to determine what changed.",
+    "fields": [
+        {
+            "name": "EventId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique event identifier."
+        },
+        {
+            "name": "FeedbackId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the feedback aggregate."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who made the change."
+        },
+        {
+            "name": "OldText",
+            "type": "string",
+            "doc": "Previous feedback text. Compare with NewText to detect changes."
+        },
+        {
+            "name": "NewText",
+            "type": "string",
+            "doc": "Current feedback text. If equal to OldText, text did not change."
+        },
+        {
+            "name": "OldRating",
+            "type": "int",
+            "doc": "Previous rating (1-5). Compare with NewRating to detect changes."
+        },
+        {
+            "name": "NewRating",
+            "type": "int",
+            "doc": "Current rating (1-5). If equal to OldRating, rating did not change."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when event occurred."
+        }
+    ]
+}

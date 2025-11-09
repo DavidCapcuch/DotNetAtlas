@@ -8,6 +8,9 @@ namespace DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
 [ComplexType]
 public record FeedbackRating : ValueObject
 {
+    public const int MinimumRating = 1;
+    public const int MaximumRating = 5;
+
     public int Value { get; private set; }
 
     private FeedbackRating()
@@ -16,9 +19,9 @@ public record FeedbackRating : ValueObject
 
     public static Result<FeedbackRating> Create(int value)
     {
-        if (value is < 1 or > 5)
+        if (value is < MinimumRating or > MaximumRating)
         {
-            return Result.Fail(FeedbackRatingErrors.OutOfRange(1, 5));
+            return Result.Fail(FeedbackRatingErrors.OutOfRange(MinimumRating, MaximumRating));
         }
 
         return new FeedbackRating

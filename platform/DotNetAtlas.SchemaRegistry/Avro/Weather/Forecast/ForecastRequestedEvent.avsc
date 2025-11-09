@@ -1,9 +1,17 @@
 {
     "type": "record",
     "name": "ForecastRequestedEvent",
-    "namespace": "Weather.Contracts",
+    "namespace": "Weather.Forecast",
     "doc": "Event about a weather forecast request for a city/country at a given time.",
     "fields": [
+        {
+            "name": "EventId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique event identifier."
+        },
         {
             "name": "City",
             "type": "string",
@@ -14,7 +22,7 @@
             "type": {
                 "type": "enum",
                 "name": "CountryCode",
-                "namespace": "Weather.Contracts",
+                "namespace": "Weather.Forecast",
                 "doc": "ISO 3166-1 alpha-2 country codes (uppercase two-letter codes).",
                 "symbols": [
                     "CZ", "US", "GB",
@@ -65,12 +73,12 @@
             "doc": "Optional user identifier who issued the request (UUID)."
         },
         {
-            "name": "RequestedAtUtc",
+            "name": "OccurredOnUtc",
             "type": {
                 "type": "long",
                 "logicalType": "timestamp-millis"
             },
-            "doc": "UTC timestamp (milliseconds since epoch) when the request was created."
+            "doc": "UTC timestamp when event occurred."
         }
     ]
 }
