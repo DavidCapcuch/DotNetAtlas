@@ -5,9 +5,7 @@ using Serilog;
 
 namespace DotNetAtlas.OutboxRelay.WorkerService;
 
-#pragma warning disable CA1052
-public class Program
-#pragma warning restore CA1052
+internal class Program
 {
     public static async Task Main(string[] args)
     {

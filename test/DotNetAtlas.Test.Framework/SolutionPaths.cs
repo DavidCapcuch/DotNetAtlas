@@ -13,7 +13,7 @@ public static class SolutionPaths
 
     public static string FlywayMigrationsDirectory => Path.Combine(EfMigrationsDirectory, "Flyway");
 
-    private static string GetSolutionRootDirectory()
+    public static string GetSolutionRootDirectory()
     {
         var assemblyLocation = Assembly.GetExecutingAssembly().Location;
         var current = new DirectoryInfo(assemblyLocation);
