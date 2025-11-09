@@ -377,6 +377,9 @@ dotnet_diagnostic.SA0001.severity = none
 # SA1201: Elements should appear in the correct order
 dotnet_diagnostic.SA1201.severity = none
 
+# SA1204 Static members should appear before private members
+dotnet_diagnostic.SA1204.severity = silent
+
 #Error SA1512 : Single-line comments should not be followed by blank line
 dotnet_diagnostic.SA1512.severity = none
 
@@ -416,8 +419,14 @@ dotnet_diagnostic.SA1117.severity = none
 # SA1136: Enum values should be on separate lines
 dotnet_diagnostic.SA1136.severity = none
 
+# SA1133: Each attribute should be placed in its own set of square brackets
+dotnet_diagnostic.SA1133.severity = silent
+
 # SA1615: Element return value should be documented
 dotnet_diagnostic.SA1615.severity = none
+
+# SA1618: The documentation for type parameter is missing
+dotnet_diagnostic.SA1618.severity = silent
 
 # SA1611: The documentation for parameter 'app' is missing
 dotnet_diagnostic.SA1611.severity = none
@@ -492,7 +501,7 @@ dotnet_diagnostic.CA1031.severity = suggestion
 dotnet_diagnostic.CA1032.severity = suggestion
 
 # CA1034: Nested types should not be visible
-dotnet_diagnostic.CA1034.severity = suggestion
+dotnet_diagnostic.CA1034.severity = silent
 
 # CA1036: Override methods on comparable types
 dotnet_diagnostic.CA1036.severity = suggestion
@@ -616,6 +625,9 @@ dotnet_diagnostic.IDE0032.severity = suggestion
 # IDE0090
 dotnet_diagnostic.IDE0090.severity = none
 
+# IDE0047 Remove unnecessary parentheses
+dotnet_diagnostic.IDE0047.severity = suggestion
+
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = suggestion
 
@@ -679,7 +691,7 @@ dotnet_diagnostic.S6605.severity = suggestion
 dotnet_diagnostic.S6781.severity = suggestion
 
 # CS1591 // Missing XML comment for publicly visible type or member
-dotnet_diagnostic.CS1591.severity = suggestion
+dotnet_diagnostic.CS1591.severity = silent
 
 
 ### Resharper

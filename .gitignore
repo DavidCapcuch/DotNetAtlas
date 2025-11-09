@@ -62,3 +62,4 @@ test/coveragereport/
 riderModule.iml
 /_ReSharper.Caches/
 DotNetAtlas.sln.DotSettings.user
+scripts/*

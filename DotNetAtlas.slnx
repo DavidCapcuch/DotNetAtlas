@@ -1,6 +1,27 @@
 <Solution>
-  <Folder Name="/shared/">
-    <Project Path="shared\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj" Type="C#" />
+  <Folder Name="/pipeline/" />
+  <Folder Name="/pipeline/ci/">
+    <File Path=".github/workflows/build-and-push-docker-image.yml" />
+    <File Path=".github/workflows/build-dotnet.yml" />
+    <File Path=".github/workflows/determine-git-version.yml" />
+    <File Path=".github/workflows/docker-image-build-push-sign.yml" />
+    <File Path=".github/workflows/main-ci.yml" />
+    <File Path=".github/workflows/main-release-tag.yml" />
+    <File Path=".github/workflows/pr-ci.yml" />
+    <File Path=".github/workflows/pr-conventional-commit-validation.yml" />
+    <File Path=".github/workflows/pr-enforce-format.yml" />
+    <File Path=".github/workflows/publish-coverage-site.yml" />
+    <File Path=".github/workflows/publish-test-coverage.yml" />
+    <File Path=".github/workflows/sonar-cloud-analysis.yml" />
+    <File Path=".github/workflows/test-with-coverage.yml" />
+    <File Path=".github/workflows/validate-documentation-links.yml" />
+  </Folder>
+  <Folder Name="/platform/">
+    <Project Path="platform/DotNetAtlas.Outbox.Core/DotNetAtlas.Outbox.Core.csproj" />
+    <Project Path="platform/DotNetAtlas.Outbox.EntityFrameworkCore/DotNetAtlas.Outbox.EntityFrameworkCore.csproj" />
+    <Project Path="platform/DotNetAtlas.OutboxRelay.Benchmark/DotNetAtlas.OutboxRelay.Benchmark.csproj" />
+    <Project Path="platform/DotNetAtlas.OutboxRelay.WorkerService/DotNetAtlas.OutboxRelay.WorkerService.csproj" />
+    <Project Path="platform/DotNetAtlas.SchemaRegistry/DotNetAtlas.SchemaRegistry.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
@@ -23,7 +44,7 @@
     <Project Path="test/DotNetAtlas.ArchitectureTests/DotNetAtlas.ArchitectureTests.csproj" />
     <Project Path="test/DotNetAtlas.FunctionalTests/DotNetAtlas.FunctionalTests.csproj" />
     <Project Path="test/DotNetAtlas.IntegrationTests/DotNetAtlas.IntegrationTests.csproj" />
-    <Project Path="test/DotNetAtlas.Test.Framework/DotNetAtlas.Test.Framework.csproj" Type="C#" />
+    <Project Path="test/DotNetAtlas.Test.Framework/DotNetAtlas.Test.Framework.csproj" />
     <Project Path="test/DotNetAtlas.UnitTests/DotNetAtlas.UnitTests.csproj" />
   </Folder>
   <Folder Name="/test/Common/">
