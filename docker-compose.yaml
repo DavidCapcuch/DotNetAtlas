@@ -372,6 +372,31 @@ services:
       - fusionauth_config:/usr/local/fusionauth/config
       - ./src/fusionauth:/usr/local/fusionauth/kickstart
 
+  outbox-relay:
+    build:
+      context: .
+      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay
+    restart: unless-stopped
+    depends_on:
+      mssqldb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=breK3k3$;TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__PollingIntervalMs=2000
+      - OutboxRelay__DefaultTopicName=weather.feedback.events
+      # - ASPNETCORE_ENVIRONMENT=Local
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    ports:
+      - "8080:8080"  # Health checks endpoint
+
 networks:
   db_net:
     driver: bridge
