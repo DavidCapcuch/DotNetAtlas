@@ -67,7 +67,8 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             var redisConfig = _redisContainer.ConfigurationOptions;
             webBuilder
-                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Weather)}", _dbContainer.ConnectionString)
+                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Weather)}",
+                    _dbContainer.ConnectionString)
                 .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Redis)}", redisConfig.ToString())
                 .UseKafkaSettings(_kafkaContainer.KafkaOptions);
         });

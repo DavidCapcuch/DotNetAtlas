@@ -3,14 +3,12 @@ using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.WeatherForecast.Common.Abstractions;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
-using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSubstitute;
-using Weather.Contracts;
+using Weather.Forecast;
 using DomainCountryCode = DotNetAtlas.Domain.Entities.Weather.Forecast.CountryCode;
 
 namespace DotNetAtlas.IntegrationTests.Infrastructure.Kafka;
@@ -18,12 +16,9 @@ namespace DotNetAtlas.IntegrationTests.Infrastructure.Kafka;
 [Collection<ForecastTestCollection>]
 public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
 {
-    private readonly TopicsOptions _topicsOptions;
-
     public GetForecastQueryHandlerKafkaTests(IntegrationTestFixture app)
         : base(app)
     {
-        _topicsOptions = Scope.ServiceProvider.GetRequiredService<IOptions<TopicsOptions>>().Value;
     }
 
     [Fact]
@@ -58,7 +53,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
             forecastRequestedEvent.CountryCode.ToString().Should().Be(getForecastQuery.CountryCode.ToString());
             forecastRequestedEvent.Days.Should().Be(getForecastQuery.Days);
             forecastRequestedEvent.UserId.Should().Be(getForecastQuery.UserId);
-            forecastRequestedEvent.RequestedAtUtc.Should().BeOnOrAfter(DateTime.UtcNow.AddSeconds(-5));
+            forecastRequestedEvent.OccurredOnUtc.Should().BeOnOrAfter(DateTime.UtcNow.AddSeconds(-5));
         }
     }
 
@@ -98,9 +93,9 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
         {
             result.Should().BeSuccess();
             forecastRequestedEvent.Should().NotBeNull();
-            forecastRequestedEvent!.City.Should().Be(city);
+            forecastRequestedEvent.City.Should().Be(city);
             forecastRequestedEvent.CountryCode.Should().Be(expectedKafkaCountryCode);
-            forecastRequestedEvent.RequestedAtUtc.Should().BeOnOrAfter(DateTime.UtcNow.AddSeconds(-5));
+            forecastRequestedEvent.OccurredOnUtc.Should().BeOnOrAfter(DateTime.UtcNow.AddSeconds(-5));
         }
     }
 
@@ -164,9 +159,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
     {
         // Arrange
         var failingProducer = Substitute.For<IForecastEventsProducer>();
-        failingProducer.PublishForecastRequestedAsync(
-                Arg.Any<GetForecastQuery>(),
-                Arg.Any<CancellationToken>())
+        failingProducer.PublishForecastRequestedAsync(Arg.Any<GetForecastQuery>())
             .Returns(Task.FromException(new KafkaException(ErrorCode.BrokerNotAvailable)));
 
         var forecastService = Scope.ServiceProvider.GetRequiredService<IWeatherForecastService>();

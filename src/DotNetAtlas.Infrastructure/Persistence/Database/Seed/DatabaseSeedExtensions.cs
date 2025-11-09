@@ -41,7 +41,7 @@ public static class DatabaseSeedExtensions
     public static async Task InitialiseDatabaseAsync(this WebApplication app)
     {
         await using var scope = app.Services.CreateAsyncScope();
-        await using var dbContext = scope.ServiceProvider.GetRequiredService<WeatherContext>();
+        await using var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
 
         try
         {
@@ -68,16 +68,16 @@ public static class DatabaseSeedExtensions
         // deterministic seed for data consistency
         Randomizer.Seed = new Random(420_69);
 
-        var weatherDbContext = (WeatherContext)dbContext;
+        var weatherDbContext = (WeatherDbContext)dbContext;
         var itemsExist = await weatherDbContext.Feedbacks.AnyAsync(ct);
         if (!itemsExist)
         {
-            var activeCalloutFaker = new WeatherFeedbackFaker();
-            var weatherFeedbacksToSeed = activeCalloutFaker.Generate(99);
+            var weatherFeedbackFaker = new WeatherFeedbackFaker();
+            var weatherFeedbacksToSeed = weatherFeedbackFaker.Generate(99);
 
             // for deterministic seed test data in endpoint example
-            activeCalloutFaker.RuleFor(wf => wf.Id, _ => new Guid("0198B2A9-CB8C-744B-8CDD-0B64727CF2FC"));
-            weatherFeedbacksToSeed.AddRange(activeCalloutFaker.Generate());
+            weatherFeedbackFaker.RuleFor(wf => wf.Id, _ => new Guid("0198B2A9-CB8C-744B-8CDD-0B64727CF2FC"));
+            weatherFeedbacksToSeed.AddRange(weatherFeedbackFaker.Generate());
 
             Log.Logger.Information("Seeding {Count} weather feedbacks", weatherFeedbacksToSeed.Count);
             weatherDbContext.Feedbacks.AddRange(weatherFeedbacksToSeed);

@@ -74,7 +74,9 @@ public sealed class SqlServerTestContainer : ITestContainer
         {
             InitialCatalog = _databaseName,
             Encrypt = false,
+            ConnectTimeout = 300,
             ConnectRetryCount = 10,
+            MaxPoolSize = 1024,
         }.ToString();
 
         await SetupDatabase(ct);

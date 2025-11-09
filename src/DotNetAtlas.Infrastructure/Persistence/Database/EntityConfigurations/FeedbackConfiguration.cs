@@ -1,4 +1,5 @@
 using DotNetAtlas.Domain.Entities.Weather.Feedback;
+using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -16,8 +17,7 @@ public class FeedbackConfiguration : IEntityTypeConfiguration<Feedback>
         builder.ToTable(wf => wf.HasComment("Contains user feedbacks about the weather."));
 
         builder.Property(wf => wf.CreatedByUser)
-            .HasComment("User who created the feedback.")
-            .IsRequired();
+            .HasComment("User who created the feedback.");
 
         builder.HasIndex(wf => wf.CreatedByUser)
             .IsUnique()
@@ -38,7 +38,7 @@ public class FeedbackConfiguration : IEntityTypeConfiguration<Feedback>
         {
             f.Property(x => x.Value)
                 .HasColumnName("Feedback")
-                .HasMaxLength(500)
+                .HasMaxLength(FeedbackText.TextMaxLength)
                 .HasComment("Weather feedback from the user.");
         });
 

@@ -4,6 +4,7 @@ using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.WeatherFeedback.Common.Specifications;
+using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using DotNetAtlas.Domain.Entities.Weather.Feedback.Errors;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
@@ -12,12 +13,12 @@ namespace DotNetAtlas.Application.WeatherFeedback.GetFeedback;
 
 public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>
 {
-    private readonly IWeatherContext _weatherContext;
+    private readonly IWeatherDbContext _weatherDbContext;
 
     public GetFeedbackByIdQueryHandler(
-        IWeatherContext weatherContext)
+        IWeatherDbContext weatherDbContext)
     {
-        _weatherContext = weatherContext;
+        _weatherDbContext = weatherDbContext;
     }
 
     public async Task<Result<GetFeedbackByIdResponse>> HandleAsync(
@@ -26,7 +27,7 @@ public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, G
     {
         Activity.Current?.SetTag(DiagnosticNames.FeedbackId, query.Id.ToString());
 
-        var response = await _weatherContext.Feedbacks
+        var response = await _weatherDbContext.Feedbacks
             .AsNoTracking()
             .WithSpecification(new WeatherFeedbackByIdSpec(query.Id))
             .ProjectToFeedbackResponse()
