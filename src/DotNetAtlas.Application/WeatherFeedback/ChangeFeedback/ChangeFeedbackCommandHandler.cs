@@ -47,17 +47,17 @@ public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackComman
 
         var ratingResult = FeedbackRating.Create(command.Rating);
         var feedbackResult = FeedbackText.Create(command.Feedback);
-        var merged = Result.Merge(ratingResult, feedbackResult);
-        if (merged.IsFailed)
+        var mergedResults = Result.Merge(ratingResult, feedbackResult);
+        if (mergedResults.IsFailed)
         {
-            return Result.Fail(merged.Errors);
+            return Result.Fail(mergedResults.Errors);
         }
 
-        existingFeedback.UpdateFeedback(feedbackResult.Value);
-        existingFeedback.UpdateRating(ratingResult.Value);
+        existingFeedback.ChangeFeedback(feedbackResult.Value, ratingResult.Value);
+
         await _weatherContext.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Updated Weather feedback with ID: {FeedbackId}", existingFeedback.Id);
+        _logger.LogInformation("Updated weather feedback with ID: {FeedbackId}", existingFeedback.Id);
 
         return Result.Ok();
     }

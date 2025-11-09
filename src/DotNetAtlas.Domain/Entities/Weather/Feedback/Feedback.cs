@@ -1,9 +1,10 @@
 using DotNetAtlas.Domain.Common;
+using DotNetAtlas.Domain.Entities.Weather.Feedback.Events;
 using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
 
 namespace DotNetAtlas.Domain.Entities.Weather.Feedback;
 
-public sealed class Feedback : Entity<Guid>, IAuditableEntity
+public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
 {
     public FeedbackText FeedbackText { get; private set; } = null!;
 
@@ -11,7 +12,8 @@ public sealed class Feedback : Entity<Guid>, IAuditableEntity
 
     public Guid CreatedByUser { get; private set; }
 
-    public Feedback()
+    // For EF Core
+    private Feedback()
     {
     }
 
@@ -21,19 +23,42 @@ public sealed class Feedback : Entity<Guid>, IAuditableEntity
         FeedbackText = feedbackText;
         Rating = rating;
         CreatedByUser = createdByUser;
+
+        RaiseDomainEvent(
+            new FeedbackCreatedDomainEvent
+            {
+                FeedbackId = Id,
+                UserId = CreatedByUser,
+                Rating = rating.Value,
+                Text = feedbackText.Value
+            });
     }
 
-    public void UpdateFeedback(FeedbackText feedback)
+    public void ChangeFeedback(FeedbackText feedback, FeedbackRating rating)
     {
+        var oldFeedbackText = FeedbackText.Value;
+        var oldRating = Rating.Value;
+        if (oldFeedbackText == feedback.Value && oldRating == rating.Value)
+        {
+            return;
+        }
+
         FeedbackText = feedback;
-    }
-
-    public void UpdateRating(FeedbackRating rating)
-    {
         Rating = rating;
+
+        RaiseDomainEvent(
+            new FeedbackChangedDomainEvent
+            {
+                FeedbackId = Id,
+                UserId = CreatedByUser,
+                NewRating = rating.Value,
+                OldRating = oldRating,
+                NewText = feedback.Value,
+                OldText = oldFeedbackText
+            });
     }
 
-    public DateTime CreatedUtc { get; set; }
+    public DateTimeOffset CreatedUtc { get; set; }
 
-    public DateTime LastModifiedUtc { get; set; }
+    public DateTimeOffset LastModifiedUtc { get; set; }
 }
