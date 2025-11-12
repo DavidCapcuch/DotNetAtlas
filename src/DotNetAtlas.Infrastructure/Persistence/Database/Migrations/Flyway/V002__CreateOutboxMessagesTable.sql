@@ -1,15 +1,15 @@
 ﻿BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [weather].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20251108150555_CreateOutboxMessagesTable'
+    WHERE [MigrationId] = N'20251112184015_CreateOutboxMessagesTable'
 )
 BEGIN
     CREATE TABLE [weather].[OutboxMessages] (
         [Id] bigint NOT NULL IDENTITY,
-        [KafkaKey] nvarchar(36) NULL,
+        [KafkaKey] nvarchar(128) NULL,
         [AvroPayload] varbinary(max) NOT NULL,
         [Type] varchar(255) NOT NULL,
-        [Headers] varchar(max) NULL,
+        [Headers] nvarchar(max) NULL,
         [CreatedUtc] datetimeoffset NOT NULL,
         CONSTRAINT [PK_OutboxMessages] PRIMARY KEY ([Id])
     );
@@ -32,11 +32,11 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [weather].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20251108150555_CreateOutboxMessagesTable'
+    WHERE [MigrationId] = N'20251112184015_CreateOutboxMessagesTable'
 )
 BEGIN
     INSERT INTO [weather].[__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20251108150555_CreateOutboxMessagesTable', N'10.0.0-rc.1.25451.107');
+    VALUES (N'20251112184015_CreateOutboxMessagesTable', N'10.0.0-rc.1.25451.107');
 END;
 
 COMMIT;

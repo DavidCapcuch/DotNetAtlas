@@ -64,6 +64,7 @@ public sealed class OutboxMessageRelay : IDisposable
 
         if (outboxMessages.Count == 0)
         {
+            await outboxDbContext.DisposeAsync();
             return true;
         }
 
@@ -128,8 +129,10 @@ public sealed class OutboxMessageRelay : IDisposable
             {
                 _logger.LogError(ex, "Failed to delete outbox messages up to ID {MaxDeleteId}", maxDeleteId);
             }
-
-            await outboxDbContext.DisposeAsync();
+            finally
+            {
+                await outboxDbContext.DisposeAsync();
+            }
         }, CancellationToken.None);
 
         if (publishedMessagesCount > 0 && !earliestFailedId.HasValue)

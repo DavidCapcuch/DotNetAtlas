@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.Extensions.Options;
 
 namespace DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay.Config;
 

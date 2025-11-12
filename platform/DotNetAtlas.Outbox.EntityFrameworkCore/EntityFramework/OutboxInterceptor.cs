@@ -40,9 +40,9 @@ internal sealed class OutboxInterceptor : SaveChangesInterceptor
         }
 
         var activity = Activity.Current;
-        var headers = OutboxMessageExtensions.BuildOtelHeadersFromActivity(activity);
+        var headers = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity);
         var serializedHeaders = headers != null
-            ? OutboxMessageExtensions.SerializeHeaders(headers)
+            ? OutboxMessageHeaderExtensions.SerializeHeaders(headers)
             : null;
 
         var outboxMessages = new List<OutboxMessage>();

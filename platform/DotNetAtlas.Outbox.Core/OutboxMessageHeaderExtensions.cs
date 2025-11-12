@@ -8,7 +8,7 @@ namespace DotNetAtlas.Outbox.Core;
 /// <summary>
 /// Extension methods for OutboxMessage header serialization/deserialization.
 /// </summary>
-public static class OutboxMessageExtensions
+public static class OutboxMessageHeaderExtensions
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {

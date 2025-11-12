@@ -4,7 +4,6 @@ using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.WeatherFeedback.Common.Specifications;
-using DotNetAtlas.Domain.Entities.Weather.Feedback;
 using DotNetAtlas.Domain.Entities.Weather.Feedback.Errors;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
