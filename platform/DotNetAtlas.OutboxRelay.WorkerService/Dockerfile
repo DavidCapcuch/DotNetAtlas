@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.0-rc.1-noble-chiseled-extra@sha256:83795c4b066ec5f0610d8c3fdd977b65e7536c9bbade4f594e80e5fa24fb533a AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra AS base
 USER $APP_UID
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
@@ -6,7 +6,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_TieredPGO=1
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.100-rc.1-noble@sha256:eee11b0bf11715710bbe8339b9641f0ef8b5d8a8e07f2d6ff3cd4361c1a4e5a7 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.100-noble AS build
 ARG BUILD_CONFIGURATION=Release
 ARG VERSION=0.0.0
 ARG ASSEMBLY_VERSION=0.0.0.0
