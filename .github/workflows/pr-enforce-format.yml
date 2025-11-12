@@ -20,10 +20,10 @@ jobs:
       - name: Fetch base branch
         run: git fetch origin ${{ github.base_ref }}
 
-      - name: Setup .NET SDK (10.0.100-rc.1.25451.107)
+      - name: Setup .NET SDK (10.0.100)
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5
         with:
-          dotnet-version: "10.0.100-rc.1.25451.107"
+          dotnet-version: "10.0.100"
           cache: true
           cache-dependency-path: "**/packages.lock.json"
 
