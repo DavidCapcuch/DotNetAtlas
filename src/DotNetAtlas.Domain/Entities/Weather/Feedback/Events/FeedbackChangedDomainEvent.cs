@@ -37,4 +37,9 @@ public sealed record FeedbackChangedDomainEvent : IDomainEvent
     /// Current rating (1-5). If equal to OldRating, rating did not change.
     /// </summary>
     public required int NewRating { get; init; }
+
+    /// <summary>
+    /// UTC timestamp when event occurred.
+    /// </summary>
+    public required DateTimeOffset OccurredOnUtc { get; init; }
 }

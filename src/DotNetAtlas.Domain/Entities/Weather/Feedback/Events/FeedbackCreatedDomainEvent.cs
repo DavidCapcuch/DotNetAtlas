@@ -27,4 +27,9 @@ public sealed record FeedbackCreatedDomainEvent : IDomainEvent
     /// Initial rating (1-5).
     /// </summary>
     public required int Rating { get; init; }
+
+    /// <summary>
+    /// UTC timestamp when event occurred.
+    /// </summary>
+    public required DateTimeOffset OccurredOnUtc { get; init; }
 }
