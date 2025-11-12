@@ -1,6 +1,5 @@
 using DotNetAtlas.OutboxRelay.WorkerService.Common;
 using DotNetAtlas.OutboxRelay.WorkerService.Common.Extensions;
-using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay.Config;
 using Serilog;
 
 namespace DotNetAtlas.OutboxRelay.WorkerService;
