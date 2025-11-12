@@ -30,7 +30,8 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
                 FeedbackId = Id,
                 UserId = CreatedByUser,
                 Rating = rating.Value,
-                Text = feedbackText.Value
+                Text = feedbackText.Value,
+                OccurredOnUtc = DateTimeOffset.UtcNow
             });
     }
 
@@ -54,7 +55,8 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
                 NewRating = rating.Value,
                 OldRating = oldRating,
                 NewText = feedback.Value,
-                OldText = oldFeedbackText
+                OldText = oldFeedbackText,
+                OccurredOnUtc = DateTimeOffset.UtcNow
             });
     }
 
