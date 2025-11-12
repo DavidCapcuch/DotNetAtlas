@@ -5,45 +5,32 @@ services:
     restart: always
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=breK3k3$
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
     ports:
       - "12345:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
       - ./src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/Flyway:/migrations
     healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -Q "SELECT 1" || exit 1
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -d Weather -Q "SELECT 1" || exit 1
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     command: |
       bash -c '
-        # Wait for SQL Server to be ready (max 60 seconds)
         /opt/mssql/bin/sqlservr &
-        echo "Waiting for SQL Server to be ready..."
-        for i in {1..60}; do
-          if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -Q "SELECT 1" &> /dev/null; then
-            echo "SQL Server is ready!"
-            break
-          fi
-          echo \"Attempt $$i/60: Waiting for SQL Server...\"
-          sleep 1
-        done
-
-        # Create Weather database if not exists
         echo "Creating Weather database..."
-        /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -Q \
-        "IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'Weather') \
+        /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -Q \
+        "IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = \"Weather\") \
         CREATE DATABASE Weather;" || {
           echo "ERROR: Failed to create Weather database"
           exit 1
         }
 
-        # Wait for database to be fully initialized
         echo "Waiting for Weather database to be ready..."
         for i in {1..30}; do
-          if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -d Weather -Q "SELECT 1" &> /dev/null; then
+          if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -d Weather -Q "SELECT 1" &> /dev/null; then
             echo "Weather database is ready!"
             break
           fi
@@ -51,17 +38,11 @@ services:
           sleep 1
         done
 
-        # Verify database is accessible
-        if ! /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -d Weather -Q "SELECT 1" &> /dev/null; then
-          echo "ERROR: Weather database is not accessible after 30 seconds"
-          exit 1
-        fi
-
         # Run all migration scripts in order
         echo "Running database migrations..." &&
         for file in /migrations/V*.sql; do
           echo "Running: $$file" &&
-          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P breK3k3$ -C -d Weather -i "$$file" || {
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -d Weather -i "$$file" || {
             echo "ERROR: Migration failed: $$file"
             exit 1
           }
@@ -230,6 +211,7 @@ services:
     command: >
       bash -c "
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.feedback.events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists
       "
     depends_on:
@@ -386,7 +368,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
-      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=breK3k3$;TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-worker
       - KafkaProducer__LingerMs=5
@@ -395,7 +377,7 @@ services:
       # - ASPNETCORE_ENVIRONMENT=Local
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     ports:
-      - "8080:8080"  # Health checks endpoint
+      - "8088:8080"  # Health checks endpoint
 
 networks:
   db_net:
