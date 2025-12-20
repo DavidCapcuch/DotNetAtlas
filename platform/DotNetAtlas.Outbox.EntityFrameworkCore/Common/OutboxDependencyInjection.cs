@@ -57,8 +57,16 @@ public static class OutboxDependencyInjection
             sp.GetRequiredService<AvroSerializer>(),
             sp.GetRequiredService<DomainEventExtractionCache>(),
             sp.GetRequiredService<AvroMappingCache>(),
-            sp.GetRequiredService<TimeProvider>()
+            sp.GetRequiredService<TimeProvider>(),
+            registration.MessageOrigin
         ));
+
+        // Configure TransactionalOutboxOptions via Options pattern
+        services.Configure<TransactionalOutboxOptions>(opts =>
+            opts.MessageOrigin = registration.MessageOrigin);
+
+        // ITransactionalOutbox is scoped (shares DbContext with domain event handlers)
+        services.AddScoped<ITransactionalOutbox, TransactionalOutbox<TContext>>();
 
         return services;
     }

@@ -1,13 +1,15 @@
 using System.Diagnostics;
 using DotNetAtlas.Outbox.Core;
+using DotNetAtlas.Outbox.EntityFrameworkCore.Common;
 using DotNetAtlas.Outbox.EntityFrameworkCore.Core;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace DotNetAtlas.Outbox.EntityFrameworkCore.EntityFramework;
 
 /// <summary>
-/// EF Core interceptor that automatically persists domain events to the outbox table.
+/// EF Core interceptor that persists domain events to the outbox table as avro serialized messages.
 /// Captures distributed tracing context into headers for async trace continuity.
+/// Generates a unique MessageId and adds an Origin header for each message.
 /// </summary>
 internal sealed class OutboxInterceptor : SaveChangesInterceptor
 {
@@ -15,17 +17,20 @@ internal sealed class OutboxInterceptor : SaveChangesInterceptor
     private readonly DomainEventExtractionCache _domainEventExtractionCache;
     private readonly AvroMappingCache _avroMappingCache;
     private readonly TimeProvider _timeProvider;
+    private readonly string? _messageOrigin;
 
     public OutboxInterceptor(
         AvroSerializer avroSerializer,
         DomainEventExtractionCache domainEventExtractionCache,
         AvroMappingCache avroMappingCache,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        string? messageOrigin)
     {
         _avroSerializer = avroSerializer;
         _domainEventExtractionCache = domainEventExtractionCache;
         _avroMappingCache = avroMappingCache;
         _timeProvider = timeProvider;
+        _messageOrigin = messageOrigin;
     }
 
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -40,10 +45,12 @@ internal sealed class OutboxInterceptor : SaveChangesInterceptor
         }
 
         var activity = Activity.Current;
-        var headers = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity);
-        var serializedHeaders = headers != null
-            ? OutboxMessageHeaderExtensions.SerializeHeaders(headers)
-            : null;
+        var baseHeaders = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity) ?? [];
+
+        if (!string.IsNullOrEmpty(_messageOrigin))
+        {
+            baseHeaders[OutboxMessageHeaders.Origin] = _messageOrigin;
+        }
 
         var outboxMessages = new List<OutboxMessage>();
         var utcNow = _timeProvider.GetUtcNow();
@@ -59,14 +66,20 @@ internal sealed class OutboxInterceptor : SaveChangesInterceptor
                     {
                         var messageType = avro.GetType();
                         var bytes = _avroSerializer.Serialize(avro, messageType);
+
+                        var messageHeaders = new Dictionary<string, string>(baseHeaders)
+                        {
+                            [OutboxMessageHeaders.MessageId] = Guid.CreateVersion7().ToString()
+                        };
+
                         outboxMessages.Add(
                             new OutboxMessage
                             {
                                 KafkaKey = aggregateData.KafkaKey,
                                 AvroPayload = bytes,
-                                Type = messageType.Name,
+                                Type = messageType.FullName ?? messageType.Name,
                                 CreatedUtc = utcNow,
-                                Headers = serializedHeaders
+                                Headers = OutboxMessageHeaderExtensions.SerializeHeaders(messageHeaders)
                             });
                     }
                 }

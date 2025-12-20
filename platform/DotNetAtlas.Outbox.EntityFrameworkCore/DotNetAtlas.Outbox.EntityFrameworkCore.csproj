@@ -20,5 +20,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\DotNetAtlas.Outbox.Core\DotNetAtlas.Outbox.Core.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.SharedKernel\DotNetAtlas.SharedKernel.csproj" />
     </ItemGroup>
 </Project>
