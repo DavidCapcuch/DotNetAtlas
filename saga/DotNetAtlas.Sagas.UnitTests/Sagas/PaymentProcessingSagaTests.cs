@@ -1,8 +1,9 @@
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga.Commands;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga.Events;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga.Schedules;
+using DotNetAtlas.Sagas.Finance.PaymentSaga;
+using DotNetAtlas.Sagas.Finance.PaymentSaga.Commands;
+using DotNetAtlas.Sagas.Finance.PaymentSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Finance.PaymentSaga.Schedules;
+using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,7 +94,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         var correlationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        var initiatedEvent = new PaymentInitiatedEvent
+        var initiatedEvent = new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -108,7 +109,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(initiatedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentInitiatedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>()).Should().BeTrue();
 
         var sagaExists = await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
         sagaExists.HasValue.Should().BeTrue("Saga should be created");
@@ -137,7 +138,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Act
-        var authorizedEvent = new PaymentAuthorizedEvent
+        var authorizedEvent = new PaymentAuthorizedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -151,7 +152,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(authorizedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentAuthorizedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentAuthorizedSagaEvent>()).Should().BeTrue();
 
         var instance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -174,7 +175,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
         // Act
-        var capturedEvent = new PaymentCapturedEvent
+        var capturedEvent = new PaymentCapturedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -188,7 +189,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(capturedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentCapturedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>()).Should().BeTrue();
 
         var instance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -212,7 +213,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
         // Act
-        var capturedEvent = new PaymentCapturedEvent
+        var capturedEvent = new PaymentCapturedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -224,13 +225,13 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(capturedEvent);
-        await _sagaHarness.Consumed.Any<PaymentCapturedEvent>();
+        await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
         // Assert
-        (await _harness.Published.Any<Finance.Payments.PaymentCompletedEvent>()).Should().BeTrue(
+        (await _harness.Published.Any<PaymentCompletedEvent>()).Should().BeTrue(
             "PaymentCompletedEvent should be published to Kafka");
 
-        var publishedEvents = await _harness.Published.SelectAsync<Finance.Payments.PaymentCompletedEvent>().ToListAsync();
+        var publishedEvents = await _harness.Published.SelectAsync<PaymentCompletedEvent>().ToListAsync();
         var publishedEvent = publishedEvents.FirstOrDefault();
         publishedEvent.Should().NotBeNull();
         publishedEvent!.Context.Message.CorrelationId.Should().Be(correlationId);
@@ -249,7 +250,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Act
-        var failedEvent = new PaymentAuthorizationFailedEvent
+        var failedEvent = new PaymentAuthorizationFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -262,7 +263,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(failedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentAuthorizationFailedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentAuthorizationFailedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized after non-retryable auth failure");
@@ -279,7 +280,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
         // Act
-        var failedEvent = new PaymentCaptureFailedEvent
+        var failedEvent = new PaymentCaptureFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -293,7 +294,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(failedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentCaptureFailedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentCaptureFailedSagaEvent>()).Should().BeTrue();
 
         var instance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -315,7 +316,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
         // Fail capture to get to VoidInProgress
-        var captureFailed = new PaymentCaptureFailedEvent
+        var captureFailed = new PaymentCaptureFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -327,10 +328,10 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(captureFailed);
-        await _sagaHarness.Consumed.Any<PaymentCaptureFailedEvent>();
+        await _sagaHarness.Consumed.Any<PaymentCaptureFailedSagaEvent>();
 
         // Act
-        var voidedEvent = new PaymentVoidedEvent
+        var voidedEvent = new PaymentVoidedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -341,7 +342,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(voidedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentVoidedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentVoidedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized after void completed");
@@ -407,7 +408,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<RequestPaymentRefundCommand>();
 
         // Act - refund completed
-        var refundCompletedEvent = new PaymentRefundCompletedEvent
+        var refundCompletedEvent = new PaymentRefundCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -419,7 +420,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(refundCompletedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentRefundCompletedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentRefundCompletedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized after refund completed");
@@ -489,7 +490,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         var userId = Guid.NewGuid();
         var paymentMethodId = Guid.NewGuid();
 
-        var initiatedEvent = new PaymentInitiatedEvent
+        var initiatedEvent = new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -502,13 +503,14 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
 
         // Act
         await _harness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Consumed.Any<PaymentInitiatedEvent>();
+        await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
 
         // Assert
         (await _harness.Published.Any<RequestPaymentAuthorizationCommand>()).Should().BeTrue(
             "RequestPaymentAuthorizationCommand should be published");
 
-        var publishedCommands = await _harness.Published.SelectAsync<RequestPaymentAuthorizationCommand>().ToListAsync();
+        var publishedCommands =
+            await _harness.Published.SelectAsync<RequestPaymentAuthorizationCommand>().ToListAsync();
         var publishedCommand = publishedCommands.FirstOrDefault();
         publishedCommand.Should().NotBeNull();
         publishedCommand!.Context.Message.CorrelationId.Should().Be(correlationId);
@@ -518,13 +520,13 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
 
     // -- Helper Methods --
 
-    private PaymentInitiatedEvent CreatePaymentInitiatedEvent(
+    private PaymentInitiatedSagaEvent CreatePaymentInitiatedEvent(
         Guid correlationId,
         Guid userId,
         decimal amount = 9.99m,
         string currency = "USD")
     {
-        return new PaymentInitiatedEvent
+        return new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -545,7 +547,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(initiatedEvent);
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
-        var authorizedEvent = new PaymentAuthorizedEvent
+        var authorizedEvent = new PaymentAuthorizedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -557,7 +559,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(authorizedEvent);
-        await _sagaHarness.Consumed.Any<PaymentAuthorizedEvent>();
+        await _sagaHarness.Consumed.Any<PaymentAuthorizedSagaEvent>();
 
         var awaitingInstance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -574,7 +576,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     {
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
-        var capturedEvent = new PaymentCapturedEvent
+        var capturedEvent = new PaymentCapturedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -586,7 +588,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(capturedEvent);
-        await _sagaHarness.Consumed.Any<PaymentCapturedEvent>();
+        await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
         var completedInstance = _sagaHarness.Sagas.ContainsInState(
             correlationId,

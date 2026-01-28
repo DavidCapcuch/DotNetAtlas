@@ -35,4 +35,3 @@ public interface IWeatherAlertBroadcaster
     /// <param name="weatherAlert">The weather alert to send.</param>
     Task BroadcastToGroupAsync(AlertGroup alertGroup, WeatherAlert weatherAlert);
 }
-

@@ -205,10 +205,9 @@ public static class SubscriptionSagaInstrumentation
     /// <returns>The created activity, or null if tracing is disabled.</returns>
     public static Activity? StartActivity(string operationName, Guid correlationId, string sagaType)
     {
-        var activity = SagaInstrumentation.ActivitySource.StartActivity(operationName, ActivityKind.Internal);
+        var activity = SagaInstrumentation.ActivitySource.StartActivity(operationName);
         activity?.SetTag("saga.type", sagaType);
         activity?.SetTag("saga.correlation_id", correlationId.ToString());
         return activity;
     }
 }
-

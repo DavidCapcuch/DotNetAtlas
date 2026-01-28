@@ -8,6 +8,7 @@ public static class InfrastructureDependencyInjection
     {
         builder.UseSerilogInternal(isClusterEnvironment);
         builder.Services.AddOpenTelemetryInternal(isClusterEnvironment, builder.Configuration);
+        builder.Services.AddSagaStateObservability();
         builder.Services.AddHealthChecksInternal(builder.Configuration);
 
         return builder;

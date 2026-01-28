@@ -1,16 +1,14 @@
 using Confluent.SchemaRegistry;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Common.Kafka;
+using DotNetAtlas.Sagas.Finance.PaymentSaga;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
 using DotNetAtlas.Sagas.Persistence.Database;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga.Observability;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga.Observability;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga.Observability;
+using DotNetAtlas.Sagas.Persistence.Database.Interceptors;
 using MassTransit;
 using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace DotNetAtlas.Sagas.Common;
 
@@ -19,157 +17,160 @@ namespace DotNetAtlas.Sagas.Common;
 /// </summary>
 public static class SagaDependencyInjection
 {
-    /// <summary>
-    /// Adds saga orchestration services to the service collection.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration.</param>
-    /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddSagaOrchestration(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    extension(IServiceCollection services)
     {
-        // Register configuration options with validation
-        services.AddOptionsWithValidateOnStart<SagaOptions>()
-            .BindConfiguration(SagaOptions.Section)
-            .ValidateDataAnnotations();
-
-        services.AddOptionsWithValidateOnStart<ConnectionStringsOptions>()
-            .BindConfiguration(ConnectionStringsOptions.Section)
-            .ValidateDataAnnotations();
-
-        services.AddOptionsWithValidateOnStart<EfCoreOptions>()
-            .BindConfiguration(EfCoreOptions.Section)
-            .ValidateDataAnnotations();
-
-        services.AddOptionsWithValidateOnStart<SagaHealthCheckOptions>()
-            .BindConfiguration(SagaHealthCheckOptions.Section)
-            .ValidateDataAnnotations();
-
-        var sagaOptions = configuration
-            .GetRequiredSection(SagaOptions.Section)
-            .Get<SagaOptions>()!;
-
-        var efCoreOptions = configuration
-            .GetRequiredSection(EfCoreOptions.Section)
-            .Get<EfCoreOptions>()!;
-
-        services.AddSagaDatabase(configuration, efCoreOptions);
-
-        services.AddSingleton<ISchemaRegistryClient>(_ =>
-            new CachedSchemaRegistryClient(new SchemaRegistryConfig
-            {
-                Url = sagaOptions.SchemaRegistryUrl
-            }));
-
-        services.AddMassTransit(cfg =>
+        public IServiceCollection AddSagaOrchestration(IConfiguration configuration,
+            bool isClusterEnvironment)
         {
-            cfg.SetKebabCaseEndpointNameFormatter();
+            services.AddSagaDatabase(configuration, isClusterEnvironment);
+            services.AddSagaStateMachines(configuration);
 
-            cfg.AddSagaStateMachine<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState>()
-                .EntityFrameworkRepository(r =>
-                {
-                    r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                    r.ExistingDbContext<SubscriptionSagaDbContext>();
-                    r.LockStatementProvider = new SqlServerLockStatementProvider();
-                })
-                .Endpoint(e =>
-                {
-                    e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
-                    e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
-                });
+            return services;
+        }
 
-            cfg.AddSagaStateMachine<SubscriptionExtensionSaga, SubscriptionExtensionSagaState>()
-                .EntityFrameworkRepository(r =>
-                {
-                    r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                    r.ExistingDbContext<SubscriptionSagaDbContext>();
-                    r.LockStatementProvider = new SqlServerLockStatementProvider();
-                })
-                .Endpoint(e =>
-                {
-                    e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
-                    e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
-                });
+        private IServiceCollection AddSagaStateMachines(IConfiguration configuration)
+        {
+            var sagaOptions = configuration
+                .GetRequiredSection(SagaOptions.Section)
+                .Get<SagaOptions>()!;
 
-            cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentSagaState>()
-                .EntityFrameworkRepository(r =>
+            services.AddSingleton<ISchemaRegistryClient>(_ =>
+                new CachedSchemaRegistryClient(new SchemaRegistryConfig
                 {
-                    r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                    r.ExistingDbContext<SubscriptionSagaDbContext>();
-                    r.LockStatementProvider = new SqlServerLockStatementProvider();
-                })
-                .Endpoint(e =>
-                {
-                    e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
-                    e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
-                });
+                    Url = sagaOptions.SchemaRegistryUrl
+                }));
 
-            cfg.AddKafkaRider(sagaOptions);
+            services.AddOptionsWithValidateOnStart<SagaOptions>()
+                .BindConfiguration(SagaOptions.Section)
+                .ValidateDataAnnotations();
 
-            cfg.UsingSqlServer((context, busCfg) =>
+            services.AddMassTransit(cfg =>
             {
-                busCfg.UseSqlMessageScheduler();
+                cfg.SetKebabCaseEndpointNameFormatter();
 
-                busCfg.UseMessageRetry(r => r.Intervals(
-                    TimeSpan.FromSeconds(sagaOptions.RetryDelaySeconds),
-                    TimeSpan.FromSeconds(sagaOptions.RetryDelaySeconds * 2),
-                    TimeSpan.FromSeconds(sagaOptions.RetryDelaySeconds * 4)));
+                cfg.AddSagaStateMachine<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState>()
+                    .EntityFrameworkRepository(r =>
+                    {
+                        r.ConcurrencyMode = ConcurrencyMode.Optimistic;
+                        r.ExistingDbContext<SubscriptionSagaDbContext>();
+                        r.LockStatementProvider = new SqlServerLockStatementProvider();
+                    })
+                    .Endpoint(e =>
+                    {
+                        e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
+                        e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
+                    });
 
-                busCfg.ConfigureEndpoints(context);
+                cfg.AddSagaStateMachine<SubscriptionExtensionSaga, SubscriptionExtensionSagaState>()
+                    .EntityFrameworkRepository(r =>
+                    {
+                        r.ConcurrencyMode = ConcurrencyMode.Optimistic;
+                        r.ExistingDbContext<SubscriptionSagaDbContext>();
+                        r.LockStatementProvider = new SqlServerLockStatementProvider();
+                    })
+                    .Endpoint(e =>
+                    {
+                        e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
+                        e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
+                    });
+
+                cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentSagaState>()
+                    .EntityFrameworkRepository(r =>
+                    {
+                        r.ConcurrencyMode = ConcurrencyMode.Optimistic;
+                        r.ExistingDbContext<SubscriptionSagaDbContext>();
+                        r.LockStatementProvider = new SqlServerLockStatementProvider();
+                    })
+                    .Endpoint(e =>
+                    {
+                        e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
+                        e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
+                    });
+
+                cfg.AddSagaKafkaRider(sagaOptions);
+
+                cfg.UsingSqlServer((context, busCfg) =>
+                {
+                    busCfg.UseSqlMessageScheduler();
+
+                    busCfg.UseMessageRetry(r => r.Intervals(
+                        TimeSpan.FromSeconds(sagaOptions.RetryDelaySeconds),
+                        TimeSpan.FromSeconds(sagaOptions.RetryDelaySeconds * 2),
+                        TimeSpan.FromSeconds(sagaOptions.RetryDelaySeconds * 4)));
+
+                    busCfg.ConfigureEndpoints(context);
+                });
             });
-        });
 
-        services.AddStateObserver<SubscriptionPurchaseSagaState, SubscriptionSagaStateObserver>();
-        services.AddStateObserver<SubscriptionExtensionSagaState, SubscriptionExtensionSagaStateObserver>();
-        services.AddStateObserver<PaymentSagaState, PaymentSagaStateObserver>();
+            return services;
+        }
 
-        return services;
+        private void AddSagaDatabase(IConfiguration configuration,
+            bool isClusterEnvironment)
+        {
+            services.AddOptionsWithValidateOnStart<ConnectionStringsOptions>()
+                .BindConfiguration(ConnectionStringsOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddOptionsWithValidateOnStart<EfCoreOptions>()
+                .BindConfiguration(EfCoreOptions.Section)
+                .ValidateDataAnnotations();
+
+            var efCoreOptions = configuration
+                .GetRequiredSection(EfCoreOptions.Section)
+                .Get<EfCoreOptions>()!;
+
+            services.AddSingleton<UpdateSagaAuditableEntitiesInterceptor>();
+            services.AddDbContext<SubscriptionSagaDbContext>((
+                sp,
+                options) => options
+                .UseSqlServer(
+                    configuration.GetConnectionString(nameof(ConnectionStringsOptions.Saga)),
+                    sqlServerOptions =>
+                    {
+                        sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
+                            SubscriptionSagaDbContext.DefaultSchemaName);
+                        sqlServerOptions.EnableRetryOnFailure(
+                            maxRetryCount: efCoreOptions.RetryMaxCount,
+                            maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
+                            errorNumbersToAdd: null);
+                    })
+                .EnableSensitiveDataLogging(
+                    !isClusterEnvironment) // this is very useful for local debugging/investigating failed tests
+                .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
+                .AddInterceptors(
+                    sp.GetRequiredService<UpdateSagaAuditableEntitiesInterceptor>()));
+        }
     }
 
-    private static void AddSagaDatabase(
-        this IServiceCollection services,
-        IConfiguration configuration,
-        EfCoreOptions options)
+    extension(IBusRegistrationConfigurator cfg)
     {
-        services.AddPooledDbContextFactory<SubscriptionSagaDbContext>((_, dbOptions) =>
+        private void AddSagaKafkaRider(SagaOptions sagaOptions)
         {
-            dbOptions.UseSqlServer(
-                configuration.GetConnectionString(nameof(ConnectionStringsOptions.Saga)),
-                sqlOptions =>
+            cfg.AddRider(rider =>
+            {
+                rider.AddSubscriptionPurchaseSagaConsumers();
+                rider.AddSubscriptionPurchaseSagaProducers(sagaOptions);
+
+                rider.AddSubscriptionExtensionSagaConsumers();
+                rider.AddSubscriptionExtensionSagaProducers(sagaOptions);
+
+                rider.AddPaymentSagaConsumers();
+                rider.AddPaymentSagaProducers(sagaOptions);
+
+                rider.UsingKafka((registrationContext, kafkaFactoryConfigurator) =>
                 {
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: options.RetryMaxCount,
-                        maxRetryDelay: TimeSpan.FromSeconds(options.RetryMaxDelaySeconds),
-                        errorNumbersToAdd: null);
+                    kafkaFactoryConfigurator.Host(sagaOptions.KafkaBootstrapServers);
+
+                    var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
+                    kafkaFactoryConfigurator.ConfigureSubscriptionPurchaseSagaEndpoints(registrationContext,
+                        schemaRegistryClient, sagaOptions);
+                    kafkaFactoryConfigurator.ConfigureSubscriptionExtensionSagaEndpoints(registrationContext,
+                        schemaRegistryClient, sagaOptions);
+                    kafkaFactoryConfigurator.ConfigurePaymentSagaEndpoints(registrationContext, schemaRegistryClient,
+                        sagaOptions);
                 });
-
-            if (options.EnableDetailedErrors)
-            {
-                dbOptions.EnableDetailedErrors();
-            }
-        }, poolSize: options.DbContextPoolSize);
-
-        // Also register the DbContext itself for consumers that need direct injection
-        services.AddScoped(sp =>
-            sp.GetRequiredService<IDbContextFactory<SubscriptionSagaDbContext>>().CreateDbContext());
-    }
-
-    private static void AddKafkaRider(
-        this IBusRegistrationConfigurator cfg,
-        SagaOptions options)
-    {
-        cfg.AddRider(rider =>
-        {
-            rider.AddSagaKafkaConsumers();
-            rider.AddSagaKafkaProducers(options);
-            rider.UsingKafka((registrationContext, kafkaFactoryConfigurator) =>
-            {
-                kafkaFactoryConfigurator.Host(options.KafkaBootstrapServers);
-
-                // Configure all saga topic endpoints
-                kafkaFactoryConfigurator.ConfigureSagaTopicEndpoints(registrationContext, options);
             });
-        });
+        }
     }
 }

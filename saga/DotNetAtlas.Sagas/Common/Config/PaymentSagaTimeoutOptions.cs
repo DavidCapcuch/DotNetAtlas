@@ -22,7 +22,7 @@ public sealed class PaymentSagaTimeoutOptions
     public required int CaptureMinutes { get; set; }
 
     /// <summary>
-    /// Timeout in minutes for payment void to complete.
+    /// Timeout in minutes for the payment void to complete.
     /// </summary>
     [Required]
     [Range(1, int.MaxValue)]
@@ -42,4 +42,3 @@ public sealed class PaymentSagaTimeoutOptions
     [Range(1, int.MaxValue)]
     public required int RefundMinutes { get; set; }
 }
-

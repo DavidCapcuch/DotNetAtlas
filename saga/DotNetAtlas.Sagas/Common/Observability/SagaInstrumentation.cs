@@ -34,7 +34,7 @@ public static class SagaInstrumentation
     /// <returns>The created activity, or null if tracing is disabled.</returns>
     public static Activity? StartActivity(string operationName, Guid correlationId)
     {
-        var activity = ActivitySource.StartActivity(operationName, ActivityKind.Internal);
+        var activity = ActivitySource.StartActivity(operationName);
         activity?.SetTag("saga.correlation_id", correlationId.ToString());
         return activity;
     }

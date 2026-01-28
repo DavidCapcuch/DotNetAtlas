@@ -1,9 +1,5 @@
 using DotNetAtlas.Sagas.Persistence.Database;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga;
 using DotNetAtlas.Test.Framework.Tracing;
-using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
@@ -63,47 +59,5 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         _testCaseTracer.Dispose();
         await _fixture.ResetDatabaseAsync();
         Scope.Dispose();
-    }
-}
-
-/// <summary>
-/// Base class for Purchase saga integration tests.
-/// </summary>
-public abstract class BasePurchaseSagaIntegrationTest : BaseSagaIntegrationTest
-{
-    protected ISagaStateMachineTestHarness<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState> SagaHarness { get; }
-
-    protected BasePurchaseSagaIntegrationTest(SagaIntegrationTestFixture fixture)
-        : base(fixture)
-    {
-        SagaHarness = TestHarness.GetSagaStateMachineHarness<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState>();
-    }
-}
-
-/// <summary>
-/// Base class for Extension saga integration tests.
-/// </summary>
-public abstract class BaseExtensionSagaIntegrationTest : BaseSagaIntegrationTest
-{
-    protected ISagaStateMachineTestHarness<SubscriptionExtensionSaga, SubscriptionExtensionSagaState> SagaHarness { get; }
-
-    protected BaseExtensionSagaIntegrationTest(SagaIntegrationTestFixture fixture)
-        : base(fixture)
-    {
-        SagaHarness = TestHarness.GetSagaStateMachineHarness<SubscriptionExtensionSaga, SubscriptionExtensionSagaState>();
-    }
-}
-
-/// <summary>
-/// Base class for Payment saga integration tests.
-/// </summary>
-public abstract class BasePaymentSagaIntegrationTest : BaseSagaIntegrationTest
-{
-    protected ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentSagaState> SagaHarness { get; }
-
-    protected BasePaymentSagaIntegrationTest(SagaIntegrationTestFixture fixture)
-        : base(fixture)
-    {
-        SagaHarness = TestHarness.GetSagaStateMachineHarness<PaymentProcessingSaga, PaymentSagaState>();
     }
 }

@@ -1,7 +1,8 @@
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga.Events;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga.Schedules;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.Schedules;
+using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -145,7 +146,7 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Arrange - Payment completed
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionPurchasePaymentCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -156,7 +157,7 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(paymentCompletedEvent);
-        await _sagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionPurchasePaymentCompletedEvent>();
 
         // Verify saga is now in AwaitingActivation state
         var awaitingInstance = _sagaHarness.Sagas.ContainsInState(
@@ -290,7 +291,7 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         inProgressInstance.Should().NotBeNull("Saga should be in CompensationInProgress state");
 
         // Act - Complete compensation
-        var compensationEvent = new SubscriptionCompensationCompletedEvent
+        var compensationEvent = new SubscriptionPurchaseCompensationCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -302,7 +303,7 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(compensationEvent);
 
         // Assert - event was consumed
-        (await _sagaHarness.Consumed.Any<SubscriptionCompensationCompletedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<SubscriptionPurchaseCompensationCompletedEvent>()).Should().BeTrue();
 
         // Wait for saga to reach final state using proper MassTransit waiting
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
@@ -336,10 +337,10 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<SubscriptionActivationFailedEvent>();
 
         // Assert - RequestRefundCommand should be published to Finance.Payments
-        (await _harness.Published.Any<Finance.Payments.RequestRefundCommand>()).Should().BeTrue(
+        (await _harness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
             "RequestRefundCommand should be published when activation fails with compensation");
 
-        var publishedCommands = await _harness.Published.SelectAsync<Finance.Payments.RequestRefundCommand>().ToListAsync();
+        var publishedCommands = await _harness.Published.SelectAsync<RequestRefundCommand>().ToListAsync();
         var publishedCommand = publishedCommands.FirstOrDefault();
         publishedCommand.Should().NotBeNull();
         publishedCommand!.Context.Message.CorrelationId.Should().Be(correlationId);
@@ -554,7 +555,7 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Complete payment
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionPurchasePaymentCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -565,7 +566,7 @@ public class SubscriptionPurchaseSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(paymentCompletedEvent);
-        await _sagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionPurchasePaymentCompletedEvent>();
 
         // Verify saga is now in AwaitingActivation state
         var awaitingInstance = _sagaHarness.Sagas.ContainsInState(

@@ -1,4 +1,4 @@
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga;
+using DotNetAtlas.Sagas.Finance.PaymentSaga;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -146,4 +146,3 @@ public sealed class PaymentSagaStateMap :
                 "[CurrentState] NOT IN ('ActivationCompleted', 'AuthorizationFailed', 'VoidCompleted', 'VoidFailed', 'RefundCompleted', 'RefundFailed')");
     }
 }
-

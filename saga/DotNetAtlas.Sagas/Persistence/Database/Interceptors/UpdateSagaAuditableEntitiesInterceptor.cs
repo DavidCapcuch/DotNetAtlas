@@ -82,4 +82,3 @@ public sealed class UpdateSagaAuditableEntitiesInterceptor : SaveChangesIntercep
         return base.SavingChanges(eventData, result);
     }
 }
-

@@ -22,4 +22,3 @@ public static partial class SubscriptionExtendedMapper
     [UserMapping]
     private static DateTime DateTimeOffsetToDateTime(DateTimeOffset t) => t.UtcDateTime;
 }
-

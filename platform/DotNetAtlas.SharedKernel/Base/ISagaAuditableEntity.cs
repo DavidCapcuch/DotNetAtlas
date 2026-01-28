@@ -16,4 +16,3 @@ public interface ISagaAuditableEntity
     /// </summary>
     DateTimeOffset LastUpdatedAtUtc { get; set; }
 }
-

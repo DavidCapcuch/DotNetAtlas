@@ -18,6 +18,10 @@ public static class HealthChecksDependencyInjection
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
+        services.AddOptionsWithValidateOnStart<SagaHealthCheckOptions>()
+            .BindConfiguration(SagaHealthCheckOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<HealthCheckTimeoutsOptions>()
             .BindConfiguration(HealthCheckTimeoutsOptions.Section)
             .ValidateDataAnnotations();
@@ -30,7 +34,7 @@ public static class HealthChecksDependencyInjection
             .GetRequiredSection(SagaOptions.Section)
             .Get<SagaOptions>()!;
 
-        var kafkaProducerConfig = new ProducerConfig
+        var healthCheckKafkaProducerConfig = new ProducerConfig
         {
             BootstrapServers = sagaOptions.KafkaBootstrapServers,
             ClientId = "saga-healthcheck"
@@ -50,7 +54,7 @@ public static class HealthChecksDependencyInjection
                 failureStatus: HealthStatus.Degraded,
                 tags: [InfrastructureConstants.ReadinessTag])
             .AddKafka(
-                kafkaProducerConfig,
+                healthCheckKafkaProducerConfig,
                 topic: "healthchecks",
                 name: "Kafka",
                 tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.MessagingTag],
@@ -60,43 +64,46 @@ public static class HealthChecksDependencyInjection
         return services;
     }
 
-    /// <summary>
-    /// Maps health check endpoints with appropriate filters.
-    /// </summary>
-    public static WebApplication MapHealthChecksInternal(this WebApplication app)
+    extension(WebApplication app)
     {
-        app.MapHealthChecks(InfrastructureConstants.ReadinessEndpointPath, new HealthCheckOptions
+        /// <summary>
+        /// Maps health check endpoints with appropriate filters.
+        /// </summary>
+        public WebApplication MapHealthChecksInternal()
         {
-            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag)
-        }).ShortCircuit();
-
-        app.MapHealthChecks(InfrastructureConstants.HealthEndpointPath, new HealthCheckOptions
-        {
-            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.LivenessTag)
-        }).ShortCircuit();
-
-        return app;
-    }
-
-    public static WebApplication UseHealthChecksPrometheusExporterInternal(this WebApplication app)
-    {
-        // Suppress default prometheus-net collectors and collect only health-related metrics to avoid duplicated scraping.
-        // As of now, there is no standardized way to push health metrics through OTEL Collector
-        // all other collected metrics are unaffected and still exported through OTEL Collector to prometheus.
-        Metrics.SuppressDefaultMetrics();
-
-        app.UseHealthChecksPrometheusExporter(InfrastructureConstants.PrometheusEndpointPath, options =>
-        {
-            options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag);
-            options.ResultStatusCodes = new Dictionary<HealthStatus, int>
+            app.MapHealthChecks(InfrastructureConstants.ReadinessEndpointPath, new HealthCheckOptions
             {
-                // Prometheus expects 200 also for degraded state, otherwise throws in the scrape job
-                [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                [HealthStatus.Unhealthy] = StatusCodes.Status200OK
-            };
-        });
+                Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag)
+            }).ShortCircuit();
 
-        return app;
+            app.MapHealthChecks(InfrastructureConstants.HealthEndpointPath, new HealthCheckOptions
+            {
+                Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.LivenessTag)
+            }).ShortCircuit();
+
+            return app;
+        }
+
+        public WebApplication UseHealthChecksPrometheusExporterInternal()
+        {
+            // Suppress default prometheus-net collectors and collect only health-related metrics to avoid duplicated scraping.
+            // As of now, there is no standardized way to push health metrics through OTEL Collector
+            // all other collected metrics are unaffected and still exported through OTEL Collector to prometheus.
+            Metrics.SuppressDefaultMetrics();
+
+            app.UseHealthChecksPrometheusExporter(InfrastructureConstants.PrometheusEndpointPath, options =>
+            {
+                options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag);
+                options.ResultStatusCodes = new Dictionary<HealthStatus, int>
+                {
+                    // Prometheus expects 200 also for degraded state, otherwise throws in the scrape job
+                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                    [HealthStatus.Unhealthy] = StatusCodes.Status200OK
+                };
+            });
+
+            return app;
+        }
     }
 }

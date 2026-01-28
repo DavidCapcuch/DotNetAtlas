@@ -1,7 +1,8 @@
 using DotNetAtlas.Sagas.IntegrationTests.Common;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga.Events;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga.Schedules;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.Schedules;
+using Finance.Payments;
 using Microsoft.EntityFrameworkCore;
 using SubscriptionTier = Order.AlertSubscriptions.SubscriptionTier;
 
@@ -140,7 +141,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         stateAfterInitiation.PurchaseInitiatedAtUtc.Should().NotBe(default);
 
         // Step 2: Complete payment
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionPurchasePaymentCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -151,7 +152,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         };
 
         await TestHarness.Bus.Publish(paymentCompletedEvent);
-        await SagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionPurchasePaymentCompletedEvent>();
 
         // Verify: AwaitingActivation state persisted
         var stateAfterPayment = await DbContext.Set<SubscriptionPurchaseSagaState>()
@@ -201,7 +202,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         await SagaHarness.Consumed.Any<SubscriptionPurchaseInitiatedEvent>();
 
         // Act - Send payment failed event
-        var paymentFailedEvent = new PaymentFailedEvent
+        var paymentFailedEvent = new SubscriptionPurchasePaymentFailedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -211,17 +212,14 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         };
 
         await TestHarness.Bus.Publish(paymentFailedEvent);
-        await SagaHarness.Consumed.Any<PaymentFailedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionPurchasePaymentFailedEvent>();
 
         // Assert - verify saga finalized in PaymentFailed state
         var persistedState = await DbContext.Set<SubscriptionPurchaseSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("PaymentFailed");
-        }
+        persistedState?.CurrentState.Should().Be("PaymentFailed");
     }
 
     [Fact]
@@ -258,7 +256,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         persistedState.CompensationTriggered.Should().BeTrue();
 
         // Verify RequestRefundCommand was published
-        (await TestHarness.Published.Any<Finance.Payments.RequestRefundCommand>()).Should().BeTrue(
+        (await TestHarness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
             "RequestRefundCommand should be published when activation fails with ShouldCompensate=true");
     }
 
@@ -311,7 +309,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         await TransitionSagaToCompensationInProgressState(correlationId, userId, paymentTransactionId);
 
         // Act - Send compensation completed event
-        var compensationCompletedEvent = new SubscriptionCompensationCompletedEvent
+        var compensationCompletedEvent = new SubscriptionPurchaseCompensationCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -321,17 +319,14 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         };
 
         await TestHarness.Bus.Publish(compensationCompletedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionCompensationCompletedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionPurchaseCompensationCompletedEvent>();
 
         // Assert - verify saga finalized in CompensationCompleted state
         var persistedState = await DbContext.Set<SubscriptionPurchaseSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("CompensationCompleted");
-        }
+        persistedState?.CurrentState.Should().Be("CompensationCompleted");
     }
 
     // -- Timeout Tests --
@@ -361,10 +356,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("PaymentFailed");
-        }
+        persistedState?.CurrentState.Should().Be("PaymentFailed");
     }
 
     [Fact]
@@ -395,7 +387,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         persistedState.CompensationTriggered.Should().BeTrue();
 
         // Verify RequestRefundCommand was published
-        (await TestHarness.Published.Any<Finance.Payments.RequestRefundCommand>()).Should().BeTrue(
+        (await TestHarness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
             "RequestRefundCommand should be published when activation times out");
     }
 
@@ -423,10 +415,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("CompensationFailed");
-        }
+        persistedState?.CurrentState.Should().Be("CompensationFailed");
     }
 
     // -- Helper Methods --
@@ -470,7 +459,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         await SagaHarness.Consumed.Any<SubscriptionPurchaseInitiatedEvent>();
 
         // Publish PaymentCompletedEvent
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionPurchasePaymentCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -481,7 +470,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BasePurchaseSagaIntegrat
         };
 
         await TestHarness.Bus.Publish(paymentCompletedEvent);
-        await SagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionPurchasePaymentCompletedEvent>();
     }
 
     private async Task TransitionSagaToCompensationInProgressState(

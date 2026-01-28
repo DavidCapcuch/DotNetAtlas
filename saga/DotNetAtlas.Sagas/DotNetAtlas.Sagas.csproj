@@ -54,6 +54,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Finance\" />
       <Folder Include="Persistence\Database\Migrations\" />
     </ItemGroup>
 </Project>
