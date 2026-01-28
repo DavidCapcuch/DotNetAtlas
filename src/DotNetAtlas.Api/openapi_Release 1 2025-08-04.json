@@ -93,6 +93,49 @@
       }
     },
     "/api/v1/weather/feedback/{id}": {
+      "get": {
+        "tags": [
+          "Weather"
+        ],
+        "summary": "Returns weather feedback by ID. (Auth non-anonymous)",
+        "operationId": "DotNetAtlasApiEndpointsWeatherGetFeedbackByIdEndpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of requested feedback.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "example": "0198b2a9-cb8c-744b-8cdd-0b64727cf2fc"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found"
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFeedbackByIdResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "OAuth2": []
+          }
+        ]
+      },
       "put": {
         "tags": [
           "Weather"
@@ -133,49 +176,6 @@
           },
           "204": {
             "description": "No Content"
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "security": [
-          {
-            "OAuth2": []
-          }
-        ]
-      },
-      "get": {
-        "tags": [
-          "Weather"
-        ],
-        "summary": "Returns weather feedback by ID. (Auth non-anonymous)",
-        "operationId": "DotNetAtlasApiEndpointsWeatherGetFeedbackByIdEndpoint",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "ID of requested feedback.",
-            "schema": {
-              "type": "string",
-              "format": "guid"
-            },
-            "example": "0198b2a9-cb8c-744b-8cdd-0b64727cf2fc"
-          }
-        ],
-        "responses": {
-          "404": {
-            "description": "Not Found"
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetFeedbackByIdResponse"
-                }
-              }
-            }
           },
           "401": {
             "description": "Unauthorized"
@@ -311,26 +311,6 @@
           }
         }
       },
-      "ChangeFeedbackCommand": {
-        "type": "object",
-        "example": {
-          "feedback": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim",
-          "rating": 1
-        },
-        "additionalProperties": false,
-        "properties": {
-          "feedback": {
-            "type": "string",
-            "description": "Feedback message about the weather forecast.",
-            "example": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim"
-          },
-          "rating": {
-            "type": "integer",
-            "format": "byte",
-            "example": 1
-          }
-        }
-      },
       "GetFeedbackByIdResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -389,23 +369,23 @@
           }
         }
       },
-      "SendFeedbackCommand": {
+      "ChangeFeedbackCommand": {
         "type": "object",
         "example": {
-          "feedback": "Your radar is my spirit animal. Dodged the storm like Neo",
-          "rating": 5
+          "feedback": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim",
+          "rating": 1
         },
         "additionalProperties": false,
         "properties": {
           "feedback": {
             "type": "string",
             "description": "Feedback message about the weather forecast.",
-            "example": "Your radar is my spirit animal. Dodged the storm like Neo"
+            "example": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim"
           },
           "rating": {
             "type": "integer",
             "format": "byte",
-            "example": 5
+            "example": 1
           }
         }
       },
@@ -915,6 +895,26 @@
           "ZW"
         ]
       },
+      "SendFeedbackCommand": {
+        "type": "object",
+        "example": {
+          "feedback": "Your radar is my spirit animal. Dodged the storm like Neo",
+          "rating": 5
+        },
+        "additionalProperties": false,
+        "properties": {
+          "feedback": {
+            "type": "string",
+            "description": "Feedback message about the weather forecast.",
+            "example": "Your radar is my spirit animal. Dodged the storm like Neo"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "byte",
+            "example": 5
+          }
+        }
+      },
       "AlertSubscriptionDto": {
         "type": "object",
         "additionalProperties": false,
@@ -927,22 +927,7 @@
           }
         }
       },
-      "WeatherAlert": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "city": {
-            "type": "string"
-          },
-          "countryCode": {
-            "$ref": "#/components/schemas/CountryCode"
-          },
-          "alertMessage": {
-            "type": "string"
-          }
-        }
-      },
-      "WeatherAlertMessage": {
+      "WeatherAlertMessageDto": {
         "type": "object",
         "additionalProperties": false,
         "properties": {

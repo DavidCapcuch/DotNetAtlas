@@ -28,7 +28,7 @@ public static class ApiDependencyInjection
             .AddProblemDetails()
             .AddExceptionHandler<GlobalExceptionHandler>();
 
-        services.AddScoped<IWeatherAlertNotifier, WeatherAlertNotifier>();
+        services.AddScoped<IWeatherAlertBroadcaster, WeatherAlertBroadcaster>();
 
         return services;
     }

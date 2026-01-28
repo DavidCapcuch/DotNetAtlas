@@ -19,7 +19,7 @@ Use this file to capture repetitive tasks and their workflows.
 
 **Files to modify:**
 
-- `platform/DotNetAtlas.SchemaRegistry/*.avsc` (add new schema file)
+- `platform/DotNetAtlas.SchemaRegistry.Contracts/*.avsc` (add new schema file)
 
 **Steps:**
 
@@ -37,7 +37,7 @@ Use this file to capture repetitive tasks and their workflows.
 
 **References:**
 
-- `platform/DotNetAtlas.SchemaRegistry/README.md`
+- `platform/DotNetAtlas.SchemaRegistry.Contracts/README.md`
 
 ---
 
@@ -108,7 +108,7 @@ Use this file to capture repetitive tasks and their workflows.
 
 - Use `Guid.CreateVersion7()` for time-ordered IDs
 - Validate invariants in aggregate constructor
-- Raise domain events via `RaiseDomainEvent()`
+- Raise domain events via `AddDomainEvent()`
 - Follow Result pattern for error handling
 - Include OpenTelemetry tracing in handlers
 

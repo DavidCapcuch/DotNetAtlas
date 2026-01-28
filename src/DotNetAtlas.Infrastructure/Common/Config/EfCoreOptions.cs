@@ -7,10 +7,6 @@ public sealed class EfCoreOptions
     public const string Section = "EfCore";
 
     [Required]
-    [Range(1, 4096)]
-    public required int DbContextPoolSize { get; set; }
-
-    [Required]
     public required bool UseQuerySplitting { get; set; }
 
     [Required]

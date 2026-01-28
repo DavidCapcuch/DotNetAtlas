@@ -1,0 +1,214 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+
+namespace DotNetAtlas.Sagas.Common.Observability;
+
+/// <summary>
+/// OpenTelemetry instrumentation for subscription saga activities.
+/// Provides metrics for both purchase and extension sagas with saga type differentiation.
+/// </summary>
+public static class SubscriptionSagaInstrumentation
+{
+    /// <summary>
+    /// Saga type constant for purchase sagas.
+    /// </summary>
+    public const string SagaTypePurchase = "purchase";
+
+    /// <summary>
+    /// Saga type constant for extension sagas.
+    /// </summary>
+    public const string SagaTypeExtension = "extension";
+
+    private static readonly Meter Meter = new(SagaInstrumentation.MeterName, ApplicationInfo.Version);
+
+    // Counters
+    private static readonly Counter<long> SagasStarted =
+        Meter.CreateCounter<long>("saga.subscriptions.started", "count", "Number of subscription sagas started");
+
+    private static readonly Counter<long> SagasCompleted =
+        Meter.CreateCounter<long>("saga.subscriptions.completed", "count",
+            "Number of subscription sagas completed successfully");
+
+    private static readonly Counter<long> SagasFailed =
+        Meter.CreateCounter<long>("saga.subscriptions.failed", "count", "Number of subscription sagas that failed");
+
+    private static readonly Counter<long> SagasTimedOut =
+        Meter.CreateCounter<long>("saga.subscriptions.timedout", "count",
+            "Number of subscription sagas that timed out");
+
+    private static readonly Counter<long> CompensationsCompleted =
+        Meter.CreateCounter<long>("saga.subscriptions.compensations.completed", "count",
+            "Number of compensations completed");
+
+    private static readonly Counter<long> CompensationsTimedOut =
+        Meter.CreateCounter<long>("saga.subscriptions.compensations.timedout", "count",
+            "Number of compensations that timed out");
+
+    private static readonly Counter<long> PaymentsCompleted =
+        Meter.CreateCounter<long>("saga.subscriptions.payments.completed", "count",
+            "Number of payments completed successfully");
+
+    private static readonly Counter<long> PaymentsFailed =
+        Meter.CreateCounter<long>("saga.subscriptions.payments.failed", "count",
+            "Number of payments that failed");
+
+    private static readonly Counter<long> PaymentsTimedOut =
+        Meter.CreateCounter<long>("saga.subscriptions.payments.timedout", "count",
+            "Number of payments that timed out");
+
+    // Histograms
+    private static readonly Histogram<double> SagaDuration =
+        Meter.CreateHistogram<double>("saga.subscriptions.duration", "ms", "Duration of subscription sagas");
+
+    private static readonly Histogram<double> PaymentDuration =
+        Meter.CreateHistogram<double>("saga.subscriptions.payments.duration", "ms", "Duration of payment processing");
+
+    /// <summary>
+    /// Records that a new subscription saga has started.
+    /// High-cardinality data (correlationId, userId) is kept in traces only.
+    /// </summary>
+    /// <param name="tier">The subscription tier (low-cardinality).</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordSagaStarted(string tier, string sagaType)
+    {
+        SagasStarted.Add(1,
+            new KeyValuePair<string, object?>("saga.subscription_tier", tier),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that a subscription saga completed successfully.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="duration">The duration of the saga.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordSagaCompleted(TimeSpan duration, string sagaType)
+    {
+        SagasCompleted.Add(1,
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+
+        SagaDuration.Record(duration.TotalMilliseconds,
+            new KeyValuePair<string, object?>("saga.outcome", "completed"),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that a subscription saga failed.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="errorCode">The error code (low-cardinality).</param>
+    /// <param name="duration">The duration of the saga.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordSagaFailed(string errorCode, TimeSpan duration, string sagaType)
+    {
+        SagasFailed.Add(1,
+            new KeyValuePair<string, object?>("saga.error_code", errorCode),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+
+        SagaDuration.Record(duration.TotalMilliseconds,
+            new KeyValuePair<string, object?>("saga.outcome", "failed"),
+            new KeyValuePair<string, object?>("saga.error_code", errorCode),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that a subscription saga timed out.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="duration">The duration of the saga.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordSagaTimeout(TimeSpan duration, string sagaType)
+    {
+        SagasTimedOut.Add(1,
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+
+        SagaDuration.Record(duration.TotalMilliseconds,
+            new KeyValuePair<string, object?>("saga.outcome", "timeout"),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that compensation was completed.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="duration">The duration of compensation.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordCompensationCompleted(TimeSpan duration, string sagaType)
+    {
+        _ = duration; // Used for future metrics tracking
+        CompensationsCompleted.Add(1,
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that compensation timed out.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="duration">The duration before timeout.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordCompensationTimeout(TimeSpan duration, string sagaType)
+    {
+        CompensationsTimedOut.Add(1,
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+
+        SagaDuration.Record(duration.TotalMilliseconds,
+            new KeyValuePair<string, object?>("saga.outcome", "compensation_timeout"),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that payment completed successfully.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="duration">The duration of payment processing.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordPaymentCompleted(TimeSpan duration, string sagaType)
+    {
+        PaymentsCompleted.Add(1,
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+
+        PaymentDuration.Record(duration.TotalMilliseconds,
+            new KeyValuePair<string, object?>("saga.payment_outcome", "completed"),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that payment failed.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="errorCode">The error code (low-cardinality).</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordPaymentFailed(string errorCode, string sagaType)
+    {
+        PaymentsFailed.Add(1,
+            new KeyValuePair<string, object?>("saga.error_code", errorCode),
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Records that payment timed out.
+    /// High-cardinality data (correlationId) is kept in traces only.
+    /// </summary>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    public static void RecordPaymentTimeout(string sagaType)
+    {
+        PaymentsTimedOut.Add(1,
+            new KeyValuePair<string, object?>("saga.type", sagaType));
+    }
+
+    /// <summary>
+    /// Creates a new activity for a subscription saga operation.
+    /// </summary>
+    /// <param name="operationName">Name of the operation being traced.</param>
+    /// <param name="correlationId">The saga correlation ID.</param>
+    /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
+    /// <returns>The created activity, or null if tracing is disabled.</returns>
+    public static Activity? StartActivity(string operationName, Guid correlationId, string sagaType)
+    {
+        var activity = SagaInstrumentation.ActivitySource.StartActivity(operationName, ActivityKind.Internal);
+        activity?.SetTag("saga.type", sagaType);
+        activity?.SetTag("saga.correlation_id", correlationId.ToString());
+        return activity;
+    }
+}
+

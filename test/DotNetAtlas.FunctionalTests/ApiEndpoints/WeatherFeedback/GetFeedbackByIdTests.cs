@@ -18,13 +18,16 @@ public class GetFeedbackByIdTests : BaseApiTest
     [Fact]
     public async Task WhenFeedbackDoesNotExist_ReturnsNotFound()
     {
-        // Arrange and Act
+        // Arrange
+        var getFeedbackByIdQuery = new GetFeedbackByIdQuery
+        {
+            Id = Guid.CreateVersion7()
+        };
+
+        // Act
         var (httpResponse, problemDetails) =
-            await HttpClientRegistry.PlebClient.GETAsync<GetFeedbackByIdEndpoint, GetFeedbackByIdQuery, ProblemDetails>(
-                new GetFeedbackByIdQuery
-                {
-                    Id = Guid.NewGuid()
-                });
+            await HttpClientRegistry.RegularUserAuthClient.GETAsync<GetFeedbackByIdEndpoint, GetFeedbackByIdQuery, ProblemDetails>(
+                getFeedbackByIdQuery);
 
         // Assert
         using (new AssertionScope())
@@ -60,7 +63,7 @@ public class GetFeedbackByIdTests : BaseApiTest
         const string feedbackText = "Very accurate forecast!";
 
         var createResponse =
-            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
                 new SendFeedbackCommand
                 {
                     Feedback = feedbackText,
@@ -77,7 +80,7 @@ public class GetFeedbackByIdTests : BaseApiTest
             Id = feedbackId
         };
         var (httpResponse, feedback) =
-            await HttpClientRegistry.PlebClient
+            await HttpClientRegistry.RegularUserAuthClient
                 .GETAsync<GetFeedbackByIdEndpoint, GetFeedbackByIdQuery, GetFeedbackByIdResponse>(
                     getFeedbackByIdQuery);
 

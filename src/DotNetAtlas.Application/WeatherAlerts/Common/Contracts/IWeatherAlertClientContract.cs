@@ -5,5 +5,5 @@ namespace DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 [Receiver]
 public interface IWeatherAlertClientContract
 {
-    Task ReceiveWeatherAlert(WeatherAlertMessage weatherAlertMessage);
+    Task ReceiveWeatherAlert(WeatherAlertMessageDto weatherAlertMessageDto);
 }

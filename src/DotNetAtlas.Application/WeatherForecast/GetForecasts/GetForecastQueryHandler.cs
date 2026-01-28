@@ -1,58 +1,110 @@
 using System.Diagnostics;
-using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.Application.WeatherForecast.Common.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.Common;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.CQS;
+using DotNetAtlas.Domain.Common.ValueObjects;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.Application.WeatherForecast.GetForecasts;
 
-public class GetForecastQueryHandler : IQueryHandler<GetForecastQuery, GetForecastResponse>
+public sealed class GetForecastQueryHandler : IQueryHandler<GetForecastQuery, GetForecastResponse>
 {
     private readonly ILogger<GetForecastQueryHandler> _logger;
-    private readonly IWeatherForecastService _forecastService;
+    private readonly IWeatherForecastService _weatherForecastService;
     private readonly IForecastEventsProducer _forecastEventsProducer;
+    private readonly TimeProvider _timeProvider;
 
     public GetForecastQueryHandler(
-        IWeatherForecastService forecastService,
+        IWeatherForecastService weatherForecastService,
+        IForecastEventsProducer forecastEventsProducer,
         ILogger<GetForecastQueryHandler> logger,
-        IForecastEventsProducer eventsPublisher)
+        TimeProvider timeProvider)
     {
-        _forecastService = forecastService;
+        _weatherForecastService = weatherForecastService;
+        _forecastEventsProducer = forecastEventsProducer;
         _logger = logger;
-        _forecastEventsProducer = eventsPublisher;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<GetForecastResponse>> HandleAsync(GetForecastQuery query, CancellationToken ct)
     {
-        Activity.Current?.SetTag(DiagnosticNames.City, query.City);
-        Activity.Current?.SetTag(DiagnosticNames.CountryCode, query.CountryCode.ToString());
+        SetTraceTags(query);
 
-        _ = Task.Run(async () =>
+        var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().DateTime);
+        var dateRangeResult = DateRange.Create(today, query.Days);
+        if (dateRangeResult.IsFailed)
         {
-            try
-            {
-                await _forecastEventsProducer.PublishForecastRequestedAsync(query);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to publish forecast request");
-            }
-        }, ct);
+            return Result.Fail(dateRangeResult.Errors);
+        }
 
-        var forecastRequest = query.ToForecastRequest();
-        var forecastResult = await _forecastService.GetForecastAsync(forecastRequest, ct);
+        var forecastCriteria = ForecastCriteria.Create(query.City, query.CountryCode, dateRangeResult.Value);
+        if (forecastCriteria.IsFailed)
+        {
+            return Result.Fail(forecastCriteria.Errors);
+        }
+
+        var forecastResult = await _weatherForecastService.GetForecastAsync(forecastCriteria.Value, ct);
         if (forecastResult.IsFailed)
         {
             _logger.LogError("Failed to serve forecast for '{City},{CountryCode}'", query.City, query.CountryCode);
-
             return Result.Fail(forecastResult.Errors);
         }
 
+        // Publish forecast requested event (fire-and-forget)
+        // Note: This event is non-essential for the main operation flow.
+        // We intentionally don't await to avoid blocking the response.
+        // Exceptions are handled in the continuation to prevent affecting the main flow.
+        PublishForecastRequestedEvent(forecastCriteria.Value, query.UserId);
+
         return new GetForecastResponse
         {
-            Forecasts = forecastResult.Value
+            Forecasts = [.. forecastResult.Value]
         };
+    }
+
+    private static void SetTraceTags(GetForecastQuery query)
+    {
+        Activity.Current?.SetTag(TraceTags.City, query.City);
+        Activity.Current?.SetTag(TraceTags.CountryCode, query.CountryCode.ToString());
+    }
+
+    /// <summary>
+    /// Publishes a forecast requested event in a fire-and-forget manner.
+    /// This event is non-essential and should never block the main operation flow.
+    /// Uses ContinueWith to ensure exceptions are handled even if the implementation
+    /// changes to truly async in the future.
+    /// </summary>
+    private void PublishForecastRequestedEvent(ForecastCriteria forecastCriteria, Guid? userId)
+    {
+        try
+        {
+            _forecastEventsProducer.PublishForecastRequestedFireAndForgetAsync(forecastCriteria, userId)
+                .ContinueWith(t =>
+                    {
+                        if (t.Exception != null)
+                        {
+                            _logger.LogError(t.Exception,
+                                "Failed to publish forecast event for {City}",
+                                forecastCriteria.City.Name);
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
+
+            _logger.LogDebug(
+                "Queued ForecastRequestedEvent for {City}, {CountryCode}",
+                forecastCriteria.City.Name, forecastCriteria.CountryCode);
+        }
+        catch (Exception ex)
+        {
+            // Fire-and-forget: log the error but don't fail the main flow
+            _logger.LogError(
+                ex, "Failed to queue ForecastRequestedEvent for {City}, {CountryCode}",
+                forecastCriteria.City.Name, forecastCriteria.CountryCode);
+        }
     }
 }

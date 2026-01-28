@@ -18,6 +18,11 @@ indent_style = space
 indent_size = 2
 tab_width = 2
 
+# Disable all analyzers for EF Core auto-generated migrations
+[**/Persistence/Database/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+
 # C# files
 [*.cs]
 
@@ -383,6 +388,9 @@ dotnet_diagnostic.SA1204.severity = silent
 #Error SA1512 : Single-line comments should not be followed by blank line
 dotnet_diagnostic.SA1512.severity = none
 
+#Error SA1518 : Files should end with single blank line
+dotnet_diagnostic.SA1518.severity = suggestion
+
 # SA1516: Elements should be separated by new line
 dotnet_diagnostic.SA1516.severity = none
 
@@ -415,6 +423,9 @@ dotnet_diagnostic.SA1116.severity = none
 
 # SA1117: Prefix local calls with this
 dotnet_diagnostic.SA1117.severity = none
+
+# SA1118: The parameter spans multiple lines
+dotnet_diagnostic.SA1118.severity = silent
 
 # SA1136: Enum values should be on separate lines
 dotnet_diagnostic.SA1136.severity = none
@@ -540,7 +551,7 @@ dotnet_diagnostic.CA1700.severity = suggestion
 dotnet_diagnostic.CA1707.severity = none
 
 # CA1711: Identifiers should not have incorrect suffix
-dotnet_diagnostic.CA1711.severity = suggestion
+dotnet_diagnostic.CA1711.severity = none
 
 # CA1716: Identifiers should not match keywords
 dotnet_diagnostic.CA1716.severity = suggestion
@@ -621,6 +632,9 @@ dotnet_diagnostic.IDE0005.severity = suggestion
 
 # IDE0032
 dotnet_diagnostic.IDE0032.severity = suggestion
+
+# IDE0037
+dotnet_diagnostic.IDE0037.severity = suggestion
 
 # IDE0090
 dotnet_diagnostic.IDE0090.severity = none

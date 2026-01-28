@@ -107,23 +107,30 @@ The system demonstrates modern .NET architecture through a simple weather-focuse
 
 ### Project Structure
 
-The solution contains 14 projects:
+The solution contains 17 projects:
 
-```
+```text
 src/                          # Core application layers (DDD + Clean Architecture)
 ├── DotNetAtlas.Domain       # Pure business logic, zero infrastructure deps
-├── DotNetAtlas.Application  # Use cases with CQS handlers and interfaces  
+├── DotNetAtlas.Application  # Use cases with CQS handlers and interfaces
 ├── DotNetAtlas.Infrastructure # External concerns (DB, Kafka, Redis, etc.)
 └── DotNetAtlas.Api          # FastEndpoints, SignalR hubs, Swagger
 
-platform/                     # Reusable platform components
-├── DotNetAtlas.Outbox.Core           # Base for Event-driven outbox pattern
-├── DotNetAtlas.Outbox.EntityFrameworkCore  # Reusable EF Core outbox integration
-├── DotNetAtlas.OutboxRelay.WorkerService   # Outbox message publishing worker
-├── DotNetAtlas.OutboxRelay.Benchmark      # Performance testing for OutboxRelay
-└── DotNetAtlas.SchemaRegistry             # Avro schema management
+platform/                     # Reusable platform components (12 libraries)
+├── DotNetAtlas.SharedKernel              # DDD building blocks (AggregateRoot, Entity, ValueObject)
+├── DotNetAtlas.CQS                       # CQS implementation with behaviors
+├── DotNetAtlas.Messaging.Abstractions    # Standard message header keys
+├── DotNetAtlas.Inbox.Core                # Inbox entity for idempotent processing
+├── DotNetAtlas.Outbox.Core               # Outbox entity with OTEL support
+├── DotNetAtlas.ReliableMessaging.EFCore  # EF Core integration for Inbox/Outbox
+├── DotNetAtlas.KafkaFlow.ProducerHeaders # Automatic message ID and origin headers
+├── DotNetAtlas.KafkaFlow.Inbox.EFCore    # Inbox middleware for KafkaFlow
+├── DotNetAtlas.KafkaFlow.DeadLetter      # Dead Letter Topic middleware
+├── DotNetAtlas.OutboxRelay.WorkerService # Outbox message publishing worker
+├── DotNetAtlas.OutboxRelay.Benchmark     # Performance testing for OutboxRelay
+└── DotNetAtlas.SchemaRegistry.Contracts            # Avro schema management
 
-test/                         # Comprehensive testing strategy  
+test/                         # Comprehensive testing strategy
 ├── DotNetAtlas.Test.Framework      # Shared test utilities and containers
 ├── DotNetAtlas.ArchitectureTests   # Architecture validation (NetArchTest)
 ├── DotNetAtlas.UnitTests          # Fast, isolated unit tests
@@ -152,7 +159,7 @@ An approach that organizes the system around the core business domain by modelin
 
 **Why:** Ensures the system reflects the business domain's language, rules, and behavior, keeping the business logic explicit and coherent. It creates a shared understanding of the domain between technical and non-technical teams.
 
-- **Aggregates**: `AggregateRoot<TId>`, acts as the boundary for invariants and domain consistency, raise events via `RaiseDomainEvent()`, `PopDomainEvents()` before SaveChanges
+- **Aggregates**: `AggregateRoot<TId>`, acts as the boundary for invariants and domain consistency, raise events via `AddDomainEvent()`, `PopDomainEvents()` before SaveChanges
 - **Value Objects**: Immutable, equality by value (e.g., **FeedbackText**, **FeedbackRating**), Validate themselves on creation and prevent invalid states
 - **Domain Events**: `IDomainEvent`, raised within aggregates, captured by EF interceptor and guaranteed to be published to Kafka by worker service
 - **Entities**: Base `Entity<TId>`, identified by a stable ID over time, typically a Guid (e.g., Guid.CreateVersion7() for time-ordered IDs).

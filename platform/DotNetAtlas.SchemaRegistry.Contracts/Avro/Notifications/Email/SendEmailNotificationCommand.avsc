@@ -1,0 +1,42 @@
+{
+    "type": "record",
+    "name": "SendEmailNotificationCommand",
+    "namespace": "Notifications.Email",
+    "doc": "Command to send an email notification. NotificationService owns templates and delivers emails.",
+    "fields": [
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Target user. NotificationService looks up email address from user profile."
+        },
+        {
+            "name": "TemplateId",
+            "type": "string",
+            "doc": "Template identifier owned by NotificationService. Convention: {bounded-context}.{notification-type}, e.g., 'weather-alerts.subscription-downgraded'."
+        },
+        {
+            "name": "TemplateData",
+            "type": {
+                "type": "map",
+                "values": "string"
+            },
+            "doc": "Key-value data for template rendering (e.g., {'previousTier': 'Pro', 'expiryDate': '2024-01-15'})."
+        },
+        {
+            "name": "IdempotencyKey",
+            "type": "string",
+            "doc": "Key for business-level deduplication. Should be deterministic based on the business operation (e.g., 'subscription-downgraded-{subscriberId}-{expiryDate}')."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the command was created."
+        }
+    ]
+}

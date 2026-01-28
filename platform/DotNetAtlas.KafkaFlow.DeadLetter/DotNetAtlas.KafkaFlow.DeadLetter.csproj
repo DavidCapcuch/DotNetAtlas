@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="KafkaFlow"/>
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>

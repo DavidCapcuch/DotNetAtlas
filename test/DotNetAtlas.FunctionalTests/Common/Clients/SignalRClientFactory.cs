@@ -1,5 +1,4 @@
 using DotNetAtlas.Api.SignalRHubs.WeatherAlerts;
-using DotNetAtlas.Application.Common.Observability;
 using MessagePack;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -66,7 +65,6 @@ public sealed class SignalRClientFactory
 
         var client = new WeatherAlertHubTestClient(
             hubConnection,
-            _scope.ServiceProvider.GetRequiredService<IDotNetAtlasInstrumentation>(),
             _cancellationToken);
 
         await client.StartAsync();

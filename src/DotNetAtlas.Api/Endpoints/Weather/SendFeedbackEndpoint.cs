@@ -8,9 +8,9 @@ namespace DotNetAtlas.Api.Endpoints.Weather;
 
 internal class SendFeedbackEndpoint : Endpoint<SendFeedbackCommand>
 {
-    private readonly Application.Common.CQS.ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackHandler;
+    private readonly CQS.ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackHandler;
 
-    public SendFeedbackEndpoint(Application.Common.CQS.ICommandHandler<SendFeedbackCommand, Guid> sendFeedbackHandler)
+    public SendFeedbackEndpoint(CQS.ICommandHandler<SendFeedbackCommand, Guid> sendFeedbackHandler)
     {
         _sendFeedbackHandler = sendFeedbackHandler;
     }

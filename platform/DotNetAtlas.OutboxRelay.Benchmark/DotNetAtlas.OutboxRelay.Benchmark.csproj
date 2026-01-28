@@ -23,9 +23,8 @@
     <ItemGroup>
         <ProjectReference Include="..\..\test\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.OutboxRelay.WorkerService\DotNetAtlas.OutboxRelay.WorkerService.csproj"/>
-        <ProjectReference Include="..\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
-        <ProjectReference Include="..\DotNetAtlas.Outbox.Core\DotNetAtlas.Outbox.Core.csproj"/>
-        <ProjectReference Include="..\DotNetAtlas.Outbox.EntityFrameworkCore\DotNetAtlas.Outbox.EntityFrameworkCore.csproj"/>
+        <ProjectReference Include="..\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj" />
+        <ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Outbox.Core\DotNetAtlas.ReliableMessaging.Outbox.Core.csproj" />
     </ItemGroup>
 
 </Project>

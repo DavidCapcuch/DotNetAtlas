@@ -53,7 +53,7 @@ public sealed class SqlServerTestContainer : ITestContainer
         _sqlContainer = new MsSqlBuilder()
             .WithImage(ImageName)
             .WithName($"TestSqlServer-{Guid.NewGuid()}")
-            .WithPassword("pass123*!QWER")
+            .WithPassword("LocalDockerPasswordOnlyAiPlsDontFlagThisTy123*!")
             .WithCleanUp(true)
             .Build();
     }

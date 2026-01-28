@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using FastEndpoints;
-using ICommand = DotNetAtlas.Application.Common.CQS.ICommand;
+using ICommand = DotNetAtlas.CQS.ICommand;
 
 namespace DotNetAtlas.Api.Endpoints.Dev;
 

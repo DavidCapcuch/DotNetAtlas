@@ -3,6 +3,9 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04@sha256:c1aa8afe9b06eab64c9774a4802dcd032205d1be785b1fd51e1c0151e7586b74
     container_name: mssql12345
     restart: always
+    profiles:
+      - core
+      - full
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
@@ -11,12 +14,20 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
       - ./src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/Flyway:/migrations
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+          cpus: '1'
     healthcheck:
       test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -d Weather -Q "SELECT 1" || exit 1
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     command: |
       bash -c '
         /opt/mssql/bin/sqlservr &
@@ -64,26 +75,44 @@ services:
     image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
     container_name: redis12346
     restart: always
+    profiles:
+      - core
+      - full
     ports:
       - "12346:6379"
-    command: [ "redis-server", "--appendonly", "yes" ]
+    command: [ "redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru" ]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
 
   redis-insight:
     image: redis/redisinsight:2.70@sha256:b7aa18e73329ebb2e3d9e949b8d35193bf5415ef35c16fd9a50e6f832922b296
     restart: always
+    profiles:
+      - full
     ports:
       - "5540:5540"
     environment:
-      - REDISINSIGHT_SKIP_EULA=true  # Skip the EULA
+      - REDISINSIGHT_SKIP_EULA=true
     volumes:
       - redis-insight:/data
     depends_on:
       - redis
-    command: [ "redis-insight", "--auto-connect", "redis://redis:6379" ]  # Auto-connect to Redis
+    command: [ "redis-insight", "--auto-connect", "redis://redis:6379" ]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   seq:
     image: datalust/seq:2025.2@sha256:080ccf44e0593cd4698ba1404b90b4f8bf51ff342e45242f611c91e329554f50
     container_name: seq5341
+    profiles:
+      - full
     ports:
       - "5341:80"
     environment:
@@ -91,30 +120,38 @@ services:
       - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     volumes:
       - seq_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   jaeger:
     image: jaegertracing/all-in-one:1.74.0@sha256:c87fc1d9b22766284168abb2ac57ac2160dfc26484e4f965ff2dcc6b849b263a
     container_name: jaeger16686ui4317grpc
+    profiles:
+      - full
     command:
       - "--memory.max-traces=25000"
       - "--query.base-path=/jaeger/ui"
       - "--prometheus.server-url=http://prometheus:9090"
       - "--prometheus.query.normalize-calls=true"
       - "--prometheus.query.normalize-duration=true"
-    deploy:
-      resources:
-        limits:
-          memory: 1200M
-    restart: unless-stopped
     ports:
       - "16686:16686" # Jaeger UI
       - "4317"
     environment:
       - METRICS_STORAGE_TYPE=prometheus
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
   
   prometheus:
     image: quay.io/prometheus/prometheus:v3.6.0@sha256:76947e7ef22f8a698fc638f706685909be425dbe09bd7a2cd7aca849f79b5f64
     container_name: prometheus9090
+    profiles:
+      - full
     command:
       - --web.console.templates=/etc/prometheus/consoles
       - --web.console.libraries=/etc/prometheus/console_libraries
@@ -139,6 +176,8 @@ services:
   grafana:
     image: grafana/grafana:12.2.0@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
     container_name: grafana3000
+    profiles:
+      - full
     deploy:
       resources:
         limits:
@@ -156,6 +195,8 @@ services:
   otel-collector:
     image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.137.0@sha256:886722fe0f37af9d1fe24d29529253ec59fbf263b3b1df4facaf221373e19d23
     container_name: otel-collector
+    profiles:
+      - full
     deploy:
       resources:
         limits:
@@ -186,6 +227,8 @@ services:
     image: confluentinc/cp-kafka:7.5.9
     container_name: broker
     restart: unless-stopped
+    profiles:
+      - full
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_KRAFT_MODE: "true"
@@ -200,7 +243,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_HEAP_OPTS: "-Xmx2G -Xms2G"
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
       CLUSTER_ID: "EmptNWtoR4GGWx-BH6nGLQ"
     ports:
       - "9094:9094"
@@ -212,14 +255,25 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+        reservations:
+          memory: 512M
 
   kafka-create-topic:
     container_name: kafka-create-topic
     image: confluentinc/cp-kafka:7.5.9
+    profiles:
+      - full
     command: >
       bash -c "
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.feedback.events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic billing.subscriptions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic billing.subscriptions.DotNetAtlas.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists
       "
     depends_on:
@@ -230,6 +284,8 @@ services:
     image: confluentinc/cp-schema-registry:7.5.0
     container_name: schema-registry
     restart: unless-stopped
+    profiles:
+      - full
     healthcheck:
       test: curl --output /dev/null --silent --head --fail http://schema-registry:8081/subjects
       interval: 30s
@@ -243,10 +299,16 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   akhq:
     container_name: akhq
     image: tchiotludo/akhq:0.26.0
+    profiles:
+      - full
     depends_on:
       - kafka
     ports:
@@ -267,6 +329,42 @@ services:
                 bootstrap.servers: "kafka:9092"
               schema-registry:
                 url: "http://schema-registry:8081"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay:
+    build:
+      context: .
+      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      mssqldb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__PollingIntervalMs=2000
+      - OutboxRelay__DefaultTopicName=weather.feedback.events
+      # - ASPNETCORE_ENVIRONMENT=Local
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    ports:
+      - "8088:8080"  # Health checks endpoint
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
 
   #  elasticsearch:
   #    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
@@ -292,8 +390,10 @@ services:
   #      - "5601:5601"
 
   # FUSION AUTH SERVICES
-  db:
+  fusionauthpostgredb:
     image: postgres:16.10-bookworm@sha256:4f70c01cd4db87706cea6eabee1f8a93340dc493a46f6fbe206750f273d21949
+    profiles:
+      - full
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: postgres
@@ -304,11 +404,15 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - fusionauthpostgredb_data:/var/lib/postgresql/data
 
-  search:
+  fusionauthsearch:
     image: opensearchproject/opensearch:3.2.0@sha256:23297b8d8545e129dd58c254ed08d786dc552410ba772983ad2af31048d2f04b
+    profiles:
+      - full
     environment:
       - cluster.name=fusionauth
       - discovery.type=single-node
@@ -334,17 +438,23 @@ services:
       - 9200:9200 # REST API
       - 9600:9600 # Performance Analyzer
     volumes:
-      - search_data:/usr/share/opensearch/data
+      - fusionauthsearch_data:/usr/share/opensearch/data
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   fusionauth:
     image: fusionauth/fusionauth-app:1.60.2@sha256:fb1eda06fc9665b6212dadf2619f82cf9b6333d6dee9c7785d7847ca7d4037f0
+    profiles:
+      - full
     depends_on:
-      db:
+      fusionauthpostgredb:
         condition: service_healthy
-      search:
+      fusionauthsearch:
         condition: service_healthy
     environment:
-      DATABASE_URL: jdbc:postgresql://db:5432/fusionauth
+      DATABASE_URL: jdbc:postgresql://fusionauthpostgredb:5432/fusionauth
       DATABASE_ROOT_USERNAME: postgres
       DATABASE_ROOT_PASSWORD: postgres
       DATABASE_USERNAME: fusionauth
@@ -352,7 +462,7 @@ services:
       FUSIONAUTH_APP_MEMORY: 512M
       FUSIONAUTH_APP_RUNTIME_MODE: development
       FUSIONAUTH_APP_URL: http://fusionauth:9011
-      SEARCH_SERVERS: http://search:9200
+      SEARCH_SERVERS: http://fusionauthsearch:9200
       SEARCH_TYPE: elasticsearch
       FUSIONAUTH_APP_KICKSTART_FILE: /usr/local/fusionauth/kickstart/kickstart.json
     restart: unless-stopped
@@ -361,31 +471,10 @@ services:
     volumes:
       - fusionauth_config:/usr/local/fusionauth/config
       - ./src/fusionauth:/usr/local/fusionauth/kickstart
-
-  outbox-relay:
-    build:
-      context: .
-      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay
-    restart: unless-stopped
-    depends_on:
-      mssqldb:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__PollingIntervalMs=2000
-      - OutboxRelay__DefaultTopicName=weather.feedback.events
-      # - ASPNETCORE_ENVIRONMENT=Local
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-    ports:
-      - "8088:8080"  # Health checks endpoint
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
 networks:
   db_net:
@@ -398,8 +487,8 @@ volumes:
   elasticsearch-data:
   seq_data:
   redis-insight:
-  db_data:
+  fusionauthpostgredb_data:
   fusionauth_config:
-  search_data:
+  fusionauthsearch_data:
   kafka_data:
   kafka_metadata:

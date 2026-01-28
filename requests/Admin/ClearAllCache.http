@@ -1,0 +1,9 @@
+###
+# @name ClearAllCache
+POST {{AppHostAddress}}/api/v1/admin/clear-all-cache
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "allowFailsafe": false
+}

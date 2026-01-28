@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Net.Http.Json;
-using DotNetAtlas.Application.WeatherForecast;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
+using DotNetAtlas.Domain.Common.Services;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -17,39 +17,38 @@ public class WeatherApiComProvider : IWeatherForecastProvider
 
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
-    private readonly IGeocodingService _geocodingService;
+    private readonly IGeocodingProvider _geocodingProvider;
 
     public WeatherApiComProvider(
         [FromKeyedServices(HttpClientName)] HttpClient httpClient,
         IOptions<WeatherApiComOptions> options,
-        [FromKeyedServices(WeatherApiComGeocodingService.ServiceKey)]
-        IGeocodingService geocodingService)
+        [FromKeyedServices(WeatherApiComGeocodingProvider.ServiceKey)]
+        IGeocodingProvider geocodingProvider)
     {
         _httpClient = httpClient;
         _apiKey = options.Value.ApiKey;
-        _geocodingService = geocodingService;
+        _geocodingProvider = geocodingProvider;
     }
 
     public async Task<Result<IReadOnlyList<ForecastDto>>> GetForecastAsync(
-        ForecastRequest forecastRequest,
+        ForecastCriteria criteria,
         CancellationToken ct)
     {
-        var geoRequest = forecastRequest.ToGeocodingRequest();
-        var geoResult = await _geocodingService.GetCoordinatesAsync(geoRequest, ct);
+        var geoResult = await _geocodingProvider.GetCoordinatesAsync(criteria.City, criteria.CountryCode, ct);
         if (geoResult.IsFailed)
         {
             return Result.Fail(geoResult.Errors);
         }
 
         var geoCoordinates = geoResult.Value;
-        var query = $"v1/forecast.json" +
+        var queryString = $"v1/forecast.json" +
                 $"?key={_apiKey}" +
                 $"&q={geoCoordinates.Latitude},{geoCoordinates.Longitude}" +
-                $"&days={forecastRequest.Days}" +
+                $"&days={criteria.Days}" +
                 $"&aqi=no" +
                 $"&alerts=no";
 
-        var forecastResponse = await _httpClient.GetFromJsonAsync<WeatherApiForecastResponse>(query, ct);
+        var forecastResponse = await _httpClient.GetFromJsonAsync<WeatherApiComForecastResponse>(queryString, ct);
         if (forecastResponse?.Forecast?.Forecastday is null)
         {
             throw new InvalidOperationException("WeatherAPI.com forecast not available");
@@ -58,7 +57,6 @@ public class WeatherApiComProvider : IWeatherForecastProvider
         var forecastDtos = new List<ForecastDto>();
         foreach (var day in forecastResponse.Forecast.Forecastday)
         {
-            ct.ThrowIfCancellationRequested();
             forecastDtos.Add(new ForecastDto
             {
                 Date = DateOnly.FromDateTime(DateTime.ParseExact(day.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture)),

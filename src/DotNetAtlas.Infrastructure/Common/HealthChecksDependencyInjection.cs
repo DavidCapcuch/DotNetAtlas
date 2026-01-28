@@ -5,6 +5,7 @@ using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using DotNetAtlas.Infrastructure.Persistence.Database;
+using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -56,7 +57,7 @@ public static class HealthChecksDependencyInjection
         };
 
         services.AddHealthChecks()
-            .AddCheck("Self", () => HealthCheckResult.Healthy(),
+            .AddApplicationStatus("Self",
                 tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
                 timeout: timeoutsOptions.SelfTimeout)
             .AddDbContextCheck<WeatherDbContext>(

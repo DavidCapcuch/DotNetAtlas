@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "DotNetAtlas.Sagas.WorkerService.Local": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Local"
+      },
+      "applicationUrl": "http://localhost:65420"
+    }
+  }
+}
+

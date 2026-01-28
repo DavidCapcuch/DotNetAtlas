@@ -27,7 +27,7 @@ public class SendFeedbackTests : BaseApiTest
 
         // Act
         var (httpResponse, problemDetails) =
-            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand, ProblemDetails>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand, ProblemDetails>(
                 sendFeedbackCommand);
 
         // Assert
@@ -75,11 +75,11 @@ public class SendFeedbackTests : BaseApiTest
 
         // Act - Send feedback twice to trigger conflict
         var firstCreationResponse =
-            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
                 sendFeedbackCommand);
 
         var (secondCreationResponse, problemDetails) =
-            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand, ProblemDetails>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand, ProblemDetails>(
                 sendFeedbackCommand);
 
         // Assert

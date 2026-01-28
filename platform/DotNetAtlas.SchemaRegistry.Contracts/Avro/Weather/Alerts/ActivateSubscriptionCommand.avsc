@@ -1,0 +1,58 @@
+{
+    "type": "record",
+    "name": "ActivateSubscriptionCommand",
+    "namespace": "Weather.Alerts",
+    "doc": "Command sent by Purchase Saga to activate a subscription in the Weather Alerts service after payment is complete.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose subscription to activate."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payment transaction ID for correlation. Used for refunds if activation fails."
+        },
+        {
+            "name": "Tier",
+            "type": {
+                "type": "enum",
+                "name": "SubscriptionTier",
+                "symbols": [
+                    "Pro",
+                    "Ultra"
+                ]
+            },
+            "doc": "Subscription tier to activate."
+        },
+        {
+            "name": "DurationDays",
+            "type": "int",
+            "doc": "Duration of the subscription in days."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when activation was requested."
+        }
+    ]
+}
+

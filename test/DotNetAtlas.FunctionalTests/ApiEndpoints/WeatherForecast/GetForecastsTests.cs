@@ -1,7 +1,7 @@
 using System.Net;
 using DotNetAtlas.Api.Endpoints.Weather;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
-using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Domain.Common.ValueObjects;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;
 
@@ -62,7 +62,7 @@ public class GetForecastsTests : BaseApiTest
         {
             httpResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             problemDetails.Errors.Should().ContainSingle();
-            error.Reason.Should().Be("Days must be between 1 and 14.");
+            error.Name.Should().Be("days");
         }
     }
 
@@ -112,7 +112,7 @@ public class GetForecastsTests : BaseApiTest
         {
             httpResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             problemDetails.Errors.Should().ContainSingle();
-            error.Reason.Should().Contain("must be 100 characters or fewer.");
+            error.Name.Should().Be("city");
         }
     }
 }

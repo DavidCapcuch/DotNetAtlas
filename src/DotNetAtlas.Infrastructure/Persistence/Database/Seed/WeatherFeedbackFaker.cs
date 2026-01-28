@@ -1,6 +1,6 @@
 using Bogus;
-using DotNetAtlas.Domain.Entities.Weather.Feedback;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
+using DotNetAtlas.Domain.Feedback;
+using DotNetAtlas.Domain.Feedback.ValueObjects;
 
 namespace DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 
@@ -8,15 +8,16 @@ public sealed class WeatherFeedbackFaker : Faker<Feedback>
 {
     public WeatherFeedbackFaker()
     {
-        CustomInstantiator(f => new Feedback(
-            FeedbackText.Create(f.Lorem.Sentence()).Value,
-            FeedbackRating.Create(f.Random.Int(1, 5)).Value,
-            f.Random.Guid()
-        ));
+        // Use private constructor via reflection to bypass domain event firing
+        CustomInstantiator(_ => (Feedback)Activator.CreateInstance(typeof(Feedback), nonPublic: true)!);
 
         var utcNow = DateTimeOffset.UtcNow;
-        RuleFor(wf => wf.FeedbackText, f => FeedbackText.Create(f.Lorem.Sentence(5, 2)).Value)
-            .RuleFor(aci => aci.CreatedUtc, _ => utcNow)
-            .RuleFor(aci => aci.LastModifiedUtc, _ => utcNow);
+
+        RuleFor(wf => wf.Id, _ => Guid.CreateVersion7())
+            .RuleFor(wf => wf.FeedbackText, f => FeedbackText.Create(f.Lorem.Sentence(5, 2)).Value)
+            .RuleFor(wf => wf.Rating, f => FeedbackRating.Create(f.Random.Byte(1, 5)).Value)
+            .RuleFor(wf => wf.CreatedByUser, f => f.Random.Guid())
+            .RuleFor(wf => wf.CreatedUtc, _ => utcNow)
+            .RuleFor(wf => wf.LastModifiedUtc, _ => utcNow);
     }
 }

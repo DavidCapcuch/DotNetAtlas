@@ -1,21 +1,23 @@
 using DotNetAtlas.Application.WeatherFeedback.GetFeedback;
-using DotNetAtlas.Domain.Common.Errors;
+using DotNetAtlas.CQS;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using DotNetAtlas.IntegrationTests.Common;
+using DotNetAtlas.SharedKernel.Errors;
 using FluentResults.Extensions.FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DotNetAtlas.IntegrationTests.Application.WeatherFeedback;
 
 [Collection<ForecastTestCollection>]
 public class GetFeedbackByIdQueryHandlerTests : BaseIntegrationTest
 {
-    private readonly GetFeedbackByIdQueryHandler _getFeedbackByIdQueryHandler;
+    private readonly IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse> _getFeedbackByIdQueryHandler;
 
     public GetFeedbackByIdQueryHandlerTests(IntegrationTestFixture app)
         : base(app)
     {
         _getFeedbackByIdQueryHandler =
-            new GetFeedbackByIdQueryHandler(WeatherDbContext);
+            Scope.ServiceProvider.GetRequiredService<IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>>();
     }
 
     [Fact]

@@ -1,16 +1,16 @@
 using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
-using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.Application.WeatherFeedback.Common.Specifications;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.Errors;
+using DotNetAtlas.CQS;
+using DotNetAtlas.Domain.Feedback.Errors;
+using DotNetAtlas.Domain.Feedback.Specifications;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.Application.WeatherFeedback.GetFeedback;
 
-public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>
+public sealed class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse>
 {
     private readonly IWeatherDbContext _weatherDbContext;
 
@@ -24,11 +24,11 @@ public class GetFeedbackByIdQueryHandler : IQueryHandler<GetFeedbackByIdQuery, G
         GetFeedbackByIdQuery query,
         CancellationToken ct)
     {
-        Activity.Current?.SetTag(DiagnosticNames.FeedbackId, query.Id.ToString());
+        Activity.Current?.SetTag(TraceTags.FeedbackId, query.Id.ToString());
 
         var response = await _weatherDbContext.Feedbacks
             .AsNoTracking()
-            .WithSpecification(new WeatherFeedbackByIdSpec(query.Id))
+            .WithSpecification(new FeedbackByIdSpec(query.Id))
             .ProjectToFeedbackResponse()
             .FirstOrDefaultAsync(ct);
 

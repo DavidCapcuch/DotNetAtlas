@@ -1,0 +1,42 @@
+# Ignore files that shouldn't be sent to Docker build context
+# This improves build performance by reducing context size
+
+# Version control
+**/.git
+**/.gitignore
+**/.gitattributes
+
+# Build outputs
+**/bin
+**/obj
+**/out
+**/publish
+
+# IDE and editor files
+**/.vs
+**/.vscode
+**/.idea
+**/*.user
+**/*.suo
+
+# Test results and coverage
+**/TestResults
+**/coveragereport
+**/coverage
+
+# Node modules (if any frontend tooling)
+**/node_modules
+
+# Logs
+**/logs
+**/*.log
+
+# Documentation (not needed in container build)
+**/*.md
+!README.md
+
+# Docker files in subdirectories
+**/Dockerfile*
+**/docker-compose*.yml
+**/.dockerignore
+

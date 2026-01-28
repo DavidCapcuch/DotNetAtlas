@@ -5,31 +5,31 @@ namespace DotNetAtlas.UnitTests.WeatherForecast.Validators;
 
 public class CityValidatorTests
 {
-    private readonly CityValidator _validator = new();
+    private readonly CityValidator _cityValidator = new();
 
     [Fact]
-    public void GivenValidCity_ShouldPass()
+    public void WhenValidCity_ShouldPass()
     {
         // Arrange
-        var city = "Prague";
+        const string cityName = "Prague";
 
         // Act
-        var result = _validator.TestValidate(city);
+        var cityValidationResult = _cityValidator.TestValidate(cityName);
 
         // Assert
-        result.ShouldNotHaveAnyValidationErrors();
+        cityValidationResult.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public void GivenEmptyCity_ShouldFail()
+    public void WhenEmptyCity_ShouldFail()
     {
         // Arrange
-        var city = string.Empty;
+        var cityName = string.Empty;
 
         // Act
-        var result = _validator.TestValidate(city);
+        var cityValidationResult = _cityValidator.TestValidate(cityName);
 
         // Assert
-        result.ShouldHaveValidationErrors();
+        cityValidationResult.ShouldHaveValidationErrors();
     }
 }

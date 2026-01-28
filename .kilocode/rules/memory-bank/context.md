@@ -1,10 +1,10 @@
 # DotNetAtlas - Current Context
 
-## Current State (Updated: 2025-11-14)
+## Current State (Updated: 2025-12-31)
 
-### Project Status: **Production-Ready & Feature-Complete**
+### Project Status: **Production-Ready & Feature-Complete with Platform Libraries**
 
-The project is in a **mature, production-ready state** with all core features fully implemented and operational. Recent comprehensive analysis revealed the project is more feature-rich than initially documented.
+The project is in a **mature, production-ready state** demonstrating enterprise-grade .NET architecture with a comprehensive suite of reusable platform libraries. Recent significant additions include modular platform components for messaging (Inbox/Outbox patterns), CQS with observability, and a complete AlertSubscriber domain model.
 
 ### Major Features Implemented
 
@@ -21,7 +21,15 @@ The project is in a **mature, production-ready state** with all core features fu
    - Complete trace continuity through async processing
    - Create and update feedback operations
 
-3. **Real-Time Weather Alerts (SignalR)** ✅
+3. **Alert Subscriber System (NEW)** ✅
+   - Full subscription lifecycle (Free → Pro → Ultra tiers)
+   - Location-based alert subscriptions with tier limits
+   - Domain events: Created, Activated, Reactivated, Upgraded, Downgraded, Extended
+   - Subscription expiry and downgrade handling
+   - Kafka event consumption (SubscriptionPurchased, SubscriptionExtended)
+   - Saga pattern compensation via failed event publishing
+
+4. **Real-Time Weather Alerts (SignalR)** ✅
    - City-specific alert subscriptions
    - Custom Redis group management with Lua scripts
    - Automatic background job scheduling
@@ -29,19 +37,37 @@ The project is in a **mature, production-ready state** with all core features fu
    - Type-safe client/server contracts
    - Redis backplane for horizontal scaling
 
-4. **Outbox Pattern Implementation** ✅
+5. **Platform Libraries (NEW)** ✅
+   - **DotNetAtlas.SharedKernel** - Base DDD types (AggregateRoot, Entity, ValueObject, DomainEvent)
+   - **DotNetAtlas.CQS** - Complete CQS implementation with behaviors (Validation, Logging, Tracing, Metrics)
+   - **DotNetAtlas.Messaging.Abstractions** - Standard message header keys
+   - **DotNetAtlas.Inbox.Core** - Inbox entity for idempotent message processing
+   - **DotNetAtlas.Outbox.Core** - Outbox entity with OpenTelemetry header support
+   - **DotNetAtlas.ReliableMessaging.EFCore** - EF Core integration for Inbox/Outbox
+   - **DotNetAtlas.KafkaFlow.DeadLetter** - Dead Letter Topic middleware for KafkaFlow
+   - **DotNetAtlas.KafkaFlow.Inbox.EFCore** - Inbox middleware for idempotent Kafka consumption
+   - **DotNetAtlas.KafkaFlow.ProducerHeaders** - Automatic message ID and origin headers
+
+6. **Kafka Consumer Infrastructure (NEW)** ✅
+   - Middleware pipeline: DeadLetter → Retry → Inbox → TypedHandler
+   - Idempotent message processing via database-backed inbox
+   - Dead Letter Topic for failed messages with error details
+   - Saga compensation pattern with failed event publishing
+
+7. **Outbox Pattern Implementation** ✅
    - Custom reusable library (Core + EntityFrameworkCore)
    - Standalone worker service for publishing
    - OpenTelemetry trace continuity
    - Avro serialization with Schema Registry
    - Grafana monitoring dashboard
 
-5. **Admin & Management Features** ✅
+8. **Admin & Management Features** ✅
    - Cache management endpoints (clear all, clear by tag)
    - Database seeding for development
+   - Dev endpoints for publishing test events (SubscriptionPurchased, SubscriptionExtended)
    - Admin-only authorization policies
 
-6. **Authentication & Authorization** ✅
+9. **Authentication & Authorization** ✅
    - FusionAuth OIDC integration
    - JWT Bearer authentication
    - Google OAuth federation
@@ -49,56 +75,91 @@ The project is in a **mature, production-ready state** with all core features fu
    - Policy-based authorization (DevOnly, etc.)
    - Login/Logout endpoints
 
-7. **Comprehensive Testing** ✅
-   - TestContainers for real infrastructure
-   - Architecture validation (NetArchTest)
-   - Unit, Integration, Functional test suites
-   - Test tracing visible in Jaeger
-   - Test container abstraction (ITestContainer)
+10. **Comprehensive Testing** ✅
+    - TestContainers for real infrastructure
+    - Architecture validation (NetArchTest)
+    - Unit, Integration, Functional test suites
+    - Test tracing visible in Jaeger
+    - Test container abstraction (ITestContainer)
 
-8. **Complete Observability** ✅
-   - OpenTelemetry instrumentation across all layers
-   - Distributed tracing (Jaeger)
-   - Metrics collection (Prometheus + Grafana)
-   - Structured logging (Serilog + Seq)
-   - Pre-configured dashboards
+11. **Complete Observability** ✅
+    - OpenTelemetry instrumentation across all layers
+    - CQS metrics (commands_total, queries_total, duration, errors, exceptions)
+    - Distributed tracing (Jaeger)
+    - Metrics collection (Prometheus + Grafana)
+    - Structured logging (Serilog + Seq)
+    - Pre-configured dashboards
 
-## Recent Discoveries from Analysis
+## Recent Significant Changes
 
-### Application Layer Structure
+### New Platform Libraries (12 Total)
 
-- **WeatherAlerts** subdomain discovered - complete real-time alert system
-- **Admin** endpoints for operation management
-- **Auth** endpoints for authentication flows
-- **Dev** endpoints for development utilities
-- Enhanced CQS pattern with separate ICommand/IQuery/ICommandHandler/IQueryHandler interfaces
-- Behavior decorators: ValidationHandlerBehavior, LoggingHandlerBehavior, TracingHandlerBehavior
+1. **DotNetAtlas.SharedKernel** - DDD building blocks extracted to reusable library
+   - `AggregateRoot<TId>`, `Entity<TId>`, `ValueObject`, `IAuditableEntity`
+   - `DomainEvent` base class
+   - Error types: `DomainError`, `ValidationError`, `NotFoundError`, `ConflictError`, `ForbiddenError`
+   - Exception types: `CriticalException`, `DataIntegrityException`
+   - Shared value objects: `City`, `CountryCode`, `GeoCoordinates`
 
-### Infrastructure Implementations
+2. **DotNetAtlas.CQS** - Complete CQS implementation as platform library
+   - `ICommand`, `ICommand<TResponse>`, `IQuery<TResponse>` interfaces
+   - `ICommandHandler<TCommand>`, `ICommandHandler<TCommand, TResponse>`, `IQueryHandler<TQuery, TResponse>`
+   - Behaviors: `ValidationBehavior`, `LoggingBehavior`, `TracingBehavior`, `MetricsBehavior`
+   - `CqsInstrumentation` - Metrics for commands/queries (total, errors, exceptions, duration)
+   - `CqsDependencyInjection` - Easy registration via `AddCqsHandlersFromAssembly()`
 
-- **RedisSignalRGroupManager** - Custom group tracking using Redis Lua scripts
-- **WeatherApiComGeocodingService** - External geocoding service integration
-- **WeatherApiComProvider** - Complete weather API integration with geocoding
-- **IGroupManager** abstraction for SignalR group operations
+3. **DotNetAtlas.Messaging.Abstractions** - Standard message header keys
+   - `MessageHeaderKeys.MessageId` - For idempotent processing
+   - `MessageHeaderKeys.Origin` - Service identifier
 
-### Platform Components
+4. **DotNetAtlas.KafkaFlow.ProducerHeaders** - Automatic header population
+   - `ProducerHeadersMiddleware` - Adds message.id (GUID v7) and origin headers
+   - `ProducerHeadersOptions` - Configuration for origin identifier
 
-- **ITestContainer** interface for test infrastructure abstraction
-- Outbox interceptor with full OpenTelemetry context capture
-- Avro schema generation scripts (PowerShell)
+5. **DotNetAtlas.KafkaFlow.Inbox.EFCore** - Idempotent message consumption
+   - `InboxMiddleware` - Deduplicates messages using database-backed inbox
+   - `IInboxDbContext` - Abstraction for inbox entity management
+   - Configurable per message type via `AddInbox(typeof(MessageType))`
+
+6. **DotNetAtlas.KafkaFlow.DeadLetter** - Dead Letter Topic middleware
+   - `DeadLetterMiddleware` - Routes failed messages to DLT
+   - Captures exceptions AND FluentResults failures
+   - Preserves original headers + adds DLT-specific headers (error, stack trace, original topic/partition/offset)
+
+### New Domain Features
+
+**AlertSubscriber Aggregate** - Full subscription management domain:
+
+- Factory methods: `CreateFree()`, `CreateWithPaidSubscription()`
+- Operations: `SubscribeToLocation()`, `UnsubscribeFromLocation()`, `ActivatePaidSubscription()`, `ExtendSubscription()`, `DowngradeToFree()`
+- `SubscriptionTier` SmartEnum: Free (5 locations), Pro (25 locations), Ultra (100 locations)
+- `Location` entity with `City` and `CountryCode` value objects
+- Domain events: SubscriberCreated, SubscriberActivated, SubscriberReactivated, SubscriptionUpgraded, SubscriptionDowngraded, SubscriptionExtended, UserSubscribed, UserUnsubscribed
+
+**Kafka Event Handlers** - Subscription event processing:
+
+- `SubscriptionPurchasedEventKafkaHandler` - Processes purchase events
+- `SubscriptionExtendedEventKafkaHandler` - Processes extension events
+- Saga compensation via `SubscriptionActivationFailedEvent` publishing
+
+### Kafka Consumer Pipeline Pattern
+
+```text
+DeadLetter → Retry (transient errors) → Inbox (idempotency) → TypedHandler
+```
 
 ## Current Project Metrics
 
 ### Structure
 
-- **14 Projects Total**:
+- **17 Projects Total**:
   - 4 Core layers (Domain, Application, Infrastructure, Api)
-  - 5 Platform projects (Outbox Core, Outbox EF, OutboxRelay Worker, OutboxRelay Benchmark, SchemaRegistry)
+  - 12 Platform projects in platform/ folder
   - 5 Test projects (Test.Framework, ArchitectureTests, UnitTests, IntegrationTests, FunctionalTests)
 
 ### Code Organization
 
-- **3 Weather Subdomains**: Forecast, Feedback, Alerts
+- **3 Domain Subdomains**: Forecast, Feedback, Alerts
 - **5+ Endpoint Groups**: Weather, Admin, Auth, Dev
 - **Multiple Provider Implementations**: WeatherAPI.com, OpenMeteo
 - **Custom Infrastructure**: Redis Lua scripts, Outbox interceptor, Test containers
@@ -120,14 +181,15 @@ The project is in a **mature, production-ready state** with all core features fu
 - **SQL Server**: 2022
 - **Redis**: 7.4
 - **Kafka**: Latest (KRaft mode)
+- **KafkaFlow**: 4.0.1
 - **FusionAuth**: Latest with full OIDC support
 - **SignalR**: MessagePack protocol, Redis backplane
 
 ## What Works Out of the Box
 
 - ✅ `docker-compose up` starts all 14+ services
-- ✅ API accessible at http://localhost:5000
-- ✅ Swagger interactive docs at http://localhost:5000/swagger
+- ✅ API accessible at `http://localhost:5000`
+- ✅ Swagger interactive docs at `http://localhost:5000/swagger`
 - ✅ SignalR test UI (Razor Page) - no external UI needed
 - ✅ Real-time weather alerts fully functional
 - ✅ Multiple weather providers with automatic failover
@@ -197,19 +259,19 @@ The project is in a **mature, production-ready state** with all core features fu
 
 ### Future Enhancements
 
-3. **Add Mermaid Diagrams**
+1. **Add Mermaid Diagrams**
    - System architecture
    - SignalR real-time flow
    - Outbox pattern flow
    - Provider hedging strategy
 
-4. **Create Tutorial Documentation**
+2. **Create Tutorial Documentation**
    - How to add new weather provider
    - How to implement new aggregate
    - How to add SignalR hub method
    - How to create background job
 
-5. **Performance Benchmarking**
+3. **Performance Benchmarking**
    - Outbox worker throughput
    - Cache hit ratios
    - Provider response times

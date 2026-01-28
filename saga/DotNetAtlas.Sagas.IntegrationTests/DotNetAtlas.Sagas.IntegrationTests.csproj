@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <SonarQubeTestProject>true</SonarQubeTestProject>
+        <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/</CoverletOutput>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DotNetAtlas.Sagas\DotNetAtlas.Sagas.csproj" />
+        <ProjectReference Include="..\..\test\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MassTransit.TestFramework"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory"/>
+        <PackageReference Include="NSubstitute"/>
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable"/>
+    </ItemGroup>
+</Project>

@@ -1,0 +1,10 @@
+###
+# @name ChangeFeedback
+PUT {{AppHostAddress}}/api/v1/weather/feedback/0198B2A9-CB8C-744B-8CDD-0B64727CF2FC
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "feedback": "Nevermind. Promised sun, delivered ocean. Boss music started and my picnic learned to swim",
+  "rating": 1
+}

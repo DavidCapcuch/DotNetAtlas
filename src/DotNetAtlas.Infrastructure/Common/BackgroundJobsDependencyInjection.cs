@@ -16,15 +16,19 @@ internal static class BackgroundJobsDependencyInjection
 {
     /// <summary>
     /// Configures Hangfire background job processing.
-    /// Sets up SQL Server storage, job server, and job schedulers.
+    /// Sets up SQL Server storage and job server.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The service collection for chaining.</returns>
     internal static IServiceCollection AddBackgroundJobs(
         this IServiceCollection services)
     {
-        services.AddOptionsWithValidateOnStart<FakeWeatherAlertJobOptions>()
-            .BindConfiguration(FakeWeatherAlertJobOptions.Section)
+        services.AddOptionsWithValidateOnStart<FakeWeatherDataGeneratorBackgroundJobOptions>()
+            .BindConfiguration(FakeWeatherDataGeneratorBackgroundJobOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<ExpiredSubscriptionsJobOptions>()
+            .BindConfiguration(ExpiredSubscriptionsJobOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddOptionsWithValidateOnStart<HangfireOptions>()
@@ -55,7 +59,7 @@ internal static class BackgroundJobsDependencyInjection
             options.Queues = hangfireOptions.Queues;
         });
 
-        services.AddScoped<IWeatherAlertJobScheduler, FakeWeatherAlertJobScheduler>();
+        services.AddScoped<IFakeWeatherDataGenerationJobScheduler, FakeWeatherDataGenerationJobScheduler>();
 
         return services;
     }

@@ -1,4 +1,4 @@
-using DotNetAtlas.Outbox.EntityFrameworkCore.EntityFramework;
+using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 

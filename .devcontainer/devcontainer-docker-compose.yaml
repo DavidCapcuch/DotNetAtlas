@@ -1,0 +1,12 @@
+# Note: Environment variables are defined in devcontainer.json (containerEnv) to avoid duplication.
+
+services:
+  # Development container - VS Code connects to this service
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspaces/DotNetAtlas:cached
+    # Keeps the container running for VS Code to connect
+    command: /bin/sh -c "while sleep 1000; do :; done"

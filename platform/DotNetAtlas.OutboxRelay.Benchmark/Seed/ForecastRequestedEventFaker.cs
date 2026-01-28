@@ -35,7 +35,6 @@ public sealed class ForecastRequestedEventFaker : Faker<ForecastRequestedEvent>
         });
         RuleFor(f => f.Days, f => f.Random.Int(1, 14));
         RuleFor(f => f.UserId, f => f.Random.Guid());
-        RuleFor(f => f.EventId, f => f.Random.Guid());
         RuleFor(f => f.OccurredOnUtc, f => DateTime.UtcNow.AddMinutes(-f.Random.Int(0, 1000)));
     }
 }

@@ -1,4 +1,4 @@
-using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
+using DotNetAtlas.Domain.Feedback.ValueObjects;
 using FluentValidation;
 
 namespace DotNetAtlas.Application.WeatherFeedback.Common.Validation;

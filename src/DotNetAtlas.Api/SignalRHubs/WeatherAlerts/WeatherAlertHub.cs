@@ -1,14 +1,8 @@
-using DotNetAtlas.Application.Common.CQS;
-using DotNetAtlas.Application.WeatherAlerts.Common;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
-using DotNetAtlas.Application.WeatherAlerts.DisconnectCleanup;
-using DotNetAtlas.Application.WeatherAlerts.SendWeatherAlert;
-using DotNetAtlas.Application.WeatherAlerts.SubscribeForCityAlerts;
-using DotNetAtlas.Application.WeatherAlerts.UnsubscribeFromCityAlerts;
-using DotNetAtlas.Infrastructure.Common.Authorization;
+using DotNetAtlas.Application.WeatherAlerts.SubscribeForLocationAlerts;
+using DotNetAtlas.Application.WeatherAlerts.UnsubscribeFromLocationAlerts;
 using DotNetAtlas.Infrastructure.Common.Config;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
+using DotNetAtlas.SharedKernel.Errors;
 using Microsoft.AspNetCore.SignalR;
 
 namespace DotNetAtlas.Api.SignalRHubs.WeatherAlerts;
@@ -18,97 +12,69 @@ public class WeatherAlertHub : Hub<IWeatherAlertClientContract>, IWeatherAlertHu
     public const string RoutePattern = $"{InfrastructureConstants.HubsBasePath}/v1/weather-alert";
 
     private readonly ILogger<WeatherAlertHub> _logger;
-    private readonly ICommandHandler<SubscribeForCityAlertsCommand> _subscribeForCityAlertsHandler;
-    private readonly ICommandHandler<UnsubscribeFromCityAlertsCommand> _unsubscribeFromCityAlertsHandler;
-    private readonly ICommandHandler<SendWeatherAlertCommand> _sendWeatherAlertHandler;
-    private readonly ICommandHandler<ConnectionDisconnectCleanupCommand> _connectionDisconnectCleanupHandler;
+    private readonly ICommandHandler<SubscribeForLocationAlertsCommand> _subscribeForCityAlertsHandler;
+    private readonly ICommandHandler<UnsubscribeFromLocationAlertsCommand> _unsubscribeFromCityAlertsHandler;
 
     public WeatherAlertHub(
         ILogger<WeatherAlertHub> logger,
-        ICommandHandler<SubscribeForCityAlertsCommand> subscribeForCityAlertsHandler,
-        ICommandHandler<UnsubscribeFromCityAlertsCommand> unsubscribeFromCityAlertsHandler,
-        ICommandHandler<SendWeatherAlertCommand> sendWeatherAlertHandler,
-        ICommandHandler<ConnectionDisconnectCleanupCommand> connectionDisconnectCleanupHandler)
+        ICommandHandler<SubscribeForLocationAlertsCommand> subscribeForCityAlertsHandler,
+        ICommandHandler<UnsubscribeFromLocationAlertsCommand> unsubscribeFromCityAlertsHandler)
     {
         _logger = logger;
         _subscribeForCityAlertsHandler = subscribeForCityAlertsHandler;
         _unsubscribeFromCityAlertsHandler = unsubscribeFromCityAlertsHandler;
-        _sendWeatherAlertHandler = sendWeatherAlertHandler;
-        _connectionDisconnectCleanupHandler = connectionDisconnectCleanupHandler;
     }
 
-    public async Task SubscribeForCityAlerts(AlertSubscriptionDto alertSubscriptionDto)
+    public async Task SubscribeForLocationAlerts(AlertSubscriptionDto alertSubscriptionDto)
     {
         var connectionId = Context.ConnectionId;
-        var subscribeForCityAlertsCommand = new SubscribeForCityAlertsCommand
+        var userId = ExtractUserIdFromUserIdentifier(Context.UserIdentifier);
+
+        var subscribeForLocationAlertsCommand = new SubscribeForLocationAlertsCommand
         {
             City = alertSubscriptionDto.City,
             CountryCode = alertSubscriptionDto.CountryCode,
-            ConnectionId = connectionId
+            ConnectionId = connectionId,
+            UserId = userId
         };
 
         var subscribeResult =
-            await _subscribeForCityAlertsHandler.HandleAsync(subscribeForCityAlertsCommand, Context.ConnectionAborted);
+            await _subscribeForCityAlertsHandler.HandleAsync(subscribeForLocationAlertsCommand,
+                Context.ConnectionAborted);
         if (subscribeResult.IsFailed)
         {
-            throw new HubException(string.Join("; ", subscribeResult.Errors.Select(e => e.Message)));
+            throw new HubException(subscribeResult.Errors.ToErrorsSummary());
         }
 
-        var groupName = WeatherAlertGroupNames.GroupByCitySubscriptionRequest(alertSubscriptionDto);
-        await Groups.AddToGroupAsync(connectionId, groupName);
         _logger.LogInformation(
-            "User: {UserIdentifier} ConnectionId: {ConnectionId} subscribed to alerts for {CityGroupName}",
-            Context.UserIdentifier, connectionId, groupName);
+            "User: {UserIdentifier} ConnectionId: {ConnectionId} subscribed to alerts for {City}:{CountryCode}",
+            Context.UserIdentifier, connectionId, alertSubscriptionDto.City, alertSubscriptionDto.CountryCode);
     }
 
-    public async Task UnsubscribeFromCityAlerts(AlertSubscriptionDto alertSubscriptionDto)
+    public async Task UnsubscribeFromLocationAlerts(AlertSubscriptionDto alertSubscriptionDto)
     {
         var connectionId = Context.ConnectionId;
-        var unsubscribeFromCityAlertsCommand = new UnsubscribeFromCityAlertsCommand
+        var userId = ExtractUserIdFromUserIdentifier(Context.UserIdentifier);
+
+        var unsubscribeFromLocationAlertsCommand = new UnsubscribeFromLocationAlertsCommand
         {
             City = alertSubscriptionDto.City,
             CountryCode = alertSubscriptionDto.CountryCode,
-            ConnectionId = connectionId
+            ConnectionId = connectionId,
+            UserId = userId
         };
 
         var unsubscribeResult =
             await _unsubscribeFromCityAlertsHandler.HandleAsync(
-                unsubscribeFromCityAlertsCommand, Context.ConnectionAborted);
+                unsubscribeFromLocationAlertsCommand, Context.ConnectionAborted);
         if (unsubscribeResult.IsFailed)
         {
-            throw new HubException(string.Join("; ", unsubscribeResult.Errors.Select(e => e.Message)));
+            throw new HubException(unsubscribeResult.Errors.ToErrorsSummary());
         }
 
-        var groupName = WeatherAlertGroupNames.GroupByCitySubscriptionRequest(alertSubscriptionDto);
-        await Groups.RemoveFromGroupAsync(connectionId, groupName);
         _logger.LogInformation(
-            "User: {UserIdentifier} ConnectionId: {ConnectionId} unsubscribed from alerts for {CityGroupName}",
-            Context.UserIdentifier, connectionId, groupName);
-    }
-
-    [Authorize(AuthPolicies.DevOnly, AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-    public async Task SendWeatherAlert(
-        IAsyncEnumerable<WeatherAlert> weatherAlerts)
-    {
-        await foreach (var weatherAlert in weatherAlerts)
-        {
-            _logger.LogInformation(
-                "User: {UserIdentifier} ConnectionId: {ConnectionId} sent WeatherAlert for {City}:{CountryCode}",
-                Context.UserIdentifier, Context.ConnectionId, weatherAlert.City, weatherAlert.CountryCode);
-            var sendWeatherAlertCommand = new SendWeatherAlertCommand
-            {
-                City = weatherAlert.City,
-                CountryCode = weatherAlert.CountryCode,
-                Message = weatherAlert.AlertMessage
-            };
-
-            var sendWeatherResult =
-                await _sendWeatherAlertHandler.HandleAsync(sendWeatherAlertCommand, Context.ConnectionAborted);
-            if (sendWeatherResult.IsFailed)
-            {
-                throw new HubException(string.Join("; ", sendWeatherResult.Errors.Select(e => e.Message)));
-            }
-        }
+            "User: {UserIdentifier} ConnectionId: {ConnectionId} unsubscribed from alerts for {City}:{CountryCode}",
+            Context.UserIdentifier, connectionId, alertSubscriptionDto.City, alertSubscriptionDto.CountryCode);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -118,10 +84,16 @@ public class WeatherAlertHub : Hub<IWeatherAlertClientContract>, IWeatherAlertHu
             "User: {UserIdentifier} ConnectionId: {ConnectionId} disconnected",
             Context.UserIdentifier, connectionId);
 
-        var connectionDisconnectCleanupCommand = new ConnectionDisconnectCleanupCommand(connectionId);
-        await _connectionDisconnectCleanupHandler
-            .HandleAsync(connectionDisconnectCleanupCommand, Context.ConnectionAborted);
-
         await base.OnDisconnectedAsync(exception);
+    }
+
+    private static Guid? ExtractUserIdFromUserIdentifier(string? contextUserIdentifier)
+    {
+        if (Guid.TryParse(contextUserIdentifier, out var parsedUserId))
+        {
+            return parsedUserId;
+        }
+
+        return null;
     }
 }

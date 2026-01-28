@@ -79,7 +79,7 @@ public sealed class OutboxRelayWorker : BackgroundService
     /// <summary>
     /// Graceful shutdown - flushes pending messages to ensure no data loss during shutdown.
     /// </summary>
-    public override Task StopAsync(CancellationToken cancellationToken)
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("OutboxRelay graceful shutdown initiated");
 
@@ -89,6 +89,6 @@ public sealed class OutboxRelayWorker : BackgroundService
             _logger.LogWarning("Kafka producer flush failed during graceful shutdown");
         }
 
-        return Task.CompletedTask;
+        await base.StopAsync(cancellationToken);
     }
 }

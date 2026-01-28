@@ -5,6 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Ardalis.SmartEnum.EFCore"/>
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
         <PackageReference Include="AspNetCore.HealthChecks.Hangfire"/>
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.OpenIdConnectServer"/>
@@ -13,6 +15,7 @@
         <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
         <PackageReference Include="AspNetCore.HealthChecks.Uris"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
+        <PackageReference Include="KafkaFlow.Retry"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
         <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
@@ -40,7 +43,6 @@
         <PackageReference Include="Hangfire.AspNetCore"/>
         <PackageReference Include="Hangfire.SqlServer"/>
 
-        <PackageReference Include="Ardalis.SmartEnum.SystemTextJson"/>
         <PackageReference Include="Bogus"/>
 
         <PackageReference Include="AspNetCore.SignalR.OpenTelemetry"/>
@@ -80,17 +82,22 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\platform\DotNetAtlas.Outbox.EntityFrameworkCore\DotNetAtlas.Outbox.EntityFrameworkCore.csproj"/>
-        <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.Core\DotNetAtlas.ReliableMessaging.Inbox.Core.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.KafkaFlow.DeadLetter\DotNetAtlas.KafkaFlow.DeadLetter.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.KafkaFlow.Inbox.EFCore\DotNetAtlas.KafkaFlow.Inbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.EFCore\DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.KafkaFlow.ProducerHeaders\DotNetAtlas.KafkaFlow.ProducerHeaders.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Application\DotNetAtlas.Application.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
         <InternalsVisibleTo Include="DotNetAtlas.FunctionalTests"/>
         <InternalsVisibleTo Include="DotNetAtlas.IntegrationTests"/>
+        <InternalsVisibleTo Include="DotNetAtlas.UnitTests"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Persistence\Database\Migrations\Flyway\" />
+        <Folder Include="Persistence\Database\Migrations\Flyway\"/>
     </ItemGroup>
 </Project>

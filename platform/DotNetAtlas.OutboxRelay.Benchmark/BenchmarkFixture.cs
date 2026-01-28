@@ -1,5 +1,6 @@
 using Confluent.SchemaRegistry;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
+using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.OutboxRelay.WorkerService.Common.Config;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay.Config;
@@ -28,7 +29,7 @@ internal sealed class BenchmarkFixture : AppFixture<WorkerService.Program>
         Path.Combine(SolutionPaths.GetSolutionRootDirectory(), "platform", "DotNetAtlas.OutboxRelay.Benchmark", "Seed"),
         new RespawnerOptions
         {
-            SchemasToInclude = ["weather"]
+            SchemasToInclude = [WeatherDbContext.DefaultSchemaName]
         });
 
     private readonly KafkaTestContainer _kafkaContainer = new();

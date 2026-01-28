@@ -1,4 +1,4 @@
-using DotNetAtlas.Domain.Common;
+using DotNetAtlas.SharedKernel.Base;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -22,10 +22,7 @@ public sealed class UpdateAuditableEntitiesInterceptor
         var dbContext = eventData.Context;
         if (dbContext is null)
         {
-            return base.SavingChangesAsync(
-                eventData,
-                result,
-                cancellationToken);
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
         }
 
         var auditableEntries = dbContext.ChangeTracker.Entries<IAuditableEntity>();
@@ -34,10 +31,14 @@ public sealed class UpdateAuditableEntitiesInterceptor
         {
             if (auditableEntry.State == EntityState.Added)
             {
-                auditableEntry.Entity.CreatedUtc = utcNow;
+                // this doesn't rely on slow, standard C# reflection
+                auditableEntry.Property(nameof(IAuditableEntity.CreatedUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.LastModifiedUtc)).CurrentValue = utcNow;
             }
-
-            auditableEntry.Entity.LastModifiedUtc = utcNow;
+            else if (auditableEntry.State == EntityState.Modified)
+            {
+                auditableEntry.Property(nameof(IAuditableEntity.LastModifiedUtc)).CurrentValue = utcNow;
+            }
         }
 
         return base.SavingChangesAsync(

@@ -82,14 +82,47 @@ A reliability pattern that ensures **guaranteed message delivery** to external s
 **Guarantees:** At-least-once delivery (events may be delivered multiple times)
 
 ### Fire-and-Forget
+
 A simple event publishing strategy where events are sent immediately without transaction guarantees. Faster but risks message loss if the broker is unavailable.
 
 **When to use:**
+
 - Non-critical events (analytics, logging)
 - Performance is critical
 - Acceptable to occasionally lose messages
 
 **Example in DotNetAtlas:** Forecast request events
+
+### Inbox Pattern
+
+A reliability pattern that ensures **idempotent message processing** by tracking processed message IDs in a database table. Prevents duplicate processing when messages are delivered more than once.
+
+**How it works in DotNetAtlas:**
+
+1. Message arrives with unique message.id header
+2. Inbox middleware checks if message.id exists in Inbox table
+3. If exists → Skip processing (already handled)
+4. If not exists → Process message, then insert message.id into Inbox table
+
+**Guarantees:** Exactly-once processing semantics (combined with at-least-once delivery)
+
+### Dead Letter Topic (DLT)
+
+A Kafka topic where failed messages are sent after exhausting retry attempts. Allows for manual inspection, debugging, and potential reprocessing.
+
+**DLT Headers in DotNetAtlas:**
+
+- `dlt.error` - Error message
+- `dlt.exception.stacktrace` - Stack trace
+- `dlt.original.topic` - Original topic name
+- `dlt.original.partition` - Original partition
+- `dlt.original.offset` - Original offset
+
+### Saga Pattern
+
+A pattern for managing distributed transactions across multiple services using a sequence of local transactions with compensating actions for rollback.
+
+**In DotNetAtlas:** When subscription activation fails, a `SubscriptionActivationFailedEvent` is published for upstream compensation.
 
 ---
 
@@ -399,4 +432,37 @@ Background job processing framework with:
 
 ---
 
-**Last Updated:** 2025-11-14
+## Platform Library Concepts
+
+### SharedKernel
+
+A reusable library containing DDD building blocks shared across bounded contexts. In DotNetAtlas, includes base classes for aggregates, entities, value objects, domain events, and common error types.
+
+### CQS Behaviors
+
+Cross-cutting concerns implemented as decorators in the CQS pipeline:
+
+- **ValidationBehavior** - Validates commands/queries using FluentValidation
+- **LoggingBehavior** - Logs command/query execution with Serilog
+- **TracingBehavior** - Creates OpenTelemetry spans for each handler
+- **MetricsBehavior** - Records metrics (total, errors, exceptions, duration)
+
+### SmartEnum
+
+A pattern (via Ardalis.SmartEnum) for creating type-safe enumerations with behavior. Unlike C# enums, SmartEnums can have properties and methods.
+
+**Example in DotNetAtlas:** `SubscriptionTier` SmartEnum with `MaxLocations` property
+
+### Kafka Consumer Middleware Pipeline
+
+A composable pipeline for processing Kafka messages with cross-cutting concerns:
+
+```text
+DeadLetter → Retry → Inbox → Deserializer → TypedHandler
+```
+
+Each middleware can short-circuit the pipeline or pass to the next middleware.
+
+---
+
+**Last Updated:** 2025-12-31

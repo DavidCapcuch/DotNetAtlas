@@ -1,4 +1,4 @@
-using DotNetAtlas.Infrastructure.Common;
+using DotNetAtlas.Application.Common.Observability;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DotNetAtlas.Api.Pages;

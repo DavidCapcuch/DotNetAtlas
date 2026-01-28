@@ -3,6 +3,7 @@
     "apiKey": "33052c8a-c283-4e96-9d2a-eb1215c69f8f-not-for-prod",
     "asymmetricKeyId": "534fff14-86b8-42e0-a064-7dbc008d61a0",
     "applicationId": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
+    // for demonstration purposes only - ALWAYS use secure key vault under normal circumstances - never leak production secrets into git
     "clientSecret": "super-secret-secret-that-should-be-regenerated-for-production",
     "newThemeId": "#{UUID()}",
     "defaultTenantId": "d7d09513-a3f5-401c-9685-34ab6c552453",
@@ -19,7 +20,8 @@
     "dcapPassword": "123456789",
     "dcapUserId": "00000000-0000-0000-0000-000000000003",
     "googleAppId": "851240598849-tji85r9f4mpjne714rm7m5ttsruhs54d.apps.googleusercontent.com",
-    "googleAppSecret": "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"
+    // burner secret from burner account for easy demonstration only - ALWAYS use secure key vault under normal circumstances
+    "googleAppSecret": "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" 
   },
   "apiKeys": [
     {

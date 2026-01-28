@@ -22,7 +22,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
 
     public HttpClient NonAuthClient => _clients[ClientType.NonAuth];
     public HttpClient DevClient => _clients[ClientType.Dev];
-    public HttpClient PlebClient => _clients[ClientType.Pleb];
+    public HttpClient RegularUserAuthClient => _clients[ClientType.RegularUser];
 
     public HttpClient CreateHttpClient(
         ClientType clientType,

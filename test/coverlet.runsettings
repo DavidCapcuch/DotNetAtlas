@@ -28,8 +28,7 @@
             **/obj/**,
             **/bin/**,
             **/Migrations/**,
-            **/test/**
-            ,
+            **/test/**,
             **/DotNetAtlas.Api/Common/Swagger/**,
             **/DotNetAtlas.Api/Common/Exceptions/**,
             **/DotNetAtlas.Api/Pages/Index*,

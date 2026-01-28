@@ -6,10 +6,6 @@ using Confluent.SchemaRegistry.Serdes;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 
-public interface IKafkaTestConsumer : IDisposable
-{
-}
-
 /// <summary>
 /// Generic Kafka test consumer for integration tests.
 /// Creates a unique consumer group per instance to avoid conflicts.

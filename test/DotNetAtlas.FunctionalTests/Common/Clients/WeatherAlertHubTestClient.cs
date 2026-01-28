@@ -9,21 +9,18 @@ namespace DotNetAtlas.FunctionalTests.Common.Clients;
 public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisposable
 {
     protected internal HubConnection Connection { get; }
-    protected internal Channel<WeatherAlertMessage> ReceivedMessages { get; }
+    protected internal Channel<WeatherAlertMessageDto> ReceivedMessages { get; }
     private readonly IWeatherAlertHubContract _server;
-    private readonly IDotNetAtlasInstrumentation _dotNetAtlasInstrumentation;
     private readonly IDisposable _subscription;
     private readonly CancellationToken _cancellationToken;
 
     public WeatherAlertHubTestClient(
         HubConnection connection,
-        IDotNetAtlasInstrumentation dotNetAtlasInstrumentation,
         CancellationToken cancellationToken)
     {
         Connection = connection;
-        _dotNetAtlasInstrumentation = dotNetAtlasInstrumentation;
         _cancellationToken = cancellationToken;
-        ReceivedMessages = Channel.CreateUnbounded<WeatherAlertMessage>();
+        ReceivedMessages = Channel.CreateUnbounded<WeatherAlertMessageDto>();
         _server = Connection.CreateHubProxy<IWeatherAlertHubContract>(_cancellationToken);
         _subscription = Connection.Register<IWeatherAlertClientContract>(this);
     }
@@ -38,19 +35,14 @@ public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisp
         await Connection.StopAsync(_cancellationToken);
     }
 
-    public async Task SubscribeForCityAlertsAsync(AlertSubscriptionDto subscription)
+    public async Task SubscribeForLocationAlertsAsync(AlertSubscriptionDto subscription)
     {
-        await Connection.InvokeAsync("SubscribeForCityAlerts", subscription, _cancellationToken);
+        await Connection.InvokeAsync("SubscribeForLocationAlerts", subscription, _cancellationToken);
     }
 
     public async Task UnsubscribeFromCityAlertsAsync(AlertSubscriptionDto subscription)
     {
-        await _server.UnsubscribeFromCityAlerts(subscription);
-    }
-
-    public async Task SendWeatherAlertAsync(IAsyncEnumerable<WeatherAlert> alerts)
-    {
-        await _server.SendWeatherAlert(alerts);
+        await _server.UnsubscribeFromLocationAlerts(subscription);
     }
 
     /// <summary>
@@ -59,7 +51,7 @@ public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisp
     /// <param name="timeout">Maximum time to wait for a message.</param>
     /// <param name="ct">Optional cancellation token to cancel the operation.</param>
     /// <returns>The received message, or null if no message was received within the timeout.</returns>
-    public async Task<WeatherAlertMessage?> ConsumeOne(TimeSpan timeout, CancellationToken ct = default)
+    public async Task<WeatherAlertMessageDto?> ConsumeOne(TimeSpan timeout, CancellationToken ct = default)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
@@ -87,12 +79,12 @@ public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisp
     /// <param name="maxCount">Maximum number of messages to consume (default 10 for individual test runs).</param>
     /// <param name="ct">Optional cancellation token to cancel the operation.</param>
     /// <returns>List of all consumed messages.</returns>
-    public async Task<List<WeatherAlertMessage>> ConsumeMultiple(
+    public async Task<List<WeatherAlertMessageDto>> ConsumeMultiple(
         TimeSpan timeout,
         int maxCount = 10,
         CancellationToken ct = default)
     {
-        var messages = new List<WeatherAlertMessage>();
+        var messages = new List<WeatherAlertMessageDto>();
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
@@ -109,11 +101,11 @@ public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisp
         return messages;
     }
 
-    public async Task ReceiveWeatherAlert(WeatherAlertMessage weatherAlertMessage)
+    public async Task ReceiveWeatherAlert(WeatherAlertMessageDto weatherAlertMessageDto)
     {
-        using var activity = _dotNetAtlasInstrumentation.StartActivity(nameof(ReceiveWeatherAlert));
+        using var activity = DotNetAtlasInstrumentation.StartActivity(nameof(ReceiveWeatherAlert));
 
-        await ReceivedMessages.Writer.WriteAsync(weatherAlertMessage, _cancellationToken);
+        await ReceivedMessages.Writer.WriteAsync(weatherAlertMessageDto, _cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

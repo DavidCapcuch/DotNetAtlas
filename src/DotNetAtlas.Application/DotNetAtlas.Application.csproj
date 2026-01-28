@@ -7,7 +7,6 @@
 
     <ItemGroup>
         <PackageReference Include="FastEndpoints.Attributes"/>
-        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore"/>
         <PackageReference Include="FluentValidation"/>
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions"/>
         <PackageReference Include="Riok.Mapperly"/>
@@ -30,9 +29,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DotNetAtlas.Domain\DotNetAtlas.Domain.csproj"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="WeatherForecast\Common\"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.CQS\DotNetAtlas.CQS.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj" />
     </ItemGroup>
 </Project>

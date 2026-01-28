@@ -1,6 +1,6 @@
-using DotNetAtlas.Outbox.EntityFrameworkCore.EntityFramework;
 using DotNetAtlas.OutboxRelay.WorkerService.Common.Config;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay;
+using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.OutboxRelay.WorkerService.Common;

@@ -1,45 +1,48 @@
 using Confluent.Kafka;
-using DotNetAtlas.Application.Common.CQS;
-using DotNetAtlas.Application.WeatherForecast.Common.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.Common;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.CQS;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Weather.Forecast;
-using DomainCountryCode = DotNetAtlas.Domain.Entities.Weather.Forecast.CountryCode;
+using DomainCountryCode = DotNetAtlas.Domain.Common.ValueObjects.CountryCode;
 
 namespace DotNetAtlas.IntegrationTests.Infrastructure.Kafka;
 
 [Collection<ForecastTestCollection>]
 public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
 {
+    private readonly IQueryHandler<GetForecastQuery, GetForecastResponse> _getForecastQueryHandler;
+
     public GetForecastQueryHandlerKafkaTests(IntegrationTestFixture app)
         : base(app)
     {
+        _getForecastQueryHandler =
+            Scope.ServiceProvider.GetRequiredService<IQueryHandler<GetForecastQuery, GetForecastResponse>>();
     }
 
     [Fact]
     public async Task WhenHandlerInvoked_PublishedEventContainsCorrectData()
     {
         // Arrange
-        var getForecastQueryHandler =
-            Scope.ServiceProvider.GetRequiredService<IQueryHandler<GetForecastQuery, GetForecastResponse>>();
         var getForecastQuery = new GetForecastQuery
         {
             City = "Paris",
             CountryCode = DomainCountryCode.FR,
             Days = 4,
-            UserId = Guid.NewGuid()
+            UserId = Guid.CreateVersion7()
         };
 
         var consumer = KafkaTestConsumerRegistry.ForecastRequestedConsumer;
 
         // Act
         var result =
-            await getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
+            await _getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
 
         var forecastRequestedEvent =
             consumer.ConsumeOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
@@ -49,7 +52,7 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
         {
             result.Should().BeSuccess();
             forecastRequestedEvent.Should().NotBeNull();
-            forecastRequestedEvent!.City.Should().Be(getForecastQuery.City);
+            forecastRequestedEvent.City.Should().Be(getForecastQuery.City);
             forecastRequestedEvent.CountryCode.ToString().Should().Be(getForecastQuery.CountryCode.ToString());
             forecastRequestedEvent.Days.Should().Be(getForecastQuery.Days);
             forecastRequestedEvent.UserId.Should().Be(getForecastQuery.UserId);
@@ -69,21 +72,20 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
         CountryCode expectedKafkaCountryCode)
     {
         // Arrange
-        var getForecastQueryHandler =
-            Scope.ServiceProvider.GetRequiredService<IQueryHandler<GetForecastQuery, GetForecastResponse>>();
 
         var getForecastQuery = new GetForecastQuery
         {
             City = city,
             CountryCode = domainCountryCode,
             Days = 1,
-            UserId = Guid.NewGuid()
+            UserId = Guid.CreateVersion7()
         };
 
         var consumer = KafkaTestConsumerRegistry.ForecastRequestedConsumer;
 
         // Act
-        var result = await getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
+        var result =
+            await _getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
 
         var forecastRequestedEvent =
             consumer.ConsumeOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
@@ -103,8 +105,6 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
     public async Task WhenHandlerInvokedConcurrently_PublishesAllEventsSuccessfully()
     {
         // Arrange
-        var getForecastQueryHandler =
-            Scope.ServiceProvider.GetRequiredService<IQueryHandler<GetForecastQuery, GetForecastResponse>>();
         var consumer = KafkaTestConsumerRegistry.ForecastRequestedConsumer;
 
         var cities = new[]
@@ -124,13 +124,13 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
                 _ => DomainCountryCode.US
             },
             Days = i + 1,
-            UserId = Guid.NewGuid()
+            UserId = Guid.CreateVersion7()
         }).ToList();
         var expectedCount = getForecastQueries.Count;
 
         // Act
         var getForecastTasks = getForecastQueries
-            .Select(query => getForecastQueryHandler.HandleAsync(query, TestContext.Current.CancellationToken));
+            .Select(query => _getForecastQueryHandler.HandleAsync(query, TestContext.Current.CancellationToken));
 
         var results = await Task.WhenAll(getForecastTasks);
 
@@ -158,30 +158,39 @@ public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
     public async Task WhenKafkaProducerFails_HandlerStillSucceeds()
     {
         // Arrange
+        // Create a failing producer that throws when publishing
         var failingProducer = Substitute.For<IForecastEventsProducer>();
-        failingProducer.PublishForecastRequestedAsync(Arg.Any<GetForecastQuery>())
-            .Returns(Task.FromException(new KafkaException(ErrorCode.BrokerNotAvailable)));
+        failingProducer
+            .When(x => x.PublishForecastRequestedFireAndForgetAsync(Arg.Any<ForecastCriteria>(), Arg.Any<Guid?>()))
+            .Do(_ => throw new KafkaException(ErrorCode.BrokerNotAvailable));
 
-        var forecastService = Scope.ServiceProvider.GetRequiredService<IWeatherForecastService>();
-        var logger = Scope.ServiceProvider.GetRequiredService<ILogger<GetForecastQueryHandler>>();
+        // Get required services
+        var weatherForecastService = Scope.ServiceProvider.GetRequiredService<IWeatherForecastService>();
+        var timeProvider = Scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        var queryHandlerLogger = Scope.ServiceProvider.GetRequiredService<ILogger<GetForecastQueryHandler>>();
 
-        var getForecastQueryHandler = new GetForecastQueryHandler(
-            forecastService,
-            logger,
-            failingProducer);
+        // Create the query handler with the failing producer
+        var getForecastQueryHandlerWithFailingProducer = new GetForecastQueryHandler(
+            weatherForecastService,
+            failingProducer,
+            queryHandlerLogger,
+            timeProvider);
 
         var getForecastQuery = new GetForecastQuery
         {
             City = "Prague",
             CountryCode = DomainCountryCode.CZ,
             Days = 1,
-            UserId = Guid.NewGuid()
+            UserId = Guid.CreateVersion7()
         };
 
         // Act
-        var result = await getForecastQueryHandler.HandleAsync(getForecastQuery, TestContext.Current.CancellationToken);
+        var result =
+            await getForecastQueryHandlerWithFailingProducer.HandleAsync(getForecastQuery,
+                TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert - handler should succeed even though Kafka publishing fails
+        // because the handler uses fire-and-forget pattern
         using (new AssertionScope())
         {
             result.Should().BeSuccess("handler uses fire-and-forget pattern for Kafka publishing");

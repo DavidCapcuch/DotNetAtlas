@@ -17,11 +17,45 @@
     <File Path=".github/workflows/validate-documentation-links.yml" />
   </Folder>
   <Folder Name="/platform/">
-    <Project Path="platform/DotNetAtlas.Outbox.Core/DotNetAtlas.Outbox.Core.csproj" />
-    <Project Path="platform/DotNetAtlas.Outbox.EntityFrameworkCore/DotNetAtlas.Outbox.EntityFrameworkCore.csproj" />
+    <Project Path="platform/DotNetAtlas.CQS/DotNetAtlas.CQS.csproj" />
+    <Project Path="platform/DotNetAtlas.KafkaFlow.DeadLetter/DotNetAtlas.KafkaFlow.DeadLetter.csproj" />
+    <Project Path="platform/DotNetAtlas.KafkaFlow.Inbox.EFCore/DotNetAtlas.KafkaFlow.Inbox.EFCore.csproj" />
+    <Project Path="platform/DotNetAtlas.KafkaFlow.ProducerHeaders/DotNetAtlas.KafkaFlow.ProducerHeaders.csproj" />
+    <Project Path="platform/DotNetAtlas.Messaging.Abstractions/DotNetAtlas.Messaging.Abstractions.csproj" />
     <Project Path="platform/DotNetAtlas.OutboxRelay.Benchmark/DotNetAtlas.OutboxRelay.Benchmark.csproj" />
     <Project Path="platform/DotNetAtlas.OutboxRelay.WorkerService/DotNetAtlas.OutboxRelay.WorkerService.csproj" />
-    <Project Path="platform/DotNetAtlas.SchemaRegistry/DotNetAtlas.SchemaRegistry.csproj" />
+    <Project Path="platform/DotNetAtlas.ReliableMessaging.Inbox.Core/DotNetAtlas.ReliableMessaging.Inbox.Core.csproj" />
+    <Project Path="platform/DotNetAtlas.ReliableMessaging.Inbox.EFCore/DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj" />
+    <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.Core/DotNetAtlas.ReliableMessaging.Outbox.Core.csproj" />
+    <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
+    <Project Path="platform/DotNetAtlas.SchemaRegistry.Contracts/DotNetAtlas.SchemaRegistry.Contracts.csproj" />
+    <Project Path="platform/DotNetAtlas.SharedKernel/DotNetAtlas.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/requests/">
+    <File Path="requests/Auth/GetAndSetAuthToken.http" />
+    <File Path="requests/http-client.env.json" />
+  </Folder>
+  <Folder Name="/requests/Admin/">
+    <File Path="requests/Admin/ClearAllCache.http" />
+    <File Path="requests/Admin/RemoveCacheByTag.http" />
+  </Folder>
+  <Folder Name="/requests/Dev/">
+    <File Path="requests/Dev/SeedDatabase.http" />
+  </Folder>
+  <Folder Name="/requests/Feedback/">
+    <File Path="requests/Feedback/ChangeFeedback.http" />
+    <File Path="requests/Feedback/GetFeedbackById.http" />
+    <File Path="requests/Feedback/SendFeedback.http" />
+  </Folder>
+  <Folder Name="/requests/Forecast/">
+    <File Path="requests/Forecast/GetForecasts.http" />
+  </Folder>
+  <Folder Name="/saga/">
+    <File Path="saga/Directory.Build.props" />
+    <File Path="saga/Directory.Packages.props" />
+    <Project Path="saga/DotNetAtlas.Sagas.IntegrationTests/DotNetAtlas.Sagas.IntegrationTests.csproj" />
+    <Project Path="saga/DotNetAtlas.Sagas.UnitTests/DotNetAtlas.Sagas.UnitTests.csproj" />
+    <Project Path="saga/DotNetAtlas.Sagas/DotNetAtlas.Sagas.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

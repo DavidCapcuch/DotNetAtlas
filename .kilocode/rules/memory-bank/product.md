@@ -63,6 +63,7 @@ The project demonstrates its capabilities through a simple **weather-related dom
 - **Forecasts**: Get weather forecasts with caching, resilience patterns
 - **Feedback**: Submit feedback with guaranteed event delivery (Outbox pattern)
 - **Real-time alerts**: via SignalR with Redis backplane
+- **Alert Subscriptions**: Tiered subscription management with Kafka event consumption
 - Complete observability with OpenTelemetry
 
 ### Key Demonstrations
@@ -73,8 +74,9 @@ The project demonstrates its capabilities through a simple **weather-related dom
    - Complete trace continuity across async boundaries
 
 2. **Domain-Driven Design**
-   - Aggregates with domain events (Feedback aggregate)
-   - Value Objects with validation (FeedbackText, FeedbackRating)
+   - Aggregates with domain events (Feedback, AlertSubscriber aggregates)
+   - Value Objects with validation (FeedbackText, FeedbackRating, City, CountryCode)
+   - SmartEnums for type-safe enumerations (SubscriptionTier)
    - Domain-centric error handling (Result pattern)
 
 3. **Testing Strategy**
@@ -107,7 +109,7 @@ The project demonstrates its capabilities through a simple **weather-related dom
 ### Recommended Learning Path
 
 1. **Start with Brief**: Read `.kilocode/rules/memory-bank/brief.md`
-2. **Run Locally**: `docker-compose up` → `dotnet run src/DotNetAtlas.Api/DotNetAtlas.Api.csproj` explore at http://localhost:5000
+2. **Run Locally**: `docker-compose up` → `dotnet run src/DotNetAtlas.Api/DotNetAtlas.Api.csproj` explore at `http://localhost:5000`
 3. **Study Domain**: Examine `Feedback` aggregate in Domain project
 4. **Trace a Request**: Send feedback → watch in Jaeger → see Kafka message
 5. **Explore Tests**: See how TestContainers enable real infrastructure testing
