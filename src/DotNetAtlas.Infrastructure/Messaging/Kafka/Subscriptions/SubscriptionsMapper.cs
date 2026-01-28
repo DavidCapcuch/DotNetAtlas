@@ -1,5 +1,3 @@
-using DotNetAtlas.Application.WeatherAlerts.ExtendSubscription;
-using DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription;
 using DotNetAtlas.SharedKernel.Errors;
 using FluentResults;
 using Riok.Mapperly.Abstractions;

@@ -544,8 +544,11 @@ dotnet_diagnostic.CA1307.severity = suggestion
 # CA1515: Consider making public types internal
 dotnet_diagnostic.CA1515.severity = none
 
-# CA1700: Do not name enum values 'Reserved'
+# CA1700: Identifiers should differ by more than case (suppressed because of false positive on extension members)
 dotnet_diagnostic.CA1700.severity = suggestion
+
+# CA1700: Do not name enum values 'Reserved'
+dotnet_diagnostic.CA1708.severity = suggestion
 
 # CA1707: Identifiers should not contain underscores
 dotnet_diagnostic.CA1707.severity = none

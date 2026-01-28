@@ -1,7 +1,8 @@
 using DotNetAtlas.Sagas.IntegrationTests.Common;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga.Events;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga.Schedules;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga.Schedules;
+using Finance.Payments;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
@@ -29,7 +30,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
 
         // Act
         await TestHarness.Bus.Publish(initiatedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>();
 
         // Assert - verify state was persisted to database
         var persistedState = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -53,7 +54,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
         // Act - transition to completed via extension
-        var extendedEvent = new SubscriptionExtendedEvent
+        var extendedEvent = new SubscriptionExtendedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -64,7 +65,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(extendedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtendedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtendedSagaEvent>();
 
         // Assert - verify state was updated
         var persistedState = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -94,7 +95,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
 
         await AsyncEnumerable.ToListAsync(
             AsyncEnumerable.Take(
-                SagaHarness.Consumed.SelectAsync<SubscriptionExtensionInitiatedEvent>(), 2));
+                SagaHarness.Consumed.SelectAsync<SubscriptionExtensionInitiatedSagaEvent>(), 2));
 
         // Assert - both sagas exist independently
         var state1 = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -124,7 +125,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
             correlationId, userId, 90, 24.99m, "USD", paymentMethodId);
 
         await TestHarness.Bus.Publish(initiatedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>();
 
         // Verify: WaitingForPayment state persisted
         var stateAfterInitiation = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -140,7 +141,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         stateAfterInitiation.ExtensionInitiatedAtUtc.Should().NotBe(default);
 
         // Step 2: Complete payment
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -151,7 +152,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(paymentCompletedEvent);
-        await SagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionPaymentCompletedSagaEvent>();
 
         // Verify: AwaitingExtension state persisted
         var stateAfterPayment = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -163,7 +164,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         stateAfterPayment.PaymentCompletedAtUtc.Should().HaveValue();
 
         // Step 3: Extend subscription
-        var extendedEvent = new SubscriptionExtendedEvent
+        var extendedEvent = new SubscriptionExtendedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -174,7 +175,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(extendedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtendedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtendedSagaEvent>();
 
         // Verify: ExtensionCompleted state persisted (saga finalized)
         var stateAfterExtension = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -201,10 +202,10 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
         await TestHarness.Bus.Publish(initiatedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>();
 
         // Act - Send payment failed event
-        var paymentFailedEvent = new PaymentFailedEvent
+        var paymentFailedEvent = new SubscriptionExtensionPaymentFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -214,17 +215,14 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(paymentFailedEvent);
-        await SagaHarness.Consumed.Any<PaymentFailedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionPaymentFailedSagaEvent>();
 
         // Assert - verify saga finalized in PaymentFailed state
         var persistedState = await DbContext.Set<SubscriptionExtensionSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("PaymentFailed");
-        }
+        persistedState?.CurrentState.Should().Be("PaymentFailed");
     }
 
     [Fact]
@@ -238,7 +236,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
         // Act - Send extension failed with ShouldCompensate=true
-        var extensionFailedEvent = new SubscriptionExtensionFailedEvent
+        var extensionFailedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -249,7 +247,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(extensionFailedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>();
 
         // Assert - verify saga transitioned to CompensationInProgress
         var persistedState = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -260,7 +258,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         persistedState.CompensationTriggered.Should().BeTrue();
 
         // Verify RequestRefundCommand was published
-        (await TestHarness.Published.Any<Finance.Payments.RequestRefundCommand>()).Should().BeTrue(
+        (await TestHarness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
             "RequestRefundCommand should be published when extension fails with ShouldCompensate=true");
     }
 
@@ -275,7 +273,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
         // Act - Send extension failed with ShouldCompensate=false
-        var extensionFailedEvent = new SubscriptionExtensionFailedEvent
+        var extensionFailedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -286,7 +284,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(extensionFailedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>();
 
         // Assert - verify saga finalized in ExtensionFailed state
         var persistedState = await DbContext.Set<SubscriptionExtensionSagaState>()
@@ -312,7 +310,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         await TransitionSagaToCompensationInProgressState(correlationId, userId, paymentTransactionId);
 
         // Act - Send compensation completed event
-        var compensationCompletedEvent = new ExtensionCompensationCompletedEvent
+        var compensationCompletedEvent = new ExtensionCompensationCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -321,17 +319,14 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(compensationCompletedEvent);
-        await SagaHarness.Consumed.Any<ExtensionCompensationCompletedEvent>();
+        await SagaHarness.Consumed.Any<ExtensionCompensationCompletedSagaEvent>();
 
         // Assert - verify saga finalized in CompensationCompleted state
         var persistedState = await DbContext.Set<SubscriptionExtensionSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("CompensationCompleted");
-        }
+        persistedState?.CurrentState.Should().Be("CompensationCompleted");
     }
 
     // -- Timeout Tests --
@@ -345,7 +340,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
         await TestHarness.Bus.Publish(initiatedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>();
 
         // Act - Simulate timeout by publishing PaymentTimeoutExpired
         var timeoutEvent = new PaymentTimeoutExpired
@@ -361,10 +356,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("PaymentFailed");
-        }
+        persistedState?.CurrentState.Should().Be("PaymentFailed");
     }
 
     [Fact]
@@ -395,7 +387,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         persistedState.CompensationTriggered.Should().BeTrue();
 
         // Verify RequestRefundCommand was published
-        (await TestHarness.Published.Any<Finance.Payments.RequestRefundCommand>()).Should().BeTrue(
+        (await TestHarness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
             "RequestRefundCommand should be published when extension times out");
     }
 
@@ -423,15 +415,12 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
-        if (persistedState != null)
-        {
-            persistedState.CurrentState.Should().Be("CompensationFailed");
-        }
+        persistedState?.CurrentState.Should().Be("CompensationFailed");
     }
 
     // -- Helper Methods --
 
-    private SubscriptionExtensionInitiatedEvent CreateExtensionInitiatedEvent(
+    private SubscriptionExtensionInitiatedSagaEvent CreateExtensionInitiatedEvent(
         Guid correlationId,
         Guid userId,
         int durationDays = 30,
@@ -439,7 +428,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         string currency = "USD",
         Guid? paymentMethodId = null)
     {
-        return new SubscriptionExtensionInitiatedEvent
+        return new SubscriptionExtensionInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -464,10 +453,10 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         var initiatedEvent = CreateExtensionInitiatedEvent(
             correlationId, userId, durationDays, amount, currency);
         await TestHarness.Bus.Publish(initiatedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>();
 
         // Publish PaymentCompletedEvent
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -478,7 +467,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(paymentCompletedEvent);
-        await SagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionPaymentCompletedSagaEvent>();
     }
 
     private async Task TransitionSagaToCompensationInProgressState(
@@ -494,7 +483,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
             correlationId, userId, paymentTransactionId, durationDays, amount, currency);
 
         // Then trigger extension failure with ShouldCompensate=true
-        var extensionFailedEvent = new SubscriptionExtensionFailedEvent
+        var extensionFailedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -505,6 +494,6 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseExtensionSagaIntegr
         };
 
         await TestHarness.Bus.Publish(extensionFailedEvent);
-        await SagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>();
+        await SagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>();
     }
 }

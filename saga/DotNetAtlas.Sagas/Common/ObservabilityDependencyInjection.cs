@@ -1,4 +1,11 @@
 using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Finance.PaymentSaga;
+using DotNetAtlas.Sagas.Finance.PaymentSaga.Observability;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga.Observability;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.Observability;
+using MassTransit;
 using MassTransit.Logging;
 using MassTransit.Monitoring;
 using OpenTelemetry.Metrics;
@@ -68,46 +75,56 @@ public static class ObservabilityDependencyInjection
         return builder;
     }
 
-    public static IServiceCollection AddOpenTelemetryInternal(
-        this IServiceCollection services,
-        bool isClusterEnvironment,
-        ConfigurationManager configuration)
+    extension(IServiceCollection services)
     {
-        if (!isClusterEnvironment)
+        public IServiceCollection AddOpenTelemetryInternal(bool isClusterEnvironment,
+            ConfigurationManager configuration)
         {
+            if (!isClusterEnvironment)
+            {
+                return services;
+            }
+
+            var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+            if (string.IsNullOrWhiteSpace(oltpExporterEndpoint))
+            {
+                return services;
+            }
+
+            services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource
+                    .AddService(
+                        serviceName: ApplicationInfo.AppName,
+                        serviceVersion: ApplicationInfo.Version)
+                    .AddContainerDetector()
+                    .AddHostDetector())
+                .WithTracing(tracing =>
+                {
+                    tracing.AddSource("*")
+                        .AddSource(SagaInstrumentation.ActivitySourceName)
+                        .AddSource(DiagnosticHeaders.DefaultListenerName) // MassTransit ActivitySource
+                        .AddEntityFrameworkCoreInstrumentation()
+                        .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
+                })
+                .WithMetrics(metrics =>
+                {
+                    metrics.AddMeter(SagaInstrumentation.MeterName)
+                        .AddMeter(InstrumentationOptions.MeterName) // MassTransit Meter
+                        .AddRuntimeInstrumentation()
+                        .AddProcessInstrumentation()
+                        .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
+                });
+
             return services;
         }
 
-        var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
-        if (string.IsNullOrWhiteSpace(oltpExporterEndpoint))
+        public IServiceCollection AddSagaStateObservability()
         {
+            services.AddStateObserver<SubscriptionPurchaseSagaState, SubscriptionSagaStateObserver>();
+            services.AddStateObserver<SubscriptionExtensionSagaState, SubscriptionExtensionSagaStateObserver>();
+            services.AddStateObserver<PaymentSagaState, PaymentSagaStateObserver>();
+
             return services;
         }
-
-        services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource
-                .AddService(
-                    serviceName: ApplicationInfo.AppName,
-                    serviceVersion: ApplicationInfo.Version)
-                .AddContainerDetector()
-                .AddHostDetector())
-            .WithTracing(tracing =>
-            {
-                tracing.AddSource("*")
-                    .AddSource(SagaInstrumentation.ActivitySourceName)
-                    .AddSource(DiagnosticHeaders.DefaultListenerName) // MassTransit ActivitySource
-                    .AddEntityFrameworkCoreInstrumentation()
-                    .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
-            })
-            .WithMetrics(metrics =>
-            {
-                metrics.AddMeter(SagaInstrumentation.MeterName)
-                    .AddMeter(InstrumentationOptions.MeterName) // MassTransit Meter
-                    .AddRuntimeInstrumentation()
-                    .AddProcessInstrumentation()
-                    .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
-            });
-
-        return services;
     }
 }

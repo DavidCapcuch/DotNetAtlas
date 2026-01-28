@@ -104,6 +104,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// Use this for direct paid purchases where the subscriber doesn't exist yet.
     /// </summary>
     /// <param name="userId">The user identifier.</param>
+    /// <param name="correlationId">The Correlation ID.</param>
     /// <param name="paymentTransactionId">Payment transaction ID for saga correlation.</param>
     /// <param name="tier">The subscription tier (Pro or Ultra).</param>
     /// <param name="durationDays">Duration of the subscription in days.</param>
@@ -239,6 +240,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// Activates or upgrades the subscriber to a paid tier (Pro/Ultra).
     /// Calculates expiry date from the provided duration and current time.
     /// </summary>
+    /// <param name="correlationId">The Correlation ID.</param>
     /// <param name="paymentTransactionId">Payment transaction ID for saga correlation.</param>
     /// <param name="newSubscriptionTier">The subscription tier to set (Pro or Ultra).</param>
     /// <param name="durationDays">Duration of the subscription in days.</param>
@@ -378,6 +380,8 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// If the subscription has expired, calculates from the current time.
     /// If the subscription is still active, adds days to the current expiry date.
     /// </summary>
+    /// <param name="correlationId">The Correlation ID.</param>
+    /// <param name="paymentTransactionId">Payment transaction ID for saga correlation.</param>
     /// <param name="durationDays">Number of days to extend the subscription.</param>
     /// <param name="currentUtc">Current UTC time for calculations.</param>
     /// <exception cref="DataIntegrityException">Thrown when extending a free subscription or invalid duration.</exception>

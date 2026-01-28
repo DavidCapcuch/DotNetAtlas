@@ -46,4 +46,3 @@ public class SubscriptionExtendedOutboxPublisherDomainEventHandler :
             domainEvent.ExtendedByDays, domainEvent.NewExpiresAtUtc);
     }
 }
-

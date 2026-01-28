@@ -1,4 +1,4 @@
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -135,4 +135,3 @@ public sealed class SubscriptionExtensionSagaStateMap :
                 "[CurrentState] <> 'PaymentFailed' AND [CurrentState] <> 'ExtensionCompleted' AND [CurrentState] <> 'ExtensionFailed' AND [CurrentState] <> 'CompensationCompleted' AND [CurrentState] <> 'CompensationFailed'");
     }
 }
-

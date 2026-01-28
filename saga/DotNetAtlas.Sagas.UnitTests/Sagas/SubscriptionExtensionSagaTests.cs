@@ -1,7 +1,8 @@
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga.Events;
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga.Schedules;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga.Schedules;
+using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,9 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
     private readonly FakeTimeProvider _fakeTimeProvider = new();
     private ServiceProvider _provider = null!;
     private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<SubscriptionExtensionSaga, SubscriptionExtensionSagaState> _sagaHarness = null!;
+
+    private ISagaStateMachineTestHarness<SubscriptionExtensionSaga, SubscriptionExtensionSagaState>
+        _sagaHarness = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -94,7 +97,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         var userId = Guid.NewGuid();
         var paymentMethodId = Guid.NewGuid();
 
-        var initiatedEvent = new SubscriptionExtensionInitiatedEvent
+        var initiatedEvent = new SubscriptionExtensionInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -110,7 +113,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(initiatedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>()).Should().BeTrue();
 
         var sagaExists = await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
         sagaExists.HasValue.Should().BeTrue("Saga should be created");
@@ -141,7 +144,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Arrange - Payment completed
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -152,7 +155,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(paymentCompletedEvent);
-        await _sagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionExtensionPaymentCompletedSagaEvent>();
 
         // Verify saga is now in AwaitingExtension state
         var awaitingInstance = _sagaHarness.Sagas.ContainsInState(
@@ -163,7 +166,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         awaitingInstance.PaymentTransactionId.Should().Be(paymentTransactionId);
 
         // Act - Extension completed
-        var extendedEvent = new SubscriptionExtendedEvent
+        var extendedEvent = new SubscriptionExtendedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -176,7 +179,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(extendedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<SubscriptionExtendedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<SubscriptionExtendedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized");
@@ -194,7 +197,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var failedEvent = new SubscriptionExtensionFailedEvent
+        var failedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -207,7 +210,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(failedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>()).Should().BeTrue();
 
         var instance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -231,7 +234,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var failedEvent = new SubscriptionExtensionFailedEvent
+        var failedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -244,7 +247,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(failedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized");
@@ -262,7 +265,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Fail with compensation
-        var failedEvent = new SubscriptionExtensionFailedEvent
+        var failedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -273,7 +276,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(failedEvent);
-        await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>();
 
         var inProgressInstance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -282,7 +285,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         inProgressInstance.Should().NotBeNull("Saga should be in CompensationInProgress state");
 
         // Act
-        var compensationEvent = new ExtensionCompensationCompletedEvent
+        var compensationEvent = new ExtensionCompensationCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -293,7 +296,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(compensationEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<ExtensionCompensationCompletedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<ExtensionCompensationCompletedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized");
@@ -311,7 +314,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var failedEvent = new SubscriptionExtensionFailedEvent
+        var failedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -322,13 +325,13 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(failedEvent);
-        await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>();
 
         // Assert
-        (await _harness.Published.Any<Finance.Payments.RequestRefundCommand>()).Should().BeTrue(
+        (await _harness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
             "RequestRefundCommand should be published when extension fails with compensation");
 
-        var publishedCommands = await _harness.Published.SelectAsync<Finance.Payments.RequestRefundCommand>().ToListAsync();
+        var publishedCommands = await _harness.Published.SelectAsync<RequestRefundCommand>().ToListAsync();
         var publishedCommand = publishedCommands.FirstOrDefault();
         publishedCommand.Should().NotBeNull();
         publishedCommand!.Context.Message.CorrelationId.Should().Be(correlationId);
@@ -345,7 +348,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         var paymentMethodId = Guid.NewGuid();
         var initiatedAt = _fakeTimeProvider.GetUtcNow().UtcDateTime;
 
-        var initiatedEvent = new SubscriptionExtensionInitiatedEvent
+        var initiatedEvent = new SubscriptionExtensionInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -359,7 +362,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
 
         // Act
         await _harness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Consumed.Any<SubscriptionExtensionInitiatedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionExtensionInitiatedSagaEvent>();
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Assert
@@ -427,7 +430,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Fail with compensation
-        var failedEvent = new SubscriptionExtensionFailedEvent
+        var failedEvent = new SubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -438,7 +441,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(failedEvent);
-        await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionExtensionFailedSagaEvent>();
 
         var inProgressInstance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -473,7 +476,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Act
-        var paymentFailedEvent = new PaymentFailedEvent
+        var paymentFailedEvent = new SubscriptionExtensionPaymentFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -485,7 +488,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(paymentFailedEvent);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<PaymentFailedEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<SubscriptionExtensionPaymentFailedSagaEvent>()).Should().BeTrue();
 
         var finalState = await _sagaHarness.NotExists(correlationId, timeout: TimeSpan.FromSeconds(5));
         finalState.HasValue.Should().BeFalse("Saga should be finalized after payment failed");
@@ -542,7 +545,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
 
     // -- Helper Methods --
 
-    private SubscriptionExtensionInitiatedEvent CreateExtensionInitiatedEvent(
+    private SubscriptionExtensionInitiatedSagaEvent CreateExtensionInitiatedEvent(
         Guid correlationId,
         Guid userId,
         Guid paymentMethodId,
@@ -550,7 +553,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         decimal amount = 9.99m,
         string currency = "USD")
     {
-        return new SubscriptionExtensionInitiatedEvent
+        return new SubscriptionExtensionInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -575,7 +578,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
         // Complete payment
-        var paymentCompletedEvent = new PaymentCompletedEvent
+        var paymentCompletedEvent = new SubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -586,7 +589,7 @@ public class SubscriptionExtensionSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(paymentCompletedEvent);
-        await _sagaHarness.Consumed.Any<PaymentCompletedEvent>();
+        await _sagaHarness.Consumed.Any<SubscriptionExtensionPaymentCompletedSagaEvent>();
 
         // Verify saga is now in AwaitingExtension state
         var awaitingInstance = _sagaHarness.Sagas.ContainsInState(

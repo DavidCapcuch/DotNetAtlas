@@ -28,4 +28,3 @@ public sealed class SubscriptionSagaTimeoutOptions
     [Range(1, int.MaxValue)]
     public required int CompensationMinutes { get; set; }
 }
-

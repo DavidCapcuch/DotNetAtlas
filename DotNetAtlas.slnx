@@ -1,4 +1,23 @@
 <Solution>
+  <Folder Name="/http-requests/">
+    <File Path="requests/Auth/GetAndSetAuthToken.http" />
+    <File Path="requests/http-client.env.json" />
+  </Folder>
+  <Folder Name="/http-requests/Admin/">
+    <File Path="requests/Admin/ClearAllCache.http" />
+    <File Path="requests/Admin/RemoveCacheByTag.http" />
+  </Folder>
+  <Folder Name="/http-requests/Dev/">
+    <File Path="requests/Dev/SeedDatabase.http" />
+  </Folder>
+  <Folder Name="/http-requests/Feedback/">
+    <File Path="requests/Feedback/ChangeFeedback.http" />
+    <File Path="requests/Feedback/GetFeedbackById.http" />
+    <File Path="requests/Feedback/SendFeedback.http" />
+  </Folder>
+  <Folder Name="/http-requests/Forecast/">
+    <File Path="requests/Forecast/GetForecasts.http" />
+  </Folder>
   <Folder Name="/pipeline/" />
   <Folder Name="/pipeline/ci/">
     <File Path=".github/workflows/build-and-push-docker-image.yml" />
@@ -30,25 +49,6 @@
     <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
     <Project Path="platform/DotNetAtlas.SchemaRegistry.Contracts/DotNetAtlas.SchemaRegistry.Contracts.csproj" />
     <Project Path="platform/DotNetAtlas.SharedKernel/DotNetAtlas.SharedKernel.csproj" />
-  </Folder>
-  <Folder Name="/requests/">
-    <File Path="requests/Auth/GetAndSetAuthToken.http" />
-    <File Path="requests/http-client.env.json" />
-  </Folder>
-  <Folder Name="/requests/Admin/">
-    <File Path="requests/Admin/ClearAllCache.http" />
-    <File Path="requests/Admin/RemoveCacheByTag.http" />
-  </Folder>
-  <Folder Name="/requests/Dev/">
-    <File Path="requests/Dev/SeedDatabase.http" />
-  </Folder>
-  <Folder Name="/requests/Feedback/">
-    <File Path="requests/Feedback/ChangeFeedback.http" />
-    <File Path="requests/Feedback/GetFeedbackById.http" />
-    <File Path="requests/Feedback/SendFeedback.http" />
-  </Folder>
-  <Folder Name="/requests/Forecast/">
-    <File Path="requests/Forecast/GetForecasts.http" />
   </Folder>
   <Folder Name="/saga/">
     <File Path="saga/Directory.Build.props" />

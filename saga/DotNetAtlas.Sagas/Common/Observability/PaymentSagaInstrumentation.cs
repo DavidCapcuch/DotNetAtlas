@@ -138,10 +138,9 @@ public static class PaymentSagaInstrumentation
     /// </summary>
     public static Activity? StartActivity(string operationName, Guid correlationId)
     {
-        var activity = SagaInstrumentation.ActivitySource.StartActivity(operationName, ActivityKind.Internal);
+        var activity = SagaInstrumentation.ActivitySource.StartActivity(operationName);
         activity?.SetTag("saga.type", "payment");
         activity?.SetTag("saga.correlation_id", correlationId.ToString());
         return activity;
     }
 }
-

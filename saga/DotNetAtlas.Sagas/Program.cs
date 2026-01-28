@@ -3,7 +3,6 @@ using DotNetAtlas.Sagas.Common;
 using DotNetAtlas.Sagas.Common.Extensions;
 using Serilog;
 
-// Set invariant culture globally to ensure consistent number/date formatting across all locales.
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
@@ -28,7 +27,7 @@ try
         });
 
     builder.AddInfrastructure(isClusterEnvironment);
-    builder.Services.AddSagaOrchestration(builder.Configuration);
+    builder.Services.AddSagaOrchestration(builder.Configuration, isClusterEnvironment);
 
     var app = builder.Build();
 

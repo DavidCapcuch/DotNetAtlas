@@ -1,4 +1,4 @@
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

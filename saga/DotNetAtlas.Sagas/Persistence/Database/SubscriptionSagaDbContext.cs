@@ -1,6 +1,6 @@
-using DotNetAtlas.Sagas.WeatherAlerts.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PaymentSaga;
-using DotNetAtlas.Sagas.WeatherAlerts.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Finance.PaymentSaga;
+using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
 using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,9 +15,9 @@ public class SubscriptionSagaDbContext : SagaDbContext
     {
     }
 
-    public DbSet<SubscriptionPurchaseSagaState> SubscriptionPurchaseSagaStates { get; set; } = null!;
-    public DbSet<SubscriptionExtensionSagaState> SubscriptionExtensionSagaStates { get; set; } = null!;
-    public DbSet<PaymentSagaState> PaymentSagaStates { get; set; } = null!;
+    public DbSet<SubscriptionPurchaseSagaState> SubscriptionPurchaseSagaStates { get; set; }
+    public DbSet<SubscriptionExtensionSagaState> SubscriptionExtensionSagaStates { get; set; }
+    public DbSet<PaymentSagaState> PaymentSagaStates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
