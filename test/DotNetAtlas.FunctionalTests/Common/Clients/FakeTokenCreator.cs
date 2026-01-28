@@ -11,7 +11,7 @@ public static class FakeTokenCreator
         return clientType switch
         {
             ClientType.Dev => CreateToken("dev@dotnetatlas.com", [Roles.Developer]),
-            ClientType.Pleb => CreateToken("pleb@dotnetatlas.com", []),
+            ClientType.RegularUser => CreateToken("pleb@dotnetatlas.com", []),
             ClientType.NonAuth => string.Empty,
             _ => throw new ArgumentOutOfRangeException(nameof(clientType))
         };

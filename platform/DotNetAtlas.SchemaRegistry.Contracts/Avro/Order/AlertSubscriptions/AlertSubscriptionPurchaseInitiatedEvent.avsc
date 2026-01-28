@@ -1,0 +1,78 @@
+{
+    "type": "record",
+    "name": "AlertSubscriptionPurchaseInitiatedEvent",
+    "namespace": "Order.AlertSubscriptions",
+    "doc": "Event emitted when a user initiates a new alert subscription purchase. Triggers the Purchase Alert Subscription Saga.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for the entire purchase flow (purchase → payment → activation)."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User initiating the subscription purchase."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "ID of the saved payment method to use."
+        },
+        {
+            "name": "Tier",
+            "type": {
+                "type": "enum",
+                "name": "SubscriptionTier",
+                "symbols": [
+                    "Pro",
+                    "Ultra"
+                ]
+            },
+            "doc": "Subscription tier being purchased."
+        },
+        {
+            "name": "DurationDays",
+            "type": "int",
+            "doc": "Duration of the subscription in days."
+        },
+        {
+            "name": "Amount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 10,
+                "scale": 2
+            },
+            "doc": "Payment amount for the subscription."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code (e.g., 'USD', 'EUR')."
+        },
+        {
+            "name": "IdempotencyKey",
+            "type": "string",
+            "doc": "Idempotency key for preventing duplicate purchases."
+        },
+        {
+            "name": "InitiatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when purchase was initiated."
+        }
+    ]
+}
+

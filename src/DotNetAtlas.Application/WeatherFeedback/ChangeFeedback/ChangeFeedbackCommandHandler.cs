@@ -1,18 +1,18 @@
 using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
-using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.Application.WeatherFeedback.Common.Specifications;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.Errors;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
+using DotNetAtlas.CQS;
+using DotNetAtlas.Domain.Feedback.Errors;
+using DotNetAtlas.Domain.Feedback.Specifications;
+using DotNetAtlas.Domain.Feedback.ValueObjects;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
 
-public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackCommand>
+public sealed class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackCommand>
 {
     private readonly ILogger<ChangeFeedbackCommandHandler> _logger;
     private readonly IWeatherDbContext _weatherDbContext;
@@ -29,21 +29,7 @@ public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackComman
         ChangeFeedbackCommand command,
         CancellationToken ct)
     {
-        Activity.Current?.SetTag(DiagnosticNames.FeedbackId, command.Id.ToString());
-
-        var existingFeedback = await _weatherDbContext.Feedbacks
-            .WithSpecification(new WeatherFeedbackByIdSpec(command.Id))
-            .FirstOrDefaultAsync(ct);
-
-        if (existingFeedback is null)
-        {
-            return Result.Fail(FeedbackErrors.NotFound(command.Id));
-        }
-
-        if (existingFeedback.CreatedByUser != command.UserId)
-        {
-            return Result.Fail(FeedbackErrors.Forbidden(command.Id));
-        }
+        Activity.Current?.SetTag(TraceTags.FeedbackId, command.Id.ToString());
 
         var ratingResult = FeedbackRating.Create(command.Rating);
         var feedbackResult = FeedbackText.Create(command.Feedback);
@@ -53,7 +39,20 @@ public class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbackComman
             return Result.Fail(mergedResults.Errors);
         }
 
-        existingFeedback.ChangeFeedback(feedbackResult.Value, ratingResult.Value);
+        var existingFeedback = await _weatherDbContext.Feedbacks
+            .WithSpecification(new FeedbackByIdSpec(command.Id))
+            .FirstOrDefaultAsync(ct);
+
+        if (existingFeedback is null)
+        {
+            return Result.Fail(FeedbackErrors.NotFound(command.Id));
+        }
+
+        var changeResult = existingFeedback.ChangeFeedback(feedbackResult.Value, ratingResult.Value, command.UserId);
+        if (changeResult.IsFailed)
+        {
+            return Result.Fail(changeResult.Errors);
+        }
 
         await _weatherDbContext.SaveChangesAsync(ct);
 

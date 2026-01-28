@@ -1,8 +1,8 @@
 # DotNetAtlas - System Architecture
 
-## Analysis Date: 2025-11-14
+## Analysis Date: 2025-12-31
 
-**Current Status**: Comprehensive analysis of entire codebase completed. This document reflects the actual, current implementation state.
+**Current Status**: Comprehensive analysis of entire codebase completed. This document reflects the actual, current implementation state including platform libraries and AlertSubscriber domain.
 
 ## Overview
 
@@ -57,7 +57,7 @@ Aggregate Root (Feedback)
 └── Provides Factory Methods (constructor validates)
 
 Domain Event Flow:
-1. Aggregate raises event → RaiseDomainEvent()
+1. Aggregate raises event → AddDomainEvent()
 2. EF Interceptor captures → PopDomainEvents()
 3. Outbox persists → Same transaction as entity
 4. Worker publishes → Eventually to Kafka
@@ -65,9 +65,10 @@ Domain Event Flow:
 
 **Strategic Patterns:**
 
-- **Bounded Context**: Weather domain (Forecast + Feedback + Alerts)
+- **Bounded Context**: Weather domain (Forecast + Feedback + Alerts + AlertSubscriber)
 - **Ubiquitous Language**: Terms match business domain
 - **Anti-Corruption Layer**: External weather APIs abstracted
+- **Saga Pattern**: Compensation events for failed subscription activations
 
 ### 3. Command Query Separation (CQS)
 
@@ -333,47 +334,74 @@ HTTP Request (traceparent: abc-123)
 - Pages/Index.cshtml - SignalR test UI (Razor Page)
 - wwwroot/ - Static files (CSS, JS, Bootstrap, jQuery)
 
-### Platform (Reusable Components)
+### Platform (Reusable Components - 12 Libraries)
 
-**platform/DotNetAtlas.Outbox.Core/**
+**platform/DotNetAtlas.SharedKernel/** - DDD Building Blocks
+
+- AggregateRoot.cs, Entity.cs, ValueObject.cs - Base DDD types
+- DomainEvent.cs - Base domain event with EventId and OccurredOnUtc
+- IAuditableEntity.cs - Audit timestamp interface
+- Errors/ - DomainError, ValidationError, NotFoundError, ConflictError, ForbiddenError
+- Exceptions/ - CriticalException, DataIntegrityException
+- ValueObjects/ - City, CountryCode, GeoCoordinates (shared across domains)
+
+**platform/DotNetAtlas.CQS/** - Command Query Separation
+
+- ICommand.cs, IQuery.cs - Marker interfaces
+- ICommandHandler.cs, IQueryHandler.cs - Handler contracts
+- Behaviors/ - ValidationBehavior, LoggingBehavior, TracingBehavior, MetricsBehavior
+- CqsInstrumentation.cs - Metrics (commands_total, queries_total, duration, errors, exceptions)
+- CqsDependencyInjection.cs - AddCqsHandlersFromAssembly() registration
+
+**platform/DotNetAtlas.Messaging.Abstractions/** - Standard Message Headers
+
+- MessageHeaderKeys.cs - MessageId, Origin header constants
+
+**platform/DotNetAtlas.Inbox.Core/** - Inbox Entity
+
+- InboxMessage.cs - Entity for tracking processed messages
+
+**platform/DotNetAtlas.Outbox.Core/** - Outbox Entity
 
 - OutboxMessage.cs - Base outbox entity
 - OutboxMessageHeaderExtensions.cs - OTEL Header serialization/deserialization
 
-**platform/DotNetAtlas.Outbox.EntityFrameworkCore/**
+**platform/DotNetAtlas.ReliableMessaging.EFCore/** - EF Core Integration
 
-- Core/
-  - DomainEventExtractionCache.cs - Domain Event extraction cache
-  - AvroMappingCache.cs - Domain → Avro mappings cache
-  - AvroSerializer.cs - Avro serialization
-  - OutboxMessagesBatch.cs - Batch processing
-- EntityFramework/
-  - IOutboxDbContext.cs - DbSet<OutboxMessage>
-  - OutboxInterceptor.cs - Captures events on SaveChanges
-- EntityConfiguration/
-  - OutboxMessageConfiguration.cs - EF configuration
+- IInboxDbContext.cs, IOutboxDbContext.cs - DbContext abstractions
+- OutboxInterceptor.cs - Captures events on SaveChanges
+- InboxMessageConfiguration.cs, OutboxMessageConfiguration.cs - EF configurations
+- AvroMappingCache.cs, AvroSerializer.cs - Avro support
+
+**platform/DotNetAtlas.KafkaFlow.ProducerHeaders/** - Automatic Header Population
+
+- ProducerHeadersMiddleware.cs - Adds message.id (GUID v7) and origin headers
+- ProducerHeadersOptions.cs - Configuration for origin identifier
+
+**platform/DotNetAtlas.KafkaFlow.Inbox.EFCore/** - Idempotent Message Consumption
+
+- InboxMiddleware.cs - Deduplicates messages using database-backed inbox
+- Configurable per message type via AddInbox(typeof(MessageType))
+
+**platform/DotNetAtlas.KafkaFlow.DeadLetter/** - Dead Letter Topic Middleware
+
+- DeadLetterMiddleware.cs - Routes failed messages to DLT
+- Captures exceptions AND FluentResults failures
+- Preserves original headers + adds DLT-specific headers
 
 **platform/DotNetAtlas.OutboxRelay.WorkerService/**
 
 - Program.cs - Worker service startup
-- Common/ - Service registration
-- Observability/OutboxRelayInstrumentation.cs
-- OutboxRelay/
-  - OutboxDbContext.cs - Read-only context
-  - OutboxMessageRelay.cs - Main polling logic
-  - OutboxRelayWorker.cs - Background service
-  - DeliveryFailureTracker.cs - Monitors Kafka delivery
-  - Config/ - KafkaProducerOptions, OutboxRelayOptions
+- OutboxMessageRelay.cs - Main polling logic
+- OutboxRelayWorker.cs - Background service
+- DeliveryFailureTracker.cs - Monitors Kafka delivery
 
-**platform/DotNetAtlas.OutboxRelay.Benchmark/** - Outbox relay performance benchmarks
+**platform/DotNetAtlas.OutboxRelay.Benchmark/** - Performance benchmarks
 
-**platform/DotNetAtlas.SchemaRegistry/**
+**platform/DotNetAtlas.SchemaRegistry.Contracts/**
 
-- Avro/Weather/
-  - Feedback/ - .avsc + generated .cs files
-  - Forecast/ - .avsc + generated .cs files
+- Avro/Weather/ - Feedback, Forecast, Alerts schemas
 - generate-avro.ps1 - PowerShell generator script
-- README.md - Documentation
 
 ### Testing
 
@@ -571,9 +599,72 @@ Client → SignalR Hub → Command Handler
 9. If last subscriber → Hangfire job deleted
 
 **Horizontal Scaling**:
+
 - Redis backplane ensures alerts reach clients on any server
 - Group membership tracked in Redis (shared state)
 - No server affinity required
+
+### AlertSubscriber Domain (Subscription Management)
+
+**Purpose**: Manage user subscriptions for weather alerts with tiered access levels
+
+**Domain Model**:
+
+```text
+AlertSubscriber (Aggregate Root)
+├── SubscriptionTier (SmartEnum: Free, Pro, Ultra)
+├── Locations (Collection of Location entities)
+│   ├── City (Value Object)
+│   └── CountryCode (Value Object)
+├── SubscriptionExpiresAtUtc (nullable for Free tier)
+└── Domain Events
+    ├── SubscriberCreatedDomainEvent
+    ├── SubscriberActivatedDomainEvent
+    ├── SubscriberReactivatedDomainEvent
+    ├── SubscriptionUpgradedDomainEvent
+    ├── SubscriptionDowngradedDomainEvent
+    ├── SubscriptionExtendedDomainEvent
+    ├── UserSubscribedDomainEvent
+    └── UserUnsubscribedDomainEvent
+```
+
+**Subscription Tiers**:
+
+| Tier | Max Locations | Features |
+|------|---------------|----------|
+| Free | 5 | Basic alerts |
+| Pro | 25 | Priority alerts |
+| Ultra | 100 | All features |
+
+**Key Operations**:
+
+1. `CreateFree()` - Factory for free tier subscribers
+2. `CreateWithPaidSubscription()` - Factory for paid subscribers
+3. `SubscribeToLocation()` - Add location (respects tier limits)
+4. `UnsubscribeFromLocation()` - Remove location
+5. `ActivatePaidSubscription()` - Upgrade from Free
+6. `ExtendSubscription()` - Extend expiry date
+7. `DowngradeToFree()` - Handle expired subscriptions
+
+**Kafka Event Consumption**:
+
+```text
+External System → Kafka → Consumer Pipeline → AlertSubscriber
+```
+
+**Consumer Pipeline**:
+
+```text
+DeadLetter → Retry → Inbox → TypedHandler
+```
+
+**Event Handlers**:
+
+1. `SubscriptionPurchasedEventKafkaHandler` - Activates paid subscription
+2. `SubscriptionExtendedEventKafkaHandler` - Extends subscription expiry
+
+**Saga Compensation**:
+When subscription activation fails, publishes `SubscriptionActivationFailedEvent` for upstream compensation.
 
 ### Geocoding Service Integration
 

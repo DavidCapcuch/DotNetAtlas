@@ -2,7 +2,7 @@ using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
-using DotNetAtlas.Infrastructure.Messaging.SignalR;
+using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Test.Framework;
 using DotNetAtlas.Test.Framework.Database;
 using DotNetAtlas.Test.Framework.Kafka;
@@ -37,7 +37,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         flywayMigrationsPath: SolutionPaths.FlywayMigrationsDirectory,
         new RespawnerOptions
         {
-            SchemasToInclude = ["weather", "HangFire"]
+            SchemasToInclude = [WeatherDbContext.DefaultSchemaName, "HangFire"]
         });
 
     private readonly RedisTestContainer _redisContainer = new();
@@ -61,9 +61,9 @@ public class IntegrationTestFixture : AppFixture<Program>
         return ValueTask.CompletedTask;
     }
 
-    protected override IHost ConfigureAppHost(IHostBuilder builder)
+    protected override IHost ConfigureAppHost(IHostBuilder a)
     {
-        builder.ConfigureWebHost(webBuilder =>
+        a.ConfigureWebHost(webBuilder =>
         {
             var redisConfig = _redisContainer.ConfigurationOptions;
             webBuilder
@@ -73,12 +73,12 @@ public class IntegrationTestFixture : AppFixture<Program>
                 .UseKafkaSettings(_kafkaContainer.KafkaOptions);
         });
 
-        return base.ConfigureAppHost(builder);
+        return base.ConfigureAppHost(a);
     }
 
-    protected override void ConfigureApp(IWebHostBuilder builder)
+    protected override void ConfigureApp(IWebHostBuilder a)
     {
-        builder
+        a
             .UseEnvironment("Testing")
             .ConfigureServices((context, services) =>
             {
@@ -97,7 +97,6 @@ public class IntegrationTestFixture : AppFixture<Program>
             {
                 services.AddScoped<OpenMeteoWeatherProvider>();
                 services.AddScoped<WeatherApiComProvider>();
-                services.AddSingleton<RedisSignalRGroupManager>();
                 services.AddSingleton(Substitute.For<IHealthCheckReportCollector>());
             });
     }

@@ -1,7 +1,6 @@
 using DotNetAtlas.Api.Common.Extensions;
-using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
-using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Domain.Common.ValueObjects;
 using FastEndpoints;
 using Serilog.Context;
 

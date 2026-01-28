@@ -1,6 +1,6 @@
 using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Swagger;
-using DotNetAtlas.Infrastructure.Common;
+using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Infrastructure.Common.Authentication;
 using DotNetAtlas.Infrastructure.Common.Authorization;
 using FastEndpoints.Swagger;

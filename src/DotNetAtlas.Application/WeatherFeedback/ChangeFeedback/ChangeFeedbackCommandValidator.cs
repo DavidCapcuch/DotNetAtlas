@@ -15,6 +15,6 @@ public class ChangeFeedbackCommandValidator : AbstractValidator<ChangeFeedbackCo
             .SetValidator(new FeedbackRatingValidator());
         RuleFor(sfr => sfr.UserId)
             .NotEmpty()
-            .WithMessage("UserId cannot be empty.");
+                .WithMessage("UserId cannot be empty.");
     }
 }

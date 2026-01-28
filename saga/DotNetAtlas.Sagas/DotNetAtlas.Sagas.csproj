@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+    <ItemGroup>
+        <!-- MassTransit Core -->
+        <PackageReference Include="MassTransit"/>
+        <PackageReference Include="MassTransit.EntityFrameworkCore"/>
+        <PackageReference Include="MassTransit.SqlTransport.SqlServer"/>
+        <PackageReference Include="MassTransit.Kafka"/>
+
+        <!-- Confluent Schema Registry -->
+        <PackageReference Include="Confluent.SchemaRegistry"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+
+        <!-- Database -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        
+        <!-- Logging -->
+        <PackageReference Include="Serilog.AspNetCore"/>
+        <PackageReference Include="Serilog.Sinks.Console"/>
+        <PackageReference Include="Serilog.Sinks.OpenTelemetry"/>
+        <PackageReference Include="Serilog.Expressions"/>
+
+        <!-- OpenTelemetry -->
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting"/>
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Process"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore"/>
+        <PackageReference Include="OpenTelemetry.Resources.Container"/>
+        <PackageReference Include="OpenTelemetry.Resources.Host"/>
+
+        <!-- Health checks -->
+        <PackageReference Include="AspNetCore.HealthChecks.Publisher.Prometheus"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.Client"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
+
+        <!-- Analyzers -->
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.SharedKernel\DotNetAtlas.SharedKernel.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Persistence\Database\Migrations\" />
+    </ItemGroup>
+</Project>

@@ -1,8 +1,8 @@
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
-using DotNetAtlas.Domain.Common.Errors;
-using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Domain.Common.ValueObjects;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.IntegrationTests.Common;
+using DotNetAtlas.SharedKernel.Errors;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,22 +11,25 @@ namespace DotNetAtlas.IntegrationTests.Infrastructure.HttpClients;
 [Collection<ForecastTestCollection>]
 public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
 {
-    private readonly OpenMeteoWeatherProvider _provider;
+    private readonly OpenMeteoWeatherProvider _openMeteoWeatherProvider;
 
     public OpenMeteoWeatherProviderIntegrationTests(IntegrationTestFixture app)
         : base(app)
     {
-        _provider = Scope.ServiceProvider.GetRequiredService<OpenMeteoWeatherProvider>();
+        _openMeteoWeatherProvider = Scope.ServiceProvider.GetRequiredService<OpenMeteoWeatherProvider>();
     }
 
     [Fact]
     public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
     {
         // Arrange
-        var forecastRequest = new ForecastRequest("Prague", CountryCode.CZ, 1);
+        var forecastDateRange = DateRange.Create(DateOnly.FromDateTime(DateTime.UtcNow), 2).Value;
+        var forecastCriteria = ForecastCriteria.Create("Prague", CountryCode.CZ, forecastDateRange).Value;
 
         // Act
-        var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
+        var forecastResult = await _openMeteoWeatherProvider.GetForecastAsync(
+            forecastCriteria,
+            TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
@@ -40,18 +43,21 @@ public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
     public async Task WhenAskedForForecastWithNonExistentCity_ReturnsCityNotFoundError()
     {
         // Arrange
-        var forecastRequest = new ForecastRequest("asdfasdfsasdfsadsf", CountryCode.CZ, 1);
+        var forecastDateRange = DateRange.Create(DateOnly.FromDateTime(DateTime.UtcNow), 2).Value;
+        var forecastCriteria = ForecastCriteria.Create("asdfasdfsasdfsadsf", CountryCode.CZ, forecastDateRange).Value;
 
         // Act
-        var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
+        var forecastResult = await _openMeteoWeatherProvider.GetForecastAsync(
+            forecastCriteria,
+            TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
         {
             forecastResult.Should().BeFailure();
             forecastResult.Errors.Should().ContainSingle();
-            var error = forecastResult.Errors[0];
-            error.Should().BeAssignableTo<NotFoundError>();
+            var forecastError = forecastResult.Errors[0];
+            forecastError.Should().BeAssignableTo<NotFoundError>();
         }
     }
 }

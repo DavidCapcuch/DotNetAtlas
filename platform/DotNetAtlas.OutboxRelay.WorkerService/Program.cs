@@ -1,3 +1,4 @@
+using System.Globalization;
 using DotNetAtlas.OutboxRelay.WorkerService.Common;
 using DotNetAtlas.OutboxRelay.WorkerService.Common.Extensions;
 using Serilog;
@@ -8,6 +9,10 @@ internal class Program
 {
     public static async Task Main(string[] args)
     {
+        // Set invariant culture globally to ensure consistent number/date formatting across all locales.
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Console()
             .CreateBootstrapLogger();

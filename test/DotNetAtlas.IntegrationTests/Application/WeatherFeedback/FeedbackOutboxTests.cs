@@ -1,84 +1,105 @@
 using DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
 using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
+using DotNetAtlas.CQS;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.IntegrationTests.Application.WeatherFeedback;
 
 [Collection<ForecastTestCollection>]
 public class FeedbackOutboxTests : BaseIntegrationTest
 {
-    private readonly SendFeedbackCommandHandler _sendFeedbackCommandHandler;
-    private readonly ChangeFeedbackCommandHandler _changeFeedbackCommandHandler;
+    private readonly ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackCommandHandler;
+    private readonly ICommandHandler<ChangeFeedbackCommand> _changeFeedbackCommandHandler;
 
     public FeedbackOutboxTests(IntegrationTestFixture app)
         : base(app)
     {
         _sendFeedbackCommandHandler =
-            new SendFeedbackCommandHandler(
-                Scope.ServiceProvider.GetRequiredService<ILogger<SendFeedbackCommandHandler>>(),
-                WeatherDbContext);
+            Scope.ServiceProvider.GetRequiredService<ICommandHandler<SendFeedbackCommand, Guid>>();
         _changeFeedbackCommandHandler =
-            new ChangeFeedbackCommandHandler(
-                Scope.ServiceProvider.GetRequiredService<ILogger<ChangeFeedbackCommandHandler>>(),
-                WeatherDbContext);
+            Scope.ServiceProvider.GetRequiredService<ICommandHandler<ChangeFeedbackCommand>>();
     }
 
     [Fact]
-    public async Task WhenFeedbackCreatedAndChanged_PublishesBothDomainEventsViaOutbox()
+    public async Task WhenFeedbackCreated_PublishesCreatedEvent()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
-        var sendFeedbackCommand = new SendFeedbackCommand
+        var command = new SendFeedbackCommand
         {
             Feedback = "Excellent weather forecast!",
             Rating = 5,
             UserId = userId
         };
 
-        // Act - Create Feedback
-        var sendFeedbackResult = await _sendFeedbackCommandHandler.HandleAsync(
-            sendFeedbackCommand,
+        // Act
+        var result = await _sendFeedbackCommandHandler.HandleAsync(
+            command,
             TestContext.Current.CancellationToken);
-        sendFeedbackResult.Should().BeSuccess();
-        var createdId = sendFeedbackResult.Value;
+        result.Should().BeSuccess();
+        var feedbackId = result.Value;
 
-        var createdFeedback = await WeatherDbContext.Feedbacks
+        var outboxMessages = await WeatherDbContext.OutboxMessages
             .AsNoTracking()
-            .FirstOrDefaultAsync(f => f.Id == createdId, TestContext.Current.CancellationToken);
-        createdFeedback.Should().NotBeNull();
-
-        // Change the feedback
-        var changeFeedbackCommand = new ChangeFeedbackCommand
-        {
-            Id = createdId,
-            Feedback = "Updated weather forecast feedback!",
-            Rating = 4,
-            UserId = userId
-        };
-
-        var changeFeedbackResult = await _changeFeedbackCommandHandler.HandleAsync(
-            changeFeedbackCommand,
-            TestContext.Current.CancellationToken);
-        changeFeedbackResult.Should().BeSuccess();
-
-        var last2OutboxMessages = await WeatherDbContext.OutboxMessages
-            .AsNoTracking()
-            .OrderByDescending(om => om.Id)
-            .Take(2)
+            .Where(om => om.KafkaKey == feedbackId.ToString())
+            .OrderBy(om => om.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())
         {
-            last2OutboxMessages.Should().HaveCount(2);
-            last2OutboxMessages[1].KafkaKey.Should().Be(createdId.ToString());
-            last2OutboxMessages[1].Type.Should().Be("FeedbackCreatedEvent");
-            last2OutboxMessages[0].KafkaKey.Should().Be(createdId.ToString());
-            last2OutboxMessages[0].Type.Should().Be("FeedbackChangedEvent");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages[0].Type.Should().Be("Weather.Feedback.FeedbackCreatedEvent");
+        }
+    }
+
+    [Fact]
+    public async Task WhenFeedbackChanged_PublishesChangedEvent()
+    {
+        // Arrange
+        var userId = Guid.CreateVersion7();
+        var createCommand = new SendFeedbackCommand
+        {
+            Feedback = "Excellent weather forecast!",
+            Rating = 5,
+            UserId = userId
+        };
+
+        var createResult = await _sendFeedbackCommandHandler.HandleAsync(
+            createCommand,
+            TestContext.Current.CancellationToken);
+        createResult.Should().BeSuccess();
+        var feedbackId = createResult.Value;
+
+        var changeCommand = new ChangeFeedbackCommand
+        {
+            Id = feedbackId,
+            Feedback = "Updated weather forecast feedback!",
+            Rating = 4,
+            UserId = userId
+        };
+
+        // Act
+        var changeResult = await _changeFeedbackCommandHandler.HandleAsync(
+            changeCommand,
+            TestContext.Current.CancellationToken);
+        changeResult.Should().BeSuccess();
+
+        var outboxMessages = await WeatherDbContext.OutboxMessages
+            .AsNoTracking()
+            .Where(om => om.KafkaKey == feedbackId.ToString())
+            .OrderBy(om => om.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            outboxMessages.Should().HaveCount(2);
+            outboxMessages[0].Type.Should().Be("Weather.Feedback.FeedbackCreatedEvent");
+            outboxMessages[1].Type.Should().Be("Weather.Feedback.FeedbackChangedEvent");
         }
     }
 }

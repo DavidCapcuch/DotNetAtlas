@@ -1,0 +1,46 @@
+{
+    "type": "record",
+    "name": "RequestRefundCommand",
+    "namespace": "Finance.Payments",
+    "doc": "Command sent by Payment Saga to request a refund for a captured payment.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User to refund."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Original payment transaction ID to refund."
+        },
+        {
+            "name": "Reason",
+            "type": "string",
+            "doc": "Reason for the refund request."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when refund was requested."
+        }
+    ]
+}
+

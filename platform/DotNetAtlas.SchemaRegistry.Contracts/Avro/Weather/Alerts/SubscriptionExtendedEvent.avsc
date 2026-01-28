@@ -1,0 +1,54 @@
+{
+    "type": "record",
+    "name": "SubscriptionExtendedEvent",
+    "namespace": "Weather.Alerts",
+    "doc": "Event emitted by Weather Alerts service when subscription extension succeeds. Consumed by Extension Saga to complete the workflow.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose subscription was extended."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payment transaction ID for saga correlation."
+        },
+        {
+            "name": "DurationExtendedDays",
+            "type": "int",
+            "doc": "Duration in days that the subscription was extended."
+        },
+        {
+            "name": "NewExpiresAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "New UTC timestamp when the subscription expires."
+        },
+        {
+            "name": "ExtendedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when extension occurred."
+        }
+    ]
+}
+

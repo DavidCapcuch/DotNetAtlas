@@ -13,6 +13,6 @@ public class SendFeedbackCommandValidator : AbstractValidator<SendFeedbackComman
             .SetValidator(new FeedbackRatingValidator());
         RuleFor(sfr => sfr.UserId)
             .NotEmpty()
-            .WithMessage("UserId cannot be empty.");
+                .WithMessage("UserId cannot be empty.");
     }
 }

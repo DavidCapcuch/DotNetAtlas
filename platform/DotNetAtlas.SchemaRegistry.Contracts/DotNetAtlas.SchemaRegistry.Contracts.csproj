@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- exclusions for generated code -->
+    <PropertyGroup>
+        <NoWarn>CS0162</NoWarn> <!-- unreachable code -->
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Apache.Avro"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Avro\" />
+      <Folder Include="Avro\Finance\Payments\" />
+      <Folder Include="Avro\Order\AlertSubscriptions\" />
+      <Folder Include="Avro\Weather\Alerts\" />
+      <Folder Include="Avro\Weather\Feedback\" />
+      <Folder Include="Avro\Weather\Forecast\" />
+      <Folder Include="Avro\Notifications\Email\" />
+    </ItemGroup>
+</Project>

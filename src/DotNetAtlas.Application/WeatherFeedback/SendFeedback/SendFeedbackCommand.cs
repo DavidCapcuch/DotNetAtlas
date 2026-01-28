@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using DotNetAtlas.Application.Common.CQS;
+using DotNetAtlas.CQS;
 using FastEndpoints;
 
 namespace DotNetAtlas.Application.WeatherFeedback.SendFeedback;

@@ -1,7 +1,8 @@
-using DotNetAtlas.Application.WeatherForecast.Common.Config;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
+using DotNetAtlas.Application.WeatherForecast.Services.Config;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
+using DotNetAtlas.SharedKernel.Errors;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,7 +29,7 @@ public class HedgingWeatherForecastService : IWeatherForecastService
     }
 
     public async Task<Result<IReadOnlyList<ForecastDto>>> GetForecastAsync(
-        ForecastRequest forecastRequest,
+        ForecastCriteria forecastCriteria,
         CancellationToken ct)
     {
         // Try only the primary provider first
@@ -37,7 +38,7 @@ public class HedgingWeatherForecastService : IWeatherForecastService
         try
         {
             var primaryResult =
-                await _mainWeatherForecastProvider.GetForecastAsync(forecastRequest, primaryProviderCallCts.Token);
+                await _mainWeatherForecastProvider.GetForecastAsync(forecastCriteria, primaryProviderCallCts.Token);
 
             return primaryResult;
         }
@@ -55,7 +56,7 @@ public class HedgingWeatherForecastService : IWeatherForecastService
         // Try all providers concurrently as fallback
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var getForecastTasks = _weatherForecastProviders
-            .Select(provider => provider.GetForecastAsync(forecastRequest, cts.Token))
+            .Select(provider => provider.GetForecastAsync(forecastCriteria, cts.Token))
             .ToList();
 
         var exceptions = new List<Exception>();
@@ -65,10 +66,20 @@ public class HedgingWeatherForecastService : IWeatherForecastService
             {
                 var forecastResult = await getForecastTask;
 
-                // Cancel other weather provider api calls
-                await cts.CancelAsync();
+                if (forecastResult.IsSuccess)
+                {
+                    // Cancel other weather provider api calls
+                    await cts.CancelAsync();
 
-                return forecastResult;
+                    return forecastResult;
+                }
+
+                var codes = forecastResult.Errors.ToErrorsSummary();
+                _logger.LogWarning("Hedged weather provider call failed, errors: {Codes}", codes);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                // Expected cancellation from hedging
             }
             catch (Exception ex)
             {

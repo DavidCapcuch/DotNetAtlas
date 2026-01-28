@@ -1,5 +1,5 @@
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using FluentResults;
 
 namespace DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
@@ -7,7 +7,7 @@ namespace DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
 public interface IWeatherForecastProvider
 {
     Task<Result<IReadOnlyList<ForecastDto>>> GetForecastAsync(
-        ForecastRequest forecastRequest,
+        ForecastCriteria criteria,
         CancellationToken ct);
 
     string Name { get; }

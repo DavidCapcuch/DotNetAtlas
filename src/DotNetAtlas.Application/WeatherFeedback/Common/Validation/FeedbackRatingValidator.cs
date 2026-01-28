@@ -1,4 +1,4 @@
-using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
+using DotNetAtlas.Domain.Feedback.ValueObjects;
 using FluentValidation;
 
 namespace DotNetAtlas.Application.WeatherFeedback.Common.Validation;
@@ -9,6 +9,6 @@ public sealed class FeedbackRatingValidator : AbstractValidator<byte>
     {
         RuleFor(r => r)
             .InclusiveBetween((byte)FeedbackRating.MinimumRating, (byte)FeedbackRating.MaximumRating)
-            .WithMessage($"Rating must be between {FeedbackRating.MinimumRating} and {FeedbackRating.MaximumRating}.");
+                .WithMessage($"Rating must be between {FeedbackRating.MinimumRating} and {FeedbackRating.MaximumRating}.");
     }
 }

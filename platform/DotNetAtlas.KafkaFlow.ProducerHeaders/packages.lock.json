@@ -1,0 +1,105 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "KafkaFlow": {
+        "type": "Direct",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "mAeoKJBy8/cQpjk7wa7QGNka4j9tL8lB+KGM6Je2HwQrvUvGOq+eHYPl5okJlF0nIQyOdLlld/TNsgJauKHydw==",
+        "dependencies": {
+          "Confluent.Kafka": "2.8.0",
+          "KafkaFlow.Abstractions": "4.0.1",
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.IO.RecyclableMemoryStream": "3.0.1"
+        }
+      },
+      "KafkaFlow.Microsoft.DependencyInjection": {
+        "type": "Direct",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "3HvXMDEXYfYh4f76s4pBToptJW7NG9lf/KL3LepTh2GQxmZKexzGQZVuPTs+20Y8uoZsqiZ6w6BpP8VzlF+c5A==",
+        "dependencies": {
+          "KafkaFlow": "4.0.1",
+          "KafkaFlow.Abstractions": "4.0.1",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3"
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "Direct",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "FU/IfjDfwaMuKr414SSQNTIti/69bHEMb+QKrskRb26oVqpx3lNFXMjs/RC9ZUuhBhcwDM2BwOgoMw+PZ+beqQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0"
+        }
+      },
+      "StyleCop.Analyzers": {
+        "type": "Direct",
+        "requested": "[1.2.0-beta.556, )",
+        "resolved": "1.2.0-beta.556",
+        "contentHash": "llRPgmA1fhC0I0QyFLEcjvtM2239QzKr/tcnbsjArLMJxJlu0AA5G7Fft0OI30pHF3MW63Gf4aSSsjc5m82J1Q==",
+        "dependencies": {
+          "StyleCop.Analyzers.Unstable": "1.2.0.556"
+        }
+      },
+      "KafkaFlow.Abstractions": {
+        "type": "Transitive",
+        "resolved": "4.0.1",
+        "contentHash": "MuK5Kv7JzfICJ8bp+jBdo0MPzKLpgRKGQgtBZm61XrS1vkaG/6Zh2M0rpjcg0yL8RYCDnhfo715bKzl4ZuPbFg=="
+      },
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+      },
+      "Microsoft.Bcl.AsyncInterfaces": {
+        "type": "Transitive",
+        "resolved": "9.0.3",
+        "contentHash": "oFFX9Ls8dnNUBCD9yzRzHTY8tqvv+CiX43B8L8DjrM8BqYTAlORYaJf6+KXNtSC2bD1135yV8OxzcZFaluow5w=="
+      },
+      "Microsoft.IO.RecyclableMemoryStream": {
+        "type": "Transitive",
+        "resolved": "3.0.1",
+        "contentHash": "s/s20YTVY9r9TPfTrN5g8zPF1YhwxyqO6PxUkrYTGI2B+OGPe9AdajWZrLhFqXIvqIW23fnUE4+ztrUWNU1+9g=="
+      },
+      "StyleCop.Analyzers.Unstable": {
+        "type": "Transitive",
+        "resolved": "1.2.0.556",
+        "contentHash": "zvn9Mqs/ox/83cpYPignI8hJEM2A93s2HkHs8HYMOAQW0PkampyoErAiIyKxgTLqbbad29HX/shv/6LGSjPJNQ=="
+      },
+      "dotnetatlas.messaging.abstractions": {
+        "type": "Project"
+      },
+      "Confluent.Kafka": {
+        "type": "CentralTransitive",
+        "requested": "[2.6.1, )",
+        "resolved": "2.8.0",
+        "contentHash": "i5Qb5BPthGXmLRSZWXVLPVNfo9Mxt+UieC+E/ZTFmlGIuPPd57g7Sxp8QP7fYp7qEBXs561jvWDLGaCZqV9ycg==",
+        "dependencies": {
+          "librdkafka.redist": "2.8.0"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "L3AdmZ1WOK4XXT5YFPEwyt0ep6l8lGIPs7F5OOBZc77Zqeo01Of7XXICy47628sdVl0v/owxYJTe86DTgFwKCA=="
+      }
+    },
+    "net10.0/linux-x64": {
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+      }
+    },
+    "net10.0/win-x64": {
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.8.0",
+        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+      }
+    }
+  }
+}

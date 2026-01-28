@@ -2,6 +2,7 @@ using DotNetAtlas.OutboxRelay.WorkerService.Common.Config;
 using DotNetAtlas.OutboxRelay.WorkerService.Observability.HealthChecks;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay.Config;
+using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Prometheus;
@@ -41,7 +42,7 @@ public static class HealthChecksDependencyInjection
             .Get<KafkaProducerOptions>()!;
 
         services.AddHealthChecks()
-            .AddCheck("Self", () => HealthCheckResult.Healthy(),
+            .AddApplicationStatus("Self",
                 tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
                 timeout: timeoutsOptions.SelfTimeout)
             .AddDbContextCheck<OutboxDbContext>(

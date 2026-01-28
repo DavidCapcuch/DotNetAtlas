@@ -1,14 +1,8 @@
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Domain.Common;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.Events;
 using DotNetAtlas.Infrastructure.Common.Config;
-using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
-using DotNetAtlas.Infrastructure.Messaging.Kafka.DomainToAvroMappings;
 using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Infrastructure.Persistence.Database.Interceptors;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
-using DotNetAtlas.Outbox.EntityFrameworkCore.Common;
-using DotNetAtlas.Outbox.EntityFrameworkCore.Core;
 using EntityFramework.Exceptions.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -50,56 +44,45 @@ public static class PersistenceDependencyInjection
             .BindConfiguration(ConnectionStringsOptions.Section)
             .ValidateDataAnnotations();
 
+        // See: https://learn.microsoft.com/en-us/ef/core/logging-events-diagnostics/interceptors#registering-interceptors
+        // DispatchDomainEventsInterceptor is registered as Scoped because it depends on scoped IDomainEventDispatcher,
+        // which resolves Domain Event handlers from the same scope as the DbContext.
+        // This ensures that the same DbContext is used for both SaveChanges and Domain Event Dispatching
+        // and the same DbContext is used in the Domain Event Handlers (e.g., for Outbox dispatching within the same transaction)
+        services.AddScoped<DispatchDomainEventsInterceptor>();
+
+        // UpdateAuditableEntitiesInterceptor is registered as Singleton for performance optimization.
+        // This is safe because the interceptor is stateless - it doesn't capture or store any per-request data
         services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
-        services.AddDbContextPool<WeatherDbContext>((
-                sp,
-                options) => options
-                .UseSqlServer(
-                    configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather)),
-                    sqlServerOptions =>
-                    {
-                        sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, "weather");
-                        sqlServerOptions.UseQuerySplittingBehavior(
-                            efCoreOptions.UseQuerySplitting
-                                ? QuerySplittingBehavior.SplitQuery
-                                : QuerySplittingBehavior.SingleQuery);
-                        sqlServerOptions.EnableRetryOnFailure(
-                            maxRetryCount: efCoreOptions.RetryMaxCount,
-                            maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
-                            errorNumbersToAdd: null);
-                    })
-                .EnableSensitiveDataLogging(!isClusterEnvironment)
-                .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
-                .UseExceptionProcessor()
-                .UseSeeding()
-                .UseAsyncSeeding()
-                .UseOutboxEventsInterceptor(sp)
-                .AddInterceptors(
-                    sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>()),
-            poolSize: efCoreOptions.DbContextPoolSize);
+        services.AddDbContext<WeatherDbContext>((
+            sp,
+            options) => options
+            .UseSqlServer(
+                configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather)),
+                sqlServerOptions =>
+                {
+                    sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
+                        WeatherDbContext.DefaultSchemaName);
+                    sqlServerOptions.UseQuerySplittingBehavior(
+                        efCoreOptions.UseQuerySplitting
+                            ? QuerySplittingBehavior.SplitQuery
+                            : QuerySplittingBehavior.SingleQuery);
+                    sqlServerOptions.EnableRetryOnFailure(
+                        maxRetryCount: efCoreOptions.RetryMaxCount,
+                        maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
+                        errorNumbersToAdd: null);
+                })
+            .EnableSensitiveDataLogging(
+                !isClusterEnvironment) // this is very useful for local debugging/investigating failed tests
+            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
+            .UseExceptionProcessor() // required for the Inbox pattern, see DotNetAtlas.ReliableMessaging.Inbox.EFCore
+            .UseSeeding() // see https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding
+            .UseAsyncSeeding()
+            .AddInterceptors(
+                sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>(),
+                sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
 
-        services.AddScoped<IWeatherDbContext, WeatherDbContext>();
-
-        services.AddOutbox<WeatherDbContext>(outbox =>
-        {
-            outbox.ConfigureAvroSerializerConfig(options =>
-            {
-                configuration.Bind(AvroSerializerOptions.Section, options);
-            });
-            outbox.ConfigureSchemaRegistryConfig(options =>
-            {
-                configuration.Bind(SchemaRegistryOptions.Section, options);
-            });
-
-            outbox.RegisterOutboxMessagesBatchExtractionFor<AggregateRoot<Guid>>(agg =>
-                new OutboxMessagesBatch(agg.Id.ToString(), agg.PopDomainEvents())
-            );
-
-            outbox.RegisterAvroMapperFor<FeedbackChangedDomainEvent>(domainEvent =>
-                domainEvent.ToFeedbackChangedEvent());
-            outbox.RegisterAvroMapperFor<FeedbackCreatedDomainEvent>(domainEvent =>
-                domainEvent.ToFeedbackCreatedEvent());
-        });
+        services.AddScoped<IWeatherDbContext>(sp => sp.GetRequiredService<WeatherDbContext>());
 
         return services;
     }

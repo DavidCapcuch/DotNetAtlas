@@ -29,7 +29,7 @@ public class ChangeFeedbackTests : BaseApiTest
 
         // Act
         var (httpResponse, problemDetails) =
-            await HttpClientRegistry.PlebClient.PUTAsync<ChangeFeedbackEndpoint, ChangeFeedbackCommand, ProblemDetails>(
+            await HttpClientRegistry.RegularUserAuthClient.PUTAsync<ChangeFeedbackEndpoint, ChangeFeedbackCommand, ProblemDetails>(
                 changeFeedbackCommand);
 
         // Assert
@@ -64,17 +64,17 @@ public class ChangeFeedbackTests : BaseApiTest
     public async Task WhenFeedbackDoesNotExist_ReturnsNotFound()
     {
         // Arrange
-        var changeFeedbackCommand = new ChangeFeedbackCommand
+        var command = new ChangeFeedbackCommand
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             Feedback = "Updated feedback",
             Rating = 5
         };
 
         // Act
         var (httpResponse, problemDetails) =
-            await HttpClientRegistry.PlebClient.PUTAsync<ChangeFeedbackEndpoint, ChangeFeedbackCommand, ProblemDetails>(
-                changeFeedbackCommand);
+            await HttpClientRegistry.RegularUserAuthClient.PUTAsync<ChangeFeedbackEndpoint, ChangeFeedbackCommand, ProblemDetails>(
+                command);
 
         // Assert
         using (new AssertionScope())
@@ -90,7 +90,7 @@ public class ChangeFeedbackTests : BaseApiTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var createResponse =
-            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
                 new SendFeedbackCommand
                 {
                     Feedback = "Initial feedback",
@@ -101,7 +101,7 @@ public class ChangeFeedbackTests : BaseApiTest
         var locationPath = createResponse.Headers.Location!.OriginalString;
         var createdFeedbackId = Guid.Parse(locationPath.Split('/').Last());
 
-        using var otherUser = HttpClientRegistry.CreateHttpClient(ClientType.Pleb, TestCaseTracer.TraceId);
+        using var otherUser = HttpClientRegistry.CreateHttpClient(ClientType.RegularUser, TestCaseTracer.TraceId);
 
         // Act
         var (httpResponse, problemDetails) =
@@ -130,7 +130,7 @@ public class ChangeFeedbackTests : BaseApiTest
         const string updatedFeedbackText = "Updated feedback text";
 
         var createResponse =
-            await HttpClientRegistry.PlebClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SendFeedbackEndpoint, SendFeedbackCommand>(
                 new SendFeedbackCommand
                 {
                     Feedback = initialFeedback,
@@ -143,7 +143,7 @@ public class ChangeFeedbackTests : BaseApiTest
 
         // Act
         var httpResponse =
-            await HttpClientRegistry.PlebClient.PUTAsync<ChangeFeedbackEndpoint, ChangeFeedbackCommand>(
+            await HttpClientRegistry.RegularUserAuthClient.PUTAsync<ChangeFeedbackEndpoint, ChangeFeedbackCommand>(
                 new ChangeFeedbackCommand
                 {
                     Id = feedbackId,
@@ -157,7 +157,7 @@ public class ChangeFeedbackTests : BaseApiTest
             httpResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
             var updatedFeedback =
                 await WeatherDbContext.Feedbacks.FindAsync([feedbackId], TestContext.Current.CancellationToken);
-            updatedFeedback!.FeedbackText.Value.Should().Be(updatedFeedbackText);
+            updatedFeedback!.FeedbackText.Text.Should().Be(updatedFeedbackText);
             updatedFeedback.Rating.Value.Should().Be(5);
         }
     }

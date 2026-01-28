@@ -1,7 +1,7 @@
-using DotNetAtlas.Application.WeatherForecast.Common.Config;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
+using DotNetAtlas.Application.WeatherForecast.Services.Config;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,7 +14,7 @@ public class CachedWeatherForecastService : IWeatherForecastService
     private readonly IWeatherForecastService _decoratedForecastService;
     private readonly IFusionCache _fusionCache;
     private readonly ILogger<CachedWeatherForecastService> _logger;
-    private readonly ForecastCacheOptions _options;
+    private readonly ForecastCacheOptions _forecastCacheOptions;
 
     public CachedWeatherForecastService(
         IWeatherForecastService decoratedForecastService,
@@ -25,11 +25,11 @@ public class CachedWeatherForecastService : IWeatherForecastService
         _decoratedForecastService = decoratedForecastService;
         _fusionCache = fusionCache;
         _logger = logger;
-        _options = options.Value;
+        _forecastCacheOptions = options.Value;
     }
 
     public async Task<Result<IReadOnlyList<ForecastDto>>> GetForecastAsync(
-        ForecastRequest forecastRequest,
+        ForecastCriteria forecastCriteria,
         CancellationToken ct)
     {
         Result<IReadOnlyList<ForecastDto>>? innerResult = null;
@@ -37,10 +37,10 @@ public class CachedWeatherForecastService : IWeatherForecastService
         try
         {
             var value = await _fusionCache.GetOrSetAsync<IReadOnlyList<ForecastDto>>(
-                forecastRequest.CacheKey,
+                forecastCriteria.CacheKey(),
                 factory: async (ctx, token) =>
                 {
-                    var result = await _decoratedForecastService.GetForecastAsync(forecastRequest, token);
+                    var result = await _decoratedForecastService.GetForecastAsync(forecastCriteria, token);
                     innerResult = result;
                     if (result.IsFailed)
                     {
@@ -53,15 +53,15 @@ public class CachedWeatherForecastService : IWeatherForecastService
                 cacheOptions =>
                 {
                     cacheOptions
-                        .SetDuration(TimeSpan.FromMinutes(_options.DurationMinutes))
-                        .SetFailSafe(_options.EnableFailSafe,
-                            TimeSpan.FromMinutes(_options.FailSafeMaxDurationMinutes),
-                            TimeSpan.FromSeconds(_options.FailSafeThrottleSeconds))
-                        .SetFactoryTimeouts(TimeSpan.FromMilliseconds(_options.FactorySoftTimeoutMs),
-                            TimeSpan.FromMilliseconds(_options.FactoryHardTimeoutMs))
-                        .SetEagerRefresh(_options.EagerRefreshThreshold);
+                        .SetDuration(TimeSpan.FromMinutes(_forecastCacheOptions.DurationMinutes))
+                        .SetFailSafe(_forecastCacheOptions.EnableFailSafe,
+                            TimeSpan.FromMinutes(_forecastCacheOptions.FailSafeMaxDurationMinutes),
+                            TimeSpan.FromSeconds(_forecastCacheOptions.FailSafeThrottleSeconds))
+                        .SetFactoryTimeouts(TimeSpan.FromMilliseconds(_forecastCacheOptions.FactorySoftTimeoutMs),
+                            TimeSpan.FromMilliseconds(_forecastCacheOptions.FactoryHardTimeoutMs))
+                        .SetEagerRefresh(_forecastCacheOptions.EagerRefreshThreshold);
                 },
-                tags: [forecastRequest.CountryCode.ToString()],
+                tags: [forecastCriteria.CountryCode.ToString()],
                 ct);
 
             return Result.Ok(value);

@@ -47,6 +47,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
                 TestContext.Current.TestState.ExceptionMessages);
         }
 
+        _testCaseTracer.LogTestTraceLocalJaegerLink();
+
         _testCaseTracer.Dispose();
         await _resetFixtureStateAsync();
         Scope.Dispose();

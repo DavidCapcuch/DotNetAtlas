@@ -8,6 +8,6 @@ public class GetFeedbackByIdQueryValidator : AbstractValidator<GetFeedbackByIdQu
     {
         RuleFor(gfr => gfr.Id)
             .NotEmpty()
-            .WithMessage("Feedback ID must not be empty.");
+                .WithMessage("Feedback ID must not be empty.");
     }
 }

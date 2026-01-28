@@ -1,0 +1,217 @@
+{
+  "name": "DotNetAtlas Development Environment",
+  // Use root docker-compose.yaml to avoid service duplication
+  "dockerComposeFile": [
+    "devcontainer-docker-compose.yaml"
+  ],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  // Required features for development
+  "features": {
+    // Docker-in-Docker for container development (docker-compose, etc.)
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "dockerDashComposeVersion": "v2",
+      "moby": true,
+      "azureDnsAutoDetection": true
+    },
+    // PowerShell for scripting (test scripts, build scripts)
+    "ghcr.io/devcontainers/features/powershell:1": {
+      "version": "latest"
+    },
+    // GitHub CLI for repository management
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    },
+    // Node.js for frontend tooling if needed
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  // Resource requirements based on services (SQL Server, Kafka, Redis, etc.)
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "32gb"
+  },
+  // Lifecycle commands
+  // Note: dotnet restore is handled in post-create.sh to avoid redundancy
+  "postCreateCommand": ".devcontainer/post-create.sh",
+  "postStartCommand": "dotnet dev-certs https --trust 2>/dev/null || true",
+  "postAttachCommand": ".devcontainer/post-attach.sh",
+  // Container user
+  "remoteUser": "vscode",
+  // Environment variables
+  "containerEnv": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_NOLOGO": "1",
+    "ASPNETCORE_ENVIRONMENT": "Local"
+  },
+  // VS Code customizations
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-azuretools.vscode-containers",
+        "GitHub.vscode-pull-request-github",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "ms-azuretools.vscode-azure-github-copilot",
+        "SonarSource.sonarlint-vscode",
+        "streetsidesoftware.code-spell-checker",
+        "ms-mssql.mssql",
+        "mhutchie.git-graph",
+        "eamodio.gitlens",
+        "EditorConfig.EditorConfig",
+        "redhat.vscode-yaml",
+        "ms-vscode.powershell",
+        "formulahendry.dotnet-test-explorer",
+        "alefragnani.project-manager",
+        "tomaszbartoszewski.avro-tools",
+        "waderyan.gitblame",
+        "DavidAnson.vscode-markdownlint",
+        "Redis.redis-for-vscode",
+        "usernamehw.errorlens"
+      ],
+      "settings": {
+        // Port forwarding settings
+        "remote.autoForwardPorts": true,
+        "remote.autoForwardPortsSource": "output",
+        // C# settings
+        "dotnet.defaultSolution": "DotNetAtlas.slnx",
+        "omnisharp.enableRoslynAnalyzers": true,
+        "omnisharp.enableEditorConfigSupport": true,
+        // Editor settings
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-dotnettools.csharp",
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        // Terminal settings
+        "terminal.integrated.defaultProfile.linux": "pwsh",
+        // SQL Server connection profile for local development database
+        "mssql.connections": [
+          {
+            "server": "localhost,12345",
+            "database": "Weather",
+            "authenticationType": "SqlLogin",
+            "user": "sa",
+            "password": "${MSSQL_SA_PASSWORD}",
+            "savePassword": true,
+            "profileName": "DotNetAtlas-Local-SQL"
+          }
+        ]
+      }
+    }
+  },
+  // Port forwarding for docker-compose.yaml services
+  "forwardPorts": [
+    5159, // API HTTP
+    7095, // API HTTPS
+    12345, // SQL Server (mapped from 1433)
+    12346, // Redis (mapped from 6379)
+    5540, // Redis Insight
+    5341, // Seq logging
+    45341, // Seq ingestion
+    16686, // Jaeger UI
+    9090, // Prometheus
+    3000, // Grafana
+    4317, // OTEL Collector gRPC
+    4318, // OTEL Collector HTTP
+    8889, // OTEL Collector metrics
+    9094, // Kafka external
+    8081, // Schema Registry
+    9000, // AKHQ (Kafka UI)
+    8088, // Outbox Relay health endpoint
+    9011, // FusionAuth
+    5432, // PostgreSQL (FusionAuth)
+    9200, // OpenSearch (FusionAuth)
+    9600 // OpenSearch Performance Analyzer
+  ],
+  // Port labels for better identification
+  "portsAttributes": {
+    "5159": {
+      "label": "API (HTTP)",
+      "onAutoForward": "notify"
+    },
+    "7095": {
+      "label": "API (HTTPS)",
+      "onAutoForward": "notify"
+    },
+    "12345": {
+      "label": "SQL Server",
+      "onAutoForward": "silent"
+    },
+    "12346": {
+      "label": "Redis",
+      "onAutoForward": "silent"
+    },
+    "5540": {
+      "label": "Redis Insight",
+      "onAutoForward": "notify"
+    },
+    "5341": {
+      "label": "Seq Logging",
+      "onAutoForward": "notify"
+    },
+    "45341": {
+      "label": "Seq Ingestion",
+      "onAutoForward": "silent"
+    },
+    "16686": {
+      "label": "Jaeger UI",
+      "onAutoForward": "notify"
+    },
+    "9090": {
+      "label": "Prometheus",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Grafana",
+      "onAutoForward": "notify"
+    },
+    "4317": {
+      "label": "OTEL gRPC",
+      "onAutoForward": "silent"
+    },
+    "4318": {
+      "label": "OTEL HTTP",
+      "onAutoForward": "silent"
+    },
+    "8889": {
+      "label": "OTEL Metrics",
+      "onAutoForward": "silent"
+    },
+    "9094": {
+      "label": "Kafka",
+      "onAutoForward": "silent"
+    },
+    "8081": {
+      "label": "Schema Registry",
+      "onAutoForward": "notify"
+    },
+    "9000": {
+      "label": "AKHQ (Kafka UI)",
+      "onAutoForward": "notify"
+    },
+    "8088": {
+      "label": "Outbox Relay Health",
+      "onAutoForward": "silent"
+    },
+    "9011": {
+      "label": "FusionAuth",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "9200": {
+      "label": "OpenSearch",
+      "onAutoForward": "silent"
+    },
+    "9600": {
+      "label": "OpenSearch Perf",
+      "onAutoForward": "silent"
+    }
+  }
+}

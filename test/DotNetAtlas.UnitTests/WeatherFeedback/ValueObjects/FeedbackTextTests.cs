@@ -1,5 +1,5 @@
-using DotNetAtlas.Domain.Common.Errors;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
+using DotNetAtlas.Domain.Feedback.ValueObjects;
+using DotNetAtlas.SharedKernel.Errors;
 using FluentResults.Extensions.FluentAssertions;
 
 namespace DotNetAtlas.UnitTests.WeatherFeedback.ValueObjects;
@@ -10,26 +10,26 @@ public class FeedbackTextTests
     [InlineData("Great!")]
     [InlineData("  Nice job  ")]
     [InlineData("Thanks for the forecast")]
-    public void WhenTextValid_ReturnsSuccessAndTrims(string input)
+    public void WhenTextValid_ReturnsSuccessAndTrims(string feedbackTextInput)
     {
         // Arrange & Act
-        var result = FeedbackText.Create(input);
+        var result = FeedbackText.Create(feedbackTextInput);
 
         // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            result.Value.Value.Should().Be(input.Trim());
+            result.Value.Text.Should().Be(feedbackTextInput.Trim());
         }
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void WhenTextEmpty_ReturnsValidationError(string input)
+    public void WhenTextEmpty_ReturnsValidationError(string feedbackTextInput)
     {
         // Arrange & Act
-        var result = FeedbackText.Create(input);
+        var result = FeedbackText.Create(feedbackTextInput);
 
         // Assert
         using (new AssertionScope())
@@ -37,7 +37,7 @@ public class FeedbackTextTests
             result.Should().BeFailure();
             var validationError = result.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
-            validationError!.ErrorCode.Should().Be("WeatherFeedback.FeedbackRequired");
+            validationError!.ErrorCode.Should().Be("Feedback.TextRequired");
         }
     }
 
@@ -56,7 +56,7 @@ public class FeedbackTextTests
             result.Should().BeFailure();
             var validationError = result.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
-            validationError!.ErrorCode.Should().Be("WeatherFeedback.FeedbackTooLong");
+            validationError!.ErrorCode.Should().Be("Feedback.TextTooLong");
         }
     }
 }

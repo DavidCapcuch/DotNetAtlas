@@ -1,0 +1,61 @@
+{
+    "type": "record",
+    "name": "AuthorizePaymentCommand",
+    "namespace": "Finance.Payments",
+    "doc": "Command sent by Payment Saga to request payment authorization from the Payment Service.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User to authorize payment for."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "ID of the saved payment method to use."
+        },
+        {
+            "name": "Amount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 10,
+                "scale": 2
+            },
+            "doc": "Amount to authorize."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code."
+        },
+        {
+            "name": "IdempotencyKey",
+            "type": "string",
+            "doc": "Idempotency key to prevent duplicate authorizations."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when authorization was requested."
+        }
+    ]
+}
+

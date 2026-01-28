@@ -1,5 +1,5 @@
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
-using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Domain.Common.ValueObjects;
 using FluentValidation.TestHelper;
 
 namespace DotNetAtlas.UnitTests.WeatherForecast.Validators;
@@ -9,10 +9,10 @@ public class GetForecastQueryValidatorTests
     private readonly GetForecastQueryValidator _getForecastQueryValidator = new();
 
     [Fact]
-    public void GivenValidQuery_ShouldPass()
+    public void WhenValidQuery_ShouldPass()
     {
         // Arrange
-        var query = new GetForecastQuery
+        var getForecastQuery = new GetForecastQuery
         {
             Days = 5,
             City = "Prague",
@@ -20,14 +20,14 @@ public class GetForecastQueryValidatorTests
         };
 
         // Act
-        var result = _getForecastQueryValidator.TestValidate(query);
+        var getForecastQueryValidationResult = _getForecastQueryValidator.TestValidate(getForecastQuery);
 
         // Assert
-        result.ShouldNotHaveAnyValidationErrors();
+        getForecastQueryValidationResult.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public void GivenTooManyDays_ShouldFail()
+    public void WhenTooManyDays_ShouldFail()
     {
         // Arrange
         var getForecastQuery = new GetForecastQuery
@@ -38,9 +38,9 @@ public class GetForecastQueryValidatorTests
         };
 
         // Act
-        var result = _getForecastQueryValidator.TestValidate(getForecastQuery);
+        var getForecastQueryValidationResult = _getForecastQueryValidator.TestValidate(getForecastQuery);
 
         // Assert
-        result.ShouldHaveValidationErrorFor(q => q.Days);
+        getForecastQueryValidationResult.ShouldHaveValidationErrorFor(q => q.Days);
     }
 }

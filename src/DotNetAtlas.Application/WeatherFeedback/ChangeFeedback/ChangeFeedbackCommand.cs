@@ -1,6 +1,6 @@
 using System.Security.Claims;
+using DotNetAtlas.CQS;
 using FastEndpoints;
-using ICommand = DotNetAtlas.Application.Common.CQS.ICommand;
 
 namespace DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
 

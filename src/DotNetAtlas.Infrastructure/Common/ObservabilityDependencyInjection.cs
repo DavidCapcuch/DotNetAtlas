@@ -1,7 +1,6 @@
 using AspNetCore.SignalR.OpenTelemetry;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Infrastructure.Common.Config;
-using DotNetAtlas.Infrastructure.Common.Observability;
 using Elastic.Serilog.Enrichers.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -103,8 +102,6 @@ public static class ObservabilityDependencyInjection
     {
         services.AddMetrics();
 
-        services.AddSingleton<IDotNetAtlasInstrumentation, DotNetAtlasInstrumentation>();
-
         // Be careful of ENV variables overriding what is set in appsettings.json for otel collector
         // OTEL_EXPORTER_OTLP_ENDPOINT is standardized can be set as ENV e.g., by Rider OpenTelemetry plugin
         var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
@@ -119,7 +116,7 @@ public static class ObservabilityDependencyInjection
                 {
                     tracing.AddAspNetCoreInstrumentation(options =>
                         {
-                            options.RecordException = true;
+                            options.RecordException = false; // handled in tracing behavior
                             options.Filter = context =>
                                 !context.Request.Path.StartsWithSegments(
                                     InfrastructureConstants.HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
@@ -133,7 +130,7 @@ public static class ObservabilityDependencyInjection
                         .AddFusionCacheInstrumentation()
                         .AddHangfireInstrumentation(options =>
                         {
-                            options.RecordException = true;
+                            options.RecordException = false; // handled in tracing behavior
                         })
                         .AddSource("*");
 

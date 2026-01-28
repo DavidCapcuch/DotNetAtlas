@@ -1,0 +1,38 @@
+{
+    "type": "record",
+    "name": "PaymentVoidedEvent",
+    "namespace": "Finance.Payments",
+    "doc": "Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the payment workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose payment was voided."
+        },
+        {
+            "name": "AuthorizationId",
+            "type": "string",
+            "doc": "Authorization ID that was voided."
+        },
+        {
+            "name": "VoidedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the void was completed."
+        }
+    ]
+}
+

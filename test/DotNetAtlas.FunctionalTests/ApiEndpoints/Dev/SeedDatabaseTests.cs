@@ -25,7 +25,7 @@ public class SeedDatabaseTests : BaseApiTest
 
         // Act
         var httpResponse =
-            await HttpClientRegistry.PlebClient.POSTAsync<SeedDatabaseEndpoint, SeedDatabaseCommand>(
+            await HttpClientRegistry.RegularUserAuthClient.POSTAsync<SeedDatabaseEndpoint, SeedDatabaseCommand>(
                 seedDatabaseCommand);
 
         // Assert

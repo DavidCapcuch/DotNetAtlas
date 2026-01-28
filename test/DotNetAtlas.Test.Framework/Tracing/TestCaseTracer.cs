@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DotNetAtlas.Application.Common.Observability;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
 
 namespace DotNetAtlas.Test.Framework.Tracing;
@@ -14,6 +15,7 @@ public sealed class TestCaseTracer : IDisposable
 {
     private readonly Activity? _testActivity;
     private readonly TracerProvider _tracerProvider;
+    private readonly ILogger<TestCaseTracer> _logger;
 
     /// <summary>
     /// Initializes a new test activity with appropriate tags for a test trace.
@@ -28,13 +30,25 @@ public sealed class TestCaseTracer : IDisposable
         string testCaseId,
         string testType)
     {
-        var instrumentation = serviceProvider.GetRequiredService<IDotNetAtlasInstrumentation>();
-        _testActivity = instrumentation.StartActivity(testMethodName);
+        _logger = serviceProvider.GetRequiredService<ILogger<TestCaseTracer>>();
+        _testActivity = DotNetAtlasInstrumentation.StartActivity(testMethodName);
         _testActivity?.SetTag("is.test.trace", true);
         _testActivity?.SetTag("test.case.id", testCaseId);
         _testActivity?.SetTag("test.type", testType);
 
         _tracerProvider = serviceProvider.GetRequiredService<TracerProvider>();
+
+        // Log test start with Jaeger trace URL
+        if (_testActivity?.TraceId != null)
+        {
+            var traceId = _testActivity.TraceId.ToString();
+            _logger.LogInformation("Test {TestMethod} started, trace: http://localhost:16686/jaeger/ui/trace/{TraceId}",
+                testMethodName, traceId);
+        }
+        else
+        {
+            _logger.LogInformation("Test {TestMethod} started (no trace available)", testMethodName);
+        }
     }
 
     /// <summary>
@@ -56,6 +70,11 @@ public sealed class TestCaseTracer : IDisposable
             new Exception(string.Join(';', exceptionMessages ?? [])));
         _testActivity?.SetStatus(ActivityStatusCode.Error);
         _testActivity?.SetTag("test.case.result.status", "fail");
+    }
+
+    public void LogTestTraceLocalJaegerLink()
+    {
+        _logger.LogInformation("Test finished, trace: http://localhost:16686/jaeger/ui/trace/{TraceId}", TraceId);
     }
 
     /// <summary>

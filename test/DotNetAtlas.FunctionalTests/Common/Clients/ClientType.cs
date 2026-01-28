@@ -4,5 +4,5 @@ public enum ClientType
 {
     NonAuth,
     Dev,
-    Pleb
+    RegularUser
 }

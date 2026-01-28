@@ -4,9 +4,9 @@
 
 ## Architecture Overview
 
-DotNetAtlas implements **Clean Architecture** with **Domain-Driven Design** in an event-driven system. The architecture enforces strict layer dependency rules while maintaining high testability and observability.
+DotNetAtlas implements **Clean Architecture** with **Domain-Driven Design** in an event-driven system. The architecture enforces strict layer dependency rules while maintaining high testability and observability. A suite of **reusable platform libraries** provides cross-cutting concerns.
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │          Presentation Layer             │
 │        (Api - FastEndpoints)            │
@@ -29,6 +29,12 @@ DotNetAtlas implements **Clean Architecture** with **Domain-Driven Design** in a
 │           Domain Layer                  │
 │  Entities, Value Objects, Events        │
 │  Pure business logic, no dependencies   │
+└─────────────────────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│        Platform Libraries               │
+│  SharedKernel, CQS, Messaging, Inbox    │
+│  Outbox, KafkaFlow Middlewares          │
 └─────────────────────────────────────────┘
 ```
 
@@ -136,7 +142,7 @@ services.AddKafka(kafka => kafka
 **Schema Registry Integration:**
 
 - **Provider**: `Confluent.SchemaRegistry.Serdes.Avro`
-- **Avro Schemas**: Located in `platform/DotNetAtlas.SchemaRegistry/Avro/`
+- **Avro Schemas**: Located in `platform/DotNetAtlas.SchemaRegistry.Contracts/Avro/`
 - **Schema Evolution**: Backward and forward compatibility support
 - **Auto-registration**: Development only, manual governance for production
 
@@ -171,7 +177,7 @@ public class FeedbackAggregate : AggregateRoot<FeedbackId>
         Rating = newRating;
 
         // Raise domain event (automatically captured by EF interceptor)
-        RaiseDomainEvent(new FeedbackChangedDomainEvent
+        AddDomainEvent(new FeedbackChangedDomainEvent
         {
             FeedbackId = Id,
             OldRating = oldRating,
@@ -185,31 +191,135 @@ public class FeedbackAggregate : AggregateRoot<FeedbackId>
 
 **Outbox Implementation Flow:**
 
-1. **Domain Event Raised** → `AggregateRoot.RaiseDomainEvent()`
+1. **Domain Event Raised** → `AggregateRoot.AddDomainEvent()`
 2. **EF Interceptor Captures** → `PopDomainEvents()` on SaveChanges
 3. **OutboxMessage Created** → Same transaction as entity
 4. **Worker Service Polls** → Reads from OutboxMessages table
 5. **Event Published** → To Kafka with trace continuity
 6. **Cleanup** → Delete successfully delivered messages
 
+### Kafka Consumer Pipeline Pattern
+
+The project implements a robust middleware pipeline for Kafka message consumption:
+
+```text
+DeadLetter → Retry (transient errors) → Inbox (idempotency) → TypedHandler
+```
+
+**Consumer Configuration:**
+
+```csharp
+.AddConsumer(consumer => consumer
+    .Topic(topicName)
+    .WithGroupId(groupId)
+    .WithBufferSize(100)
+    .WithWorkersCount(10)
+    .AddMiddlewares(middlewares => middlewares
+        .AddDeadLetter<TMessage>(deadLetterTopicName)  // Catch failures
+        .RetrySimple(retryOptions)                      // Retry transient errors
+        .AddInbox(typeof(TMessage))                     // Idempotent processing
+        .AddSchemaRegistryAvroDeserializer()
+        .AddTypedHandlers(h => h.AddHandler<TMessageHandler>())))
+```
+
+**Saga Compensation Pattern:**
+
+When message processing fails after retries, the system publishes a compensation event:
+
+```csharp
+public class SubscriptionPurchasedEventKafkaHandler : IMessageHandler<SubscriptionPurchasedEvent>
+{
+    public async Task<Result> Handle(IMessageContext context, SubscriptionPurchasedEvent message)
+    {
+        var result = await _commandHandler.HandleAsync(command, ct);
+
+        if (result.IsFailed)
+        {
+            // Publish compensation event for saga rollback
+            await _failedEventProducer.PublishAsync(new SubscriptionActivationFailedEvent
+            {
+                SubscriptionId = message.SubscriptionId,
+                Reason = result.Errors.First().Message
+            });
+        }
+
+        return result;
+    }
+}
+```
+
 ### Platform Components (Reusable Libraries)
 
-**1. DotNetAtlas.Outbox.Core**
+The project includes 12 reusable platform libraries in the `platform/` folder:
 
-- Base outbox entities and interfaces
+**1. DotNetAtlas.SharedKernel** - DDD Building Blocks
+
+- `AggregateRoot<TId>`, `Entity<TId>`, `ValueObject` base classes
+- `DomainEvent` base class with `EventId` and `OccurredOnUtc`
+- `IAuditableEntity` interface for audit timestamps
+- Error types: `DomainError`, `ValidationError`, `NotFoundError`, `ConflictError`, `ForbiddenError`
+- Exception types: `CriticalException`, `DataIntegrityException`
+- Shared value objects: `City`, `CountryCode`, `GeoCoordinates`
+
+**2. DotNetAtlas.CQS** - Command Query Separation
+
+- `ICommand`, `ICommand<TResponse>`, `IQuery<TResponse>` interfaces
+- `ICommandHandler<TCommand>`, `ICommandHandler<TCommand, TResponse>`, `IQueryHandler<TQuery, TResponse>`
+- Behaviors: `ValidationBehavior`, `LoggingBehavior`, `TracingBehavior`, `MetricsBehavior`
+- `CqsInstrumentation` - Metrics for commands/queries (total, errors, exceptions, duration)
+- `CqsDependencyInjection.AddCqsHandlersFromAssembly()` for easy registration
+
+**3. DotNetAtlas.Messaging.Abstractions** - Standard Message Headers
+
+- `MessageHeaderKeys.MessageId` - For idempotent processing
+- `MessageHeaderKeys.Origin` - Service identifier
+
+**4. DotNetAtlas.Inbox.Core** - Inbox Entity
+
+- `InboxMessage` entity for tracking processed messages
+- `ProcessedAtUtc` timestamp for auditing
+
+**5. DotNetAtlas.Outbox.Core** - Outbox Entity
+
+- `OutboxMessage` entity with OpenTelemetry header support
 - Trace header serialization/deserialization
 
-**2. DotNetAtlas.Outbox.EntityFrameworkCore**
+**6. DotNetAtlas.ReliableMessaging.EFCore** - EF Core Integration
 
-- `IOutboxDbContext` abstraction
-- `OutboxInterceptor` for event capture
+- `IInboxDbContext` and `IOutboxDbContext` abstractions
+- `OutboxInterceptor` for domain event capture
 - Avro mapping cache and batch processing
 
-**3. DotNetAtlas.OutboxRelay.WorkerService**
+**7. DotNetAtlas.KafkaFlow.ProducerHeaders** - Automatic Header Population
+
+- `ProducerHeadersMiddleware` - Adds message.id (GUID v7) and origin headers
+- `ProducerHeadersOptions` - Configuration for origin identifier
+
+**8. DotNetAtlas.KafkaFlow.Inbox.EFCore** - Idempotent Message Consumption
+
+- `InboxMiddleware` - Deduplicates messages using database-backed inbox
+- Configurable per message type via `AddInbox(typeof(MessageType))`
+
+**9. DotNetAtlas.KafkaFlow.DeadLetter** - Dead Letter Topic Middleware
+
+- `DeadLetterMiddleware` - Routes failed messages to DLT
+- Captures exceptions AND FluentResults failures
+- Preserves original headers + adds DLT-specific headers (error, stack trace, original topic/partition/offset)
+
+**10. DotNetAtlas.OutboxRelay.WorkerService**
 
 - Standalone worker for publishing outbox messages
 - OpenTelemetry integration for worker tracing
 - Delivery failure tracking and monitoring
+
+**11. DotNetAtlas.OutboxRelay.Benchmark**
+
+- BenchmarkDotNet performance tests for outbox relay
+
+**12. DotNetAtlas.SchemaRegistry.Contracts**
+
+- Avro schema definitions in `Avro/` folder
+- PowerShell scripts for schema generation
 
 ## Real-Time Communication
 
@@ -748,7 +858,7 @@ public class FeedbackAggregate : AggregateRoot<FeedbackId>
         Rating = newRating;
         
         // Raise domain event
-        RaiseDomainEvent(new FeedbackChangedDomainEvent
+        AddDomainEvent(new FeedbackChangedDomainEvent
         {
             FeedbackId = Id,
             OldRating = oldRating,
@@ -877,6 +987,6 @@ The architecture supports evolution to:
 
 ---
 
-**Last Updated**: 2025-11-15  
-**Version**: 2.0  
-**Status**: Comprehensive Technical Reference
+**Last Updated**: 2025-12-31
+**Version**: 3.0
+**Status**: Comprehensive Technical Reference with Platform Libraries

@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
-using DotNetAtlas.Application.Common.CQS;
-using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.CQS;
+using DotNetAtlas.Domain.Common.ValueObjects;
 using FastEndpoints;
 
 namespace DotNetAtlas.Application.WeatherForecast.GetForecasts;

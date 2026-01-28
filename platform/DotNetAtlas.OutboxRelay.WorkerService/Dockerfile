@@ -20,8 +20,8 @@ COPY NuGet.config .
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY global.json .
-COPY platform/DotNetAtlas.Outbox.Core/DotNetAtlas.Outbox.Core.csproj platform/DotNetAtlas.Outbox.Core/
-COPY platform/DotNetAtlas.Outbox.EntityFrameworkCore/DotNetAtlas.Outbox.EntityFrameworkCore.csproj platform/DotNetAtlas.Outbox.EntityFrameworkCore/
+COPY platform/DotNetAtlas.ReliableMessaging.Outbox.Core/DotNetAtlas.ReliableMessaging.Outbox.Core.csproj platform/DotNetAtlas.ReliableMessaging.Outbox.Core/
+COPY platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/
 COPY platform/DotNetAtlas.OutboxRelay.WorkerService/DotNetAtlas.OutboxRelay.WorkerService.csproj platform/DotNetAtlas.OutboxRelay.WorkerService/
 
 # Restore with cache mounts

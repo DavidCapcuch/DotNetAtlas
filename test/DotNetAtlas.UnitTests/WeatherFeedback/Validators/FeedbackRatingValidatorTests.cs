@@ -13,7 +13,7 @@ public class FeedbackRatingValidatorTests
     [InlineData((byte)5)]
     public void GivenRatingInRange_ShouldPass(byte rating)
     {
-        // Act
+        // Arrange & Act
         var result = _feedbackRatingValidator.TestValidate(rating);
 
         // Assert
@@ -26,7 +26,7 @@ public class FeedbackRatingValidatorTests
     [InlineData((byte)66)]
     public void GivenRatingOutOfRange_ShouldFail(byte rating)
     {
-        // Act
+        // Arrange & Act
         var result = _feedbackRatingValidator.TestValidate(rating);
 
         // Assert

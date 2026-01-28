@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Net.Http.Json;
-using DotNetAtlas.Application.WeatherForecast;
 using DotNetAtlas.Application.WeatherForecast.GetForecasts;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
+using DotNetAtlas.Domain.Common.Services;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,23 +15,22 @@ public class OpenMeteoWeatherProvider : IMainWeatherForecastProvider
     public string Name => "Open-Meteo";
 
     private readonly HttpClient _httpClient;
-    private readonly IGeocodingService _geocodingService;
+    private readonly IGeocodingProvider _geocodingProvider;
 
     public OpenMeteoWeatherProvider(
         [FromKeyedServices(HttpClientName)] HttpClient httpClient,
-        [FromKeyedServices(OpenMeteoGeocodingService.ServiceKey)]
-        IGeocodingService geocodingService)
+        [FromKeyedServices(OpenMeteoGeocodingProvider.ServiceKey)]
+        IGeocodingProvider geocodingProvider)
     {
         _httpClient = httpClient;
-        _geocodingService = geocodingService;
+        _geocodingProvider = geocodingProvider;
     }
 
     public async Task<Result<IReadOnlyList<ForecastDto>>> GetForecastAsync(
-        ForecastRequest forecastRequest,
+        ForecastCriteria criteria,
         CancellationToken ct)
     {
-        var geoRequest = forecastRequest.ToGeocodingRequest();
-        var geoResult = await _geocodingService.GetCoordinatesAsync(geoRequest, ct);
+        var geoResult = await _geocodingProvider.GetCoordinatesAsync(criteria.City, criteria.CountryCode, ct);
         if (geoResult.IsFailed)
         {
             return Result.Fail(geoResult.Errors);
@@ -39,17 +38,15 @@ public class OpenMeteoWeatherProvider : IMainWeatherForecastProvider
 
         var geoCoordinates = geoResult.Value;
 
-        var startDate = DateTime.UtcNow.Date;
-        var endDate = startDate.AddDays(forecastRequest.Days - 1);
-        var query = $"v1/forecast" +
-                    $"?latitude={geoCoordinates.Latitude}" +
-                    $"&longitude={geoCoordinates.Longitude}" +
-                    $"&daily=temperature_2m_max,temperature_2m_min" +
-                    $"&timezone=UTC" +
-                    $"&start_date={startDate:yyyy-MM-dd}" +
-                    $"&end_date={endDate:yyyy-MM-dd}";
+        var queryString = $"v1/forecast" +
+                          $"?latitude={geoCoordinates.Latitude}" +
+                          $"&longitude={geoCoordinates.Longitude}" +
+                          $"&daily=temperature_2m_max,temperature_2m_min" +
+                          $"&timezone=UTC" +
+                          $"&start_date={criteria.DateRange.StartDateOnly:yyyy-MM-dd}" +
+                          $"&end_date={criteria.DateRange.EndDateOnly:yyyy-MM-dd}";
 
-        var forecastResponse = await _httpClient.GetFromJsonAsync<OpenMeteoForecastResponse>(query, ct);
+        var forecastResponse = await _httpClient.GetFromJsonAsync<OpenMeteoForecastResponse>(queryString, ct);
         if (forecastResponse?.Daily is null || forecastResponse.Daily.Time.Length == 0)
         {
             throw new InvalidOperationException("Open-Meteo forecast not available");
@@ -59,7 +56,6 @@ public class OpenMeteoWeatherProvider : IMainWeatherForecastProvider
         var forecastDtos = new List<ForecastDto>(count);
         for (var i = 0; i < count; i++)
         {
-            ct.ThrowIfCancellationRequested();
             forecastDtos.Add(new ForecastDto
             {
                 Date = DateOnly.FromDateTime(

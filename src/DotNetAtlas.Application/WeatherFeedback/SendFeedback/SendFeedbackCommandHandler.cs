@@ -1,19 +1,19 @@
 using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
-using DotNetAtlas.Application.Common.CQS;
 using DotNetAtlas.Application.Common.Data;
 using DotNetAtlas.Application.Common.Observability;
-using DotNetAtlas.Application.WeatherFeedback.Common.Specifications;
-using DotNetAtlas.Domain.Entities.Weather.Feedback;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.Errors;
-using DotNetAtlas.Domain.Entities.Weather.Feedback.ValueObjects;
+using DotNetAtlas.CQS;
+using DotNetAtlas.Domain.Feedback;
+using DotNetAtlas.Domain.Feedback.Errors;
+using DotNetAtlas.Domain.Feedback.Specifications;
+using DotNetAtlas.Domain.Feedback.ValueObjects;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.Application.WeatherFeedback.SendFeedback;
 
-public class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, Guid>
+public sealed class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, Guid>
 {
     private readonly ILogger<SendFeedbackCommandHandler> _logger;
     private readonly IWeatherDbContext _weatherDbContext;
@@ -30,8 +30,16 @@ public class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, G
         SendFeedbackCommand command,
         CancellationToken ct)
     {
+        var ratingResult = FeedbackRating.Create(command.Rating);
+        var feedbackResult = FeedbackText.Create(command.Feedback);
+        var mergedResults = Result.Merge(ratingResult, feedbackResult);
+        if (mergedResults.IsFailed)
+        {
+            return Result.Fail(mergedResults.Errors);
+        }
+
         var existingFeedback = await _weatherDbContext.Feedbacks
-            .WithSpecification(new WeatherFeedbackByUserIdSpec(command.UserId))
+            .WithSpecification(new FeedbackByUserIdSpec(command.UserId))
             .FirstOrDefaultAsync(ct);
 
         if (existingFeedback is not null)
@@ -39,20 +47,18 @@ public class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCommand, G
             return Result.Fail(FeedbackErrors.Conflict(existingFeedback.Id));
         }
 
-        var ratingResult = FeedbackRating.Create(command.Rating);
-        var feedbackResult = FeedbackText.Create(command.Feedback);
-        var merged = Result.Merge(ratingResult, feedbackResult);
-        if (merged.IsFailed)
+        var feedbackCreateResult = Feedback.Create(feedbackResult.Value, ratingResult.Value, command.UserId);
+        if (feedbackCreateResult.IsFailed)
         {
-            return Result.Fail(merged.Errors);
+            return Result.Fail(feedbackCreateResult.Errors);
         }
 
-        var weatherFeedback = new Feedback(feedbackResult.Value, ratingResult.Value, command.UserId);
+        var weatherFeedback = feedbackCreateResult.Value;
         _weatherDbContext.Feedbacks.Add(weatherFeedback);
         await _weatherDbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Weather feedback created with ID: {FeedbackId}", weatherFeedback.Id);
-        Activity.Current?.SetTag(DiagnosticNames.FeedbackId, weatherFeedback.Id);
+        Activity.Current?.SetTag(TraceTags.FeedbackId, weatherFeedback.Id);
 
         return Result.Ok(weatherFeedback.Id);
     }

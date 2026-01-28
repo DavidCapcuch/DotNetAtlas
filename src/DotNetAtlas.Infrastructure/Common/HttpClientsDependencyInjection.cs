@@ -1,5 +1,6 @@
-using DotNetAtlas.Application.WeatherForecast.Common.Config;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
+using DotNetAtlas.Application.WeatherForecast.Services.Config;
+using DotNetAtlas.Domain.Common.Services;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
@@ -40,6 +41,7 @@ internal static class HttpClientsDependencyInjection
             .GetRequiredSection(HttpResilienceOptions.Section)
             .Get<HttpResilienceOptions>()!;
 
+        // See https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory-keyed-di#comparison-of-keyed-named-and-typed-approaches
         services.AddHttpClient(OpenMeteoWeatherProvider.HttpClientName, (sp, config) =>
             {
                 var openMeteoOptions =
@@ -49,7 +51,7 @@ internal static class HttpClientsDependencyInjection
             .AddAsKeyed()
             .AddDefaultResilienceHandler(httpResilienceOptions);
 
-        services.AddHttpClient(OpenMeteoGeocodingService.GeoHttpClientName, (sp, config) =>
+        services.AddHttpClient(OpenMeteoGeocodingProvider.GeoHttpClientName, (sp, config) =>
             {
                 var openMeteoOptions =
                     sp.GetRequiredService<IOptions<OpenMeteoOptions>>().Value;
@@ -67,13 +69,15 @@ internal static class HttpClientsDependencyInjection
             .AddAsKeyed()
             .AddDefaultResilienceHandler(httpResilienceOptions);
 
-        services.AddKeyedScoped<IGeocodingService, OpenMeteoGeocodingService>(OpenMeteoGeocodingService.ServiceKey);
+        services.AddKeyedScoped<IGeocodingProvider, OpenMeteoGeocodingProvider>(OpenMeteoGeocodingProvider.ServiceKey);
         services
-            .AddKeyedScoped<IGeocodingService, WeatherApiComGeocodingService>(WeatherApiComGeocodingService.ServiceKey);
-        services.AddScoped<IGeocodingService, OpenMeteoGeocodingService>();
+            .AddKeyedScoped<IGeocodingProvider, WeatherApiComGeocodingProvider>(WeatherApiComGeocodingProvider.ServiceKey);
+        services.AddScoped<IGeocodingProvider, OpenMeteoGeocodingProvider>();
         services.AddScoped<IMainWeatherForecastProvider, OpenMeteoWeatherProvider>();
         services.AddScoped<IWeatherForecastProvider, OpenMeteoWeatherProvider>();
         services.AddScoped<IWeatherForecastProvider, WeatherApiComProvider>();
+
+        services.AddScoped<LocationFactory>();
 
         return services;
     }

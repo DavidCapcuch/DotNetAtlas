@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using DotNetAtlas.Api.Common;
 using DotNetAtlas.Api.Common.Config;
@@ -8,7 +9,13 @@ using DotNetAtlas.Infrastructure.Common.Authorization;
 using DotNetAtlas.Infrastructure.Common.Extensions;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
 using Hangfire;
+using KafkaFlow;
 using Serilog;
+
+// Set invariant culture globally to ensure consistent number/date formatting across all locales.
+// This prevents issues like decimal separator differences (e.g., "42.5" vs "42,5").
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -87,6 +94,9 @@ try
     {
         await app.InitialiseDatabaseAsync();
     }
+
+    var kafkaBus = app.Services.CreateKafkaBus();
+    await kafkaBus.StartAsync();
 
     await app.RunAsync();
 }

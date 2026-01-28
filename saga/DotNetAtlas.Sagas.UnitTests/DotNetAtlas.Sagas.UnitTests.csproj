@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <SonarQubeTestProject>true</SonarQubeTestProject>
+        <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/</CoverletOutput>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DotNetAtlas.Sagas\DotNetAtlas.Sagas.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MassTransit.TestFramework"/>
+        <PackageReference Include="NSubstitute"/>
+    </ItemGroup>
+</Project>

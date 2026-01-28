@@ -22,6 +22,8 @@ public static class InfrastructureDependencyInjection
             .AddAuthenticationInternal(configuration, isClusterEnvironment)
             .AddAuthorizationInternal();
 
+        services.AddHttpContextAccessor();
+
         services
             .AddDatabase(configuration, isClusterEnvironment)
             .AddCache(configuration);

@@ -1,25 +1,23 @@
 using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
-using DotNetAtlas.Domain.Common.Errors;
+using DotNetAtlas.CQS;
 using DotNetAtlas.IntegrationTests.Common;
+using DotNetAtlas.SharedKernel.Errors;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace DotNetAtlas.IntegrationTests.Application.WeatherFeedback;
 
 [Collection<ForecastTestCollection>]
 public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
 {
-    private readonly SendFeedbackCommandHandler _sendFeedbackCommandHandler;
+    private readonly ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackCommandHandler;
 
     public SendFeedbackCommandHandlerTests(IntegrationTestFixture app)
         : base(app)
     {
         _sendFeedbackCommandHandler =
-            new SendFeedbackCommandHandler(
-                Scope.ServiceProvider.GetRequiredService<ILogger<SendFeedbackCommandHandler>>(),
-                WeatherDbContext);
+            Scope.ServiceProvider.GetRequiredService<ICommandHandler<SendFeedbackCommand, Guid>>();
     }
 
     [Fact]
@@ -40,14 +38,15 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
                 TestContext.Current.CancellationToken);
 
         // Assert
+        var createdId = sendFeedbackResult.Value;
+        var feedbackExists = await WeatherDbContext.Feedbacks
+            .AsNoTracking()
+            .AnyAsync(wf => wf.Id == createdId, TestContext.Current.CancellationToken);
+
         using (new AssertionScope())
         {
             sendFeedbackResult.Should().BeSuccess();
-            var createdId = sendFeedbackResult.Value;
-            var exists = await WeatherDbContext.Feedbacks
-                .AsNoTracking()
-                .AnyAsync(wf => wf.Id == createdId, TestContext.Current.CancellationToken);
-            exists.Should().BeTrue();
+            feedbackExists.Should().BeTrue();
         }
     }
 
@@ -75,7 +74,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
             sendFeedbackResult.Errors.Should().NotBeEmpty();
             var validationError = sendFeedbackResult.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
-            validationError!.ErrorCode.Should().Be("FeedbackRating.OutOfRange");
+            validationError!.ErrorCode.Should().Be("Feedback.OutOfRange");
         }
     }
 
@@ -103,7 +102,7 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
             sendFeedbackResult.Errors.Should().ContainSingle();
             var validationError = sendFeedbackResult.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
-            validationError!.ErrorCode.Should().Be("WeatherFeedback.FeedbackRequired");
+            validationError!.ErrorCode.Should().Be("Feedback.FeedbackRequired");
         }
     }
 
@@ -133,8 +132,8 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
             var errors = sendFeedbackResult.Errors.OfType<ValidationError>().ToList();
             errors.Should().HaveCount(2);
             errors.Should()
-                .ContainSingle(err => err.ErrorCode == "WeatherFeedback.FeedbackTooLong")
-                .And.ContainSingle(err => err.ErrorCode == "FeedbackRating.OutOfRange");
+                .ContainSingle(err => err.ErrorCode == "Feedback.TextTooLong")
+                .And.ContainSingle(err => err.ErrorCode == "Feedback.RatingOutOfRange");
         }
     }
 }

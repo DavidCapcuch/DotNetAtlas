@@ -1,0 +1,441 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "01 🔨 Build Solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/DotNetAtlas.slnx",
+        "--configuration",
+        "Release"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "02 📦 Restore Packages",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "${workspaceFolder}/DotNetAtlas.slnx"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "03 🧹 Clean Solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "clean",
+        "${workspaceFolder}/DotNetAtlas.slnx",
+        "--configuration",
+        "Release"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "04 ✨ Format Code",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "format",
+        "${workspaceFolder}/DotNetAtlas.slnx",
+        "--verbosity",
+        "diagnostic"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "05 🧪 Run All Tests",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/DotNetAtlas.slnx",
+        "--configuration",
+        "Release",
+        "--no-build",
+        "--verbosity",
+        "normal"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    // ========== Build & Code Management ==========
+    {
+      "label": "06 🐳 Start All Docker Compose Services",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "docker-compose.yaml",
+        "--profile",
+        "full",
+        "up",
+        "-d"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "07 🐳 Start Only Core Docker Compose Services",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "docker-compose.yaml",
+        "--profile",
+        "core",
+        "up",
+        "-d"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "08 🛑 Stop Docker Compose Services",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "docker-compose.yaml",
+        "down"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "09 🛑 Stop and Clean Volumes of Docker Compose Services",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "docker-compose.yaml",
+        "down",
+        "-v"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    // ========== Testing & Coverage ==========
+    {
+      "label": "10 🧪 Generate Test Coverage",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/test/test-coverage.ps1"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "11 🧪 Run Unit Tests Only",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/test/DotNetAtlas.UnitTests/DotNetAtlas.UnitTests.csproj",
+        "--configuration",
+        "Release",
+        "--no-build"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "12 🧪 Run Integration Tests",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/test/DotNetAtlas.IntegrationTests/DotNetAtlas.IntegrationTests.csproj",
+        "--configuration",
+        "Release",
+        "--no-build"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "13 🧪 Run Functional Tests",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/test/DotNetAtlas.FunctionalTests/DotNetAtlas.FunctionalTests.csproj",
+        "--configuration",
+        "Release",
+        "--no-build"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "14 🧪 Run Architecture Tests",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/test/DotNetAtlas.ArchitectureTests/DotNetAtlas.ArchitectureTests.csproj",
+        "--configuration",
+        "Release",
+        "--no-build"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$msCompile"
+      ]
+    },
+    // ========== Database Management ==========
+    {
+      "label": "15 🗄️ EF Core Add Migration",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "ef",
+        "migrations",
+        "add",
+        "${input:MigrationName}",
+        "--project",
+        "src/DotNetAtlas.Infrastructure",
+        "--startup-project",
+        "src/DotNetAtlas.Api",
+        "--context",
+        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+      ],
+      "group": "build"
+    },
+    {
+      "label": "16 🗄️ EF Core Update Database",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "ef",
+        "database",
+        "update",
+        "--project",
+        "src/DotNetAtlas.Infrastructure",
+        "--startup-project",
+        "src/DotNetAtlas.Api",
+        "--context",
+        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+      ],
+      "group": "build"
+    },
+    {
+      "label": "17 📝 EF Core Generate SQL Migration Script",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "ef",
+        "migrations",
+        "script",
+        "${input:FromMigration}",
+        "${input:ToMigration}",
+        "--project",
+        "src/DotNetAtlas.Infrastructure/DotNetAtlas.Infrastructure.csproj",
+        "--startup-project",
+        "src/DotNetAtlas.Api/DotNetAtlas.Api.csproj",
+        "--context",
+        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+        "--configuration",
+        "Debug",
+        "--output",
+        "src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/Flyway/${input:OutputFileName}",
+        "--idempotent"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "18 🗑️ EF Core Remove Last Migration",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "ef",
+        "migrations",
+        "remove",
+        "--project",
+        "src/DotNetAtlas.Infrastructure",
+        "--startup-project",
+        "src/DotNetAtlas.Api",
+        "--context",
+        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+        "--force"
+      ],
+      "group": "build"
+    },
+    // ========== Docker & System Management ==========
+    {
+      "label": "19 📊 Show Docker Stats",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "stats",
+        "--no-stream"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "20 📊 Show Docker Container Sizes",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "system",
+        "df"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "21 🧹 Clean Unused Docker Images",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "image",
+        "prune",
+        "-f"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    // ========== Package & Security Management ==========
+    {
+      "label": "22 🔍 Check Outdated Packages",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "list",
+        "${workspaceFolder}/DotNetAtlas.slnx",
+        "package",
+        "--outdated"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "23 🔍 Check Vulnerable Packages",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "list",
+        "${workspaceFolder}/DotNetAtlas.slnx",
+        "package",
+        "--vulnerable"
+      ],
+      "group": "build"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "MigrationName",
+      "description": "Migration name",
+      "default": "AddXTable",
+      "type": "promptString"
+    },
+    {
+      "id": "FromMigration",
+      "description": "From migration (leave empty for initial)",
+      "default": "20251112184015_CreateOutboxMessagesTable",
+      "type": "promptString"
+    },
+    {
+      "id": "ToMigration",
+      "description": "To migration",
+      "default": "20251226184930_AddSubscriberAndInboxTables",
+      "type": "promptString"
+    },
+    {
+      "id": "OutputFileName",
+      "description": "Output SQL filename",
+      "default": "V001__MigrationName.sql",
+      "type": "promptString"
+    }
+  ]
+}

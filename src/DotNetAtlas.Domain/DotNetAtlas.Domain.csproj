@@ -1,11 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <ItemGroup>
-        <PackageReference Include="FluentResults"/>
+        <PackageReference Include="Ardalis.SmartEnum"/>
+        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore"/>
 
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.SharedKernel\DotNetAtlas.SharedKernel.csproj"/>
+    </ItemGroup>
+
+    <!-- Allow Infrastructure and UnitTests to access internal members (e.g., CanonicalValue for EF Core mapping) -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="DotNetAtlas.Infrastructure"/>
+        <InternalsVisibleTo Include="DotNetAtlas.UnitTests"/>
     </ItemGroup>
 </Project>

@@ -1,5 +1,5 @@
-using DotNetAtlas.Application.WeatherForecast.Services.Requests;
-using DotNetAtlas.Domain.Entities.Weather.Forecast;
+using DotNetAtlas.Domain.Common.ValueObjects;
+using DotNetAtlas.Domain.Forecast.ValueObjects;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
 using DotNetAtlas.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
@@ -10,22 +10,23 @@ namespace DotNetAtlas.IntegrationTests.Infrastructure.HttpClients;
 [Collection<ForecastTestCollection>]
 public class WeatherApiComProviderIntegrationTests : BaseIntegrationTest
 {
-    private readonly WeatherApiComProvider _provider;
+    private readonly WeatherApiComProvider _weatherApiComProvider;
 
     public WeatherApiComProviderIntegrationTests(IntegrationTestFixture app)
         : base(app)
     {
-        _provider = Scope.ServiceProvider.GetRequiredService<WeatherApiComProvider>();
+        _weatherApiComProvider = Scope.ServiceProvider.GetRequiredService<WeatherApiComProvider>();
     }
 
     [Fact]
     public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
     {
         // Arrange
-        var forecastRequest = new ForecastRequest("Prague", CountryCode.CZ, 1);
+        var forecastDateRange = DateRange.Create(DateOnly.FromDateTime(DateTime.UtcNow), 2).Value;
+        var forecastCriteria = ForecastCriteria.Create("Prague", CountryCode.CZ, forecastDateRange).Value;
 
         // Act
-        var forecastResult = await _provider.GetForecastAsync(forecastRequest, TestContext.Current.CancellationToken);
+        var forecastResult = await _weatherApiComProvider.GetForecastAsync(forecastCriteria, TestContext.Current.CancellationToken);
 
         // Assert
         using (new AssertionScope())

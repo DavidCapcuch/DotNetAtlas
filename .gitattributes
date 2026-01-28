@@ -1,1 +1,20 @@
 * text=auto eol=lf working-tree-encoding=UTF-8
+
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.webp -text
+*.ico -text
+*.pdf -text
+*.zip -text
+*.7z -text
+*.gz -text
+*.tar -text
+*.tgz -text
+*.dll -text
+*.exe -text
+*.pdb -text
+
+# Certificates
+*.pfx binary

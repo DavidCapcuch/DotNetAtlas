@@ -18,6 +18,7 @@
         <!-- Health Checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
         <!-- OpenTelemetry -->
@@ -42,7 +43,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\DotNetAtlas.Outbox.Core\DotNetAtlas.Outbox.Core.csproj"/>
-        <ProjectReference Include="..\DotNetAtlas.Outbox.EntityFrameworkCore\DotNetAtlas.Outbox.EntityFrameworkCore.csproj" />
+        <ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Outbox.Core\DotNetAtlas.ReliableMessaging.Outbox.Core.csproj" />
+        <ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
     </ItemGroup>
 </Project>

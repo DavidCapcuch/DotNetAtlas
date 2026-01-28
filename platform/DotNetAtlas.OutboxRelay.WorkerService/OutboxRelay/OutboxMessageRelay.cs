@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text;
 using Confluent.Kafka;
-using DotNetAtlas.Outbox.Core;
 using DotNetAtlas.OutboxRelay.WorkerService.Observability.Metrics;
 using DotNetAtlas.OutboxRelay.WorkerService.Observability.Tracing;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay.Config;
+using DotNetAtlas.ReliableMessaging.Outbox.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -55,7 +55,7 @@ public sealed class OutboxMessageRelay : IDisposable
 
         var maxDeleteId = 0L;
         var lastSentIdSnapshot = _memoryCache.Get<long>(LastSentIdCacheKey);
-        var outboxDbContext = await _dbContextFactory.CreateDbContextAsync(ct);
+        await using var outboxDbContext = await _dbContextFactory.CreateDbContextAsync(ct);
         var outboxMessages = await outboxDbContext.OutboxMessages
             .Where(m => m.Id > lastSentIdSnapshot)
             .OrderBy(m => m.Id)
@@ -64,7 +64,6 @@ public sealed class OutboxMessageRelay : IDisposable
 
         if (outboxMessages.Count == 0)
         {
-            await outboxDbContext.DisposeAsync();
             return true;
         }
 
@@ -115,25 +114,29 @@ public sealed class OutboxMessageRelay : IDisposable
                 earliestFailedId.Value, maxDeleteId);
         }
 
+        // Save the LastSentId so that if DB delete below fails, we don't resend the same messages from this batch
+        // in next iteration. However, this doesn't protect against potential restarts, as it's only a memory cache.
+        // For consumers that need idempotency, the OutboxDbContextExtensions.AddOutboxMessage (see DotNetAtlas.ReliableMessaging.Outbox.EFCore)
+        // ensures that a unique MessageId is generated for each message, so even if we republish the
+        // same batch twice, consumer can implement the InboxPattern (see DotNetAtlas.KafkaFlow.Inbox.EFCore)
+        // and handle it idempotently by saving processed MessageIds and ignoring duplicate MessageIds.
         _memoryCache.Set(LastSentIdCacheKey, maxDeleteId);
 
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                await outboxDbContext.OutboxMessages
-                    .Where(om => om.Id <= maxDeleteId)
-                    .ExecuteDeleteAsync(CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to delete outbox messages up to ID {MaxDeleteId}", maxDeleteId);
-            }
-            finally
-            {
-                await outboxDbContext.DisposeAsync();
-            }
-        }, CancellationToken.None);
+            // This delete can potentially fail (DB goes down, network issues etc.), causing us
+            // to potentially resend the same batch again and is a natural limitation why we can't
+            // guarantee "Exactly once" delivery but only "At least once" delivery.
+            // While the KafkaProducer is configured as "idempotent", that only applies to individual
+            // message delivery and tries to mitigate potential Two Generals problem.
+            await outboxDbContext.OutboxMessages
+                .Where(om => om.Id <= maxDeleteId)
+                .ExecuteDeleteAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete outbox messages up to ID {MaxDeleteId}", maxDeleteId);
+        }
 
         if (publishedMessagesCount > 0 && !earliestFailedId.HasValue)
         {
@@ -177,7 +180,7 @@ public sealed class OutboxMessageRelay : IDisposable
 
         var producerActivity = KafkaProducerDiagnostics.StartProduceActivity(topicName, kafkaMessage, messageHeaders);
 
-        // Don't use awaited ProduceAsync unless in http context,
+        // Don't use await ProduceAsync unless in http context,
         // see https://github.com/confluentinc/confluent-kafka-dotnet/wiki/Producer
         // and https://docs.confluent.io/kafka-clients/dotnet/current/overview.html
         // The Produce() method is also asynchronous, in that it never blocks.
