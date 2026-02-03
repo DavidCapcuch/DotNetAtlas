@@ -39,7 +39,8 @@ namespace DotNetAtlas.Infrastructure.Persistence.Database.Migrations
                         .HasComment("Timestamp when subscription was last modified (UTC).");
 
                     b.Property<DateTimeOffset?>("LastPaidSubscriptionEndedAtUtc")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("datetimeoffset")
+                        .HasComment("When the last paid subscription ended. Null if never had paid subscription.");
 
                     b.Property<DateTimeOffset?>("SubscriptionExpiryAtUtc")
                         .HasColumnType("datetimeoffset")

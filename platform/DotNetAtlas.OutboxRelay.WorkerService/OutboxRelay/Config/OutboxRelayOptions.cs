@@ -5,6 +5,10 @@ namespace DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay.Config;
 /// <summary>
 /// Configuration options for the OutboxRelay background service.
 /// </summary>
+/// <remarks>
+/// Topic routing is determined by the message producers who set the TopicName on each OutboxMessage.
+/// The relay worker simply forwards messages to the topic specified in each message.
+/// </remarks>
 public sealed class OutboxRelayOptions : IValidatableObject
 {
     public const string Section = "OutboxRelay";
@@ -22,21 +26,6 @@ public sealed class OutboxRelayOptions : IValidatableObject
     [Required]
     [Range(1, 10_000)]
     public required int BatchSize { get; set; }
-
-    /// <summary>
-    /// Default Kafka topic to publish outbox messages to when no type-specific mapping is found.
-    /// </summary>
-    [Required]
-    [Length(1, 249)]
-    public required string DefaultTopicName { get; set; }
-
-    /// <summary>
-    /// Dictionary mapping Avro type names to specific Kafka topics.
-    /// Type-specific mappings take precedence over DefaultTopicName.
-    /// Key: Avro type name (e.g., "FeedbackChangedEvent")
-    /// Value: Kafka topic name.
-    /// </summary>
-    public Dictionary<string, string> TypeTopicMappings { get; set; } = [];
 
     /// <summary>
     /// Database schema name where the outbox table is located.
@@ -71,14 +60,6 @@ public sealed class OutboxRelayOptions : IValidatableObject
     /// </summary>
     [Range(10_000, 180_000)]
     public required int ShutdownTimeoutMs { get; set; }
-
-    public OutboxRelayOptions ShallowClone()
-    {
-        var clone = (OutboxRelayOptions)MemberwiseClone();
-        clone.TypeTopicMappings = new Dictionary<string, string>(TypeTopicMappings);
-
-        return clone;
-    }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

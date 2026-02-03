@@ -1,0 +1,41 @@
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
+using Finance.Payments;
+using MassTransit;
+
+namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
+
+/// <summary>
+/// Consumer that receives PaymentRefundedEvent
+/// and forwards it to the SubscriptionExtensionSaga as an ExtensionCompensationCompletedEvent.
+/// </summary>
+public sealed class AlertSubscriptionExtensionPaymentRefundedConsumer : IConsumer<PaymentRefundedEvent>
+{
+    private readonly ILogger<AlertSubscriptionExtensionPaymentRefundedConsumer> _logger;
+
+    public AlertSubscriptionExtensionPaymentRefundedConsumer(
+        ILogger<AlertSubscriptionExtensionPaymentRefundedConsumer> logger)
+    {
+        _logger = logger;
+    }
+
+    public async Task Consume(ConsumeContext<PaymentRefundedEvent> context)
+    {
+        var message = context.Message;
+
+        _logger.LogInformation(
+            "Extension Saga received PaymentRefundedEvent for correlation " +
+            "{CorrelationId}, user {UserId}, refund transaction {RefundTransactionId}",
+            message.CorrelationId, message.UserId, message.RefundTransactionId);
+
+        var alertSubscriptionExtensionCompensationCompletedSagaEvent =
+            new AlertSubscriptionExtensionCompensationCompletedSagaEvent
+            {
+                CorrelationId = message.CorrelationId,
+                UserId = message.UserId,
+                RefundTransactionId = message.RefundTransactionId,
+                CompensatedAtUtc = message.RefundedAtUtc
+            };
+
+        await context.Publish(alertSubscriptionExtensionCompensationCompletedSagaEvent);
+    }
+}

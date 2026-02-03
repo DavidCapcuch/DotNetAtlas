@@ -1,3 +1,4 @@
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;

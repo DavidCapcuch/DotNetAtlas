@@ -42,6 +42,28 @@
           "Microsoft.Extensions.Logging": "10.0.0"
         }
       },
+      "Microsoft.Extensions.Configuration.Binder": {
+        "type": "Direct",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "tMF9wNh+hlyYDWB8mrFCQHQmWHlRosol1b/N2Jrefy1bFLnuTlgSYmPyHNmz8xVQgs7DpXytBRWxGhG+mSTp0g==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Json": {
+        "type": "Direct",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "BIOPTEAZoeWbHlDT9Zudu+rpecZizFwhdIFRiyZKDml7JbayXmfTXKUt+ezifsSXfBkWDdJM10oDOxo8pufEng==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Configuration.FileExtensions": "10.0.0",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.0"
+        }
+      },
       "Microsoft.Extensions.TimeProvider.Testing": {
         "type": "Direct",
         "requested": "[9.6.0, )",
@@ -841,11 +863,11 @@
       },
       "Microsoft.Extensions.Configuration": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "fypDLNI6JZe1ipJLYF0quEHa6I9qRQUNMRA1x8+BSY+KJn70BiNNPDSkJFrnAUdrJT+N2otJRm64xRhou0Em6w==",
+        "resolved": "10.0.0",
+        "contentHash": "H4SWETCh/cC5L1WtWchHR6LntGk3rDTTznZMssr4cL8IbDmMWBxY+MOGDc/ASnqNolLKPIWHWeuC1ddiL/iNPw==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Primitives": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Primitives": "10.0.0"
         }
       },
       "Microsoft.Extensions.Configuration.Abstractions": {
@@ -854,14 +876,6 @@
         "contentHash": "d2kDKnCsJvY7mBVhcjPSp9BkJk48DsaHPg5u+Oy4f8XaOqnEedRy/USyvnpHL92wpJ6DrTPy7htppUUzskbCXQ==",
         "dependencies": {
           "Microsoft.Extensions.Primitives": "10.0.0"
-        }
-      },
-      "Microsoft.Extensions.Configuration.Binder": {
-        "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "7dJhJ9ebXxqNeuabYk2gkzMr3LtrIp2qw7Mt2TXjCiEJudcK0z9ogm4vzwEH6AgUUiU+tGcJq8reEomzLZnkcw==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103"
         }
       },
       "Microsoft.Extensions.Configuration.CommandLine": {
@@ -884,25 +898,14 @@
       },
       "Microsoft.Extensions.Configuration.FileExtensions": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "6jecem+ivT6rue10h7+LFGu2tEdYA+Q1BeueBIwaA7M6QfxmRA8XXVA2/h3m6a/sm8NlFsJaxECQRzqVyUzvKA==",
+        "resolved": "10.0.0",
+        "contentHash": "LqCTyF0twrG4tyEN6PpSC5ewRBDwCBazRUfCOdRddwaQ3n2S57GDDeYOlTLcbV/V2dxSSZWg5Ofr48h6BsBmxw==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.FileProviders.Physical": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Primitives": "10.0.0-preview.6.25358.103"
-        }
-      },
-      "Microsoft.Extensions.Configuration.Json": {
-        "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "KcUEaL2H9PSn5K3lJHPYY6VXzv5hSZfmt+EYWq/ws9wE/mKDfjFUClDZ5LvqjMXU79PIYRlfB6nKn9bBglltnA==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Configuration.FileExtensions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.0",
+          "Microsoft.Extensions.FileProviders.Physical": "10.0.0",
+          "Microsoft.Extensions.Primitives": "10.0.0"
         }
       },
       "Microsoft.Extensions.Configuration.UserSecrets": {
@@ -995,18 +998,18 @@
       },
       "Microsoft.Extensions.FileProviders.Physical": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "jCmO0T5g3eUgp6Z7DgyDIqgQQdhknxSJ3/Qt796inNrNcT3wGCtUQoxJKDHjNTfL8kDUe7Ajq221z9YhCd7EwQ==",
+        "resolved": "10.0.0",
+        "contentHash": "UZUQ74lQMmvcprlG8w+XpxBbyRDQqfb7GAnccITw32hdkUBlmm9yNC4xl4aR9YjgV3ounZcub194sdmLSfBmPA==",
         "dependencies": {
-          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.FileSystemGlobbing": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Primitives": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.FileProviders.Abstractions": "10.0.0",
+          "Microsoft.Extensions.FileSystemGlobbing": "10.0.0",
+          "Microsoft.Extensions.Primitives": "10.0.0"
         }
       },
       "Microsoft.Extensions.FileSystemGlobbing": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "0ElgXEF7R+oTK06ctnHQ2GCKbMFDwcEf7PGjmFD/P2G4gD2B6Q4YeKca1+2X1wAaJaxrl9G5IqWJyQG5L/hPrg=="
+        "resolved": "10.0.0",
+        "contentHash": "5hfVl/e+bx1px2UkN+1xXhd3hu7Ui6ENItBzckFaRDQXfr+SHT/7qrCDrlQekCF/PBtEu2vtk87U2+gDEF8EhQ=="
       },
       "Microsoft.Extensions.Hosting": {
         "type": "Transitive",
@@ -2029,6 +2032,8 @@
           "AspNetCore.HealthChecks.UI.SqlServer.Storage": "[9.0.0, )",
           "Confluent.SchemaRegistry": "[2.8.0, )",
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.8.0, )",
+          "DotNetAtlas.ReliableMessaging.Outbox.Core": "[1.0.0, )",
+          "DotNetAtlas.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "DotNetAtlas.SchemaRegistry.Contracts": "[1.0.0, )",
           "DotNetAtlas.SharedKernel": "[1.0.0, )",
           "MassTransit": "[9.0.0, )",

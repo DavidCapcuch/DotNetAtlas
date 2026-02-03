@@ -1,3 +1,4 @@
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using Weather.Forecast;
 

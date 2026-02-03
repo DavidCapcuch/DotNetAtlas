@@ -1,0 +1,66 @@
+{
+    "type": "record",
+    "name": "AlertSubscriptionActivatedEvent",
+    "namespace": "Weather.Alerts",
+    "doc": "Event emitted by Weather Alerts service when subscription activation succeeds. Consumed by Purchase Saga to complete the workflow.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose subscription was activated."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payment transaction ID for saga correlation."
+        },
+        {
+            "name": "Tier",
+            "type": {
+                "type": "enum",
+                "name": "SubscriptionTier",
+                "symbols": [
+                    "Pro",
+                    "Ultra"
+                ]
+            },
+            "doc": "Subscription tier that was activated."
+        },
+        {
+            "name": "DurationDays",
+            "type": "int",
+            "doc": "Duration of the subscription in days."
+        },
+        {
+            "name": "ExpiresAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the subscription expires."
+        },
+        {
+            "name": "ActivatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when activation occurred."
+        }
+    ]
+}
+

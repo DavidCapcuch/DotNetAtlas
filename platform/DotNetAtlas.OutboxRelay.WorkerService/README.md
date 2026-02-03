@@ -19,7 +19,7 @@ A dedicated worker service that runs independently, polling the outbox table and
 
 - 🔄 **Periodic Polling** - Configurable polling interval and batch size
 - 📤 **At-Least-Once Delivery** - Only deletes messages after confirmed delivery
-- 🗺️ **Topic Routing** - Route messages to topics based on message type
+- 🗺️ **Producer-Driven Topic Routing** - Topic is determined by producers and stored in `OutboxMessage.TopicName`
 - 🏥 **Health Checks** - Built-in health endpoints for Kubernetes probes
 - 📊 **Observability** - OpenTelemetry tracing and metrics
 - ⚡ **Graceful Shutdown** - Configurable flush and shutdown timeouts
@@ -63,7 +63,6 @@ outbox-relay:
     - KafkaProducer__BootstrapServers=broker:9092
     - KafkaProducer__ClientId=outbox-relay-worker
     - OutboxRelay__PollingIntervalMs=2000
-    - OutboxRelay__DefaultTopicName=weather.feedback.events
     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
   ports:
     - "8088:8080"  # Health checks endpoint
@@ -73,27 +72,25 @@ outbox-relay:
 
 ### OutboxRelay Options
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `PollingIntervalMs` | How often to poll for new messages | 1000 |
-| `BatchSize` | Max messages per batch | 1000 |
-| `DefaultTopicName` | Fallback topic when no type mapping | Required |
-| `SchemaName` | Database schema for outbox table | weather |
-| `TableName` | Outbox table name | OutboxMessages |
-| `FlushTimeoutMs` | Kafka flush timeout | 30000 |
-| `ShutdownTimeoutMs` | Graceful shutdown timeout | 60000 |
-| `TypeTopicMappings` | Message type to topic routing | {} |
+| Setting              | Description                          | Default        |
+| -------------------- | ------------------------------------ | -------------- |
+| `PollingIntervalMs`  | How often to poll for new messages   | 1000           |
+| `BatchSize`          | Max messages per batch               | 1000           |
+| `SchemaName`         | Database schema for outbox table     | weather        |
+| `TableName`          | Outbox table name                    | OutboxMessages |
+| `FlushTimeoutMs`     | Kafka flush timeout                  | 30000          |
+| `ShutdownTimeoutMs`  | Graceful shutdown timeout            | 60000          |
 
 ### KafkaProducer Options
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `BootstrapServers` | Kafka broker addresses | Required |
-| `ClientId` | Producer client identifier | Required |
-| `Acks` | Acknowledgment level (None/Leader/All) | All |
-| `EnableIdempotence` | Exactly-once semantics | true |
-| `CompressionType` | Message compression | None |
-| `LingerMs` | Batching delay | 5 |
+| Setting             | Description                          | Default  |
+| ------------------- | ------------------------------------ | -------- |
+| `BootstrapServers`  | Kafka broker addresses               | Required |
+| `ClientId`          | Producer client identifier           | Required |
+| `Acks`              | Acknowledgment level (None/Leader/All) | All      |
+| `EnableIdempotence` | Exactly-once semantics               | true     |
+| `CompressionType`   | Message compression                  | None     |
+| `LingerMs`          | Batching delay                       | 5        |
 
 ### Example appsettings.json
 
@@ -104,12 +101,7 @@ outbox-relay:
   },
   "OutboxRelay": {
     "PollingIntervalMs": 1000,
-    "BatchSize": 1000,
-    "DefaultTopicName": "weather.feedback.events",
-    "TypeTopicMappings": {
-      "FeedbackCreatedEvent": "weather.feedback.events",
-      "SendEmailNotificationCommand": "notifications.email.commands"
-    }
+    "BatchSize": 1000
   },
   "KafkaProducer": {
     "BootstrapServers": "localhost:9094",
@@ -131,4 +123,3 @@ The service exposes health endpoints on port 8080:
 
 - [DotNetAtlas.ReliableMessaging.Outbox.Core](../DotNetAtlas.ReliableMessaging.Outbox.Core) - Outbox entity
 - [DotNetAtlas.ReliableMessaging.Outbox.EFCore](../DotNetAtlas.ReliableMessaging.Outbox.EFCore) - EF Core integration for adding messages
-

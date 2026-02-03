@@ -1,8 +1,10 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Domain.Feedback.Events;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DotNetAtlas.Application.WeatherFeedback.SendFeedback;
 
@@ -15,13 +17,16 @@ public class
 {
     private readonly ILogger<FeedbackCreatedOutboxPublisherDomainEventHandler> _logger;
     private readonly ITransactionalOutbox<IWeatherDbContext> _transactionalOutbox;
+    private readonly TopicsOptions _topicsOptions;
 
     public FeedbackCreatedOutboxPublisherDomainEventHandler(
         ILogger<FeedbackCreatedOutboxPublisherDomainEventHandler> logger,
-        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter)
+        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter,
+        IOptions<TopicsOptions> topicsOptions)
     {
         _logger = logger;
         _transactionalOutbox = transactionalOutboxWriter;
+        _topicsOptions = topicsOptions.Value;
     }
 
     public async Task Handle(FeedbackCreatedDomainEvent domainEvent, CancellationToken ct)
@@ -29,7 +34,9 @@ public class
         var feedbackCreatedIntegrationEvent = domainEvent.ToFeedbackCreatedIntegrationEvent();
 
         _transactionalOutbox.AddOutboxMessage(
-            feedbackCreatedIntegrationEvent.FeedbackId.ToString(), feedbackCreatedIntegrationEvent);
+            _topicsOptions.WeatherFeedbackEvents,
+            feedbackCreatedIntegrationEvent.FeedbackId.ToString(),
+            feedbackCreatedIntegrationEvent);
 
         // Save outbox messages immediately to ensure they're persisted even though
         // domain events are triggered within the same DbContext transaction. This provides

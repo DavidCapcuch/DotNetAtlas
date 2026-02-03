@@ -1,4 +1,5 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription;
 using DotNetAtlas.CQS;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Subscriptions;
@@ -10,6 +11,7 @@ using KafkaFlow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Weather.Alerts;
 using SubscriptionTier = Weather.Alerts.SubscriptionTier;
@@ -38,7 +40,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         const int monthDurationDays = 30;
         var requestedAtUtc = DateTime.UtcNow;
 
-        var activateSubscriptionCommand = new ActivateSubscriptionCommand
+        var activateSubscriptionCommand = new ActivateAlertSubscriptionCommand
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -65,7 +67,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
 
         var outboxMessage = await WeatherDbContext.OutboxMessages
             .FirstOrDefaultAsync(
-                m => m.Type == typeof(SubscriptionActivatedEvent).FullName,
+                m => m.Type == typeof(AlertSubscriptionActivatedEvent).FullName,
                 TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
@@ -92,7 +94,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         const int yearDurationDays = 365;
         var requestedAtUtc = DateTime.UtcNow;
 
-        var activateSubscriptionCommand = new ActivateSubscriptionCommand
+        var activateSubscriptionCommand = new ActivateAlertSubscriptionCommand
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -119,7 +121,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
 
         var outboxMessage = await WeatherDbContext.OutboxMessages
             .FirstOrDefaultAsync(
-                m => m.Type == typeof(SubscriptionActivatedEvent).FullName,
+                m => m.Type == typeof(AlertSubscriptionActivatedEvent).FullName,
                 TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
@@ -145,7 +147,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         const SubscriptionTier tier = SubscriptionTier.Pro;
         var requestedAtUtc = DateTime.UtcNow;
 
-        var commandMessage = new ActivateSubscriptionCommand
+        var commandMessage = new ActivateAlertSubscriptionCommand
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -178,7 +180,8 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
             mockCommandHandler,
             TimeProvider.System,
             Scope.ServiceProvider.GetRequiredService<ILogger<ActivateSubscriptionCommandKafkaHandler>>(),
-            weatherDbTransactionalOutbox);
+            weatherDbTransactionalOutbox,
+            Scope.ServiceProvider.GetRequiredService<IOptions<TopicsOptions>>());
 
         // Act
         await handlerWithMock.Handle(messageContext, commandMessage);
@@ -186,7 +189,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         // Assert
         var outboxMessage = await WeatherDbContext.OutboxMessages
             .FirstOrDefaultAsync(
-                m => m.Type == typeof(SubscriptionActivationFailedEvent).FullName,
+                m => m.Type == typeof(AlertSubscriptionActivationFailedEvent).FullName,
                 TestContext.Current.CancellationToken);
 
         using (new AssertionScope())

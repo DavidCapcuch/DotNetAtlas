@@ -1,0 +1,81 @@
+{
+    "type": "record",
+    "name": "AlertSubscriptionActivationFailedEvent",
+    "namespace": "Weather.Alerts",
+    "doc": "Event emitted by Weather Alerts service when subscription activation fails. Triggers refund compensation in Purchase Saga.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose subscription activation failed."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payment transaction ID to correlate with original purchase."
+        },
+        {
+            "name": "RequestedTier",
+            "type": {
+                "type": "enum",
+                "name": "SubscriptionTier",
+                "symbols": [
+                    "Pro",
+                    "Ultra"
+                ]
+            },
+            "doc": "Subscription tier that was requested."
+        },
+        {
+            "name": "RequestedDurationDays",
+            "type": "int",
+            "doc": "Duration in days that was requested."
+        },
+        {
+            "name": "Errors",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "ErrorDetails",
+                    "doc": "Reusable error details for subscription-related failure events.",
+                    "fields": [
+                        {
+                            "name": "ErrorCode",
+                            "type": "string",
+                            "doc": "Error code identifying the failure reason."
+                        },
+                        {
+                            "name": "ErrorMessage",
+                            "type": "string",
+                            "doc": "Human-readable error message."
+                        }
+                    ]
+                }
+            },
+            "doc": "List of errors that caused the activation failure."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when failure occurred."
+        }
+    ]
+}

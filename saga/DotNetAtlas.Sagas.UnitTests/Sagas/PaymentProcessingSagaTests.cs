@@ -1,8 +1,6 @@
-using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Finance.PaymentSaga;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.Commands;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.InternalSagaEvents;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.Schedules;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
@@ -30,40 +28,11 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     private readonly FakeTimeProvider _fakeTimeProvider = new();
     private ServiceProvider _provider = null!;
     private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentSagaState> _sagaHarness = null!;
+    private ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentProcessingSagaState> _sagaHarness = null!;
 
     public async ValueTask InitializeAsync()
     {
-        var sagaOptions = Options.Create(new SagaOptions
-        {
-            MaxRetryAttempts = 3,
-            RetryDelaySeconds = 5,
-            ConcurrencyLimit = 10,
-            KafkaBootstrapServers = "localhost:9092",
-            SchemaRegistryUrl = "http://localhost:8081",
-            SubscriptionTimeouts = new SubscriptionSagaTimeoutOptions
-            {
-                PaymentMinutes = 5,
-                ActivationMinutes = 5,
-                CompensationMinutes = 30
-            },
-            PaymentTimeouts = new PaymentSagaTimeoutOptions
-            {
-                AuthorizationMinutes = 5,
-                CaptureMinutes = 5,
-                VoidMinutes = 5,
-                ActivationMinutes = 5,
-                RefundMinutes = 30
-            },
-            Topics = new SagaTopicsOptions
-            {
-                OrderAlertSubscriptions = "order.alert-subscriptions",
-                WeatherAlerts = "weather.alerts",
-                FinancePayments = "finance.payments",
-                FinancePaymentCommands = "finance.payment-commands",
-                WeatherAlertsCommands = "weather.alerts.commands"
-            }
-        });
+        var sagaOptions = SagaTestFixture.CreateSagaOptions();
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<PaymentProcessingSaga>>())
@@ -71,13 +40,13 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
             .AddMassTransitTestHarness(cfg =>
             {
-                cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentSagaState>()
+                cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentProcessingSagaState>()
                     .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 
         _harness = _provider.GetRequiredService<ITestHarness>();
-        _sagaHarness = _harness.GetSagaStateMachineHarness<PaymentProcessingSaga, PaymentSagaState>();
+        _sagaHarness = _harness.GetSagaStateMachineHarness<PaymentProcessingSaga, PaymentProcessingSagaState>();
         await _harness.Start();
     }
 
@@ -234,7 +203,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         var publishedEvents = await _harness.Published.SelectAsync<PaymentCompletedEvent>().ToListAsync();
         var publishedEvent = publishedEvents.FirstOrDefault();
         publishedEvent.Should().NotBeNull();
-        publishedEvent!.Context.Message.CorrelationId.Should().Be(correlationId);
+        publishedEvent.Context.Message.CorrelationId.Should().Be(correlationId);
         publishedEvent.Context.Message.PaymentTransactionId.Should().Be(paymentTransactionId);
     }
 
@@ -360,7 +329,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await PublishAndWaitForCapture(correlationId, userId, authorizationId, paymentTransactionId);
 
         // Act - request refund
-        var refundCommand = new RequestPaymentRefundCommand
+        var refundCommand = new PaymentRefundRequestedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -372,7 +341,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(refundCommand);
 
         // Assert
-        (await _sagaHarness.Consumed.Any<RequestPaymentRefundCommand>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentRefundRequestedSagaEvent>()).Should().BeTrue();
 
         var instance = _sagaHarness.Sagas.ContainsInState(
             correlationId,
@@ -395,7 +364,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await PublishAndWaitForCapture(correlationId, userId, authorizationId, paymentTransactionId);
 
         // Request refund
-        var refundCommand = new RequestPaymentRefundCommand
+        var refundCommand = new PaymentRefundRequestedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -405,7 +374,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         };
 
         await _harness.Bus.Publish(refundCommand);
-        await _sagaHarness.Consumed.Any<RequestPaymentRefundCommand>();
+        await _sagaHarness.Consumed.Any<PaymentRefundRequestedSagaEvent>();
 
         // Act - refund completed
         var refundCompletedEvent = new PaymentRefundCompletedSagaEvent
@@ -506,19 +475,17 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
 
         // Assert
-        (await _harness.Published.Any<RequestPaymentAuthorizationCommand>()).Should().BeTrue(
+        (await _harness.Published.Any<AuthorizePaymentCommand>()).Should().BeTrue(
             "RequestPaymentAuthorizationCommand should be published");
 
         var publishedCommands =
-            await _harness.Published.SelectAsync<RequestPaymentAuthorizationCommand>().ToListAsync();
+            await _harness.Published.SelectAsync<AuthorizePaymentCommand>().ToListAsync();
         var publishedCommand = publishedCommands.FirstOrDefault();
         publishedCommand.Should().NotBeNull();
-        publishedCommand!.Context.Message.CorrelationId.Should().Be(correlationId);
+        publishedCommand.Context.Message.CorrelationId.Should().Be(correlationId);
         publishedCommand.Context.Message.UserId.Should().Be(userId);
         publishedCommand.Context.Message.PaymentMethodId.Should().Be(paymentMethodId);
     }
-
-    // -- Helper Methods --
 
     private PaymentInitiatedSagaEvent CreatePaymentInitiatedEvent(
         Guid correlationId,

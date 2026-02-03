@@ -33,7 +33,7 @@ namespace DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 ///         await _outbox.Database.EnsureTransactionAsync(async () =>
 ///         {
 ///             // Process message...
-///             _outbox.AddOutboxMessage(key, integrationEvent);
+///             _outbox.AddOutboxMessage("weather.events", key, integrationEvent);
 ///             await _outbox.SaveChangesAsync(ct);
 ///         }, ct);
 ///     }
@@ -47,9 +47,10 @@ public interface ITransactionalOutbox<TContext>
     /// Adds an integration event to the outbox table for reliable publishing.
     /// The message will be persisted in the same transaction as other DbContext changes.
     /// </summary>
+    /// <param name="topicName">The Kafka topic where this message will be published.</param>
     /// <param name="kafkaKey">The Kafka key for message partitioning (typically aggregate ID).</param>
     /// <param name="integrationEvent">The Avro integration event to publish.</param>
-    void AddOutboxMessage(string? kafkaKey, ISpecificRecord integrationEvent);
+    void AddOutboxMessage(string topicName, string? kafkaKey, ISpecificRecord integrationEvent);
 
     /// <summary>
     /// Saves all changes made in the underlying DbContext to the database.

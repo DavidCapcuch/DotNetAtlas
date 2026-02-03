@@ -1,4 +1,4 @@
-using DotNetAtlas.FunctionalTests.Common.Clients;
+using DotNetAtlas.FunctionalTests.Common.TestClientInfrastructure;
 using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Test.Framework.Tracing;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,11 +33,11 @@ public abstract class BaseApiTest : IAsyncLifetime
             testType: "functional");
 
         HttpClientRegistry = app.HttpClientRegistry;
-        HttpClientRegistry.SetTraceParent(TestCaseTracer.TraceId);
+        HttpClientRegistry.SetTraceParent(TestCaseTracer.TraceParent);
 
         SignalRClientFactory = new SignalRClientFactory(
             app.Server,
-            TestCaseTracer.TraceId,
+            TestCaseTracer.TraceParent,
             Scope,
             TestContext.Current.CancellationToken);
     }

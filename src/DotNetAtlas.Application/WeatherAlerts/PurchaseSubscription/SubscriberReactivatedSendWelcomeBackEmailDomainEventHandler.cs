@@ -1,8 +1,10 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Domain.Alerts.Events;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Notifications.Email;
 
 namespace DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription;
@@ -19,13 +21,16 @@ public class
 
     private readonly ILogger<SubscriberReactivatedSendWelcomeBackEmailDomainEventHandler> _logger;
     private readonly ITransactionalOutbox<IWeatherDbContext> _transactionalOutbox;
+    private readonly TopicsOptions _topicsOptions;
 
     public SubscriberReactivatedSendWelcomeBackEmailDomainEventHandler(
         ILogger<SubscriberReactivatedSendWelcomeBackEmailDomainEventHandler> logger,
-        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter)
+        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter,
+        IOptions<TopicsOptions> topicsOptions)
     {
         _logger = logger;
         _transactionalOutbox = transactionalOutboxWriter;
+        _topicsOptions = topicsOptions.Value;
     }
 
     public async Task Handle(SubscriberReactivatedDomainEvent domainEvent, CancellationToken ct)
@@ -44,7 +49,10 @@ public class
             OccurredOnUtc = domainEvent.OccurredOnUtc.UtcDateTime
         };
 
-        _transactionalOutbox.AddOutboxMessage(domainEvent.UserId.ToString(), sendWelcomeBackEmailNotificationCommand);
+        _transactionalOutbox.AddOutboxMessage(
+            _topicsOptions.NotificationCommands,
+            domainEvent.UserId.ToString(),
+            sendWelcomeBackEmailNotificationCommand);
         await _transactionalOutbox.SaveChangesAsync(ct);
 
         _logger.LogDebug(

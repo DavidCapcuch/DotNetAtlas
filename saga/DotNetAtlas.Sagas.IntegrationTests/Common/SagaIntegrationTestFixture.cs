@@ -1,13 +1,14 @@
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Finance.PaymentSaga;
-using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Test.Framework.Database;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -75,38 +76,16 @@ public sealed class SagaIntegrationTestFixture : IAsyncLifetime
                 .CreateLogger(), true);
         });
 
-        // Configure saga options for testing
-        var sagaOptions = Options.Create(new SagaOptions
-        {
-            MaxRetryAttempts = 3,
-            RetryDelaySeconds = 1,
-            ConcurrencyLimit = 10,
-            KafkaBootstrapServers = "localhost:9092",
-            SchemaRegistryUrl = "http://localhost:8081",
-            SubscriptionTimeouts = new SubscriptionSagaTimeoutOptions
-            {
-                PaymentMinutes = 5,
-                ActivationMinutes = 5,
-                CompensationMinutes = 30
-            },
-            PaymentTimeouts = new PaymentSagaTimeoutOptions
-            {
-                AuthorizationMinutes = 5,
-                CaptureMinutes = 5,
-                VoidMinutes = 5,
-                ActivationMinutes = 5,
-                RefundMinutes = 30
-            },
-            Topics = new SagaTopicsOptions
-            {
-                OrderAlertSubscriptions = "order.alert-subscriptions",
-                WeatherAlerts = "weather.alerts",
-                FinancePayments = "finance.payments",
-                FinancePaymentCommands = "finance.payment-commands",
-                WeatherAlertsCommands = "weather.alerts.commands"
-            }
-        });
-        services.AddSingleton(sagaOptions);
+        // Load configuration from appsettings.Testing.json
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.Testing.json", optional: false)
+            .Build();
+
+        // Configure saga options from configuration
+        services.Configure<SagaOptions>(configuration.GetSection(SagaOptions.Section));
+        var sagaOptions = configuration.GetSection(SagaOptions.Section).Get<SagaOptions>()!;
+        services.AddSingleton(Options.Create(sagaOptions));
 
         // Register TimeProvider for saga
         services.AddSingleton(TimeProvider.System);
@@ -118,21 +97,21 @@ public sealed class SagaIntegrationTestFixture : IAsyncLifetime
         // Configure MassTransit test harness with EF Core repository for all sagas
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState>()
+            cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>()
                 .EntityFrameworkRepository(r =>
                 {
                     r.ConcurrencyMode = ConcurrencyMode.Optimistic;
                     r.ExistingDbContext<SubscriptionSagaDbContext>();
                 });
 
-            cfg.AddSagaStateMachine<SubscriptionExtensionSaga, SubscriptionExtensionSagaState>()
+            cfg.AddSagaStateMachine<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>()
                 .EntityFrameworkRepository(r =>
                 {
                     r.ConcurrencyMode = ConcurrencyMode.Optimistic;
                     r.ExistingDbContext<SubscriptionSagaDbContext>();
                 });
 
-            cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentSagaState>()
+            cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentProcessingSagaState>()
                 .EntityFrameworkRepository(r =>
                 {
                     r.ConcurrencyMode = ConcurrencyMode.Optimistic;

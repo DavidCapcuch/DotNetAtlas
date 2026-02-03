@@ -22,13 +22,13 @@ namespace DotNetAtlas.OutboxRelay.Benchmark.Seed;
 public class BenchmarkSeeder
 {
     private readonly IDbContextFactory<OutboxDbContext> _dbContextFactory;
-    private readonly AvroSerializer _avroSerializer;
+    private readonly UniversalAvroSerializer _universalAvroSerializer;
 
     public BenchmarkSeeder(IServiceProvider services)
     {
         _dbContextFactory = services.GetRequiredService<IDbContextFactory<OutboxDbContext>>();
 
-        _avroSerializer = new AvroSerializer(services.GetRequiredService<ISchemaRegistryClient>(),
+        _universalAvroSerializer = new UniversalAvroSerializer(services.GetRequiredService<ISchemaRegistryClient>(),
             new AvroSerializerConfig
             {
                 AutoRegisterSchemas = true,
@@ -88,13 +88,14 @@ public class BenchmarkSeeder
 
         foreach (var forecastRequestedEvent in forecastEvents)
         {
-            var avroPayload = _avroSerializer.Serialize(forecastRequestedEvent, typeof(ForecastRequestedEvent));
+            var avroPayload = _universalAvroSerializer.Serialize(forecastRequestedEvent, typeof(ForecastRequestedEvent));
 
             outboxMessages.Add(new OutboxMessage
             {
                 KafkaKey = forecastRequestedEvent.City,
                 AvroPayload = avroPayload,
-                Type = nameof(ForecastRequestedEvent),
+                Type = typeof(ForecastRequestedEvent).FullName!,
+                TopicName = "weather.forecast.requested",
                 Headers = null,
                 CreatedUtc = utcNow
             });

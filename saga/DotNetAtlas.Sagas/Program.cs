@@ -1,6 +1,7 @@
 using System.Globalization;
 using DotNetAtlas.Sagas.Common;
 using DotNetAtlas.Sagas.Common.Extensions;
+using DotNetAtlas.Sagas.Persistence.Database;
 using Serilog;
 
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -33,6 +34,13 @@ try
 
     app.MapHealthChecksInternal();
     app.UseHealthChecksPrometheusExporterInternal();
+
+    // In production, flyway should be used, therefore also during
+    // integration tests to ensure the SQL scripts are applied correctly
+    if (!app.Environment.IsProduction() && !app.Environment.IsTesting())
+    {
+        await app.InitialiseDatabaseAsync();
+    }
 
     await app.RunAsync();
 }

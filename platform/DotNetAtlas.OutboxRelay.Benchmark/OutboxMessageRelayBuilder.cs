@@ -63,22 +63,29 @@ public sealed class OutboxMessageRelayBuilder
         var metrics = _serviceProvider.GetRequiredService<OutboxRelayMetrics>();
         var cache = _serviceProvider.GetRequiredService<IMemoryCache>();
 
-        // Shallow clones are enough
+        // Clone options for customization
         var kafkaProducerOptions =
             _serviceProvider.GetRequiredService<IOptions<KafkaProducerOptions>>().Value.ShallowClone();
-        var outboxRelayOptions =
-            _serviceProvider.GetRequiredService<IOptions<OutboxRelayOptions>>().Value.ShallowClone();
+        var outboxRelayOptionsValue =
+            _serviceProvider.GetRequiredService<IOptions<OutboxRelayOptions>>().Value;
+        var outboxRelayOptions = new OutboxRelayOptions
+        {
+            PollingIntervalMs = outboxRelayOptionsValue.PollingIntervalMs,
+            BatchSize = outboxRelayOptionsValue.BatchSize,
+            SchemaName = outboxRelayOptionsValue.SchemaName,
+            TableName = outboxRelayOptionsValue.TableName,
+            FlushTimeoutMs = outboxRelayOptionsValue.FlushTimeoutMs,
+            ShutdownTimeoutMs = outboxRelayOptionsValue.ShutdownTimeoutMs
+        };
 
         _kafkaProducerConfigAction?.Invoke(kafkaProducerOptions);
         _outboxRelayConfigAction?.Invoke(outboxRelayOptions);
 
         var producer = new ProducerBuilder<string?, byte[]>(kafkaProducerOptions).Build();
-        return new OutboxMessageRelay(
-            dbContextFactory,
-            producer,
-            Options.Create(outboxRelayOptions),
-            logger,
-            metrics,
-            cache);
+        var outboxMessageRelay = new OutboxMessageRelay(
+            dbContextFactory, producer, Options.Create(outboxRelayOptions),
+            logger, metrics, cache);
+
+        return outboxMessageRelay;
     }
 }

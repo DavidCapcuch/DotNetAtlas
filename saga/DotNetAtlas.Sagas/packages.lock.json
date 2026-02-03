@@ -851,6 +851,27 @@
         "resolved": "9.0.0",
         "contentHash": "U9msthvnH2Fsw7xwAvIhNHOdnIjOQTwOc8Vd0oGOsiRcGMGoBFlUD6qtYawRUoQdKH9ysxesZ9juFElt1Jw/7A=="
       },
+      "dotnetatlas.messaging.abstractions": {
+        "type": "Project"
+      },
+      "dotnetatlas.reliablemessaging.outbox.core": {
+        "type": "Project",
+        "dependencies": {
+          "OpenTelemetry.Api": "[1.12.0, )"
+        }
+      },
+      "dotnetatlas.reliablemessaging.outbox.efcore": {
+        "type": "Project",
+        "dependencies": {
+          "Apache.Avro": "[1.12.0, )",
+          "Confluent.Kafka": "[2.6.1, )",
+          "Confluent.SchemaRegistry.Serdes.Avro": "[2.6.1, )",
+          "DotNetAtlas.Messaging.Abstractions": "[1.0.0, )",
+          "DotNetAtlas.ReliableMessaging.Outbox.Core": "[1.0.0, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.0, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.0, )"
+        }
+      },
       "dotnetatlas.schemaregistry.contracts": {
         "type": "Project",
         "dependencies": {

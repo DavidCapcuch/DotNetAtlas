@@ -6,7 +6,7 @@ using DotNetAtlas.Domain.Alerts.Entities;
 using DotNetAtlas.Domain.Alerts.ValueObjects;
 using DotNetAtlas.Domain.Common.ValueObjects;
 using DotNetAtlas.FunctionalTests.Common;
-using DotNetAtlas.FunctionalTests.Common.Clients;
+using DotNetAtlas.FunctionalTests.Common.TestClientInfrastructure;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;

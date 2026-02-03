@@ -13,31 +13,31 @@ namespace DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription;
 public static partial class SubscriptionActivatedMapper
 {
     /// <summary>
-    /// Maps a <see cref="SubscriberActivatedDomainEvent"/> to a <see cref="SubscriptionActivatedEvent"/>.
+    /// Maps a <see cref="SubscriberActivatedDomainEvent"/> to a <see cref="AlertSubscriptionActivatedEvent"/>.
     /// </summary>
     [MapperRequiredMapping(RequiredMappingStrategy.Target)]
-    [MapProperty(nameof(SubscriberActivatedDomainEvent.Tier), nameof(SubscriptionActivatedEvent.Tier))]
-    [MapProperty(nameof(SubscriberActivatedDomainEvent.ExpiresAtUtc), nameof(SubscriptionActivatedEvent.ExpiresAtUtc))]
-    [MapProperty(nameof(SubscriberActivatedDomainEvent.OccurredOnUtc), nameof(SubscriptionActivatedEvent.ActivatedAtUtc))]
-    public static partial SubscriptionActivatedEvent ToSubscriptionActivatedEvent(this SubscriberActivatedDomainEvent source);
+    [MapProperty(nameof(SubscriberActivatedDomainEvent.Tier), nameof(AlertSubscriptionActivatedEvent.Tier))]
+    [MapProperty(nameof(SubscriberActivatedDomainEvent.ExpiresAtUtc), nameof(AlertSubscriptionActivatedEvent.ExpiresAtUtc))]
+    [MapProperty(nameof(SubscriberActivatedDomainEvent.OccurredOnUtc), nameof(AlertSubscriptionActivatedEvent.ActivatedAtUtc))]
+    public static partial AlertSubscriptionActivatedEvent ToSubscriptionActivatedEvent(this SubscriberActivatedDomainEvent source);
 
     /// <summary>
-    /// Maps a <see cref="SubscriberReactivatedDomainEvent"/> to a <see cref="SubscriptionActivatedEvent"/>.
+    /// Maps a <see cref="SubscriberReactivatedDomainEvent"/> to a <see cref="AlertSubscriptionActivatedEvent"/>.
     /// </summary>
     [MapperRequiredMapping(RequiredMappingStrategy.Target)]
-    [MapProperty(nameof(SubscriberReactivatedDomainEvent.Tier), nameof(SubscriptionActivatedEvent.Tier))]
-    [MapProperty(nameof(SubscriberReactivatedDomainEvent.ExpiresAtUtc), nameof(SubscriptionActivatedEvent.ExpiresAtUtc))]
-    [MapProperty(nameof(SubscriberReactivatedDomainEvent.OccurredOnUtc), nameof(SubscriptionActivatedEvent.ActivatedAtUtc))]
-    public static partial SubscriptionActivatedEvent ToSubscriptionActivatedEvent(this SubscriberReactivatedDomainEvent source);
+    [MapProperty(nameof(SubscriberReactivatedDomainEvent.Tier), nameof(AlertSubscriptionActivatedEvent.Tier))]
+    [MapProperty(nameof(SubscriberReactivatedDomainEvent.ExpiresAtUtc), nameof(AlertSubscriptionActivatedEvent.ExpiresAtUtc))]
+    [MapProperty(nameof(SubscriberReactivatedDomainEvent.OccurredOnUtc), nameof(AlertSubscriptionActivatedEvent.ActivatedAtUtc))]
+    public static partial AlertSubscriptionActivatedEvent ToSubscriptionActivatedEvent(this SubscriberReactivatedDomainEvent source);
 
     /// <summary>
-    /// Maps a <see cref="SubscriptionUpgradedDomainEvent"/> to a <see cref="SubscriptionActivatedEvent"/>.
+    /// Maps a <see cref="SubscriptionUpgradedDomainEvent"/> to a <see cref="AlertSubscriptionActivatedEvent"/>.
     /// </summary>
     [MapperRequiredMapping(RequiredMappingStrategy.Target)]
-    [MapProperty(nameof(SubscriptionUpgradedDomainEvent.NewTier), nameof(SubscriptionActivatedEvent.Tier))]
-    [MapProperty(nameof(SubscriptionUpgradedDomainEvent.ExpiresAtUtc), nameof(SubscriptionActivatedEvent.ExpiresAtUtc))]
-    [MapProperty(nameof(SubscriptionUpgradedDomainEvent.OccurredOnUtc), nameof(SubscriptionActivatedEvent.ActivatedAtUtc))]
-    public static partial SubscriptionActivatedEvent ToSubscriptionActivatedEvent(this SubscriptionUpgradedDomainEvent source);
+    [MapProperty(nameof(SubscriptionUpgradedDomainEvent.NewTier), nameof(AlertSubscriptionActivatedEvent.Tier))]
+    [MapProperty(nameof(SubscriptionUpgradedDomainEvent.ExpiresAtUtc), nameof(AlertSubscriptionActivatedEvent.ExpiresAtUtc))]
+    [MapProperty(nameof(SubscriptionUpgradedDomainEvent.OccurredOnUtc), nameof(AlertSubscriptionActivatedEvent.ActivatedAtUtc))]
+    public static partial AlertSubscriptionActivatedEvent ToSubscriptionActivatedEvent(this SubscriptionUpgradedDomainEvent source);
 
     [UserMapping]
     private static DateTime DateTimeOffsetToDateTime(DateTimeOffset t) => t.UtcDateTime;

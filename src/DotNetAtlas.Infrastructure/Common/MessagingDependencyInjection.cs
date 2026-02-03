@@ -1,4 +1,5 @@
 using AspNetCore.SignalR.OpenTelemetry;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.WeatherForecast.Common;
 using DotNetAtlas.Infrastructure.Common.Config;
@@ -105,7 +106,7 @@ internal static class MessagingDependencyInjection
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
-                    .Topic(topicsOptions.WeatherAlertsCommands)
+                    .Topic(topicsOptions.WeatherAlertSubscriptionsCommands)
                     .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
@@ -120,7 +121,7 @@ internal static class MessagingDependencyInjection
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
-                        .AddInbox(typeof(ActivateSubscriptionCommand), typeof(ExtendSubscriptionCommand))
+                        .AddInbox(typeof(ActivateAlertSubscriptionCommand), typeof(ExtendAlertSubscriptionCommand))
                         .AddTypedHandlers(handlers => handlers
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
                             .AddHandler<ActivateSubscriptionCommandKafkaHandler>()

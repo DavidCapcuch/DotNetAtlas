@@ -1,5 +1,6 @@
 using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Domain.Alerts.Events;
 using DotNetAtlas.Domain.Alerts.Specifications;
 using DotNetAtlas.Domain.Alerts.ValueObjects;
@@ -7,6 +8,7 @@ using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Notifications.Email;
 
 namespace DotNetAtlas.Application.WeatherAlerts.RecordWeatherReading;
@@ -26,15 +28,18 @@ public sealed class WeatherAlertEmailNotificationDomainEventHandler : IDomainEve
     private readonly ILogger<WeatherAlertEmailNotificationDomainEventHandler> _logger;
     private readonly IWeatherDbContext _weatherDbContext;
     private readonly ITransactionalOutbox<IWeatherDbContext> _transactionalOutbox;
+    private readonly TopicsOptions _topicsOptions;
 
     public WeatherAlertEmailNotificationDomainEventHandler(
         ILogger<WeatherAlertEmailNotificationDomainEventHandler> logger,
         IWeatherDbContext weatherDbContext,
-        ITransactionalOutbox<IWeatherDbContext> transactionalOutbox)
+        ITransactionalOutbox<IWeatherDbContext> transactionalOutbox,
+        IOptions<TopicsOptions> topicsOptions)
     {
         _logger = logger;
         _weatherDbContext = weatherDbContext;
         _transactionalOutbox = transactionalOutbox;
+        _topicsOptions = topicsOptions.Value;
     }
 
     public async Task Handle(WeatherAlertIssuedDomainEvent domainEvent, CancellationToken ct)
@@ -70,7 +75,10 @@ public sealed class WeatherAlertEmailNotificationDomainEventHandler : IDomainEve
                 OccurredOnUtc = domainEvent.IssuedAtUtc.UtcDateTime
             };
 
-            _transactionalOutbox.AddOutboxMessage(userId.ToString(), sendAlertEmailNotificationCommand);
+            _transactionalOutbox.AddOutboxMessage(
+                _topicsOptions.NotificationCommands,
+                userId.ToString(),
+                sendAlertEmailNotificationCommand);
         }
 
         await _transactionalOutbox.SaveChangesAsync(ct);

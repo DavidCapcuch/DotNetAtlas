@@ -48,6 +48,7 @@
     <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.Core/DotNetAtlas.ReliableMessaging.Outbox.Core.csproj" />
     <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
     <Project Path="platform/DotNetAtlas.SchemaRegistry.Contracts/DotNetAtlas.SchemaRegistry.Contracts.csproj" />
+    <Project Path="platform/DotNetAtlas.ServiceDefaults/DotNetAtlas.ServiceDefaults.csproj" />
     <Project Path="platform/DotNetAtlas.SharedKernel/DotNetAtlas.SharedKernel.csproj" />
   </Folder>
   <Folder Name="/saga/">

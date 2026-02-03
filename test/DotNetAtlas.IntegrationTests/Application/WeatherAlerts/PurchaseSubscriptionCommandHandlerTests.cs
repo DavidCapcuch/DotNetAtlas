@@ -15,12 +15,12 @@ namespace DotNetAtlas.IntegrationTests.Application.WeatherAlerts;
 public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
 {
     private readonly FakeTimeProvider _fakeTimeProvider = new();
-    private readonly PurchaseSubscriptionCommandHandler _handler;
+    private readonly PurchaseSubscriptionCommandHandler _purchaseSubscriptionCommandHandler;
 
     public PurchaseSubscriptionCommandHandlerTests(IntegrationTestFixture app)
         : base(app)
     {
-        _handler = new PurchaseSubscriptionCommandHandler(
+        _purchaseSubscriptionCommandHandler = new PurchaseSubscriptionCommandHandler(
             Scope.ServiceProvider.GetRequiredService<IWeatherDbContext>(),
             Scope.ServiceProvider.GetRequiredService<ILogger<PurchaseSubscriptionCommandHandler>>(),
             _fakeTimeProvider);
@@ -45,7 +45,7 @@ public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var purchaseSubscriptionResult = await _handler.HandleAsync(
+        var purchaseSubscriptionResult = await _purchaseSubscriptionCommandHandler.HandleAsync(
             purchaseSubscriptionCommand,
             TestContext.Current.CancellationToken);
 
@@ -84,7 +84,7 @@ public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var purchaseSubscriptionResult = await _handler.HandleAsync(
+        var purchaseSubscriptionResult = await _purchaseSubscriptionCommandHandler.HandleAsync(
             purchaseSubscriptionCommand,
             TestContext.Current.CancellationToken);
 
@@ -124,7 +124,7 @@ public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var purchaseSubscriptionResult = await _handler.HandleAsync(
+        var purchaseSubscriptionResult = await _purchaseSubscriptionCommandHandler.HandleAsync(
             purchaseSubscriptionCommand,
             TestContext.Current.CancellationToken);
 
@@ -161,7 +161,7 @@ public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
         };
 
         // Act
-        var purchaseSubscriptionResult = await _handler.HandleAsync(
+        var purchaseSubscriptionResult = await _purchaseSubscriptionCommandHandler.HandleAsync(
             purchaseSubscriptionCommand,
             TestContext.Current.CancellationToken);
 

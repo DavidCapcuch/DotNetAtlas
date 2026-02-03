@@ -173,10 +173,7 @@ public sealed class OutboxMessageRelay : IDisposable
             Headers = BuildKafkaHeaders(messageHeaders)
         };
 
-        var topicName = _outboxRelayOptions.TypeTopicMappings.TryGetValue(
-            string.Intern(outboxMessage.Type), out var topic)
-            ? string.Intern(topic)
-            : string.Intern(_outboxRelayOptions.DefaultTopicName);
+        var topicName = string.Intern(outboxMessage.TopicName);
 
         var producerActivity = KafkaProducerDiagnostics.StartProduceActivity(topicName, kafkaMessage, messageHeaders);
 
