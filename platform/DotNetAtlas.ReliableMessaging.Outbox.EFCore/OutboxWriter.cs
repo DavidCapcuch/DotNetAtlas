@@ -16,36 +16,37 @@ namespace DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 /// </remarks>
 public class OutboxWriter : IOutboxWriter
 {
-    private readonly AvroSerializer _avroSerializer;
+    private readonly UniversalAvroSerializer _universalAvroSerializer;
     private readonly TimeProvider _timeProvider;
     private readonly IOptions<OutboxOptions> _outboxOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OutboxWriter"/> class.
     /// </summary>
-    /// <param name="avroSerializer">The Avro serializer for message serialization.</param>
+    /// <param name="universalAvroSerializer">The Avro serializer for message serialization.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
     /// <param name="outboxOptions">The outbox configuration options.</param>
     public OutboxWriter(
-        AvroSerializer avroSerializer,
+        UniversalAvroSerializer universalAvroSerializer,
         TimeProvider timeProvider,
         IOptions<OutboxOptions> outboxOptions)
     {
-        _avroSerializer = avroSerializer;
+        _universalAvroSerializer = universalAvroSerializer;
         _timeProvider = timeProvider;
         _outboxOptions = outboxOptions;
     }
 
     /// <inheritdoc />
-    public void AddOutboxMessage(IOutboxDbContext dbContext, string? kafkaKey, ISpecificRecord integrationEvent)
+    public void AddOutboxMessage(IOutboxDbContext dbContext, string topicName, string? kafkaKey, ISpecificRecord integrationEvent)
     {
         ArgumentNullException.ThrowIfNull(dbContext);
+        ArgumentException.ThrowIfNullOrWhiteSpace(topicName);
         ArgumentNullException.ThrowIfNull(integrationEvent);
 
         var messageOrigin = _outboxOptions.Value.MessageOrigin;
 
         var messageType = integrationEvent.GetType();
-        var bytes = _avroSerializer.Serialize(integrationEvent, messageType);
+        var bytes = _universalAvroSerializer.Serialize(integrationEvent, messageType);
 
         var activity = Activity.Current;
         var headers = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity) ?? [];
@@ -59,6 +60,7 @@ public class OutboxWriter : IOutboxWriter
 
         var outboxMessage = new OutboxMessage
         {
+            TopicName = topicName,
             KafkaKey = kafkaKey,
             AvroPayload = bytes,
             Type = messageType.FullName ?? messageType.Name,

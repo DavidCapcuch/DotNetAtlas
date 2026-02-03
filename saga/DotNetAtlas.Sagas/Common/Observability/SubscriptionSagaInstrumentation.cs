@@ -9,14 +9,7 @@ namespace DotNetAtlas.Sagas.Common.Observability;
 /// </summary>
 public static class SubscriptionSagaInstrumentation
 {
-    /// <summary>
-    /// Saga type constant for purchase sagas.
-    /// </summary>
     public const string SagaTypePurchase = "purchase";
-
-    /// <summary>
-    /// Saga type constant for extension sagas.
-    /// </summary>
     public const string SagaTypeExtension = "extension";
 
     private static readonly Meter Meter = new(SagaInstrumentation.MeterName, ApplicationInfo.Version);
@@ -65,9 +58,8 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that a new subscription saga has started.
-    /// High-cardinality data (correlationId, userId) is kept in traces only.
     /// </summary>
-    /// <param name="tier">The subscription tier (low-cardinality).</param>
+    /// <param name="tier">The subscription tier.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
     public static void RecordSagaStarted(string tier, string sagaType)
     {
@@ -78,7 +70,6 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that a subscription saga completed successfully.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
     /// <param name="duration">The duration of the saga.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
@@ -94,9 +85,8 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that a subscription saga failed.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
-    /// <param name="errorCode">The error code (low-cardinality).</param>
+    /// <param name="errorCode">The error code.</param>
     /// <param name="duration">The duration of the saga.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
     public static void RecordSagaFailed(string errorCode, TimeSpan duration, string sagaType)
@@ -113,7 +103,6 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that a subscription saga timed out.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
     /// <param name="duration">The duration of the saga.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
@@ -129,7 +118,6 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that compensation was completed.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
     /// <param name="duration">The duration of compensation.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
@@ -142,7 +130,6 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that compensation timed out.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
     /// <param name="duration">The duration before timeout.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
@@ -158,7 +145,6 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that payment completed successfully.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
     /// <param name="duration">The duration of payment processing.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
@@ -174,9 +160,8 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that payment failed.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
-    /// <param name="errorCode">The error code (low-cardinality).</param>
+    /// <param name="errorCode">The error code.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
     public static void RecordPaymentFailed(string errorCode, string sagaType)
     {
@@ -187,7 +172,6 @@ public static class SubscriptionSagaInstrumentation
 
     /// <summary>
     /// Records that payment timed out.
-    /// High-cardinality data (correlationId) is kept in traces only.
     /// </summary>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
     public static void RecordPaymentTimeout(string sagaType)
@@ -199,7 +183,7 @@ public static class SubscriptionSagaInstrumentation
     /// <summary>
     /// Creates a new activity for a subscription saga operation.
     /// </summary>
-    /// <param name="operationName">Name of the operation being traced.</param>
+    /// <param name="operationName">The name of the operation being traced.</param>
     /// <param name="correlationId">The saga correlation ID.</param>
     /// <param name="sagaType">The saga type: "purchase" or "extension".</param>
     /// <returns>The created activity, or null if tracing is disabled.</returns>

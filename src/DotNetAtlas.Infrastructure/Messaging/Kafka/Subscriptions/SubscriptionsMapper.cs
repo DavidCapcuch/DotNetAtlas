@@ -2,10 +2,8 @@ using DotNetAtlas.SharedKernel.Errors;
 using FluentResults;
 using Riok.Mapperly.Abstractions;
 using Weather.Alerts;
-using ActivateCommand = Weather.Alerts.ActivateSubscriptionCommand;
 using AppExtendCommand = DotNetAtlas.Application.WeatherAlerts.ExtendSubscription.ExtendSubscriptionCommand;
 using AppPurchaseCommand = DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription.PurchaseSubscriptionCommand;
-using ExtendCommand = Weather.Alerts.ExtendSubscriptionCommand;
 
 namespace DotNetAtlas.Infrastructure.Messaging.Kafka.Subscriptions;
 
@@ -22,45 +20,45 @@ public static partial class SubscriptionsMapper
     /// <summary>
     /// Maps ActivateSubscriptionCommand (Avro) to PurchaseSubscriptionCommand (Application).
     /// </summary>
-    [MapProperty(nameof(ActivateCommand.Tier), nameof(AppPurchaseCommand.Tier),
+    [MapProperty(nameof(ActivateAlertSubscriptionCommand.Tier), nameof(AppPurchaseCommand.Tier),
         Use = nameof(MapToDomainSubscriptionTier))]
-    [MapProperty(nameof(ActivateCommand.RequestedAtUtc), nameof(AppPurchaseCommand.OccurredOnUtc))]
-    public static partial AppPurchaseCommand ToPurchaseSubscriptionCommand(this ActivateCommand source);
+    [MapProperty(nameof(ActivateAlertSubscriptionCommand.RequestedAtUtc), nameof(AppPurchaseCommand.OccurredOnUtc))]
+    public static partial AppPurchaseCommand ToPurchaseSubscriptionCommand(this ActivateAlertSubscriptionCommand source);
 
     /// <summary>
     /// Maps ExtendSubscriptionCommand (Avro) to ExtendSubscriptionCommand (Application).
     /// </summary>
-    [MapProperty(nameof(ExtendCommand.DurationDays), nameof(AppExtendCommand.DurationExtendedDays))]
-    [MapProperty(nameof(ExtendCommand.RequestedAtUtc), nameof(AppExtendCommand.OccurredOnUtc))]
-    public static partial AppExtendCommand ToExtendSubscriptionCommand(this ExtendCommand source);
+    [MapProperty(nameof(ExtendAlertSubscriptionCommand.DurationDays), nameof(AppExtendCommand.DurationExtendedDays))]
+    [MapProperty(nameof(ExtendAlertSubscriptionCommand.RequestedAtUtc), nameof(AppExtendCommand.OccurredOnUtc))]
+    public static partial AppExtendCommand ToExtendSubscriptionCommand(this ExtendAlertSubscriptionCommand source);
 
     /// <summary>
     /// Creates SubscriptionActivationFailedEvent from the original command when activation fails.
     /// </summary>
-    [MapProperty(nameof(ActivateCommand.Tier), nameof(SubscriptionActivationFailedEvent.RequestedTier))]
-    [MapProperty(nameof(ActivateCommand.DurationDays), nameof(SubscriptionActivationFailedEvent.RequestedDurationDays))]
-    [MapProperty(nameof(ActivateCommand.CorrelationId), nameof(SubscriptionActivationFailedEvent.CorrelationId))]
-    public static partial SubscriptionActivationFailedEvent ToSubscriptionActivationFailedEvent(
-        this ActivateCommand source,
+    [MapProperty(nameof(ActivateAlertSubscriptionCommand.Tier), nameof(AlertSubscriptionActivationFailedEvent.RequestedTier))]
+    [MapProperty(nameof(ActivateAlertSubscriptionCommand.DurationDays), nameof(AlertSubscriptionActivationFailedEvent.RequestedDurationDays))]
+    [MapProperty(nameof(ActivateAlertSubscriptionCommand.CorrelationId), nameof(AlertSubscriptionActivationFailedEvent.CorrelationId))]
+    public static partial AlertSubscriptionActivationFailedEvent ToSubscriptionActivationFailedEvent(
+        this ActivateAlertSubscriptionCommand source,
         IList<ErrorDetails> errors,
         DateTime occurredOnUtc);
 
     /// <summary>
     /// Creates SubscriptionExtensionActivationFailedEvent from the original command when extension fails.
     /// </summary>
-    [MapProperty(nameof(ExtendCommand.DurationDays), nameof(SubscriptionExtensionActivationFailedEvent.RequestedDurationExtendedDays))]
-    public static partial SubscriptionExtensionActivationFailedEvent ToSubscriptionExtensionActivationFailedEvent(
-        this ExtendCommand source,
+    [MapProperty(nameof(ExtendAlertSubscriptionCommand.DurationDays), nameof(AlertSubscriptionExtensionActivationFailedEvent.RequestedDurationExtendedDays))]
+    public static partial AlertSubscriptionExtensionActivationFailedEvent ToSubscriptionExtensionActivationFailedEvent(
+        this ExtendAlertSubscriptionCommand source,
         IList<ErrorDetails> errors,
         DateTime occurredOnUtc);
 
     [UserMapping]
     private static Domain.Alerts.ValueObjects.SubscriptionTier MapToDomainSubscriptionTier(
-        Weather.Alerts.SubscriptionTier source) =>
+        SubscriptionTier source) =>
         source switch
         {
-            Weather.Alerts.SubscriptionTier.Pro => Domain.Alerts.ValueObjects.SubscriptionTier.Pro,
-            Weather.Alerts.SubscriptionTier.Ultra => Domain.Alerts.ValueObjects.SubscriptionTier.Ultra,
+            SubscriptionTier.Pro => Domain.Alerts.ValueObjects.SubscriptionTier.Pro,
+            SubscriptionTier.Ultra => Domain.Alerts.ValueObjects.SubscriptionTier.Ultra,
             _ => throw new ArgumentOutOfRangeException(nameof(source), source, "Unknown SubscriptionTier value.")
         };
 

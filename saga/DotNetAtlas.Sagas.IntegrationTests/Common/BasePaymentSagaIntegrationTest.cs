@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Sagas.Finance.PaymentSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using MassTransit.Testing;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Common;
@@ -8,11 +8,11 @@ namespace DotNetAtlas.Sagas.IntegrationTests.Common;
 /// </summary>
 public abstract class BasePaymentSagaIntegrationTest : BaseSagaIntegrationTest
 {
-    protected ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentSagaState> SagaHarness { get; }
+    protected ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentProcessingSagaState> SagaHarness { get; }
 
     protected BasePaymentSagaIntegrationTest(SagaIntegrationTestFixture fixture)
         : base(fixture)
     {
-        SagaHarness = TestHarness.GetSagaStateMachineHarness<PaymentProcessingSaga, PaymentSagaState>();
+        SagaHarness = TestHarness.GetSagaStateMachineHarness<PaymentProcessingSaga, PaymentProcessingSagaState>();
     }
 }

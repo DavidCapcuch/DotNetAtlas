@@ -36,7 +36,7 @@ public static class HealthChecksDependencyInjection
 
         var healthCheckKafkaProducerConfig = new ProducerConfig
         {
-            BootstrapServers = sagaOptions.KafkaBootstrapServers,
+            BootstrapServers = sagaOptions.Kafka.BrokersFlat,
             ClientId = "saga-healthcheck"
         };
 

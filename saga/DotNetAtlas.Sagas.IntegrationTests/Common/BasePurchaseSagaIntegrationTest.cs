@@ -1,4 +1,4 @@
-﻿using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using MassTransit.Testing;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Common;
@@ -8,11 +8,11 @@ namespace DotNetAtlas.Sagas.IntegrationTests.Common;
 /// </summary>
 public abstract class BasePurchaseSagaIntegrationTest : BaseSagaIntegrationTest
 {
-    protected ISagaStateMachineTestHarness<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState> SagaHarness { get; }
+    protected ISagaStateMachineTestHarness<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState> SagaHarness { get; }
 
     protected BasePurchaseSagaIntegrationTest(SagaIntegrationTestFixture fixture)
         : base(fixture)
     {
-        SagaHarness = TestHarness.GetSagaStateMachineHarness<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState>();
+        SagaHarness = TestHarness.GetSagaStateMachineHarness<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>();
     }
 }

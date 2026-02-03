@@ -1,110 +1,65 @@
+using Avro.Specific;
 using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
+using DotNetAtlas.Sagas.Common.AvroDeserialization;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.Consumers;
-using Finance.Payments;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 using MassTransit;
-using Order.AlertSubscriptions;
-using Weather.Alerts;
 
 namespace DotNetAtlas.Sagas.Common;
 
 internal static class SubscriptionPurchaseSagaDependencyInjection
 {
-    extension(IRiderRegistrationConfigurator rider)
-    {
-        public void AddSubscriptionPurchaseSagaConsumers()
-        {
-            rider.AddConsumer<AlertSubscriptionPurchaseInitiatedConsumer>();
-            rider.AddConsumer<SubscriptionActivatedConsumer>();
-            rider.AddConsumer<SubscriptionPurchasePaymentRefundedConsumer>();
-            rider.AddConsumer<SubscriptionPurchasePaymentCompletedConsumer>();
-            rider.AddConsumer<SubscriptionPurchasePaymentFailedConsumer>();
-        }
-
-        public void AddSubscriptionPurchaseSagaProducers(SagaOptions options)
-        {
-            rider.AddProducer<Guid, ActivateSubscriptionCommand>(
-                options.Topics.WeatherAlertsCommands,
-                (context, producerConfig) =>
-                {
-                    var schemaRegistryClient = context.GetRequiredService<ISchemaRegistryClient>();
-                    producerConfig.SetKeySerializer(
-                        new AvroSerializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
-                    producerConfig.SetValueSerializer(
-                        new AvroSerializer<ActivateSubscriptionCommand>(schemaRegistryClient).AsSyncOverAsync());
-                });
-        }
-    }
-
     extension(IKafkaFactoryConfigurator kafka)
     {
-        public void ConfigureSubscriptionPurchaseSagaEndpoints(IRiderRegistrationContext context,
-            ISchemaRegistryClient schemaRegistry,
-            SagaOptions sagaOptions)
+        public void ConfigureSubscriptionPurchaseSagaConsumers(IRiderRegistrationContext context,
+            ISchemaRegistryClient schemaRegistryClient,
+            SagaKafkaOptions kafkaOptions)
         {
-            var group = KafkaConsumerGroupBuilder.SubscriptionPurchase;
-
-            kafka.TopicEndpoint<Guid, AlertSubscriptionPurchaseInitiatedEvent>(
-                sagaOptions.Topics.OrderAlertSubscriptions,
-                KafkaConsumerGroupBuilder.Build(sagaOptions.ConsumerGroup, group, "initiated"),
-                e =>
+            kafka.TopicEndpoint<Guid, ISpecificRecord>(
+                kafkaOptions.Topics.OrderAlertSubscriptions,
+                kafkaOptions.ConsumerGroups.SubscriptionPurchaseSaga,
+                consumerConfig =>
                 {
-                    e.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    e.SetKeyDeserializer(new AvroDeserializer<Guid>(schemaRegistry).AsSyncOverAsync());
-                    e.SetValueDeserializer(
-                        new AvroDeserializer<AlertSubscriptionPurchaseInitiatedEvent>(schemaRegistry)
-                            .AsSyncOverAsync());
-                    e.ConfigureConsumer<AlertSubscriptionPurchaseInitiatedConsumer>(context);
+                    consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    consumerConfig.SetKeyDeserializer(
+                        new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
+                    consumerConfig.SetValueDeserializer(
+                        new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
+
+                    consumerConfig.ConfigureConsumer<AlertSubscriptionPurchaseInitiatedConsumer>(context);
                 });
 
-            kafka.TopicEndpoint<Guid, SubscriptionActivatedEvent>(
-                sagaOptions.Topics.WeatherAlerts,
-                KafkaConsumerGroupBuilder.Build(sagaOptions.ConsumerGroup, group, "activated"),
-                e =>
+            kafka.TopicEndpoint<Guid, ISpecificRecord>(
+                kafkaOptions.Topics.WeatherAlertSubscriptions,
+                kafkaOptions.ConsumerGroups.SubscriptionPurchaseSaga,
+                consumerConfig =>
                 {
-                    e.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    e.SetKeyDeserializer(new AvroDeserializer<Guid>(schemaRegistry).AsSyncOverAsync());
-                    e.SetValueDeserializer(
-                        new AvroDeserializer<SubscriptionActivatedEvent>(schemaRegistry).AsSyncOverAsync());
-                    e.ConfigureConsumer<SubscriptionActivatedConsumer>(context);
+                    consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    consumerConfig.SetKeyDeserializer(
+                        new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
+                    consumerConfig.SetValueDeserializer(
+                        new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
+
+                    consumerConfig.ConfigureConsumer<AlertSubscriptionActivatedConsumer>(context);
                 });
 
-            kafka.TopicEndpoint<Guid, PaymentCompletedEvent>(
-                sagaOptions.Topics.FinancePayments,
-                KafkaConsumerGroupBuilder.Build(sagaOptions.ConsumerGroup, group, "payment-completed"),
-                e =>
+            kafka.TopicEndpoint<Guid, ISpecificRecord>(
+                kafkaOptions.Topics.FinancePayments,
+                kafkaOptions.ConsumerGroups.SubscriptionPurchaseSaga,
+                consumerConfig =>
                 {
-                    e.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    e.SetKeyDeserializer(new AvroDeserializer<Guid>(schemaRegistry).AsSyncOverAsync());
-                    e.SetValueDeserializer(
-                        new AvroDeserializer<PaymentCompletedEvent>(schemaRegistry).AsSyncOverAsync());
-                    e.ConfigureConsumer<SubscriptionPurchasePaymentCompletedConsumer>(context);
-                });
+                    consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    consumerConfig.SetKeyDeserializer(
+                        new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
+                    consumerConfig.SetValueDeserializer(
+                        new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
 
-            kafka.TopicEndpoint<Guid, PaymentFailedEvent>(
-                sagaOptions.Topics.FinancePayments,
-                KafkaConsumerGroupBuilder.Build(sagaOptions.ConsumerGroup, group, "payment-failed"),
-                e =>
-                {
-                    e.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    e.SetKeyDeserializer(new AvroDeserializer<Guid>(schemaRegistry).AsSyncOverAsync());
-                    e.SetValueDeserializer(new AvroDeserializer<PaymentFailedEvent>(schemaRegistry).AsSyncOverAsync());
-                    e.ConfigureConsumer<SubscriptionPurchasePaymentFailedConsumer>(context);
-                });
-
-            kafka.TopicEndpoint<Guid, PaymentRefundedEvent>(
-                sagaOptions.Topics.FinancePayments,
-                KafkaConsumerGroupBuilder.Build(sagaOptions.ConsumerGroup, group, "payment-refunded"),
-                e =>
-                {
-                    e.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    e.SetKeyDeserializer(new AvroDeserializer<Guid>(schemaRegistry).AsSyncOverAsync());
-                    e.SetValueDeserializer(new AvroDeserializer<PaymentRefundedEvent>(schemaRegistry)
-                        .AsSyncOverAsync());
-                    e.ConfigureConsumer<SubscriptionPurchasePaymentRefundedConsumer>(context);
+                    consumerConfig.ConfigureConsumer<AlertSubscriptionPurchasePaymentCompletedConsumer>(context);
+                    consumerConfig.ConfigureConsumer<AlertSubscriptionPurchasePaymentFailedConsumer>(context);
+                    consumerConfig.ConfigureConsumer<AlertSubscriptionPurchasePaymentRefundedConsumer>(context);
                 });
         }
     }

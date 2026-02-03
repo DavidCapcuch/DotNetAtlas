@@ -9,7 +9,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Avro\" />
       <Folder Include="Avro\Finance\Payments\" />
       <Folder Include="Avro\Order\AlertSubscriptions\" />
       <Folder Include="Avro\Weather\Alerts\" />

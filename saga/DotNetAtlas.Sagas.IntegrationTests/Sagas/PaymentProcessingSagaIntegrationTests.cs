@@ -1,7 +1,6 @@
-using DotNetAtlas.Sagas.Finance.PaymentSaga;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.Commands;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.InternalSagaEvents;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.Schedules;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
 using DotNetAtlas.Sagas.IntegrationTests.Common;
 using Finance.Payments;
 using Microsoft.EntityFrameworkCore;
@@ -34,11 +33,11 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
 
         // Assert - verify state was persisted to database
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         persistedState.Should().NotBeNull();
-        persistedState!.UserId.Should().Be(userId);
+        persistedState.UserId.Should().Be(userId);
         persistedState.CurrentState.Should().Be("AwaitingAuthorization");
         persistedState.Amount.Should().Be(9.99m);
         persistedState.Currency.Should().Be("USD");
@@ -71,11 +70,11 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
         // Assert - verify state was updated
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         persistedState.Should().NotBeNull();
-        persistedState!.CurrentState.Should().Be("PaymentCompleted");
+        persistedState.CurrentState.Should().Be("PaymentCompleted");
         persistedState.PaymentTransactionId.Should().Be(paymentTransactionId);
         persistedState.AuthorizationId.Should().Be(authorizationId);
         persistedState.CapturedAtUtc.Should().NotBeNull();
@@ -102,17 +101,17 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
                 SagaHarness.Consumed.SelectAsync<PaymentInitiatedSagaEvent>(), 2));
 
         // Assert - both sagas exist independently
-        var state1 = await DbContext.Set<PaymentSagaState>()
+        var state1 = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId1);
 
-        var state2 = await DbContext.Set<PaymentSagaState>()
+        var state2 = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId2);
 
         state1.Should().NotBeNull();
         state2.Should().NotBeNull();
-        state1!.Amount.Should().Be(9.99m);
+        state1.Amount.Should().Be(9.99m);
         state1.Currency.Should().Be("USD");
-        state2!.Amount.Should().Be(99.99m);
+        state2.Amount.Should().Be(99.99m);
         state2.Currency.Should().Be("EUR");
     }
 
@@ -133,11 +132,11 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
 
         // Verify: AwaitingAuthorization state persisted
-        var stateAfterInitiation = await DbContext.Set<PaymentSagaState>()
+        var stateAfterInitiation = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         stateAfterInitiation.Should().NotBeNull();
-        stateAfterInitiation!.CurrentState.Should().Be("AwaitingAuthorization");
+        stateAfterInitiation.CurrentState.Should().Be("AwaitingAuthorization");
         stateAfterInitiation.UserId.Should().Be(userId);
         stateAfterInitiation.PaymentMethodId.Should().Be(paymentMethodId);
         stateAfterInitiation.Amount.Should().Be(49.99m);
@@ -160,11 +159,11 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<PaymentAuthorizedSagaEvent>();
 
         // Verify: AwaitingCapture state persisted
-        var stateAfterAuthorization = await DbContext.Set<PaymentSagaState>()
+        var stateAfterAuthorization = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         stateAfterAuthorization.Should().NotBeNull();
-        stateAfterAuthorization!.CurrentState.Should().Be("AwaitingCapture");
+        stateAfterAuthorization.CurrentState.Should().Be("AwaitingCapture");
         stateAfterAuthorization.AuthorizationId.Should().Be(authorizationId);
         stateAfterAuthorization.AuthorizedAtUtc.Should().HaveValue();
 
@@ -184,11 +183,11 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
         // Verify: PaymentCompleted state persisted
-        var stateAfterCapture = await DbContext.Set<PaymentSagaState>()
+        var stateAfterCapture = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         stateAfterCapture.Should().NotBeNull();
-        stateAfterCapture!.CurrentState.Should().Be("PaymentCompleted");
+        stateAfterCapture.CurrentState.Should().Be("PaymentCompleted");
         stateAfterCapture.PaymentTransactionId.Should().Be(paymentTransactionId);
         stateAfterCapture.CapturedAtUtc.Should().HaveValue();
         stateAfterCapture.CompensationTriggered.Should().BeFalse();
@@ -237,14 +236,15 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
             UserId = userId,
             ErrorCode = "CARD_DECLINED",
             ErrorMessage = "Card was declined by issuer",
-            IsRetryable = false
+            IsRetryable = false,
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await TestHarness.Bus.Publish(authFailedEvent);
         await SagaHarness.Consumed.Any<PaymentAuthorizationFailedSagaEvent>();
 
         // Assert - verify saga finalized in AuthorizationFailed state
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization or remain in final state
@@ -274,18 +274,19 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
             AuthorizationId = authorizationId,
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Capture failed permanently",
-            IsRetryable = false
+            IsRetryable = false,
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await TestHarness.Bus.Publish(captureFailedEvent);
         await SagaHarness.Consumed.Any<PaymentCaptureFailedSagaEvent>();
 
         // Assert - verify saga transitioned to VoidInProgress and compensation triggered
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         persistedState.Should().NotBeNull();
-        persistedState!.CurrentState.Should().Be("VoidInProgress");
+        persistedState.CurrentState.Should().Be("VoidInProgress");
         persistedState.CompensationTriggered.Should().BeTrue();
 
         // Verify PaymentFailedEvent was published to Kafka
@@ -317,7 +318,7 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<PaymentVoidedSagaEvent>();
 
         // Assert - verify saga finalized in VoidCompleted state
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
@@ -336,7 +337,7 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId);
 
         // Act - Request refund
-        var refundCommand = new RequestPaymentRefundCommand
+        var refundCommand = new PaymentRefundRequestedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -346,14 +347,14 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         };
 
         await TestHarness.Bus.Publish(refundCommand);
-        await SagaHarness.Consumed.Any<RequestPaymentRefundCommand>();
+        await SagaHarness.Consumed.Any<PaymentRefundRequestedSagaEvent>();
 
         // Assert - verify saga transitioned to RefundInProgress
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         persistedState.Should().NotBeNull();
-        persistedState!.CurrentState.Should().Be("RefundInProgress");
+        persistedState.CurrentState.Should().Be("RefundInProgress");
     }
 
     // -- Timeout Tests --
@@ -379,7 +380,7 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<AuthorizationTimeoutExpired>();
 
         // Assert - verify saga finalized in AuthorizationFailed state
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
@@ -406,11 +407,11 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<CaptureTimeoutExpired>();
 
         // Assert - verify saga transitioned to VoidInProgress
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         persistedState.Should().NotBeNull();
-        persistedState!.CurrentState.Should().Be("VoidInProgress");
+        persistedState.CurrentState.Should().Be("VoidInProgress");
         persistedState.CompensationTriggered.Should().BeTrue();
 
         // Verify PaymentFailedEvent was published
@@ -438,11 +439,10 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<VoidTimeoutExpired>();
 
         // Assert - verify saga finalized in VoidFailed state
-        var persistedState = await DbContext.Set<PaymentSagaState>()
-            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
+            .FirstAsync(x => x.CorrelationId == correlationId);
 
-        // Saga may be removed after finalization
-        persistedState?.CurrentState.Should().Be("VoidFailed");
+        persistedState.CurrentState.Should().Be("VoidFailed");
     }
 
     [Fact]
@@ -465,7 +465,7 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await SagaHarness.Consumed.Any<RefundTimeoutExpired>();
 
         // Assert - verify saga finalized in RefundFailed state
-        var persistedState = await DbContext.Set<PaymentSagaState>()
+        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
         // Saga may be removed after finalization
@@ -520,7 +520,8 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
             AuthorizationId = authorizationId,
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Capture failed",
-            IsRetryable = false
+            IsRetryable = false,
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await TestHarness.Bus.Publish(captureFailedEvent);
@@ -566,7 +567,7 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId, amount, currency);
 
         // Then request refund to transition to RefundInProgress
-        var refundCommand = new RequestPaymentRefundCommand
+        var refundCommand = new PaymentRefundRequestedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -576,6 +577,6 @@ public class PaymentProcessingSagaIntegrationTests : BasePaymentSagaIntegrationT
         };
 
         await TestHarness.Bus.Publish(refundCommand);
-        await SagaHarness.Consumed.Any<RequestPaymentRefundCommand>();
+        await SagaHarness.Consumed.Any<PaymentRefundRequestedSagaEvent>();
     }
 }

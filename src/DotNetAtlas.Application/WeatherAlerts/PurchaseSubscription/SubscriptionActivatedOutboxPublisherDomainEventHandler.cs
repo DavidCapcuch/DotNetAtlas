@@ -1,13 +1,16 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Domain.Alerts.Events;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Weather.Alerts;
 
 namespace DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription;
 
 /// <summary>
-/// Handles subscription-related domain events by publishing a <see cref="Weather.Alerts.SubscriptionActivatedEvent"/>
+/// Handles subscription-related domain events by publishing a <see cref="AlertSubscriptionActivatedEvent"/>
 /// integration event to the outbox for the Saga Orchestrator.
 /// </summary>
 /// <remarks>
@@ -27,20 +30,26 @@ public class SubscriptionActivatedOutboxPublisherDomainEventHandler :
 {
     private readonly ILogger<SubscriptionActivatedOutboxPublisherDomainEventHandler> _logger;
     private readonly ITransactionalOutbox<IWeatherDbContext> _transactionalOutbox;
+    private readonly TopicsOptions _topicsOptions;
 
     public SubscriptionActivatedOutboxPublisherDomainEventHandler(
         ILogger<SubscriptionActivatedOutboxPublisherDomainEventHandler> logger,
-        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter)
+        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter,
+        IOptions<TopicsOptions> topicsOptions)
     {
         _logger = logger;
         _transactionalOutbox = transactionalOutboxWriter;
+        _topicsOptions = topicsOptions.Value;
     }
 
     public async Task Handle(SubscriberActivatedDomainEvent domainEvent, CancellationToken ct)
     {
         var subscriptionActivatedEvent = domainEvent.ToSubscriptionActivatedEvent();
 
-        _transactionalOutbox.AddOutboxMessage(domainEvent.PaymentTransactionId.ToString(), subscriptionActivatedEvent);
+        _transactionalOutbox.AddOutboxMessage(
+            _topicsOptions.WeatherAlertSubscriptions,
+            domainEvent.PaymentTransactionId.ToString(),
+            subscriptionActivatedEvent);
         await _transactionalOutbox.SaveChangesAsync(ct);
 
         _logger.LogDebug(
@@ -53,7 +62,10 @@ public class SubscriptionActivatedOutboxPublisherDomainEventHandler :
     {
         var subscriptionActivatedEvent = domainEvent.ToSubscriptionActivatedEvent();
 
-        _transactionalOutbox.AddOutboxMessage(domainEvent.PaymentTransactionId.ToString(), subscriptionActivatedEvent);
+        _transactionalOutbox.AddOutboxMessage(
+            _topicsOptions.WeatherAlertSubscriptions,
+            domainEvent.PaymentTransactionId.ToString(),
+            subscriptionActivatedEvent);
         await _transactionalOutbox.SaveChangesAsync(ct);
 
         _logger.LogDebug(
@@ -66,7 +78,10 @@ public class SubscriptionActivatedOutboxPublisherDomainEventHandler :
     {
         var subscriptionActivatedEvent = domainEvent.ToSubscriptionActivatedEvent();
 
-        _transactionalOutbox.AddOutboxMessage(domainEvent.PaymentTransactionId.ToString(), subscriptionActivatedEvent);
+        _transactionalOutbox.AddOutboxMessage(
+            _topicsOptions.WeatherAlertSubscriptions,
+            domainEvent.PaymentTransactionId.ToString(),
+            subscriptionActivatedEvent);
         await _transactionalOutbox.SaveChangesAsync(ct);
 
         _logger.LogDebug(

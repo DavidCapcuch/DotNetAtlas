@@ -40,15 +40,11 @@ public sealed class OutboxRelayWorker : BackgroundService
     /// <param name="stoppingToken">Token to signal graceful shutdown.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var typeMappingsInfo = _outboxRelayOptions.TypeTopicMappings.Count > 0
-            ? $", type mappings: {string.Join(", ", _outboxRelayOptions.TypeTopicMappings.Select(kvp => $"{kvp.Key}→{kvp.Value}"))}"
-            : ", no type mappings configured";
-
         _logger.LogInformation(
             "OutboxRelay started. Config: polling={PollingMs}ms, batch={BatchSize}, " +
-            "flushTimeout={FlushMs}ms, shutdownTimeout={ShutdownMs}ms{TypeMappingInfo}",
+            "flushTimeout={FlushMs}ms, shutdownTimeout={ShutdownMs}ms",
             _outboxRelayOptions.PollingIntervalMs, _outboxRelayOptions.BatchSize,
-            _outboxRelayOptions.FlushTimeoutMs, _outboxRelayOptions.ShutdownTimeoutMs, typeMappingsInfo);
+            _outboxRelayOptions.FlushTimeoutMs, _outboxRelayOptions.ShutdownTimeoutMs);
 
         using var periodicTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(_outboxRelayOptions.PollingIntervalMs));
 

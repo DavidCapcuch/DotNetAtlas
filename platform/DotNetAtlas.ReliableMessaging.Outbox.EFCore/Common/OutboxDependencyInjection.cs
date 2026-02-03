@@ -50,7 +50,7 @@ public static class OutboxDependencyInjection
 
         services.TryAddSingleton<ISchemaRegistryClient>(_ =>
             new CachedSchemaRegistryClient(registration.SchemaRegistryOptions));
-        services.TryAddSingleton<AvroSerializer>(sp => new AvroSerializer(
+        services.TryAddSingleton<UniversalAvroSerializer>(sp => new UniversalAvroSerializer(
             sp.GetRequiredService<ISchemaRegistryClient>(),
             registration.AvroSerializerOptions));
 

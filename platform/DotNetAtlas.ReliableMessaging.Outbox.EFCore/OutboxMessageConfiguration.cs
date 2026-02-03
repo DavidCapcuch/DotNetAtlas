@@ -35,6 +35,12 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
             table => table.HasComment(
                 "Outbox pattern table for storing domain events as Avro-serialized messages for reliable event publishing."));
 
+        builder.Property(om => om.TopicName)
+            .HasComment("The Kafka topic where this message will be published. Set by the message producer.")
+            .HasMaxLength(249)
+            .IsUnicode(false)
+            .IsRequired();
+
         builder.Property(om => om.KafkaKey)
             .HasComment(
                 "Kafka Key - typically the Aggregate ID for proper event ordering and partitioning")
@@ -46,7 +52,7 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 
         builder.Property(om => om.Type)
             .HasComment(
-                "Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') used for type-based topic routing")
+                "Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability")
             .HasMaxLength(255)
             .IsUnicode(false);
 

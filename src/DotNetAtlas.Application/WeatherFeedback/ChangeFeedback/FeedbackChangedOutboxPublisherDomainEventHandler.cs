@@ -1,8 +1,10 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Domain.Feedback.Events;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
 
@@ -14,13 +16,16 @@ public class FeedbackChangedOutboxPublisherDomainEventHandler : IDomainEventHand
 {
     private readonly ILogger<FeedbackChangedOutboxPublisherDomainEventHandler> _logger;
     private readonly ITransactionalOutbox<IWeatherDbContext> _transactionalOutbox;
+    private readonly TopicsOptions _topicsOptions;
 
     public FeedbackChangedOutboxPublisherDomainEventHandler(
         ILogger<FeedbackChangedOutboxPublisherDomainEventHandler> logger,
-        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter)
+        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter,
+        IOptions<TopicsOptions> topicsOptions)
     {
         _logger = logger;
         _transactionalOutbox = transactionalOutboxWriter;
+        _topicsOptions = topicsOptions.Value;
     }
 
     public async Task Handle(FeedbackChangedDomainEvent domainEvent, CancellationToken ct)
@@ -28,7 +33,9 @@ public class FeedbackChangedOutboxPublisherDomainEventHandler : IDomainEventHand
         var feedbackChangedIntegrationEvent = domainEvent.ToFeedbackChangedIntegrationEvent();
 
         _transactionalOutbox.AddOutboxMessage(
-            feedbackChangedIntegrationEvent.FeedbackId.ToString(), feedbackChangedIntegrationEvent);
+            _topicsOptions.WeatherFeedbackEvents,
+            feedbackChangedIntegrationEvent.FeedbackId.ToString(),
+            feedbackChangedIntegrationEvent);
         await _transactionalOutbox.SaveChangesAsync(ct);
 
         _logger.LogDebug(

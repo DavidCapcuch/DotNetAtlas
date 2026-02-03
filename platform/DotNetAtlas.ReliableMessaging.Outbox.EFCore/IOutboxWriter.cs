@@ -22,7 +22,7 @@ namespace DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 ///     public async Task DoWork()
 ///     {
 ///         await using var dbContext = await _factory.CreateDbContextAsync();
-///         _outboxWriter.AddOutboxMessage(dbContext, key, integrationEvent);
+///         _outboxWriter.AddOutboxMessage(dbContext, "weather.events", key, integrationEvent);
 ///         await dbContext.SaveChangesAsync();
 ///     }
 /// }
@@ -35,7 +35,8 @@ public interface IOutboxWriter
     /// The message will be persisted in the same transaction as other DbContext changes.
     /// </summary>
     /// <param name="dbContext">The DbContext instance implementing <see cref="IOutboxDbContext"/>.</param>
+    /// <param name="topicName">The Kafka topic where this message will be published.</param>
     /// <param name="kafkaKey">The Kafka key for message partitioning (typically aggregate ID).</param>
     /// <param name="integrationEvent">The Avro integration event to publish.</param>
-    void AddOutboxMessage(IOutboxDbContext dbContext, string? kafkaKey, ISpecificRecord integrationEvent);
+    void AddOutboxMessage(IOutboxDbContext dbContext, string topicName, string? kafkaKey, ISpecificRecord integrationEvent);
 }

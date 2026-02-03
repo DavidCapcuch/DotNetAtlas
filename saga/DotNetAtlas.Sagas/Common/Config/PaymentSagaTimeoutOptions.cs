@@ -41,4 +41,13 @@ public sealed class PaymentSagaTimeoutOptions
     [Required]
     [Range(1, int.MaxValue)]
     public required int RefundMinutes { get; set; }
+
+    /// <summary>
+    /// Timeout in minutes after payment completion before the saga finalizes.
+    /// This provides a window for calling sagas to request refunds if their downstream operations fail.
+    /// After this timeout, the saga finalizes and late refunds must be handled through a separate service.
+    /// </summary>
+    [Required]
+    [Range(1, int.MaxValue)]
+    public required int SuccessFinalizationMinutes { get; set; }
 }

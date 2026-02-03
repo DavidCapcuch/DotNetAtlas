@@ -22,9 +22,9 @@ public class FeedbackConfiguration : IEntityTypeConfiguration<Domain.Feedback.Fe
             .IsUnique()
             .HasDatabaseName("UX_WeatherFeedback_CreatedByUser");
 
-        builder.Property<byte[]>("Timestamp")
-            .HasComment("Optimistic concurrency token.")
-            .IsRowVersion();
+        builder.Property(s => s.Timestamp)
+            .IsRowVersion()
+            .HasComment("Optimistic concurrency token.");
 
         builder.ComplexProperty(wf => wf.Rating, r =>
         {

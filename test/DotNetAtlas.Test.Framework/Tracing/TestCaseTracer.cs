@@ -16,6 +16,7 @@ public sealed class TestCaseTracer : IDisposable
     private readonly Activity? _testActivity;
     private readonly TracerProvider _tracerProvider;
     private readonly ILogger<TestCaseTracer> _logger;
+    private readonly string? _traceId;
 
     /// <summary>
     /// Initializes a new test activity with appropriate tags for a test trace.
@@ -41,9 +42,9 @@ public sealed class TestCaseTracer : IDisposable
         // Log test start with Jaeger trace URL
         if (_testActivity?.TraceId != null)
         {
-            var traceId = _testActivity.TraceId.ToString();
+            _traceId = _testActivity.TraceId.ToString();
             _logger.LogInformation("Test {TestMethod} started, trace: http://localhost:16686/jaeger/ui/trace/{TraceId}",
-                testMethodName, traceId);
+                testMethodName, _traceId);
         }
         else
         {
@@ -54,7 +55,7 @@ public sealed class TestCaseTracer : IDisposable
     /// <summary>
     /// Gets the trace ID for tracing context propagation (e.g., via traceparent header).
     /// </summary>
-    public string? TraceId => _testActivity?.Id;
+    public string? TraceParent => _testActivity?.Id;
 
     /// <summary>
     /// Records a test failure by adding exception information and marking the activity as failed.
@@ -74,7 +75,7 @@ public sealed class TestCaseTracer : IDisposable
 
     public void LogTestTraceLocalJaegerLink()
     {
-        _logger.LogInformation("Test finished, trace: http://localhost:16686/jaeger/ui/trace/{TraceId}", TraceId);
+        _logger.LogInformation("Test finished, trace: http://localhost:16686/jaeger/ui/trace/{TraceId}", _traceId);
     }
 
     /// <summary>

@@ -1,8 +1,13 @@
 using Confluent.SchemaRegistry;
+using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Finance.PaymentSaga;
-using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Sagas.Persistence.Database.Interceptors;
 using MassTransit;
@@ -37,18 +42,30 @@ public static class SagaDependencyInjection
             services.AddSingleton<ISchemaRegistryClient>(_ =>
                 new CachedSchemaRegistryClient(new SchemaRegistryConfig
                 {
-                    Url = sagaOptions.SchemaRegistryUrl
+                    Url = sagaOptions.Kafka.SchemaRegistry.Url
                 }));
 
             services.AddOptionsWithValidateOnStart<SagaOptions>()
                 .BindConfiguration(SagaOptions.Section)
                 .ValidateDataAnnotations();
 
+            var connectionStringsOptions = configuration
+                .GetRequiredSection(ConnectionStringsOptions.Section)
+                .Get<ConnectionStringsOptions>()!;
+
+            services.AddOptions<SqlTransportOptions>()
+                .Configure(options =>
+                {
+                    options.ConnectionString = connectionStringsOptions.Saga;
+                });
+
+            services.AddSqlServerMigrationHostedService();
+
             services.AddMassTransit(cfg =>
             {
                 cfg.SetKebabCaseEndpointNameFormatter();
 
-                cfg.AddSagaStateMachine<SubscriptionPurchaseSaga, SubscriptionPurchaseSagaState>()
+                cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
@@ -61,7 +78,7 @@ public static class SagaDependencyInjection
                         e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
                     });
 
-                cfg.AddSagaStateMachine<SubscriptionExtensionSaga, SubscriptionExtensionSagaState>()
+                cfg.AddSagaStateMachine<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
@@ -74,7 +91,7 @@ public static class SagaDependencyInjection
                         e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
                     });
 
-                cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentSagaState>()
+                cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentProcessingSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
@@ -105,7 +122,8 @@ public static class SagaDependencyInjection
             return services;
         }
 
-        private void AddSagaDatabase(IConfiguration configuration,
+        private void AddSagaDatabase(
+            IConfiguration configuration,
             bool isClusterEnvironment)
         {
             services.AddOptionsWithValidateOnStart<ConnectionStringsOptions>()
@@ -116,10 +134,29 @@ public static class SagaDependencyInjection
                 .BindConfiguration(EfCoreOptions.Section)
                 .ValidateDataAnnotations();
 
+            var sagaOptions = configuration
+                .GetRequiredSection(SagaOptions.Section)
+                .Get<SagaOptions>()!;
+
             var efCoreOptions = configuration
                 .GetRequiredSection(EfCoreOptions.Section)
                 .Get<EfCoreOptions>()!;
 
+            services.AddOutbox(outbox =>
+            {
+                outbox.ConfigureMessageOrigin(ApplicationInfo.AppName);
+                outbox.ConfigureAvroSerializerConfig(config =>
+                {
+                    config.NormalizeSchemas = true;
+                    config.AutoRegisterSchemas = true;
+                    config.SubjectNameStrategy = SubjectNameStrategy.Record;
+                });
+                outbox.ConfigureSchemaRegistryConfig(config =>
+                {
+                    config.Url = sagaOptions.Kafka.SchemaRegistry.Url;
+                });
+            });
+            services.AddSingleton(TimeProvider.System);
             services.AddSingleton<UpdateSagaAuditableEntitiesInterceptor>();
             services.AddDbContext<SubscriptionSagaDbContext>((
                 sp,
@@ -149,26 +186,24 @@ public static class SagaDependencyInjection
         {
             cfg.AddRider(rider =>
             {
-                rider.AddSubscriptionPurchaseSagaConsumers();
-                rider.AddSubscriptionPurchaseSagaProducers(sagaOptions);
+                rider.AddConsumersFromNamespaceContaining<AlertSubscriptionPurchaseInitiatedConsumer>();
+                rider.AddConsumersFromNamespaceContaining<AlertSubscriptionExtensionInitiatedConsumer>();
+                rider.AddConsumersFromNamespaceContaining<PaymentRequestedConsumer>();
 
-                rider.AddSubscriptionExtensionSagaConsumers();
-                rider.AddSubscriptionExtensionSagaProducers(sagaOptions);
-
-                rider.AddPaymentSagaConsumers();
-                rider.AddPaymentSagaProducers(sagaOptions);
-
-                rider.UsingKafka((registrationContext, kafkaFactoryConfigurator) =>
+                rider.UsingKafka((registrationContext, kafkaConfigurator) =>
                 {
-                    kafkaFactoryConfigurator.Host(sagaOptions.KafkaBootstrapServers);
+                    kafkaConfigurator.Host(sagaOptions.Kafka.BrokersFlat);
 
                     var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
-                    kafkaFactoryConfigurator.ConfigureSubscriptionPurchaseSagaEndpoints(registrationContext,
-                        schemaRegistryClient, sagaOptions);
-                    kafkaFactoryConfigurator.ConfigureSubscriptionExtensionSagaEndpoints(registrationContext,
-                        schemaRegistryClient, sagaOptions);
-                    kafkaFactoryConfigurator.ConfigurePaymentSagaEndpoints(registrationContext, schemaRegistryClient,
-                        sagaOptions);
+                    var kafkaOptions = sagaOptions.Kafka;
+                    kafkaConfigurator.ConfigureSubscriptionPurchaseSagaConsumers(registrationContext,
+                        schemaRegistryClient,
+                        kafkaOptions);
+                    kafkaConfigurator.ConfigureSubscriptionExtensionSagaConsumers(registrationContext,
+                        schemaRegistryClient,
+                        kafkaOptions);
+                    kafkaConfigurator.ConfigurePaymentSagaConsumers(registrationContext, schemaRegistryClient,
+                        kafkaOptions);
                 });
             });
         }

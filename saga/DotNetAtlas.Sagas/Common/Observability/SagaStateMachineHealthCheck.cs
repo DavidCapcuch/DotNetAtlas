@@ -1,6 +1,8 @@
+using System.Diagnostics.Metrics;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using DotNetAtlas.Sagas.Persistence.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -11,27 +13,54 @@ namespace DotNetAtlas.Sagas.Common.Observability;
 /// <summary>
 /// Health check for saga state machine infrastructure.
 /// Verifies database connectivity and checks for stuck sagas.
+/// Also exposes metrics per saga type for Grafana dashboards.
 /// </summary>
+#pragma warning disable SA1214 // Readonly fields should appear before non-readonly fields - backing fields must precede observable gauges
 public sealed class SagaStateMachineHealthCheck : IHealthCheck
 {
-    private readonly IDbContextFactory<SubscriptionSagaDbContext> _dbContextFactory;
+    // Instance readonly fields
+    private readonly SubscriptionSagaDbContext _subscriptionSagaDbContext;
     private readonly ILogger<SagaStateMachineHealthCheck> _logger;
-    private readonly SagaHealthCheckOptions _options;
+    private readonly SagaHealthCheckOptions _sagaHealthCheckOptions;
+    private readonly TimeProvider _timeProvider;
 
-    /// <summary>
-    /// Initializes a new instance of <see cref="SagaStateMachineHealthCheck"/>.
-    /// </summary>
-    /// <param name="dbContextFactory">Factory for creating saga database contexts.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="options">The health check options.</param>
+    // Static metrics infrastructure
+    private static readonly Meter Meter = new(SagaInstrumentation.MeterName, ApplicationInfo.Version);
+
+    // Backing fields for observable gauges - updated by health check, read by Prometheus
+    private static int _stuckPurchaseSagaCount;
+    private static int _stuckExtensionSagaCount;
+    private static int _stuckPaymentSagaCount;
+
+    // Observable gauges for stuck saga counts per type - scraped by Prometheus/Grafana
+    private static readonly ObservableGauge<int> StuckPurchaseSagasGauge = Meter.CreateObservableGauge(
+        "saga.stuck.purchase",
+        () => _stuckPurchaseSagaCount,
+        "count",
+        "Number of stuck subscription purchase sagas");
+
+    private static readonly ObservableGauge<int> StuckExtensionSagasGauge = Meter.CreateObservableGauge(
+        "saga.stuck.extension",
+        () => _stuckExtensionSagaCount,
+        "count",
+        "Number of stuck subscription extension sagas");
+
+    private static readonly ObservableGauge<int> StuckPaymentSagasGauge = Meter.CreateObservableGauge(
+        "saga.stuck.payment",
+        () => _stuckPaymentSagaCount,
+        "count",
+        "Number of stuck payment sagas");
+
     public SagaStateMachineHealthCheck(
-        IDbContextFactory<SubscriptionSagaDbContext> dbContextFactory,
+        SubscriptionSagaDbContext subscriptionSagaDbContext,
         ILogger<SagaStateMachineHealthCheck> logger,
-        IOptions<SagaHealthCheckOptions> options)
+        IOptions<SagaHealthCheckOptions> options,
+        TimeProvider timeProvider)
     {
-        _dbContextFactory = dbContextFactory;
+        _subscriptionSagaDbContext = subscriptionSagaDbContext;
         _logger = logger;
-        _options = options.Value;
+        _timeProvider = timeProvider;
+        _sagaHealthCheckOptions = options.Value;
     }
 
     /// <inheritdoc />
@@ -41,75 +70,84 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
     {
         try
         {
-            await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-            // Check database connectivity
-            var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+            var canConnect = await _subscriptionSagaDbContext.Database.CanConnectAsync(cancellationToken);
             if (!canConnect)
             {
                 return HealthCheckResult.Unhealthy("Cannot connect to saga database");
             }
 
-            // Check for stuck sagas (sagas that have been in a non-final state for too long)
-            var stuckSagaThreshold = TimeSpan.FromMinutes(_options.StuckSagaThresholdMinutes);
-            var threshold = DateTime.UtcNow - stuckSagaThreshold;
+            var stuckSagaThreshold = TimeSpan.FromMinutes(_sagaHealthCheckOptions.StuckSagaThresholdMinutes);
+            var threshold = _timeProvider.GetUtcNow() - stuckSagaThreshold;
 
-            // Check Purchase sagas
-            var stuckPurchaseSagaCount = await dbContext.Set<SubscriptionPurchaseSagaState>()
+            var stuckPurchaseCount = await _subscriptionSagaDbContext.Set<AlertSubscriptionPurchaseSagaState>()
                 .CountAsync(s =>
-                    !SubscriptionPurchaseSagaStates.FinalStates.Contains(s.CurrentState) &&
-                    s.LastUpdatedAtUtc < threshold,
-                cancellationToken);
+                        !AlertSubscriptionPurchaseSagaState.TerminalStates.Contains(s.CurrentState) &&
+                        s.LastUpdatedAtUtc < threshold,
+                    cancellationToken);
 
-            // Check Extension sagas
-            var stuckExtensionSagaCount = await dbContext.Set<SubscriptionExtensionSagaState>()
+            var stuckExtensionCount = await _subscriptionSagaDbContext.Set<AlertSubscriptionExtensionSagaState>()
                 .CountAsync(s =>
-                    !SubscriptionExtensionSagaStates.FinalStates.Contains(s.CurrentState) &&
-                    s.LastUpdatedAtUtc < threshold,
-                cancellationToken);
+                        !AlertSubscriptionExtensionSagaState.TerminalStates.Contains(s.CurrentState) &&
+                        s.LastUpdatedAtUtc < threshold,
+                    cancellationToken);
 
-            var stuckSagaCount = stuckPurchaseSagaCount + stuckExtensionSagaCount;
+            var stuckPaymentCount = await _subscriptionSagaDbContext.Set<PaymentProcessingSagaState>()
+                .CountAsync(s =>
+                        !PaymentProcessingSagaState.TerminalStates.Contains(s.CurrentState) &&
+                        s.LastUpdatedAtUtc < threshold,
+                    cancellationToken);
 
-            if (stuckSagaCount >= _options.MaxStuckSagasBeforeUnhealthy)
+            // Update metrics for Grafana/Prometheus scraping
+            _stuckPurchaseSagaCount = stuckPurchaseCount;
+            _stuckExtensionSagaCount = stuckExtensionCount;
+            _stuckPaymentSagaCount = stuckPaymentCount;
+
+            var stuckSagaCount = stuckPurchaseCount + stuckExtensionCount + stuckPaymentCount;
+
+            if (stuckSagaCount >= _sagaHealthCheckOptions.MaxStuckSagasBeforeUnhealthy)
             {
                 _logger.LogError(
-                    "Found {StuckSagaCount} stuck sagas ({StuckPurchaseCount} purchase, {StuckExtensionCount} extension) - no update in {ThresholdMinutes} minutes, exceeds unhealthy threshold of {MaxUnhealthy}",
+                    "Found {StuckSagaCount} stuck sagas ({StuckPurchaseCount} purchase, {StuckExtensionCount} extension, {StuckPaymentCount} payment) - no update in {ThresholdMinutes} minutes, exceeds unhealthy threshold of {MaxUnhealthy}",
                     stuckSagaCount,
-                    stuckPurchaseSagaCount,
-                    stuckExtensionSagaCount,
-                    _options.StuckSagaThresholdMinutes,
-                    _options.MaxStuckSagasBeforeUnhealthy);
+                    stuckPurchaseCount,
+                    stuckExtensionCount,
+                    stuckPaymentCount,
+                    _sagaHealthCheckOptions.StuckSagaThresholdMinutes,
+                    _sagaHealthCheckOptions.MaxStuckSagasBeforeUnhealthy);
 
                 return HealthCheckResult.Unhealthy(
                     $"Found {stuckSagaCount} stuck sagas, exceeds maximum threshold",
                     data: new Dictionary<string, object>
                     {
                         ["StuckSagaCount"] = stuckSagaCount,
-                        ["StuckPurchaseSagaCount"] = stuckPurchaseSagaCount,
-                        ["StuckExtensionSagaCount"] = stuckExtensionSagaCount,
-                        ["ThresholdMinutes"] = _options.StuckSagaThresholdMinutes,
-                        ["MaxUnhealthy"] = _options.MaxStuckSagasBeforeUnhealthy
+                        ["StuckPurchaseSagaCount"] = stuckPurchaseCount,
+                        ["StuckExtensionSagaCount"] = stuckExtensionCount,
+                        ["StuckPaymentSagaCount"] = stuckPaymentCount,
+                        ["ThresholdMinutes"] = _sagaHealthCheckOptions.StuckSagaThresholdMinutes,
+                        ["MaxUnhealthy"] = _sagaHealthCheckOptions.MaxStuckSagasBeforeUnhealthy
                     });
             }
 
-            if (stuckSagaCount >= _options.MaxStuckSagasBeforeDegraded)
+            if (stuckSagaCount >= _sagaHealthCheckOptions.MaxStuckSagasBeforeDegraded)
             {
                 _logger.LogWarning(
-                    "Found {StuckSagaCount} potentially stuck sagas ({StuckPurchaseCount} purchase, {StuckExtensionCount} extension) - no update in {ThresholdMinutes} minutes",
+                    "Found {StuckSagaCount} potentially stuck sagas ({StuckPurchaseCount} purchase, {StuckExtensionCount} extension, {StuckPaymentCount} payment) - no update in {ThresholdMinutes} minutes",
                     stuckSagaCount,
-                    stuckPurchaseSagaCount,
-                    stuckExtensionSagaCount,
-                    _options.StuckSagaThresholdMinutes);
+                    stuckPurchaseCount,
+                    stuckExtensionCount,
+                    stuckPaymentCount,
+                    _sagaHealthCheckOptions.StuckSagaThresholdMinutes);
 
                 return HealthCheckResult.Degraded(
                     $"Found {stuckSagaCount} potentially stuck sagas",
                     data: new Dictionary<string, object>
                     {
                         ["StuckSagaCount"] = stuckSagaCount,
-                        ["StuckPurchaseSagaCount"] = stuckPurchaseSagaCount,
-                        ["StuckExtensionSagaCount"] = stuckExtensionSagaCount,
-                        ["ThresholdMinutes"] = _options.StuckSagaThresholdMinutes,
-                        ["MaxDegraded"] = _options.MaxStuckSagasBeforeDegraded
+                        ["StuckPurchaseSagaCount"] = stuckPurchaseCount,
+                        ["StuckExtensionSagaCount"] = stuckExtensionCount,
+                        ["StuckPaymentSagaCount"] = stuckPaymentCount,
+                        ["ThresholdMinutes"] = _sagaHealthCheckOptions.StuckSagaThresholdMinutes,
+                        ["MaxDegraded"] = _sagaHealthCheckOptions.MaxStuckSagasBeforeDegraded
                     });
             }
 

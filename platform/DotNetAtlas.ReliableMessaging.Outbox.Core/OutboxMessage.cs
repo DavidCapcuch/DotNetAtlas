@@ -12,6 +12,12 @@ public class OutboxMessage
     public long Id { get; set; }
 
     /// <summary>
+    /// The Kafka topic where this message will be published.
+    /// Set by the message producer to determine routing.
+    /// </summary>
+    public required string TopicName { get; set; }
+
+    /// <summary>
     /// Kafka Key - typically the Aggregate ID for proper event ordering and partitioning.
     /// </summary>
     public string? KafkaKey { get; set; }
@@ -22,7 +28,7 @@ public class OutboxMessage
     public required byte[] AvroPayload { get; set; }
 
     /// <summary>
-    /// Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') used for type-based topic routing.
+    /// Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability.
     /// </summary>
     public required string Type { get; set; }
 

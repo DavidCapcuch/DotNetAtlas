@@ -66,7 +66,8 @@ services.AddOutbox(outbox =>
     outbox.ConfigureMessageOrigin("MyService"); // optional
     outbox.ConfigureAvroSerializerConfig(config =>
     {
-        config.SchemaRegistryUrl = "http://localhost:8081";
+        // optional config
+        // config.NormalizeSchemas = true;
     });
     outbox.ConfigureSchemaRegistryConfig(config =>
     {

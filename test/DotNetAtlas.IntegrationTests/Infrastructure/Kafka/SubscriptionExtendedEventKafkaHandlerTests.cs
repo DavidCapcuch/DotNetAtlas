@@ -38,7 +38,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
             Domain.Alerts.ValueObjects.SubscriptionTier.Pro, initialDurationDays, utcNow);
 
         const int extensionDays = 30;
-        var extendSubscriptionCommand = new ExtendSubscriptionCommand
+        var extendSubscriptionCommand = new ExtendAlertSubscriptionCommand
         {
             CorrelationId = Guid.CreateVersion7(),
             UserId = userId,
@@ -74,13 +74,13 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         var successOutboxMessage = await WeatherDbContext.OutboxMessages
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                m => m.Type == typeof(SubscriptionExtendedEvent).FullName,
+                m => m.Type == typeof(AlertSubscriptionExtendedEvent).FullName,
                 TestContext.Current.CancellationToken);
 
         var failureOutboxMessage = await WeatherDbContext.OutboxMessages
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                m => m.Type == typeof(SubscriptionExtensionActivationFailedEvent).FullName,
+                m => m.Type == typeof(AlertSubscriptionExtensionActivationFailedEvent).FullName,
                 TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
@@ -109,7 +109,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
             Domain.Alerts.ValueObjects.SubscriptionTier.Pro, initialDurationDays, utcNow);
 
         const int extensionDays = 30;
-        var firstCommand = new ExtendSubscriptionCommand
+        var firstCommand = new ExtendAlertSubscriptionCommand
         {
             CorrelationId = Guid.CreateVersion7(),
             UserId = userId,
@@ -134,7 +134,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
             "Consumer did not process first ExtendSubscriptionCommand within timeout");
 
         // Publish a second different command (new message ID) to verify both are tracked
-        var secondCommand = new ExtendSubscriptionCommand
+        var secondCommand = new ExtendAlertSubscriptionCommand
         {
             CorrelationId = Guid.CreateVersion7(),
             UserId = userId,
@@ -193,7 +193,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         const int extensionDays = 30;
         var messageId = Guid.CreateVersion7(); // Same message ID for both publishes
 
-        var extendSubscriptionCommand = new ExtendSubscriptionCommand
+        var extendSubscriptionCommand = new ExtendAlertSubscriptionCommand
         {
             CorrelationId = Guid.CreateVersion7(),
             UserId = userId,
@@ -260,7 +260,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         var paymentTransactionId = Guid.CreateVersion7();
         const int extensionDays = 30;
 
-        var extendSubscriptionCommand = new ExtendSubscriptionCommand
+        var extendSubscriptionCommand = new ExtendAlertSubscriptionCommand
         {
             CorrelationId = correlationId,
             UserId = nonExistentUserId,
@@ -279,7 +279,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
                 var outboxMessage = await WeatherDbContext.OutboxMessages
                     .AsNoTracking()
                     .FirstOrDefaultAsync(
-                        m => m.Type == typeof(SubscriptionExtensionActivationFailedEvent).FullName,
+                        m => m.Type == typeof(AlertSubscriptionExtensionActivationFailedEvent).FullName,
                         TestContext.Current.CancellationToken);
                 return outboxMessage != null;
             },
@@ -290,7 +290,7 @@ public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
         var outboxMessage = await WeatherDbContext.OutboxMessages
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                m => m.Type == typeof(SubscriptionExtensionActivationFailedEvent).FullName,
+                m => m.Type == typeof(AlertSubscriptionExtensionActivationFailedEvent).FullName,
                 TestContext.Current.CancellationToken);
 
         var inboxCount = await WeatherDbContext.InboxMessages

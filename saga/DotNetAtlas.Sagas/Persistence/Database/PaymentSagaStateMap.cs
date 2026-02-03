@@ -1,4 +1,4 @@
-using DotNetAtlas.Sagas.Finance.PaymentSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -6,9 +6,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace DotNetAtlas.Sagas.Persistence.Database;
 
 public sealed class PaymentSagaStateMap :
-    SagaClassMap<PaymentSagaState>
+    SagaClassMap<PaymentProcessingSagaState>
 {
-    protected override void Configure(EntityTypeBuilder<PaymentSagaState> entity, ModelBuilder model)
+    protected override void Configure(EntityTypeBuilder<PaymentProcessingSagaState> entity, ModelBuilder model)
     {
         entity.ToTable("PaymentSagaState", SubscriptionSagaDbContext.DefaultSchemaName,
             t => t.HasComment("Saga state for payment processing orchestration."));
@@ -40,7 +40,7 @@ public sealed class PaymentSagaStateMap :
         // Payment details
         entity.Property(x => x.Amount)
             .HasComment("Payment amount")
-            .HasPrecision(18, 4);
+            .HasPrecision(19, 4);
 
         entity.Property(x => x.Currency)
             .HasComment("ISO 4217 currency code")
@@ -103,31 +103,31 @@ public sealed class PaymentSagaStateMap :
 
         // Compensation
         entity.Property(x => x.CompensationTriggered)
-            .HasComment("Whether compensation has been triggered")
-            .HasDefaultValue(false);
+            .HasComment("Whether compensation has been triggered");
 
         entity.Property(x => x.CompensationCompletedAtUtc)
             .HasComment("UTC timestamp when compensation completed");
 
         // Scheduler tokens
         entity.Property(x => x.AuthorizationTimeoutTokenId)
-            .HasComment("Token ID for authorization timeout scheduler");
+            .HasComment("Token ID for authorization timeout scheduler - set when schedule is active");
 
         entity.Property(x => x.CaptureTimeoutTokenId)
-            .HasComment("Token ID for capture timeout scheduler");
+            .HasComment("Token ID for capture timeout scheduler - set when schedule is active");
 
         entity.Property(x => x.VoidTimeoutTokenId)
-            .HasComment("Token ID for void timeout scheduler");
+            .HasComment("Token ID for void timeout scheduler - set when schedule is active");
 
         entity.Property(x => x.RefundTimeoutTokenId)
-            .HasComment("Token ID for refund timeout scheduler");
+            .HasComment("Token ID for refund timeout scheduler - set when schedule is active");
 
-        // Optimistic concurrency
-        entity.Property(x => x.Version)
-            .HasComment("Version for optimistic concurrency control")
-            .IsConcurrencyToken();
+        entity.Property(x => x.SuccessFinalizationTimeoutTokenId)
+            .HasComment("Token ID for success finalization timeout scheduler - set when schedule is active");
 
-        // Composite index for common queries
+        entity.Property(s => s.RowVersion)
+            .IsRowVersion()
+            .HasComment("Optimistic concurrency token.");
+
         entity.HasIndex(x => new
         {
             x.CurrentState,
@@ -141,8 +141,6 @@ public sealed class PaymentSagaStateMap :
             x.CurrentState,
             x.LastUpdatedAtUtc
         })
-            .HasDatabaseName("IX_PaymentSagaState_State_LastUpdated")
-            .HasFilter(
-                "[CurrentState] NOT IN ('ActivationCompleted', 'AuthorizationFailed', 'VoidCompleted', 'VoidFailed', 'RefundCompleted', 'RefundFailed')");
+            .HasDatabaseName("IX_PaymentSagaState_State_LastUpdated");
     }
 }

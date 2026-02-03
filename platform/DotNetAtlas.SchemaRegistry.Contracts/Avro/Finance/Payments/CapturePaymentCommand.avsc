@@ -30,8 +30,8 @@
             "type": {
                 "type": "bytes",
                 "logicalType": "decimal",
-                "precision": 10,
-                "scale": 2
+                "precision": 19,
+                "scale": 4
             },
             "doc": "Amount to capture (may be less than or equal to authorized amount)."
         },

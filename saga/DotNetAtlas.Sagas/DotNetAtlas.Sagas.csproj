@@ -16,7 +16,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        
+
         <!-- Logging -->
         <PackageReference Include="Serilog.AspNetCore"/>
         <PackageReference Include="Serilog.Sinks.Console"/>
@@ -49,12 +49,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ReliableMessaging.Outbox.Core\DotNetAtlas.ReliableMessaging.Outbox.Core.csproj"/>
         <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
         <ProjectReference Include="..\..\platform\DotNetAtlas.SharedKernel\DotNetAtlas.SharedKernel.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Finance\" />
-      <Folder Include="Persistence\Database\Migrations\" />
-    </ItemGroup>
 </Project>

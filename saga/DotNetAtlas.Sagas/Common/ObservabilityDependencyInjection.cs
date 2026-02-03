@@ -1,10 +1,10 @@
 using DotNetAtlas.Sagas.Common.Observability;
-using DotNetAtlas.Sagas.Finance.PaymentSaga;
-using DotNetAtlas.Sagas.Finance.PaymentSaga.Observability;
-using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga.Observability;
-using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga;
-using DotNetAtlas.Sagas.Orders.PurchaseAlertSubscriptionSaga.Observability;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability;
 using MassTransit;
 using MassTransit.Logging;
 using MassTransit.Monitoring;
@@ -77,14 +77,8 @@ public static class ObservabilityDependencyInjection
 
     extension(IServiceCollection services)
     {
-        public IServiceCollection AddOpenTelemetryInternal(bool isClusterEnvironment,
-            ConfigurationManager configuration)
+        public IServiceCollection AddOpenTelemetryInternal(ConfigurationManager configuration)
         {
-            if (!isClusterEnvironment)
-            {
-                return services;
-            }
-
             var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
             if (string.IsNullOrWhiteSpace(oltpExporterEndpoint))
             {
@@ -103,7 +97,7 @@ public static class ObservabilityDependencyInjection
                     tracing.AddSource("*")
                         .AddSource(SagaInstrumentation.ActivitySourceName)
                         .AddSource(DiagnosticHeaders.DefaultListenerName) // MassTransit ActivitySource
-                        .AddEntityFrameworkCoreInstrumentation()
+                        .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
                         .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 })
                 .WithMetrics(metrics =>
@@ -120,9 +114,9 @@ public static class ObservabilityDependencyInjection
 
         public IServiceCollection AddSagaStateObservability()
         {
-            services.AddStateObserver<SubscriptionPurchaseSagaState, SubscriptionSagaStateObserver>();
-            services.AddStateObserver<SubscriptionExtensionSagaState, SubscriptionExtensionSagaStateObserver>();
-            services.AddStateObserver<PaymentSagaState, PaymentSagaStateObserver>();
+            services.AddStateObserver<AlertSubscriptionPurchaseSagaState, AlertSubscriptionSagaStateObserver>();
+            services.AddStateObserver<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionSagaStateObserver>();
+            services.AddStateObserver<PaymentProcessingSagaState, PaymentSagaStateObserver>();
 
             return services;
         }

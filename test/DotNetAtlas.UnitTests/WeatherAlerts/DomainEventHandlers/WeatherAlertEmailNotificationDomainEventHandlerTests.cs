@@ -1,5 +1,6 @@
 using Avro.Specific;
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.Application.WeatherAlerts.RecordWeatherReading;
 using DotNetAtlas.Domain.Alerts;
 using DotNetAtlas.Domain.Alerts.Events;
@@ -10,6 +11,7 @@ using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Notifications.Email;
 using NSubstitute;
 
@@ -35,10 +37,24 @@ public class WeatherAlertEmailNotificationDomainEventHandlerTests : IDisposable
         _dbContext = new WeatherDbContext(options);
         _fakeOutbox = new FakeTransactionalOutbox();
 
+        var topicsOptions = Options.Create(new TopicsOptions
+        {
+            ForecastRequested = "weather.forecast.requested",
+            WeatherAlertSubscriptionsCommands = "weather.alert-subscriptions.commands",
+            WeatherAlertSubscriptions = "weather.alerts.events",
+            OrderAlertSubscriptions = "order.alert-subscription.events",
+            NotificationCommands = "notifications.commands",
+            PaymentCommands = "finance.payment.commands",
+            Payments = "finance.payment.events",
+            WeatherFeedbackEvents = "weather.feedback.events",
+            DltTopicSuffix = ".DLT"
+        });
+
         _weatherAlertEmailNotificationDomainEventHandler = new WeatherAlertEmailNotificationDomainEventHandler(
             Substitute.For<ILogger<WeatherAlertEmailNotificationDomainEventHandler>>(),
             _dbContext,
-            _fakeOutbox);
+            _fakeOutbox,
+            topicsOptions);
     }
 
     public void Dispose()
@@ -77,7 +93,8 @@ public class WeatherAlertEmailNotificationDomainEventHandlerTests : IDisposable
         using (new AssertionScope())
         {
             _fakeOutbox.Messages.Should().ContainSingle();
-            var (kafkaKey, message) = _fakeOutbox.Messages[0];
+            var (topicName, kafkaKey, message) = _fakeOutbox.Messages[0];
+            topicName.Should().Be("notifications.commands");
             kafkaKey.Should().Be(subscriber.UserId.ToString());
             message.Should().BeOfType<SendEmailNotificationCommand>();
         }
@@ -238,11 +255,11 @@ public class WeatherAlertEmailNotificationDomainEventHandlerTests : IDisposable
     /// </summary>
     private sealed class FakeTransactionalOutbox : ITransactionalOutbox<IWeatherDbContext>
     {
-        public List<(string? KafkaKey, ISpecificRecord Message)> Messages { get; } = [];
+        public List<(string TopicName, string? KafkaKey, ISpecificRecord Message)> Messages { get; } = [];
 
-        public void AddOutboxMessage(string? kafkaKey, ISpecificRecord integrationEvent)
+        public void AddOutboxMessage(string topicName, string? kafkaKey, ISpecificRecord integrationEvent)
         {
-            Messages.Add((kafkaKey, integrationEvent));
+            Messages.Add((topicName, kafkaKey, integrationEvent));
         }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);

@@ -1,31 +1,29 @@
 {
   "variables": {
-    "apiKey": "33052c8a-c283-4e96-9d2a-eb1215c69f8f-not-for-prod",
+    "apiKeyThatShouldBeInSecretVaultNotLikeThis": "33052c8a-c283-4e96-9d2a-eb1215c69f8f-not-for-prod",
     "asymmetricKeyId": "534fff14-86b8-42e0-a064-7dbc008d61a0",
     "applicationId": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
-    // for demonstration purposes only - ALWAYS use secure key vault under normal circumstances - never leak production secrets into git
-    "clientSecret": "super-secret-secret-that-should-be-regenerated-for-production",
+    "clientSecretThatShouldBeInSecretVaultNotLikeThis": "super-secret-secret-that-should-be-regenerated-for-production",
     "newThemeId": "#{UUID()}",
     "defaultTenantId": "d7d09513-a3f5-401c-9685-34ab6c552453",
     "adminEmail": "admin@dotnetatlas.com",
-    "adminPassword": "123456789",
+    "adminPasswordThatShouldBeInSecretVaultNotLikeThis": "123456789",
     "adminUserId": "00000000-0000-0000-0000-000000000001",
     "devEmail": "dev@dotnetatlas.com",
-    "devPassword": "123456789",
+    "devPasswordThatShouldBeInSecretVaultNotLikeThis": "123456789",
     "devUserId": "00000000-0000-0000-0000-111111111111",
     "plebEmail": "pleb@dotnetatlas.com",
-    "plebPassword": "123456789",
+    "plebPasswordThatShouldBeInSecretVaultNotLikeThis": "123456789",
     "plebsUserId": "00000000-0000-0000-0000-000000000002",
     "dcapEmail": "d.capcuch@gmail.com",
-    "dcapPassword": "123456789",
+    "dcapPasswordThatShouldBeInSecretVaultNotLikeThis": "123456789",
     "dcapUserId": "00000000-0000-0000-0000-000000000003",
     "googleAppId": "851240598849-tji85r9f4mpjne714rm7m5ttsruhs54d.apps.googleusercontent.com",
-    // burner secret from burner account for easy demonstration only - ALWAYS use secure key vault under normal circumstances
-    "googleAppSecret": "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" 
+    "googleAppBurnerAccountSecretThatShouldBeInSecretVaultNotLikeThis": "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"
   },
   "apiKeys": [
     {
-      "key": "#{apiKey}",
+      "key": "#{apiKeyThatShouldBeInSecretVaultNotLikeThis}",
       "description": "Unrestricted API key"
     }
   ],
@@ -64,7 +62,7 @@
               "https://localhost:7095/swagger/oauth2-redirect.html"
             ],
             "logoutURL": "http://localhost:5159/",
-            "clientSecret": "#{clientSecret}",
+            "clientSecret": "#{clientSecretThatShouldBeInSecretVaultNotLikeThis}",
             "enabledGrants": [
               "authorization_code",
               "password",
@@ -103,7 +101,7 @@
           "email": "#{adminEmail}",
           "firstName": "Dinesh",
           "lastName": "Chugtai",
-          "password": "#{adminPassword}"
+          "password": "#{adminPasswordThatShouldBeInSecretVaultNotLikeThis}"
         }
       }
     },
@@ -129,7 +127,7 @@
           "email": "#{dcapEmail}",
           "firstName": "David",
           "lastName": "Capcuch",
-          "password": "#{dcapPassword}"
+          "password": "#{dcapPasswordThatShouldBeInSecretVaultNotLikeThis}"
         }
       }
     },
@@ -155,7 +153,27 @@
           "email": "#{devEmail}",
           "firstName": "Fred",
           "lastName": "Flintstone",
-          "password": "#{devPassword}"
+          "password": "#{devPasswordThatShouldBeInSecretVaultNotLikeThis}"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/api/user/registration/#{plebsUserId}",
+      "body": {
+        "registration": {
+          "applicationId": "#{applicationId}"
+        },
+        "skipRegistrationVerification": true,
+        "user": {
+          "birthDate": "1990-01-01",
+          "data": {
+            "favoriteColor": "blue"
+          },
+          "email": "#{plebEmail}",
+          "firstName": "Pleb",
+          "lastName": "User",
+          "password": "#{plebPasswordThatShouldBeInSecretVaultNotLikeThis}"
         }
       }
     },
@@ -210,7 +228,7 @@
       "body": {
         "identityProvider": {
           "client_id": "#{googleAppId}",
-          "client_secret": "#{googleAppSecret}",
+          "client_secret": "#{googleAppBurnerAccountSecretThatShouldBeInSecretVaultNotLikeThis}",
           "scope": "openid email profile",
           "applicationConfiguration": {
             "#{FUSIONAUTH_APPLICATION_ID}": {

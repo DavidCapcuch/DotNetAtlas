@@ -30,9 +30,9 @@ public class TransactionalOutbox<TContext> : ITransactionalOutbox<TContext>
     }
 
     /// <inheritdoc />
-    public void AddOutboxMessage(string? kafkaKey, ISpecificRecord integrationEvent)
+    public void AddOutboxMessage(string topicName, string? kafkaKey, ISpecificRecord integrationEvent)
     {
-        _coreWriter.AddOutboxMessage(_dbContext, kafkaKey, integrationEvent);
+        _coreWriter.AddOutboxMessage(_dbContext, topicName, kafkaKey, integrationEvent);
     }
 
     /// <inheritdoc />

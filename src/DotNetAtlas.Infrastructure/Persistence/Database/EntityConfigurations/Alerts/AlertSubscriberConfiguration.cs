@@ -65,8 +65,8 @@ public class AlertSubscriberConfiguration : IEntityTypeConfiguration<AlertSubscr
             .HasForeignKey("AlertSubscriberId")
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Property<byte[]>("Timestamp")
-            .HasComment("Optimistic concurrency token.")
-            .IsRowVersion();
+        builder.Property(s => s.Timestamp)
+            .IsRowVersion()
+            .HasComment("Optimistic concurrency token.");
     }
 }

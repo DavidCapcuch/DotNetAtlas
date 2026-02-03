@@ -97,8 +97,8 @@ public class MonitoredLocationConfiguration : IEntityTypeConfiguration<Monitored
         builder.Property(ml => ml.LastModifiedUtc)
             .HasComment("Last modification timestamp (UTC).");
 
-        builder.Property<byte[]>("Timestamp")
-            .HasComment("Optimistic concurrency token.")
-            .IsRowVersion();
+        builder.Property(s => s.Timestamp)
+            .IsRowVersion()
+            .HasComment("Optimistic concurrency token.");
     }
 }

@@ -46,26 +46,8 @@ public sealed class SagaOptions
     public required int ConcurrencyLimit { get; set; }
 
     /// <summary>
-    /// Kafka bootstrap servers for MassTransit Kafka rider.
+    /// Kafka infrastructure configuration for saga consumers.
     /// </summary>
     [Required]
-    public required string KafkaBootstrapServers { get; set; }
-
-    /// <summary>
-    /// Schema registry URL for Avro serialization.
-    /// </summary>
-    [Required]
-    public required string SchemaRegistryUrl { get; set; }
-
-    /// <summary>
-    /// Topic configuration for saga events.
-    /// </summary>
-    [Required]
-    public required SagaTopicsOptions Topics { get; set; }
-
-    /// <summary>
-    /// Consumer group ID for the saga orchestrator.
-    /// </summary>
-    [Required]
-    public string ConsumerGroup { get; set; } = "saga-orchestrator";
+    public required SagaKafkaOptions Kafka { get; set; }
 }

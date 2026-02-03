@@ -1,5 +1,5 @@
 using DotNetAtlas.Application.WeatherForecast.Common;
-using DotNetAtlas.FunctionalTests.Common.Clients;
+using DotNetAtlas.FunctionalTests.Common.TestClientInfrastructure;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.Persistence.Database;
 using DotNetAtlas.Test.Framework;

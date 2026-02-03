@@ -11,13 +11,13 @@ namespace DotNetAtlas.Application.WeatherAlerts.ExtendSubscription;
 public static partial class SubscriptionExtendedMapper
 {
     /// <summary>
-    /// Maps a <see cref="SubscriptionExtendedDomainEvent"/> to a <see cref="SubscriptionExtendedEvent"/>.
+    /// Maps a <see cref="SubscriptionExtendedDomainEvent"/> to a <see cref="AlertSubscriptionExtendedEvent"/>.
     /// </summary>
     [MapperRequiredMapping(RequiredMappingStrategy.Target)]
-    [MapProperty(nameof(SubscriptionExtendedDomainEvent.ExtendedByDays), nameof(SubscriptionExtendedEvent.DurationExtendedDays))]
-    [MapProperty(nameof(SubscriptionExtendedDomainEvent.NewExpiresAtUtc), nameof(SubscriptionExtendedEvent.NewExpiresAtUtc))]
-    [MapProperty(nameof(SubscriptionExtendedDomainEvent.OccurredOnUtc), nameof(SubscriptionExtendedEvent.ExtendedAtUtc))]
-    public static partial SubscriptionExtendedEvent ToSubscriptionExtendedEvent(this SubscriptionExtendedDomainEvent source);
+    [MapProperty(nameof(SubscriptionExtendedDomainEvent.ExtendedByDays), nameof(AlertSubscriptionExtendedEvent.DurationExtendedDays))]
+    [MapProperty(nameof(SubscriptionExtendedDomainEvent.NewExpiresAtUtc), nameof(AlertSubscriptionExtendedEvent.NewExpiresAtUtc))]
+    [MapProperty(nameof(SubscriptionExtendedDomainEvent.OccurredOnUtc), nameof(AlertSubscriptionExtendedEvent.ExtendedAtUtc))]
+    public static partial AlertSubscriptionExtendedEvent ToSubscriptionExtendedEvent(this SubscriptionExtendedDomainEvent source);
 
     [UserMapping]
     private static DateTime DateTimeOffsetToDateTime(DateTimeOffset t) => t.UtcDateTime;

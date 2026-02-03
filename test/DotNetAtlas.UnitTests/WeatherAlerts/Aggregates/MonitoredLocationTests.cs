@@ -98,7 +98,7 @@ public class MonitoredLocationTests
             domainEvents.Should().ContainSingle();
             var alertEvent = domainEvents[0] as WeatherAlertIssuedDomainEvent;
             alertEvent.Should().NotBeNull();
-            alertEvent!.WeatherAlert.Type.Should().Be(AlertType.HighTemperature);
+            alertEvent.WeatherAlert.Type.Should().Be(AlertType.HighTemperature);
             alertEvent.WeatherAlert.Severity.Should().Be(AlertSeverity.Warning);
         }
     }
@@ -146,7 +146,7 @@ public class MonitoredLocationTests
             domainEvents.Should().ContainSingle();
             var alertEvent = domainEvents[0] as WeatherAlertIssuedDomainEvent;
             alertEvent.Should().NotBeNull();
-            alertEvent!.WeatherAlert.Type.Should().Be(AlertType.LowTemperature);
+            alertEvent.WeatherAlert.Type.Should().Be(AlertType.LowTemperature);
         }
     }
 
@@ -170,7 +170,7 @@ public class MonitoredLocationTests
             domainEvents.Should().ContainSingle();
             var alertEvent = domainEvents[0] as WeatherAlertIssuedDomainEvent;
             alertEvent.Should().NotBeNull();
-            alertEvent!.WeatherAlert.Type.Should().Be(AlertType.HighWind);
+            alertEvent.WeatherAlert.Type.Should().Be(AlertType.HighWind);
         }
     }
 
@@ -291,7 +291,7 @@ public class MonitoredLocationTests
             domainEvents.Should().ContainSingle();
             var alertEvent = domainEvents[0] as WeatherAlertIssuedDomainEvent;
             alertEvent.Should().NotBeNull();
-            alertEvent!.WeatherAlert.Type.Should().Be(AlertType.HighHumidity);
+            alertEvent.WeatherAlert.Type.Should().Be(AlertType.HighHumidity);
             alertEvent.WeatherAlert.Severity.Should().Be(AlertSeverity.Warning);
         }
     }
@@ -317,7 +317,7 @@ public class MonitoredLocationTests
             domainEvents.Should().ContainSingle();
             var alertEvent = domainEvents[0] as WeatherAlertIssuedDomainEvent;
             alertEvent.Should().NotBeNull();
-            alertEvent!.WeatherAlert.Type.Should().Be(AlertType.LowHumidity);
+            alertEvent.WeatherAlert.Type.Should().Be(AlertType.LowHumidity);
         }
     }
 

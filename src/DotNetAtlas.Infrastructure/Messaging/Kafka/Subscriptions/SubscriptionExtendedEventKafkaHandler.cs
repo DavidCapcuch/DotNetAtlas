@@ -1,10 +1,12 @@
 using DotNetAtlas.Application.Common.Data;
+using DotNetAtlas.Application.Common.Messaging.Config;
 using DotNetAtlas.CQS;
 using DotNetAtlas.KafkaFlow.Inbox.EFCore;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Weather.Alerts;
 using AppExtendSubscriptionCommand = DotNetAtlas.Application.WeatherAlerts.ExtendSubscription.ExtendSubscriptionCommand;
 
@@ -20,26 +22,29 @@ namespace DotNetAtlas.Infrastructure.Messaging.Kafka.Subscriptions;
 /// Idempotent processing is handled by InboxMiddleware in the KafkaFlow pipeline.
 /// Success events are published by domain event handlers to maintain DDD separation.
 /// </remarks>
-public class ExtendSubscriptionCommandKafkaHandler : IMessageHandler<ExtendSubscriptionCommand>
+public class ExtendSubscriptionCommandKafkaHandler : IMessageHandler<ExtendAlertSubscriptionCommand>
 {
     private readonly ICommandHandler<AppExtendSubscriptionCommand> _extendSubscriptionHandler;
     private readonly ITransactionalOutbox<IWeatherDbContext> _transactionalOutbox;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ExtendSubscriptionCommandKafkaHandler> _logger;
+    private readonly TopicsOptions _topicsOptions;
 
     public ExtendSubscriptionCommandKafkaHandler(
         ICommandHandler<AppExtendSubscriptionCommand> extendSubscriptionHandler,
         TimeProvider timeProvider,
         ILogger<ExtendSubscriptionCommandKafkaHandler> logger,
-        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter)
+        ITransactionalOutbox<IWeatherDbContext> transactionalOutboxWriter,
+        IOptions<TopicsOptions> topicsOptions)
     {
         _extendSubscriptionHandler = extendSubscriptionHandler;
         _timeProvider = timeProvider;
         _logger = logger;
         _transactionalOutbox = transactionalOutboxWriter;
+        _topicsOptions = topicsOptions.Value;
     }
 
-    public async Task Handle(IMessageContext context, ExtendSubscriptionCommand message)
+    public async Task Handle(IMessageContext context, ExtendAlertSubscriptionCommand message)
     {
         var origin = context.ExtractOrigin();
         _logger.LogDebug(
@@ -67,7 +72,10 @@ public class ExtendSubscriptionCommandKafkaHandler : IMessageHandler<ExtendSubsc
 
                 // Publish failure event for saga compensation (refund trigger)
                 // Key must be CorrelationId so saga can correlate the failure event
-                _transactionalOutbox.AddOutboxMessage(message.CorrelationId.ToString(), failedEvent);
+                _transactionalOutbox.AddOutboxMessage(
+                    _topicsOptions.WeatherAlertSubscriptions,
+                    message.CorrelationId.ToString(),
+                    failedEvent);
                 await _transactionalOutbox.SaveChangesAsync(cancellationToken);
 
                 var errorCodes = string.Join(", ", failedEvent.Errors.Select(e => e.ErrorCode));

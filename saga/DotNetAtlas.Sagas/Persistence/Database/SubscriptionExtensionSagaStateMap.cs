@@ -1,4 +1,4 @@
-using DotNetAtlas.Sagas.Orders.ExtendAlertSubscriptionSaga;
+using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -6,16 +6,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace DotNetAtlas.Sagas.Persistence.Database;
 
 public sealed class SubscriptionExtensionSagaStateMap :
-    SagaClassMap<SubscriptionExtensionSagaState>
+    SagaClassMap<AlertSubscriptionExtensionSagaState>
 {
-    protected override void Configure(EntityTypeBuilder<SubscriptionExtensionSagaState> entity, ModelBuilder model)
+    protected override void Configure(EntityTypeBuilder<AlertSubscriptionExtensionSagaState> entity, ModelBuilder model)
     {
         entity.ToTable("SubscriptionExtensionSagaState", SubscriptionSagaDbContext.DefaultSchemaName,
             t => t.HasComment("Saga state for subscription extension orchestration."));
 
-        // Primary key - configured by MassTransit SagaClassMap base
         entity.Property(x => x.CorrelationId)
-            .HasComment("Unique correlation ID (also PaymentTransactionId)")
+            .HasComment("PK - Unique correlation ID (also PaymentTransactionId)")
             .ValueGeneratedNever();
 
         // State
@@ -42,7 +41,7 @@ public sealed class SubscriptionExtensionSagaStateMap :
 
         entity.Property(x => x.Amount)
             .HasComment("Payment amount")
-            .HasPrecision(18, 4);
+            .HasPrecision(19, 4);
 
         entity.Property(x => x.Currency)
             .HasComment("ISO 4217 currency code")
@@ -81,42 +80,35 @@ public sealed class SubscriptionExtensionSagaStateMap :
             .HasComment("New subscription expiration date after extension (null if not completed)");
 
         // Error handling
-        entity.Property(x => x.RetryCount)
-            .HasComment("Number of retry attempts")
-            .HasDefaultValue(0);
+        entity.Property(x => x.ErrorCode)
+            .HasComment("Error code for categorized failure handling")
+            .HasMaxLength(64);
 
         entity.Property(x => x.ErrorMessage)
             .HasComment("Error message if failed")
             .HasMaxLength(2048);
 
-        entity.Property(x => x.ErrorCode)
-            .HasComment("Error code for categorized failure handling")
-            .HasMaxLength(64);
-
         // Compensation
         entity.Property(x => x.CompensationTriggered)
-            .HasComment("Whether compensation (refund) has been triggered")
-            .HasDefaultValue(false);
+            .HasComment("Whether compensation (refund) has been triggered");
 
         entity.Property(x => x.CompensationCompletedAtUtc)
             .HasComment("UTC timestamp when compensation completed");
 
         // Scheduler tokens
         entity.Property(x => x.PaymentTimeoutTokenId)
-            .HasComment("Token ID for payment timeout scheduler");
+            .HasComment("Token ID for payment timeout scheduler - set when schedule is active");
 
         entity.Property(x => x.ExtensionTimeoutTokenId)
-            .HasComment("Token ID for extension timeout scheduler");
+            .HasComment("Token ID for extension timeout scheduler - set when schedule is active");
 
         entity.Property(x => x.CompensationTimeoutTokenId)
-            .HasComment("Token ID for compensation timeout scheduler");
+            .HasComment("Token ID for compensation timeout scheduler - set when schedule is active");
 
-        // Optimistic concurrency - using Version property from ISagaVersion
-        entity.Property(x => x.Version)
-            .HasComment("Version for optimistic concurrency control")
-            .IsConcurrencyToken();
+        entity.Property(s => s.RowVersion)
+            .IsRowVersion()
+            .HasComment("Optimistic concurrency token.");
 
-        // Composite index for common queries
         entity.HasIndex(x => new
         {
             x.CurrentState,
@@ -124,14 +116,12 @@ public sealed class SubscriptionExtensionSagaStateMap :
         })
             .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_Created");
 
-        // Index for stuck saga health check queries (filter excludes terminal states)
+        // Index for stuck saga health check queries
         entity.HasIndex(x => new
         {
             x.CurrentState,
             x.LastUpdatedAtUtc
         })
-            .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_LastUpdated")
-            .HasFilter(
-                "[CurrentState] <> 'PaymentFailed' AND [CurrentState] <> 'ExtensionCompleted' AND [CurrentState] <> 'ExtensionFailed' AND [CurrentState] <> 'CompensationCompleted' AND [CurrentState] <> 'CompensationFailed'");
+            .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_LastUpdated");
     }
 }

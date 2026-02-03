@@ -3,7 +3,7 @@ using DotNetAtlas.Api.Endpoints.Weather;
 using DotNetAtlas.Application.WeatherFeedback.ChangeFeedback;
 using DotNetAtlas.Application.WeatherFeedback.SendFeedback;
 using DotNetAtlas.FunctionalTests.Common;
-using DotNetAtlas.FunctionalTests.Common.Clients;
+using DotNetAtlas.FunctionalTests.Common.TestClientInfrastructure;
 using FastEndpoints;
 
 namespace DotNetAtlas.FunctionalTests.ApiEndpoints.WeatherFeedback;
@@ -101,7 +101,7 @@ public class ChangeFeedbackTests : BaseApiTest
         var locationPath = createResponse.Headers.Location!.OriginalString;
         var createdFeedbackId = Guid.Parse(locationPath.Split('/').Last());
 
-        using var otherUser = HttpClientRegistry.CreateHttpClient(ClientType.RegularUser, TestCaseTracer.TraceId);
+        using var otherUser = HttpClientRegistry.CreateHttpClient(ClientType.RegularUser, TestCaseTracer.TraceParent);
 
         // Act
         var (httpResponse, problemDetails) =
