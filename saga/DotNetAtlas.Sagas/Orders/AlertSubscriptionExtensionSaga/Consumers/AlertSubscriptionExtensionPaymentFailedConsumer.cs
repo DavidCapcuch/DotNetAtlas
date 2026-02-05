@@ -5,8 +5,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives PaymentFailedEvent
-/// and forwards it to the SubscriptionExtensionSaga as a PaymentFailedEvent.
+/// Consumer that receives <see cref="PaymentFailedEvent"/> from the payment service
+/// and forwards it to the <see cref="AlertSubscriptionExtensionSaga"/> as an
+/// <see cref="AlertSubscriptionExtensionPaymentFailedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionExtensionPaymentFailedConsumer : IConsumer<PaymentFailedEvent>
 {
@@ -23,7 +24,8 @@ public sealed class AlertSubscriptionExtensionPaymentFailedConsumer : IConsumer<
         var message = context.Message;
 
         _logger.LogInformation(
-            "Extension Saga received PaymentFailedEvent for correlation {CorrelationId}, user {UserId}, error {ErrorCode}",
+            "{ConsumerType} received {EventType} for correlation {CorrelationId}, user {UserId}, error {ErrorCode}",
+            nameof(AlertSubscriptionExtensionPaymentFailedConsumer), nameof(PaymentFailedEvent),
             message.CorrelationId, message.UserId, message.ErrorCode);
 
         var subscriptionExtensionPaymentFailedEvent = new AlertSubscriptionExtensionPaymentFailedSagaEvent

@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Schedules;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when an extension times out.
+/// Activity that records metrics, traces, and logs when subscription extension times out
+/// for the <see cref="AlertSubscriptionExtensionSaga"/>.
 /// </summary>
 public sealed class ExtensionTimeoutActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, ExtensionTimeoutExpired>
 {
+    private readonly ILogger<ExtensionTimeoutActivity> _logger;
+
+    public ExtensionTimeoutActivity(ILogger<ExtensionTimeoutActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("extension-timeout-activity");
@@ -27,8 +36,8 @@ public sealed class ExtensionTimeoutActivity
         var saga = context.Saga;
         var duration = DateTime.UtcNow - saga.CreatedAtUtc;
 
-        using var activity = SubscriptionSagaInstrumentation.StartActivity(
-            nameof(ExtensionTimeoutActivity), saga.CorrelationId, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
+            nameof(ExtensionTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -36,8 +45,12 @@ public sealed class ExtensionTimeoutActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        SubscriptionSagaInstrumentation.RecordSagaTimeout(
-            duration, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaInstrumentation.RecordSagaTimeout(
+            duration, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+
+        _logger.LogWarning(
+            "{SagaType} {CorrelationId} timed out waiting for extension response for user {UserId}",
+            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

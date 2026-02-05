@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Common.Observability.Tracing;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
 using TypedSignalR.Client;
@@ -103,7 +103,7 @@ public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisp
 
     public async Task ReceiveWeatherAlert(WeatherAlertMessageDto weatherAlertMessageDto)
     {
-        using var activity = DotNetAtlasInstrumentation.StartActivity(nameof(ReceiveWeatherAlert));
+        using var activity = DotNetAtlasActivitySource.StartActivity(nameof(ReceiveWeatherAlert));
 
         await ReceivedMessages.Writer.WriteAsync(weatherAlertMessageDto, _cancellationToken);
     }

@@ -29,7 +29,7 @@ public static class PersistenceDependencyInjection
     public static IServiceCollection AddDatabase(
         this IServiceCollection services,
         ConfigurationManager configuration,
-        bool isClusterEnvironment)
+        bool isDeployedEnvironment)
     {
         services.AddOptionsWithValidateOnStart<EfCoreOptions>()
             .BindConfiguration(EfCoreOptions.Section)
@@ -73,7 +73,7 @@ public static class PersistenceDependencyInjection
                         errorNumbersToAdd: null);
                 })
             .EnableSensitiveDataLogging(
-                !isClusterEnvironment) // this is very useful for local debugging/investigating failed tests
+                !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
             .UseExceptionProcessor() // required for the Inbox pattern, see DotNetAtlas.ReliableMessaging.Inbox.EFCore
             .UseSeeding() // see https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding

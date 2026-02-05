@@ -5,8 +5,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives PaymentCaptureFailedEvent
-/// and forwards it to the PaymentSaga as internal PaymentCaptureFailedSagaEvent.
+/// Consumer that receives <see cref="PaymentCaptureFailedEvent"/> from the payment provider
+/// and forwards it to the <see cref="PaymentProcessingSaga"/> as an internal
+/// <see cref="PaymentCaptureFailedSagaEvent"/>.
 /// </summary>
 public sealed class PaymentCaptureFailedConsumer : IConsumer<PaymentCaptureFailedEvent>
 {
@@ -22,7 +23,8 @@ public sealed class PaymentCaptureFailedConsumer : IConsumer<PaymentCaptureFaile
         var message = context.Message;
 
         _logger.LogWarning(
-            "Received PaymentCaptureFailedEvent for correlation {CorrelationId}, error {ErrorCode}: {ErrorMessage}",
+            "{ConsumerType} received {EventType} for correlation {CorrelationId}, error {ErrorCode}: {ErrorMessage}",
+            nameof(PaymentCaptureFailedConsumer), nameof(PaymentCaptureFailedEvent),
             message.CorrelationId, message.ErrorCode, message.ErrorMessage);
 
         var paymentCaptureFailedSagaEvent = new PaymentCaptureFailedSagaEvent

@@ -1,5 +1,4 @@
 using System.Net;
-using DotNetAtlas.Api.Endpoints.Dev;
 using DotNetAtlas.Api.Endpoints.Dev.SeedDatabase;
 using DotNetAtlas.FunctionalTests.Common;
 using FastEndpoints;

@@ -45,6 +45,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ServiceDefaults\DotNetAtlas.ServiceDefaults.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Application\DotNetAtlas.Application.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Infrastructure\DotNetAtlas.Infrastructure.csproj"/>
     </ItemGroup>

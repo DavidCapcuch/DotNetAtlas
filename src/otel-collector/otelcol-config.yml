@@ -14,6 +14,7 @@ receivers:
             - "https://*"
   docker_stats:
     endpoint: unix:///var/run/docker.sock
+    api_version: "1.41"
   # Host metrics
   hostmetrics:
     root_path: /hostfs
@@ -144,4 +145,4 @@ service:
             exporter:
               otlp:
                 protocol: http/protobuf
-                endpoint: http://otel-collector:4318
+                endpoint: http://localhost:4318

@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment authorization completes.
+/// Activity that records metrics, traces, and logs when payment authorization completes successfully
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class
     AuthorizationCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentAuthorizedSagaEvent>
 {
+    private readonly ILogger<AuthorizationCompletedActivity> _logger;
+
+    public AuthorizationCompletedActivity(ILogger<AuthorizationCompletedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("authorization-completed-activity");
@@ -27,14 +36,18 @@ public sealed class
         var saga = context.Saga;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(AuthorizationCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(AuthorizationCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.AuthorizationId, context.Message.AuthorizationId);
         }
 
-        PaymentSagaInstrumentation.RecordAuthorizationCompleted();
+        PaymentProcessingSagaInstrumentation.RecordAuthorizationCompleted();
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} authorization completed. AuthId: {AuthorizationId}",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.AuthorizationId);
 
         await next.Execute(context);
     }

@@ -39,8 +39,8 @@ public class OpenMeteoWeatherProvider : IMainWeatherForecastProvider
         var geoCoordinates = geoResult.Value;
 
         var queryString = $"v1/forecast" +
-                          $"?latitude={geoCoordinates.Latitude}" +
-                          $"&longitude={geoCoordinates.Longitude}" +
+                          $"?latitude={geoCoordinates.Latitude.ToString(CultureInfo.InvariantCulture)}" +
+                          $"&longitude={geoCoordinates.Longitude.ToString(CultureInfo.InvariantCulture)}" +
                           $"&daily=temperature_2m_max,temperature_2m_min" +
                           $"&timezone=UTC" +
                           $"&start_date={criteria.DateRange.StartDateOnly:yyyy-MM-dd}" +

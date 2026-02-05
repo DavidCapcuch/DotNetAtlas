@@ -5,8 +5,9 @@ using Order.AlertSubscriptions;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives AlertSubscriptionExtensionInitiatedEvent
-/// and forwards it to the SubscriptionExtensionSaga as internal SubscriptionExtensionInitiatedEvent.
+/// Consumer that receives <see cref="AlertSubscriptionExtensionInitiatedEvent"/> from Kafka
+/// and forwards it to the <see cref="AlertSubscriptionExtensionSaga"/> as an internal
+/// <see cref="AlertSubscriptionExtensionInitiatedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionExtensionInitiatedConsumer : IConsumer<AlertSubscriptionExtensionInitiatedEvent>
 {
@@ -22,8 +23,8 @@ public sealed class AlertSubscriptionExtensionInitiatedConsumer : IConsumer<Aler
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received AlertSubscriptionExtensionInitiatedEvent for user {UserId}, " +
-            "correlation {CorrelationId}, duration {DurationDays} days",
+            "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}, duration {DurationDays} days",
+            nameof(AlertSubscriptionExtensionInitiatedConsumer), nameof(AlertSubscriptionExtensionInitiatedEvent),
             message.UserId, message.CorrelationId, message.DurationDays);
 
         var subscriptionExtensionInitiatedEvent = new AlertSubscriptionExtensionInitiatedSagaEvent

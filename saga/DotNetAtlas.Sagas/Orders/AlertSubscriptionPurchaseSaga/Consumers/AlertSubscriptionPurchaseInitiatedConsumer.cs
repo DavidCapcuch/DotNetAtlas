@@ -5,7 +5,9 @@ using Order.AlertSubscriptions;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives AlertSubscriptionPurchaseInitiatedEvent from Kafka and forwards it to the saga.
+/// Consumer that receives <see cref="AlertSubscriptionPurchaseInitiatedEvent"/> from Kafka
+/// and forwards it to the <see cref="AlertSubscriptionPurchaseSaga"/> as an internal
+/// <see cref="AlertSubscriptionPurchaseInitiatedSagaEvent"/>.
 /// This consumer acts as an adapter between the Avro-serialized Kafka message and the MassTransit saga.
 /// </summary>
 public sealed class AlertSubscriptionPurchaseInitiatedConsumer : IConsumer<AlertSubscriptionPurchaseInitiatedEvent>
@@ -22,7 +24,8 @@ public sealed class AlertSubscriptionPurchaseInitiatedConsumer : IConsumer<Alert
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received AlertSubscriptionPurchaseInitiatedEvent for user {UserId}, correlation {CorrelationId}, tier {Tier}",
+            "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}, tier {Tier}",
+            nameof(AlertSubscriptionPurchaseInitiatedConsumer), nameof(AlertSubscriptionPurchaseInitiatedEvent),
             message.UserId, message.CorrelationId, message.Tier);
 
         var subscriptionPurchaseInitiatedSagaEvent = new AlertSubscriptionPurchaseInitiatedSagaEvent

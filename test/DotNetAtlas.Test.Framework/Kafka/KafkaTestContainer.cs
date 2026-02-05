@@ -1,3 +1,5 @@
+using Confluent.Kafka;
+using Confluent.Kafka.Admin;
 using Confluent.SchemaRegistry;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
@@ -72,6 +74,23 @@ public sealed class KafkaTestContainer : ITestContainer
         var bootstrapServers = _kafkaContainer.GetBootstrapAddress();
 
         KafkaOptions = CreateKafkaOptions(bootstrapServers, schemaRegistryUrl);
+    }
+
+    public async Task CreateKafkaTopicsAsync(string[] topics, int partitions = 3)
+    {
+        var adminClientConfig = new AdminClientConfig
+        {
+            BootstrapServers = KafkaOptions.BrokersFlat
+        };
+
+        using var adminClient = new AdminClientBuilder(adminClientConfig).Build();
+
+        await adminClient.CreateTopicsAsync(topics.Select(name => new TopicSpecification
+        {
+            Name = name,
+            NumPartitions = partitions,
+            ReplicationFactor = 1
+        }));
     }
 
     /// <summary>

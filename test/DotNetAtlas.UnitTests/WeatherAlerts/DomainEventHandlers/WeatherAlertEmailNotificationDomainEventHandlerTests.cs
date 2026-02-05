@@ -1,6 +1,6 @@
 using Avro.Specific;
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Application.WeatherAlerts.RecordWeatherReading;
 using DotNetAtlas.Domain.Alerts;
 using DotNetAtlas.Domain.Alerts.Events;

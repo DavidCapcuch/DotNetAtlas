@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment refund completes.
+/// Activity that records metrics, traces, and logs when payment refund completes successfully
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class
     RefundCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentRefundCompletedSagaEvent>
 {
+    private readonly ILogger<RefundCompletedActivity> _logger;
+
+    public RefundCompletedActivity(ILogger<RefundCompletedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("refund-completed-activity");
@@ -27,14 +36,18 @@ public sealed class
         var saga = context.Saga;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(RefundCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(RefundCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.RefundTransactionId, context.Message.RefundTransactionId.ToString());
         }
 
-        PaymentSagaInstrumentation.RecordRefundCompleted();
+        PaymentProcessingSagaInstrumentation.RecordRefundCompleted();
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} refund completed. RefundTransactionId: {RefundTransactionId}",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, context.Message.RefundTransactionId);
 
         await next.Execute(context);
     }

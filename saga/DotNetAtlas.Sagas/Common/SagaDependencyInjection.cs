@@ -2,18 +2,19 @@ using Confluent.SchemaRegistry;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using DotNetAtlas.Sagas.Common.Config;
 using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.SagasDependencyInjection;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
-using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Sagas.Persistence.Database.Interceptors;
 using MassTransit;
 using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
+using SagaDbContext = DotNetAtlas.Sagas.Persistence.Database.SagaDbContext;
 
 namespace DotNetAtlas.Sagas.Common;
 
@@ -69,7 +70,7 @@ public static class SagaDependencyInjection
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<SubscriptionSagaDbContext>();
+                        r.ExistingDbContext<SagaDbContext>();
                         r.LockStatementProvider = new SqlServerLockStatementProvider();
                     })
                     .Endpoint(e =>
@@ -82,7 +83,7 @@ public static class SagaDependencyInjection
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<SubscriptionSagaDbContext>();
+                        r.ExistingDbContext<SagaDbContext>();
                         r.LockStatementProvider = new SqlServerLockStatementProvider();
                     })
                     .Endpoint(e =>
@@ -95,7 +96,7 @@ public static class SagaDependencyInjection
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<SubscriptionSagaDbContext>();
+                        r.ExistingDbContext<SagaDbContext>();
                         r.LockStatementProvider = new SqlServerLockStatementProvider();
                     })
                     .Endpoint(e =>
@@ -158,7 +159,7 @@ public static class SagaDependencyInjection
             });
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<UpdateSagaAuditableEntitiesInterceptor>();
-            services.AddDbContext<SubscriptionSagaDbContext>((
+            services.AddDbContext<SagaDbContext>((
                 sp,
                 options) => options
                 .UseSqlServer(
@@ -166,7 +167,7 @@ public static class SagaDependencyInjection
                     sqlServerOptions =>
                     {
                         sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
-                            SubscriptionSagaDbContext.DefaultSchemaName);
+                            SagaDbContext.DefaultSchemaName);
                         sqlServerOptions.EnableRetryOnFailure(
                             maxRetryCount: efCoreOptions.RetryMaxCount,
                             maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
@@ -196,10 +197,10 @@ public static class SagaDependencyInjection
 
                     var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
                     var kafkaOptions = sagaOptions.Kafka;
-                    kafkaConfigurator.ConfigureSubscriptionPurchaseSagaConsumers(registrationContext,
+                    kafkaConfigurator.ConfigureAlertSubscriptionPurchaseSagaConsumers(registrationContext,
                         schemaRegistryClient,
                         kafkaOptions);
-                    kafkaConfigurator.ConfigureSubscriptionExtensionSagaConsumers(registrationContext,
+                    kafkaConfigurator.ConfigureAlertSubscriptionExtensionSagaConsumers(registrationContext,
                         schemaRegistryClient,
                         kafkaOptions);
                     kafkaConfigurator.ConfigurePaymentSagaConsumers(registrationContext, schemaRegistryClient,

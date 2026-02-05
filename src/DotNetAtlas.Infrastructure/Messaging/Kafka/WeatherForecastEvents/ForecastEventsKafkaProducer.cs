@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Application.WeatherForecast.Common;
 using DotNetAtlas.Domain.Forecast.ValueObjects;
 using KafkaFlow;

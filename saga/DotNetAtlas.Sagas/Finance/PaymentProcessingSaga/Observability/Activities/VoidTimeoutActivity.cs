@@ -1,14 +1,23 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment void times out.
+/// Activity that records metrics, traces, and logs when payment void times out
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, VoidTimeoutExpired>
 {
+    private readonly ILogger<VoidTimeoutActivity> _logger;
+
+    public VoidTimeoutActivity(ILogger<VoidTimeoutActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("void-timeout-activity");
@@ -26,14 +35,18 @@ public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessin
         var saga = context.Saga;
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
-        using var activity = PaymentSagaInstrumentation.StartActivity(nameof(VoidTimeoutActivity), saga.CorrelationId);
+        using var activity = PaymentProcessingSagaInstrumentation.StartActivity(nameof(VoidTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "void");
         }
 
-        PaymentSagaInstrumentation.RecordSagaTimeout("void", duration);
+        PaymentProcessingSagaInstrumentation.RecordSagaTimeout("void", duration);
+
+        _logger.LogError(
+            "{SagaType} {CorrelationId} void timed out for user {UserId}. Manual intervention required",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

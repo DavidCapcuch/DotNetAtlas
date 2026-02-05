@@ -2,7 +2,6 @@ using Avro.Specific;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.Sagas.Persistence.Database;
 using MassTransit;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DotNetAtlas.Sagas.Common.Extensions;
 
@@ -141,7 +140,7 @@ public static class SagaOutboxExtensions
         });
     }
 
-    private static (SubscriptionSagaDbContext DbContext, IOutboxWriter OutboxWriter) GetOutboxDependencies<TSaga>(
+    private static (SagaDbContext DbContext, IOutboxWriter OutboxWriter) GetOutboxDependencies<TSaga>(
         BehaviorContext<TSaga> context)
         where TSaga : class, SagaStateMachineInstance
     {
@@ -157,7 +156,7 @@ public static class SagaOutboxExtensions
         }
 
         var serviceProvider = serviceScope.ServiceProvider;
-        var dbContext = serviceProvider.GetRequiredService<SubscriptionSagaDbContext>();
+        var dbContext = serviceProvider.GetRequiredService<SagaDbContext>();
         var outboxWriter = serviceProvider.GetRequiredService<IOutboxWriter>();
 
         return (dbContext, outboxWriter);

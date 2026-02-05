@@ -1,14 +1,23 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment void completes.
+/// Activity that records metrics, traces, and logs when payment void completes successfully
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class VoidCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentVoidedSagaEvent>
 {
+    private readonly ILogger<VoidCompletedActivity> _logger;
+
+    public VoidCompletedActivity(ILogger<VoidCompletedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("void-completed-activity");
@@ -26,14 +35,18 @@ public sealed class VoidCompletedActivity : IStateMachineActivity<PaymentProcess
         var saga = context.Saga;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(VoidCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(VoidCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.AuthorizationId, context.Message.AuthorizationId);
         }
 
-        PaymentSagaInstrumentation.RecordVoidCompleted();
+        PaymentProcessingSagaInstrumentation.RecordVoidCompleted();
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} void completed. AuthorizationId: {AuthorizationId}",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.AuthorizationId);
 
         await next.Execute(context);
     }

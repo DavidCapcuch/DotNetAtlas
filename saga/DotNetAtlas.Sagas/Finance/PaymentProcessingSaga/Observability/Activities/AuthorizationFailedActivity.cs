@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment authorization fails.
+/// Activity that records metrics, traces, and logs when payment authorization fails
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class
     AuthorizationFailedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentAuthorizationFailedSagaEvent>
 {
+    private readonly ILogger<AuthorizationFailedActivity> _logger;
+
+    public AuthorizationFailedActivity(ILogger<AuthorizationFailedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("authorization-failed-activity");
@@ -28,7 +37,7 @@ public sealed class
         var message = context.Message;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(AuthorizationFailedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(AuthorizationFailedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
@@ -36,7 +45,11 @@ public sealed class
             activity.SetTag(PaymentSagaActivityTags.IsRetryable, message.IsRetryable);
         }
 
-        PaymentSagaInstrumentation.RecordAuthorizationFailed(message.ErrorCode);
+        PaymentProcessingSagaInstrumentation.RecordAuthorizationFailed(message.ErrorCode);
+
+        _logger.LogWarning(
+            "{SagaType} {CorrelationId} authorization failed: {ErrorCode} - {ErrorMessage}",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, message.ErrorCode, message.ErrorMessage);
 
         await next.Execute(context);
     }

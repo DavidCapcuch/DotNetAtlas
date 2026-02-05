@@ -8,11 +8,11 @@ namespace DotNetAtlas.Sagas.Common.Config;
 public sealed class SagaConsumerGroupsOptions
 {
     [Required(AllowEmptyStrings = false)]
-    public required string PaymentSaga { get; set; }
+    public required string PaymentProcessingSaga { get; set; }
 
     [Required(AllowEmptyStrings = false)]
-    public required string SubscriptionPurchaseSaga { get; set; }
+    public required string AlertSubscriptionPurchaseSaga { get; set; }
 
     [Required(AllowEmptyStrings = false)]
-    public required string SubscriptionExtensionSaga { get; set; }
+    public required string AlertSubscriptionExtensionSaga { get; set; }
 }

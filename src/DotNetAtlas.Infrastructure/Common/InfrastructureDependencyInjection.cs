@@ -12,20 +12,20 @@ public static class InfrastructureDependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         ConfigurationManager configuration,
-        bool isClusterEnvironment)
+        bool isDeployedEnvironment)
     {
         services
-            .AddOpenTelemetry(isClusterEnvironment, configuration)
+            .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddHealthChecksInternal(configuration);
 
         services
-            .AddAuthenticationInternal(configuration, isClusterEnvironment)
+            .AddAuthenticationInternal(configuration, isDeployedEnvironment)
             .AddAuthorizationInternal();
 
         services.AddHttpContextAccessor();
 
         services
-            .AddDatabase(configuration, isClusterEnvironment)
+            .AddDatabase(configuration, isDeployedEnvironment)
             .AddCache(configuration);
 
         services

@@ -2,12 +2,8 @@ using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Exceptions;
 using DotNetAtlas.Api.SignalRHubs.WeatherAlerts;
 using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
-using DotNetAtlas.Infrastructure.Common.Authorization;
-using DotNetAtlas.Infrastructure.Common.Config;
 using FastEndpoints.ClientGen.Kiota;
-using HealthChecks.UI.Client;
 using Kiota.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using TypedSignalR.Client.DevTools;
 
 namespace DotNetAtlas.Api.Common;
@@ -120,26 +116,6 @@ public static class ApiDependencyInjection
                     options.ExcludeFromDescription();
                 });
         }
-
-        return app;
-    }
-
-    public static WebApplication MapHealthChecksInternal(this WebApplication app)
-    {
-        app.MapHealthChecks(InfrastructureConstants.ReadinessEndpointPath, new HealthCheckOptions
-        {
-            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag),
-            ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-        }).ShortCircuit();
-
-        app.MapHealthChecks(InfrastructureConstants.HealthEndpointPath, new HealthCheckOptions
-        {
-            Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.LivenessTag),
-            ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-        }).ShortCircuit();
-
-        app.MapHealthChecksUI()
-            .RequireAuthorization(AuthPolicies.DevOnly);
 
         return app;
     }

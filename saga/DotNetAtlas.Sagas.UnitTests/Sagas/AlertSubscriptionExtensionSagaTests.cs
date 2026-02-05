@@ -1,12 +1,12 @@
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Schedules;
+using DotNetAtlas.Sagas.UnitTests.Fakes;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
@@ -27,6 +27,7 @@ namespace DotNetAtlas.Sagas.UnitTests.Sagas;
 public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
 {
     private readonly FakeTimeProvider _fakeTimeProvider = new();
+    private readonly FakeOutboxWriter _fakeOutboxWriter = new();
     private ServiceProvider _provider = null!;
     private ITestHarness _harness = null!;
 
@@ -36,11 +37,15 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         var sagaOptions = SagaTestFixture.CreateSagaOptions();
+        var topicsOptions = SagaTestFixture.CreateSagaTopicsOptions();
+        var testDbName = $"SagaTest_{Guid.NewGuid()}";
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<AlertSubscriptionExtensionSaga>>())
             .AddSingleton(sagaOptions)
+            .AddSingleton(topicsOptions)
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
+            .AddSagaOutboxTestServices(testDbName, _fakeOutboxWriter)
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>()
@@ -49,7 +54,8 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             .BuildServiceProvider(true);
 
         _harness = _provider.GetRequiredService<ITestHarness>();
-        _sagaHarness = _harness.GetSagaStateMachineHarness<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>();
+        _sagaHarness = _harness
+            .GetSagaStateMachineHarness<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>();
         await _harness.Start();
     }
 
@@ -297,16 +303,17 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(failedEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>();
 
-        // Assert
-        (await _harness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
-            "RequestRefundCommand should be published when extension fails with compensation");
+        // Assert - verify message was added to the transactional outbox
+        _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
+            "RequestRefundCommand should be added to the outbox when extension fails with compensation");
 
-        var publishedCommands = await _harness.Published.SelectAsync<RequestRefundCommand>().ToListAsync();
-        var publishedCommand = publishedCommands.FirstOrDefault();
-        publishedCommand.Should().NotBeNull();
-        publishedCommand.Context.Message.CorrelationId.Should().Be(correlationId);
-        publishedCommand.Context.Message.UserId.Should().Be(userId);
-        publishedCommand.Context.Message.PaymentTransactionId.Should().Be(paymentTransactionId);
+        var outboxMessages = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
+        outboxMessages.Should().ContainSingle();
+
+        var outboxMessage = outboxMessages.First();
+        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
+        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
+        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
     }
 
     [Fact]
@@ -547,7 +554,6 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(initiatedEvent);
         await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(5));
 
-        // Complete payment
         var paymentCompletedEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
@@ -563,9 +569,8 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
 
         // Verify saga is now in AwaitingExtension state
         var awaitingInstance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.AwaitingExtension);
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingExtension);
+
         awaitingInstance.Should().NotBeNull("Saga should be in AwaitingExtension state");
     }
 }

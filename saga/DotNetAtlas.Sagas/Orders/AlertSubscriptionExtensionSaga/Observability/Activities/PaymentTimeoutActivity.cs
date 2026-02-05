@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Schedules;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment times out.
+/// Activity that records metrics, traces, and logs when payment times out
+/// for the <see cref="AlertSubscriptionExtensionSaga"/>.
 /// </summary>
 public sealed class PaymentTimeoutActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, PaymentTimeoutExpired>
 {
+    private readonly ILogger<PaymentTimeoutActivity> _logger;
+
+    public PaymentTimeoutActivity(ILogger<PaymentTimeoutActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("payment-timeout-activity");
@@ -26,15 +35,19 @@ public sealed class PaymentTimeoutActivity
     {
         var saga = context.Saga;
 
-        using var activity = SubscriptionSagaInstrumentation.StartActivity(
-            nameof(PaymentTimeoutActivity), saga.CorrelationId, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
+            nameof(PaymentTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
         }
 
-        SubscriptionSagaInstrumentation.RecordPaymentTimeout(SubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaInstrumentation.RecordPaymentTimeout(AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+
+        _logger.LogWarning(
+            "{SagaType} {CorrelationId} timed out waiting for payment response for user {UserId}",
+            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

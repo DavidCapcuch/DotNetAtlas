@@ -2,11 +2,8 @@ namespace DotNetAtlas.Sagas.Common;
 
 public static class InfrastructureDependencyInjection
 {
-    public static WebApplicationBuilder AddInfrastructure(
-        this WebApplicationBuilder builder,
-        bool isClusterEnvironment)
+    public static WebApplicationBuilder AddInfrastructure(this WebApplicationBuilder builder)
     {
-        builder.UseSerilogInternal(isClusterEnvironment);
         builder.Services.AddOpenTelemetryInternal(builder.Configuration);
         builder.Services.AddSagaStateObservability();
         builder.Services.AddHealthChecksInternal(builder.Configuration);

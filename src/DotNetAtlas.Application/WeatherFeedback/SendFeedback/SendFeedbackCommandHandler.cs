@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Common.Observability.Tracing;
 using DotNetAtlas.CQS;
 using DotNetAtlas.Domain.Feedback;
 using DotNetAtlas.Domain.Feedback.Errors;

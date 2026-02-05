@@ -1,4 +1,5 @@
 using DotNetAtlas.Sagas.Persistence.Database;
+using DotNetAtlas.Sagas.UnitTests.Fakes;
 using DotNetAtlas.Test.Framework.Tracing;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,21 +17,23 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
 
     protected IServiceScope Scope { get; }
     protected ITestHarness TestHarness { get; }
-    protected SubscriptionSagaDbContext DbContext { get; }
+    protected SagaDbContext DbContext { get; }
     protected TimeProvider TimeProvider { get; }
+    protected FakeOutboxWriter FakeOutboxWriter { get; }
 
     protected BaseSagaIntegrationTest(SagaIntegrationTestFixture fixture)
     {
         _fixture = fixture;
 
         // Inject test output for logging
-        var outputSink = fixture.ServiceProvider.GetRequiredService<IInjectableTestOutputSink>();
+        var outputSink = fixture.Services.GetRequiredService<IInjectableTestOutputSink>();
         outputSink.Inject(TestContext.Current.TestOutputHelper!);
 
-        Scope = fixture.ServiceProvider.CreateScope();
+        Scope = fixture.Services.CreateScope();
         TestHarness = fixture.TestHarness;
-        DbContext = Scope.ServiceProvider.GetRequiredService<SubscriptionSagaDbContext>();
+        DbContext = Scope.ServiceProvider.GetRequiredService<SagaDbContext>();
         TimeProvider = Scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        FakeOutboxWriter = fixture.FakeOutboxWriter;
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
@@ -58,6 +61,7 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
 
         _testCaseTracer.Dispose();
         await _fixture.ResetDatabaseAsync();
+        FakeOutboxWriter.Clear();
         Scope.Dispose();
     }
 }

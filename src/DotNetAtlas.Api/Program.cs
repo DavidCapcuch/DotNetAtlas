@@ -1,21 +1,15 @@
-using System.Globalization;
-using System.Reflection;
 using DotNetAtlas.Api.Common;
 using DotNetAtlas.Api.Common.Config;
 using DotNetAtlas.Api.Common.Extensions;
 using DotNetAtlas.Application.Common;
+using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Infrastructure.Common;
 using DotNetAtlas.Infrastructure.Common.Authorization;
-using DotNetAtlas.Infrastructure.Common.Extensions;
 using DotNetAtlas.Infrastructure.Persistence.Database.Seed;
+using DotNetAtlas.ServiceDefaults;
 using Hangfire;
 using KafkaFlow;
 using Serilog;
-
-// Set invariant culture globally to ensure consistent number/date formatting across all locales.
-// This prevents issues like decimal separator differences (e.g., "42.5" vs "42,5").
-CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -26,29 +20,18 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    var isClusterEnvironment = builder.Environment.IsInCluster();
-
-    builder.Configuration.AddEnvironmentVariables();
-
-    builder
-        .Host
-        .UseDefaultServiceProvider(options =>
-        {
-            options.ValidateScopes = !isClusterEnvironment;
-            options.ValidateOnBuild = !isClusterEnvironment;
-        });
-
-    builder.UseSerilogInternal(isClusterEnvironment);
-
-    if (builder.Environment.IsLocal())
+    builder.AddPlatformHostConfiguration();
+    builder.UsePlatformSerilog(options =>
     {
-        builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
-    }
+        options.ServiceName = ApplicationInfo.AppName;
+    });
+
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
         .AddPresentation(builder.Configuration)
         .AddApplication()
-        .AddInfrastructure(builder.Configuration, isClusterEnvironment);
+        .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();
 
@@ -63,7 +46,7 @@ try
 
     app.UseStatusCodePages();
 
-    if (isClusterEnvironment)
+    if (isDeployedEnvironment)
     {
         app.UseHttpsRedirection()
             .UseSecurityHeaders();
@@ -78,11 +61,14 @@ try
 
     app.UseFastEndpointsInternal();
 
-    app.MapHealthChecksInternal()
-        .MapSignalRWithDevTools()
+    app.MapPlatformHealthCheckEndpoints()
+        .MapHealthChecksUI()
+        .RequireAuthorization(AuthPolicies.DevOnly);
+
+    app.MapSignalRWithDevTools()
         .MapClientGenerationApis()
         .MapHangfireDashboardWithAuthorizationPolicy(AuthPolicies.DevOnly, "/hangfire-dashboard");
-    app.UseHealthChecksPrometheusExporterInternal();
+    app.UsePlatformHealthChecksPrometheusExporter();
 
     app.MapStaticAssets();
     app.MapRazorPages()

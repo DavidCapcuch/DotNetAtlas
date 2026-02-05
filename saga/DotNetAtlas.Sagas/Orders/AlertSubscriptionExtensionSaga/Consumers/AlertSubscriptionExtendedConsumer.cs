@@ -5,8 +5,9 @@ using Weather.Alerts;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives SubscriptionExtendedEvent
-/// and forwards it to the SubscriptionExtensionSaga as internal SubscriptionExtendedEvent.
+/// Consumer that receives <see cref="AlertSubscriptionExtendedEvent"/> from the Weather.Alerts service
+/// and forwards it to the <see cref="AlertSubscriptionExtensionSaga"/> as an internal
+/// <see cref="AlertSubscriptionExtendedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionExtendedConsumer : IConsumer<AlertSubscriptionExtendedEvent>
 {
@@ -22,8 +23,8 @@ public sealed class AlertSubscriptionExtendedConsumer : IConsumer<AlertSubscript
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received Weather SubscriptionExtendedEvent for correlation {CorrelationId}, " +
-            "user {UserId}, extended {DurationDays} days",
+            "{ConsumerType} received {EventType} for correlation {CorrelationId}, user {UserId}, extended {DurationDays} days",
+            nameof(AlertSubscriptionExtendedConsumer), nameof(AlertSubscriptionExtendedEvent),
             message.CorrelationId, message.UserId, message.DurationExtendedDays);
 
         var subscriptionExtendedEvent = new AlertSubscriptionExtendedSagaEvent

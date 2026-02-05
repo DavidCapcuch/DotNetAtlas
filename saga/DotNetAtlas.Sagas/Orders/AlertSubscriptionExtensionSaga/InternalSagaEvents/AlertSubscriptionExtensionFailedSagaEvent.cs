@@ -1,8 +1,8 @@
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 
 /// <summary>
-/// Internal saga event indicating subscription extension has failed.
-/// Mapped from Weather.Alerts.SubscriptionExtensionFailedEvent by a Kafka consumer.
+/// Internal saga event indicating alert subscription extension has failed.
+/// Mapped from <c>Weather.Alerts.AlertSubscriptionExtensionFailedEvent</c> by a Kafka consumer.
 /// </summary>
 public sealed record AlertSubscriptionExtensionFailedSagaEvent
 {

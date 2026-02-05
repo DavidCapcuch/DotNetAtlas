@@ -4,9 +4,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 
 /// <summary>
-/// Represents the state of a subscription extension saga.
-/// This saga is the "smart" business saga that orchestrates the extension flow.
-/// It coordinates payment (via PaymentRequestedEvent) and extension (via ExtendSubscriptionCommand).
+/// Represents the state of the <see cref="AlertSubscriptionExtensionSaga"/>.
+/// This saga orchestrates the alert subscription extension flow, coordinating payment
+/// (via <c>PaymentRequestedEvent</c>) and extension (via <c>ExtendAlertSubscriptionCommand</c>).
 /// </summary>
 public sealed class AlertSubscriptionExtensionSagaState : SagaStateMachineInstance, ISagaAuditableEntity
 {

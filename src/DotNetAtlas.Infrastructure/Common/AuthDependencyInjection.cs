@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using DotNetAtlas.Infrastructure.Common.Authentication;
 using DotNetAtlas.Infrastructure.Common.Authorization;
-using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.Common.Constants;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -24,12 +24,12 @@ public static class AuthDependencyInjection
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration manager.</param>
-    /// <param name="isClusterEnvironment">Whether running in a cluster environment.</param>
+    /// <param name="isDeployedEnvironment">Whether running in a deployed environment.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddAuthenticationInternal(
         this IServiceCollection services,
         ConfigurationManager configuration,
-        bool isClusterEnvironment)
+        bool isDeployedEnvironment)
     {
         services
             .AddAuthentication(options =>
@@ -45,9 +45,9 @@ public static class AuthDependencyInjection
                     var path = ctx.Request.Path;
                     var hasAuthHeader = ctx.Request.Headers.ContainsKey("Authorization");
                     if (hasAuthHeader ||
-                        path.StartsWithSegments(InfrastructureConstants.ApiBasePath,
+                        path.StartsWithSegments(BasePaths.ApiBasePath,
                             StringComparison.OrdinalIgnoreCase) ||
-                        path.StartsWithSegments(InfrastructureConstants.HubsBasePath,
+                        path.StartsWithSegments(BasePaths.HubsBasePath,
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return JwtBearerDefaults.AuthenticationScheme;
@@ -59,7 +59,7 @@ public static class AuthDependencyInjection
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 configuration.Bind(AuthConfigSections.JwtBearerConfigSection, options);
-                if (isClusterEnvironment)
+                if (isDeployedEnvironment)
                 {
                     options.RequireHttpsMetadata = true;
                 }
@@ -71,7 +71,7 @@ public static class AuthDependencyInjection
                         // For SignalR auth. Sending the access token in the query string is required
                         // when using WebSockets or ServerSentEvents due to a limitation in Browser APIs.
                         // See https://learn.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-9.0
-                        if (context.HttpContext.Request.Path.StartsWithSegments(InfrastructureConstants.HubsBasePath,
+                        if (context.HttpContext.Request.Path.StartsWithSegments(BasePaths.HubsBasePath,
                                 StringComparison.OrdinalIgnoreCase))
                         {
                             var accessToken = context.Request.Query["access_token"];
@@ -92,9 +92,9 @@ public static class AuthDependencyInjection
                 {
                     OnRedirectToLogin = ctx =>
                     {
-                        if (ctx.Request.Path.StartsWithSegments(InfrastructureConstants.ApiBasePath,
+                        if (ctx.Request.Path.StartsWithSegments(BasePaths.ApiBasePath,
                                 StringComparison.OrdinalIgnoreCase) ||
-                            ctx.Request.Path.StartsWithSegments(InfrastructureConstants.HubsBasePath,
+                            ctx.Request.Path.StartsWithSegments(BasePaths.HubsBasePath,
                                 StringComparison.OrdinalIgnoreCase))
                         {
                             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -155,7 +155,7 @@ public static class AuthDependencyInjection
                     }
                 };
 
-                if (isClusterEnvironment)
+                if (isDeployedEnvironment)
                 {
                     options.RequireHttpsMetadata = true;
                 }

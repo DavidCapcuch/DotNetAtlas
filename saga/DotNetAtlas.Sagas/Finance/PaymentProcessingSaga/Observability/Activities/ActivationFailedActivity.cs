@@ -1,4 +1,5 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
@@ -28,7 +29,7 @@ public sealed class
         var message = context.Message;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(ActivationFailedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(ActivationFailedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());

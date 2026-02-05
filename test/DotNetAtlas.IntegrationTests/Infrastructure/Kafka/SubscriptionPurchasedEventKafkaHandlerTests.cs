@@ -1,5 +1,5 @@
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Application.WeatherAlerts.PurchaseSubscription;
 using DotNetAtlas.CQS;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Subscriptions;

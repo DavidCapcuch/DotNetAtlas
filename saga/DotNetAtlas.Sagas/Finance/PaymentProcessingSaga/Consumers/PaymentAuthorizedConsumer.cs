@@ -5,8 +5,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives PaymentAuthorizedEvent
-/// and forwards it to the PaymentSaga as internal PaymentAuthorizedSagaEvent.
+/// Consumer that receives <see cref="PaymentAuthorizedEvent"/> from the payment provider
+/// and forwards it to the <see cref="PaymentProcessingSaga"/> as an internal
+/// <see cref="PaymentAuthorizedSagaEvent"/>.
 /// </summary>
 public sealed class PaymentAuthorizedConsumer : IConsumer<PaymentAuthorizedEvent>
 {
@@ -22,7 +23,8 @@ public sealed class PaymentAuthorizedConsumer : IConsumer<PaymentAuthorizedEvent
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received PaymentAuthorizedEvent for correlation {CorrelationId}, authorization {AuthorizationId}",
+            "{ConsumerType} received {EventType} for correlation {CorrelationId}, authorization {AuthorizationId}",
+            nameof(PaymentAuthorizedConsumer), nameof(PaymentAuthorizedEvent),
             message.CorrelationId, message.AuthorizationId);
 
         var paymentAuthorizedSagaEvent = new PaymentAuthorizedSagaEvent

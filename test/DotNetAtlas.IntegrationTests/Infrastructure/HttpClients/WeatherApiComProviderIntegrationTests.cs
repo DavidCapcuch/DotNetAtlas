@@ -22,7 +22,7 @@ public class WeatherApiComProviderIntegrationTests : BaseIntegrationTest
     public async Task WhenAskedForForecastWithCorrectCity_ReturnsForecast()
     {
         // Arrange
-        var forecastDateRange = DateRange.Create(DateOnly.FromDateTime(DateTime.UtcNow), 2).Value;
+        var forecastDateRange = DateRange.Create(DateOnly.FromDateTime(DateTime.UtcNow), 1).Value;
         var forecastCriteria = ForecastCriteria.Create("Prague", CountryCode.CZ, forecastDateRange).Value;
 
         // Act

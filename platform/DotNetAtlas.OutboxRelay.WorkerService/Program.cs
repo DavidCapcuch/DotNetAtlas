@@ -1,18 +1,18 @@
-using System.Globalization;
 using DotNetAtlas.OutboxRelay.WorkerService.Common;
-using DotNetAtlas.OutboxRelay.WorkerService.Common.Extensions;
+using DotNetAtlas.OutboxRelay.WorkerService.Observability;
+using DotNetAtlas.ServiceDefaults;
 using Serilog;
 
 namespace DotNetAtlas.OutboxRelay.WorkerService;
 
+/// <summary>
+/// Can't use minimal host because DotNetAtlas.OutboxRelay.Benchmark needs to reference the Program
+/// which wouldn't have a namespace.
+/// </summary>
 internal class Program
 {
     public static async Task Main(string[] args)
     {
-        // Set invariant culture globally to ensure consistent number/date formatting across all locales.
-        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
-
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Console()
             .CreateBootstrapLogger();
@@ -21,12 +21,12 @@ internal class Program
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            var isClusterEnvironment = builder.Environment.IsInCluster();
+            builder.AddPlatformHostConfiguration();
+            builder.UsePlatformSerilog(options => options.ServiceName = ApplicationInfo.AppName);
 
-            builder.Configuration.AddEnvironmentVariables();
+            var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
-            builder.UseSerilogInternal(isClusterEnvironment);
-            builder.Services.AddOpenTelemetryInternal(isClusterEnvironment, builder.Configuration);
+            builder.Services.AddOpenTelemetryInternal(isDeployedEnvironment, builder.Configuration);
             builder.Services.AddHealthChecksInternal(builder.Configuration);
             builder.Services.AddDatabase(builder.Configuration);
             builder.Services.AddMemoryCache();
@@ -34,8 +34,8 @@ internal class Program
 
             var app = builder.Build();
 
-            app.MapHealthChecksInternal();
-            app.UseHealthChecksPrometheusExporterInternal();
+            app.MapPlatformHealthCheckEndpoints();
+            app.UsePlatformHealthChecksPrometheusExporter();
 
             await app.RunAsync();
         }

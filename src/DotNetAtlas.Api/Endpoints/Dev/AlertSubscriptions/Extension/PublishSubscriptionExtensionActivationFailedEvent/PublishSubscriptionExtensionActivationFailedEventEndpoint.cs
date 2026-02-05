@@ -1,5 +1,5 @@
 using DotNetAtlas.Api.Endpoints.Dev.AlertSubscriptions.Purchase.PublishSubscriptionActivationFailedEvent;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Dev;
 using FastEndpoints;
 using Microsoft.Extensions.Options;

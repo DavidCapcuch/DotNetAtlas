@@ -1,8 +1,10 @@
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
+
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability;
 
 /// <summary>
 /// Activity tags specific to the Payment Processing saga.
-/// For common tags, see <see cref="Common.Observability.SagaActivityTags"/>.
+/// For common tags, see <see cref="SagaActivityTags"/>.
 /// </summary>
 public static class PaymentSagaActivityTags
 {

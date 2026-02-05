@@ -12,15 +12,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="MassTransit.TestFramework"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Binder"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json"/>
-        <PackageReference Include="NSubstitute"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <None Include="..\DotNetAtlas.Sagas\appsettings.Testing.json" Link="appsettings.Testing.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
+        <PackageReference Include="MassTransit.TestFramework" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+        <PackageReference Include="NSubstitute" />
     </ItemGroup>
 </Project>

@@ -1,12 +1,12 @@
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
+using DotNetAtlas.Sagas.UnitTests.Fakes;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
@@ -26,6 +26,7 @@ namespace DotNetAtlas.Sagas.UnitTests.Sagas;
 public class PaymentProcessingSagaTests : IAsyncLifetime
 {
     private readonly FakeTimeProvider _fakeTimeProvider = new();
+    private readonly FakeOutboxWriter _fakeOutboxWriter = new();
     private ServiceProvider _provider = null!;
     private ITestHarness _harness = null!;
     private ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentProcessingSagaState> _sagaHarness = null!;
@@ -33,11 +34,15 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         var sagaOptions = SagaTestFixture.CreateSagaOptions();
+        var topicsOptions = SagaTestFixture.CreateSagaTopicsOptions();
+        var testDbName = $"SagaTest_{Guid.NewGuid()}";
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<PaymentProcessingSaga>>())
             .AddSingleton(sagaOptions)
+            .AddSingleton(topicsOptions)
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
+            .AddSagaOutboxTestServices(testDbName, _fakeOutboxWriter)
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentProcessingSagaState>()
@@ -196,15 +201,16 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(capturedEvent);
         await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
-        // Assert
-        (await _harness.Published.Any<PaymentCompletedEvent>()).Should().BeTrue(
-            "PaymentCompletedEvent should be published to Kafka");
+        // Assert - verify message was added to the transactional outbox
+        _fakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeTrue(
+            "PaymentCompletedEvent should be added to the outbox for publishing to Kafka");
 
-        var publishedEvents = await _harness.Published.SelectAsync<PaymentCompletedEvent>().ToListAsync();
-        var publishedEvent = publishedEvents.FirstOrDefault();
-        publishedEvent.Should().NotBeNull();
-        publishedEvent.Context.Message.CorrelationId.Should().Be(correlationId);
-        publishedEvent.Context.Message.PaymentTransactionId.Should().Be(paymentTransactionId);
+        var outboxMessages = _fakeOutboxWriter.GetMessages<PaymentCompletedEvent>().ToList();
+        outboxMessages.Should().ContainSingle();
+
+        var outboxMessage = outboxMessages.First();
+        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
+        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
     }
 
     [Fact]
@@ -474,17 +480,17 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(initiatedEvent);
         await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
 
-        // Assert
-        (await _harness.Published.Any<AuthorizePaymentCommand>()).Should().BeTrue(
-            "RequestPaymentAuthorizationCommand should be published");
+        // Assert - verify message was added to the transactional outbox
+        _fakeOutboxWriter.HasMessage<AuthorizePaymentCommand>().Should().BeTrue(
+            "AuthorizePaymentCommand should be added to the outbox");
 
-        var publishedCommands =
-            await _harness.Published.SelectAsync<AuthorizePaymentCommand>().ToListAsync();
-        var publishedCommand = publishedCommands.FirstOrDefault();
-        publishedCommand.Should().NotBeNull();
-        publishedCommand.Context.Message.CorrelationId.Should().Be(correlationId);
-        publishedCommand.Context.Message.UserId.Should().Be(userId);
-        publishedCommand.Context.Message.PaymentMethodId.Should().Be(paymentMethodId);
+        var outboxMessages = _fakeOutboxWriter.GetMessages<AuthorizePaymentCommand>().ToList();
+        outboxMessages.Should().ContainSingle();
+
+        var outboxMessage = outboxMessages.First();
+        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
+        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
+        outboxMessage.IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);
     }
 
     private PaymentInitiatedSagaEvent CreatePaymentInitiatedEvent(

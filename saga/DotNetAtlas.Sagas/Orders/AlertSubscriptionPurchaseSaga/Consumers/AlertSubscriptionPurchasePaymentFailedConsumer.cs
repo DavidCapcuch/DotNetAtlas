@@ -5,8 +5,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives PaymentFailedEvent from the Finance.Payments Kafka topic
-/// and forwards it to the saga as an internal PaymentFailedEvent.
+/// Consumer that receives <see cref="PaymentFailedEvent"/> from the Finance.Payments Kafka topic
+/// and forwards it to the <see cref="AlertSubscriptionPurchaseSaga"/> as an internal
+/// <see cref="AlertSubscriptionPurchasePaymentFailedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionPurchasePaymentFailedConsumer : IConsumer<PaymentFailedEvent>
 {
@@ -22,7 +23,8 @@ public sealed class AlertSubscriptionPurchasePaymentFailedConsumer : IConsumer<P
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received PaymentFailedEvent for correlation {CorrelationId}, user {UserId}: {ErrorCode} - {ErrorMessage}",
+            "{ConsumerType} received {EventType} for correlation {CorrelationId}, user {UserId}: {ErrorCode} - {ErrorMessage}",
+            nameof(AlertSubscriptionPurchasePaymentFailedConsumer), nameof(PaymentFailedEvent),
             message.CorrelationId, message.UserId, message.ErrorCode, message.ErrorMessage);
 
         var subscriptionPurchasePaymentFailedSagaEvent = new AlertSubscriptionPurchasePaymentFailedSagaEvent

@@ -5,9 +5,9 @@ using Order.AlertSubscriptions;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 
 /// <summary>
-/// Represents the state of a subscription purchase saga.
-/// This saga is the "smart" business saga that orchestrates the purchase flow.
-/// It coordinates payment (via PaymentRequestedEvent) and activation (via ActivateSubscriptionCommand).
+/// Represents the state of the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// This saga orchestrates the alert subscription purchase flow, coordinating payment
+/// (via <c>PaymentRequestedEvent</c>) and activation (via <c>ActivateAlertSubscriptionCommand</c>).
 /// </summary>
 public sealed class AlertSubscriptionPurchaseSagaState : SagaStateMachineInstance, ISagaAuditableEntity
 {

@@ -1,5 +1,5 @@
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Domain.Alerts.Events;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.SharedKernel.Base.DomainEvents;

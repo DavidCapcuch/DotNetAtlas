@@ -1,7 +1,7 @@
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using DotNetAtlas.Application.WeatherAlerts.SubscribeForLocationAlerts;
 using DotNetAtlas.Application.WeatherAlerts.UnsubscribeFromLocationAlerts;
-using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.Common.Constants;
 using DotNetAtlas.SharedKernel.Errors;
 using Microsoft.AspNetCore.SignalR;
 
@@ -9,7 +9,7 @@ namespace DotNetAtlas.Api.SignalRHubs.WeatherAlerts;
 
 public class WeatherAlertHub : Hub<IWeatherAlertClientContract>, IWeatherAlertHubContract
 {
-    public const string RoutePattern = $"{InfrastructureConstants.HubsBasePath}/v1/weather-alert";
+    public const string RoutePattern = $"{BasePaths.HubsBasePath}/v1/weather-alert";
 
     private readonly ILogger<WeatherAlertHub> _logger;
     private readonly ICommandHandler<SubscribeForLocationAlertsCommand> _subscribeForCityAlertsHandler;

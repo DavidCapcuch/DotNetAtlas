@@ -1,4 +1,5 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
@@ -28,14 +29,14 @@ public sealed class
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(ActivationCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(ActivationCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.PaymentTransactionId, saga.PaymentTransactionId?.ToString());
         }
 
-        PaymentSagaInstrumentation.RecordSagaCompleted(duration);
+        PaymentProcessingSagaInstrumentation.RecordSagaCompleted(duration);
 
         await next.Execute(context);
     }
