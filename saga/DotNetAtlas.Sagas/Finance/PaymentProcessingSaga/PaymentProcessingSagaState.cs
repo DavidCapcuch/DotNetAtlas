@@ -4,7 +4,7 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 
 /// <summary>
-/// Represents the state of a payment processing saga.
+/// Represents the state of the <see cref="PaymentProcessingSaga"/>.
 /// This is a "dumb" payment saga - it knows nothing about business context (subscriptions, orders, etc.).
 /// It only handles the payment lifecycle: authorization -> capture -> void/refund.
 /// </summary>

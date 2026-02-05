@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when an extension fails.
+/// Activity that records metrics, traces, and logs when subscription extension fails
+/// for the <see cref="AlertSubscriptionExtensionSaga"/>.
 /// </summary>
 public sealed class ExtensionFailedActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionFailedSagaEvent>
 {
+    private readonly ILogger<ExtensionFailedActivity> _logger;
+
+    public ExtensionFailedActivity(ILogger<ExtensionFailedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("extension-failed-activity");
@@ -28,8 +37,8 @@ public sealed class ExtensionFailedActivity
         var message = context.Message;
         var duration = DateTime.UtcNow - saga.CreatedAtUtc;
 
-        using var activity = SubscriptionSagaInstrumentation.StartActivity(
-            nameof(ExtensionFailedActivity), saga.CorrelationId, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
+            nameof(ExtensionFailedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -39,8 +48,12 @@ public sealed class ExtensionFailedActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        SubscriptionSagaInstrumentation.RecordSagaFailed(
-            message.ErrorCode, duration, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaInstrumentation.RecordSagaFailed(
+            message.ErrorCode, duration, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+
+        _logger.LogWarning(
+            "{SagaType} {CorrelationId} extension failed for user {UserId}: {ErrorCode} - {ErrorMessage}",
+            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
 
         await next.Execute(context);
     }

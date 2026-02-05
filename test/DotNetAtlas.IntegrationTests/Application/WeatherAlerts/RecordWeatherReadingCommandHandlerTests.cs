@@ -138,8 +138,7 @@ public class RecordWeatherReadingCommandHandlerTests : BaseIntegrationTest
 
         // Act
         var recordWeatherReadingResult = await _recordWeatherReadingCommandHandler.HandleAsync(
-            recordWeatherReadingCommand,
-            TestContext.Current.CancellationToken);
+            recordWeatherReadingCommand, TestContext.Current.CancellationToken);
 
         // Assert
         var updatedMonitoredLocation = await WeatherDbContext.MonitoredLocations

@@ -1,8 +1,9 @@
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 
 /// <summary>
-/// Internal saga event indicating a subscription extension has been initiated.
-/// Mapped from Order.AlertSubscriptions.AlertSubscriptionExtensionInitiatedEvent by a Kafka consumer.
+/// Internal saga event indicating an alert subscription extension has been initiated.
+/// Mapped from <c>Order.AlertSubscriptions.AlertSubscriptionExtensionInitiatedEvent</c> by
+/// <see cref="Consumers.AlertSubscriptionExtensionInitiatedConsumer"/>.
 /// </summary>
 public sealed record AlertSubscriptionExtensionInitiatedSagaEvent
 {

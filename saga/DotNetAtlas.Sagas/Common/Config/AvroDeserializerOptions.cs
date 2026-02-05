@@ -16,7 +16,7 @@ public sealed class AvroDeserializerOptions : AvroDeserializerConfig
     /// <summary>
     /// Configuration section name.
     /// </summary>
-    public const string Section = $"{SagaOptions.Section}:AvroDeserializer";
+    public const string Section = $"{SagaKafkaOptions.Section}:AvroDeserializer";
 
     /// <summary>
     /// Subject name strategy for schema lookup.
@@ -31,6 +31,5 @@ public sealed class AvroDeserializerOptions : AvroDeserializerConfig
     /// When false, uses the schema ID embedded in the message.
     /// Default: false (recommended for backward compatibility).
     /// </summary>
-    [Required]
     public new required bool? UseLatestVersion { get; set; }
 }

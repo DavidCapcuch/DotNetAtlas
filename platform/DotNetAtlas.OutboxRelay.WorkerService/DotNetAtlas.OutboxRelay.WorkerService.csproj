@@ -2,12 +2,6 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Build.Tasks.Core"/>
 
-        <!-- Logging -->
-        <PackageReference Include="Serilog.AspNetCore"/>
-        <PackageReference Include="Serilog.Sinks.Console"/>
-        <PackageReference Include="Serilog.Sinks.OpenTelemetry"/>
-        <PackageReference Include="Serilog.Expressions"/>
-
         <!-- Database -->
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
@@ -43,6 +37,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\DotNetAtlas.ServiceDefaults\DotNetAtlas.ServiceDefaults.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Outbox.Core\DotNetAtlas.ReliableMessaging.Outbox.Core.csproj" />
         <ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
     </ItemGroup>

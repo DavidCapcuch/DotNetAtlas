@@ -1,16 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when a payment saga starts.
-/// This is a "dumb" payment saga activity - it only records payment-specific telemetry.
+/// Activity that records metrics, traces, and logs when the <see cref="PaymentProcessingSaga"/> starts
+/// processing a new payment request.
 /// </summary>
 public sealed class
     PaymentSagaStartedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentInitiatedSagaEvent>
 {
+    private readonly ILogger<PaymentSagaStartedActivity> _logger;
+
+    public PaymentSagaStartedActivity(ILogger<PaymentSagaStartedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("payment-saga-started-activity");
@@ -28,7 +36,7 @@ public sealed class
         var saga = context.Saga;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(PaymentSagaStartedActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(PaymentSagaStartedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
@@ -36,7 +44,11 @@ public sealed class
             activity.SetTag(PaymentSagaActivityTags.Currency, saga.Currency);
         }
 
-        PaymentSagaInstrumentation.RecordSagaStarted(saga.Currency);
+        PaymentProcessingSagaInstrumentation.RecordSagaStarted(saga.Currency);
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} initialized for user {UserId}, amount {Amount} {Currency}",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId, saga.Amount, saga.Currency);
 
         await next.Execute(context);
     }

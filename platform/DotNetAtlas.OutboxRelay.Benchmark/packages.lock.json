@@ -1415,6 +1415,7 @@
           "DotNetAtlas.ReliableMessaging.Inbox.Core": "[1.0.0, )",
           "DotNetAtlas.ReliableMessaging.Inbox.EFCore": "[1.0.0, )",
           "DotNetAtlas.SchemaRegistry.Contracts": "[1.0.0, )",
+          "DotNetAtlas.ServiceDefaults": "[1.0.0, )",
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
           "EntityFrameworkCore.Exceptions.SqlServer": "[8.1.3, )",
           "Hangfire.AspNetCore": "[1.8.21, )",
@@ -1501,6 +1502,7 @@
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
           "DotNetAtlas.ReliableMessaging.Outbox.Core": "[1.0.0, )",
           "DotNetAtlas.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
+          "DotNetAtlas.ServiceDefaults": "[1.0.0, )",
           "Microsoft.Build.Tasks.Core": "[17.14.28, )",
           "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.0, )",
@@ -1558,6 +1560,23 @@
         "type": "Project",
         "dependencies": {
           "Apache.Avro": "[1.12.0, )"
+        }
+      },
+      "dotnetatlas.servicedefaults": {
+        "type": "Project",
+        "dependencies": {
+          "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
+          "AspNetCore.HealthChecks.UI": "[9.0.0, )",
+          "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
+          "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
+          "Serilog.AspNetCore": "[9.0.0, )",
+          "Serilog.Exceptions": "[8.4.0, )",
+          "Serilog.Exceptions.EntityFrameworkCore": "[8.4.0, )",
+          "Serilog.Settings.Configuration": "[9.0.0, )",
+          "Serilog.Sinks.Console": "[6.0.0, )",
+          "Serilog.Sinks.OpenTelemetry": "[4.2.0, )",
+          "Serilog.Sinks.Seq": "[9.0.0, )",
+          "SerilogTracing.Expressions": "[2.3.1, )"
         }
       },
       "dotnetatlas.sharedkernel": {
@@ -1700,6 +1719,15 @@
           "KubernetesClient": "15.0.1",
           "Microsoft.EntityFrameworkCore.Design": "8.0.11",
           "Microsoft.Extensions.Http": "8.0.0"
+        }
+      },
+      "AspNetCore.HealthChecks.UI.Client": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.0, )",
+        "resolved": "9.0.0",
+        "contentHash": "1Ub3Wvvbz7CMuFNWgLEc9qqQibiMoovDML/WHrwr5J83RPgtI20giCR92s/ipLgu7IIuqw+W/y7WpIeHqAICxg==",
+        "dependencies": {
+          "AspNetCore.HealthChecks.UI.Core": "9.0.0"
         }
       },
       "AspNetCore.HealthChecks.UI.SqlServer.Storage": {

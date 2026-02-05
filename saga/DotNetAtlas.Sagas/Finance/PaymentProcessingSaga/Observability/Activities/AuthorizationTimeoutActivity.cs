@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment authorization times out.
+/// Activity that records metrics, traces, and logs when payment authorization times out
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class
     AuthorizationTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, AuthorizationTimeoutExpired>
 {
+    private readonly ILogger<AuthorizationTimeoutActivity> _logger;
+
+    public AuthorizationTimeoutActivity(ILogger<AuthorizationTimeoutActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("authorization-timeout-activity");
@@ -28,14 +37,18 @@ public sealed class
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(AuthorizationTimeoutActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(AuthorizationTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "authorization");
         }
 
-        PaymentSagaInstrumentation.RecordSagaTimeout("authorization", duration);
+        PaymentProcessingSagaInstrumentation.RecordSagaTimeout("authorization", duration);
+
+        _logger.LogWarning(
+            "{SagaType} {CorrelationId} authorization timed out for user {UserId}",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

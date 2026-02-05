@@ -1,16 +1,25 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when a saga starts.
+/// Activity that records metrics, traces, and logs when the <see cref="AlertSubscriptionPurchaseSaga"/> starts
+/// processing a new subscription purchase request.
 /// </summary>
 public sealed class
     AlertSubscriptionPurchaseSagaStartedActivity : IStateMachineActivity<AlertSubscriptionPurchaseSagaState,
     AlertSubscriptionPurchaseInitiatedSagaEvent>
 {
+    private readonly ILogger<AlertSubscriptionPurchaseSagaStartedActivity> _logger;
+
+    public AlertSubscriptionPurchaseSagaStartedActivity(ILogger<AlertSubscriptionPurchaseSagaStartedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("saga-started-activity");
@@ -27,9 +36,9 @@ public sealed class
     {
         var saga = context.Saga;
 
-        using var activity = SubscriptionSagaInstrumentation.StartActivity(
+        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(AlertSubscriptionPurchaseSagaStartedActivity), saga.CorrelationId,
-            SubscriptionSagaInstrumentation.SagaTypePurchase);
+            AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -39,8 +48,12 @@ public sealed class
             activity.SetTag(AlertSubscriptionPurchaseSagaActivityTags.DurationDays, saga.DurationDays);
         }
 
-        SubscriptionSagaInstrumentation.RecordSagaStarted(
-            saga.SubscriptionTier.ToString(), SubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaInstrumentation.RecordSagaStarted(
+            saga.SubscriptionTier.ToString(), AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} initialized for user {UserId}, tier {Tier}, duration {DurationDays} days",
+            nameof(AlertSubscriptionPurchaseSaga), saga.CorrelationId, saga.UserId, saga.SubscriptionTier, saga.DurationDays);
 
         await next.Execute(context);
     }

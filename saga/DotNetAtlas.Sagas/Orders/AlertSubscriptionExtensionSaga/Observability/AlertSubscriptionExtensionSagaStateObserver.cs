@@ -3,7 +3,7 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability;
 
 /// <summary>
-/// MassTransit state observer for logging Extension Saga state transitions.
+/// MassTransit state observer for logging <see cref="AlertSubscriptionExtensionSaga"/> state transitions.
 /// </summary>
 /// <remarks>
 /// This observer provides centralized logging for all state transitions.
@@ -22,10 +22,10 @@ public sealed class AlertSubscriptionExtensionSagaStateObserver(
         var saga = context.Saga;
 
         logger.LogInformation(
-            "Extension Saga {CorrelationId} state changed: {PreviousState} -> {CurrentState} " +
+            "{SagaType} {CorrelationId} state changed: {PreviousState} -> {CurrentState} " +
             "(User: {UserId}, Duration: {DurationDays} days)",
-            saga.CorrelationId, previousState?.Name ?? "None", currentState?.Name ?? "None", saga.UserId,
-            saga.DurationDays);
+            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, previousState?.Name ?? "None",
+            currentState?.Name ?? "None", saga.UserId, saga.DurationDays);
 
         return Task.CompletedTask;
     }

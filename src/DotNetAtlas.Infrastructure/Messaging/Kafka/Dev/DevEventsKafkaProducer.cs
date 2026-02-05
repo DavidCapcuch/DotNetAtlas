@@ -1,10 +1,9 @@
 using System.Text;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Messaging.Abstractions;
 using Finance.Payments;
 using KafkaFlow;
 using Microsoft.Extensions.Options;
-using Notifications.Email;
 using Order.AlertSubscriptions;
 using Weather.Alerts;
 

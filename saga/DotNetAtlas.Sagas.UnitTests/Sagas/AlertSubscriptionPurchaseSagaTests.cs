@@ -1,12 +1,12 @@
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Schedules;
+using DotNetAtlas.Sagas.UnitTests.Fakes;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Order.AlertSubscriptions;
@@ -28,6 +28,7 @@ namespace DotNetAtlas.Sagas.UnitTests.Sagas;
 public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
 {
     private readonly FakeTimeProvider _fakeTimeProvider = new();
+    private readonly FakeOutboxWriter _fakeOutboxWriter = new();
     private ServiceProvider _provider = null!;
     private ITestHarness _harness = null!;
     private ISagaStateMachineTestHarness<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState> _sagaHarness = null!;
@@ -35,11 +36,15 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         var sagaOptions = SagaTestFixture.CreateSagaOptions();
+        var topicsOptions = SagaTestFixture.CreateSagaTopicsOptions();
+        var testDbName = $"SagaTest_{Guid.NewGuid()}";
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<AlertSubscriptionPurchaseSaga>>())
             .AddSingleton(sagaOptions)
+            .AddSingleton(topicsOptions)
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
+            .AddSagaOutboxTestServices(testDbName, _fakeOutboxWriter)
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>()
@@ -311,16 +316,17 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(failedEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionActivationFailedSagaEvent>();
 
-        // Assert - RequestRefundCommand should be published to Finance.Payments
-        (await _harness.Published.Any<RequestRefundCommand>()).Should().BeTrue(
-            "RequestRefundCommand should be published when activation fails with compensation");
+        // Assert - verify message was added to the transactional outbox
+        _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
+            "RequestRefundCommand should be added to the outbox when activation fails with compensation");
 
-        var publishedCommands = await _harness.Published.SelectAsync<RequestRefundCommand>().ToListAsync();
-        var publishedCommand = publishedCommands.FirstOrDefault();
-        publishedCommand.Should().NotBeNull();
-        publishedCommand.Context.Message.CorrelationId.Should().Be(correlationId);
-        publishedCommand.Context.Message.UserId.Should().Be(userId);
-        publishedCommand.Context.Message.PaymentTransactionId.Should().Be(paymentTransactionId);
+        var outboxMessages = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
+        outboxMessages.Should().ContainSingle();
+
+        var outboxMessage = outboxMessages.First();
+        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
+        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
+        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
     }
 
     [Fact]
@@ -374,13 +380,15 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task WhenActivationTimeout_ShouldFinalizeWithActivationFailed()
+    public async Task WhenActivationTimeout_ShouldTransitionToCompensationInProgress()
     {
-        // Arrange - Start saga and complete payment
+        // Arrange - Start saga and complete payment to get to AwaitingActivation state
         var correlationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var paymentMethodId = Guid.NewGuid();
         var paymentTransactionId = Guid.NewGuid();
+
+        await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act - simulate activation timeout
         var timeoutEvent = new ActivationTimeoutExpired
@@ -391,13 +399,27 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
         await _harness.Bus.Publish(timeoutEvent);
         await _sagaHarness.Consumed.Any<ActivationTimeoutExpired>();
 
-        // Assert - saga should be finalized (removed from repository) after timeout
-        // The saga transitions to ActivationFailed and then finalizes
-        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: TimeSpan.FromSeconds(1));
-        sagaExists.HasValue.Should().BeFalse("Saga should be finalized after activation timeout");
+        // Assert - saga should transition to CompensationInProgress and publish refund command
+        var instance = _sagaHarness.Sagas.ContainsInState(
+            correlationId,
+            _sagaHarness.StateMachine,
+            _sagaHarness.StateMachine.CompensationInProgress);
 
-        // Verify the timeout event was consumed
-        (await _sagaHarness.Consumed.Any<ActivationTimeoutExpired>()).Should().BeTrue();
+        instance.Should().NotBeNull("Saga should be in CompensationInProgress state after activation timeout");
+        instance.CompensationTriggered.Should().BeTrue();
+        instance.ErrorCode.Should().Be("ACTIVATION_TIMEOUT");
+
+        // Verify RequestRefundCommand was added to the outbox
+        _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
+            "RequestRefundCommand should be added to the outbox after activation timeout");
+
+        var outboxMessages = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
+        outboxMessages.Should().ContainSingle();
+
+        var outboxMessage = outboxMessages.First();
+        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
+        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
+        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
     }
 
     [Fact]

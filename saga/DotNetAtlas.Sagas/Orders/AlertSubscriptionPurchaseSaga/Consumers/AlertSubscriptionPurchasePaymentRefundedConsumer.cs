@@ -5,8 +5,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives PaymentRefundedEvent
-/// and forwards it to the SubscriptionPurchaseSaga as an internal SubscriptionCompensationCompletedEvent.
+/// Consumer that receives <see cref="PaymentRefundedEvent"/> from the payment service
+/// and forwards it to the <see cref="AlertSubscriptionPurchaseSaga"/> as an internal
+/// <see cref="AlertSubscriptionPurchaseCompensationCompletedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionPurchasePaymentRefundedConsumer : IConsumer<PaymentRefundedEvent>
 {
@@ -22,7 +23,8 @@ public sealed class AlertSubscriptionPurchasePaymentRefundedConsumer : IConsumer
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received PaymentRefundedEvent for correlation {CorrelationId}, user {UserId}, refund transaction {RefundTransactionId}",
+            "{ConsumerType} received {EventType} for correlation {CorrelationId}, user {UserId}, refund transaction {RefundTransactionId}",
+            nameof(AlertSubscriptionPurchasePaymentRefundedConsumer), nameof(PaymentRefundedEvent),
             message.CorrelationId, message.UserId, message.RefundTransactionId);
 
         var subscriptionCompensationCompletedEvent = new AlertSubscriptionPurchaseCompensationCompletedSagaEvent

@@ -88,6 +88,7 @@
         <ProjectReference Include="..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.EFCore\DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj"/>
         <ProjectReference Include="..\..\platform\DotNetAtlas.KafkaFlow.ProducerHeaders\DotNetAtlas.KafkaFlow.ProducerHeaders.csproj"/>
         <ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
+        <ProjectReference Include="..\..\platform\DotNetAtlas.ServiceDefaults\DotNetAtlas.ServiceDefaults.csproj"/>
         <ProjectReference Include="..\DotNetAtlas.Application\DotNetAtlas.Application.csproj"/>
     </ItemGroup>
 

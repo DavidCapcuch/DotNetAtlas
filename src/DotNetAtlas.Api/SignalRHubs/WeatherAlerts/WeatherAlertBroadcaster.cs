@@ -1,4 +1,4 @@
-using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Common.Observability.Tracing;
 using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using DotNetAtlas.Domain.Alerts.ValueObjects;
@@ -43,7 +43,7 @@ public class WeatherAlertBroadcaster : IWeatherAlertBroadcaster
 
     public async Task BroadcastToGroupAsync(AlertGroup alertGroup, WeatherAlert weatherAlert)
     {
-        using var activity = DotNetAtlasInstrumentation.StartActivity(nameof(BroadcastToGroupAsync));
+        using var activity = DotNetAtlasActivitySource.StartActivity(nameof(BroadcastToGroupAsync));
 
         activity?.SetTag(TraceTags.City, alertGroup.City.Name);
         activity?.SetTag(TraceTags.CountryCode, alertGroup.CountryCode.ToString());

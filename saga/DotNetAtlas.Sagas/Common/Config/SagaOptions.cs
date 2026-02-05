@@ -22,7 +22,7 @@ public sealed class SagaOptions
     /// Timeout configuration for the payment processing saga.
     /// </summary>
     [Required]
-    public required PaymentSagaTimeoutOptions PaymentTimeouts { get; set; }
+    public required PaymentProcessingSagaTimeoutOptions PaymentProcessingTimeouts { get; set; }
 
     /// <summary>
     /// Maximum number of retry attempts for saga operations.

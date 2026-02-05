@@ -29,14 +29,10 @@ public static class KafkaProducerDiagnostics
         var activityName = string.Intern($"{topic} {OutboxDiagnosticNames.Kafka.Publish}");
 
         var parentContext = OtelPropagator.Extract(
-            new PropagationContext(default, Baggage.Current),
-            messageHeaders,
-            ExtractHeader);
+            new PropagationContext(default, Baggage.Current), messageHeaders, ExtractHeader);
 
         var activity = OutboxRelayActivitySource.ActivitySource.CreateActivity(
-            activityName,
-            ActivityKind.Producer,
-            parentContext.ActivityContext);
+            activityName, ActivityKind.Producer, parentContext.ActivityContext);
 
         if (activity == null)
         {

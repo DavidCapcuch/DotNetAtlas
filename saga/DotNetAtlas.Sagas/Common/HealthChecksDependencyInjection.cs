@@ -1,11 +1,11 @@
 using Confluent.Kafka;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Constants;
+using DotNetAtlas.Sagas.Common.Observability.HealthChecks;
 using DotNetAtlas.Sagas.Persistence.Database;
+using DotNetAtlas.ServiceDefaults.Config;
 using HealthChecks.ApplicationStatus.DependencyInjection;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Prometheus;
 
 namespace DotNetAtlas.Sagas.Common;
 
@@ -43,67 +43,24 @@ public static class HealthChecksDependencyInjection
         services.AddHealthChecks()
             .AddApplicationStatus(
                 name: "Self",
-                tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
+                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
                 timeout: timeouts.SelfTimeout)
-            .AddDbContextCheck<SubscriptionSagaDbContext>(
+            .AddDbContextCheck<SagaDbContext>(
                 name: "Saga Database",
                 failureStatus: HealthStatus.Unhealthy,
-                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag])
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag])
             .AddCheck<SagaStateMachineHealthCheck>(
                 name: "Saga StateMachine",
                 failureStatus: HealthStatus.Degraded,
-                tags: [InfrastructureConstants.ReadinessTag])
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddKafka(
                 healthCheckKafkaProducerConfig,
                 topic: "healthchecks",
                 name: "Kafka",
-                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.MessagingTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.MessagingTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeouts.KafkaTimeout);
 
         return services;
-    }
-
-    extension(WebApplication app)
-    {
-        /// <summary>
-        /// Maps health check endpoints with appropriate filters.
-        /// </summary>
-        public WebApplication MapHealthChecksInternal()
-        {
-            app.MapHealthChecks(InfrastructureConstants.ReadinessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag)
-            }).ShortCircuit();
-
-            app.MapHealthChecks(InfrastructureConstants.HealthEndpointPath, new HealthCheckOptions
-            {
-                Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.LivenessTag)
-            }).ShortCircuit();
-
-            return app;
-        }
-
-        public WebApplication UseHealthChecksPrometheusExporterInternal()
-        {
-            // Suppress default prometheus-net collectors and collect only health-related metrics to avoid duplicated scraping.
-            // As of now, there is no standardized way to push health metrics through OTEL Collector
-            // all other collected metrics are unaffected and still exported through OTEL Collector to prometheus.
-            Metrics.SuppressDefaultMetrics();
-
-            app.UseHealthChecksPrometheusExporter(InfrastructureConstants.PrometheusEndpointPath, options =>
-            {
-                options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag);
-                options.ResultStatusCodes = new Dictionary<HealthStatus, int>
-                {
-                    // Prometheus expects 200 also for degraded state, otherwise throws in the scrape job
-                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                    [HealthStatus.Unhealthy] = StatusCodes.Status200OK
-                };
-            });
-
-            return app;
-        }
     }
 }

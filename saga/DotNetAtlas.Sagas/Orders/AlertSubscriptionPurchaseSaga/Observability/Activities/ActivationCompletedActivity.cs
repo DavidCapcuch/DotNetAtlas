@@ -1,11 +1,13 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when activation completes successfully.
+/// Activity that records metrics, traces, and logs when subscription activation completes successfully
+/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
 /// </summary>
 public sealed class
     ActivationCompletedActivity : IStateMachineActivity<AlertSubscriptionPurchaseSagaState,
@@ -34,15 +36,11 @@ public sealed class
         BehaviorContext<AlertSubscriptionPurchaseSagaState, AlertSubscriptionActivatedSagaEvent> context,
         IBehavior<AlertSubscriptionPurchaseSagaState, AlertSubscriptionActivatedSagaEvent> next)
     {
-        _logger.LogInformation(
-            "Saga {CorrelationId} completed successfully for user {UserId}",
-            context.Saga.CorrelationId, context.Saga.UserId);
-
         var saga = context.Saga;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedAtUtc;
 
-        using var activity = SubscriptionSagaInstrumentation.StartActivity(
-            nameof(ActivationCompletedActivity), saga.CorrelationId, SubscriptionSagaInstrumentation.SagaTypePurchase);
+        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
+            nameof(ActivationCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -52,8 +50,12 @@ public sealed class
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        SubscriptionSagaInstrumentation.RecordSagaCompleted(
-            duration, SubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaInstrumentation.RecordSagaCompleted(
+            duration, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} completed successfully for user {UserId}",
+            nameof(AlertSubscriptionPurchaseSaga), context.Saga.CorrelationId, context.Saga.UserId);
 
         await next.Execute(context);
     }

@@ -20,7 +20,6 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 /// </remarks>
 public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<AlertSubscriptionPurchaseSagaState>
 {
-    private readonly ILogger<AlertSubscriptionPurchaseSaga> _logger;
     private readonly SagaOptions _sagaOptions;
     private readonly SagaTopicsOptions _topicsOptions;
     private readonly TimeProvider _timeProvider;
@@ -51,12 +50,10 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
     public Schedule<AlertSubscriptionPurchaseSagaState, CompensationTimeoutExpired> CompensationTimeout { get; private set; }
 
     public AlertSubscriptionPurchaseSaga(
-        ILogger<AlertSubscriptionPurchaseSaga> logger,
         IOptions<SagaOptions> sagaOptions,
         IOptions<SagaTopicsOptions> topicsOptions,
         TimeProvider timeProvider)
     {
-        _logger = logger;
         _sagaOptions = sagaOptions.Value;
         _topicsOptions = topicsOptions.Value;
         _timeProvider = timeProvider;
@@ -75,6 +72,14 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
             e.SetSagaFactory(ctx => new AlertSubscriptionPurchaseSagaState
             {
                 CorrelationId = ctx.Message.CorrelationId,
+                UserId = ctx.Message.UserId,
+                PaymentMethodId = ctx.Message.PaymentMethodId,
+                SubscriptionTier = ctx.Message.SubscriptionTier,
+                DurationDays = ctx.Message.DurationDays,
+                Amount = ctx.Message.Amount,
+                Currency = ctx.Message.Currency,
+                IdempotencyKey = ctx.Message.IdempotencyKey,
+                PurchaseInitiatedAtUtc = ctx.Message.InitiatedAtUtc,
                 CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
             });
         });
@@ -150,7 +155,6 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
         // Initial state - when purchase initiated event arrives, then publish payment request
         Initially(
             When(AlertSubscriptionPurchaseInitiatedEvent)
-                .Then(InitializeSagaState)
                 .Activity(x => x.OfType<AlertSubscriptionPurchaseSagaStartedActivity>())
                 .PublishToOutbox(
                     _topicsOptions.FinancePayments,
@@ -178,7 +182,12 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
         // Waiting for payment - can receive payment completed, failed, or timeout
         During(WaitingForPayment,
             When(PaymentCompletedEvent)
-                .Then(HandlePaymentCompleted)
+                .Then(ctx =>
+                {
+                    ctx.Saga.PaymentTransactionId = ctx.Message.PaymentTransactionId;
+                    ctx.Saga.PaymentCompletedAtUtc = ctx.Message.CompletedAtUtc;
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                })
                 .Activity(x => x.OfType<PaymentCompletedActivity>())
                 .Unschedule(PaymentTimeout)
                 .PublishToOutbox(
@@ -200,13 +209,23 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                     })
                 .TransitionTo(AwaitingActivation),
             When(PaymentFailedEventEvent)
-                .Then(HandlePaymentFailed)
+                .Then(ctx =>
+                {
+                    ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
+                    ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                })
                 .Activity(x => x.OfType<PaymentFailedActivity>())
                 .Unschedule(PaymentTimeout)
                 .TransitionTo(PaymentFailed)
                 .Finalize(),
             When(PaymentTimeout.Received)
-                .Then(HandlePaymentTimeout)
+                .Then(ctx =>
+                {
+                    ctx.Saga.ErrorCode = "PAYMENT_TIMEOUT";
+                    ctx.Saga.ErrorMessage = "Payment timeout expired";
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                })
                 .Activity(x => x.OfType<PaymentTimeoutActivity>())
                 .TransitionTo(PaymentFailed)
                 .Finalize());
@@ -220,13 +239,19 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 .Then(ctx =>
                 {
                     ctx.Saga.ActivationCompletedAtUtc = ctx.Message.ActivatedAtUtc;
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<ActivationCompletedActivity>())
                 .Unschedule(ActivationTimeout)
                 .TransitionTo(ActivationCompleted)
                 .Finalize(),
             When(AlertSubscriptionActivationFailedEvent)
-                .Then(HandleActivationFailed)
+                .Then(ctx =>
+                {
+                    ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
+                    ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                })
                 .Activity(x => x.OfType<ActivationFailedActivity>())
                 .Unschedule(ActivationTimeout)
                 .IfElse(ctx => ctx.Message.ShouldCompensate,
@@ -253,12 +278,14 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                         .TransitionTo(ActivationFailed)
                         .Finalize()),
             When(ActivationTimeout.Received)
-                .Then(HandleActivationTimeout)
-                .Activity(x => x.OfType<ActivationTimeoutActivity>())
                 .Then(ctx =>
                 {
+                    ctx.Saga.ErrorCode = "ACTIVATION_TIMEOUT";
+                    ctx.Saga.ErrorMessage = "Activation timeout expired";
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                     ctx.Saga.CompensationTriggered = true;
                 })
+                .Activity(x => x.OfType<ActivationTimeoutActivity>())
                 .PublishToOutbox(
                     _topicsOptions.FinancePaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
@@ -283,13 +310,22 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
         // Compensation in progress - waiting for refund confirmation or timeout
         During(CompensationInProgress,
             When(CompensationCompletedEvent)
-                .Then(HandleCompensationCompleted)
+                .Then(ctx =>
+                {
+                    ctx.Saga.CompensationCompletedAtUtc = ctx.Message.CompensatedAtUtc;
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                })
                 .Activity(x => x.OfType<CompensationCompletedActivity>())
                 .Unschedule(CompensationTimeout)
                 .TransitionTo(CompensationCompleted)
                 .Finalize(),
             When(CompensationTimeout.Received)
-                .Then(HandleCompensationTimeout)
+                .Then(ctx =>
+                {
+                    ctx.Saga.ErrorCode = "COMPENSATION_TIMEOUT";
+                    ctx.Saga.ErrorMessage = "Compensation did not complete in time";
+                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                })
                 .Activity(x => x.OfType<CompensationTimeoutActivity>())
                 .TransitionTo(CompensationFailed)
                 .Finalize());
@@ -303,107 +339,5 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
             Order.AlertSubscriptions.SubscriptionTier.Ultra => SubscriptionTier.Ultra,
             _ => throw new ArgumentOutOfRangeException(nameof(tier), tier, "Unknown subscription tier")
         };
-    }
-
-    private void InitializeSagaState(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, AlertSubscriptionPurchaseInitiatedSagaEvent> ctx)
-    {
-        var message = ctx.Message;
-        ctx.Saga.UserId = message.UserId;
-        ctx.Saga.PaymentMethodId = message.PaymentMethodId;
-        ctx.Saga.SubscriptionTier = message.SubscriptionTier;
-        ctx.Saga.DurationDays = message.DurationDays;
-        ctx.Saga.Amount = message.Amount;
-        ctx.Saga.Currency = message.Currency;
-        ctx.Saga.IdempotencyKey = message.IdempotencyKey;
-        ctx.Saga.PurchaseInitiatedAtUtc = message.InitiatedAtUtc;
-
-        _logger.LogInformation(
-            "Saga {CorrelationId} initialized for user {UserId}, tier {Tier}, duration {DurationDays} days",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId, ctx.Saga.SubscriptionTier, ctx.Saga.DurationDays);
-    }
-
-    private void HandleActivationFailed(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, AlertSubscriptionActivationFailedSagaEvent> ctx)
-    {
-        ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
-        ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogWarning(
-            "Saga {CorrelationId} activation failed for user {UserId}: {ErrorCode} - {ErrorMessage}",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId, ctx.Message.ErrorCode, ctx.Message.ErrorMessage);
-    }
-
-    private void HandleActivationTimeout(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, ActivationTimeoutExpired> ctx)
-    {
-        ctx.Saga.ErrorCode = "ACTIVATION_TIMEOUT";
-        ctx.Saga.ErrorMessage = "Activation timeout expired";
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogWarning(
-            "Saga {CorrelationId} timed out waiting for activation response for user {UserId}",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId);
-    }
-
-    private void HandlePaymentCompleted(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, AlertSubscriptionPurchasePaymentCompletedSagaEvent> ctx)
-    {
-        ctx.Saga.PaymentTransactionId = ctx.Message.PaymentTransactionId;
-        ctx.Saga.PaymentCompletedAtUtc = ctx.Message.CompletedAtUtc;
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogInformation(
-            "Saga {CorrelationId} payment completed for user {UserId}. TransactionId: {PaymentTransactionId}",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId, ctx.Saga.PaymentTransactionId);
-    }
-
-    private void HandlePaymentFailed(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, AlertSubscriptionPurchasePaymentFailedSagaEvent> ctx)
-    {
-        ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
-        ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogWarning(
-            "Saga {CorrelationId} payment failed for user {UserId}: {ErrorCode} - {ErrorMessage}",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId, ctx.Message.ErrorCode, ctx.Message.ErrorMessage);
-    }
-
-    private void HandlePaymentTimeout(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, PaymentTimeoutExpired> ctx)
-    {
-        ctx.Saga.ErrorCode = "PAYMENT_TIMEOUT";
-        ctx.Saga.ErrorMessage = "Payment timeout expired";
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogWarning(
-            "Saga {CorrelationId} timed out waiting for payment response for user {UserId}",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId);
-    }
-
-    private void HandleCompensationCompleted(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, AlertSubscriptionPurchaseCompensationCompletedSagaEvent>
-            ctx)
-    {
-        ctx.Saga.CompensationCompletedAtUtc = ctx.Message.CompensatedAtUtc;
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogInformation(
-            "Saga {CorrelationId} compensation completed for user {UserId}, refund transaction {RefundTransactionId}",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId, ctx.Message.RefundTransactionId);
-    }
-
-    private void HandleCompensationTimeout(
-        BehaviorContext<AlertSubscriptionPurchaseSagaState, CompensationTimeoutExpired> ctx)
-    {
-        ctx.Saga.ErrorCode = "COMPENSATION_TIMEOUT";
-        ctx.Saga.ErrorMessage = "Compensation did not complete in time";
-        ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
-
-        _logger.LogError(
-            "Saga {CorrelationId} compensation timed out for user {UserId}. Manual intervention may be required",
-            ctx.Saga.CorrelationId, ctx.Saga.UserId);
     }
 }

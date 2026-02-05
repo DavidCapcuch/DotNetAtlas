@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Common.Observability.Tracing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
@@ -32,7 +32,7 @@ public sealed class TestCaseTracer : IDisposable
         string testType)
     {
         _logger = serviceProvider.GetRequiredService<ILogger<TestCaseTracer>>();
-        _testActivity = DotNetAtlasInstrumentation.StartActivity(testMethodName);
+        _testActivity = DotNetAtlasActivitySource.StartActivity(testMethodName);
         _testActivity?.SetTag("is.test.trace", true);
         _testActivity?.SetTag("test.case.id", testCaseId);
         _testActivity?.SetTag("test.type", testType);

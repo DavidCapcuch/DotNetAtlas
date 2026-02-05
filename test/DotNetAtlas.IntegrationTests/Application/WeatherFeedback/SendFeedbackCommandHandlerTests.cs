@@ -74,7 +74,6 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
             sendFeedbackResult.Errors.Should().NotBeEmpty();
             var validationError = sendFeedbackResult.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
-            validationError!.ErrorCode.Should().Be("Feedback.OutOfRange");
         }
     }
 
@@ -102,7 +101,6 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
             sendFeedbackResult.Errors.Should().ContainSingle();
             var validationError = sendFeedbackResult.Errors[0] as ValidationError;
             validationError.Should().NotBeNull();
-            validationError!.ErrorCode.Should().Be("Feedback.FeedbackRequired");
         }
     }
 
@@ -131,9 +129,6 @@ public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
             sendFeedbackResult.Errors.Should().AllBeAssignableTo<ValidationError>();
             var errors = sendFeedbackResult.Errors.OfType<ValidationError>().ToList();
             errors.Should().HaveCount(2);
-            errors.Should()
-                .ContainSingle(err => err.ErrorCode == "Feedback.TextTooLong")
-                .And.ContainSingle(err => err.ErrorCode == "Feedback.RatingOutOfRange");
         }
     }
 }

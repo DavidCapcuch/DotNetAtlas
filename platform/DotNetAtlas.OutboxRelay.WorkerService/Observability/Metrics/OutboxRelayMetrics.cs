@@ -23,7 +23,7 @@ public sealed class OutboxRelayMetrics
 
     public OutboxRelayMetrics(IMeterFactory meterFactory)
     {
-        var meter = meterFactory.Create(OutboxRelayInstrumentation.AppName);
+        var meter = meterFactory.Create(ApplicationInfo.AppName);
 
         _messagesPublishedCounter = meter.CreateCounter<long>(
             "outbox_messages_published_total",

@@ -1,8 +1,10 @@
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
+
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability;
 
 /// <summary>
-/// Activity tags specific to the Subscription Extension saga.
-/// For common tags, see <see cref="Common.Observability.SagaActivityTags"/>.
+/// Activity tags specific to the <see cref="AlertSubscriptionExtensionSaga"/>.
+/// For common tags, see <see cref="SagaActivityTags"/>.
 /// </summary>
 public static class AlertSubscriptionExtensionSagaActivityTags
 {

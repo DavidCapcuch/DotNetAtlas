@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using DotNetAtlas.Application.Common.Observability;
+using DotNetAtlas.Application.Common.Observability.Tracing;
 using DotNetAtlas.Application.WeatherForecast.Common;
 using DotNetAtlas.Application.WeatherForecast.Services.Abstractions;
 using DotNetAtlas.CQS;

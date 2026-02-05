@@ -1,15 +1,24 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when an extension saga starts.
+/// Activity that records metrics, traces, and logs when the <see cref="AlertSubscriptionExtensionSaga"/> starts
+/// processing a new subscription extension request.
 /// </summary>
 public sealed class SagaStartedActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionInitiatedSagaEvent>
 {
+    private readonly ILogger<SagaStartedActivity> _logger;
+
+    public SagaStartedActivity(ILogger<SagaStartedActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("saga-started-activity");
@@ -26,8 +35,8 @@ public sealed class SagaStartedActivity
     {
         var saga = context.Saga;
 
-        using var activity = SubscriptionSagaInstrumentation.StartActivity(
-            nameof(SagaStartedActivity), saga.CorrelationId, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
+            nameof(SagaStartedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -35,8 +44,12 @@ public sealed class SagaStartedActivity
             activity.SetTag(AlertSubscriptionExtensionSagaActivityTags.DurationDays, saga.DurationDays);
         }
 
-        SubscriptionSagaInstrumentation.RecordSagaStarted(
-            SubscriptionSagaInstrumentation.SagaTypeExtension, SubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaInstrumentation.RecordSagaStarted(
+            AlertSubscriptionSagaInstrumentation.SagaTypeExtension, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} initialized for user {UserId}, duration {DurationDays} days",
+            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId, saga.DurationDays);
 
         await next.Execute(context);
     }

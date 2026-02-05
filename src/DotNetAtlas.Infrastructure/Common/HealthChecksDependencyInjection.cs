@@ -1,17 +1,16 @@
 using Confluent.Kafka;
 using DotNetAtlas.Infrastructure.Common.Authentication;
 using DotNetAtlas.Infrastructure.Common.Config;
+using DotNetAtlas.Infrastructure.Common.Constants;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using DotNetAtlas.Infrastructure.Persistence.Database;
+using DotNetAtlas.ServiceDefaults.Config;
 using HealthChecks.ApplicationStatus.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Prometheus;
 using StackExchange.Redis;
 
 namespace DotNetAtlas.Infrastructure.Common;
@@ -58,15 +57,15 @@ public static class HealthChecksDependencyInjection
 
         services.AddHealthChecks()
             .AddApplicationStatus("Self",
-                tags: [InfrastructureConstants.LivenessTag, InfrastructureConstants.ReadinessTag],
+                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
                 timeout: timeoutsOptions.SelfTimeout)
             .AddDbContextCheck<WeatherDbContext>(
                 name: "Weather DB",
-                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy)
             .AddRedis(
                 sp => sp.GetRequiredService<IConnectionMultiplexer>(),
-                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.DatabaseTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.RedisTimeout,
                 name: "Redis")
@@ -74,7 +73,7 @@ public static class HealthChecksDependencyInjection
                 new Uri(weatherApiComOptions.BaseUrl), weatherApiComOptions.BaseUrl,
                 tags:
                 [
-                    InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag
+                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag
                 ],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.ExternalProvidersApiTimeout)
@@ -82,7 +81,7 @@ public static class HealthChecksDependencyInjection
                 new Uri($"{openMeteoOptions.GeoBaseUrl}v1/search?name=Berlin&count=1"), openMeteoOptions.GeoBaseUrl,
                 tags:
                 [
-                    InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag
+                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag
                 ],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.ExternalProvidersApiTimeout)
@@ -90,7 +89,7 @@ public static class HealthChecksDependencyInjection
                 new Uri($"{openMeteoOptions.BaseUrl}v1/forecast"), openMeteoOptions.BaseUrl,
                 tags:
                 [
-                    InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag
+                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag
                 ],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.ExternalProvidersApiTimeout)
@@ -98,13 +97,13 @@ public static class HealthChecksDependencyInjection
                 oidcSvrUri: new Uri(fusionAuthUrl),
                 discoverConfigurationSegment: "/.well-known/openid-configuration",
                 name: "FusionAuth IDM",
-                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.ApiTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.IdmApiTimeout)
             .AddHangfire(options => options.MaximumJobsFailed = timeoutsOptions.Hangfire.DegradedMaximumJobsFailed,
                 "Hangfire Degraded Check",
                 failureStatus: HealthStatus.Degraded,
-                tags: [InfrastructureConstants.ReadinessTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 timeout: timeoutsOptions.Hangfire.Timeout)
             .AddHangfire(options =>
                 {
@@ -112,49 +111,22 @@ public static class HealthChecksDependencyInjection
                     options.MinimumAvailableServers = timeoutsOptions.Hangfire.MinimumAvailableServers;
                 }, "Hangfire Unhealthy Check",
                 failureStatus: HealthStatus.Unhealthy,
-                tags: [InfrastructureConstants.ReadinessTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 timeout: timeoutsOptions.Hangfire.Timeout)
             .AddKafka(producerConfig, "healthchecks", "Kafka",
-                tags: [InfrastructureConstants.ReadinessTag, InfrastructureConstants.MessagingTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.MessagingTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.KafkaTimeout);
 
         services.AddHealthChecksUI(settings =>
             {
                 settings.SetEvaluationTimeInSeconds(5);
-                settings.AddHealthCheckEndpoint("Liveness", InfrastructureConstants.HealthEndpointPath);
-                settings.AddHealthCheckEndpoint("Readiness", InfrastructureConstants.ReadinessEndpointPath);
+                settings.AddHealthCheckEndpoint("Liveness", ServiceDefaultHealthCheckTags.HealthEndpointPath);
+                settings.AddHealthCheckEndpoint("Readiness", ServiceDefaultHealthCheckTags.ReadinessEndpointPath);
                 settings.SetNotifyUnHealthyOneTimeUntilChange();
             })
             .AddSqlServerStorage(configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather))!);
 
         return services;
-    }
-
-    /// <summary>
-    /// Configures Prometheus health check metrics exporter.
-    /// </summary>
-    /// <param name="app">The web application.</param>
-    /// <returns>The web application for chaining.</returns>
-    public static WebApplication UseHealthChecksPrometheusExporterInternal(this WebApplication app)
-    {
-        // Suppress default prometheus-net collectors and collect only health-related metrics to avoid duplicated scraping.
-        // As of now, there is no standardized way to push health metrics through OTEL Collector
-        // all other collected metrics are unaffected and still exported through OTEL Collector to prometheus.
-        Metrics.SuppressDefaultMetrics();
-
-        app.UseHealthChecksPrometheusExporter(InfrastructureConstants.PrometheusEndpointPath, options =>
-        {
-            options.Predicate = healthCheck => healthCheck.Tags.Contains(InfrastructureConstants.ReadinessTag);
-            options.ResultStatusCodes = new Dictionary<HealthStatus, int>
-            {
-                // Prometheus expects 200 also for degraded state, otherwise throws in the scrape job
-                [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                [HealthStatus.Unhealthy] = StatusCodes.Status200OK
-            };
-        });
-
-        return app;
     }
 }

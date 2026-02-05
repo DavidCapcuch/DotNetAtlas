@@ -1,5 +1,10 @@
+using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.Sagas.Common.Config;
+using DotNetAtlas.Sagas.Persistence.Database;
+using DotNetAtlas.Sagas.UnitTests.Fakes;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace DotNetAtlas.Sagas.UnitTests;
@@ -10,24 +15,35 @@ namespace DotNetAtlas.Sagas.UnitTests;
 /// </summary>
 public static class SagaTestFixture
 {
-    private static readonly Lazy<IOptions<SagaOptions>> CachedSagaOptions = new(LoadSagaOptions);
-
-    /// <summary>
-    /// Creates a pre-configured IOptions&lt;SagaOptions&gt; suitable for unit testing.
-    /// Loads configuration from appsettings.Testing.json.
-    /// </summary>
-    public static IOptions<SagaOptions> CreateSagaOptions() => CachedSagaOptions.Value;
-
-    private static IOptions<SagaOptions> LoadSagaOptions()
-    {
-        var configuration = new ConfigurationBuilder()
+    private static readonly Lazy<IConfigurationRoot> Configuration = new(() =>
+        new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
             .AddJsonFile("appsettings.Testing.json", optional: false)
-            .Build();
+            .Build());
 
-        var sagaOptions = configuration.GetSection(SagaOptions.Section).Get<SagaOptions>()
-            ?? throw new InvalidOperationException("Failed to load SagaOptions from appsettings.Testing.json");
+    public static IOptions<SagaOptions> CreateSagaOptions() =>
+        Options.Create(BindRequiredSection<SagaOptions>(SagaOptions.Section));
 
-        return Options.Create(sagaOptions);
+    public static IOptions<SagaTopicsOptions> CreateSagaTopicsOptions() =>
+        Options.Create(BindRequiredSection<SagaTopicsOptions>("Saga:Kafka:Topics"));
+
+    public static IServiceCollection AddSagaOutboxTestServices(
+        this IServiceCollection services,
+        string databaseName,
+        FakeOutboxWriter fakeOutboxWriter)
+    {
+        services.AddDbContext<SagaDbContext>(options =>
+            options.UseInMemoryDatabase(databaseName));
+
+        services.AddSingleton<IOutboxWriter>(fakeOutboxWriter);
+
+        return services;
     }
+
+    private static T BindRequiredSection<T>(string sectionPath) =>
+        Configuration.Value.GetSection(sectionPath).Get<T>()
+        ?? throw new InvalidOperationException(
+            $"Failed to bind configuration section '{sectionPath}' to {typeof(T).Name}. " +
+            "Verify appsettings.Testing.json contains the required values.");
 }

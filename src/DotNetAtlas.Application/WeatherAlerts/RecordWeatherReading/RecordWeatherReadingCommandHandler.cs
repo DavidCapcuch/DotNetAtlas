@@ -83,10 +83,7 @@ public sealed class
             }
 
             var weatherReading = WeatherReading.Create(
-                temperatureResult.Value,
-                humidityResult.Value,
-                windSpeedResult.Value,
-                readingDto.RecordedAtUtc);
+                temperatureResult.Value, humidityResult.Value, windSpeedResult.Value, readingDto.RecordedAtUtc);
 
             var utcNow = _timeProvider.GetUtcNow();
             monitoredLocation.RecordWeatherReading(weatherReading, utcNow);

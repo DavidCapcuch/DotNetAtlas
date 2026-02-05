@@ -30,49 +30,6 @@ public class UnsubscribeFromLocationAlertsCommandHandlerTests : BaseIntegrationT
             Scope.ServiceProvider.GetRequiredService<IBackgroundJobClientV2>().Storage.GetConnection();
     }
 
-    /// <summary>
-    /// DEMO: Unsubscribe does NOT unschedule jobs - jobs are cleaned up only on application startup.
-    /// This test verifies that the job remains scheduled after unsubscribe (simplified demo behavior).
-    /// </summary>
-    [Fact]
-    public async Task WhenUnsubscribing_JobRemainsScheduled()
-    {
-        // Arrange
-        var subscribeForLocationAlertsCommand = new SubscribeForLocationAlertsCommand
-        {
-            City = "Prague",
-            CountryCode = CountryCode.CZ,
-            ConnectionId = "conn-1"
-        };
-        var unsubscribeFromLocationAlertsCommand = new UnsubscribeFromLocationAlertsCommand
-        {
-            City = subscribeForLocationAlertsCommand.City,
-            CountryCode = subscribeForLocationAlertsCommand.CountryCode,
-            ConnectionId = subscribeForLocationAlertsCommand.ConnectionId
-        };
-
-        // Act
-        var subscribeForLocationAlertsResult = await _subscribeForLocationAlertsCommandHandler.HandleAsync(
-            subscribeForLocationAlertsCommand,
-            TestContext.Current.CancellationToken);
-        subscribeForLocationAlertsResult.Should().BeSuccess();
-        var recurringJobCountAfterSubscribe = _jobStorageConnection.GetRecurringJobs().Count;
-
-        var unsubscribeFromLocationAlertsResult = await _unsubscribeFromLocationAlertsCommandHandler.HandleAsync(
-            unsubscribeFromLocationAlertsCommand,
-            TestContext.Current.CancellationToken);
-        var recurringJobCountAfterUnsubscribe = _jobStorageConnection.GetRecurringJobs().Count;
-
-        // Assert
-        using (new AssertionScope())
-        {
-            unsubscribeFromLocationAlertsResult.Should().BeSuccess();
-            recurringJobCountAfterSubscribe.Should().Be(1);
-            // DEMO: Job is NOT unscheduled on unsubscribe - cleanup happens only on startup
-            recurringJobCountAfterUnsubscribe.Should().Be(1);
-        }
-    }
-
     [Fact]
     public async Task WhenPartOfGroup_RemovesFromTheGroup()
     {

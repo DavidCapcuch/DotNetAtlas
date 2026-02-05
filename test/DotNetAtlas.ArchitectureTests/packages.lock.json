@@ -2229,6 +2229,7 @@
           "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
           "DotNetAtlas.Application": "[1.0.0, )",
           "DotNetAtlas.Infrastructure": "[1.0.0, )",
+          "DotNetAtlas.ServiceDefaults": "[1.0.0, )",
           "FastEndpoints.ClientGen.Kiota": "[7.0.1, )",
           "FastEndpoints.Security": "[7.0.1, )",
           "FastEndpoints.Swagger": "[7.0.1, )",
@@ -2297,6 +2298,7 @@
           "DotNetAtlas.ReliableMessaging.Inbox.Core": "[1.0.0, )",
           "DotNetAtlas.ReliableMessaging.Inbox.EFCore": "[1.0.0, )",
           "DotNetAtlas.SchemaRegistry.Contracts": "[1.0.0, )",
+          "DotNetAtlas.ServiceDefaults": "[1.0.0, )",
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
           "EntityFrameworkCore.Exceptions.SqlServer": "[8.1.3, )",
           "Hangfire.AspNetCore": "[1.8.21, )",
@@ -2414,6 +2416,23 @@
         "type": "Project",
         "dependencies": {
           "Apache.Avro": "[1.12.0, )"
+        }
+      },
+      "dotnetatlas.servicedefaults": {
+        "type": "Project",
+        "dependencies": {
+          "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
+          "AspNetCore.HealthChecks.UI": "[9.0.0, )",
+          "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
+          "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
+          "Serilog.AspNetCore": "[9.0.0, )",
+          "Serilog.Exceptions": "[8.4.0, )",
+          "Serilog.Exceptions.EntityFrameworkCore": "[8.4.0, )",
+          "Serilog.Settings.Configuration": "[9.0.0, )",
+          "Serilog.Sinks.Console": "[6.0.0, )",
+          "Serilog.Sinks.OpenTelemetry": "[4.2.0, )",
+          "Serilog.Sinks.Seq": "[9.0.0, )",
+          "SerilogTracing.Expressions": "[2.3.1, )"
         }
       },
       "dotnetatlas.sharedkernel": {

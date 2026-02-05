@@ -7,9 +7,6 @@ namespace DotNetAtlas.Sagas.Common.Config;
 /// </summary>
 public sealed class SagaKafkaOptions
 {
-    /// <summary>
-    /// Configuration section name.
-    /// </summary>
     public const string Section = $"{SagaOptions.Section}:Kafka";
 
     /// <summary>

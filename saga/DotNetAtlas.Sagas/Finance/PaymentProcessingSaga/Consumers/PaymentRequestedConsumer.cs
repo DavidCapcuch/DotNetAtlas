@@ -5,8 +5,9 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives PaymentRequestedEvent
-/// and forwards it to the PaymentSaga as internal PaymentInitiatedSagaEvent.
+/// Consumer that receives <see cref="PaymentRequestedEvent"/> from Kafka
+/// and forwards it to the <see cref="PaymentProcessingSaga"/> as an internal
+/// <see cref="PaymentInitiatedSagaEvent"/>.
 /// </summary>
 public sealed class PaymentRequestedConsumer : IConsumer<PaymentRequestedEvent>
 {
@@ -22,7 +23,8 @@ public sealed class PaymentRequestedConsumer : IConsumer<PaymentRequestedEvent>
         var message = context.Message;
 
         _logger.LogInformation(
-            "Received PaymentRequestedEvent for user {UserId}, correlation {CorrelationId}, amount {Amount} {Currency}",
+            "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}, amount {Amount} {Currency}",
+            nameof(PaymentRequestedConsumer), nameof(PaymentRequestedEvent),
             message.UserId, message.CorrelationId, message.Amount, message.Currency);
 
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent

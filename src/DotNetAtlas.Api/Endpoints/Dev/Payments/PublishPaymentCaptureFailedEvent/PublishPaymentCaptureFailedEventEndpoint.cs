@@ -1,4 +1,4 @@
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Dev;
 using FastEndpoints;
 using Finance.Payments;

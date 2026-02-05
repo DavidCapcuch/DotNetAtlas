@@ -1,6 +1,6 @@
 using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.Application.Common.Data;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Domain.Alerts.Events;
 using DotNetAtlas.Domain.Alerts.Specifications;
 using DotNetAtlas.Domain.Alerts.ValueObjects;

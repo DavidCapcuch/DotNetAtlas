@@ -1,11 +1,8 @@
-using System.Globalization;
 using DotNetAtlas.Sagas.Common;
-using DotNetAtlas.Sagas.Common.Extensions;
+using DotNetAtlas.Sagas.Common.Observability;
 using DotNetAtlas.Sagas.Persistence.Database;
+using DotNetAtlas.ServiceDefaults;
 using Serilog;
-
-CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -16,24 +13,18 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    var isClusterEnvironment = builder.Environment.IsInCluster();
+    builder.AddPlatformHostConfiguration();
+    builder.UsePlatformSerilog(options => options.ServiceName = ApplicationInfo.AppName);
 
-    builder.Configuration.AddEnvironmentVariables();
-    builder
-        .Host
-        .UseDefaultServiceProvider(options =>
-        {
-            options.ValidateScopes = !isClusterEnvironment;
-            options.ValidateOnBuild = !isClusterEnvironment;
-        });
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
-    builder.AddInfrastructure(isClusterEnvironment);
-    builder.Services.AddSagaOrchestration(builder.Configuration, isClusterEnvironment);
+    builder.AddInfrastructure();
+    builder.Services.AddSagaOrchestration(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();
 
-    app.MapHealthChecksInternal();
-    app.UseHealthChecksPrometheusExporterInternal();
+    app.MapPlatformHealthCheckEndpoints();
+    app.UsePlatformHealthChecksPrometheusExporter();
 
     // In production, flyway should be used, therefore also during
     // integration tests to ensure the SQL scripts are applied correctly

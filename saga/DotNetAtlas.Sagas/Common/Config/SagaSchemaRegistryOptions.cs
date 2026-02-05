@@ -8,6 +8,8 @@ namespace DotNetAtlas.Sagas.Common.Config;
 /// </summary>
 public sealed class SagaSchemaRegistryOptions : SchemaRegistryConfig
 {
+    public const string Section = $"{SagaKafkaOptions.Section}:SagaSchemaRegistry";
+
     /// <summary>
     /// Schema Registry URL (e.g., "http://localhost:8081").
     /// </summary>

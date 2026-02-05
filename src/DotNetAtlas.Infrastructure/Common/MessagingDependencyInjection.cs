@@ -1,5 +1,5 @@
 using AspNetCore.SignalR.OpenTelemetry;
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Application.Common.Observability;
 using DotNetAtlas.Application.WeatherForecast.Common;
 using DotNetAtlas.Infrastructure.Common.Config;

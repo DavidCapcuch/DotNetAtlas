@@ -8,7 +8,7 @@ public static class DatabaseSeedExtensions
     public static async Task InitialiseDatabaseAsync(this WebApplication app)
     {
         await using var scope = app.Services.CreateAsyncScope();
-        await using var dbContext = scope.ServiceProvider.GetRequiredService<SubscriptionSagaDbContext>();
+        await using var dbContext = scope.ServiceProvider.GetRequiredService<SagaDbContext>();
 
         try
         {

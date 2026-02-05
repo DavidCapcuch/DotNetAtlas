@@ -1,14 +1,23 @@
-using DotNetAtlas.Sagas.Common.Observability;
+using DotNetAtlas.Sagas.Common.Observability.Metrics;
+using DotNetAtlas.Sagas.Common.Observability.Tracing;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
 using MassTransit;
 
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics and traces when payment refund times out.
+/// Activity that records metrics, traces, and logs when payment refund times out
+/// for the <see cref="PaymentProcessingSaga"/>.
 /// </summary>
 public sealed class RefundTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, RefundTimeoutExpired>
 {
+    private readonly ILogger<RefundTimeoutActivity> _logger;
+
+    public RefundTimeoutActivity(ILogger<RefundTimeoutActivity> logger)
+    {
+        _logger = logger;
+    }
+
     public void Probe(ProbeContext context)
     {
         context.CreateScope("refund-timeout-activity");
@@ -27,14 +36,18 @@ public sealed class RefundTimeoutActivity : IStateMachineActivity<PaymentProcess
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
         using var activity =
-            PaymentSagaInstrumentation.StartActivity(nameof(RefundTimeoutActivity), saga.CorrelationId);
+            PaymentProcessingSagaInstrumentation.StartActivity(nameof(RefundTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "refund");
         }
 
-        PaymentSagaInstrumentation.RecordSagaTimeout("refund", duration);
+        PaymentProcessingSagaInstrumentation.RecordSagaTimeout("refund", duration);
+
+        _logger.LogError(
+            "{SagaType} {CorrelationId} refund timed out for user {UserId}. Manual intervention required",
+            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

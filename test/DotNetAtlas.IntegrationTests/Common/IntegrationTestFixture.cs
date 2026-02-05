@@ -1,4 +1,5 @@
-using DotNetAtlas.Application.Common.Messaging.Config;
+using DotNetAtlas.Application.Common.Messaging;
+using DotNetAtlas.Application.WeatherAlerts.Common.Abstractions;
 using DotNetAtlas.Infrastructure.Common.Config;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.OpenMeteo;
 using DotNetAtlas.Infrastructure.HttpClients.WeatherProviders.WeatherApiCom;
@@ -99,6 +100,10 @@ public class IntegrationTestFixture : AppFixture<Program>
                 services.AddScoped<OpenMeteoWeatherProvider>();
                 services.AddScoped<WeatherApiComProvider>();
                 services.AddSingleton(Substitute.For<IHealthCheckReportCollector>());
+
+                // Integration tests don't create real signalr users, Redis backplane timeouts on ack
+                // during Hub broadcasts because the fake connection ids don't exist
+                services.AddScoped(_ => Substitute.For<IWeatherAlertBroadcaster>());
             });
     }
 

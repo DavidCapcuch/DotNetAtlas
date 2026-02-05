@@ -368,12 +368,19 @@ namespace DotNetAtlas.Infrastructure.Persistence.Database.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasComment("Kafka Key - typically the Aggregate ID for proper event ordering and partitioning");
 
+                    b.Property<string>("TopicName")
+                        .IsRequired()
+                        .HasMaxLength(249)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(249)")
+                        .HasComment("The Kafka topic where this message will be published. Set by the message producer.");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(255)
                         .IsUnicode(false)
                         .HasColumnType("varchar(255)")
-                        .HasComment("Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') used for type-based topic routing");
+                        .HasComment("Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability");
 
                     b.HasKey("Id");
 
