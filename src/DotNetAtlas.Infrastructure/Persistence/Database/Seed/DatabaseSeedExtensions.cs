@@ -58,8 +58,8 @@ public static class DatabaseSeedExtensions
 
     /// <summary>
     /// Seeds the database with 100 initial records if it is empty.
-    /// Only used in local and development environments. In other environments,
-    /// flyway migrations are used to apply changes, so this seeding isn't called.
+    /// Only used in local environments. In other environments,
+    /// sql script migrations are used to apply changes, so this seeding isn't called.
     /// </summary>
     private static async Task SeedDatabaseAsync(DbContext dbContext, CancellationToken ct = default)
     {

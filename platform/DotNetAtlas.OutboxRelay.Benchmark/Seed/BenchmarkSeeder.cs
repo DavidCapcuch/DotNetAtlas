@@ -1,8 +1,10 @@
 using System.Data;
 using System.Diagnostics;
 using Bogus;
+using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
+using DotNetAtlas.Avro.UniversalSerDes;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay;
 using DotNetAtlas.ReliableMessaging.Outbox.Core;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
@@ -88,7 +90,7 @@ public class BenchmarkSeeder
 
         foreach (var forecastRequestedEvent in forecastEvents)
         {
-            var avroPayload = _universalAvroSerializer.Serialize(forecastRequestedEvent, typeof(ForecastRequestedEvent));
+            var avroPayload = _universalAvroSerializer.Serialize(forecastRequestedEvent, SerializationContext.Empty);
 
             outboxMessages.Add(new OutboxMessage
             {

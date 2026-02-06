@@ -12,7 +12,7 @@ GO
 BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     IF SCHEMA_ID(N'saga') IS NULL EXEC(N'CREATE SCHEMA [saga];');
@@ -20,7 +20,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE TABLE [saga].[OutboxMessages] (
@@ -54,7 +54,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE TABLE [saga].[PaymentSagaState] (
@@ -69,8 +69,8 @@ BEGIN
         [AuthorizationExpiresAtUtc] datetimeoffset NULL,
         [PaymentTransactionId] uniqueidentifier NULL,
         [InitiatedAtUtc] datetimeoffset NOT NULL,
-        [CreatedAtUtc] datetimeoffset NOT NULL,
-        [LastUpdatedAtUtc] datetimeoffset NOT NULL,
+        [CreatedUtc] datetimeoffset NOT NULL,
+        [LastModifiedUtc] datetimeoffset NOT NULL,
         [AuthorizedAtUtc] datetimeoffset NULL,
         [CapturedAtUtc] datetimeoffset NULL,
         [AuthorizationRetryCount] int NOT NULL DEFAULT 0,
@@ -113,9 +113,9 @@ BEGIN
     SET @description1 = N'UTC timestamp when payment was initiated';
     EXEC sp_addextendedproperty 'MS_Description', @description1, 'SCHEMA', N'saga', 'TABLE', N'PaymentSagaState', 'COLUMN', N'InitiatedAtUtc';
     SET @description1 = N'UTC timestamp when saga was created';
-    EXEC sp_addextendedproperty 'MS_Description', @description1, 'SCHEMA', N'saga', 'TABLE', N'PaymentSagaState', 'COLUMN', N'CreatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description1, 'SCHEMA', N'saga', 'TABLE', N'PaymentSagaState', 'COLUMN', N'CreatedUtc';
     SET @description1 = N'UTC timestamp when saga was last updated';
-    EXEC sp_addextendedproperty 'MS_Description', @description1, 'SCHEMA', N'saga', 'TABLE', N'PaymentSagaState', 'COLUMN', N'LastUpdatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description1, 'SCHEMA', N'saga', 'TABLE', N'PaymentSagaState', 'COLUMN', N'LastModifiedUtc';
     SET @description1 = N'UTC timestamp when authorization completed';
     EXEC sp_addextendedproperty 'MS_Description', @description1, 'SCHEMA', N'saga', 'TABLE', N'PaymentSagaState', 'COLUMN', N'AuthorizedAtUtc';
     SET @description1 = N'UTC timestamp when capture completed';
@@ -148,7 +148,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE TABLE [saga].[SubscriptionExtensionSagaState] (
@@ -163,8 +163,8 @@ BEGIN
         [PaymentTransactionId] uniqueidentifier NULL,
         [ExtensionInitiatedAtUtc] datetimeoffset NOT NULL,
         [PaymentCompletedAtUtc] datetimeoffset NULL,
-        [CreatedAtUtc] datetimeoffset NOT NULL,
-        [LastUpdatedAtUtc] datetimeoffset NOT NULL,
+        [CreatedUtc] datetimeoffset NOT NULL,
+        [LastModifiedUtc] datetimeoffset NOT NULL,
         [ExtensionCompletedAtUtc] datetimeoffset NULL,
         [NewExpiresAtUtc] datetimeoffset NULL,
         [ErrorMessage] nvarchar(2048) NULL,
@@ -203,9 +203,9 @@ BEGIN
     SET @description2 = N'UTC timestamp when payment completed (null if not completed)';
     EXEC sp_addextendedproperty 'MS_Description', @description2, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionExtensionSagaState', 'COLUMN', N'PaymentCompletedAtUtc';
     SET @description2 = N'UTC timestamp when saga was created';
-    EXEC sp_addextendedproperty 'MS_Description', @description2, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionExtensionSagaState', 'COLUMN', N'CreatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description2, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionExtensionSagaState', 'COLUMN', N'CreatedUtc';
     SET @description2 = N'UTC timestamp when saga was last updated';
-    EXEC sp_addextendedproperty 'MS_Description', @description2, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionExtensionSagaState', 'COLUMN', N'LastUpdatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description2, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionExtensionSagaState', 'COLUMN', N'LastModifiedUtc';
     SET @description2 = N'UTC timestamp when extension completed (null if not completed)';
     EXEC sp_addextendedproperty 'MS_Description', @description2, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionExtensionSagaState', 'COLUMN', N'ExtensionCompletedAtUtc';
     SET @description2 = N'New subscription expiration date after extension (null if not completed)';
@@ -230,7 +230,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE TABLE [saga].[SubscriptionPurchaseSagaState] (
@@ -244,15 +244,15 @@ BEGIN
         [Currency] nvarchar(3) NOT NULL,
         [IdempotencyKey] nvarchar(128) NOT NULL,
         [PaymentTransactionId] uniqueidentifier NULL,
-        [PurchaseInitiatedAtUtc] datetimeoffset NOT NULL,
-        [PaymentCompletedAtUtc] datetimeoffset NULL,
-        [CreatedAtUtc] datetimeoffset NOT NULL,
-        [LastUpdatedAtUtc] datetimeoffset NOT NULL,
-        [ActivationCompletedAtUtc] datetimeoffset NULL,
+        [PurchaseInitiatedUtc] datetimeoffset NOT NULL,
+        [PaymentCompletedUtc] datetimeoffset NULL,
+        [CreatedUtc] datetimeoffset NOT NULL,
+        [LastModifiedUtc] datetimeoffset NOT NULL,
+        [ActivationCompletedUtc] datetimeoffset NULL,
         [ErrorMessage] nvarchar(2048) NULL,
         [ErrorCode] nvarchar(64) NULL,
         [CompensationTriggered] bit NOT NULL,
-        [CompensationCompletedAtUtc] datetimeoffset NULL,
+        [CompensationCompletedUtc] datetimeoffset NULL,
         [RowVersion] rowversion NULL,
         [PaymentTimeoutTokenId] uniqueidentifier NULL,
         [ActivationTimeoutTokenId] uniqueidentifier NULL,
@@ -283,15 +283,15 @@ BEGIN
     SET @description3 = N'Payment transaction ID (set after payment completes)';
     EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'PaymentTransactionId';
     SET @description3 = N'UTC timestamp when purchase was initiated';
-    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'PurchaseInitiatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'PurchaseInitiatedUtc';
     SET @description3 = N'UTC timestamp when payment completed (null if not completed)';
-    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'PaymentCompletedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'PaymentCompletedUtc';
     SET @description3 = N'UTC timestamp when saga was created';
-    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'CreatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'CreatedUtc';
     SET @description3 = N'UTC timestamp when saga was last updated';
-    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'LastUpdatedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'LastModifiedUtc';
     SET @description3 = N'UTC timestamp when activation completed (null if not completed)';
-    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'ActivationCompletedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'ActivationCompletedUtc';
     SET @description3 = N'Error message if failed';
     EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'ErrorMessage';
     SET @description3 = N'Error code for categorized failure handling';
@@ -299,7 +299,7 @@ BEGIN
     SET @description3 = N'Whether compensation (refund) has been triggered';
     EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'CompensationTriggered';
     SET @description3 = N'UTC timestamp when compensation completed';
-    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'CompensationCompletedAtUtc';
+    EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'CompensationCompletedUtc';
     SET @description3 = N'Optimistic concurrency token.';
     EXEC sp_addextendedproperty 'MS_Description', @description3, 'SCHEMA', N'saga', 'TABLE', N'SubscriptionPurchaseSagaState', 'COLUMN', N'RowVersion';
     SET @description3 = N'Token ID for payment timeout scheduler - set when schedule is active';
@@ -312,7 +312,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE INDEX [IX_PaymentSagaState_CurrentState] ON [saga].[PaymentSagaState] ([CurrentState]);
@@ -320,7 +320,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE UNIQUE INDEX [IX_PaymentSagaState_IdempotencyKey] ON [saga].[PaymentSagaState] ([IdempotencyKey]);
@@ -328,23 +328,23 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
-    CREATE INDEX [IX_PaymentSagaState_State_Created] ON [saga].[PaymentSagaState] ([CurrentState], [CreatedAtUtc]);
+    CREATE INDEX [IX_PaymentSagaState_State_Created] ON [saga].[PaymentSagaState] ([CurrentState], [CreatedUtc]);
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
-    CREATE INDEX [IX_PaymentSagaState_State_LastUpdated] ON [saga].[PaymentSagaState] ([CurrentState], [LastUpdatedAtUtc]);
+    CREATE INDEX [IX_PaymentSagaState_State_LastUpdated] ON [saga].[PaymentSagaState] ([CurrentState], [LastModifiedUtc]);
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE INDEX [IX_PaymentSagaState_UserId] ON [saga].[PaymentSagaState] ([UserId]);
@@ -352,7 +352,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE INDEX [IX_SubscriptionExtensionSagaState_CurrentState] ON [saga].[SubscriptionExtensionSagaState] ([CurrentState]);
@@ -360,7 +360,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE UNIQUE INDEX [IX_SubscriptionExtensionSagaState_IdempotencyKey] ON [saga].[SubscriptionExtensionSagaState] ([IdempotencyKey]);
@@ -368,23 +368,23 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
-    CREATE INDEX [IX_SubscriptionExtensionSagaState_State_Created] ON [saga].[SubscriptionExtensionSagaState] ([CurrentState], [CreatedAtUtc]);
+    CREATE INDEX [IX_SubscriptionExtensionSagaState_State_Created] ON [saga].[SubscriptionExtensionSagaState] ([CurrentState], [CreatedUtc]);
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
-    CREATE INDEX [IX_SubscriptionExtensionSagaState_State_LastUpdated] ON [saga].[SubscriptionExtensionSagaState] ([CurrentState], [LastUpdatedAtUtc]);
+    CREATE INDEX [IX_SubscriptionExtensionSagaState_State_LastUpdated] ON [saga].[SubscriptionExtensionSagaState] ([CurrentState], [LastModifiedUtc]);
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE INDEX [IX_SubscriptionExtensionSagaState_UserId] ON [saga].[SubscriptionExtensionSagaState] ([UserId]);
@@ -392,7 +392,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE INDEX [IX_SubscriptionPurchaseSagaState_CurrentState] ON [saga].[SubscriptionPurchaseSagaState] ([CurrentState]);
@@ -400,7 +400,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE UNIQUE INDEX [IX_SubscriptionPurchaseSagaState_IdempotencyKey] ON [saga].[SubscriptionPurchaseSagaState] ([IdempotencyKey]);
@@ -408,23 +408,23 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
-    CREATE INDEX [IX_SubscriptionPurchaseSagaState_State_Created] ON [saga].[SubscriptionPurchaseSagaState] ([CurrentState], [CreatedAtUtc]);
+    CREATE INDEX [IX_SubscriptionPurchaseSagaState_State_Created] ON [saga].[SubscriptionPurchaseSagaState] ([CurrentState], [CreatedUtc]);
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
-    CREATE INDEX [IX_SubscriptionPurchaseSagaState_State_LastUpdated] ON [saga].[SubscriptionPurchaseSagaState] ([CurrentState], [LastUpdatedAtUtc]);
+    CREATE INDEX [IX_SubscriptionPurchaseSagaState_State_LastUpdated] ON [saga].[SubscriptionPurchaseSagaState] ([CurrentState], [LastModifiedUtc]);
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     CREATE INDEX [IX_SubscriptionPurchaseSagaState_UserId] ON [saga].[SubscriptionPurchaseSagaState] ([UserId]);
@@ -432,11 +432,11 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [saga].[__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260204220714_Asdf'
+    WHERE [MigrationId] = N'20260206122605_Asdf'
 )
 BEGIN
     INSERT INTO [saga].[__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20260204220714_Asdf', N'10.0.0');
+    VALUES (N'20260206122605_Asdf', N'10.0.0');
 END;
 
 COMMIT;

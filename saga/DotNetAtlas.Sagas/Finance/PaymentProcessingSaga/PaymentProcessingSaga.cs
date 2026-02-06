@@ -86,8 +86,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 Currency = ctx.Message.Currency,
                 IdempotencyKey = ctx.Message.IdempotencyKey,
                 InitiatedAtUtc = ctx.Message.InitiatedAtUtc,
-                LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime,
-                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
             });
         });
 
@@ -219,7 +217,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                     ctx.Saga.AuthorizationId = ctx.Message.AuthorizationId;
                     ctx.Saga.AuthorizedAtUtc = ctx.Message.AuthorizedAtUtc;
                     ctx.Saga.AuthorizationExpiresAtUtc = ctx.Message.ExpiresAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<AuthorizationCompletedActivity>())
                 .Unschedule(AuthorizationTimeout)
@@ -245,7 +242,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
                     ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<AuthorizationFailedActivity>())
                 .Unschedule(AuthorizationTimeout)
@@ -280,7 +276,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.ErrorCode = "AUTHORIZATION_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Authorization timeout expired";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<AuthorizationTimeoutActivity>())
                 .TransitionTo(AuthorizationFailed)
@@ -295,7 +290,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.PaymentTransactionId = ctx.Message.PaymentTransactionId;
                     ctx.Saga.CapturedAtUtc = ctx.Message.CapturedAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<CaptureCompletedActivity>())
                 .Unschedule(CaptureTimeout)
@@ -322,7 +316,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
                     ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<CaptureFailedActivity>())
                 .Unschedule(CaptureTimeout)
@@ -380,7 +373,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.ErrorCode = "CAPTURE_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Capture timeout expired";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<CaptureTimeoutActivity>())
                 .Then(ctx => ctx.Saga.CompensationTriggered = true)
@@ -426,7 +418,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 .Then(ctx =>
                 {
                     ctx.Saga.CompensationTriggered = true;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<RefundRequestedActivity>())
                 .Unschedule(SuccessFinalizationTimeout)
@@ -459,7 +450,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 .Then(ctx =>
                 {
                     ctx.Saga.CompensationCompletedAtUtc = ctx.Message.VoidedAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<VoidCompletedActivity>())
                 .Unschedule(VoidTimeout)
@@ -470,7 +460,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.ErrorCode = "VOID_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Void timeout expired. Manual intervention required.";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<VoidTimeoutActivity>())
                 .TransitionTo(VoidFailed)
@@ -484,7 +473,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 .Then(ctx =>
                 {
                     ctx.Saga.CompensationCompletedAtUtc = ctx.Message.RefundedAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<RefundCompletedActivity>())
                 .Unschedule(RefundTimeout)
@@ -495,7 +483,6 @@ public sealed class PaymentProcessingSaga : MassTransitStateMachine<PaymentProce
                 {
                     ctx.Saga.ErrorCode = "REFUND_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Refund timeout expired. Manual intervention required.";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<RefundTimeoutActivity>())
                 .TransitionTo(RefundFailed)

@@ -5,10 +5,11 @@ using Avro.Specific;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Schema = Avro.Schema;
 
-namespace DotNetAtlas.Sagas.Common.AvroDeserialization;
+namespace DotNetAtlas.Avro.UniversalSerDes;
 
 /// <summary>
 /// Universal deserializer for Avro messages that automatically detects the message type at runtime.

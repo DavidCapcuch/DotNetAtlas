@@ -1,3 +1,5 @@
+using DotNetAtlas.Sagas.Common;
+using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.SharedKernel.Base;
 using MassTransit;
 
@@ -8,7 +10,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 /// This saga orchestrates the alert subscription extension flow, coordinating payment
 /// (via <c>PaymentRequestedEvent</c>) and extension (via <c>ExtendAlertSubscriptionCommand</c>).
 /// </summary>
-public sealed class AlertSubscriptionExtensionSagaState : SagaStateMachineInstance, ISagaAuditableEntity
+public sealed class AlertSubscriptionExtensionSagaState : ISagaStateInstance, IAuditableEntity
 {
     /// <summary>
     /// Uniquely identifies the saga instance.
@@ -19,7 +21,7 @@ public sealed class AlertSubscriptionExtensionSagaState : SagaStateMachineInstan
     /// <summary>
     /// Current state of the saga state machine.
     /// </summary>
-    public string CurrentState { get; set; }
+    public string CurrentState { get; set; } = ""; // always auto set by factory
 
     /// <summary>
     /// Identifier of the user who is extending the subscription.
@@ -70,12 +72,12 @@ public sealed class AlertSubscriptionExtensionSagaState : SagaStateMachineInstan
     /// <summary>
     /// UTC timestamp when the saga was created.
     /// </summary>
-    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset CreatedUtc { get; }
 
     /// <summary>
-    /// UTC timestamp when the saga was last updated.
+    /// UTC timestamp when the saga was last modified.
     /// </summary>
-    public DateTimeOffset LastUpdatedAtUtc { get; set; }
+    public DateTimeOffset LastModifiedUtc { get; }
 
     /// <summary>
     /// UTC timestamp when extension was completed, if successful.

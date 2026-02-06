@@ -26,9 +26,10 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    // In production, flyway should be used, therefore also during
-    // integration tests to ensure the SQL scripts are applied correctly
-    if (!app.Environment.IsProduction() && !app.Environment.IsTesting())
+    // In production, SQL scripts generated from EF core migrations should be used,
+    // therefore also during integration tests to ensure the SQL scripts are applied correctly,
+    // see https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying?tabs=dotnet-core-cli
+    if (app.Environment.IsLocal())
     {
         await app.InitialiseDatabaseAsync();
     }

@@ -1,4 +1,5 @@
 using Confluent.SchemaRegistry;
+using DotNetAtlas.Avro.UniversalSerDes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

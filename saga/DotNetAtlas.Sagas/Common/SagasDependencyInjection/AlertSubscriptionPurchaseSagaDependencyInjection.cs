@@ -3,7 +3,7 @@ using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
-using DotNetAtlas.Sagas.Common.AvroDeserialization;
+using DotNetAtlas.Avro.UniversalSerDes;
 using DotNetAtlas.Sagas.Common.Config;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 using MassTransit;

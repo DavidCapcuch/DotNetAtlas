@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using Avro.Specific;
+using Confluent.Kafka;
+using DotNetAtlas.Avro.UniversalSerDes;
 using DotNetAtlas.Messaging.Abstractions;
 using DotNetAtlas.ReliableMessaging.Outbox.Core;
 using Microsoft.Extensions.Options;
@@ -37,7 +39,10 @@ public class OutboxWriter : IOutboxWriter
     }
 
     /// <inheritdoc />
-    public void AddOutboxMessage(IOutboxDbContext dbContext, string topicName, string? kafkaKey, ISpecificRecord integrationEvent)
+    public void AddOutboxMessage(IOutboxDbContext dbContext,
+        string topicName,
+        string? kafkaKey,
+        ISpecificRecord integrationEvent)
     {
         ArgumentNullException.ThrowIfNull(dbContext);
         ArgumentException.ThrowIfNullOrWhiteSpace(topicName);
@@ -46,7 +51,7 @@ public class OutboxWriter : IOutboxWriter
         var messageOrigin = _outboxOptions.Value.MessageOrigin;
 
         var messageType = integrationEvent.GetType();
-        var bytes = _universalAvroSerializer.Serialize(integrationEvent, messageType);
+        var bytes = _universalAvroSerializer.Serialize(integrationEvent, SerializationContext.Empty);
 
         var activity = Activity.Current;
         var headers = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity) ?? [];

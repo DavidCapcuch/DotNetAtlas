@@ -2,7 +2,7 @@
 
 TestContainers‑based components for simplyfing spinning up infrastructure setup and state management in integration and functional tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
 
-- **SQL Server**: Flyway-style migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
+- **SQL Server**: Sql script migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
 - **Redis**: flush-all resets, pre-configured ConfigurationOptions.
 - **Kafka + Schema Registry** with config encapsulation
 
@@ -15,7 +15,7 @@ using DotNetAtlas.Test.Framework.Database;
 
 var sqlServer = new SqlServerTestContainer(
     databaseName: "Weather",
-    flywayMigrationsPath: SolutionPaths.FlywayMigrationsDirectory,
+    sqlScriptsMigrationsPath: SolutionPaths.SqlScriptsMigrationsDirectory,
     new RespawnerOptions
     {
         SchemasToInclude = ["weather", "HangFire"]

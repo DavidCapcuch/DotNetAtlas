@@ -66,19 +66,19 @@ public sealed class AlertSubscriptionPurchaseSagaStateMap :
             .HasComment("Payment transaction ID (set after payment completes)");
 
         // Timestamps
-        entity.Property(x => x.PurchaseInitiatedAtUtc)
+        entity.Property(x => x.PurchaseInitiatedUtc)
             .HasComment("UTC timestamp when purchase was initiated");
 
-        entity.Property(x => x.CreatedAtUtc)
+        entity.Property(x => x.CreatedUtc)
             .HasComment("UTC timestamp when saga was created");
 
-        entity.Property(x => x.LastUpdatedAtUtc)
+        entity.Property(x => x.LastModifiedUtc)
             .HasComment("UTC timestamp when saga was last updated");
 
-        entity.Property(x => x.PaymentCompletedAtUtc)
+        entity.Property(x => x.PaymentCompletedUtc)
             .HasComment("UTC timestamp when payment completed (null if not completed)");
 
-        entity.Property(x => x.ActivationCompletedAtUtc)
+        entity.Property(x => x.ActivationCompletedUtc)
             .HasComment("UTC timestamp when activation completed (null if not completed)");
 
         // Error handling
@@ -94,7 +94,7 @@ public sealed class AlertSubscriptionPurchaseSagaStateMap :
         entity.Property(x => x.CompensationTriggered)
             .HasComment("Whether compensation (refund) has been triggered");
 
-        entity.Property(x => x.CompensationCompletedAtUtc)
+        entity.Property(x => x.CompensationCompletedUtc)
             .HasComment("UTC timestamp when compensation completed");
 
         // Scheduler tokens
@@ -114,7 +114,7 @@ public sealed class AlertSubscriptionPurchaseSagaStateMap :
         entity.HasIndex(x => new
         {
             x.CurrentState,
-            x.CreatedAtUtc
+            CreatedAtUtc = x.CreatedUtc
         })
             .HasDatabaseName("IX_SubscriptionPurchaseSagaState_State_Created");
 
@@ -122,7 +122,7 @@ public sealed class AlertSubscriptionPurchaseSagaStateMap :
         entity.HasIndex(x => new
         {
             x.CurrentState,
-            x.LastUpdatedAtUtc
+            LastUpdatedAtUtc = x.LastModifiedUtc
         })
             .HasDatabaseName("IX_SubscriptionPurchaseSagaState_State_LastUpdated");
     }

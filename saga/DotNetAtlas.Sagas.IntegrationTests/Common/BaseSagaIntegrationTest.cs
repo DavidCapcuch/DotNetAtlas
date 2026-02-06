@@ -1,7 +1,9 @@
+using DotNetAtlas.Sagas.Common;
+using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.Sagas.Persistence.Database;
-using DotNetAtlas.Sagas.UnitTests.Fakes;
+using DotNetAtlas.Test.Framework.Kafka;
 using DotNetAtlas.Test.Framework.Tracing;
-using MassTransit.Testing;
+using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
@@ -16,10 +18,15 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
     private readonly TestCaseTracer _testCaseTracer;
 
     protected IServiceScope Scope { get; }
-    protected ITestHarness TestHarness { get; }
     protected SagaDbContext DbContext { get; }
     protected TimeProvider TimeProvider { get; }
     protected FakeOutboxWriter FakeOutboxWriter { get; }
+    protected KafkaAvroTestProducer KafkaTestProducer { get; }
+
+    /// <summary>
+    /// The MassTransit bus for publishing internal saga events (e.g., timeout events).
+    /// </summary>
+    protected IBus Bus => Scope.ServiceProvider.GetRequiredService<IBus>();
 
     protected BaseSagaIntegrationTest(SagaIntegrationTestFixture fixture)
     {
@@ -30,10 +37,10 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         outputSink.Inject(TestContext.Current.TestOutputHelper!);
 
         Scope = fixture.Services.CreateScope();
-        TestHarness = fixture.TestHarness;
         DbContext = Scope.ServiceProvider.GetRequiredService<SagaDbContext>();
         TimeProvider = Scope.ServiceProvider.GetRequiredService<TimeProvider>();
         FakeOutboxWriter = fixture.FakeOutboxWriter;
+        KafkaTestProducer = fixture.KafkaProducer;
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
@@ -63,5 +70,16 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         await _fixture.ResetDatabaseAsync();
         FakeOutboxWriter.Clear();
         Scope.Dispose();
+    }
+
+    /// <summary>
+    /// Creates a typed saga test helper for fluent state waiting.
+    /// </summary>
+    protected SagaStateMonitor<TSaga, TSagaState> CreateSagaStateMonitor<TSaga, TSagaState>()
+        where TSaga : MassTransitStateMachine<TSagaState>
+        where TSagaState : class, ISagaStateInstance
+    {
+        var stateMachine = Scope.ServiceProvider.GetRequiredService<TSaga>();
+        return new SagaStateMonitor<TSaga, TSagaState>(DbContext, stateMachine);
     }
 }

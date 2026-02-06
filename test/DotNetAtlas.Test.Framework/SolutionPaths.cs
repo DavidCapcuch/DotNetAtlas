@@ -11,7 +11,7 @@ public static class SolutionPaths
 
     public static string EfMigrationsDirectory => Path.Combine(DatabaseRootDirectory, "Migrations");
 
-    public static string FlywayMigrationsDirectory => Path.Combine(EfMigrationsDirectory, "Flyway");
+    public static string SqlScriptMigrationsDirectory => Path.Combine(EfMigrationsDirectory, "SqlScripts");
 
     public static string GetSolutionRootDirectory()
     {

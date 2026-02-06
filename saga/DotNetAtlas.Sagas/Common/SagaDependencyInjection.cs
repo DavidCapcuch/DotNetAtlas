@@ -36,19 +36,27 @@ public static class SagaDependencyInjection
 
         private IServiceCollection AddSagaStateMachines(IConfiguration configuration)
         {
+            services.AddOptionsWithValidateOnStart<SagaOptions>()
+                .BindConfiguration(SagaOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddOptionsWithValidateOnStart<SagaKafkaOptions>()
+                .BindConfiguration(SagaKafkaOptions.Section)
+                .ValidateDataAnnotations();
+
             var sagaOptions = configuration
                 .GetRequiredSection(SagaOptions.Section)
                 .Get<SagaOptions>()!;
 
+            var sagaKafkaOptions = configuration
+                .GetRequiredSection(SagaKafkaOptions.Section)
+                .Get<SagaKafkaOptions>()!;
+
             services.AddSingleton<ISchemaRegistryClient>(_ =>
                 new CachedSchemaRegistryClient(new SchemaRegistryConfig
                 {
-                    Url = sagaOptions.Kafka.SchemaRegistry.Url
+                    Url = sagaKafkaOptions.SchemaRegistry.Url
                 }));
-
-            services.AddOptionsWithValidateOnStart<SagaOptions>()
-                .BindConfiguration(SagaOptions.Section)
-                .ValidateDataAnnotations();
 
             var connectionStringsOptions = configuration
                 .GetRequiredSection(ConnectionStringsOptions.Section)
@@ -105,7 +113,7 @@ public static class SagaDependencyInjection
                         e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
                     });
 
-                cfg.AddSagaKafkaRider(sagaOptions);
+                cfg.AddSagaKafkaRider(sagaKafkaOptions);
 
                 cfg.UsingSqlServer((context, busCfg) =>
                 {
@@ -135,13 +143,13 @@ public static class SagaDependencyInjection
                 .BindConfiguration(EfCoreOptions.Section)
                 .ValidateDataAnnotations();
 
-            var sagaOptions = configuration
-                .GetRequiredSection(SagaOptions.Section)
-                .Get<SagaOptions>()!;
-
             var efCoreOptions = configuration
                 .GetRequiredSection(EfCoreOptions.Section)
                 .Get<EfCoreOptions>()!;
+
+            var sagaKafkaOptions = configuration
+                .GetRequiredSection(SagaKafkaOptions.Section)
+                .Get<SagaKafkaOptions>()!;
 
             services.AddOutbox(outbox =>
             {
@@ -154,7 +162,7 @@ public static class SagaDependencyInjection
                 });
                 outbox.ConfigureSchemaRegistryConfig(config =>
                 {
-                    config.Url = sagaOptions.Kafka.SchemaRegistry.Url;
+                    config.Url = sagaKafkaOptions.SchemaRegistry.Url;
                 });
             });
             services.AddSingleton(TimeProvider.System);
@@ -183,7 +191,7 @@ public static class SagaDependencyInjection
 
     extension(IBusRegistrationConfigurator cfg)
     {
-        private void AddSagaKafkaRider(SagaOptions sagaOptions)
+        private void AddSagaKafkaRider(SagaKafkaOptions sagaKafkaOptions)
         {
             cfg.AddRider(rider =>
             {
@@ -193,18 +201,15 @@ public static class SagaDependencyInjection
 
                 rider.UsingKafka((registrationContext, kafkaConfigurator) =>
                 {
-                    kafkaConfigurator.Host(sagaOptions.Kafka.BrokersFlat);
+                    kafkaConfigurator.Host(sagaKafkaOptions.BrokersFlat);
 
                     var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
-                    var kafkaOptions = sagaOptions.Kafka;
                     kafkaConfigurator.ConfigureAlertSubscriptionPurchaseSagaConsumers(registrationContext,
-                        schemaRegistryClient,
-                        kafkaOptions);
+                        schemaRegistryClient, sagaKafkaOptions);
                     kafkaConfigurator.ConfigureAlertSubscriptionExtensionSagaConsumers(registrationContext,
-                        schemaRegistryClient,
-                        kafkaOptions);
+                        schemaRegistryClient, sagaKafkaOptions);
                     kafkaConfigurator.ConfigurePaymentSagaConsumers(registrationContext, schemaRegistryClient,
-                        kafkaOptions);
+                        sagaKafkaOptions);
                 });
             });
         }

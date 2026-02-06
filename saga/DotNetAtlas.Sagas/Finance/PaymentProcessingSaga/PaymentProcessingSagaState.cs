@@ -1,3 +1,5 @@
+using DotNetAtlas.Sagas.Common;
+using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.SharedKernel.Base;
 using MassTransit;
 
@@ -8,7 +10,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 /// This is a "dumb" payment saga - it knows nothing about business context (subscriptions, orders, etc.).
 /// It only handles the payment lifecycle: authorization -> capture -> void/refund.
 /// </summary>
-public sealed class PaymentProcessingSagaState : SagaStateMachineInstance, ISagaAuditableEntity
+public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableEntity
 {
     /// <summary>
     /// Uniquely identifies the saga instance.
@@ -19,7 +21,7 @@ public sealed class PaymentProcessingSagaState : SagaStateMachineInstance, ISaga
     /// <summary>
     /// Current state of the saga state machine.
     /// </summary>
-    public string CurrentState { get; set; }
+    public string CurrentState { get; set; } = ""; // always auto set by factory
 
     /// <summary>
     /// Identifier of the user making the payment.
@@ -69,12 +71,12 @@ public sealed class PaymentProcessingSagaState : SagaStateMachineInstance, ISaga
     /// <summary>
     /// UTC timestamp when the saga was created.
     /// </summary>
-    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset CreatedUtc { get; }
 
     /// <summary>
-    /// UTC timestamp when the saga was last updated.
+    /// UTC timestamp when the saga was last modified.
     /// </summary>
-    public DateTimeOffset LastUpdatedAtUtc { get; set; }
+    public DateTimeOffset LastModifiedUtc { get; }
 
     /// <summary>
     /// UTC timestamp when authorization was completed (null if not yet authorized).

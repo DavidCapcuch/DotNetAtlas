@@ -37,7 +37,7 @@ public sealed class CompensationCompletedActivity
     {
         var saga = context.Saga;
         var message = context.Message;
-        var duration = _timeProvider.GetUtcNow() - saga.CreatedAtUtc;
+        var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
         using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(CompensationCompletedActivity), saga.CorrelationId,

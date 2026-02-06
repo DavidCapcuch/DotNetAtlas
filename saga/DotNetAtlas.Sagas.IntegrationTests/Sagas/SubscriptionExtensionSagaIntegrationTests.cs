@@ -2,29 +2,34 @@ using DotNetAtlas.Sagas.IntegrationTests.Common;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Schedules;
+using DotNetAtlas.SchemaRegistry.Contracts.Avro.Extensions;
 using Finance.Payments;
-using MassTransit.Testing;
 using Microsoft.EntityFrameworkCore;
+using Order.AlertSubscriptions;
+using Weather.Alerts;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
 
 /// <summary>
 /// Integration tests for the SubscriptionExtensionSaga state machine.
 /// Tests verify saga state persistence, state transitions, and isolation using EF Core and real SQL Server via TestContainers.
+/// Events are produced to real Kafka topics and flow through the full consumer pipeline.
 /// </summary>
 [Collection(nameof(SagaTestCollection))]
 public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
-    private ISagaStateMachineTestHarness<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>
-        SagaHarness { get; }
+    private SagaStateMonitor<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState> SagaStateMonitor
+    {
+        get;
+    }
 
     public SubscriptionExtensionSagaIntegrationTests(SagaIntegrationTestFixture fixture)
         : base(fixture)
     {
-        SagaHarness = TestHarness
-            .GetSagaStateMachineHarness<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>();
+        SagaStateMonitor =
+            CreateSagaStateMonitor<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>();
     }
 
     [Fact]
@@ -37,10 +42,11 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
 
         // Act
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
         var persistedState = await DbContext.Set<AlertSubscriptionExtensionSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -66,7 +72,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
         // Act - transition to completed state via extension
-        var extendedEvent = new AlertSubscriptionExtendedSagaEvent
+        var extendedEvent = new AlertSubscriptionExtendedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -76,10 +82,11 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
             ExtendedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(extendedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.WeatherAlertSubscriptionsTopic, userId, extendedEvent);
 
         // Assert
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -96,12 +103,14 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         var initiatedEvent2 = CreateExtensionInitiatedEvent(correlationId2, userId2, 365, 99.99m);
 
         // Act
-        await TestHarness.Bus.Publish(initiatedEvent1);
-        await TestHarness.Bus.Publish(initiatedEvent2);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId1, initiatedEvent1);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId2, initiatedEvent2);
 
         // Assert
-        await SagaHarness.Exists(correlationId1, x => x.WaitingForPayment, DefaultTimeout);
-        await SagaHarness.Exists(correlationId2, x => x.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId2, state => state.WaitingForPayment, DefaultTimeout);
 
         var state1 = await DbContext.Set<AlertSubscriptionExtensionSagaState>()
             .AsNoTracking()
@@ -134,10 +143,11 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         var initiatedEvent = CreateExtensionInitiatedEvent(
             correlationId, userId, 90, 24.99m, "USD", paymentMethodId);
 
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
 
         // Verify: WaitingForPayment state persisted
-        await SagaHarness.Exists(correlationId, x => x.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
         var stateAfterInitiation = await DbContext.Set<AlertSubscriptionExtensionSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -155,20 +165,21 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         }
 
         // Step 2: Complete payment
-        var paymentCompletedEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
+        var paymentCompletedEvent = new PaymentCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
-            Amount = 24.99m,
+            Amount = 24.99m.ToAvroDecimal(4),
             Currency = "USD",
             CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(paymentCompletedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, paymentCompletedEvent);
 
         // Verify: AwaitingExtension state persisted
-        await SagaHarness.Exists(correlationId, x => x.AwaitingExtension, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingExtension, DefaultTimeout);
         var stateAfterPayment = await DbContext.Set<AlertSubscriptionExtensionSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -182,7 +193,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         }
 
         // Step 3: Extend subscription
-        var extendedEvent = new AlertSubscriptionExtendedSagaEvent
+        var extendedEvent = new AlertSubscriptionExtendedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -192,10 +203,11 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
             ExtendedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(extendedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.WeatherAlertSubscriptionsTopic, userId, extendedEvent);
 
         // Verify: ExtensionCompleted - saga finalized
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -207,12 +219,13 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         var userId = Guid.NewGuid();
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
-        // Act - Send payment failed event
-        var paymentFailedEvent = new AlertSubscriptionExtensionPaymentFailedSagaEvent
+        // Act - Send payment failed event via Kafka
+        var paymentFailedEvent = new PaymentFailedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -221,11 +234,11 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(paymentFailedEvent);
-        await SagaHarness.Consumed.Any<AlertSubscriptionExtensionPaymentFailedSagaEvent>();
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, paymentFailedEvent);
 
         // Assert
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -239,7 +252,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
-        // Act - Send extension failed with ShouldCompensate=true
+        // Act - Send extension failed with ShouldCompensate=true (internal saga event - no Kafka consumer)
         var extensionFailedEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
@@ -250,10 +263,10 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
             ShouldCompensate = true
         };
 
-        await TestHarness.Bus.Publish(extensionFailedEvent);
+        await Bus.Publish(extensionFailedEvent);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.CompensationInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
         var persistedState = await DbContext.Set<AlertSubscriptionExtensionSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -282,7 +295,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
-        // Act - Send extension failed with ShouldCompensate=false
+        // Act - Send extension failed with ShouldCompensate=false (internal saga event - no Kafka consumer)
         var extensionFailedEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
@@ -293,11 +306,10 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
             ShouldCompensate = false
         };
 
-        await TestHarness.Bus.Publish(extensionFailedEvent);
-        await SagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>();
+        await Bus.Publish(extensionFailedEvent);
 
         // Assert
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -312,20 +324,23 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToCompensationInProgressState(correlationId, userId, paymentTransactionId);
 
-        // Act - Send compensation completed event
-        var compensationCompletedEvent = new AlertSubscriptionExtensionCompensationCompletedSagaEvent
+        // Act - Send compensation completed event via Kafka (PaymentRefundedEvent)
+        var refundedEvent = new PaymentRefundedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
+            PaymentTransactionId = paymentTransactionId,
             RefundTransactionId = refundTransactionId,
-            CompensatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
+            RefundedAmount = 99.99m.ToAvroDecimal(4),
+            Currency = "USD",
+            RefundedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(compensationCompletedEvent);
-        await SagaHarness.Consumed.Any<AlertSubscriptionExtensionCompensationCompletedSagaEvent>();
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, refundedEvent);
 
         // Assert
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -337,21 +352,21 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         var userId = Guid.NewGuid();
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
-        // Act - Simulate timeout by publishing PaymentTimeoutExpired
+        // Act - Simulate timeout by publishing PaymentTimeoutExpired (MassTransit internal)
         var timeoutEvent = new PaymentTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
-        await SagaHarness.Consumed.Any<PaymentTimeoutExpired>();
+        await Bus.Publish(timeoutEvent);
 
         // Assert
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -365,16 +380,16 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingExtensionState(correlationId, userId, paymentTransactionId);
 
-        // Act - Simulate timeout by publishing ExtensionTimeoutExpired
+        // Act - Simulate timeout by publishing ExtensionTimeoutExpired (MassTransit internal)
         var timeoutEvent = new ExtensionTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
+        await Bus.Publish(timeoutEvent);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.CompensationInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
         var persistedState = await DbContext.Set<AlertSubscriptionExtensionSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -403,21 +418,22 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToCompensationInProgressState(correlationId, userId, paymentTransactionId);
 
-        // Act - Simulate timeout by publishing CompensationTimeoutExpired
+        // Act - Simulate timeout by publishing CompensationTimeoutExpired (MassTransit internal)
         var timeoutEvent = new CompensationTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
-        await SagaHarness.Consumed.Any<CompensationTimeoutExpired>();
+        await Bus.Publish(timeoutEvent);
 
         // Assert
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
-    private AlertSubscriptionExtensionInitiatedSagaEvent CreateExtensionInitiatedEvent(
+    // -- Helper Methods --
+
+    private AlertSubscriptionExtensionInitiatedEvent CreateExtensionInitiatedEvent(
         Guid correlationId,
         Guid userId,
         int durationDays = 30,
@@ -425,13 +441,13 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         string currency = "USD",
         Guid? paymentMethodId = null)
     {
-        return new AlertSubscriptionExtensionInitiatedSagaEvent
+        return new AlertSubscriptionExtensionInitiatedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentMethodId = paymentMethodId ?? Guid.NewGuid(),
             DurationDays = durationDays,
-            Amount = amount,
+            Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             IdempotencyKey = $"extension-{userId}-{Guid.NewGuid()}",
             InitiatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
@@ -448,23 +464,25 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
     {
         var initiatedEvent = CreateExtensionInitiatedEvent(
             correlationId, userId, durationDays, amount, currency);
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.WaitingForPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
-        var paymentCompletedEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
+        var paymentCompletedEvent = new PaymentCompletedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
-            Amount = amount,
+            Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(paymentCompletedEvent);
+        await KafkaTestProducer.ProduceAsync(
+            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, paymentCompletedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.AwaitingExtension, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingExtension, DefaultTimeout);
     }
 
     private async Task TransitionSagaToCompensationInProgressState(
@@ -478,6 +496,7 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
         await TransitionSagaToAwaitingExtensionState(
             correlationId, userId, paymentTransactionId, durationDays, amount, currency);
 
+        // Extension failed is an internal saga event (no Kafka consumer)
         var extensionFailedEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
@@ -488,8 +507,8 @@ public class SubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
             ShouldCompensate = true
         };
 
-        await TestHarness.Bus.Publish(extensionFailedEvent);
+        await Bus.Publish(extensionFailedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.CompensationInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
     }
 }

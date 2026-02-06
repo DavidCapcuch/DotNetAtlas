@@ -1,7 +1,7 @@
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.Sagas.Common.Config;
 using DotNetAtlas.Sagas.Persistence.Database;
-using DotNetAtlas.Sagas.UnitTests.Fakes;
+using DotNetAtlas.Test.Framework.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +26,7 @@ public static class SagaTestFixture
         Options.Create(BindRequiredSection<SagaOptions>(SagaOptions.Section));
 
     public static IOptions<SagaTopicsOptions> CreateSagaTopicsOptions() =>
-        Options.Create(BindRequiredSection<SagaTopicsOptions>("Saga:Kafka:Topics"));
+        Options.Create(BindRequiredSection<SagaTopicsOptions>(SagaTopicsOptions.Section));
 
     public static IServiceCollection AddSagaOutboxTestServices(
         this IServiceCollection services,

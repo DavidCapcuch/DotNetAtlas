@@ -313,7 +313,7 @@
         "--configuration",
         "Debug",
         "--output",
-        "src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/Flyway/${input:OutputFileName}",
+        "src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/SqlScripts/${input:OutputFileName}",
         "--idempotent"
       ],
       "group": "build"

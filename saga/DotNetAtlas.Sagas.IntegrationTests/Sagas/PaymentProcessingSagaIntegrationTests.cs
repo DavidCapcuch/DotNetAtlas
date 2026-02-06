@@ -2,8 +2,8 @@ using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
 using DotNetAtlas.Sagas.IntegrationTests.Common;
+using DotNetAtlas.SchemaRegistry.Contracts.Avro.Extensions;
 using Finance.Payments;
-using MassTransit.Testing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
@@ -11,18 +11,19 @@ namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
 /// <summary>
 /// Integration tests for the PaymentProcessingSaga state machine.
 /// Tests verify saga state persistence, state transitions, and isolation using EF Core and real SQL Server via TestContainers.
+/// Events are produced to real Kafka topics and flow through the full consumer pipeline.
 /// </summary>
 [Collection(nameof(SagaTestCollection))]
 public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
-    private ISagaStateMachineTestHarness<PaymentProcessingSaga, PaymentProcessingSagaState> SagaHarness { get; }
+    private SagaStateMonitor<PaymentProcessingSaga, PaymentProcessingSagaState> SagaStateMonitor { get; }
 
     public PaymentProcessingSagaIntegrationTests(SagaIntegrationTestFixture fixture)
         : base(fixture)
     {
-        SagaHarness = TestHarness.GetSagaStateMachineHarness<PaymentProcessingSaga, PaymentProcessingSagaState>();
+        SagaStateMonitor = CreateSagaStateMonitor<PaymentProcessingSaga, PaymentProcessingSagaState>();
     }
 
     [Fact]
@@ -32,13 +33,14 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId);
+        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
 
         // Act
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            paymentRequestedEvent);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
         var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -65,21 +67,21 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
 
         // Act - Capture the payment
-        var capturedEvent = new PaymentCapturedSagaEvent
+        var capturedEvent = new PaymentCapturedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
             AuthorizationId = authorizationId,
-            Amount = 99.99m,
+            Amount = 99.99m.ToAvroDecimal(4),
             Currency = "USD",
             CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(capturedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, capturedEvent);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.PaymentCompleted, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
         var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -103,16 +105,16 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var userId1 = Guid.NewGuid();
         var userId2 = Guid.NewGuid();
 
-        var initiatedEvent1 = CreatePaymentInitiatedEvent(correlationId1, userId1, 9.99m, "USD");
-        var initiatedEvent2 = CreatePaymentInitiatedEvent(correlationId2, userId2, 99.99m, "EUR");
+        var event1 = CreatePaymentRequestedEvent(correlationId1, userId1, 9.99m, "USD");
+        var event2 = CreatePaymentRequestedEvent(correlationId2, userId2, 99.99m, "EUR");
 
         // Act
-        await TestHarness.Bus.Publish(initiatedEvent1);
-        await TestHarness.Bus.Publish(initiatedEvent2);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId1, event1);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId2, event2);
 
         // Assert
-        await SagaHarness.Exists(correlationId1, x => x.AwaitingAuthorization, DefaultTimeout);
-        await SagaHarness.Exists(correlationId2, x => x.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId2, state => state.AwaitingAuthorization, DefaultTimeout);
 
         var state1 = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
@@ -144,12 +146,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var authorizationId = $"auth-{Guid.NewGuid()}";
 
         // Step 1: Initiate payment
-        var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId, 49.99m, "USD", paymentMethodId);
+        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, 49.99m, "USD", paymentMethodId);
 
-        await TestHarness.Bus.Publish(initiatedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            paymentRequestedEvent);
 
         // Verify: AwaitingAuthorization state persisted
-        await SagaHarness.Exists(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
         var stateAfterInitiation = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -166,21 +169,21 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         }
 
         // Step 2: Authorize payment
-        var authorizedEvent = new PaymentAuthorizedSagaEvent
+        var authorizedEvent = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
-            Amount = 49.99m,
+            Amount = 49.99m.ToAvroDecimal(4),
             Currency = "USD",
             AuthorizedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
             ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(authorizedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, authorizedEvent);
 
         // Verify: AwaitingCapture state persisted
-        await SagaHarness.Exists(correlationId, x => x.AwaitingCapture, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
         var stateAfterAuthorization = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -194,21 +197,21 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         }
 
         // Step 3: Capture payment
-        var capturedEvent = new PaymentCapturedSagaEvent
+        var capturedEvent = new PaymentCapturedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
             AuthorizationId = authorizationId,
-            Amount = 49.99m,
+            Amount = 49.99m.ToAvroDecimal(4),
             Currency = "USD",
             CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(capturedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, capturedEvent);
 
         // Verify: PaymentCompleted state persisted
-        await SagaHarness.Exists(correlationId, x => x.PaymentCompleted, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
         var stateAfterCapture = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -220,40 +223,33 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             stateAfterCapture.PaymentTransactionId.Should().Be(paymentTransactionId);
             stateAfterCapture.CapturedAtUtc.Should().HaveValue();
             stateAfterCapture.CompensationTriggered.Should().BeFalse();
-        }
 
-        // Verify: PaymentCompletedEvent was added to the outbox for publishing to Kafka
-        using (new AssertionScope())
-        {
             FakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeTrue(
                 "PaymentCompletedEvent should be added to the outbox for publishing to Kafka when payment is captured");
-
             var outboxMessages = FakeOutboxWriter.GetMessages<PaymentCompletedEvent>().ToList();
             outboxMessages.Should().ContainSingle();
-            outboxMessages.First().IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
-    private PaymentInitiatedSagaEvent CreatePaymentInitiatedEvent(
+    private PaymentRequestedEvent CreatePaymentRequestedEvent(
         Guid correlationId,
         Guid userId,
         decimal amount = 9.99m,
         string currency = "USD",
         Guid? paymentMethodId = null)
     {
-        return new PaymentInitiatedSagaEvent
+        return new PaymentRequestedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentMethodId = paymentMethodId ?? Guid.NewGuid(),
-            Amount = amount,
+            Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             IdempotencyKey = $"payment-{userId}-{Guid.NewGuid()}",
-            InitiatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
+            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }
-
-    // -- Unhappy Path Tests --
 
     [Fact]
     public async Task WhenAuthorizationFailsNonRetryable_ShouldFinalizeInAuthorizationFailedState()
@@ -262,13 +258,14 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId);
-        await TestHarness.Bus.Publish(initiatedEvent);
+        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            paymentRequestedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
 
         // Act - Send non-retryable authorization failure
-        var authFailedEvent = new PaymentAuthorizationFailedSagaEvent
+        var authFailedEvent = new PaymentAuthorizationFailedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -278,11 +275,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(authFailedEvent);
-        await SagaHarness.Consumed.Any<PaymentAuthorizationFailedSagaEvent>();
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, authFailedEvent);
 
-        // Assert - verify saga finalized
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        // Assert - verify saga finalized (removed from database)
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -297,7 +293,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
 
         // Act - Send non-retryable capture failure
-        var captureFailedEvent = new PaymentCaptureFailedSagaEvent
+        var captureFailedEvent = new PaymentCaptureFailedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -308,10 +304,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(captureFailedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            captureFailedEvent);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.VoidInProgress, DefaultTimeout);
         var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -321,17 +318,12 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.Should().NotBeNull();
             persistedState.CurrentState.Should().Be("VoidInProgress");
             persistedState.CompensationTriggered.Should().BeTrue();
-        }
 
-        // Verify PaymentFailedEvent was added to the outbox for publishing to Kafka
-        using (new AssertionScope())
-        {
             FakeOutboxWriter.HasMessage<PaymentFailedEvent>().Should().BeTrue(
                 "PaymentFailedEvent should be added to the outbox when capture fails non-retryable");
-
             var outboxMessages = FakeOutboxWriter.GetMessages<PaymentFailedEvent>().ToList();
             outboxMessages.Should().ContainSingle();
-            outboxMessages.First().IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
@@ -347,7 +339,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await TransitionSagaToVoidInProgressState(correlationId, userId, authorizationId);
 
         // Act - Complete the void
-        var voidedEvent = new PaymentVoidedSagaEvent
+        var voidedEvent = new PaymentVoidedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -355,11 +347,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             VoidedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(voidedEvent);
-        await SagaHarness.Consumed.Any<PaymentVoidedSagaEvent>();
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, voidedEvent);
 
-        // Assert - verify saga finalized
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        // Assert - verify saga finalized (removed from database)
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -374,7 +365,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Transition to PaymentCompleted state
         await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId);
 
-        // Act - Request refund
+        // Act - Request refund (internal saga event - no Kafka consumer exists)
         var refundCommand = new PaymentRefundRequestedSagaEvent
         {
             CorrelationId = correlationId,
@@ -384,10 +375,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(refundCommand);
+        await Bus.Publish(refundCommand);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.RefundInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
         var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -399,8 +390,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         }
     }
 
-    // -- Timeout Tests --
-
     [Fact]
     public async Task WhenAuthorizationTimesOut_ShouldFinalizeInAuthorizationFailedState()
     {
@@ -408,22 +397,22 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId);
-        await TestHarness.Bus.Publish(initiatedEvent);
+        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            paymentRequestedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
 
-        // Act - Simulate timeout by publishing AuthorizationTimeoutExpired
+        // Act - Simulate timeout by publishing AuthorizationTimeoutExpired (MassTransit internal)
         var timeoutEvent = new AuthorizationTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
-        await SagaHarness.Consumed.Any<AuthorizationTimeoutExpired>();
+        await Bus.Publish(timeoutEvent);
 
-        // Assert - verify saga finalized
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        // Assert - verify saga finalized (removed from database)
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -437,16 +426,16 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
 
-        // Act - Simulate timeout by publishing CaptureTimeoutExpired
+        // Act - Simulate timeout by publishing CaptureTimeoutExpired (MassTransit internal)
         var timeoutEvent = new CaptureTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
+        await Bus.Publish(timeoutEvent);
 
         // Assert
-        await SagaHarness.Exists(correlationId, x => x.VoidInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
         var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -456,17 +445,12 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.Should().NotBeNull();
             persistedState.CurrentState.Should().Be("VoidInProgress");
             persistedState.CompensationTriggered.Should().BeTrue();
-        }
 
-        // Verify PaymentFailedEvent was added to the outbox for publishing to Kafka
-        using (new AssertionScope())
-        {
             FakeOutboxWriter.HasMessage<PaymentFailedEvent>().Should().BeTrue(
                 "PaymentFailedEvent should be added to the outbox when capture times out");
-
             var outboxMessages = FakeOutboxWriter.GetMessages<PaymentFailedEvent>().ToList();
             outboxMessages.Should().ContainSingle();
-            outboxMessages.First().IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
@@ -480,17 +464,16 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToVoidInProgressState(correlationId, userId, authorizationId);
 
-        // Act - Simulate timeout by publishing VoidTimeoutExpired
+        // Act - Simulate timeout by publishing VoidTimeoutExpired (MassTransit internal)
         var timeoutEvent = new VoidTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
-        await SagaHarness.Consumed.Any<VoidTimeoutExpired>();
+        await Bus.Publish(timeoutEvent);
 
-        // Assert - verify saga finalized
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        // Assert - verify saga finalized (removed from database)
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -504,17 +487,16 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToRefundInProgressState(correlationId, userId, paymentTransactionId);
 
-        // Act - Simulate timeout by publishing RefundTimeoutExpired
+        // Act - Simulate timeout by publishing RefundTimeoutExpired (MassTransit internal)
         var timeoutEvent = new RefundTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await TestHarness.Bus.Publish(timeoutEvent);
-        await SagaHarness.Consumed.Any<RefundTimeoutExpired>();
+        await Bus.Publish(timeoutEvent);
 
-        // Assert - verify saga finalized
-        var sagaFinalized = await SagaHarness.NotExists(correlationId, DefaultTimeout) is null;
+        // Assert - verify saga finalized (removed from database)
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
     }
 
@@ -527,25 +509,26 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         decimal amount = 99.99m,
         string currency = "USD")
     {
-        var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId, amount, currency);
-        await TestHarness.Bus.Publish(initiatedEvent);
+        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, amount, currency);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            paymentRequestedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
 
-        var authorizedEvent = new PaymentAuthorizedSagaEvent
+        var authorizedEvent = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
-            Amount = amount,
+            Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             AuthorizedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
             ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(authorizedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, authorizedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.AwaitingCapture, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
     }
 
     private async Task TransitionSagaToVoidInProgressState(
@@ -557,7 +540,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     {
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId, amount, currency);
 
-        var captureFailedEvent = new PaymentCaptureFailedSagaEvent
+        var captureFailedEvent = new PaymentCaptureFailedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -568,9 +551,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(captureFailedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
+            captureFailedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.VoidInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
     }
 
     private async Task TransitionSagaToPaymentCompletedState(
@@ -584,20 +568,20 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId, amount, currency);
 
-        var capturedEvent = new PaymentCapturedSagaEvent
+        var capturedEvent = new PaymentCapturedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
             AuthorizationId = authorizationId,
-            Amount = amount,
+            Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(capturedEvent);
+        await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId, capturedEvent);
 
-        await SagaHarness.Exists(correlationId, x => x.PaymentCompleted, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
     }
 
     private async Task TransitionSagaToRefundInProgressState(
@@ -609,6 +593,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     {
         await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId, amount, currency);
 
+        // RefundRequested is an internal saga event (no Kafka consumer exists)
         var refundCommand = new PaymentRefundRequestedSagaEvent
         {
             CorrelationId = correlationId,
@@ -618,8 +603,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await TestHarness.Bus.Publish(refundCommand);
+        await Bus.Publish(refundCommand);
 
-        await SagaHarness.Exists(correlationId, x => x.RefundInProgress, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
     }
 }

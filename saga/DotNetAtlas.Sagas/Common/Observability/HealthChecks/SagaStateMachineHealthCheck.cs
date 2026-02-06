@@ -83,19 +83,19 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
             var stuckPurchaseCount = await _sagaDbContext.Set<AlertSubscriptionPurchaseSagaState>()
                 .CountAsync(s =>
                         !AlertSubscriptionPurchaseSagaState.TerminalStates.Contains(s.CurrentState) &&
-                        s.LastUpdatedAtUtc < threshold,
+                        s.LastModifiedUtc < threshold,
                     cancellationToken);
 
             var stuckExtensionCount = await _sagaDbContext.Set<AlertSubscriptionExtensionSagaState>()
                 .CountAsync(s =>
                         !AlertSubscriptionExtensionSagaState.TerminalStates.Contains(s.CurrentState) &&
-                        s.LastUpdatedAtUtc < threshold,
+                        s.LastModifiedUtc < threshold,
                     cancellationToken);
 
             var stuckPaymentCount = await _sagaDbContext.Set<PaymentProcessingSagaState>()
                 .CountAsync(s =>
                         !PaymentProcessingSagaState.TerminalStates.Contains(s.CurrentState) &&
-                        s.LastUpdatedAtUtc < threshold,
+                        s.LastModifiedUtc < threshold,
                     cancellationToken);
 
             // Update metrics for Grafana/Prometheus scraping
