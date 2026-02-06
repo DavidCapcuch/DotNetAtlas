@@ -37,7 +37,7 @@ public sealed class
         IBehavior<AlertSubscriptionPurchaseSagaState, CompensationTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = _timeProvider.GetUtcNow() - saga.CreatedAtUtc;
+        var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
         using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(CompensationTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);

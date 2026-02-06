@@ -34,7 +34,7 @@ public class ApiTestFixture : AppFixture<Program>
 {
     private readonly SqlServerTestContainer _dbContainer = new(
         databaseName: "Weather",
-        flywayMigrationsPath: SolutionPaths.FlywayMigrationsDirectory,
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectory,
         new RespawnerOptions
         {
             SchemasToInclude = [WeatherDbContext.DefaultSchemaName, "HangFire"]

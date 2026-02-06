@@ -72,7 +72,7 @@ Production deployment and CI/CD:
 |-------|-------------|
 | [**🐳 Docker**](devops/Docker.md) | Multi-stage builds, chiseled images, and docker-compose |
 | [**🔄 CI/CD Pipeline**](devops/CICD.md) | GitHub Actions workflows for build, test, and deploy |
-| [**🗃️ Database Migrations**](devops/Migrations.md) | EF Core migrations and Flyway scripts |
+| [**🗃️ Database Migrations**](devops/Migrations.md) | EF Core migrations and SQL scripts |
 
 ## 📖 Reference
 

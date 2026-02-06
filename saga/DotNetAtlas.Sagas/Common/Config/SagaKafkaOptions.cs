@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Common.Config;
 /// </summary>
 public sealed class SagaKafkaOptions
 {
-    public const string Section = $"{SagaOptions.Section}:Kafka";
+    public const string Section = "Kafka";
 
     /// <summary>
     /// Kafka broker addresses (e.g., ["localhost:9094"]).

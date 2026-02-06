@@ -71,10 +71,10 @@ public sealed class PaymentProcessingSagaStateMap :
         entity.Property(x => x.InitiatedAtUtc)
             .HasComment("UTC timestamp when payment was initiated");
 
-        entity.Property(x => x.CreatedAtUtc)
+        entity.Property(x => x.CreatedUtc)
             .HasComment("UTC timestamp when saga was created");
 
-        entity.Property(x => x.LastUpdatedAtUtc)
+        entity.Property(x => x.LastModifiedUtc)
             .HasComment("UTC timestamp when saga was last updated");
 
         entity.Property(x => x.AuthorizedAtUtc)
@@ -131,7 +131,7 @@ public sealed class PaymentProcessingSagaStateMap :
         entity.HasIndex(x => new
         {
             x.CurrentState,
-            x.CreatedAtUtc
+            CreatedAtUtc = x.CreatedUtc
         })
             .HasDatabaseName("IX_PaymentSagaState_State_Created");
 
@@ -139,7 +139,7 @@ public sealed class PaymentProcessingSagaStateMap :
         entity.HasIndex(x => new
         {
             x.CurrentState,
-            x.LastUpdatedAtUtc
+            LastUpdatedAtUtc = x.LastModifiedUtc
         })
             .HasDatabaseName("IX_PaymentSagaState_State_LastUpdated");
     }

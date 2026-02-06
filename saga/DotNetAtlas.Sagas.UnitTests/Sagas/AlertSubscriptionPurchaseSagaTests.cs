@@ -1,7 +1,7 @@
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Schedules;
-using DotNetAtlas.Sagas.UnitTests.Fakes;
+using DotNetAtlas.Test.Framework.Kafka;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
@@ -372,11 +372,11 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
         instance.Amount.Should().Be(99.99m);
         instance.Currency.Should().Be("EUR");
         instance.IdempotencyKey.Should().Be($"purchase-{userId}-test");
-        instance.PurchaseInitiatedAtUtc.Should().Be(initiatedAt);
+        instance.PurchaseInitiatedUtc.Should().Be(initiatedAt);
         instance.CurrentState.Should().Be("WaitingForPayment");
         instance.CompensationTriggered.Should().BeFalse();
-        instance.ActivationCompletedAtUtc.Should().BeNull();
-        instance.CompensationCompletedAtUtc.Should().BeNull();
+        instance.ActivationCompletedUtc.Should().BeNull();
+        instance.CompensationCompletedUtc.Should().BeNull();
     }
 
     [Fact]

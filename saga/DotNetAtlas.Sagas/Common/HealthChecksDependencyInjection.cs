@@ -30,13 +30,13 @@ public static class HealthChecksDependencyInjection
             .GetSection(HealthCheckTimeoutsOptions.Section)
             .Get<HealthCheckTimeoutsOptions>() ?? new HealthCheckTimeoutsOptions();
 
-        var sagaOptions = configuration
-            .GetRequiredSection(SagaOptions.Section)
-            .Get<SagaOptions>()!;
+        var sagaKafkaOptions = configuration
+            .GetRequiredSection(SagaKafkaOptions.Section)
+            .Get<SagaKafkaOptions>()!;
 
         var healthCheckKafkaProducerConfig = new ProducerConfig
         {
-            BootstrapServers = sagaOptions.Kafka.BrokersFlat,
+            BootstrapServers = sagaKafkaOptions.BrokersFlat,
             ClientId = "saga-healthcheck"
         };
 

@@ -130,7 +130,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("bit")
                         .HasComment("Whether compensation has been triggered");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<DateTimeOffset>("CreatedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when saga was created");
 
@@ -166,7 +166,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when payment was initiated");
 
-                    b.Property<DateTimeOffset>("LastUpdatedAtUtc")
+                    b.Property<DateTimeOffset>("LastModifiedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when saga was last updated");
 
@@ -212,10 +212,10 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_PaymentSagaState_UserId");
 
-                    b.HasIndex("CurrentState", "CreatedAtUtc")
+                    b.HasIndex("CurrentState", "CreatedUtc")
                         .HasDatabaseName("IX_PaymentSagaState_State_Created");
 
-                    b.HasIndex("CurrentState", "LastUpdatedAtUtc")
+                    b.HasIndex("CurrentState", "LastModifiedUtc")
                         .HasDatabaseName("IX_PaymentSagaState_State_LastUpdated");
 
                     b.ToTable("PaymentSagaState", "saga", t =>
@@ -247,7 +247,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("bit")
                         .HasComment("Whether compensation (refund) has been triggered");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<DateTimeOffset>("CreatedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when saga was created");
 
@@ -295,7 +295,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasComment("Idempotency key to prevent duplicate extensions");
 
-                    b.Property<DateTimeOffset>("LastUpdatedAtUtc")
+                    b.Property<DateTimeOffset>("LastModifiedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when saga was last updated");
 
@@ -341,10 +341,10 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_SubscriptionExtensionSagaState_UserId");
 
-                    b.HasIndex("CurrentState", "CreatedAtUtc")
+                    b.HasIndex("CurrentState", "CreatedUtc")
                         .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_Created");
 
-                    b.HasIndex("CurrentState", "LastUpdatedAtUtc")
+                    b.HasIndex("CurrentState", "LastModifiedUtc")
                         .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_LastUpdated");
 
                     b.ToTable("SubscriptionExtensionSagaState", "saga", t =>
@@ -359,7 +359,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasComment("PK - Unique correlation ID (also PaymentTransactionId)");
 
-                    b.Property<DateTimeOffset?>("ActivationCompletedAtUtc")
+                    b.Property<DateTimeOffset?>("ActivationCompletedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when activation completed (null if not completed)");
 
@@ -372,7 +372,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("decimal(19,4)")
                         .HasComment("Payment amount");
 
-                    b.Property<DateTimeOffset?>("CompensationCompletedAtUtc")
+                    b.Property<DateTimeOffset?>("CompensationCompletedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when compensation completed");
 
@@ -384,7 +384,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("bit")
                         .HasComment("Whether compensation (refund) has been triggered");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<DateTimeOffset>("CreatedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when saga was created");
 
@@ -420,11 +420,11 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasComment("Idempotency key to prevent duplicate purchases");
 
-                    b.Property<DateTimeOffset>("LastUpdatedAtUtc")
+                    b.Property<DateTimeOffset>("LastModifiedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when saga was last updated");
 
-                    b.Property<DateTimeOffset?>("PaymentCompletedAtUtc")
+                    b.Property<DateTimeOffset?>("PaymentCompletedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when payment completed (null if not completed)");
 
@@ -440,7 +440,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasComment("Payment transaction ID (set after payment completes)");
 
-                    b.Property<DateTimeOffset>("PurchaseInitiatedAtUtc")
+                    b.Property<DateTimeOffset>("PurchaseInitiatedUtc")
                         .HasColumnType("datetimeoffset")
                         .HasComment("UTC timestamp when purchase was initiated");
 
@@ -470,10 +470,10 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_SubscriptionPurchaseSagaState_UserId");
 
-                    b.HasIndex("CurrentState", "CreatedAtUtc")
+                    b.HasIndex("CurrentState", "CreatedUtc")
                         .HasDatabaseName("IX_SubscriptionPurchaseSagaState_State_Created");
 
-                    b.HasIndex("CurrentState", "LastUpdatedAtUtc")
+                    b.HasIndex("CurrentState", "LastModifiedUtc")
                         .HasDatabaseName("IX_SubscriptionPurchaseSagaState_State_LastUpdated");
 
                     b.ToTable("SubscriptionPurchaseSagaState", "saga", t =>

@@ -22,8 +22,6 @@
 
         <!-- Health Checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics" />
-        <PackageReference Include="AspNetCore.HealthChecks.UI" />
         <PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
     </ItemGroup>
-
 </Project>

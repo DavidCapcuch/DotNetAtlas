@@ -34,7 +34,7 @@ public sealed class PaymentCompletedActivity
         IBehavior<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionPaymentCompletedSagaEvent> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.CreatedAtUtc;
+        var duration = DateTime.UtcNow - saga.CreatedUtc;
 
         using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(PaymentCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);

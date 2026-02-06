@@ -1,3 +1,5 @@
+using DotNetAtlas.Sagas.Common;
+using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.SharedKernel.Base;
 using MassTransit;
 using Order.AlertSubscriptions;
@@ -9,7 +11,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 /// This saga orchestrates the alert subscription purchase flow, coordinating payment
 /// (via <c>PaymentRequestedEvent</c>) and activation (via <c>ActivateAlertSubscriptionCommand</c>).
 /// </summary>
-public sealed class AlertSubscriptionPurchaseSagaState : SagaStateMachineInstance, ISagaAuditableEntity
+public sealed class AlertSubscriptionPurchaseSagaState : ISagaStateInstance, IAuditableEntity
 {
     /// <summary>
     /// Uniquely identifies the saga instance.
@@ -20,7 +22,7 @@ public sealed class AlertSubscriptionPurchaseSagaState : SagaStateMachineInstanc
     /// <summary>
     /// Current state of the saga state machine.
     /// </summary>
-    public string CurrentState { get; set; }
+    public string CurrentState { get; set; } = ""; // always auto set by factory
 
     /// <summary>
     /// Identifier of the user who is purchasing the subscription.
@@ -66,27 +68,27 @@ public sealed class AlertSubscriptionPurchaseSagaState : SagaStateMachineInstanc
     /// <summary>
     /// UTC timestamp when the purchase was initiated.
     /// </summary>
-    public DateTimeOffset PurchaseInitiatedAtUtc { get; set; }
+    public DateTimeOffset PurchaseInitiatedUtc { get; set; }
 
     /// <summary>
     /// UTC timestamp when payment was completed, if successful.
     /// </summary>
-    public DateTimeOffset? PaymentCompletedAtUtc { get; set; }
+    public DateTimeOffset? PaymentCompletedUtc { get; set; }
 
     /// <summary>
     /// UTC timestamp when the saga was created.
     /// </summary>
-    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset CreatedUtc { get; }
 
     /// <summary>
-    /// UTC timestamp when the saga was last updated.
+    /// UTC timestamp when the saga was last modified.
     /// </summary>
-    public DateTimeOffset LastUpdatedAtUtc { get; set; }
+    public DateTimeOffset LastModifiedUtc { get; }
 
     /// <summary>
     /// UTC timestamp when activation was completed, if successful.
     /// </summary>
-    public DateTimeOffset? ActivationCompletedAtUtc { get; set; }
+    public DateTimeOffset? ActivationCompletedUtc { get; set; }
 
     /// <summary>
     /// Error message if activation failed.
@@ -106,7 +108,7 @@ public sealed class AlertSubscriptionPurchaseSagaState : SagaStateMachineInstanc
     /// <summary>
     /// UTC timestamp when compensation was completed, if applicable.
     /// </summary>
-    public DateTimeOffset? CompensationCompletedAtUtc { get; set; }
+    public DateTimeOffset? CompensationCompletedUtc { get; set; }
 
     /// <summary>
     /// Optimistic concurrency token.

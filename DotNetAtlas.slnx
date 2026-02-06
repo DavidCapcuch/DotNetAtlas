@@ -36,6 +36,8 @@
     <File Path=".github/workflows/validate-documentation-links.yml" />
   </Folder>
   <Folder Name="/platform/">
+    <File Path="platform/Directory.Packages.props" />
+    <Project Path="platform/DotNetAtlas.Avro.UniversalSerDes/DotNetAtlas.Avro.UniversalSerDes.csproj" />
     <Project Path="platform/DotNetAtlas.CQS/DotNetAtlas.CQS.csproj" />
     <Project Path="platform/DotNetAtlas.KafkaFlow.DeadLetter/DotNetAtlas.KafkaFlow.DeadLetter.csproj" />
     <Project Path="platform/DotNetAtlas.KafkaFlow.Inbox.EFCore/DotNetAtlas.KafkaFlow.Inbox.EFCore.csproj" />

@@ -1,15 +1,10 @@
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.Sagas.Common.Config;
-using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
-using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
-using DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 using DotNetAtlas.Sagas.Persistence.Database;
-using DotNetAtlas.Sagas.UnitTests.Fakes;
 using DotNetAtlas.Test.Framework;
 using DotNetAtlas.Test.Framework.Database;
 using DotNetAtlas.Test.Framework.Kafka;
 using MassTransit;
-using MassTransit.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -30,25 +25,33 @@ public sealed class SagaTestCollection : ICollectionFixture<SagaIntegrationTestF
 
 /// <summary>
 /// Integration test fixture for saga tests using WebApplicationFactory and real SQL Server container.
-/// Provides MassTransit test harness with EF Core saga persistence.
+/// Provides MassTransit test harness with EF Core saga persistence and real Kafka consumers.
 /// </summary>
 public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly SqlServerTestContainer _dbContainer;
     private readonly KafkaTestContainer _kafkaContainer = new();
 
-    public ITestHarness TestHarness { get; private set; } = null!;
+    public const string FinancePaymentsTopic = "finance.payments";
+    public const string FinancePaymentCommandsTopic = "finance.payment-commands";
+    public const string OrderAlertSubscriptionsTopic = "order.alert-subscriptions";
+    public const string WeatherAlertSubscriptionsTopic = "weather.alert-subscriptions";
+    public const string WeatherAlertSubscriptionsCommandsTopic = "weather.alert-subscriptions.commands";
+
     public FakeOutboxWriter FakeOutboxWriter { get; } = new();
+    public KafkaAvroTestProducer KafkaProducer { get; private set; } = null!;
+
+    private IBusControl? _busControl;
 
     public SagaIntegrationTestFixture()
     {
         var migrationsPath = Path.Combine(
             SolutionPaths.GetSolutionRootDirectory(), "saga", "DotNetAtlas.Sagas", "Persistence", "Database",
-            "Migrations", "Flyway");
+            "Migrations", "SqlScripts");
 
         _dbContainer = new SqlServerTestContainer(
             databaseName: "Saga",
-            flywayMigrationsPath: migrationsPath,
+            sqlScriptsMigrationsPath: migrationsPath,
             new RespawnerOptions
             {
                 SchemasToInclude = [SagaDbContext.DefaultSchemaName]
@@ -60,7 +63,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
         builder
             .UseEnvironment("Testing")
             .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Saga)}", _dbContainer.ConnectionString)
-            .UseKafkaaSettings(_kafkaContainer.KafkaOptions)
+            .UseKafkaSettings(_kafkaContainer.KafkaOptions)
             .ConfigureServices(services =>
             {
                 var testOutputSink = new InjectableTestOutputSink();
@@ -76,30 +79,6 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
             .ConfigureTestServices(services =>
             {
                 services.AddSingleton<IOutboxWriter>(FakeOutboxWriter);
-
-                services.AddMassTransitTestHarness(cfg =>
-                {
-                    cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>()
-                        .EntityFrameworkRepository(r =>
-                        {
-                            r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                            r.ExistingDbContext<SagaDbContext>();
-                        });
-
-                    cfg.AddSagaStateMachine<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>()
-                        .EntityFrameworkRepository(r =>
-                        {
-                            r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                            r.ExistingDbContext<SagaDbContext>();
-                        });
-
-                    cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentProcessingSagaState>()
-                        .EntityFrameworkRepository(r =>
-                        {
-                            r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                            r.ExistingDbContext<SagaDbContext>();
-                        });
-                });
             });
     }
 
@@ -109,21 +88,30 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
 
         var topics = new[]
         {
-            "order.alert-subscriptions", "weather.alert-subscriptions", "weather.alert-subscriptions.commands",
-            "finance.payments", "finance.payment-commands"
+            OrderAlertSubscriptionsTopic, WeatherAlertSubscriptionsTopic, WeatherAlertSubscriptionsCommandsTopic,
+            FinancePaymentsTopic, FinancePaymentCommandsTopic
         };
         await _kafkaContainer.CreateKafkaTopicsAsync(topics);
 
-        TestHarness = Services.GetRequiredService<ITestHarness>();
-        await TestHarness.Start();
+        KafkaProducer = new KafkaAvroTestProducer(_kafkaContainer.KafkaOptions);
+
+        // Start the MassTransit bus (includes SQL transport for internal saga messages/timeouts)
+        _busControl = Services.GetRequiredService<IBusControl>();
+        await _busControl.StartAsync();
     }
 
     public Task ResetDatabaseAsync() => _dbContainer.CleanDataAsync();
 
     public new async ValueTask DisposeAsync()
     {
-        await TestHarness.Stop();
+        if (_busControl is not null)
+        {
+            await _busControl.StopAsync();
+        }
+
+        KafkaProducer.Dispose();
         await base.DisposeAsync();
         await _dbContainer.DisposeAsync();
+        await _kafkaContainer.DisposeAsync();
     }
 }

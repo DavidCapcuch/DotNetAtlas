@@ -51,10 +51,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Persistence\Database\Migrations\" />
-    </ItemGroup>
-
-    <ItemGroup>
         <InternalsVisibleTo Include="DotNetAtlas.Sagas.IntegrationTests"/>
     </ItemGroup>
 

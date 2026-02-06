@@ -25,7 +25,7 @@ internal sealed class BenchmarkFixture : AppFixture<WorkerService.Program>
 {
     private readonly SqlServerTestContainer _dbContainer = new(
         databaseName: "OutboxBenchmark",
-        flywayMigrationsPath:
+        sqlScriptsMigrationsPath:
         Path.Combine(SolutionPaths.GetSolutionRootDirectory(), "platform", "DotNetAtlas.OutboxRelay.Benchmark", "Seed"),
         new RespawnerOptions
         {

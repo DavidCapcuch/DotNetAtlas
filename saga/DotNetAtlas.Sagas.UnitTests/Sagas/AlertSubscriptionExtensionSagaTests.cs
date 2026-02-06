@@ -1,7 +1,7 @@
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Schedules;
-using DotNetAtlas.Sagas.UnitTests.Fakes;
+using DotNetAtlas.Test.Framework.Kafka;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;

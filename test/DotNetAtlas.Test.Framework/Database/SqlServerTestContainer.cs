@@ -7,7 +7,7 @@ using Testcontainers.MsSql;
 namespace DotNetAtlas.Test.Framework.Database;
 
 /// <summary>
-/// Manages a SQL Server test container: creates the database, runs Flyway-style migrations via Evolve, and configures Respawn for fast resets between tests.
+/// Manages a SQL Server test container: creates the database, runs SQL script migrations via Evolve, and configures Respawn for fast resets between tests.
 /// Encapsulates the connection string and reset functionality for test isolation.
 /// </summary>
 /// <remarks>
@@ -18,7 +18,7 @@ public sealed class SqlServerTestContainer : ITestContainer
 {
     private readonly MsSqlContainer _sqlContainer;
     private readonly string _databaseName;
-    private readonly string _flywayMigrationsPath;
+    private readonly string _sqlScriptsMigrationsPath;
     private readonly RespawnerOptions _respawnerOptions;
     private Respawner _databaseCleaner = null!;
 
@@ -34,20 +34,20 @@ public sealed class SqlServerTestContainer : ITestContainer
     /// Creates a SQL Server test container with Flyway-style migrations (via Evolve) and Respawn-based cleanup.
     /// </summary>
     /// <param name="databaseName">Database name to create.</param>
-    /// <param name="flywayMigrationsPath">Absolute path to the directory containing migration SQL scripts.</param>
+    /// <param name="sqlScriptsMigrationsPath">Absolute path to the directory containing migration SQL scripts.</param>
     /// <param name="respawnerOptions">RespawnerOptions for configuring database cleanup.</param>
     /// <exception cref="ArgumentException">Thrown when databaseName is null or whitespace, or schemas are empty.</exception>
-    /// <exception cref="ArgumentNullException">Thrown when schemas or flywayMigrationsPath is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when schemas or sqlScriptMigrationsPath is null.</exception>
     public SqlServerTestContainer(
         string databaseName,
-        string flywayMigrationsPath,
+        string sqlScriptsMigrationsPath,
         RespawnerOptions respawnerOptions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(flywayMigrationsPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sqlScriptsMigrationsPath);
 
         _databaseName = databaseName;
-        _flywayMigrationsPath = flywayMigrationsPath;
+        _sqlScriptsMigrationsPath = sqlScriptsMigrationsPath;
         _respawnerOptions = respawnerOptions;
 
         _sqlContainer = new MsSqlBuilder()
@@ -100,7 +100,7 @@ public sealed class SqlServerTestContainer : ITestContainer
         await connection.OpenAsync(cancellationToken);
         var evolve = new Evolve(connection)
         {
-            Locations = [_flywayMigrationsPath]
+            Locations = [_sqlScriptsMigrationsPath]
         };
 
         evolve.Migrate();

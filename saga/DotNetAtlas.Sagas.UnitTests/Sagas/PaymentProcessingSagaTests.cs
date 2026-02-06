@@ -1,7 +1,7 @@
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Schedules;
-using DotNetAtlas.Sagas.UnitTests.Fakes;
+using DotNetAtlas.Test.Framework.Kafka;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;

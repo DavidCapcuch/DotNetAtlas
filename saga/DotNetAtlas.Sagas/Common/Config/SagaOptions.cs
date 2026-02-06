@@ -44,10 +44,4 @@ public sealed class SagaOptions
     [Required]
     [Range(1, int.MaxValue)]
     public required int ConcurrencyLimit { get; set; }
-
-    /// <summary>
-    /// Kafka infrastructure configuration for saga consumers.
-    /// </summary>
-    [Required]
-    public required SagaKafkaOptions Kafka { get; set; }
 }

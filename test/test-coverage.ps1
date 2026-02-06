@@ -73,7 +73,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "`n[+] Tests completed successfully!`n" -ForegroundColor Green
 
 # Find all coverage files
-$coverageFiles = Get-ChildItem -Path . -Recurse -Filter "coverage.cobertura.xml" | Select-Object -ExpandProperty FullName
+$coverageFiles = Get-ChildItem -Path ..\.. -Recurse -Filter "coverage.cobertura.xml" | Select-Object -ExpandProperty FullName
 
 if ($coverageFiles.Count -eq 0) {
     Write-Host "[-] No coverage files found! Run tests first." -ForegroundColor Red
@@ -134,4 +134,6 @@ Get-ChildItem -Path $testDir -Recurse -Directory -Filter "TestResults" | Remove-
 Write-Host "[+] Test results cleaned up!" -ForegroundColor Green
 
 Write-Host "`n[+] Done!" -ForegroundColor Green
+
+Read-Host -Prompt "Press Enter to exit"
 

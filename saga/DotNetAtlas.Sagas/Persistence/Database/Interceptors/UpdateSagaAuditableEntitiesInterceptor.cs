@@ -33,19 +33,19 @@ public sealed class UpdateSagaAuditableEntitiesInterceptor : SaveChangesIntercep
             return base.SavingChangesAsync(eventData, result, cancellationToken);
         }
 
-        var auditableEntries = dbContext.ChangeTracker.Entries<ISagaAuditableEntity>();
+        var auditableEntries = dbContext.ChangeTracker.Entries<IAuditableEntity>();
         var utcNow = _timeProvider.GetUtcNow();
 
         foreach (var auditableEntry in auditableEntries)
         {
             if (auditableEntry.State == EntityState.Added)
             {
-                auditableEntry.Property(nameof(ISagaAuditableEntity.CreatedAtUtc)).CurrentValue = utcNow;
-                auditableEntry.Property(nameof(ISagaAuditableEntity.LastUpdatedAtUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.CreatedUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.LastModifiedUtc)).CurrentValue = utcNow;
             }
             else if (auditableEntry.State == EntityState.Modified)
             {
-                auditableEntry.Property(nameof(ISagaAuditableEntity.LastUpdatedAtUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.LastModifiedUtc)).CurrentValue = utcNow;
             }
         }
 
@@ -63,19 +63,19 @@ public sealed class UpdateSagaAuditableEntitiesInterceptor : SaveChangesIntercep
             return base.SavingChanges(eventData, result);
         }
 
-        var auditableEntries = dbContext.ChangeTracker.Entries<ISagaAuditableEntity>();
+        var auditableEntries = dbContext.ChangeTracker.Entries<IAuditableEntity>();
         var utcNow = _timeProvider.GetUtcNow();
 
         foreach (var auditableEntry in auditableEntries)
         {
             if (auditableEntry.State == EntityState.Added)
             {
-                auditableEntry.Property(nameof(ISagaAuditableEntity.CreatedAtUtc)).CurrentValue = utcNow;
-                auditableEntry.Property(nameof(ISagaAuditableEntity.LastUpdatedAtUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.CreatedUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.LastModifiedUtc)).CurrentValue = utcNow;
             }
             else if (auditableEntry.State == EntityState.Modified)
             {
-                auditableEntry.Property(nameof(ISagaAuditableEntity.LastUpdatedAtUtc)).CurrentValue = utcNow;
+                auditableEntry.Property(nameof(IAuditableEntity.LastModifiedUtc)).CurrentValue = utcNow;
             }
         }
 

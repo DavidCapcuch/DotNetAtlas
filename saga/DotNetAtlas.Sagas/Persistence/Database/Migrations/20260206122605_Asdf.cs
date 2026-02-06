@@ -50,8 +50,8 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     AuthorizationExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when authorization expires"),
                     PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID after capture"),
                     InitiatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when payment was initiated"),
-                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
-                    LastUpdatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
+                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
+                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
                     AuthorizedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when authorization completed"),
                     CapturedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when capture completed"),
                     AuthorizationRetryCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Number of authorization retry attempts"),
@@ -89,8 +89,8 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID (set after payment completes)"),
                     ExtensionInitiatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when extension was initiated"),
                     PaymentCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
-                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
-                    LastUpdatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
+                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
+                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
                     ExtensionCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when extension completed (null if not completed)"),
                     NewExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "New subscription expiration date after extension (null if not completed)"),
                     ErrorMessage = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
@@ -123,15 +123,15 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code"),
                     IdempotencyKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false, comment: "Idempotency key to prevent duplicate purchases"),
                     PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID (set after payment completes)"),
-                    PurchaseInitiatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when purchase was initiated"),
-                    PaymentCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
-                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
-                    LastUpdatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
-                    ActivationCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when activation completed (null if not completed)"),
+                    PurchaseInitiatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when purchase was initiated"),
+                    PaymentCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
+                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
+                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
+                    ActivationCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when activation completed (null if not completed)"),
                     ErrorMessage = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
                     ErrorCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true, comment: "Error code for categorized failure handling"),
                     CompensationTriggered = table.Column<bool>(type: "bit", nullable: false, comment: "Whether compensation (refund) has been triggered"),
-                    CompensationCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when compensation completed"),
+                    CompensationCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when compensation completed"),
                     RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: true, comment: "Optimistic concurrency token."),
                     PaymentTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for payment timeout scheduler - set when schedule is active"),
                     ActivationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for activation timeout scheduler - set when schedule is active"),
@@ -160,13 +160,13 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                 name: "IX_PaymentSagaState_State_Created",
                 schema: "saga",
                 table: "PaymentSagaState",
-                columns: new[] { "CurrentState", "CreatedAtUtc" });
+                columns: new[] { "CurrentState", "CreatedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_PaymentSagaState_State_LastUpdated",
                 schema: "saga",
                 table: "PaymentSagaState",
-                columns: new[] { "CurrentState", "LastUpdatedAtUtc" });
+                columns: new[] { "CurrentState", "LastModifiedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_PaymentSagaState_UserId",
@@ -191,13 +191,13 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                 name: "IX_SubscriptionExtensionSagaState_State_Created",
                 schema: "saga",
                 table: "SubscriptionExtensionSagaState",
-                columns: new[] { "CurrentState", "CreatedAtUtc" });
+                columns: new[] { "CurrentState", "CreatedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_State_LastUpdated",
                 schema: "saga",
                 table: "SubscriptionExtensionSagaState",
-                columns: new[] { "CurrentState", "LastUpdatedAtUtc" });
+                columns: new[] { "CurrentState", "LastModifiedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_UserId",
@@ -222,13 +222,13 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                 name: "IX_SubscriptionPurchaseSagaState_State_Created",
                 schema: "saga",
                 table: "SubscriptionPurchaseSagaState",
-                columns: new[] { "CurrentState", "CreatedAtUtc" });
+                columns: new[] { "CurrentState", "CreatedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_State_LastUpdated",
                 schema: "saga",
                 table: "SubscriptionPurchaseSagaState",
-                columns: new[] { "CurrentState", "LastUpdatedAtUtc" });
+                columns: new[] { "CurrentState", "LastModifiedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_UserId",

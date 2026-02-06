@@ -64,10 +64,10 @@ public sealed class AlertSubscriptionExtensionSagaStateMap :
         entity.Property(x => x.ExtensionInitiatedAtUtc)
             .HasComment("UTC timestamp when extension was initiated");
 
-        entity.Property(x => x.CreatedAtUtc)
+        entity.Property(x => x.CreatedUtc)
             .HasComment("UTC timestamp when saga was created");
 
-        entity.Property(x => x.LastUpdatedAtUtc)
+        entity.Property(x => x.LastModifiedUtc)
             .HasComment("UTC timestamp when saga was last updated");
 
         entity.Property(x => x.PaymentCompletedAtUtc)
@@ -112,7 +112,7 @@ public sealed class AlertSubscriptionExtensionSagaStateMap :
         entity.HasIndex(x => new
         {
             x.CurrentState,
-            x.CreatedAtUtc
+            x.CreatedUtc
         })
             .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_Created");
 
@@ -120,7 +120,7 @@ public sealed class AlertSubscriptionExtensionSagaStateMap :
         entity.HasIndex(x => new
         {
             x.CurrentState,
-            x.LastUpdatedAtUtc
+            LastUpdatedAtUtc = x.LastModifiedUtc
         })
             .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_LastUpdated");
     }

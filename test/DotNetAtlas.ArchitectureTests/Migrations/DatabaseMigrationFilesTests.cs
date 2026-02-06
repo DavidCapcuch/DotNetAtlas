@@ -5,7 +5,7 @@ namespace DotNetAtlas.ArchitectureTests.Migrations;
 public class DatabaseMigrationFilesTests
 {
     [Fact]
-    public void EfCoreMigrations_ShouldBeEqualToVersionedFlywayMigrations()
+    public void EfCoreMigrations_ShouldBeEqualToVersionedSqlScriptMigrations()
     {
         // Arrange
         var migrationsCount = Directory
@@ -14,7 +14,7 @@ public class DatabaseMigrationFilesTests
 
         var sqlCount = Directory
             .GetFiles(
-                SolutionPaths.FlywayMigrationsDirectory,
+                SolutionPaths.SqlScriptMigrationsDirectory,
                 "V*.sql",
                 SearchOption.TopDirectoryOnly).Length;
 

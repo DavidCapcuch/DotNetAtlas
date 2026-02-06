@@ -79,8 +79,7 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 Amount = ctx.Message.Amount,
                 Currency = ctx.Message.Currency,
                 IdempotencyKey = ctx.Message.IdempotencyKey,
-                PurchaseInitiatedAtUtc = ctx.Message.InitiatedAtUtc,
-                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+                PurchaseInitiatedUtc = ctx.Message.InitiatedAtUtc
             });
         });
 
@@ -185,8 +184,7 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 .Then(ctx =>
                 {
                     ctx.Saga.PaymentTransactionId = ctx.Message.PaymentTransactionId;
-                    ctx.Saga.PaymentCompletedAtUtc = ctx.Message.CompletedAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                    ctx.Saga.PaymentCompletedUtc = ctx.Message.CompletedAtUtc;
                 })
                 .Activity(x => x.OfType<PaymentCompletedActivity>())
                 .Unschedule(PaymentTimeout)
@@ -213,7 +211,6 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 {
                     ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
                     ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<PaymentFailedActivity>())
                 .Unschedule(PaymentTimeout)
@@ -224,7 +221,6 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 {
                     ctx.Saga.ErrorCode = "PAYMENT_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Payment timeout expired";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<PaymentTimeoutActivity>())
                 .TransitionTo(PaymentFailed)
@@ -238,8 +234,7 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
             When(AlertSubscriptionActivatedEvent)
                 .Then(ctx =>
                 {
-                    ctx.Saga.ActivationCompletedAtUtc = ctx.Message.ActivatedAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                    ctx.Saga.ActivationCompletedUtc = ctx.Message.ActivatedAtUtc;
                 })
                 .Activity(x => x.OfType<ActivationCompletedActivity>())
                 .Unschedule(ActivationTimeout)
@@ -250,7 +245,6 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 {
                     ctx.Saga.ErrorCode = ctx.Message.ErrorCode;
                     ctx.Saga.ErrorMessage = ctx.Message.ErrorMessage;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<ActivationFailedActivity>())
                 .Unschedule(ActivationTimeout)
@@ -282,7 +276,6 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 {
                     ctx.Saga.ErrorCode = "ACTIVATION_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Activation timeout expired";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                     ctx.Saga.CompensationTriggered = true;
                 })
                 .Activity(x => x.OfType<ActivationTimeoutActivity>())
@@ -312,8 +305,7 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
             When(CompensationCompletedEvent)
                 .Then(ctx =>
                 {
-                    ctx.Saga.CompensationCompletedAtUtc = ctx.Message.CompensatedAtUtc;
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                    ctx.Saga.CompensationCompletedUtc = ctx.Message.CompensatedAtUtc;
                 })
                 .Activity(x => x.OfType<CompensationCompletedActivity>())
                 .Unschedule(CompensationTimeout)
@@ -324,7 +316,6 @@ public sealed class AlertSubscriptionPurchaseSaga : MassTransitStateMachine<Aler
                 {
                     ctx.Saga.ErrorCode = "COMPENSATION_TIMEOUT";
                     ctx.Saga.ErrorMessage = "Compensation did not complete in time";
-                    ctx.Saga.LastUpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 })
                 .Activity(x => x.OfType<CompensationTimeoutActivity>())
                 .TransitionTo(CompensationFailed)

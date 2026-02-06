@@ -13,7 +13,7 @@ services:
       - "12345:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
-      - ./src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/Flyway:/migrations
+      - ./src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/SqlScripts:/migrations
     deploy:
       resources:
         limits:

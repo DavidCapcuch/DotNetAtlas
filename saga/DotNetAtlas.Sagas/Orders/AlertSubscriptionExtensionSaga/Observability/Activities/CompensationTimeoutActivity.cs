@@ -35,7 +35,7 @@ public sealed class CompensationTimeoutActivity
         IBehavior<AlertSubscriptionExtensionSagaState, CompensationTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.CreatedAtUtc;
+        var duration = DateTime.UtcNow - saga.CreatedUtc;
 
         using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(CompensationTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);

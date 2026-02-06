@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Avro.Specific;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 
-namespace DotNetAtlas.Sagas.UnitTests.Fakes;
+namespace DotNetAtlas.Test.Framework.Kafka;
 
 /// <summary>
 /// Fake implementation of <see cref="IOutboxWriter"/> that captures messages for verification in tests.

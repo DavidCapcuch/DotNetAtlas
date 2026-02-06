@@ -15,9 +15,9 @@
         <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
         <PackageReference Include="AspNetCore.HealthChecks.Uris"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
-        <PackageReference Include="KafkaFlow.Retry"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
+        <PackageReference Include="KafkaFlow.Retry"/>
         <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
         <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
         <PackageReference Include="KafkaFlow.OpenTelemetry"/>
@@ -33,12 +33,12 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
 
+        <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer"/>
 
         <PackageReference Include="Hangfire.AspNetCore"/>
         <PackageReference Include="Hangfire.SqlServer"/>
@@ -59,17 +59,6 @@
         <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis"/>
         <PackageReference Include="OpenTelemetry.Resources.Container"/>
         <PackageReference Include="OpenTelemetry.Resources.Host"/>
-
-        <PackageReference Include="Serilog.Exceptions.EntityFrameworkCore"/>
-        <PackageReference Include="Serilog.Extensions.Hosting"/>
-        <PackageReference Include="Serilog.Extensions.Logging"/>
-        <PackageReference Include="Serilog.Sinks.Console"/>
-        <PackageReference Include="Serilog.Sinks.OpenTelemetry"/>
-        <PackageReference Include="Serilog.Sinks.Seq"/>
-        <PackageReference Include="Serilog.Settings.Configuration"/>
-        <PackageReference Include="Serilog.Expressions"/>
-        <PackageReference Include="SerilogTracing.Expressions"/>
-        <PackageReference Include="Elastic.Serilog.Enrichers.Web"/>
 
         <PackageReference Include="ZiggyCreatures.FusionCache.AspNetCore.OutputCaching"/>
         <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis"/>
@@ -96,9 +85,5 @@
         <InternalsVisibleTo Include="DotNetAtlas.FunctionalTests"/>
         <InternalsVisibleTo Include="DotNetAtlas.IntegrationTests"/>
         <InternalsVisibleTo Include="DotNetAtlas.UnitTests"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="Persistence\Database\Migrations\Flyway\"/>
     </ItemGroup>
 </Project>

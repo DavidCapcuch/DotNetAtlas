@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <!-- Confluent Schema Registry -->
+        <PackageReference Include="Confluent.SchemaRegistry"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+
+        <!-- Analyzers -->
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>

@@ -36,7 +36,7 @@ public sealed class ExtensionCompletedActivity
         IBehavior<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtendedSagaEvent> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.CreatedAtUtc;
+        var duration = DateTime.UtcNow - saga.CreatedUtc;
 
         using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(ExtensionCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);

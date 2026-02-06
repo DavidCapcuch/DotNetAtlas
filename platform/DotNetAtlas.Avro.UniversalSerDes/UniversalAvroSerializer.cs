@@ -5,13 +5,13 @@ using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 
-namespace DotNetAtlas.ReliableMessaging.Outbox.EFCore;
+namespace DotNetAtlas.Avro.UniversalSerDes;
 
 /// <summary>
 /// Serializer for Avro messages used by the outbox pattern.
 /// Caches serializers per message type for performance.
 /// </summary>
-public class UniversalAvroSerializer
+public class UniversalAvroSerializer : ISerializer<ISpecificRecord>
 {
     private readonly ISchemaRegistryClient _schemaRegistryClient;
     private readonly AvroSerializerConfig _avroSerializerConfig;
@@ -30,27 +30,21 @@ public class UniversalAvroSerializer
         _avroSerializerConfig = avroSerializerOptions;
     }
 
-    /// <summary>
-    /// Serializes an Avro message to bytes.
-    /// </summary>
-    /// <param name="message">The message to serialize.</param>
-    /// <param name="messageType">The type of the message.</param>
-    /// <returns>The serialized bytes.</returns>
-    public byte[] Serialize(ISpecificRecord message, Type messageType)
+    public byte[] Serialize(ISpecificRecord data, SerializationContext context)
     {
-        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(data);
 
+        var messageType = data.GetType();
         var serializer = _serializersCache.GetOrAdd(
             messageType,
             t => AvroSerializerWrapper.Create(t, _schemaRegistryClient, _avroSerializerConfig));
-
-        return serializer.Serialize(message);
+        return serializer.Serialize(data, context);
     }
 }
 
 internal abstract class AvroSerializerWrapper
 {
-    public abstract byte[] Serialize(ISpecificRecord message);
+    public abstract byte[] Serialize(ISpecificRecord message, SerializationContext context);
 
     public static AvroSerializerWrapper Create(
         Type messageType,
@@ -74,9 +68,9 @@ internal abstract class AvroSerializerWrapper
             _serializer = new AvroSerializer<T>(client, config).AsSyncOverAsync();
         }
 
-        public override byte[] Serialize(ISpecificRecord message)
+        public override byte[] Serialize(ISpecificRecord message, SerializationContext context)
         {
-            return _serializer.Serialize((T)message, SerializationContext.Empty);
+            return _serializer.Serialize((T)message, context);
         }
     }
 }

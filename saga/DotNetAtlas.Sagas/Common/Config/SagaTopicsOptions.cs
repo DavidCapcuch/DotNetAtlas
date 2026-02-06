@@ -7,6 +7,8 @@ namespace DotNetAtlas.Sagas.Common.Config;
 /// </summary>
 public sealed class SagaTopicsOptions
 {
+    public const string Section = $"{SagaKafkaOptions.Section}:Topics";
+
     private const int MaximumKafkaTopicLength = 249;
 
     [Required]

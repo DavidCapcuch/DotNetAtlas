@@ -34,7 +34,7 @@ public sealed class ExtensionTimeoutActivity
         IBehavior<AlertSubscriptionExtensionSagaState, ExtensionTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.CreatedAtUtc;
+        var duration = DateTime.UtcNow - saga.CreatedUtc;
 
         using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
             nameof(ExtensionTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
