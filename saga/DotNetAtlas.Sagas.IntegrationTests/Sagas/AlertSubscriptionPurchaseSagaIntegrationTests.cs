@@ -11,13 +11,8 @@ using SubscriptionTier = Order.AlertSubscriptions.SubscriptionTier;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
 
-/// <summary>
-/// Integration tests for the SubscriptionPurchaseSaga state machine.
-/// Tests verify saga state persistence, state transitions, and isolation using EF Core and real SQL Server via TestContainers.
-/// Events are produced to real Kafka topics and flow through the full consumer pipeline.
-/// </summary>
 [Collection(nameof(SagaTestCollection))]
-public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
+public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
@@ -26,7 +21,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
         get;
     }
 
-    public SubscriptionPurchaseSagaIntegrationTests(SagaIntegrationTestFixture fixture)
+    public AlertSubscriptionPurchaseSagaIntegrationTests(SagaIntegrationTestFixture fixture)
         : base(fixture)
     {
         SagaStateMonitor = CreateSagaStateMonitor<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>();
@@ -36,8 +31,8 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenPurchaseInitiated_ShouldTransitionToAndPersistWaitingForPayment()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePurchaseInitiatedEvent(correlationId, userId);
 
@@ -47,9 +42,13 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
-        var persistedState = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var persistedState = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -58,6 +57,9 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be("WaitingForPayment");
             persistedState.SubscriptionTier.Should().Be(SubscriptionTier.Pro);
             persistedState.DurationDays.Should().Be(30);
+            outboxMessages.Should().ContainSingle();
+            outboxMessages.Should().ContainSingle(om => om.Type == "Finance.Payments.PaymentRequestedEvent"
+                                                        && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -65,9 +67,9 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenSubscriptionActivated_ShouldTransitionToAndPersistActivationCompleted()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToAwaitingActivationState(correlationId, userId, paymentTransactionId);
 
@@ -95,10 +97,10 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenMultipleSagasInitiated_ShouldMaintainIsolatedStates()
     {
         // Arrange
-        var correlationId1 = Guid.NewGuid();
-        var correlationId2 = Guid.NewGuid();
-        var userId1 = Guid.NewGuid();
-        var userId2 = Guid.NewGuid();
+        var correlationId1 = Guid.CreateVersion7();
+        var correlationId2 = Guid.CreateVersion7();
+        var userId1 = Guid.CreateVersion7();
+        var userId2 = Guid.CreateVersion7();
 
         var initiatedEvent1 = CreatePurchaseInitiatedEvent(
             correlationId1, userId1, SubscriptionTier.Pro, 30, 9.99m);
@@ -115,11 +117,11 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.WaitingForPayment, DefaultTimeout);
         await SagaStateMonitor.WaitForStateAsync(correlationId2, state => state.WaitingForPayment, DefaultTimeout);
 
-        var state1 = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var state1 = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId1);
 
-        var state2 = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var state2 = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId2);
 
@@ -136,10 +138,10 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenFullPurchaseFlow_ShouldPersistStateAtEachTransition()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         // Step 1: Initiate purchase
         var initiatedEvent = CreatePurchaseInitiatedEvent(
@@ -150,7 +152,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Verify: WaitingForPayment state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
-        var stateAfterInitiation = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var stateAfterInitiation = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -183,7 +185,7 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Verify: AwaitingActivation state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingActivation, DefaultTimeout);
-        var stateAfterPayment = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var stateAfterPayment = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -219,8 +221,8 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenPaymentFails_ShouldFinalizeInPaymentFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePurchaseInitiatedEvent(correlationId, userId);
         await KafkaTestProducer.ProduceAsync(
@@ -250,9 +252,9 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenActivationFailsWithCompensation_ShouldTriggerRefundAndTransitionToCompensationInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToAwaitingActivationState(correlationId, userId, paymentTransactionId);
 
@@ -272,9 +274,13 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
-        var persistedState = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var persistedState = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -282,11 +288,8 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be("CompensationInProgress");
             persistedState.CompensationTriggered.Should().BeTrue();
 
-            FakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
-                "RequestRefundCommand should be added to the outbox when activation fails with ShouldCompensate=true");
-            var outboxMessages = FakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
-            outboxMessages.Should().ContainSingle();
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages.Should().Contain(om => om.Type == "Finance.Payments.RequestRefundCommand"
+                                                  && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -294,9 +297,9 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenActivationFailsWithoutCompensation_ShouldFinalizeInActivationFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToAwaitingActivationState(correlationId, userId, paymentTransactionId);
 
@@ -323,10 +326,10 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenCompensationCompletes_ShouldFinalizeInCompensationCompletedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var refundTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var refundTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToCompensationInProgressState(correlationId, userId, paymentTransactionId);
 
@@ -354,8 +357,8 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenPaymentTimesOut_ShouldFinalizeInPaymentFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePurchaseInitiatedEvent(correlationId, userId);
         await KafkaTestProducer.ProduceAsync(
@@ -380,9 +383,9 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenActivationTimesOut_ShouldTriggerRefundAndTransitionToCompensationInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToAwaitingActivationState(correlationId, userId, paymentTransactionId);
 
@@ -396,9 +399,13 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
-        var persistedState = await DbContext.Set<AlertSubscriptionPurchaseSagaState>()
+        var persistedState = await DbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -406,11 +413,8 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be("CompensationInProgress");
             persistedState.CompensationTriggered.Should().BeTrue();
 
-            FakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
-                "RequestRefundCommand should be added to the outbox when activation times out");
-            var outboxMessages = FakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
-            outboxMessages.Should().ContainSingle();
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages.Should().Contain(om => om.Type == "Finance.Payments.RequestRefundCommand"
+                                                  && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -418,9 +422,9 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenCompensationTimesOut_ShouldFinalizeInCompensationFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToCompensationInProgressState(correlationId, userId, paymentTransactionId);
 
@@ -452,12 +456,12 @@ public class SubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegrationTest
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentMethodId = paymentMethodId ?? Guid.NewGuid(),
+            PaymentMethodId = paymentMethodId ?? Guid.CreateVersion7(),
             Tier = tier,
             DurationDays = durationDays,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            IdempotencyKey = $"purchase-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"purchase-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }

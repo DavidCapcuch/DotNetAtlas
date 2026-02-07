@@ -7,7 +7,6 @@ using Confluent.SchemaRegistry.Serdes;
 using DotNetAtlas.Avro.UniversalSerDes;
 using DotNetAtlas.OutboxRelay.WorkerService.OutboxRelay;
 using DotNetAtlas.ReliableMessaging.Outbox.Core;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

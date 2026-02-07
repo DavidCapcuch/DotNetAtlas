@@ -1,10 +1,11 @@
+using System.Text;
 using Avro.Specific;
 using Confluent.Kafka;
-using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using DotNetAtlas.Avro.UniversalSerDes;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
+using DotNetAtlas.Messaging.Abstractions;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 
@@ -12,12 +13,12 @@ namespace DotNetAtlas.Test.Framework.Kafka;
 /// Kafka test producer for integration tests that produces Avro-serialized messages.
 /// Uses the Confluent Schema Registry for schema management.
 /// </summary>
-public sealed class KafkaAvroTestProducer : IDisposable
+public sealed class KafkaTestProducer : IDisposable
 {
     private readonly IProducer<string, ISpecificRecord> _producer;
     private readonly CachedSchemaRegistryClient _schemaRegistryClient;
 
-    public KafkaAvroTestProducer(KafkaOptions kafkaOptions)
+    public KafkaTestProducer(KafkaOptions kafkaOptions)
     {
         _schemaRegistryClient = new CachedSchemaRegistryClient(new SchemaRegistryConfig
         {
@@ -44,8 +45,29 @@ public sealed class KafkaAvroTestProducer : IDisposable
     /// <param name="topic">The Kafka topic to produce to.</param>
     /// <param name="key">The message key (typically a correlation or user ID).</param>
     /// <param name="value">The Avro message value.</param>
-    public async Task ProduceAsync(string topic, Guid key, ISpecificRecord value)
+    /// <param name="headers">Optional message headers.</param>
+    public async Task ProduceAsync(string topic, Guid key, ISpecificRecord value, Headers? headers = null)
     {
+        headers ??= [];
+        await ProduceAsync(topic, key.ToString(), value, headers);
+    }
+
+    /// <summary>
+    /// Produces an Avro-serialized message to the specified Kafka topic.
+    /// </summary>
+    /// <param name="topic">The Kafka topic to produce to.</param>
+    /// <param name="key">The message key (typically a correlation or user ID).</param>
+    /// <param name="messageId">The message ID.</param>
+    /// <param name="value">The Avro message value.</param>
+    /// <param name="headers">Optional message headers.</param>
+    public async Task ProduceWithMessageIdAsync(string topic,
+        Guid key,
+        Guid messageId,
+        ISpecificRecord value,
+        Headers? headers = null)
+    {
+        headers ??= [];
+        headers.Add(MessageHeaderKeys.MessageId, Encoding.UTF8.GetBytes(messageId.ToString()));
         await ProduceAsync(topic, key.ToString(), value);
     }
 
@@ -55,12 +77,14 @@ public sealed class KafkaAvroTestProducer : IDisposable
     /// <param name="topic">The Kafka topic to produce to.</param>
     /// <param name="key">The message key (typically a correlation or user ID).</param>
     /// <param name="value">The Avro message value.</param>
-    public async Task ProduceAsync(string topic, string key, ISpecificRecord value)
+    public async Task ProduceAsync(string topic, string key, ISpecificRecord value, Headers? headers = null)
     {
+        headers ??= [];
         await _producer.ProduceAsync(topic, new Message<string, ISpecificRecord>
         {
             Key = key,
-            Value = value
+            Value = value,
+            Headers = headers
         });
     }
 

@@ -6,13 +6,83 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class Asdf : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
                 name: "saga");
+
+            migrationBuilder.CreateTable(
+                name: "AlertSubscriptionExtensionSagaState",
+                schema: "saga",
+                columns: table => new
+                {
+                    CorrelationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "PK - Unique correlation ID (also PaymentTransactionId)"),
+                    CurrentState = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false, comment: "Current state of the saga state machine"),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "User who is extending the subscription"),
+                    PaymentMethodId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "ID of the saved payment method"),
+                    DurationDays = table.Column<int>(type: "int", nullable: false, comment: "Subscription extension duration in days"),
+                    Amount = table.Column<decimal>(type: "decimal(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount"),
+                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code"),
+                    IdempotencyKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false, comment: "Idempotency key to prevent duplicate extensions"),
+                    PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID (set after payment completes)"),
+                    ExtensionInitiatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when extension was initiated"),
+                    PaymentCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
+                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
+                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
+                    ExtensionCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when extension completed (null if not completed)"),
+                    NewExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "New subscription expiration date after extension (null if not completed)"),
+                    ErrorMessage = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
+                    ErrorCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true, comment: "Error code for categorized failure handling"),
+                    CompensationTriggered = table.Column<bool>(type: "bit", nullable: false, comment: "Whether compensation (refund) has been triggered"),
+                    CompensationCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when compensation completed"),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: true, comment: "Optimistic concurrency token."),
+                    PaymentTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for payment timeout scheduler - set when schedule is active"),
+                    ExtensionTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for extension timeout scheduler - set when schedule is active"),
+                    CompensationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for compensation timeout scheduler - set when schedule is active")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AlertSubscriptionExtensionSagaState", x => x.CorrelationId);
+                },
+                comment: "Saga state for alert subscription extension orchestration.");
+
+            migrationBuilder.CreateTable(
+                name: "AlertSubscriptionPurchaseSagaState",
+                schema: "saga",
+                columns: table => new
+                {
+                    CorrelationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "PK - Unique correlation ID (also PaymentTransactionId)"),
+                    CurrentState = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false, comment: "Current state of the saga state machine"),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "User who purchased the subscription"),
+                    PaymentMethodId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "ID of the saved payment method"),
+                    SubscriptionTier = table.Column<int>(type: "int", nullable: false, comment: "Subscription tier (Pro, Ultra)"),
+                    DurationDays = table.Column<int>(type: "int", nullable: false, comment: "Subscription duration in days"),
+                    Amount = table.Column<decimal>(type: "decimal(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount"),
+                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code"),
+                    IdempotencyKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false, comment: "Idempotency key to prevent duplicate purchases"),
+                    PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID (set after payment completes)"),
+                    PurchaseInitiatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when purchase was initiated"),
+                    PaymentCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
+                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
+                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
+                    ActivationCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when activation completed (null if not completed)"),
+                    ErrorMessage = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
+                    ErrorCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true, comment: "Error code for categorized failure handling"),
+                    CompensationTriggered = table.Column<bool>(type: "bit", nullable: false, comment: "Whether compensation (refund) has been triggered"),
+                    CompensationCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when compensation completed"),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: true, comment: "Optimistic concurrency token."),
+                    PaymentTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for payment timeout scheduler - set when schedule is active"),
+                    ActivationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for activation timeout scheduler - set when schedule is active"),
+                    CompensationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for compensation timeout scheduler - set when schedule is active")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AlertSubscriptionPurchaseSagaState", x => x.CorrelationId);
+                },
+                comment: "Saga state for alert subscription purchase orchestration.");
 
             migrationBuilder.CreateTable(
                 name: "OutboxMessages",
@@ -35,7 +105,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                 comment: "Outbox pattern table for storing domain events as Avro-serialized messages for reliable event publishing.");
 
             migrationBuilder.CreateTable(
-                name: "PaymentSagaState",
+                name: "PaymentProcessingSagaState",
                 schema: "saga",
                 columns: table => new
                 {
@@ -69,171 +139,101 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PaymentSagaState", x => x.CorrelationId);
+                    table.PrimaryKey("PK_PaymentProcessingSagaState", x => x.CorrelationId);
                 },
                 comment: "Saga state for payment processing orchestration.");
-
-            migrationBuilder.CreateTable(
-                name: "SubscriptionExtensionSagaState",
-                schema: "saga",
-                columns: table => new
-                {
-                    CorrelationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "PK - Unique correlation ID (also PaymentTransactionId)"),
-                    CurrentState = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false, comment: "Current state of the saga state machine"),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "User who is extending the subscription"),
-                    PaymentMethodId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "ID of the saved payment method"),
-                    DurationDays = table.Column<int>(type: "int", nullable: false, comment: "Subscription extension duration in days"),
-                    Amount = table.Column<decimal>(type: "decimal(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount"),
-                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code"),
-                    IdempotencyKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false, comment: "Idempotency key to prevent duplicate extensions"),
-                    PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID (set after payment completes)"),
-                    ExtensionInitiatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when extension was initiated"),
-                    PaymentCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
-                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
-                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
-                    ExtensionCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when extension completed (null if not completed)"),
-                    NewExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "New subscription expiration date after extension (null if not completed)"),
-                    ErrorMessage = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
-                    ErrorCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true, comment: "Error code for categorized failure handling"),
-                    CompensationTriggered = table.Column<bool>(type: "bit", nullable: false, comment: "Whether compensation (refund) has been triggered"),
-                    CompensationCompletedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when compensation completed"),
-                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: true, comment: "Optimistic concurrency token."),
-                    PaymentTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for payment timeout scheduler - set when schedule is active"),
-                    ExtensionTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for extension timeout scheduler - set when schedule is active"),
-                    CompensationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for compensation timeout scheduler - set when schedule is active")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SubscriptionExtensionSagaState", x => x.CorrelationId);
-                },
-                comment: "Saga state for subscription extension orchestration.");
-
-            migrationBuilder.CreateTable(
-                name: "SubscriptionPurchaseSagaState",
-                schema: "saga",
-                columns: table => new
-                {
-                    CorrelationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "PK - Unique correlation ID (also PaymentTransactionId)"),
-                    CurrentState = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false, comment: "Current state of the saga state machine"),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "User who purchased the subscription"),
-                    PaymentMethodId = table.Column<Guid>(type: "uniqueidentifier", nullable: false, comment: "ID of the saved payment method"),
-                    SubscriptionTier = table.Column<int>(type: "int", nullable: false, comment: "Subscription tier (Pro, Ultra)"),
-                    DurationDays = table.Column<int>(type: "int", nullable: false, comment: "Subscription duration in days"),
-                    Amount = table.Column<decimal>(type: "decimal(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount"),
-                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code"),
-                    IdempotencyKey = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false, comment: "Idempotency key to prevent duplicate purchases"),
-                    PaymentTransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Payment transaction ID (set after payment completes)"),
-                    PurchaseInitiatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when purchase was initiated"),
-                    PaymentCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when payment completed (null if not completed)"),
-                    CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was created"),
-                    LastModifiedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, comment: "UTC timestamp when saga was last updated"),
-                    ActivationCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when activation completed (null if not completed)"),
-                    ErrorMessage = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
-                    ErrorCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true, comment: "Error code for categorized failure handling"),
-                    CompensationTriggered = table.Column<bool>(type: "bit", nullable: false, comment: "Whether compensation (refund) has been triggered"),
-                    CompensationCompletedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true, comment: "UTC timestamp when compensation completed"),
-                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: true, comment: "Optimistic concurrency token."),
-                    PaymentTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for payment timeout scheduler - set when schedule is active"),
-                    ActivationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for activation timeout scheduler - set when schedule is active"),
-                    CompensationTimeoutTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: true, comment: "Token ID for compensation timeout scheduler - set when schedule is active")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SubscriptionPurchaseSagaState", x => x.CorrelationId);
-                },
-                comment: "Saga state for subscription purchase orchestration.");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PaymentSagaState_CurrentState",
-                schema: "saga",
-                table: "PaymentSagaState",
-                column: "CurrentState");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PaymentSagaState_IdempotencyKey",
-                schema: "saga",
-                table: "PaymentSagaState",
-                column: "IdempotencyKey",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PaymentSagaState_State_Created",
-                schema: "saga",
-                table: "PaymentSagaState",
-                columns: new[] { "CurrentState", "CreatedUtc" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PaymentSagaState_State_LastUpdated",
-                schema: "saga",
-                table: "PaymentSagaState",
-                columns: new[] { "CurrentState", "LastModifiedUtc" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PaymentSagaState_UserId",
-                schema: "saga",
-                table: "PaymentSagaState",
-                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_CurrentState",
                 schema: "saga",
-                table: "SubscriptionExtensionSagaState",
+                table: "AlertSubscriptionExtensionSagaState",
                 column: "CurrentState");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_IdempotencyKey",
                 schema: "saga",
-                table: "SubscriptionExtensionSagaState",
+                table: "AlertSubscriptionExtensionSagaState",
                 column: "IdempotencyKey",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_State_Created",
                 schema: "saga",
-                table: "SubscriptionExtensionSagaState",
+                table: "AlertSubscriptionExtensionSagaState",
                 columns: new[] { "CurrentState", "CreatedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_State_LastUpdated",
                 schema: "saga",
-                table: "SubscriptionExtensionSagaState",
+                table: "AlertSubscriptionExtensionSagaState",
                 columns: new[] { "CurrentState", "LastModifiedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionExtensionSagaState_UserId",
                 schema: "saga",
-                table: "SubscriptionExtensionSagaState",
+                table: "AlertSubscriptionExtensionSagaState",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_CurrentState",
                 schema: "saga",
-                table: "SubscriptionPurchaseSagaState",
+                table: "AlertSubscriptionPurchaseSagaState",
                 column: "CurrentState");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_IdempotencyKey",
                 schema: "saga",
-                table: "SubscriptionPurchaseSagaState",
+                table: "AlertSubscriptionPurchaseSagaState",
                 column: "IdempotencyKey",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_State_Created",
                 schema: "saga",
-                table: "SubscriptionPurchaseSagaState",
+                table: "AlertSubscriptionPurchaseSagaState",
                 columns: new[] { "CurrentState", "CreatedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_State_LastUpdated",
                 schema: "saga",
-                table: "SubscriptionPurchaseSagaState",
+                table: "AlertSubscriptionPurchaseSagaState",
                 columns: new[] { "CurrentState", "LastModifiedUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubscriptionPurchaseSagaState_UserId",
                 schema: "saga",
-                table: "SubscriptionPurchaseSagaState",
+                table: "AlertSubscriptionPurchaseSagaState",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentSagaState_CurrentState",
+                schema: "saga",
+                table: "PaymentProcessingSagaState",
+                column: "CurrentState");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentSagaState_IdempotencyKey",
+                schema: "saga",
+                table: "PaymentProcessingSagaState",
+                column: "IdempotencyKey",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentSagaState_State_Created",
+                schema: "saga",
+                table: "PaymentProcessingSagaState",
+                columns: new[] { "CurrentState", "CreatedUtc" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentSagaState_State_LastUpdated",
+                schema: "saga",
+                table: "PaymentProcessingSagaState",
+                columns: new[] { "CurrentState", "LastModifiedUtc" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentSagaState_UserId",
+                schema: "saga",
+                table: "PaymentProcessingSagaState",
                 column: "UserId");
         }
 
@@ -241,19 +241,19 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "AlertSubscriptionExtensionSagaState",
+                schema: "saga");
+
+            migrationBuilder.DropTable(
+                name: "AlertSubscriptionPurchaseSagaState",
+                schema: "saga");
+
+            migrationBuilder.DropTable(
                 name: "OutboxMessages",
                 schema: "saga");
 
             migrationBuilder.DropTable(
-                name: "PaymentSagaState",
-                schema: "saga");
-
-            migrationBuilder.DropTable(
-                name: "SubscriptionExtensionSagaState",
-                schema: "saga");
-
-            migrationBuilder.DropTable(
-                name: "SubscriptionPurchaseSagaState",
+                name: "PaymentProcessingSagaState",
                 schema: "saga");
         }
     }

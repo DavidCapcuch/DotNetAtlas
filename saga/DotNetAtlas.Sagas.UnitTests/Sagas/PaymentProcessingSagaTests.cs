@@ -35,7 +35,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     {
         var sagaOptions = SagaTestFixture.CreateSagaOptions();
         var topicsOptions = SagaTestFixture.CreateSagaTopicsOptions();
-        var testDbName = $"SagaTest_{Guid.NewGuid()}";
+        var testDbName = $"SagaTest_{Guid.CreateVersion7()}";
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<PaymentProcessingSaga>>())
@@ -65,17 +65,17 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     public async Task WhenPaymentInitiated_ShouldTransitionToAwaitingAuthorization()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var initiatedEvent = new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentMethodId = Guid.NewGuid(),
+            PaymentMethodId = Guid.CreateVersion7(),
             Amount = 9.99m,
             Currency = "USD",
-            IdempotencyKey = $"payment-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -93,19 +93,22 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.AwaitingAuthorization);
 
-        instance.Should().NotBeNull();
-        instance.UserId.Should().Be(userId);
-        instance.Amount.Should().Be(9.99m);
-        instance.Currency.Should().Be("USD");
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.UserId.Should().Be(userId);
+            instance.Amount.Should().Be(9.99m);
+            instance.Currency.Should().Be("USD");
+        }
     }
 
     [Fact]
     public async Task WhenPaymentAuthorized_ShouldTransitionToAwaitingCapture()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -133,18 +136,21 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.AwaitingCapture);
 
-        instance.Should().NotBeNull("Saga should be in AwaitingCapture state");
-        instance.AuthorizationId.Should().Be(authorizationId);
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should be in AwaitingCapture state");
+            instance.AuthorizationId.Should().Be(authorizationId);
+        }
     }
 
     [Fact]
     public async Task WhenPaymentCaptured_ShouldTransitionToPaymentCompleted()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
@@ -170,19 +176,22 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.PaymentCompleted);
 
-        instance.Should().NotBeNull("Saga should be in PaymentCompleted state");
-        instance.PaymentTransactionId.Should().Be(paymentTransactionId);
-        instance.CapturedAtUtc.Should().NotBeNull();
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should be in PaymentCompleted state");
+            instance.PaymentTransactionId.Should().Be(paymentTransactionId);
+            instance.CapturedAtUtc.Should().NotBeNull();
+        }
     }
 
     [Fact]
     public async Task WhenPaymentCaptured_ShouldPublishPaymentCompletedEventToKafka()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
@@ -202,23 +211,24 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
         // Assert - verify message was added to the transactional outbox
-        _fakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeTrue(
-            "PaymentCompletedEvent should be added to the outbox for publishing to Kafka");
-
         var outboxMessages = _fakeOutboxWriter.GetMessages<PaymentCompletedEvent>().ToList();
-        outboxMessages.Should().ContainSingle();
 
-        var outboxMessage = outboxMessages.First();
-        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
-        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        using (new AssertionScope())
+        {
+            _fakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeTrue(
+                "PaymentCompletedEvent should be added to the outbox for publishing to Kafka");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        }
     }
 
     [Fact]
     public async Task WhenAuthorizationFailed_NonRetryable_ShouldTransitionToAuthorizationFailed()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -248,9 +258,9 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     public async Task WhenCaptureFailed_NonRetryable_ShouldTransitionToVoidInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
@@ -276,17 +286,20 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.VoidInProgress);
 
-        instance.Should().NotBeNull("Saga should transition to VoidInProgress after capture failure");
-        instance.CompensationTriggered.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should transition to VoidInProgress after capture failure");
+            instance.CompensationTriggered.Should().BeTrue();
+        }
     }
 
     [Fact]
     public async Task WhenPaymentVoided_ShouldTransitionToVoidCompleted()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
@@ -327,10 +340,10 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     public async Task WhenRefundRequested_FromPaymentCompleted_ShouldTransitionToRefundInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForCapture(correlationId, userId, authorizationId, paymentTransactionId);
 
@@ -354,18 +367,21 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.RefundInProgress);
 
-        instance.Should().NotBeNull("Saga should be in RefundInProgress state");
-        instance.CompensationTriggered.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should be in RefundInProgress state");
+            instance.CompensationTriggered.Should().BeTrue();
+        }
     }
 
     [Fact]
     public async Task WhenRefundCompleted_ShouldTransitionToRefundCompleted()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForCapture(correlationId, userId, authorizationId, paymentTransactionId);
 
@@ -388,7 +404,7 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
-            RefundTransactionId = Guid.NewGuid(),
+            RefundTransactionId = Guid.CreateVersion7(),
             RefundedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -405,8 +421,8 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     public async Task WhenAuthorizationTimeout_ShouldTransitionToAuthorizationFailed()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePaymentInitiatedEvent(correlationId, userId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -431,9 +447,9 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
     public async Task WhenCaptureTimeout_ShouldTransitionToVoidInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
 
@@ -453,17 +469,20 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.VoidInProgress);
 
-        instance.Should().NotBeNull("Saga should be in VoidInProgress after capture timeout");
-        instance.CompensationTriggered.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should be in VoidInProgress after capture timeout");
+            instance.CompensationTriggered.Should().BeTrue();
+        }
     }
 
     [Fact]
     public async Task WhenPaymentInitiated_ShouldPublishRequestPaymentAuthorizationCommand()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = new PaymentInitiatedSagaEvent
         {
@@ -481,16 +500,17 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
 
         // Assert - verify message was added to the transactional outbox
-        _fakeOutboxWriter.HasMessage<AuthorizePaymentCommand>().Should().BeTrue(
-            "AuthorizePaymentCommand should be added to the outbox");
-
         var outboxMessages = _fakeOutboxWriter.GetMessages<AuthorizePaymentCommand>().ToList();
-        outboxMessages.Should().ContainSingle();
 
-        var outboxMessage = outboxMessages.First();
-        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
-        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
-        outboxMessage.IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);
+        using (new AssertionScope())
+        {
+            _fakeOutboxWriter.HasMessage<AuthorizePaymentCommand>().Should().BeTrue(
+                "AuthorizePaymentCommand should be added to the outbox");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.UserId.Should().Be(userId);
+            outboxMessages[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);
+        }
     }
 
     private PaymentInitiatedSagaEvent CreatePaymentInitiatedEvent(
@@ -503,10 +523,10 @@ public class PaymentProcessingSagaTests : IAsyncLifetime
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentMethodId = Guid.NewGuid(),
+            PaymentMethodId = Guid.CreateVersion7(),
             Amount = amount,
             Currency = currency,
-            IdempotencyKey = $"payment-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
     }

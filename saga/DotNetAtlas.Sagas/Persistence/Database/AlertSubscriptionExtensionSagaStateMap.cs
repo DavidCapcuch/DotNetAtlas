@@ -10,8 +10,8 @@ public sealed class AlertSubscriptionExtensionSagaStateMap :
 {
     protected override void Configure(EntityTypeBuilder<AlertSubscriptionExtensionSagaState> entity, ModelBuilder model)
     {
-        entity.ToTable("SubscriptionExtensionSagaState", SagaDbContext.DefaultSchemaName,
-            t => t.HasComment("Saga state for subscription extension orchestration."));
+        entity.ToTable("AlertSubscriptionExtensionSagaState", SagaDbContext.DefaultSchemaName,
+            t => t.HasComment("Saga state for alert subscription extension orchestration."));
 
         entity.Property(x => x.CorrelationId)
             .HasComment("PK - Unique correlation ID (also PaymentTransactionId)")

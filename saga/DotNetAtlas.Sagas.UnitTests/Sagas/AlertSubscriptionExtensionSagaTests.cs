@@ -38,7 +38,7 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     {
         var sagaOptions = SagaTestFixture.CreateSagaOptions();
         var topicsOptions = SagaTestFixture.CreateSagaTopicsOptions();
-        var testDbName = $"SagaTest_{Guid.NewGuid()}";
+        var testDbName = $"SagaTest_{Guid.CreateVersion7()}";
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<AlertSubscriptionExtensionSaga>>())
@@ -69,9 +69,9 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenSubscriptionExtensionInitiated_ShouldTransitionToWaitingForPayment()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = new AlertSubscriptionExtensionInitiatedSagaEvent
         {
@@ -81,7 +81,7 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             DurationDays = 30,
             Amount = 9.99m,
             Currency = "USD",
-            IdempotencyKey = $"extension-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"extension-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -99,21 +99,24 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.WaitingForPayment);
 
-        instance.Should().NotBeNull();
-        instance.UserId.Should().Be(userId);
-        instance.DurationDays.Should().Be(30);
-        instance.Amount.Should().Be(9.99m);
-        instance.Currency.Should().Be("USD");
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.UserId.Should().Be(userId);
+            instance.DurationDays.Should().Be(30);
+            instance.Amount.Should().Be(9.99m);
+            instance.Currency.Should().Be("USD");
+        }
     }
 
     [Fact]
     public async Task WhenPaymentCompletedThenExtended_ShouldTransitionToExtensionCompleted()
     {
         // Arrange - Start saga
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -165,10 +168,10 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenExtensionFailed_WithCompensation_ShouldTransitionToCompensationInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -193,19 +196,22 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.CompensationInProgress);
 
-        instance.Should().NotBeNull();
-        instance.CompensationTriggered.Should().BeTrue();
-        instance.ErrorCode.Should().Be("EXTENSION_ERROR");
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.CompensationTriggered.Should().BeTrue();
+            instance.ErrorCode.Should().Be("EXTENSION_ERROR");
+        }
     }
 
     [Fact]
     public async Task WhenExtensionFailed_WithoutCompensation_ShouldTransitionToExtensionFailed()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -233,10 +239,10 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenCompensationCompleted_ShouldTransitionToCompensationCompleted()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -265,7 +271,7 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
         {
             CorrelationId = correlationId,
             UserId = userId,
-            RefundTransactionId = Guid.NewGuid(),
+            RefundTransactionId = Guid.CreateVersion7(),
             CompensatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -282,10 +288,10 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenExtensionFailed_WithCompensation_ShouldPublishRequestRefundCommand()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -304,25 +310,26 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>();
 
         // Assert - verify message was added to the transactional outbox
-        _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
-            "RequestRefundCommand should be added to the outbox when extension fails with compensation");
-
         var outboxMessages = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
-        outboxMessages.Should().ContainSingle();
 
-        var outboxMessage = outboxMessages.First();
-        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
-        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
-        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        using (new AssertionScope())
+        {
+            _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
+                "RequestRefundCommand should be added to the outbox when extension fails with compensation");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.UserId.Should().Be(userId);
+            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        }
     }
 
     [Fact]
     public async Task WhenExtensionInitiated_ShouldInitializeAllStateProperties()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
         var initiatedAt = _fakeTimeProvider.GetUtcNow().UtcDateTime;
 
         var initiatedEvent = new AlertSubscriptionExtensionInitiatedSagaEvent
@@ -348,30 +355,33 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.WaitingForPayment);
 
-        instance.Should().NotBeNull();
-        instance.CorrelationId.Should().Be(correlationId);
-        instance.UserId.Should().Be(userId);
-        instance.PaymentMethodId.Should().Be(paymentMethodId);
-        instance.PaymentTransactionId.Should().BeNull("PaymentTransactionId is set after payment completes");
-        instance.DurationDays.Should().Be(365);
-        instance.Amount.Should().Be(99.99m);
-        instance.Currency.Should().Be("EUR");
-        instance.IdempotencyKey.Should().Be($"extension-{userId}-test");
-        instance.ExtensionInitiatedAtUtc.Should().Be(initiatedAt);
-        instance.CurrentState.Should().Be("WaitingForPayment");
-        instance.CompensationTriggered.Should().BeFalse();
-        instance.ExtensionCompletedAtUtc.Should().BeNull();
-        instance.CompensationCompletedAtUtc.Should().BeNull();
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.CorrelationId.Should().Be(correlationId);
+            instance.UserId.Should().Be(userId);
+            instance.PaymentMethodId.Should().Be(paymentMethodId);
+            instance.PaymentTransactionId.Should().BeNull("PaymentTransactionId is set after payment completes");
+            instance.DurationDays.Should().Be(365);
+            instance.Amount.Should().Be(99.99m);
+            instance.Currency.Should().Be("EUR");
+            instance.IdempotencyKey.Should().Be($"extension-{userId}-test");
+            instance.ExtensionInitiatedAtUtc.Should().Be(initiatedAt);
+            instance.CurrentState.Should().Be("WaitingForPayment");
+            instance.CompensationTriggered.Should().BeFalse();
+            instance.ExtensionCompletedAtUtc.Should().BeNull();
+            instance.CompensationCompletedAtUtc.Should().BeNull();
+        }
     }
 
     [Fact]
     public async Task WhenExtensionTimeout_ShouldTransitionToCompensationInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -390,19 +400,22 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.CompensationInProgress);
 
-        instance.Should().NotBeNull("Saga should be in CompensationInProgress state after extension timeout");
-        instance.CompensationTriggered.Should().BeTrue();
-        instance.ErrorCode.Should().Be("EXTENSION_TIMEOUT");
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should be in CompensationInProgress state after extension timeout");
+            instance.CompensationTriggered.Should().BeTrue();
+            instance.ErrorCode.Should().Be("EXTENSION_TIMEOUT");
+        }
     }
 
     [Fact]
     public async Task WhenCompensationTimeout_ShouldTransitionToCompensationFailed()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -444,9 +457,9 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenPaymentFailed_ShouldTransitionToPaymentFailed()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -475,9 +488,9 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenPaymentTimeout_ShouldTransitionToPaymentFailed()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -502,9 +515,9 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
     public async Task WhenDuplicateExtensionInitiatedEvent_ShouldNotCreateNewSaga()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
 
@@ -538,7 +551,7 @@ public class AlertSubscriptionExtensionSagaTests : IAsyncLifetime
             DurationDays = durationDays,
             Amount = amount,
             Currency = currency,
-            IdempotencyKey = $"extension-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"extension-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
     }

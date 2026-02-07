@@ -44,6 +44,10 @@ public static class SagaDependencyInjection
                 .BindConfiguration(SagaKafkaOptions.Section)
                 .ValidateDataAnnotations();
 
+            services.AddOptionsWithValidateOnStart<SagaTopicsOptions>()
+                .BindConfiguration(SagaTopicsOptions.Section)
+                .ValidateDataAnnotations();
+
             var sagaOptions = configuration
                 .GetRequiredSection(SagaOptions.Section)
                 .Get<SagaOptions>()!;

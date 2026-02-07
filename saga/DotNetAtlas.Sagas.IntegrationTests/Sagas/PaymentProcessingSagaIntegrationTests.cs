@@ -8,11 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
 
-/// <summary>
-/// Integration tests for the PaymentProcessingSaga state machine.
-/// Tests verify saga state persistence, state transitions, and isolation using EF Core and real SQL Server via TestContainers.
-/// Events are produced to real Kafka topics and flow through the full consumer pipeline.
-/// </summary>
 [Collection(nameof(SagaTestCollection))]
 public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 {
@@ -30,8 +25,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenPaymentInitiated_ShouldTransitionToAndPersistAwaitingAuthorization()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
 
@@ -41,9 +36,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
-        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
+        var persistedState = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -52,6 +51,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be("AwaitingAuthorization");
             persistedState.Amount.Should().Be(9.99m);
             persistedState.Currency.Should().Be("USD");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages.Should().ContainSingle(om => om.Type == "Finance.Payments.AuthorizePaymentCommand"
+                                                        && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -59,10 +61,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenPaymentCaptured_ShouldTransitionToAndPersistPaymentCompleted()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
 
@@ -82,7 +84,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
+        var persistedState = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -100,10 +102,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenMultipleSagasInitiated_ShouldMaintainIsolatedStates()
     {
         // Arrange
-        var correlationId1 = Guid.NewGuid();
-        var correlationId2 = Guid.NewGuid();
-        var userId1 = Guid.NewGuid();
-        var userId2 = Guid.NewGuid();
+        var correlationId1 = Guid.CreateVersion7();
+        var correlationId2 = Guid.CreateVersion7();
+        var userId1 = Guid.CreateVersion7();
+        var userId2 = Guid.CreateVersion7();
 
         var event1 = CreatePaymentRequestedEvent(correlationId1, userId1, 9.99m, "USD");
         var event2 = CreatePaymentRequestedEvent(correlationId2, userId2, 99.99m, "EUR");
@@ -116,11 +118,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.AwaitingAuthorization, DefaultTimeout);
         await SagaStateMonitor.WaitForStateAsync(correlationId2, state => state.AwaitingAuthorization, DefaultTimeout);
 
-        var state1 = await DbContext.Set<PaymentProcessingSagaState>()
+        var state1 = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId1);
 
-        var state2 = await DbContext.Set<PaymentProcessingSagaState>()
+        var state2 = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId2);
 
@@ -139,11 +141,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenFullPaymentFlow_ShouldPersistStateAtEachTransition()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         // Step 1: Initiate payment
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, 49.99m, "USD", paymentMethodId);
@@ -153,7 +155,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Verify: AwaitingAuthorization state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
-        var stateAfterInitiation = await DbContext.Set<PaymentProcessingSagaState>()
+        var stateAfterInitiation = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -184,7 +186,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Verify: AwaitingCapture state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
-        var stateAfterAuthorization = await DbContext.Set<PaymentProcessingSagaState>()
+        var stateAfterAuthorization = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -212,9 +214,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Verify: PaymentCompleted state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        var stateAfterCapture = await DbContext.Set<PaymentProcessingSagaState>()
+        var stateAfterCapture = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -224,11 +230,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             stateAfterCapture.CapturedAtUtc.Should().HaveValue();
             stateAfterCapture.CompensationTriggered.Should().BeFalse();
 
-            FakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeTrue(
-                "PaymentCompletedEvent should be added to the outbox for publishing to Kafka when payment is captured");
-            var outboxMessages = FakeOutboxWriter.GetMessages<PaymentCompletedEvent>().ToList();
-            outboxMessages.Should().ContainSingle();
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages.Should().Contain(om => om.Type == "Finance.Payments.PaymentCompletedEvent"
+                                                  && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -243,10 +246,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentMethodId = paymentMethodId ?? Guid.NewGuid(),
+            PaymentMethodId = paymentMethodId ?? Guid.CreateVersion7(),
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            IdempotencyKey = $"payment-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
             RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }
@@ -255,8 +258,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenAuthorizationFailsNonRetryable_ShouldFinalizeInAuthorizationFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
         await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
@@ -286,9 +289,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenCaptureFailsNonRetryable_ShouldTriggerVoidAndTransitionToVoidInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
 
@@ -309,9 +312,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
 
         // Assert
-        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
+        var persistedState = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -319,11 +326,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be("VoidInProgress");
             persistedState.CompensationTriggered.Should().BeTrue();
 
-            FakeOutboxWriter.HasMessage<PaymentFailedEvent>().Should().BeTrue(
-                "PaymentFailedEvent should be added to the outbox when capture fails non-retryable");
-            var outboxMessages = FakeOutboxWriter.GetMessages<PaymentFailedEvent>().ToList();
-            outboxMessages.Should().ContainSingle();
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages.Should().Contain(om => om.Type == "Finance.Payments.PaymentFailedEvent"
+                                                  && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -331,9 +335,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenVoidCompletes_ShouldFinalizeInVoidCompletedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         // Transition to VoidInProgress via capture failure
         await TransitionSagaToVoidInProgressState(correlationId, userId, authorizationId);
@@ -358,9 +362,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenRefundRequested_ShouldTransitionToRefundInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         // Transition to PaymentCompleted state
         await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId);
@@ -379,7 +383,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
-        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
+        var persistedState = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -394,8 +398,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenAuthorizationTimesOut_ShouldFinalizeInAuthorizationFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
         await KafkaTestProducer.ProduceAsync(SagaIntegrationTestFixture.FinancePaymentsTopic, userId,
@@ -420,9 +424,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenCaptureTimesOut_ShouldTriggerVoidAndTransitionToVoidInProgress()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
 
@@ -436,9 +440,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
-        var persistedState = await DbContext.Set<PaymentProcessingSagaState>()
+        var persistedState = await DbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
 
         using (new AssertionScope())
         {
@@ -446,11 +454,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be("VoidInProgress");
             persistedState.CompensationTriggered.Should().BeTrue();
 
-            FakeOutboxWriter.HasMessage<PaymentFailedEvent>().Should().BeTrue(
-                "PaymentFailedEvent should be added to the outbox when capture times out");
-            var outboxMessages = FakeOutboxWriter.GetMessages<PaymentFailedEvent>().ToList();
-            outboxMessages.Should().ContainSingle();
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages.Should().Contain(om => om.Type == "Finance.Payments.PaymentFailedEvent"
+                                                  && om.KafkaKey == correlationId.ToString());
         }
     }
 
@@ -458,9 +463,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenVoidTimesOut_ShouldFinalizeInVoidFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await TransitionSagaToVoidInProgressState(correlationId, userId, authorizationId);
 
@@ -481,9 +486,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     public async Task WhenRefundTimesOut_ShouldFinalizeInRefundFailedState()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await TransitionSagaToRefundInProgressState(correlationId, userId, paymentTransactionId);
 
@@ -564,7 +569,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         decimal amount = 99.99m,
         string currency = "USD")
     {
-        var authorizationId = $"auth-{Guid.NewGuid()}";
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId, amount, currency);
 

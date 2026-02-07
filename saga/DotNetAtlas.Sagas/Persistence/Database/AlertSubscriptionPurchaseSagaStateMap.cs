@@ -10,8 +10,8 @@ public sealed class AlertSubscriptionPurchaseSagaStateMap :
 {
     protected override void Configure(EntityTypeBuilder<AlertSubscriptionPurchaseSagaState> entity, ModelBuilder model)
     {
-        entity.ToTable("SubscriptionPurchaseSagaState", SagaDbContext.DefaultSchemaName,
-            t => t.HasComment("Saga state for subscription purchase orchestration."));
+        entity.ToTable("AlertSubscriptionPurchaseSagaState", SagaDbContext.DefaultSchemaName,
+            t => t.HasComment("Saga state for alert subscription purchase orchestration."));
 
         // Primary key - configured by MassTransit SagaClassMap base
         entity.Property(x => x.CorrelationId)

@@ -1,7 +1,5 @@
-using DotNetAtlas.Sagas.Common;
 using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.SharedKernel.Base;
-using MassTransit;
 using Order.AlertSubscriptions;
 
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;

@@ -218,7 +218,7 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     b.HasIndex("CurrentState", "LastModifiedUtc")
                         .HasDatabaseName("IX_PaymentSagaState_State_LastUpdated");
 
-                    b.ToTable("PaymentSagaState", "saga", t =>
+                    b.ToTable("PaymentProcessingSagaState", "saga", t =>
                         {
                             t.HasComment("Saga state for payment processing orchestration.");
                         });
@@ -347,9 +347,9 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     b.HasIndex("CurrentState", "LastModifiedUtc")
                         .HasDatabaseName("IX_SubscriptionExtensionSagaState_State_LastUpdated");
 
-                    b.ToTable("SubscriptionExtensionSagaState", "saga", t =>
+                    b.ToTable("AlertSubscriptionExtensionSagaState", "saga", t =>
                         {
-                            t.HasComment("Saga state for subscription extension orchestration.");
+                            t.HasComment("Saga state for alert subscription extension orchestration.");
                         });
                 });
 
@@ -476,9 +476,9 @@ namespace DotNetAtlas.Sagas.Persistence.Database.Migrations
                     b.HasIndex("CurrentState", "LastModifiedUtc")
                         .HasDatabaseName("IX_SubscriptionPurchaseSagaState_State_LastUpdated");
 
-                    b.ToTable("SubscriptionPurchaseSagaState", "saga", t =>
+                    b.ToTable("AlertSubscriptionPurchaseSagaState", "saga", t =>
                         {
-                            t.HasComment("Saga state for subscription purchase orchestration.");
+                            t.HasComment("Saga state for alert subscription purchase orchestration.");
                         });
                 });
 #pragma warning restore 612, 618
