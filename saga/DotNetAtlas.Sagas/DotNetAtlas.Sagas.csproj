@@ -54,4 +54,8 @@
         <InternalsVisibleTo Include="DotNetAtlas.Sagas.IntegrationTests"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Persistence\Database\Migrations\SqlScripts\" />
+    </ItemGroup>
+
 </Project>

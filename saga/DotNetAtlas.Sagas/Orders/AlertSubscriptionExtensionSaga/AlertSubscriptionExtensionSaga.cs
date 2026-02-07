@@ -30,11 +30,11 @@ public sealed class AlertSubscriptionExtensionSaga : MassTransitStateMachine<Ale
     public State CompensationFailed { get; private set; }
 
     // Events
-    public Event<AlertSubscriptionExtensionInitiatedSagaEvent> SubscriptionExtensionInitiatedEvent { get; private set; }
+    public Event<AlertSubscriptionExtensionInitiatedSagaEvent> AlertSubscriptionExtensionInitiatedEvent { get; private set; }
     public Event<AlertSubscriptionExtensionPaymentCompletedSagaEvent> PaymentCompletedEvent { get; private set; }
     public Event<AlertSubscriptionExtensionPaymentFailedSagaEvent> PaymentFailedEvent { get; private set; }
-    public Event<AlertSubscriptionExtendedSagaEvent> SubscriptionExtendedEvent { get; private set; }
-    public Event<AlertSubscriptionExtensionFailedSagaEvent> SubscriptionExtensionFailedEvent { get; private set; }
+    public Event<AlertSubscriptionExtendedSagaEvent> AlertSubscriptionExtendedEvent { get; private set; }
+    public Event<AlertSubscriptionExtensionFailedSagaEvent> AlertSubscriptionExtensionFailedEvent { get; private set; }
     public Event<AlertSubscriptionExtensionCompensationCompletedSagaEvent> CompensationCompletedEvent { get; private set; }
 
     // Schedules
@@ -58,7 +58,7 @@ public sealed class AlertSubscriptionExtensionSaga : MassTransitStateMachine<Ale
 
     private void ConfigureEvents()
     {
-        Event(() => SubscriptionExtensionInitiatedEvent, e =>
+        Event(() => AlertSubscriptionExtensionInitiatedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
             e.InsertOnInitial = true;
@@ -88,13 +88,13 @@ public sealed class AlertSubscriptionExtensionSaga : MassTransitStateMachine<Ale
             e.OnMissingInstance(m => m.Fault());
         });
 
-        Event(() => SubscriptionExtendedEvent, e =>
+        Event(() => AlertSubscriptionExtendedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
             e.OnMissingInstance(m => m.Fault());
         });
 
-        Event(() => SubscriptionExtensionFailedEvent, e =>
+        Event(() => AlertSubscriptionExtensionFailedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
             e.OnMissingInstance(m => m.Fault());
@@ -144,7 +144,7 @@ public sealed class AlertSubscriptionExtensionSaga : MassTransitStateMachine<Ale
     private void ConfigureInitialState()
     {
         Initially(
-            When(SubscriptionExtensionInitiatedEvent)
+            When(AlertSubscriptionExtensionInitiatedEvent)
                 .Activity(x => x.OfType<SagaStartedActivity>())
                 .PublishToOutbox(
                     _topicsOptions.FinancePayments,
@@ -221,7 +221,7 @@ public sealed class AlertSubscriptionExtensionSaga : MassTransitStateMachine<Ale
     {
         // Awaiting extension - can receive extended, failed, or timeout
         During(AwaitingExtension,
-            When(SubscriptionExtendedEvent)
+            When(AlertSubscriptionExtendedEvent)
                 .Then(ctx =>
                 {
                     ctx.Saga.ExtensionCompletedAtUtc = ctx.Message.ExtendedAtUtc;
@@ -231,7 +231,7 @@ public sealed class AlertSubscriptionExtensionSaga : MassTransitStateMachine<Ale
                 .Unschedule(ExtensionTimeout)
                 .TransitionTo(ExtensionCompleted)
                 .Finalize(),
-            When(SubscriptionExtensionFailedEvent)
+            When(AlertSubscriptionExtensionFailedEvent)
                 .Then(ctx =>
                 {
                     ctx.Saga.ErrorCode = ctx.Message.ErrorCode;

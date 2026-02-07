@@ -17,9 +17,9 @@ public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbCo
     {
     }
 
-    public DbSet<AlertSubscriptionPurchaseSagaState> SubscriptionPurchaseSagaStates { get; set; }
-    public DbSet<AlertSubscriptionExtensionSagaState> SubscriptionExtensionSagaStates { get; set; }
-    public DbSet<PaymentProcessingSagaState> PaymentSagaStates { get; set; }
+    public DbSet<AlertSubscriptionPurchaseSagaState> AlertSubscriptionPurchaseSagaStates { get; set; }
+    public DbSet<AlertSubscriptionExtensionSagaState> AlertSubscriptionExtensionSagaStates { get; set; }
+    public DbSet<PaymentProcessingSagaState> PaymentProcessingSagaStates { get; set; }
     public DbSet<DotNetAtlas.ReliableMessaging.Outbox.Core.OutboxMessage> OutboxMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -37,7 +37,7 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     {
         var sagaOptions = SagaTestFixture.CreateSagaOptions();
         var topicsOptions = SagaTestFixture.CreateSagaTopicsOptions();
-        var testDbName = $"SagaTest_{Guid.NewGuid()}";
+        var testDbName = $"SagaTest_{Guid.CreateVersion7()}";
 
         _provider = new ServiceCollection()
             .AddSingleton(Substitute.For<ILogger<AlertSubscriptionPurchaseSaga>>())
@@ -67,9 +67,9 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async Task WhenSubscriptionPurchaseInitiated_ShouldTransitionToWaitingForPayment()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = new AlertSubscriptionPurchaseInitiatedSagaEvent
         {
@@ -80,7 +80,7 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             DurationDays = 30,
             Amount = 9.99m,
             Currency = "USD",
-            IdempotencyKey = $"purchase-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"purchase-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -100,22 +100,25 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.WaitingForPayment);
 
-        instance.Should().NotBeNull();
-        instance.UserId.Should().Be(userId);
-        instance.SubscriptionTier.Should().Be(SubscriptionTier.Pro);
-        instance.DurationDays.Should().Be(30);
-        instance.Amount.Should().Be(9.99m);
-        instance.Currency.Should().Be("USD");
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.UserId.Should().Be(userId);
+            instance.SubscriptionTier.Should().Be(SubscriptionTier.Pro);
+            instance.DurationDays.Should().Be(30);
+            instance.Amount.Should().Be(9.99m);
+            instance.Currency.Should().Be("USD");
+        }
     }
 
     [Fact]
     public async Task WhenPaymentCompletedThenActivated_ShouldTransitionToActivationCompleted()
     {
         // Arrange - Start saga
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePurchaseInitiatedEvent(correlationId, userId, paymentMethodId);
         await _harness.Bus.Publish(initiatedEvent);
@@ -167,10 +170,10 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async Task WhenActivationFailed_WithCompensation_ShouldTransitionToCompensationInProgress()
     {
         // Arrange - Start saga and complete payment
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -196,19 +199,22 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.CompensationInProgress);
 
-        instance.Should().NotBeNull();
-        instance.CompensationTriggered.Should().BeTrue();
-        instance.ErrorCode.Should().Be("ACTIVATION_ERROR");
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.CompensationTriggered.Should().BeTrue();
+            instance.ErrorCode.Should().Be("ACTIVATION_ERROR");
+        }
     }
 
     [Fact]
     public async Task WhenActivationFailed_WithoutCompensation_ShouldTransitionToActivationFailed()
     {
         // Arrange - Start saga and complete payment
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -240,10 +246,10 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async Task WhenCompensationCompleted_ShouldTransitionToCompensationCompleted()
     {
         // Arrange - Start saga and complete payment
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -275,7 +281,7 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             CorrelationId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
-            RefundTransactionId = Guid.NewGuid(),
+            RefundTransactionId = Guid.CreateVersion7(),
             CompensatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -294,10 +300,10 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async Task WhenActivationFailed_WithCompensation_ShouldPublishRequestRefundCommand()
     {
         // Arrange - Start saga and complete payment
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -317,25 +323,26 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<AlertSubscriptionActivationFailedSagaEvent>();
 
         // Assert - verify message was added to the transactional outbox
-        _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
-            "RequestRefundCommand should be added to the outbox when activation fails with compensation");
-
         var outboxMessages = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
-        outboxMessages.Should().ContainSingle();
 
-        var outboxMessage = outboxMessages.First();
-        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
-        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
-        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        using (new AssertionScope())
+        {
+            _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
+                "RequestRefundCommand should be added to the outbox when activation fails with compensation");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.UserId.Should().Be(userId);
+            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        }
     }
 
     [Fact]
     public async Task WhenPurchaseInitiated_ShouldInitializeAllStateProperties()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
         var initiatedAt = _fakeTimeProvider.GetUtcNow().UtcDateTime;
 
         var initiatedEvent = new AlertSubscriptionPurchaseInitiatedSagaEvent
@@ -362,31 +369,34 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.WaitingForPayment);
 
-        instance.Should().NotBeNull();
-        instance.CorrelationId.Should().Be(correlationId);
-        instance.UserId.Should().Be(userId);
-        instance.PaymentMethodId.Should().Be(paymentMethodId);
-        instance.PaymentTransactionId.Should().BeNull("PaymentTransactionId is set after payment completes");
-        instance.SubscriptionTier.Should().Be(SubscriptionTier.Ultra);
-        instance.DurationDays.Should().Be(365);
-        instance.Amount.Should().Be(99.99m);
-        instance.Currency.Should().Be("EUR");
-        instance.IdempotencyKey.Should().Be($"purchase-{userId}-test");
-        instance.PurchaseInitiatedUtc.Should().Be(initiatedAt);
-        instance.CurrentState.Should().Be("WaitingForPayment");
-        instance.CompensationTriggered.Should().BeFalse();
-        instance.ActivationCompletedUtc.Should().BeNull();
-        instance.CompensationCompletedUtc.Should().BeNull();
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull();
+            instance.CorrelationId.Should().Be(correlationId);
+            instance.UserId.Should().Be(userId);
+            instance.PaymentMethodId.Should().Be(paymentMethodId);
+            instance.PaymentTransactionId.Should().BeNull("PaymentTransactionId is set after payment completes");
+            instance.SubscriptionTier.Should().Be(SubscriptionTier.Ultra);
+            instance.DurationDays.Should().Be(365);
+            instance.Amount.Should().Be(99.99m);
+            instance.Currency.Should().Be("EUR");
+            instance.IdempotencyKey.Should().Be($"purchase-{userId}-test");
+            instance.PurchaseInitiatedUtc.Should().Be(initiatedAt);
+            instance.CurrentState.Should().Be("WaitingForPayment");
+            instance.CompensationTriggered.Should().BeFalse();
+            instance.ActivationCompletedUtc.Should().BeNull();
+            instance.CompensationCompletedUtc.Should().BeNull();
+        }
     }
 
     [Fact]
     public async Task WhenActivationTimeout_ShouldTransitionToCompensationInProgress()
     {
         // Arrange - Start saga and complete payment to get to AwaitingActivation state
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -405,31 +415,32 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             _sagaHarness.StateMachine,
             _sagaHarness.StateMachine.CompensationInProgress);
 
-        instance.Should().NotBeNull("Saga should be in CompensationInProgress state after activation timeout");
-        instance.CompensationTriggered.Should().BeTrue();
-        instance.ErrorCode.Should().Be("ACTIVATION_TIMEOUT");
-
         // Verify RequestRefundCommand was added to the outbox
-        _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
-            "RequestRefundCommand should be added to the outbox after activation timeout");
-
         var outboxMessages = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
-        outboxMessages.Should().ContainSingle();
 
-        var outboxMessage = outboxMessages.First();
-        outboxMessage.IntegrationEvent.CorrelationId.Should().Be(correlationId);
-        outboxMessage.IntegrationEvent.UserId.Should().Be(userId);
-        outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        using (new AssertionScope())
+        {
+            instance.Should().NotBeNull("Saga should be in CompensationInProgress state after activation timeout");
+            instance.CompensationTriggered.Should().BeTrue();
+            instance.ErrorCode.Should().Be("ACTIVATION_TIMEOUT");
+
+            _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeTrue(
+                "RequestRefundCommand should be added to the outbox after activation timeout");
+            outboxMessages.Should().ContainSingle();
+            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.UserId.Should().Be(userId);
+            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+        }
     }
 
     [Fact]
     public async Task WhenCompensationTimeout_ShouldTransitionToCompensationFailed()
     {
         // Arrange - Start saga and complete payment
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
-        var paymentTransactionId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var paymentTransactionId = Guid.CreateVersion7();
 
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
@@ -473,9 +484,9 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async Task WhenDuplicatePurchaseInitiatedEvent_ShouldNotCreateNewSaga()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var paymentMethodId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
 
         var initiatedEvent = CreatePurchaseInitiatedEvent(correlationId, userId, paymentMethodId);
 
@@ -495,15 +506,15 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
     public async Task WhenActivatedEventForNonExistentSaga_ShouldNotCreateSaga()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
 
         // Act - publish activated event without prior purchase event
         var activatedEvent = new AlertSubscriptionActivatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = Guid.NewGuid(),
+            PaymentTransactionId = Guid.CreateVersion7(),
             ActivatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -535,7 +546,7 @@ public class AlertSubscriptionPurchaseSagaTests : IAsyncLifetime
             DurationDays = durationDays,
             Amount = amount,
             Currency = currency,
-            IdempotencyKey = $"purchase-{userId}-{Guid.NewGuid()}",
+            IdempotencyKey = $"purchase-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
     }

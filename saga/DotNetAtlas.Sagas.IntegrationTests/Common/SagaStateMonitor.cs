@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using DotNetAtlas.Sagas.Common;
 using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +7,8 @@ namespace DotNetAtlas.Sagas.IntegrationTests.Common;
 
 /// <summary>
 /// Typed helper for waiting on saga state transitions in integration tests.
-/// Provides a fluent API similar to MassTransit's ISagaStateMachineTestHarness.
+/// Provides a fluent API similar to MassTransit's ISagaStateMachineTestHarness,
+/// but meant to be used in integration tests with real instances and infrastructure.
 /// </summary>
 /// <typeparam name="TSaga">The saga state machine type.</typeparam>
 /// <typeparam name="TSagaState">The saga state instance type.</typeparam>
@@ -16,6 +16,7 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     where TSaga : MassTransitStateMachine<TSagaState>
     where TSagaState : class, ISagaStateInstance
 {
+    private const int DefaultPollingIntervalMs = 100;
     private readonly DbContext _dbContext;
     private readonly TSaga _stateMachine;
 
@@ -38,13 +39,42 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     /// <param name="timeout">Maximum time to wait for the state transition.</param>
     /// <returns>The saga state once it reaches the expected state.</returns>
     /// <exception cref="TimeoutException">Thrown if the saga doesn't reach the expected state within the timeout.</exception>
-    public Task<TSagaState> WaitForStateAsync(
+    public async Task<TSagaState> WaitForStateAsync(
         Guid correlationId,
         Expression<Func<TSaga, State>> stateSelector,
         TimeSpan timeout)
     {
         var stateName = GetStateName(stateSelector);
-        return SagaStateWaiter.WaitForSagaStateAsync<TSagaState>(_dbContext, correlationId, stateName, timeout);
+        var start = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - start < timeout)
+        {
+            var state = await _dbContext.Set<TSagaState>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+            if (state?.CurrentState == stateName)
+            {
+                return state;
+            }
+
+            await Task.Delay(DefaultPollingIntervalMs);
+        }
+
+        var finalState = await _dbContext.Set<TSagaState>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        if (finalState?.CurrentState == stateName)
+        {
+            return finalState;
+        }
+
+        var actualState = finalState?.CurrentState ?? "not found";
+        throw new TimeoutException(
+            $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
+            $"did not reach state '{stateName}' within {timeout.TotalSeconds}s. " +
+            $"Actual state: '{actualState}'");
     }
 
     /// <summary>
@@ -53,9 +83,36 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     /// <param name="correlationId">The correlation ID of the saga instance.</param>
     /// <param name="timeout">Maximum time to wait for finalization.</param>
     /// <exception cref="TimeoutException">Thrown if the saga is not finalized within the timeout.</exception>
-    public Task<bool> WaitForFinalizedAsync(Guid correlationId, TimeSpan timeout)
+    public async Task<bool> WaitForFinalizedAsync(Guid correlationId, TimeSpan timeout)
     {
-        return SagaStateWaiter.WaitForSagaFinalizedAsync<TSagaState>(_dbContext, correlationId, timeout);
+        var start = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - start < timeout)
+        {
+            var exists = await _dbContext.Set<TSagaState>()
+                .AsNoTracking()
+                .AnyAsync(x => x.CorrelationId == correlationId);
+
+            if (!exists)
+            {
+                return true;
+            }
+
+            await Task.Delay(DefaultPollingIntervalMs);
+        }
+
+        var finalState = await _dbContext.Set<TSagaState>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        if (finalState is null)
+        {
+            return true;
+        }
+
+        throw new TimeoutException(
+            $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
+            $"was not finalized within {timeout.TotalSeconds}s. Current state: {finalState.CurrentState}");
     }
 
     private string GetStateName(Expression<Func<TSaga, State>> stateSelector)
@@ -66,4 +123,3 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
         return state.Name;
     }
 }
-

@@ -39,7 +39,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
     public const string WeatherAlertSubscriptionsCommandsTopic = "weather.alert-subscriptions.commands";
 
     public FakeOutboxWriter FakeOutboxWriter { get; } = new();
-    public KafkaAvroTestProducer KafkaProducer { get; private set; } = null!;
+    public KafkaTestProducer KafkaProducer { get; private set; } = null!;
 
     private IBusControl? _busControl;
 
@@ -75,10 +75,6 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
                         .WriteTo.InjectableTestOutput(testOutputSink)
                         .Enrich.FromLogContext();
                 }, true, true);
-            })
-            .ConfigureTestServices(services =>
-            {
-                services.AddSingleton<IOutboxWriter>(FakeOutboxWriter);
             });
     }
 
@@ -93,7 +89,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
         };
         await _kafkaContainer.CreateKafkaTopicsAsync(topics);
 
-        KafkaProducer = new KafkaAvroTestProducer(_kafkaContainer.KafkaOptions);
+        KafkaProducer = new KafkaTestProducer(_kafkaContainer.KafkaOptions);
 
         // Start the MassTransit bus (includes SQL transport for internal saga messages/timeouts)
         _busControl = Services.GetRequiredService<IBusControl>();

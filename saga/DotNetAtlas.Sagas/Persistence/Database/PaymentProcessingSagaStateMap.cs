@@ -10,7 +10,7 @@ public sealed class PaymentProcessingSagaStateMap :
 {
     protected override void Configure(EntityTypeBuilder<PaymentProcessingSagaState> entity, ModelBuilder model)
     {
-        entity.ToTable("PaymentSagaState", SagaDbContext.DefaultSchemaName,
+        entity.ToTable("PaymentProcessingSagaState", SagaDbContext.DefaultSchemaName,
             t => t.HasComment("Saga state for payment processing orchestration."));
 
         // Primary key - configured by MassTransit SagaClassMap base

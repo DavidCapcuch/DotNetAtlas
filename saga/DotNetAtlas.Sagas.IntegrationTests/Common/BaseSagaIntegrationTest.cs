@@ -1,4 +1,3 @@
-using DotNetAtlas.Sagas.Common;
 using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Test.Framework.Kafka;
@@ -21,7 +20,7 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
     protected SagaDbContext DbContext { get; }
     protected TimeProvider TimeProvider { get; }
     protected FakeOutboxWriter FakeOutboxWriter { get; }
-    protected KafkaAvroTestProducer KafkaTestProducer { get; }
+    protected KafkaTestProducer KafkaTestProducer { get; }
 
     /// <summary>
     /// The MassTransit bus for publishing internal saga events (e.g., timeout events).
