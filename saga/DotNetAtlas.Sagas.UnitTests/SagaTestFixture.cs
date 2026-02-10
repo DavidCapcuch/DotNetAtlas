@@ -1,5 +1,6 @@
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.Sagas.Common.Config;
+using DotNetAtlas.Sagas.Common.Config.Kafka;
 using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Test.Framework.Kafka;
 using Microsoft.EntityFrameworkCore;

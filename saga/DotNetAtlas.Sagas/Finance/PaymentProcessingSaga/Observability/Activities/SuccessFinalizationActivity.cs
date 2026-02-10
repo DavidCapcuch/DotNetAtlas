@@ -8,7 +8,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment saga finalizes successfully
 /// (no refund was requested within the finalization window)
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     SuccessFinalizationActivity : IStateMachineActivity<PaymentProcessingSagaState, SuccessFinalizationTimeoutExpired>
@@ -38,18 +38,18 @@ public sealed class
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(SuccessFinalizationActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(SuccessFinalizationActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.PaymentTransactionId, saga.PaymentTransactionId?.ToString());
         }
 
-        PaymentProcessingSagaInstrumentation.RecordSagaCompleted(duration);
+        PaymentProcessingSagaMetrics.RecordSagaCompleted(duration);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} finalizing after success timeout - no refund requested",
-            nameof(PaymentProcessingSaga), saga.CorrelationId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId);
 
         await next.Execute(context);
     }

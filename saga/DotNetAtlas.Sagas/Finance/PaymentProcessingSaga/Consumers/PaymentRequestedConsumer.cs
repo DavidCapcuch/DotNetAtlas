@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="PaymentRequestedEvent"/> from Kafka
-/// and forwards it to the <see cref="PaymentProcessingSaga"/> as an internal
+/// and forwards it to the <see cref="PaymentProcessingSagaOrchestrator"/> as an internal
 /// <see cref="PaymentInitiatedSagaEvent"/>.
 /// </summary>
 public sealed class PaymentRequestedConsumer : IConsumer<PaymentRequestedEvent>

@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when a refund is requested
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     RefundRequestedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentRefundRequestedSagaEvent>
@@ -37,18 +37,18 @@ public sealed class
         var message = context.Message;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(RefundRequestedActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(RefundRequestedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.PaymentTransactionId, saga.PaymentTransactionId?.ToString());
         }
 
-        PaymentProcessingSagaInstrumentation.RecordRefundRequested();
+        PaymentProcessingSagaMetrics.RecordRefundRequested();
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} received refund request for user {UserId}. Reason: {Reason}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId, message.Reason);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.UserId, message.Reason);
 
         await next.Execute(context);
     }

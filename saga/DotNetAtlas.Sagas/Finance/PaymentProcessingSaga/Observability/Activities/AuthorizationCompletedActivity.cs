@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment authorization completes successfully
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     AuthorizationCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentAuthorizedSagaEvent>
@@ -36,18 +36,18 @@ public sealed class
         var saga = context.Saga;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(AuthorizationCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(AuthorizationCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.AuthorizationId, context.Message.AuthorizationId);
         }
 
-        PaymentProcessingSagaInstrumentation.RecordAuthorizationCompleted();
+        PaymentProcessingSagaMetrics.RecordAuthorizationCompleted();
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} authorization completed. AuthId: {AuthorizationId}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.AuthorizationId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.AuthorizationId);
 
         await next.Execute(context);
     }

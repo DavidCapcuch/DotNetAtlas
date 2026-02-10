@@ -26,7 +26,7 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
     private readonly TimeProvider _timeProvider;
 
     // Static metrics infrastructure
-    private static readonly Meter Meter = new(SagaActivitySource.MeterName, ApplicationInfo.Version);
+    private static readonly Meter Meter = new(ApplicationInfo.AppName, ApplicationInfo.Version);
 
     // Backing fields for observable gauges - updated by health check, read by Prometheus
     private static int _stuckPurchaseSagaCount;

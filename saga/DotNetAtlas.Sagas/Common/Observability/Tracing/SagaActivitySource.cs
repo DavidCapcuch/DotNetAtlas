@@ -9,12 +9,6 @@ namespace DotNetAtlas.Sagas.Common.Observability.Tracing;
 public static class SagaActivitySource
 {
     /// <summary>
-    /// Meter name for OpenTelemetry metrics configuration.
-    /// Used by saga-specific instrumentation classes.
-    /// </summary>
-    public const string MeterName = ApplicationInfo.AppName;
-
-    /// <summary>
     /// ActivitySource name for OpenTelemetry tracing configuration.
     /// </summary>
     public const string ActivitySourceName = ApplicationInfo.AppName;

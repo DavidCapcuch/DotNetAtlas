@@ -37,7 +37,7 @@ public class AppDbContext : DbContext, IInboxDbContext
 ```csharp
 services.AddDbContextPool<AppDbContext>(options => options
     .UseSqlServer(connectionString)
-    .UseExceptionProcessor());  // Required for concurrent duplicate handling
+    .UseExceptionProcessor());  // Required for detecting UQ constraint violations of MessageId
 
 services.AddInbox<AppDbContext>();
 ```
@@ -45,22 +45,26 @@ services.AddInbox<AppDbContext>();
 ### 3. Add Middleware
 
 ```csharp
-.AddMiddlewares(middlewares => middlewares
-    .AddInbox(typeof(OrderCreatedEvent))  // <- skips duplicates
-    .AddTypedHandlers(h => h.AddHandler<OrderEventHandler>()))
+services.AddKafka(kafka => kafka
+            .AddCluster(cluster => cluster
+                .AddConsumer(consumer => consumer
+                    .AddMiddlewares(middlewares => middlewares
+                        .AddInbox(typeof(ActivateAlertSubscriptionCommand), typeof(ExtendAlertSubscriptionCommand))  // <- skips duplicates
+                    )
+                ))
 ```
 
 ## How It Works
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Kafka Message Received                    │
+│                    Kafka Message Received                   │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    InboxMiddleware                           │
-│                                                              │
+│                    InboxMiddleware                          │
+│                                                             │
 │  1. Extract message.id from headers                         │
 │  2. Check if message.id exists in InboxMessages table       │
 │  3. If exists → Skip (already processed)                    │
@@ -70,8 +74,8 @@ services.AddInbox<AppDbContext>();
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Your Message Handler                      │
-│                                                              │
+│                        Message Handler                      │
+│                                                             │
 │  Process the message (only runs once per message.id)        │
 └─────────────────────────────────────────────────────────────┘
 ```

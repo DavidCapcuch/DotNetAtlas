@@ -5,7 +5,7 @@ using Order.AlertSubscriptions;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga;
 
 /// <summary>
-/// Represents the state of the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// Represents the state of the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// This saga orchestrates the alert subscription purchase flow, coordinating payment
 /// (via <c>PaymentRequestedEvent</c>) and activation (via <c>ActivateAlertSubscriptionCommand</c>).
 /// </summary>
@@ -137,10 +137,10 @@ public sealed class AlertSubscriptionPurchaseSagaState : ISagaStateInstance, IAu
     /// </summary>
     public static readonly string[] TerminalStates =
     [
-        nameof(AlertSubscriptionPurchaseSaga.ActivationCompleted),
-        nameof(AlertSubscriptionPurchaseSaga.ActivationFailed),
-        nameof(AlertSubscriptionPurchaseSaga.CompensationCompleted),
-        nameof(AlertSubscriptionPurchaseSaga.CompensationFailed),
-        nameof(AlertSubscriptionPurchaseSaga.PaymentFailed)
+        nameof(AlertSubscriptionPurchaseSagaOrchestrator.ActivationCompleted),
+        nameof(AlertSubscriptionPurchaseSagaOrchestrator.ActivationFailed),
+        nameof(AlertSubscriptionPurchaseSagaOrchestrator.CompensationCompleted),
+        nameof(AlertSubscriptionPurchaseSagaOrchestrator.CompensationFailed),
+        nameof(AlertSubscriptionPurchaseSagaOrchestrator.PaymentFailed)
     ];
 }

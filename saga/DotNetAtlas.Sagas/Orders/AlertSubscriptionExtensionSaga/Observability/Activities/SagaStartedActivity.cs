@@ -6,7 +6,7 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics, traces, and logs when the <see cref="AlertSubscriptionExtensionSaga"/> starts
+/// Activity that records metrics, traces, and logs when the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/> starts
 /// processing a new subscription extension request.
 /// </summary>
 public sealed class SagaStartedActivity
@@ -35,8 +35,8 @@ public sealed class SagaStartedActivity
     {
         var saga = context.Saga;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(SagaStartedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(SagaStartedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -44,12 +44,12 @@ public sealed class SagaStartedActivity
             activity.SetTag(AlertSubscriptionExtensionSagaActivityTags.DurationDays, saga.DurationDays);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordSagaStarted(
-            AlertSubscriptionSagaInstrumentation.SagaTypeExtension, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaMetrics.RecordSagaStarted(
+            AlertSubscriptionSagaMetrics.SagaTypeExtension, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} initialized for user {UserId}, duration {DurationDays} days",
-            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId, saga.DurationDays);
+            nameof(AlertSubscriptionExtensionSagaOrchestrator), saga.CorrelationId, saga.UserId, saga.DurationDays);
 
         await next.Execute(context);
     }

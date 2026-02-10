@@ -27,12 +27,9 @@
         <PackageReference Include="OpenTelemetry.Resources.Host"/>
 
         <!-- Health checks -->
-        <PackageReference Include="AspNetCore.HealthChecks.Publisher.Prometheus"/>
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
-        <PackageReference Include="AspNetCore.HealthChecks.UI.Client"/>
         <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
-        <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
         <!-- Analyzers -->

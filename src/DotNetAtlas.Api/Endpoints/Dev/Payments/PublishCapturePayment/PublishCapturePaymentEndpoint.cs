@@ -1,6 +1,6 @@
 using DotNetAtlas.Application.Common.Messaging;
 using DotNetAtlas.Infrastructure.Messaging.Kafka.Dev;
-using DotNetAtlas.SchemaRegistry.Contracts.Avro.Extensions;
+using DotNetAtlas.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using FastEndpoints;
 using Finance.Payments;
 using Microsoft.Extensions.Options;

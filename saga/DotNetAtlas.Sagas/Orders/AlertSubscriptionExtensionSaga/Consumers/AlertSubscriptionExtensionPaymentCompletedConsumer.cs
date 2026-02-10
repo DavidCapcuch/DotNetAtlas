@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="PaymentCompletedEvent"/> from the payment service
-/// and forwards it to the <see cref="AlertSubscriptionExtensionSaga"/> as an
+/// and forwards it to the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/> as an
 /// <see cref="AlertSubscriptionExtensionPaymentCompletedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionExtensionPaymentCompletedConsumer : IConsumer<PaymentCompletedEvent>

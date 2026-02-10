@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="AlertSubscriptionPurchaseInitiatedEvent"/> from Kafka
-/// and forwards it to the <see cref="AlertSubscriptionPurchaseSaga"/> as an internal
+/// and forwards it to the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/> as an internal
 /// <see cref="AlertSubscriptionPurchaseInitiatedSagaEvent"/>.
 /// This consumer acts as an adapter between the Avro-serialized Kafka message and the MassTransit saga.
 /// </summary>

@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.A
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when activation times out
-/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// for the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     ActivationTimeoutActivity : IStateMachineActivity<AlertSubscriptionPurchaseSagaState, ActivationTimeoutExpired>
@@ -38,8 +38,8 @@ public sealed class
         var saga = context.Saga;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(ActivationTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(ActivationTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -48,12 +48,12 @@ public sealed class
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordSagaTimeout(
-            duration, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaMetrics.RecordSagaTimeout(
+            duration, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} timed out waiting for activation response for user {UserId}",
-            nameof(AlertSubscriptionPurchaseSaga), saga.CorrelationId, saga.UserId);
+            nameof(AlertSubscriptionPurchaseSagaOrchestrator), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

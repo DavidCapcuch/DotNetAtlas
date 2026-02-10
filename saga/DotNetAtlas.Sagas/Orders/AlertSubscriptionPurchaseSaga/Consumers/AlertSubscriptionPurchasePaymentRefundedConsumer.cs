@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="PaymentRefundedEvent"/> from the payment service
-/// and forwards it to the <see cref="AlertSubscriptionPurchaseSaga"/> as an internal
+/// and forwards it to the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/> as an internal
 /// <see cref="AlertSubscriptionPurchaseCompensationCompletedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionPurchasePaymentRefundedConsumer : IConsumer<PaymentRefundedEvent>

@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment authorization fails
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     AuthorizationFailedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentAuthorizationFailedSagaEvent>
@@ -37,7 +37,7 @@ public sealed class
         var message = context.Message;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(AuthorizationFailedActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(AuthorizationFailedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
@@ -45,11 +45,11 @@ public sealed class
             activity.SetTag(PaymentSagaActivityTags.IsRetryable, message.IsRetryable);
         }
 
-        PaymentProcessingSagaInstrumentation.RecordAuthorizationFailed(message.ErrorCode);
+        PaymentProcessingSagaMetrics.RecordAuthorizationFailed(message.ErrorCode);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} authorization failed: {ErrorCode} - {ErrorMessage}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, message.ErrorCode, message.ErrorMessage);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, message.ErrorCode, message.ErrorMessage);
 
         await next.Execute(context);
     }

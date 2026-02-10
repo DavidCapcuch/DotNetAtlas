@@ -1,5 +1,6 @@
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using DotNetAtlas.Sagas.Common.Config;
+using DotNetAtlas.Sagas.Common.Config.Kafka;
 using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Test.Framework;
 using DotNetAtlas.Test.Framework.Database;
@@ -8,6 +9,7 @@ using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Respawn;
 using Serilog;
@@ -31,12 +33,6 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
 {
     private readonly SqlServerTestContainer _dbContainer;
     private readonly KafkaTestContainer _kafkaContainer = new();
-
-    public const string FinancePaymentsTopic = "finance.payments";
-    public const string FinancePaymentCommandsTopic = "finance.payment-commands";
-    public const string OrderAlertSubscriptionsTopic = "order.alert-subscriptions";
-    public const string WeatherAlertSubscriptionsTopic = "weather.alert-subscriptions";
-    public const string WeatherAlertSubscriptionsCommandsTopic = "weather.alert-subscriptions.commands";
 
     public FakeOutboxWriter FakeOutboxWriter { get; } = new();
     public KafkaTestProducer KafkaProducer { get; private set; } = null!;
@@ -82,12 +78,10 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
     {
         await Task.WhenAll(_dbContainer.StartAsync(), _kafkaContainer.StartAsync());
 
-        var topics = new[]
-        {
-            OrderAlertSubscriptionsTopic, WeatherAlertSubscriptionsTopic, WeatherAlertSubscriptionsCommandsTopic,
-            FinancePaymentsTopic, FinancePaymentCommandsTopic
-        };
-        await _kafkaContainer.CreateKafkaTopicsAsync(topics);
+        // we cannot access Services for IOptions here because that automatically starts the server, and the
+        // server will fail to start without topics pre-created
+        var topicsOptions = LoadTopicsFromConfiguration();
+        await _kafkaContainer.CreateKafkaTopicsAsync(topicsOptions.GetAllTopics());
 
         KafkaProducer = new KafkaTestProducer(_kafkaContainer.KafkaOptions);
 
@@ -109,5 +103,22 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
         await base.DisposeAsync();
         await _dbContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();
+    }
+
+    private static SagaTopicsOptions LoadTopicsFromConfiguration()
+    {
+        var sagasProjectPath = Path.Combine(
+            SolutionPaths.GetSolutionRootDirectory(), "saga", "DotNetAtlas.Sagas");
+
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(sagasProjectPath)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.Testing.json", optional: false)
+            .Build();
+
+        return configuration.GetSection(SagaTopicsOptions.Section).Get<SagaTopicsOptions>()
+               ?? throw new InvalidOperationException(
+                   $"Failed to bind configuration section '{SagaTopicsOptions.Section}' to {nameof(SagaTopicsOptions)}. " +
+                   "Verify appsettings.json contains the required Kafka topic values.");
     }
 }

@@ -15,13 +15,6 @@ public sealed class SubscriptionsKafkaConsumerOptions : ConsumerConfig
     public const string Section = "KafkaSubscriptionsConsumer";
 
     /// <summary>
-    /// Client ID for identifying the consumer.
-    /// </summary>
-    [Required(ErrorMessage = $"{nameof(ClientId)} for {nameof(SubscriptionsKafkaConsumerOptions)} is missing",
-        AllowEmptyStrings = false)]
-    public new required string ClientId { get; set; }
-
-    /// <summary>
     /// Consumer group ID for this consumer.
     /// </summary>
     [Required(ErrorMessage = $"{nameof(GroupId)} for {nameof(SubscriptionsKafkaConsumerOptions)} is missing",

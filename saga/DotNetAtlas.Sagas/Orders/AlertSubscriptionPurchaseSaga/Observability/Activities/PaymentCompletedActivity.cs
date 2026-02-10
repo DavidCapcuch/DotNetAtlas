@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.A
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment completes successfully
-/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// for the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     PaymentCompletedActivity : IStateMachineActivity<AlertSubscriptionPurchaseSagaState,
@@ -39,8 +39,8 @@ public sealed class
         var saga = context.Saga;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(PaymentCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(PaymentCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -50,12 +50,12 @@ public sealed class
             activity.SetTag(SagaActivityTags.PaymentDurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordPaymentCompleted(
-            duration, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaMetrics.RecordPaymentCompleted(
+            duration, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} payment completed for user {UserId}. TransactionId: {PaymentTransactionId}",
-            nameof(AlertSubscriptionPurchaseSaga), saga.CorrelationId, saga.UserId, saga.PaymentTransactionId);
+            nameof(AlertSubscriptionPurchaseSagaOrchestrator), saga.CorrelationId, saga.UserId, saga.PaymentTransactionId);
 
         await next.Execute(context);
     }

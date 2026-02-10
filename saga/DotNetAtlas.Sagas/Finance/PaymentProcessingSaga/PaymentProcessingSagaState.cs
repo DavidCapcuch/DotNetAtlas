@@ -4,7 +4,7 @@ using DotNetAtlas.SharedKernel.Base;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 
 /// <summary>
-/// Represents the state of the <see cref="PaymentProcessingSaga"/>.
+/// Represents the state of the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// This is a "dumb" payment saga - it knows nothing about business context (subscriptions, orders, etc.).
 /// It only handles the payment lifecycle: authorization -> capture -> void/refund.
 /// </summary>
@@ -135,11 +135,11 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
     /// </summary>
     public static readonly string[] TerminalStates =
     [
-        nameof(PaymentProcessingSaga.AuthorizationFailed),
-        nameof(PaymentProcessingSaga.PaymentFailed),
-        nameof(PaymentProcessingSaga.VoidCompleted),
-        nameof(PaymentProcessingSaga.VoidFailed),
-        nameof(PaymentProcessingSaga.RefundCompleted),
-        nameof(PaymentProcessingSaga.RefundFailed)
+        nameof(PaymentProcessingSagaOrchestrator.AuthorizationFailed),
+        nameof(PaymentProcessingSagaOrchestrator.PaymentFailed),
+        nameof(PaymentProcessingSagaOrchestrator.VoidCompleted),
+        nameof(PaymentProcessingSagaOrchestrator.VoidFailed),
+        nameof(PaymentProcessingSagaOrchestrator.RefundCompleted),
+        nameof(PaymentProcessingSagaOrchestrator.RefundFailed)
     ];
 }

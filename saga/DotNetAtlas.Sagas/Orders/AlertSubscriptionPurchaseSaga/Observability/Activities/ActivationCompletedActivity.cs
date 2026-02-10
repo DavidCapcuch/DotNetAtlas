@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.A
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when subscription activation completes successfully
-/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// for the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     ActivationCompletedActivity : IStateMachineActivity<AlertSubscriptionPurchaseSagaState,
@@ -39,8 +39,8 @@ public sealed class
         var saga = context.Saga;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(ActivationCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(ActivationCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -50,12 +50,12 @@ public sealed class
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordSagaCompleted(
-            duration, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaMetrics.RecordSagaCompleted(
+            duration, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} completed successfully for user {UserId}",
-            nameof(AlertSubscriptionPurchaseSaga), context.Saga.CorrelationId, context.Saga.UserId);
+            nameof(AlertSubscriptionPurchaseSagaOrchestrator), context.Saga.CorrelationId, context.Saga.UserId);
 
         await next.Execute(context);
     }

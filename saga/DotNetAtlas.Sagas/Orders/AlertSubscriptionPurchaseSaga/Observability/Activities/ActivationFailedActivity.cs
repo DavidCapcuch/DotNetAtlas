@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.A
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when activation fails
-/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// for the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// </summary>
 public sealed class ActivationFailedActivity
     : IStateMachineActivity<AlertSubscriptionPurchaseSagaState, AlertSubscriptionActivationFailedSagaEvent>
@@ -39,8 +39,8 @@ public sealed class ActivationFailedActivity
         var message = context.Message;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(ActivationFailedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(ActivationFailedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -50,12 +50,12 @@ public sealed class ActivationFailedActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordSagaFailed(
-            message.ErrorCode, duration, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaMetrics.RecordSagaFailed(
+            message.ErrorCode, duration, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} activation failed for user {UserId}: {ErrorCode} - {ErrorMessage}",
-            nameof(AlertSubscriptionPurchaseSaga), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
+            nameof(AlertSubscriptionPurchaseSagaOrchestrator), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
 
         await next.Execute(context);
     }

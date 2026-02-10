@@ -14,66 +14,11 @@ namespace DotNetAtlas.Sagas.Common.Extensions;
 /// - The transactional outbox requires a scoped DbContext
 ///
 /// By resolving the DbContext from the behavior context's service scope,
-/// we get the same scoped instance that MassTransit uses for saga persistence,
+/// we get the same scoped DbContext instance that MassTransit uses for saga persistence,
 /// ensuring outbox messages are saved in the same transaction as saga state changes.
 /// </remarks>
 public static class SagaOutboxExtensions
 {
-    /// <summary>
-    /// Adds an integration event to the outbox using the scoped DbContext from the saga's consume context.
-    /// The message will be persisted in the same transaction as the saga state changes.
-    /// </summary>
-    /// <typeparam name="TSaga">The saga state type.</typeparam>
-    /// <typeparam name="TMessage">The message type being handled.</typeparam>
-    /// <param name="context">The behavior context from the state machine.</param>
-    /// <param name="topicName">The Kafka topic where the message will be published.</param>
-    /// <param name="kafkaKey">The Kafka key for message partitioning (typically correlation ID).</param>
-    /// <param name="integrationEvent">The Avro integration event to publish.</param>
-    /// <exception cref="InvalidOperationException">Thrown if the DbContext or IOutboxWriter cannot be resolved.</exception>
-    /// <example>
-    /// <code>
-    /// .Then(ctx =>
-    /// {
-    ///     ctx.AddOutboxMessage(
-    ///         "finance.payments",
-    ///         ctx.Saga.CorrelationId.ToString(),
-    ///         new PaymentRequestedEvent { /* ... */ });
-    /// })
-    /// </code>
-    /// </example>
-    public static void AddOutboxMessage<TSaga, TMessage>(
-        this BehaviorContext<TSaga, TMessage> context,
-        string topicName,
-        string? kafkaKey,
-        ISpecificRecord integrationEvent)
-        where TSaga : class, SagaStateMachineInstance
-        where TMessage : class
-    {
-        var (dbContext, outboxWriter) = GetOutboxDependencies(context);
-        outboxWriter.AddOutboxMessage(dbContext, topicName, kafkaKey, integrationEvent);
-    }
-
-    /// <summary>
-    /// Adds an integration event to the outbox using the scoped DbContext from the saga's consume context.
-    /// This overload is for contexts without a message (e.g., initial state).
-    /// </summary>
-    /// <typeparam name="TSaga">The saga state type.</typeparam>
-    /// <param name="context">The behavior context from the state machine.</param>
-    /// <param name="topicName">The Kafka topic where the message will be published.</param>
-    /// <param name="kafkaKey">The Kafka key for message partitioning (typically correlation ID).</param>
-    /// <param name="integrationEvent">The Avro integration event to publish.</param>
-    /// <exception cref="InvalidOperationException">Thrown if the DbContext or IOutboxWriter cannot be resolved.</exception>
-    public static void AddOutboxMessage<TSaga>(
-        this BehaviorContext<TSaga> context,
-        string topicName,
-        string? kafkaKey,
-        ISpecificRecord integrationEvent)
-        where TSaga : class, SagaStateMachineInstance
-    {
-        var (dbContext, outboxWriter) = GetOutboxDependencies(context);
-        outboxWriter.AddOutboxMessage(dbContext, topicName, kafkaKey, integrationEvent);
-    }
-
     /// <summary>
     /// Adds an integration event to the outbox using functions to compute the key and create the message.
     /// Provides a more fluent syntax for publishing outbox messages in the state machine chain.
@@ -111,43 +56,13 @@ public static class SagaOutboxExtensions
         });
     }
 
-    /// <summary>
-    /// Adds an integration event to the outbox using functions to compute the key and create the message.
-    /// This overload is for EventActivityBinder without a specific message type.
-    /// </summary>
-    /// <typeparam name="TSaga">The saga state type.</typeparam>
-    /// <typeparam name="TMessage">The message type being handled.</typeparam>
-    /// <param name="binder">The EventActivityBinder from the state machine.</param>
-    /// <param name="topicName">The Kafka topic where the message will be published.</param>
-    /// <param name="keyFactory">Function to compute the Kafka key from the context.</param>
-    /// <param name="messageFactory">Function to create the integration event from the context.</param>
-    /// <returns>The EventActivityBinder for continued fluent chaining.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if the DbContext or IOutboxWriter cannot be resolved.</exception>
-    public static EventActivityBinder<TSaga, TMessage> PublishToOutbox<TSaga, TMessage>(
-        this EventActivityBinder<TSaga, TMessage> binder,
-        string topicName,
-        Func<BehaviorContext<TSaga>, string?> keyFactory,
-        Func<BehaviorContext<TSaga>, ISpecificRecord> messageFactory)
-        where TSaga : class, SagaStateMachineInstance
-        where TMessage : class
-    {
-        return binder.Then(ctx =>
-        {
-            var kafkaKey = keyFactory(ctx);
-            var integrationEvent = messageFactory(ctx);
-            var (dbContext, outboxWriter) = GetOutboxDependencies(ctx);
-            outboxWriter.AddOutboxMessage(dbContext, topicName, kafkaKey, integrationEvent);
-        });
-    }
-
     private static (SagaDbContext DbContext, IOutboxWriter OutboxWriter) GetOutboxDependencies<TSaga>(
         BehaviorContext<TSaga> context)
         where TSaga : class, SagaStateMachineInstance
     {
         // Get the service scope from the behavior context
         // MassTransit creates a scope for each message, so we get the scoped DbContext
-        // This is the recommended approach per MassTransit maintainer:
-        // https://github.com/MassTransit/MassTransit/discussions/3365
+        // See https://github.com/MassTransit/MassTransit/discussions/3365
         if (!context.TryGetPayload<IServiceScope>(out var serviceScope))
         {
             throw new InvalidOperationException(

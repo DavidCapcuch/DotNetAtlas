@@ -5,10 +5,6 @@ using DotNetAtlas.SharedKernel.Exceptions;
 
 namespace DotNetAtlas.CQS.Observability;
 
-/// <summary>
-/// Provides centralized metrics instrumentation for the DotNetAtlas application.
-/// Singleton class that creates and manages application-wide metrics.
-/// </summary>
 public static class CqsInstrumentation
 {
     private static readonly AssemblyName AssemblyName = typeof(CqsInstrumentation).Assembly.GetName();

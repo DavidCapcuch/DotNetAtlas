@@ -11,7 +11,7 @@ namespace DotNetAtlas.Avro.UniversalSerDes;
 /// Serializer for Avro messages used by the outbox pattern.
 /// Caches serializers per message type for performance.
 /// </summary>
-public class UniversalAvroSerializer : ISerializer<ISpecificRecord>
+public class UniversalAvroSerializer : IAsyncSerializer<ISpecificRecord>, ISerializer<ISpecificRecord>
 {
     private readonly ISchemaRegistryClient _schemaRegistryClient;
     private readonly AvroSerializerConfig _avroSerializerConfig;
@@ -39,6 +39,11 @@ public class UniversalAvroSerializer : ISerializer<ISpecificRecord>
             messageType,
             t => AvroSerializerWrapper.Create(t, _schemaRegistryClient, _avroSerializerConfig));
         return serializer.Serialize(data, context);
+    }
+
+    public Task<byte[]> SerializeAsync(ISpecificRecord data, SerializationContext context)
+    {
+        return Task.FromResult(Serialize(data, context));
     }
 }
 

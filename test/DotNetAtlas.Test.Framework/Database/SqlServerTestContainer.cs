@@ -31,7 +31,7 @@ public sealed class SqlServerTestContainer : ITestContainer
     public string ConnectionString { get; private set; } = null!;
 
     /// <summary>
-    /// Creates a SQL Server test container with Flyway-style migrations (via Evolve) and Respawn-based cleanup.
+    /// Creates a SQL Server test container with SQL script migrations (via Evolve) and Respawn-based cleanup.
     /// </summary>
     /// <param name="databaseName">Database name to create.</param>
     /// <param name="sqlScriptsMigrationsPath">Absolute path to the directory containing migration SQL scripts.</param>
@@ -59,7 +59,7 @@ public sealed class SqlServerTestContainer : ITestContainer
     }
 
     /// <summary>
-    /// Starts the SQL Server container, creates the database, and executes Flyway migrations.
+    /// Starts the SQL Server container, creates the database, and executes SQL script migrations.
     /// Call this during test fixture initialization (e.g., in PreSetupAsync).
     /// </summary>
     /// <param name="ct">Optional cancellation token.</param>
@@ -80,7 +80,7 @@ public sealed class SqlServerTestContainer : ITestContainer
         }.ToString();
 
         await SetupDatabase(ct);
-        await ExecuteFlywayScriptsAsync(ct);
+        await ExecuteSqlScriptMigrationsAsync(ct);
 
         _databaseCleaner = await Respawner.CreateAsync(ConnectionString, _respawnerOptions);
     }
@@ -92,9 +92,9 @@ public sealed class SqlServerTestContainer : ITestContainer
     }
 
     /// <summary>
-    /// Executes Flyway-style migration scripts using Evolve.
+    /// Executes SQL script migrations using Evolve.
     /// </summary>
-    private async Task ExecuteFlywayScriptsAsync(CancellationToken cancellationToken)
+    private async Task ExecuteSqlScriptMigrationsAsync(CancellationToken cancellationToken)
     {
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync(cancellationToken);

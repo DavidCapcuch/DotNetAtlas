@@ -9,7 +9,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when subscription extension completes successfully
-/// for the <see cref="AlertSubscriptionExtensionSaga"/>.
+/// for the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/>.
 /// </summary>
 public sealed class ExtensionCompletedActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtendedSagaEvent>
@@ -38,8 +38,8 @@ public sealed class ExtensionCompletedActivity
         var saga = context.Saga;
         var duration = DateTime.UtcNow - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(ExtensionCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(ExtensionCompletedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -49,12 +49,12 @@ public sealed class ExtensionCompletedActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordSagaCompleted(
-            duration, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaMetrics.RecordSagaCompleted(
+            duration, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} completed successfully for user {UserId}. New expiry: {NewExpiresAtUtc}",
-            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId, saga.NewExpiresAtUtc);
+            nameof(AlertSubscriptionExtensionSagaOrchestrator), saga.CorrelationId, saga.UserId, saga.NewExpiresAtUtc);
 
         await next.Execute(context);
     }

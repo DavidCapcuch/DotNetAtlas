@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace DotNetAtlas.SharedKernel.Exceptions;
 
 /// <summary>
-/// Provides fluent guard clause methods for throwing exceptions.
+/// Provides light-weight fluent guard clause methods for throwing exceptions.
 /// Use for invariant checks that indicate bugs in the calling code.
 /// </summary>
 [SuppressMessage("Naming", "CA1716", Justification = "By design.")]

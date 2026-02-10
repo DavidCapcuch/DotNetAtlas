@@ -1,6 +1,7 @@
 using System.Text;
 using Avro.Specific;
 using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using DotNetAtlas.Avro.UniversalSerDes;
@@ -35,7 +36,7 @@ public sealed class KafkaTestProducer : IDisposable
             {
                 BootstrapServers = kafkaOptions.BrokersFlat
             })
-            .SetValueSerializer(new UniversalAvroSerializer(_schemaRegistryClient, avroSerializerOptions))
+            .SetValueSerializer(new UniversalAvroSerializer(_schemaRegistryClient, avroSerializerOptions).AsSyncOverAsync())
             .Build();
     }
 

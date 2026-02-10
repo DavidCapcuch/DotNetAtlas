@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/docs/" />
+  <Folder Name="/docs/architecture/" />
+  <Folder Name="/docs/design decisions/" />
   <Folder Name="/http-requests/">
     <File Path="requests/Auth/GetAndSetAuthToken.http" />
     <File Path="requests/http-client.env.json" />
@@ -59,6 +62,10 @@
     <Project Path="saga/DotNetAtlas.Sagas.IntegrationTests/DotNetAtlas.Sagas.IntegrationTests.csproj" />
     <Project Path="saga/DotNetAtlas.Sagas.UnitTests/DotNetAtlas.Sagas.UnitTests.csproj" />
     <Project Path="saga/DotNetAtlas.Sagas/DotNetAtlas.Sagas.csproj" />
+  </Folder>
+  <Folder Name="/services/">
+    <File Path="services/Directory.Packages.props" />
+    <Project Path="services/Payments/Payments.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

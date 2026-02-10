@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment capture times out
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class CaptureTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, CaptureTimeoutExpired>
 {
@@ -36,18 +36,18 @@ public sealed class CaptureTimeoutActivity : IStateMachineActivity<PaymentProces
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(CaptureTimeoutActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(CaptureTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "capture");
         }
 
-        PaymentProcessingSagaInstrumentation.RecordSagaTimeout("capture", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout("capture", duration);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} capture timed out for user {UserId}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

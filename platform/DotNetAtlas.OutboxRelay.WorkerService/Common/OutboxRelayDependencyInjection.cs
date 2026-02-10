@@ -24,23 +24,14 @@ public static class OutboxRelayDependencyInjection
             .ValidateDataAnnotations();
 
         var outboxRelayConfig = builder.Configuration
-            .GetSection(OutboxRelayOptions.Section)
-            .Get<OutboxRelayOptions>();
+            .GetRequiredSection(OutboxRelayOptions.Section)
+            .Get<OutboxRelayOptions>()!;
 
-        if (outboxRelayConfig != null)
+        builder.Services.Configure<HostOptions>(options =>
         {
-            var hostShutdownTimeout = TimeSpan.FromMilliseconds(
+            options.ShutdownTimeout = TimeSpan.FromMilliseconds(
                 outboxRelayConfig.ShutdownTimeoutMs);
-
-            builder.Services.Configure<HostOptions>(options =>
-            {
-                options.ShutdownTimeout = hostShutdownTimeout;
-            });
-
-            Log.Information(
-                "Host shutdown timeout configured to {TimeoutSeconds}s",
-                hostShutdownTimeout.TotalSeconds);
-        }
+        });
 
         builder.Services.AddHostedService<OutboxRelayWorker>();
         builder.Services.AddSingleton<OutboxMessageRelay>();
