@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment void completes successfully
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class VoidCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentVoidedSagaEvent>
 {
@@ -35,18 +35,18 @@ public sealed class VoidCompletedActivity : IStateMachineActivity<PaymentProcess
         var saga = context.Saga;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(VoidCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(VoidCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.AuthorizationId, context.Message.AuthorizationId);
         }
 
-        PaymentProcessingSagaInstrumentation.RecordVoidCompleted();
+        PaymentProcessingSagaMetrics.RecordVoidCompleted();
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} void completed. AuthorizationId: {AuthorizationId}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.AuthorizationId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.AuthorizationId);
 
         await next.Execute(context);
     }

@@ -1,6 +1,7 @@
 using Confluent.SchemaRegistry;
 using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using DotNetAtlas.Sagas.Common.Config;
+using DotNetAtlas.Sagas.Common.Config.Kafka;
 using DotNetAtlas.Sagas.Common.Observability;
 using DotNetAtlas.Sagas.Common.SagasDependencyInjection;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
@@ -40,8 +41,8 @@ public static class SagaDependencyInjection
                 .BindConfiguration(SagaOptions.Section)
                 .ValidateDataAnnotations();
 
-            services.AddOptionsWithValidateOnStart<SagaKafkaOptions>()
-                .BindConfiguration(SagaKafkaOptions.Section)
+            services.AddOptionsWithValidateOnStart<KafkaOptions>()
+                .BindConfiguration(KafkaOptions.Section)
                 .ValidateDataAnnotations();
 
             services.AddOptionsWithValidateOnStart<SagaTopicsOptions>()
@@ -53,8 +54,8 @@ public static class SagaDependencyInjection
                 .Get<SagaOptions>()!;
 
             var sagaKafkaOptions = configuration
-                .GetRequiredSection(SagaKafkaOptions.Section)
-                .Get<SagaKafkaOptions>()!;
+                .GetRequiredSection(KafkaOptions.Section)
+                .Get<KafkaOptions>()!;
 
             services.AddSingleton<ISchemaRegistryClient>(_ =>
                 new CachedSchemaRegistryClient(new SchemaRegistryConfig
@@ -78,7 +79,7 @@ public static class SagaDependencyInjection
             {
                 cfg.SetKebabCaseEndpointNameFormatter();
 
-                cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSaga, AlertSubscriptionPurchaseSagaState>()
+                cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSagaOrchestrator, AlertSubscriptionPurchaseSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
@@ -91,7 +92,7 @@ public static class SagaDependencyInjection
                         e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
                     });
 
-                cfg.AddSagaStateMachine<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>()
+                cfg.AddSagaStateMachine<AlertSubscriptionExtensionSagaOrchestrator, AlertSubscriptionExtensionSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
@@ -104,7 +105,7 @@ public static class SagaDependencyInjection
                         e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
                     });
 
-                cfg.AddSagaStateMachine<PaymentProcessingSaga, PaymentProcessingSagaState>()
+                cfg.AddSagaStateMachine<PaymentProcessingSagaOrchestrator, PaymentProcessingSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
@@ -152,17 +153,15 @@ public static class SagaDependencyInjection
                 .Get<EfCoreOptions>()!;
 
             var sagaKafkaOptions = configuration
-                .GetRequiredSection(SagaKafkaOptions.Section)
-                .Get<SagaKafkaOptions>()!;
+                .GetRequiredSection(KafkaOptions.Section)
+                .Get<KafkaOptions>()!;
 
             services.AddOutbox(outbox =>
             {
                 outbox.ConfigureMessageOrigin(ApplicationInfo.AppName);
-                outbox.ConfigureAvroSerializerConfig(config =>
+                outbox.ConfigureAvroSerializerConfig(options =>
                 {
-                    config.NormalizeSchemas = true;
-                    config.AutoRegisterSchemas = true;
-                    config.SubjectNameStrategy = SubjectNameStrategy.Record;
+                    configuration.Bind(AvroSerializerOptions.Section, options);
                 });
                 outbox.ConfigureSchemaRegistryConfig(config =>
                 {
@@ -170,7 +169,7 @@ public static class SagaDependencyInjection
                 });
             });
             services.AddSingleton(TimeProvider.System);
-            services.AddSingleton<UpdateSagaAuditableEntitiesInterceptor>();
+            services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
             services.AddDbContext<SagaDbContext>((
                 sp,
                 options) => options
@@ -189,13 +188,13 @@ public static class SagaDependencyInjection
                     !isClusterEnvironment) // this is very useful for local debugging/investigating failed tests
                 .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
                 .AddInterceptors(
-                    sp.GetRequiredService<UpdateSagaAuditableEntitiesInterceptor>()));
+                    sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>()));
         }
     }
 
     extension(IBusRegistrationConfigurator cfg)
     {
-        private void AddSagaKafkaRider(SagaKafkaOptions sagaKafkaOptions)
+        private void AddSagaKafkaRider(KafkaOptions kafkaOptions)
         {
             cfg.AddRider(rider =>
             {
@@ -205,15 +204,15 @@ public static class SagaDependencyInjection
 
                 rider.UsingKafka((registrationContext, kafkaConfigurator) =>
                 {
-                    kafkaConfigurator.Host(sagaKafkaOptions.BrokersFlat);
+                    kafkaConfigurator.Host(kafkaOptions.BrokersFlat);
 
                     var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
                     kafkaConfigurator.ConfigureAlertSubscriptionPurchaseSagaConsumers(registrationContext,
-                        schemaRegistryClient, sagaKafkaOptions);
+                        schemaRegistryClient, kafkaOptions);
                     kafkaConfigurator.ConfigureAlertSubscriptionExtensionSagaConsumers(registrationContext,
-                        schemaRegistryClient, sagaKafkaOptions);
+                        schemaRegistryClient, kafkaOptions);
                     kafkaConfigurator.ConfigurePaymentSagaConsumers(registrationContext, schemaRegistryClient,
-                        sagaKafkaOptions);
+                        kafkaOptions);
                 });
             });
         }

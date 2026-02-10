@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment authorization times out
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     AuthorizationTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, AuthorizationTimeoutExpired>
@@ -37,18 +37,18 @@ public sealed class
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(AuthorizationTimeoutActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(AuthorizationTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "authorization");
         }
 
-        PaymentProcessingSagaInstrumentation.RecordSagaTimeout("authorization", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout("authorization", duration);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} authorization timed out for user {UserId}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

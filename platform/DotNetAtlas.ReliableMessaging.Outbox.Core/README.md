@@ -24,9 +24,10 @@ Store messages in the same database transaction as your business data. A backgro
 public class OutboxMessage
 {
     public long Id { get; set; }                    // Auto-increment PK for ordering
+    public string TopicName { get; set; }           // Topic name to route to
     public string? KafkaKey { get; set; }           // Kafka key for partition routing (typically aggregate ID)
     public required byte[] AvroPayload { get; set; } // Serialized message
-    public required string Type { get; set; }       // Type name for topic routing
+    public required string Type { get; set; }       // Avro type name
     public string? Headers { get; set; }            // JSON-serialized W3C trace context
     public required DateTimeOffset CreatedUtc { get; set; }
 }

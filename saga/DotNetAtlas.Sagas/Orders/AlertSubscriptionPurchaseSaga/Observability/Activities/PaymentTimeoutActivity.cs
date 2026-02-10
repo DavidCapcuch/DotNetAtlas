@@ -8,7 +8,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.A
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment times out
-/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// for the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     PaymentTimeoutActivity : IStateMachineActivity<AlertSubscriptionPurchaseSagaState, PaymentTimeoutExpired>
@@ -39,8 +39,8 @@ public sealed class
         var saga = context.Saga;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(PaymentTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(PaymentTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -49,11 +49,11 @@ public sealed class
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordPaymentTimeout(AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaMetrics.RecordPaymentTimeout(AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} timed out waiting for payment response for user {UserId}",
-            nameof(AlertSubscriptionPurchaseSaga), saga.CorrelationId, saga.UserId);
+            nameof(AlertSubscriptionPurchaseSagaOrchestrator), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

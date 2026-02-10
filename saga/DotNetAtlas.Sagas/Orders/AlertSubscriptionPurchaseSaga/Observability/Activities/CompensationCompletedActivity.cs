@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability.A
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when compensation (refund) completes successfully
-/// for the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// for the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// </summary>
 public sealed class CompensationCompletedActivity
     : IStateMachineActivity<AlertSubscriptionPurchaseSagaState, AlertSubscriptionPurchaseCompensationCompletedSagaEvent>
@@ -39,9 +39,9 @@ public sealed class CompensationCompletedActivity
         var message = context.Message;
         var duration = _timeProvider.GetUtcNow() - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
             nameof(CompensationCompletedActivity), saga.CorrelationId,
-            AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+            AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -50,12 +50,12 @@ public sealed class CompensationCompletedActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordCompensationCompleted(
-            duration, AlertSubscriptionSagaInstrumentation.SagaTypePurchase);
+        AlertSubscriptionSagaMetrics.RecordCompensationCompleted(
+            duration, AlertSubscriptionSagaMetrics.SagaTypePurchase);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} compensation completed for user {UserId}, refund transaction {RefundTransactionId}",
-            nameof(AlertSubscriptionPurchaseSaga), saga.CorrelationId, saga.UserId, message.RefundTransactionId);
+            nameof(AlertSubscriptionPurchaseSagaOrchestrator), saga.CorrelationId, saga.UserId, message.RefundTransactionId);
 
         await next.Execute(context);
     }

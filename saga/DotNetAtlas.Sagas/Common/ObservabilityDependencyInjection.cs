@@ -25,6 +25,8 @@ public static class ObservabilityDependencyInjection
     {
         public IServiceCollection AddOpenTelemetryInternal(ConfigurationManager configuration)
         {
+            // Be careful of ENV variables overriding what is set in appsettings.json for otel collector
+            // OTEL_EXPORTER_OTLP_ENDPOINT is standardized can be set as ENV e.g., by Rider OpenTelemetry plugin
             var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
             if (string.IsNullOrWhiteSpace(oltpExporterEndpoint))
             {
@@ -48,7 +50,7 @@ public static class ObservabilityDependencyInjection
                 })
                 .WithMetrics(metrics =>
                 {
-                    metrics.AddMeter(SagaActivitySource.MeterName)
+                    metrics.AddMeter(ApplicationInfo.AppName)
                         .AddMeter(InstrumentationOptions.MeterName) // MassTransit Meter
                         .AddRuntimeInstrumentation()
                         .AddProcessInstrumentation()

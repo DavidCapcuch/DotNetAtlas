@@ -3,7 +3,7 @@ using DotNetAtlas.Sagas.Common.Observability.Tracing;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Observability;
 
 /// <summary>
-/// Activity tags specific to the <see cref="AlertSubscriptionPurchaseSaga"/>.
+/// Activity tags specific to the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/>.
 /// For common tags, see <see cref="SagaActivityTags"/>.
 /// </summary>
 public static class AlertSubscriptionPurchaseSagaActivityTags

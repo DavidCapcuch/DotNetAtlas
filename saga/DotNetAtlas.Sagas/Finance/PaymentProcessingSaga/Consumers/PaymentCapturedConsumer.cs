@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="PaymentCapturedEvent"/> from the payment provider
-/// and forwards it to the <see cref="PaymentProcessingSaga"/> as an internal
+/// and forwards it to the <see cref="PaymentProcessingSagaOrchestrator"/> as an internal
 /// <see cref="PaymentCapturedSagaEvent"/>.
 /// </summary>
 public sealed class PaymentCapturedConsumer : IConsumer<PaymentCapturedEvent>

@@ -1,5 +1,6 @@
 using Confluent.Kafka;
 using DotNetAtlas.Sagas.Common.Config;
+using DotNetAtlas.Sagas.Common.Config.Kafka;
 using DotNetAtlas.Sagas.Common.Constants;
 using DotNetAtlas.Sagas.Common.Observability.HealthChecks;
 using DotNetAtlas.Sagas.Persistence.Database;
@@ -31,8 +32,8 @@ public static class HealthChecksDependencyInjection
             .Get<HealthCheckTimeoutsOptions>() ?? new HealthCheckTimeoutsOptions();
 
         var sagaKafkaOptions = configuration
-            .GetRequiredSection(SagaKafkaOptions.Section)
-            .Get<SagaKafkaOptions>()!;
+            .GetRequiredSection(KafkaOptions.Section)
+            .Get<KafkaOptions>()!;
 
         var healthCheckKafkaProducerConfig = new ProducerConfig
         {

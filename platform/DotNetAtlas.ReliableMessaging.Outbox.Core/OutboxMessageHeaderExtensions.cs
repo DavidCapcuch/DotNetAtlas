@@ -32,7 +32,7 @@ public static class OutboxMessageHeaderExtensions
     /// <returns>JSON string representation of headers, or null if empty.</returns>
     /// <exception cref="InvalidOperationException">Thrown when serialized headers exceed <see cref="MaxHeaderSizeBytes"/>.</exception>
     /// <example>
-    /// Input: [("traceparent", "00-abc..."), ("correlation.id", "123")]
+    /// Input: [("traceparent", "00-abc..."), ("correlation.id", "123")]<br/>
     /// Output: {"traceparent":"00-abc...","correlation.id":"123"}.
     /// </example>
     public static string? SerializeHeaders(Dictionary<string, string> headers)
@@ -61,7 +61,7 @@ public static class OutboxMessageHeaderExtensions
     /// <param name="message">The outbox message containing headers.</param>
     /// <returns>Dictionary of header key-value pairs, or null if no headers exist.</returns>
     /// <example>
-    /// Input: {"traceparent":"00-abc...","correlation.id":"123"}
+    /// Input: {"traceparent":"00-abc...","correlation.id":"123"}<br/>
     /// Output: Dictionary with keys "traceparent", "correlation.id".
     /// </example>
     public static Dictionary<string, string>? DeserializeHeaders(this OutboxMessage message)

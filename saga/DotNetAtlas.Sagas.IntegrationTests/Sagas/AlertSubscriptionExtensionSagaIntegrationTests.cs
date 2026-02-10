@@ -2,7 +2,7 @@ using DotNetAtlas.Sagas.IntegrationTests.Common;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.InternalSagaEvents;
 using DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Schedules;
-using DotNetAtlas.SchemaRegistry.Contracts.Avro.Extensions;
+using DotNetAtlas.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Finance.Payments;
 using Microsoft.EntityFrameworkCore;
 using Order.AlertSubscriptions;
@@ -13,9 +13,9 @@ namespace DotNetAtlas.Sagas.IntegrationTests.Sagas;
 [Collection(nameof(SagaTestCollection))]
 public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegrationTest
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
-    private SagaStateMonitor<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState> SagaStateMonitor
+    private SagaStateMonitor<AlertSubscriptionExtensionSagaOrchestrator, AlertSubscriptionExtensionSagaState> SagaStateMonitor
     {
         get;
     }
@@ -24,7 +24,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         : base(fixture)
     {
         SagaStateMonitor =
-            CreateSagaStateMonitor<AlertSubscriptionExtensionSaga, AlertSubscriptionExtensionSagaState>();
+            CreateSagaStateMonitor<AlertSubscriptionExtensionSagaOrchestrator, AlertSubscriptionExtensionSagaState>();
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
 
         // Act
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, extensionInitiatedEvent);
+            TopicsOptions.OrderAlertSubscriptions, userId, extensionInitiatedEvent);
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
         // Assert
@@ -85,7 +85,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         };
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.WeatherAlertSubscriptionsTopic, userId, extendedEvent);
+            TopicsOptions.WeatherAlertSubscriptions, userId, extendedEvent);
 
         // Assert
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -106,9 +106,9 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
 
         // Act
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId1, initiatedEvent1);
+            TopicsOptions.OrderAlertSubscriptions, userId1, initiatedEvent1);
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId2, initiatedEvent2);
+            TopicsOptions.OrderAlertSubscriptions, userId2, initiatedEvent2);
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.WaitingForPayment, DefaultTimeout);
@@ -146,7 +146,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
             correlationId, userId, 90, 24.99m, "USD", paymentMethodId);
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
+            TopicsOptions.OrderAlertSubscriptions, userId, initiatedEvent);
 
         // Verify: WaitingForPayment state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
@@ -178,7 +178,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         };
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, paymentCompletedEvent);
+            TopicsOptions.FinancePayments, userId, paymentCompletedEvent);
 
         // Verify: AwaitingExtension state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingExtension, DefaultTimeout);
@@ -186,12 +186,21 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
+        var outboxMessagesAfterPayment = await DbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
+
         using (new AssertionScope())
         {
             stateAfterPayment.Should().NotBeNull();
             stateAfterPayment.CurrentState.Should().Be("AwaitingExtension");
             stateAfterPayment.PaymentTransactionId.Should().Be(paymentTransactionId);
             stateAfterPayment.PaymentCompletedAtUtc.Should().HaveValue();
+
+            outboxMessagesAfterPayment.Should().Contain(om => om.Type == "Finance.Payments.PaymentRequestedEvent"
+                                                              && om.KafkaKey == correlationId.ToString());
+            outboxMessagesAfterPayment.Should().Contain(om => om.Type == "Weather.Alerts.ExtendAlertSubscriptionCommand"
+                                                              && om.KafkaKey == correlationId.ToString());
         }
 
         // Step 3: Extend subscription
@@ -206,7 +215,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         };
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.WeatherAlertSubscriptionsTopic, userId, extendedEvent);
+            TopicsOptions.WeatherAlertSubscriptions, userId, extendedEvent);
 
         // Verify: ExtensionCompleted - saga finalized
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -222,7 +231,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
+            TopicsOptions.OrderAlertSubscriptions, userId, initiatedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
@@ -237,7 +246,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         };
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, paymentFailedEvent);
+            TopicsOptions.FinancePayments, userId, paymentFailedEvent);
 
         // Assert
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -340,7 +349,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         };
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, refundedEvent);
+            TopicsOptions.FinancePayments, userId, refundedEvent);
 
         // Assert
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -356,7 +365,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
 
         var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId);
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
+            TopicsOptions.OrderAlertSubscriptions, userId, initiatedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
@@ -469,7 +478,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         var initiatedEvent = CreateExtensionInitiatedEvent(
             correlationId, userId, durationDays, amount, currency);
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.OrderAlertSubscriptionsTopic, userId, initiatedEvent);
+            TopicsOptions.OrderAlertSubscriptions, userId, initiatedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
 
@@ -484,7 +493,7 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
         };
 
         await KafkaTestProducer.ProduceAsync(
-            SagaIntegrationTestFixture.FinancePaymentsTopic, userId, paymentCompletedEvent);
+            TopicsOptions.FinancePayments, userId, paymentCompletedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingExtension, DefaultTimeout);
     }

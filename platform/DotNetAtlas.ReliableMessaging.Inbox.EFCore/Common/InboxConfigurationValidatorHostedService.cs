@@ -14,8 +14,9 @@ namespace DotNetAtlas.ReliableMessaging.Inbox.EFCore.Common;
 /// <remarks>
 /// <para>
 /// This validation ensures that the inbox middleware can properly handle concurrent duplicate
-/// message inserts by catching <see cref="UniqueConstraintException"/>. Without <c>UseExceptionProcessor()</c>,
-/// database-specific exceptions would not be caught, leading to message processing failures.
+/// message inserts by catching <see cref="UniqueConstraintException"/> for duplicate MessageIds in database agnostic way.
+/// Without <c>UseExceptionProcessor()</c>, unique constraint violations throw <see cref="DbUpdateException"/>
+/// which is too general and would be incorrect to catch in the inbox middleware as it can have other causes than UQ constraint violation.
 /// </para>
 /// <para>
 /// The validation runs during application startup and throws <see cref="InvalidOperationException"/>

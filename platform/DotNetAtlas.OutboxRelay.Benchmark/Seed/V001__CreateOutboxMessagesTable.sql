@@ -29,6 +29,8 @@ BEGIN
     EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', N'weather', 'TABLE', N'OutboxMessages';
     SET @description = N'PK, Identity';
     EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', N'weather', 'TABLE', N'OutboxMessages', 'COLUMN', N'Id';
+    SET @description = N'The Kafka topic where this message will be published. Set by the message producer';
+    EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', N'weather', 'TABLE', N'OutboxMessages', 'COLUMN', N'TopicName';
     SET @description = N'Kafka Key - typically the Aggregate ID for proper event ordering and partitioning';
     EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', N'weather', 'TABLE', N'OutboxMessages', 'COLUMN', N'KafkaKey';
     SET @description = N'Avro-serialized domain event payload';

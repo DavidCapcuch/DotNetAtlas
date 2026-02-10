@@ -3,7 +3,7 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability;
 
 /// <summary>
-/// MassTransit state observer for logging <see cref="PaymentProcessingSaga"/> state transitions.
+/// MassTransit state observer for logging <see cref="PaymentProcessingSagaOrchestrator"/> state transitions.
 /// </summary>
 /// <remarks>
 /// This observer provides centralized logging for all state transitions.
@@ -23,7 +23,7 @@ public sealed class PaymentSagaStateObserver(ILogger<PaymentSagaStateObserver> l
         logger.LogInformation(
             "{SagaType} {CorrelationId} state changed: {PreviousState} -> {CurrentState} " +
             "(User: {UserId}, Amount: {Amount} {Currency})",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, previousState?.Name ?? "None",
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, previousState?.Name ?? "None",
             currentState?.Name ?? "None", saga.UserId, saga.Amount, saga.Currency);
 
         return Task.CompletedTask;

@@ -5,6 +5,8 @@ using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using DotNetAtlas.Avro.UniversalSerDes;
 using DotNetAtlas.Sagas.Common.Config;
+using DotNetAtlas.Sagas.Common.Config.Kafka;
+using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga;
 using DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Consumers;
 using MassTransit;
 
@@ -12,7 +14,7 @@ namespace DotNetAtlas.Sagas.Common.SagasDependencyInjection;
 
 /// <summary>
 /// Dependency injection extensions for configuring the
-/// <see cref="Finance.PaymentProcessingSaga.PaymentProcessingSaga"/> Kafka consumers.
+/// <see cref="PaymentProcessingSagaOrchestrator"/> Kafka consumers.
 /// </summary>
 internal static class PaymentProcessingSagaDependencyInjection
 {
@@ -26,7 +28,7 @@ internal static class PaymentProcessingSagaDependencyInjection
         /// <param name="kafkaOptions">Kafka configuration options containing topic names and consumer groups.</param>
         public void ConfigurePaymentSagaConsumers(IRiderRegistrationContext context,
             ISchemaRegistryClient schemaRegistryClient,
-            SagaKafkaOptions kafkaOptions)
+            KafkaOptions kafkaOptions)
         {
             kafka.TopicEndpoint<Guid, ISpecificRecord>(
                 kafkaOptions.Topics.FinancePayments,

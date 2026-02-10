@@ -37,17 +37,14 @@ public static class KafkaFlowDeadLetterDependencyInjection
 
     /// <summary>
     /// Adds Dead Letter middleware to the consumer pipeline.
-    /// This middleware catches exceptions and failed Results, sending them to a DLT topic.
+    /// This middleware catches unhandled exceptions and sends them to a DLT topic.
     /// Requires <see cref="AddDltProducer"/> to be called on the cluster first.
     /// </summary>
     /// <param name="builder">The middleware configuration builder.</param>
     /// <returns>The builder for chaining.</returns>
     /// <remarks>
     /// Place this middleware at the outermost position in the pipeline (first in the chain)
-    /// so it can catch all exceptions and failed results from inner middlewares.
-    ///
-    /// Handler Result inspection: Handlers should call <c>context.SetHandlerResult(result)</c>
-    /// for the middleware to inspect failed results.
+    /// so it can catch all unhandled exceptions from inner middlewares.
     /// </remarks>
     public static IConsumerMiddlewareConfigurationBuilder AddDeadLetter(
         this IConsumerMiddlewareConfigurationBuilder builder)

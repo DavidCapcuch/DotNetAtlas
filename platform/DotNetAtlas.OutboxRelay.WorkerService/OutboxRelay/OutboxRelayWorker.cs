@@ -58,9 +58,9 @@ public sealed class OutboxRelayWorker : BackgroundService
                     _outboxRelayMetrics.RecordSuccessfulExecution();
                 }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException ex) when (stoppingToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Shutdown requested during message processing");
+                _logger.LogInformation(ex, "Shutdown requested during message processing");
                 break;
             }
             catch (Exception ex)

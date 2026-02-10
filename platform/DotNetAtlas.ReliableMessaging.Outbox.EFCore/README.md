@@ -69,6 +69,8 @@ services.AddOutbox(outbox =>
         // optional config
         // config.NormalizeSchemas = true;
     });
+    // this is for internal avro serializer which uses CachedSchemaRegistryClient
+    // with cached avro schemas for event serialization
     outbox.ConfigureSchemaRegistryConfig(config =>
     {
         config.Url = "http://localhost:8081";

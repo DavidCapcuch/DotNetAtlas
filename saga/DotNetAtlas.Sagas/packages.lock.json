@@ -17,33 +17,6 @@
           "Confluent.Kafka": "2.3.0"
         }
       },
-      "AspNetCore.HealthChecks.Prometheus.Metrics": {
-        "type": "Direct",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "0xeg62XzCl7VqfsPLw3Tt0gKCGqAa/gW5iPiLaLHRqVt21vGbAgn9RLnSE/AoLolq23FdTjwgfKIJc/o3EQbKw==",
-        "dependencies": {
-          "prometheus-net": "8.1.0"
-        }
-      },
-      "AspNetCore.HealthChecks.Publisher.Prometheus": {
-        "type": "Direct",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "aG65Y8+npX5O1RNbegj8LwQwIPoicoKUqmEac1gc7NQq5F0j8fvqXocTUMd1YYiUgJy0a6HXJw3ZBMFR+GV5eQ==",
-        "dependencies": {
-          "prometheus-net": "8.1.0"
-        }
-      },
-      "AspNetCore.HealthChecks.UI.Client": {
-        "type": "Direct",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "1Ub3Wvvbz7CMuFNWgLEc9qqQibiMoovDML/WHrwr5J83RPgtI20giCR92s/ipLgu7IIuqw+W/y7WpIeHqAICxg==",
-        "dependencies": {
-          "AspNetCore.HealthChecks.UI.Core": "9.0.0"
-        }
-      },
       "AspNetCore.HealthChecks.UI.SqlServer.Storage": {
         "type": "Direct",
         "requested": "[9.0.0, )",
@@ -936,6 +909,24 @@
         "dependencies": {
           "FluentResults": "[4.0.0, )",
           "Scrutor": "[6.1.0, )"
+        }
+      },
+      "AspNetCore.HealthChecks.Prometheus.Metrics": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.0, )",
+        "resolved": "9.0.0",
+        "contentHash": "0xeg62XzCl7VqfsPLw3Tt0gKCGqAa/gW5iPiLaLHRqVt21vGbAgn9RLnSE/AoLolq23FdTjwgfKIJc/o3EQbKw==",
+        "dependencies": {
+          "prometheus-net": "8.1.0"
+        }
+      },
+      "AspNetCore.HealthChecks.UI.Client": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.0, )",
+        "resolved": "9.0.0",
+        "contentHash": "1Ub3Wvvbz7CMuFNWgLEc9qqQibiMoovDML/WHrwr5J83RPgtI20giCR92s/ipLgu7IIuqw+W/y7WpIeHqAICxg==",
+        "dependencies": {
+          "AspNetCore.HealthChecks.UI.Core": "9.0.0"
         }
       },
       "Serilog.AspNetCore": {

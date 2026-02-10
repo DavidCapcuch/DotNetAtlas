@@ -84,11 +84,11 @@ outbox-relay:
 ### KafkaProducer Options
 
 | Setting             | Description                          | Default  |
-| ------------------- | ------------------------------------ | -------- |
+|---------------------| ------------------------------------ | -------- |
 | `BootstrapServers`  | Kafka broker addresses               | Required |
 | `ClientId`          | Producer client identifier           | Required |
 | `Acks`              | Acknowledgment level (None/Leader/All) | All      |
-| `EnableIdempotence` | Exactly-once semantics               | true     |
+| EnableIdempotence   | Prevents duplicate messages during retries by ensuring exactly-once delivery semantics. When enabled, Kafka automatically assigns producer IDs and sequence numbers to detect and filter duplicates. Requires Acks=All. | true |
 | `CompressionType`   | Message compression                  | None     |
 | `LingerMs`          | Batching delay                       | 5        |
 
@@ -116,8 +116,8 @@ outbox-relay:
 
 The service exposes health endpoints on port 8080:
 
-- `/health/live` - Liveness probe
-- `/health/ready` - Readiness probe (includes Kafka and DB connectivity)
+- `/api/healthz` - Liveness probe
+- `/api/readiness` - Readiness probe (includes Kafka and DB connectivity)
 
 ## Related Packages
 

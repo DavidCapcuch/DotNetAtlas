@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment fails
-/// for the <see cref="AlertSubscriptionExtensionSaga"/>.
+/// for the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/>.
 /// </summary>
 public sealed class PaymentFailedActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionPaymentFailedSagaEvent>
@@ -37,8 +37,8 @@ public sealed class PaymentFailedActivity
         var message = context.Message;
         var duration = DateTime.UtcNow - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(PaymentFailedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(PaymentFailedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -48,12 +48,12 @@ public sealed class PaymentFailedActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordPaymentFailed(
-            message.ErrorCode, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaMetrics.RecordPaymentFailed(
+            message.ErrorCode, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} payment failed for user {UserId}: {ErrorCode} - {ErrorMessage}",
-            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
+            nameof(AlertSubscriptionExtensionSagaOrchestrator), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
 
         await next.Execute(context);
     }

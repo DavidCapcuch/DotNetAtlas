@@ -4,7 +4,7 @@ using DotNetAtlas.SharedKernel.Base;
 namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga;
 
 /// <summary>
-/// Represents the state of the <see cref="AlertSubscriptionExtensionSaga"/>.
+/// Represents the state of the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/>.
 /// This saga orchestrates the alert subscription extension flow, coordinating payment
 /// (via <c>PaymentRequestedEvent</c>) and extension (via <c>ExtendAlertSubscriptionCommand</c>).
 /// </summary>
@@ -136,10 +136,10 @@ public sealed class AlertSubscriptionExtensionSagaState : ISagaStateInstance, IA
     /// </summary>
     public static readonly string[] TerminalStates =
     [
-        nameof(AlertSubscriptionExtensionSaga.ExtensionCompleted),
-        nameof(AlertSubscriptionExtensionSaga.ExtensionFailed),
-        nameof(AlertSubscriptionExtensionSaga.CompensationCompleted),
-        nameof(AlertSubscriptionExtensionSaga.CompensationFailed),
-        nameof(AlertSubscriptionExtensionSaga.PaymentFailed)
+        nameof(AlertSubscriptionExtensionSagaOrchestrator.ExtensionCompleted),
+        nameof(AlertSubscriptionExtensionSagaOrchestrator.ExtensionFailed),
+        nameof(AlertSubscriptionExtensionSagaOrchestrator.CompensationCompleted),
+        nameof(AlertSubscriptionExtensionSagaOrchestrator.CompensationFailed),
+        nameof(AlertSubscriptionExtensionSagaOrchestrator.PaymentFailed)
     ];
 }

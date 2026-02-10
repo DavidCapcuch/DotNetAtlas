@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when subscription extension fails
-/// for the <see cref="AlertSubscriptionExtensionSaga"/>.
+/// for the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/>.
 /// </summary>
 public sealed class ExtensionFailedActivity
     : IStateMachineActivity<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionFailedSagaEvent>
@@ -37,8 +37,8 @@ public sealed class ExtensionFailedActivity
         var message = context.Message;
         var duration = DateTime.UtcNow - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(ExtensionFailedActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(ExtensionFailedActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -48,12 +48,12 @@ public sealed class ExtensionFailedActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordSagaFailed(
-            message.ErrorCode, duration, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaMetrics.RecordSagaFailed(
+            message.ErrorCode, duration, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} extension failed for user {UserId}: {ErrorCode} - {ErrorMessage}",
-            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
+            nameof(AlertSubscriptionExtensionSagaOrchestrator), saga.CorrelationId, saga.UserId, message.ErrorCode, message.ErrorMessage);
 
         await next.Execute(context);
     }

@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="PaymentFailedEvent"/> from the Finance.Payments Kafka topic
-/// and forwards it to the <see cref="AlertSubscriptionPurchaseSaga"/> as an internal
+/// and forwards it to the <see cref="AlertSubscriptionPurchaseSagaOrchestrator"/> as an internal
 /// <see cref="AlertSubscriptionPurchasePaymentFailedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionPurchasePaymentFailedConsumer : IConsumer<PaymentFailedEvent>

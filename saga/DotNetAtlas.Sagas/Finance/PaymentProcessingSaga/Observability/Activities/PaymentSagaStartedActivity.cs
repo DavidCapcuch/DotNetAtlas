@@ -6,7 +6,7 @@ using MassTransit;
 namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
-/// Activity that records metrics, traces, and logs when the <see cref="PaymentProcessingSaga"/> starts
+/// Activity that records metrics, traces, and logs when the <see cref="PaymentProcessingSagaOrchestrator"/> starts
 /// processing a new payment request.
 /// </summary>
 public sealed class
@@ -36,7 +36,7 @@ public sealed class
         var saga = context.Saga;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(PaymentSagaStartedActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(PaymentSagaStartedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
@@ -44,11 +44,11 @@ public sealed class
             activity.SetTag(PaymentSagaActivityTags.Currency, saga.Currency);
         }
 
-        PaymentProcessingSagaInstrumentation.RecordSagaStarted(saga.Currency);
+        PaymentProcessingSagaMetrics.RecordSagaStarted(saga.Currency);
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} initialized for user {UserId}, amount {Amount} {Currency}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId, saga.Amount, saga.Currency);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.UserId, saga.Amount, saga.Currency);
 
         await next.Execute(context);
     }

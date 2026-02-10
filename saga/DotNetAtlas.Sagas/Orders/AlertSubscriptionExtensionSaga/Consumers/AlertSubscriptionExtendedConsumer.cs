@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="AlertSubscriptionExtendedEvent"/> from the Weather.Alerts service
-/// and forwards it to the <see cref="AlertSubscriptionExtensionSaga"/> as an internal
+/// and forwards it to the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/> as an internal
 /// <see cref="AlertSubscriptionExtendedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionExtendedConsumer : IConsumer<AlertSubscriptionExtendedEvent>

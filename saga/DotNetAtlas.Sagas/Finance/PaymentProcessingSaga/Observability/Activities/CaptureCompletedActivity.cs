@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment capture completes successfully
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class
     CaptureCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentCapturedSagaEvent>
@@ -36,18 +36,18 @@ public sealed class
         var saga = context.Saga;
 
         using var activity =
-            PaymentProcessingSagaInstrumentation.StartActivity(nameof(CaptureCompletedActivity), saga.CorrelationId);
+            PaymentProcessingSagaMetrics.StartActivity(nameof(CaptureCompletedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.PaymentTransactionId, context.Message.PaymentTransactionId.ToString());
         }
 
-        PaymentProcessingSagaInstrumentation.RecordCaptureCompleted();
+        PaymentProcessingSagaMetrics.RecordCaptureCompleted();
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} capture completed. TransactionId: {PaymentTransactionId}",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.PaymentTransactionId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.PaymentTransactionId);
 
         await next.Execute(context);
     }

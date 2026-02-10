@@ -1,0 +1,39 @@
+<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+    <ItemGroup>
+        <!-- Kafka -->
+        <PackageVersion Include="Confluent.SchemaRegistry" Version="2.13.0"/>
+        <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.13.0"/>
+        <PackageVersion Include="KafkaFlow.LogHandler.Microsoft" Version="4.0.1"/>
+        <PackageVersion Include="KafkaFlow.OpenTelemetry" Version="4.0.1"/>
+        <PackageVersion Include="KafkaFlow.Retry" Version="3.1.0"/>
+        <PackageVersion Include="KafkaFlow.Serializer.ApacheAvro" Version="1.5.8"/>
+        <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.0.1"/>
+        <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.0.1"/>
+
+        <!-- EF Core-->
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0"/>
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0"/>
+        <PackageVersion Include="EntityFrameworkCore.Exceptions.SqlServer" Version="8.1.3" />
+
+        <!-- Health Checks -->
+        <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.0" />
+        <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
+
+        <!-- OpenTelemetry -->
+        <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Extensions.Propagators" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.12.0-beta.2"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.12.0-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Resources.Container" Version="1.12.0-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.12.0-beta.1"/>
+
+        <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556"/>
+    </ItemGroup>
+</Project>

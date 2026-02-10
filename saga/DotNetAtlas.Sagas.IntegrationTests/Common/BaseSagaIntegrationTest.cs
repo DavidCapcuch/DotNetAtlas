@@ -1,9 +1,11 @@
+using DotNetAtlas.Sagas.Common.Config.Kafka;
 using DotNetAtlas.Sagas.Common.SagaAbstractions;
 using DotNetAtlas.Sagas.Persistence.Database;
 using DotNetAtlas.Test.Framework.Kafka;
 using DotNetAtlas.Test.Framework.Tracing;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
 namespace DotNetAtlas.Sagas.IntegrationTests.Common;
@@ -16,6 +18,7 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
     private readonly SagaIntegrationTestFixture _fixture;
     private readonly TestCaseTracer _testCaseTracer;
 
+    protected SagaTopicsOptions TopicsOptions { get; }
     protected IServiceScope Scope { get; }
     protected SagaDbContext DbContext { get; }
     protected TimeProvider TimeProvider { get; }
@@ -38,6 +41,7 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         Scope = fixture.Services.CreateScope();
         DbContext = Scope.ServiceProvider.GetRequiredService<SagaDbContext>();
         TimeProvider = Scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        TopicsOptions = Scope.ServiceProvider.GetRequiredService<IOptions<SagaTopicsOptions>>().Value;
         FakeOutboxWriter = fixture.FakeOutboxWriter;
         KafkaTestProducer = fixture.KafkaProducer;
 

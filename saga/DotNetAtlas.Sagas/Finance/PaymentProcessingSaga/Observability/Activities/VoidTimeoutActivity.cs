@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Finance.PaymentProcessingSaga.Observability.Activiti
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment void times out
-/// for the <see cref="PaymentProcessingSaga"/>.
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
 /// </summary>
 public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, VoidTimeoutExpired>
 {
@@ -35,18 +35,18 @@ public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessin
         var saga = context.Saga;
         var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
 
-        using var activity = PaymentProcessingSagaInstrumentation.StartActivity(nameof(VoidTimeoutActivity), saga.CorrelationId);
+        using var activity = PaymentProcessingSagaMetrics.StartActivity(nameof(VoidTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "void");
         }
 
-        PaymentProcessingSagaInstrumentation.RecordSagaTimeout("void", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout("void", duration);
 
         _logger.LogError(
             "{SagaType} {CorrelationId} void timed out for user {UserId}. Manual intervention required",
-            nameof(PaymentProcessingSaga), saga.CorrelationId, saga.UserId);
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

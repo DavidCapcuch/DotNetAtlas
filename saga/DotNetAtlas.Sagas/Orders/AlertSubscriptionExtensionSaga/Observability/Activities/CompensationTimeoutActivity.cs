@@ -7,7 +7,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Observability.
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when compensation (refund) times out
-/// for the <see cref="AlertSubscriptionExtensionSaga"/>. This indicates a critical failure
+/// for the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/>. This indicates a critical failure
 /// that may require manual intervention.
 /// </summary>
 public sealed class CompensationTimeoutActivity
@@ -37,8 +37,8 @@ public sealed class CompensationTimeoutActivity
         var saga = context.Saga;
         var duration = DateTime.UtcNow - saga.CreatedUtc;
 
-        using var activity = AlertSubscriptionSagaInstrumentation.StartActivity(
-            nameof(CompensationTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        using var activity = AlertSubscriptionSagaMetrics.StartActivity(
+            nameof(CompensationTimeoutActivity), saga.CorrelationId, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         if (activity?.IsAllDataRequested == true)
         {
@@ -46,12 +46,12 @@ public sealed class CompensationTimeoutActivity
             activity.SetTag(SagaActivityTags.DurationMs, duration.TotalMilliseconds);
         }
 
-        AlertSubscriptionSagaInstrumentation.RecordCompensationTimeout(
-            duration, AlertSubscriptionSagaInstrumentation.SagaTypeExtension);
+        AlertSubscriptionSagaMetrics.RecordCompensationTimeout(
+            duration, AlertSubscriptionSagaMetrics.SagaTypeExtension);
 
         _logger.LogError(
             "{SagaType} {CorrelationId} compensation timed out for user {UserId}. Manual intervention may be required",
-            nameof(AlertSubscriptionExtensionSaga), saga.CorrelationId, saga.UserId);
+            nameof(AlertSubscriptionExtensionSagaOrchestrator), saga.CorrelationId, saga.UserId);
 
         await next.Execute(context);
     }

@@ -6,7 +6,7 @@ namespace DotNetAtlas.Sagas.Orders.AlertSubscriptionExtensionSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="AlertSubscriptionExtensionInitiatedEvent"/> from Kafka
-/// and forwards it to the <see cref="AlertSubscriptionExtensionSaga"/> as an internal
+/// and forwards it to the <see cref="AlertSubscriptionExtensionSagaOrchestrator"/> as an internal
 /// <see cref="AlertSubscriptionExtensionInitiatedSagaEvent"/>.
 /// </summary>
 public sealed class AlertSubscriptionExtensionInitiatedConsumer : IConsumer<AlertSubscriptionExtensionInitiatedEvent>
