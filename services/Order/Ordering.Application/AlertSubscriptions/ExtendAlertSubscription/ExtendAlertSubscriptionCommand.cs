@@ -1,0 +1,43 @@
+using System.Security.Claims;
+using FastEndpoints;
+
+namespace Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
+
+/// <summary>
+/// Command to initiate an alert subscription extension.
+/// Triggers the Extend Alert Subscription Saga via an outbox event.
+/// </summary>
+public class ExtendAlertSubscriptionCommand
+{
+    /// <summary>
+    /// ID of the saved payment method to use.
+    /// </summary>
+    public required Guid PaymentMethodId { get; set; }
+
+    /// <summary>
+    /// Duration to extend the subscription in days.
+    /// </summary>
+    public required int DurationDays { get; set; }
+
+    /// <summary>
+    /// Payment amount for the extension.
+    /// </summary>
+    public required decimal Amount { get; set; }
+
+    /// <summary>
+    /// ISO 4217 currency code (e.g., 'USD', 'EUR').
+    /// </summary>
+    public required string Currency { get; set; }
+
+    /// <summary>
+    /// Idempotency key for preventing duplicate extensions.
+    /// </summary>
+    public required string IdempotencyKey { get; set; }
+
+    /// <summary>
+    /// User ID extracted from the JWT token.
+    /// </summary>
+    [FromClaim(ClaimTypes.NameIdentifier, isRequired: true, removeFromSchema: true)]
+    [HideFromDocs]
+    public Guid UserId { get; set; }
+}

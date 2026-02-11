@@ -66,7 +66,7 @@ try
         .RequireAuthorization(AuthPolicies.DevOnly);
 
     app.MapSignalRWithDevTools()
-        .MapClientGenerationApis()
+        .MapClientGenerationApisInternal()
         .MapHangfireDashboardWithAuthorizationPolicy(AuthPolicies.DevOnly, "/hangfire-dashboard");
     app.UsePlatformHealthChecksPrometheusExporter();
 

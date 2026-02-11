@@ -5,7 +5,7 @@ namespace DotNetAtlas.Sagas.Common.SagaAbstractions;
 /// <summary>
 /// Interface for saga state instances that have a current state property.
 /// Extends MassTransit's <see cref="SagaStateMachineInstance"/> with the CurrentState property
-/// for use in integration test helpers that need to poll for state transitions.
+/// mainly for usage in integration test helpers that need to poll for state transitions.
 /// </summary>
 public interface ISagaStateInstance : SagaStateMachineInstance
 {

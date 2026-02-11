@@ -94,7 +94,7 @@ public static class ApiDependencyInjection
     /// <summary>
     /// Maps client generation APIs for each supported <see cref="GenerationLanguage"/>.
     /// </summary>
-    public static WebApplication MapClientGenerationApis(this WebApplication app)
+    public static WebApplication MapClientGenerationApisInternal(this WebApplication app)
     {
         var documentName = app.Configuration[
             $"{SwaggerConfigSections.OpenApiInfoSection}:DocumentName"]!;

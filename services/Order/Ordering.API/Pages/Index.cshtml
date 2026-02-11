@@ -1,0 +1,31 @@
+@page
+@model Ordering.API.Pages.IndexModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width"/>
+    <title>@Model.Title</title>
+</head>
+<body>
+<h1>@Model.Title</h1>
+<h3>Deployment: @Model.Env.EnvironmentName</h3>
+
+<h3><a href="/swagger" target="_blank" rel="noopener noreferrer">Swagger</a></h3>
+
+<style>
+    .disabled-link {
+        pointer-events: none;
+        color: gray;
+        opacity: 0.6;
+        text-decoration: none;
+        cursor: default;
+    }
+</style>
+
+</body>
+</html>
