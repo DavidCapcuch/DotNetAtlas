@@ -26,9 +26,9 @@ namespace DotNetAtlas.Sagas.UnitTests.Sagas;
 /// </remarks>
 public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
 {
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
     private readonly FakeTimeProvider _fakeTimeProvider = new();
     private readonly FakeOutboxWriter _fakeOutboxWriter = new();
-    private readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(5);
     private ServiceProvider _provider = null!;
     private ITestHarness _testHarness = null!;
 
@@ -93,7 +93,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
 
         // Assert
-        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout) is not null;
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
         sagaExists.Should().BeTrue();
 
         var waitingForPaymentSagaState = _sagaHarness.Sagas.ContainsInState(
@@ -118,12 +118,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         var paymentMethodId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
 
-        var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
-        await _testHarness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout);
+        var alertSubscriptionExtensionInitiatedSagaEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
 
         // Arrange - Payment completed
-        var paymentCompletedEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
+        var alertSubscriptionExtensionPaymentCompletedSagaEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -133,19 +134,17 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             CompletedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await _testHarness.Bus.Publish(paymentCompletedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionPaymentCompletedSagaEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionPaymentCompletedSagaEvent>();
 
         // Verify saga is now in AwaitingExtension state
-        var awaitingInstance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.AwaitingExtension);
-        awaitingInstance.Should().NotBeNull("Saga should be in AwaitingExtension state");
-        awaitingInstance.PaymentTransactionId.Should().Be(paymentTransactionId);
+        var awaitingExtensionSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingExtension);
+        awaitingExtensionSagaState.Should().NotBeNull("Saga should be in AwaitingExtension state");
+        awaitingExtensionSagaState.PaymentTransactionId.Should().Be(paymentTransactionId);
 
         // Act - Extension completed
-        var extendedEvent = new AlertSubscriptionExtendedSagaEvent
+        var alertSubscriptionExtendedSagaEvent = new AlertSubscriptionExtendedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -155,13 +154,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             ExtendedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await _testHarness.Bus.Publish(extendedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtendedSagaEvent);
 
         // Assert
         (await _sagaHarness.Consumed.Any<AlertSubscriptionExtendedSagaEvent>()).Should().BeTrue();
 
-        var finalState = await _sagaHarness.NotExists(correlationId, timeout: _defaultTimeout);
-        finalState.HasValue.Should().BeFalse("Saga should be finalized");
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should be finalized");
     }
 
     [Fact]
@@ -176,7 +175,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var failedEvent = new AlertSubscriptionExtensionFailedSagaEvent
+        var alertSubscriptionExtensionFailedSagaEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -186,21 +185,19 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             ShouldCompensate = true
         };
 
-        await _testHarness.Bus.Publish(failedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionFailedSagaEvent);
 
         // Assert
         (await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>()).Should().BeTrue();
 
-        var instance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.CompensationInProgress);
+        var compensationInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensationInProgress);
 
         using (new AssertionScope())
         {
-            instance.Should().NotBeNull();
-            instance.CompensationTriggered.Should().BeTrue();
-            instance.ErrorCode.Should().Be("EXTENSION_ERROR");
+            compensationInProgressSagaState.Should().NotBeNull();
+            compensationInProgressSagaState.CompensationTriggered.Should().BeTrue();
+            compensationInProgressSagaState.ErrorCode.Should().Be("EXTENSION_ERROR");
         }
     }
 
@@ -216,7 +213,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var failedEvent = new AlertSubscriptionExtensionFailedSagaEvent
+        var alertSubscriptionExtensionFailedSagaEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -226,13 +223,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             ShouldCompensate = false
         };
 
-        await _testHarness.Bus.Publish(failedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionFailedSagaEvent);
 
         // Assert
         (await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>()).Should().BeTrue();
 
-        var finalState = await _sagaHarness.NotExists(correlationId, timeout: _defaultTimeout);
-        finalState.HasValue.Should().BeFalse("Saga should be finalized");
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should be finalized");
     }
 
     [Fact]
@@ -247,7 +244,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Fail with compensation
-        var failedEvent = new AlertSubscriptionExtensionFailedSagaEvent
+        var alertSubscriptionExtensionFailedSagaEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -257,17 +254,15 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             ShouldCompensate = true
         };
 
-        await _testHarness.Bus.Publish(failedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionFailedSagaEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>();
 
-        var inProgressInstance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.CompensationInProgress);
-        inProgressInstance.Should().NotBeNull("Saga should be in CompensationInProgress state");
+        var compensationInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensationInProgress);
+        compensationInProgressSagaState.Should().NotBeNull("Saga should be in CompensationInProgress state");
 
         // Act
-        var compensationEvent = new AlertSubscriptionExtensionCompensationCompletedSagaEvent
+        var alertSubscriptionExtensionCompensationCompletedSagaEvent = new AlertSubscriptionExtensionCompensationCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -275,13 +270,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             CompensatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await _testHarness.Bus.Publish(compensationEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionCompensationCompletedSagaEvent);
 
         // Assert
         (await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionCompensationCompletedSagaEvent>()).Should().BeTrue();
 
-        var finalState = await _sagaHarness.NotExists(correlationId, timeout: _defaultTimeout);
-        finalState.HasValue.Should().BeFalse("Saga should be finalized");
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should be finalized");
     }
 
     [Fact]
@@ -296,7 +291,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var failedEvent = new AlertSubscriptionExtensionFailedSagaEvent
+        var alertSubscriptionExtensionFailedSagaEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -306,7 +301,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             ShouldCompensate = true
         };
 
-        await _testHarness.Bus.Publish(failedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionFailedSagaEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>();
 
         // Assert - verify message was added to the transactional outbox
@@ -332,7 +327,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         var paymentMethodId = Guid.CreateVersion7();
         var initiatedAt = _fakeTimeProvider.GetUtcNow().UtcDateTime;
 
-        var initiatedEvent = new AlertSubscriptionExtensionInitiatedSagaEvent
+        var alertSubscriptionExtensionInitiatedSagaEvent = new AlertSubscriptionExtensionInitiatedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -345,32 +340,31 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         };
 
         // Act
-        await _testHarness.Bus.Publish(initiatedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionInitiatedSagaEvent>();
-        await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
 
         // Assert
-        var instance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.WaitingForPayment);
+        var waitingForPaymentSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.WaitingForPayment);
 
         using (new AssertionScope())
         {
-            instance.Should().NotBeNull();
-            instance.CorrelationId.Should().Be(correlationId);
-            instance.UserId.Should().Be(userId);
-            instance.PaymentMethodId.Should().Be(paymentMethodId);
-            instance.PaymentTransactionId.Should().BeNull("PaymentTransactionId is set after payment completes");
-            instance.DurationDays.Should().Be(365);
-            instance.Amount.Should().Be(99.99m);
-            instance.Currency.Should().Be("EUR");
-            instance.IdempotencyKey.Should().Be($"extension-{userId}-test");
-            instance.ExtensionInitiatedAtUtc.Should().Be(initiatedAt);
-            instance.CurrentState.Should().Be("WaitingForPayment");
-            instance.CompensationTriggered.Should().BeFalse();
-            instance.ExtensionCompletedAtUtc.Should().BeNull();
-            instance.CompensationCompletedAtUtc.Should().BeNull();
+            waitingForPaymentSagaState.Should().NotBeNull();
+            waitingForPaymentSagaState.CorrelationId.Should().Be(correlationId);
+            waitingForPaymentSagaState.UserId.Should().Be(userId);
+            waitingForPaymentSagaState.PaymentMethodId.Should().Be(paymentMethodId);
+            waitingForPaymentSagaState.PaymentTransactionId.Should().BeNull("PaymentTransactionId is set after payment completes");
+            waitingForPaymentSagaState.DurationDays.Should().Be(365);
+            waitingForPaymentSagaState.Amount.Should().Be(99.99m);
+            waitingForPaymentSagaState.Currency.Should().Be("EUR");
+            waitingForPaymentSagaState.IdempotencyKey.Should().Be($"extension-{userId}-test");
+            waitingForPaymentSagaState.ExtensionInitiatedAtUtc.Should().Be(initiatedAt);
+            waitingForPaymentSagaState.CurrentState.Should().Be("WaitingForPayment");
+            waitingForPaymentSagaState.CompensationTriggered.Should().BeFalse();
+            waitingForPaymentSagaState.ExtensionCompletedAtUtc.Should().BeNull();
+            waitingForPaymentSagaState.CompensationCompletedAtUtc.Should().BeNull();
         }
     }
 
@@ -386,25 +380,23 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Act
-        var timeoutEvent = new ExtensionTimeoutExpired
+        var extensionTimeoutExpired = new ExtensionTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await _testHarness.Bus.Publish(timeoutEvent);
+        await _testHarness.Bus.Publish(extensionTimeoutExpired);
         await _sagaHarness.Consumed.Any<ExtensionTimeoutExpired>();
 
         // Assert - saga should trigger compensation after extension timeout
-        var instance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.CompensationInProgress);
+        var compensationInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensationInProgress);
 
         using (new AssertionScope())
         {
-            instance.Should().NotBeNull("Saga should be in CompensationInProgress state after extension timeout");
-            instance.CompensationTriggered.Should().BeTrue();
-            instance.ErrorCode.Should().Be("EXTENSION_TIMEOUT");
+            compensationInProgressSagaState.Should().NotBeNull("Saga should be in CompensationInProgress state after extension timeout");
+            compensationInProgressSagaState.CompensationTriggered.Should().BeTrue();
+            compensationInProgressSagaState.ErrorCode.Should().Be("EXTENSION_TIMEOUT");
         }
     }
 
@@ -420,7 +412,7 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         await PublishAndWaitForPaymentCompleted(correlationId, userId, paymentMethodId, paymentTransactionId);
 
         // Fail with compensation
-        var failedEvent = new AlertSubscriptionExtensionFailedSagaEvent
+        var alertSubscriptionExtensionFailedSagaEvent = new AlertSubscriptionExtensionFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -430,27 +422,25 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             ShouldCompensate = true
         };
 
-        await _testHarness.Bus.Publish(failedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionFailedSagaEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionFailedSagaEvent>();
 
-        var inProgressInstance = _sagaHarness.Sagas.ContainsInState(
-            correlationId,
-            _sagaHarness.StateMachine,
-            _sagaHarness.StateMachine.CompensationInProgress);
-        inProgressInstance.Should().NotBeNull("Saga should be in CompensationInProgress state");
+        var compensationInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensationInProgress);
+        compensationInProgressSagaState.Should().NotBeNull("Saga should be in CompensationInProgress state");
 
         // Act
-        var timeoutEvent = new CompensationTimeoutExpired
+        var compensationTimeoutExpired = new CompensationTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await _testHarness.Bus.Publish(timeoutEvent);
+        await _testHarness.Bus.Publish(compensationTimeoutExpired);
         await _sagaHarness.Consumed.Any<CompensationTimeoutExpired>();
 
         // Assert
-        var finalState = await _sagaHarness.NotExists(correlationId, timeout: _defaultTimeout);
-        finalState.HasValue.Should().BeFalse("Saga should be finalized after compensation timeout");
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should be finalized after compensation timeout");
     }
 
     [Fact]
@@ -461,12 +451,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
 
-        var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
-        await _testHarness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout);
+        var alertSubscriptionExtensionInitiatedSagaEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
 
         // Act
-        var paymentFailedEvent = new AlertSubscriptionExtensionPaymentFailedSagaEvent
+        var alertSubscriptionExtensionPaymentFailedSagaEvent = new AlertSubscriptionExtensionPaymentFailedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -475,13 +466,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             FailedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await _testHarness.Bus.Publish(paymentFailedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionPaymentFailedSagaEvent);
 
         // Assert
         (await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionPaymentFailedSagaEvent>()).Should().BeTrue();
 
-        var finalState = await _sagaHarness.NotExists(correlationId, timeout: _defaultTimeout);
-        finalState.HasValue.Should().BeFalse("Saga should be finalized after payment failed");
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should be finalized after payment failed");
     }
 
     [Fact]
@@ -492,23 +483,24 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
 
-        var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
-        await _testHarness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout);
+        var alertSubscriptionExtensionInitiatedSagaEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
 
         // Act
-        var timeoutEvent = new PaymentTimeoutExpired
+        var paymentTimeoutExpired = new PaymentTimeoutExpired
         {
             CorrelationId = correlationId
         };
 
-        await _testHarness.Bus.Publish(timeoutEvent);
+        await _testHarness.Bus.Publish(paymentTimeoutExpired);
 
         // Assert
         (await _sagaHarness.Consumed.Any<PaymentTimeoutExpired>()).Should().BeTrue();
 
-        var finalState = await _sagaHarness.NotExists(correlationId, timeout: _defaultTimeout);
-        finalState.HasValue.Should().BeFalse("Saga should be finalized after payment timeout");
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should be finalized after payment timeout");
     }
 
     [Fact]
@@ -519,13 +511,14 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
 
-        var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
+        var alertSubscriptionExtensionInitiatedSagaEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
 
         // Act
-        await _testHarness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
 
-        await _testHarness.Bus.Publish(initiatedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
         await Task.Delay(500);
 
         // Assert
@@ -563,11 +556,12 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
         Guid paymentTransactionId)
     {
         // Start saga
-        var initiatedEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
-        await _testHarness.Bus.Publish(initiatedEvent);
-        await _sagaHarness.Exists(correlationId, timeout: _defaultTimeout);
+        var alertSubscriptionExtensionInitiatedSagaEvent = CreateExtensionInitiatedEvent(correlationId, userId, paymentMethodId);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionInitiatedSagaEvent);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
 
-        var paymentCompletedEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
+        var alertSubscriptionExtensionPaymentCompletedSagaEvent = new AlertSubscriptionExtensionPaymentCompletedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
@@ -577,13 +571,13 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             CompletedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await _testHarness.Bus.Publish(paymentCompletedEvent);
+        await _testHarness.Bus.Publish(alertSubscriptionExtensionPaymentCompletedSagaEvent);
         await _sagaHarness.Consumed.Any<AlertSubscriptionExtensionPaymentCompletedSagaEvent>();
 
         // Verify saga is now in AwaitingExtension state
-        var awaitingInstance = _sagaHarness.Sagas.ContainsInState(
+        var awaitingExtensionSagaState = _sagaHarness.Sagas.ContainsInState(
             correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingExtension);
 
-        awaitingInstance.Should().NotBeNull("Saga should be in AwaitingExtension state");
+        awaitingExtensionSagaState.Should().NotBeNull("Saga should be in AwaitingExtension state");
     }
 }

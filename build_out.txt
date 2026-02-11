@@ -1,0 +1,13 @@
+﻿  Zjišťují se projekty, které se mají obnovit...
+  Všechny projekty jsou v aktuálním stavu pro obnovení.
+  DotNetAtlas.KafkaFlow.DeadLetter -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.KafkaFlow.DeadLetter\bin\Debug\net10.0\DotNetAtlas.KafkaFlow.DeadLetter.dll
+  DotNetAtlas.SchemaRegistry.Contracts -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.SchemaRegistry.Contracts\bin\Debug\net10.0\DotNetAtlas.SchemaRegistry.Contracts.dll
+  DotNetAtlas.Messaging.Abstractions -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.Messaging.Abstractions\bin\Debug\net10.0\DotNetAtlas.Messaging.Abstractions.dll
+  DotNetAtlas.ReliableMessaging.Outbox.Core -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.ReliableMessaging.Outbox.Core\bin\Debug\net10.0\DotNetAtlas.ReliableMessaging.Outbox.Core.dll
+  DotNetAtlas.ReliableMessaging.Inbox.Core -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.ReliableMessaging.Inbox.Core\bin\Debug\net10.0\DotNetAtlas.ReliableMessaging.Inbox.Core.dll
+  DotNetAtlas.Avro.UniversalSerDes -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.Avro.UniversalSerDes\bin\Debug\net10.0\DotNetAtlas.Avro.UniversalSerDes.dll
+  DotNetAtlas.KafkaFlow.ProducerHeaders -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.KafkaFlow.ProducerHeaders\bin\Debug\net10.0\DotNetAtlas.KafkaFlow.ProducerHeaders.dll
+  DotNetAtlas.ServiceDefaults -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.ServiceDefaults\bin\Debug\net10.0\DotNetAtlas.ServiceDefaults.dll
+  DotNetAtlas.ReliableMessaging.Inbox.EFCore -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.ReliableMessaging.Inbox.EFCore\bin\Debug\net10.0\DotNetAtlas.ReliableMessaging.Inbox.EFCore.dll
+  DotNetAtlas.ReliableMessaging.Outbox.EFCore -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.ReliableMessaging.Outbox.EFCore\bin\Debug\net10.0\DotNetAtlas.ReliableMessaging.Outbox.EFCore.dll
+  DotNetAtlas.KafkaFlow.Inbox.EFCore -> C:\Users\david.capcuch\Desktop\Git\DotNetAtlas\platform\DotNetAtlas.KafkaFlow.Inbox.EFCore\bin\Debug\net10.0\DotNetAtlas.KafkaFlow.Inbox.EFCore.dll

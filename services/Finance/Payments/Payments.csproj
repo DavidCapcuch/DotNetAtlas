@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+    <ItemGroup>
+        <!-- Kafka -->
+        <PackageReference Include="Confluent.SchemaRegistry"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+        <PackageReference Include="KafkaFlow.Retry"/>
+        <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="KafkaFlow.OpenTelemetry"/>
+        <PackageReference Include="KafkaFlow.Serializer.ApacheAvro"/>
+        <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
+
+        <!-- EF Core -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer"/>
+
+        <!-- OpenTelemetry -->
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting"/>
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Process"/>
+        <PackageReference Include="OpenTelemetry.Resources.Container"/>
+        <PackageReference Include="OpenTelemetry.Resources.Host"/>
+
+        <!-- Health checks -->
+        <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
+
+        <!-- Analyzers -->
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.Core\DotNetAtlas.ReliableMessaging.Inbox.Core.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.EFCore\DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.KafkaFlow.DeadLetter\DotNetAtlas.KafkaFlow.DeadLetter.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.KafkaFlow.Inbox.EFCore\DotNetAtlas.KafkaFlow.Inbox.EFCore.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.KafkaFlow.ProducerHeaders\DotNetAtlas.KafkaFlow.ProducerHeaders.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ServiceDefaults\DotNetAtlas.ServiceDefaults.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
+    </ItemGroup>
+</Project>

@@ -273,25 +273,25 @@ public sealed class
         Event(() => PaymentCompletedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
-            e.OnMissingInstance(m => m.Fault());
+            e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => PaymentFailedEventEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
-            e.OnMissingInstance(m => m.Fault());
+            e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => AlertSubscriptionActivatedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
-            e.OnMissingInstance(m => m.Fault());
+            e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => AlertSubscriptionActivationFailedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
-            e.OnMissingInstance(m => m.Fault());
+            e.OnMissingInstance(m => m.Discard());
         });
 
         // Compensation completed - can arrive after saga finalized

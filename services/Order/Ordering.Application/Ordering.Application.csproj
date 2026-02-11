@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <PackageReference Include="FastEndpoints.Attributes"/>
+        <PackageReference Include="FluentValidation"/>
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions"/>
+        
+        <!-- Analyzers -->
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Ordering.Domain\Ordering.Domain.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.CQS\DotNetAtlas.CQS.csproj"/>
+        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj"/>
+    </ItemGroup>
+
+</Project>
