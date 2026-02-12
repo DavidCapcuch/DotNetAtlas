@@ -5,12 +5,12 @@
     "doc": "Event emitted when a user initiates a new alert subscription purchase. Triggers the Purchase Alert Subscription Saga.",
     "fields": [
         {
-            "name": "CorrelationId",
+            "name": "AlertSubscriptionOrderId",
             "type": {
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Correlation ID for the entire purchase flow (purchase → payment → activation)."
+            "doc": "Alert subscription order id."
         },
         {
             "name": "UserId",
@@ -59,11 +59,6 @@
             "name": "Currency",
             "type": "string",
             "doc": "ISO 4217 currency code (e.g., 'USD', 'EUR')."
-        },
-        {
-            "name": "IdempotencyKey",
-            "type": "string",
-            "doc": "Idempotency key for preventing duplicate purchases."
         },
         {
             "name": "InitiatedAtUtc",

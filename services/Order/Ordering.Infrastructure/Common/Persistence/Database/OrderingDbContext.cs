@@ -7,6 +7,7 @@ using DotNetAtlas.SharedKernel.Base;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Common.Data;
 using Ordering.Domain.AlertSubscriptionOrders;
+using SmartEnum.EFCore;
 
 namespace Ordering.Infrastructure.Common.Persistence.Database;
 
@@ -30,6 +31,11 @@ public class OrderingDbContext : DbContext, IOrderingDbContext, IInboxDbContext
 
         modelBuilder.ConfigureOutbox(DefaultSchemaName);
         modelBuilder.ConfigureInbox(DefaultSchemaName);
+    }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.ConfigureSmartEnum();
     }
 
     private DbSet<T> AggregateRootSet<T>()

@@ -25,17 +25,16 @@ public sealed class AlertSubscriptionExtensionInitiatedConsumer : IConsumer<Aler
         _logger.LogInformation(
             "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}, duration {DurationDays} days",
             nameof(AlertSubscriptionExtensionInitiatedConsumer), nameof(AlertSubscriptionExtensionInitiatedEvent),
-            message.UserId, message.CorrelationId, message.DurationDays);
+            message.UserId, message.AlertSubscriptionOrderId, message.DurationDays);
 
         var subscriptionExtensionInitiatedEvent = new AlertSubscriptionExtensionInitiatedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            CorrelationId = message.AlertSubscriptionOrderId,
             UserId = message.UserId,
             PaymentMethodId = message.PaymentMethodId,
             DurationDays = message.DurationDays,
             Amount = (decimal)message.Amount,
             Currency = message.Currency,
-            IdempotencyKey = message.IdempotencyKey,
             InitiatedAtUtc = message.InitiatedAtUtc
         };
 

@@ -6,7 +6,7 @@ namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatu
 public class GetAlertSubscriptionOrderStatusQuery : IQuery<GetAlertSubscriptionOrderStatusResponse>
 {
     /// <summary>
-    /// ID of requested feedback.
+    /// ID of the requested subscription order.
     /// </summary>
     [RouteParam]
     public required Guid Id { get; set; }

@@ -85,7 +85,6 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             DurationDays = 30,
             Amount = 9.99m,
             Currency = "USD",
-            IdempotencyKey = $"extension-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -335,7 +334,6 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             DurationDays = 365,
             Amount = 99.99m,
             Currency = "EUR",
-            IdempotencyKey = $"extension-{userId}-test",
             InitiatedAtUtc = initiatedAt
         };
 
@@ -359,7 +357,6 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             waitingForPaymentSagaState.DurationDays.Should().Be(365);
             waitingForPaymentSagaState.Amount.Should().Be(99.99m);
             waitingForPaymentSagaState.Currency.Should().Be("EUR");
-            waitingForPaymentSagaState.IdempotencyKey.Should().Be($"extension-{userId}-test");
             waitingForPaymentSagaState.ExtensionInitiatedAtUtc.Should().Be(initiatedAt);
             waitingForPaymentSagaState.CurrentState.Should().Be("WaitingForPayment");
             waitingForPaymentSagaState.CompensationTriggered.Should().BeFalse();
@@ -544,7 +541,6 @@ public class AlertSubscriptionExtensionSagaOrchestratorTests : IAsyncLifetime
             DurationDays = durationDays,
             Amount = amount,
             Currency = currency,
-            IdempotencyKey = $"extension-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
         };
     }

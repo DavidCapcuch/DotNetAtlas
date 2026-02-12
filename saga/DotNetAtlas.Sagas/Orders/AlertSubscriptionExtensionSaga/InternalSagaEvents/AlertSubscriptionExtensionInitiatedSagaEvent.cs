@@ -38,11 +38,6 @@ public sealed record AlertSubscriptionExtensionInitiatedSagaEvent
     public required string Currency { get; init; }
 
     /// <summary>
-    /// Idempotency key for preventing duplicate extensions.
-    /// </summary>
-    public required string IdempotencyKey { get; init; }
-
-    /// <summary>
     /// UTC timestamp when extension was initiated.
     /// </summary>
     public required DateTime InitiatedAtUtc { get; init; }

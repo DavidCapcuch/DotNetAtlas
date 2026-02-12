@@ -25,34 +25,38 @@ public class AlertSubscriptionOrderConfiguration : IEntityTypeConfiguration<Aler
             .IsRequired();
 
         builder.Property(e => e.Tier)
+            .HasConversion<string?>()
             .HasMaxLength(20);
 
         builder.Property(e => e.DurationDays)
             .IsRequired();
 
-        builder.Property(e => e.Amount)
-            .IsRequired()
-            .HasPrecision(19, 4);
+        builder.OwnsOne(e => e.Price, priceBuilder =>
+        {
+            priceBuilder.Property(m => m.Amount)
+                .HasColumnName("Amount")
+                .HasPrecision(19, 4)
+                .IsRequired();
 
-        builder.Property(e => e.Currency)
-            .IsRequired()
-            .HasMaxLength(3)
-            .IsUnicode(false);
+            priceBuilder.Property(m => m.Currency)
+                .HasColumnName("Currency")
+                .HasConversion<string>()
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsRequired();
+        });
 
-        builder.Property(e => e.IdempotencyKey)
-            .IsRequired()
-            .HasMaxLength(255)
-            .IsUnicode(false);
+        builder.Navigation(e => e.Price)
+            .IsRequired();
 
         builder.Property(e => e.Status)
             .IsRequired()
-            .HasConversion<string>()
+            .HasConversion(
+                s => s.Name,
+                v => AlertSubscriptionOrderStatus.FromName(v))
             .HasMaxLength(30);
 
         builder.Property(e => e.CreatedAtUtc)
             .IsRequired();
-
-        builder.HasIndex(e => e.IdempotencyKey)
-            .IsUnique();
     }
 }

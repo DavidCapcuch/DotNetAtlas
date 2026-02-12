@@ -52,7 +52,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Persistence\Database\Migrations\SqlScripts\" />
+      <Folder Include="Common\Persistence\Database\Migrations\SqlScripts\" />
     </ItemGroup>
 
 </Project>

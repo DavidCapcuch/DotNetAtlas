@@ -30,7 +30,6 @@ internal static class FastEndpointsDependencyInjection
 
                     options.ShortSchemaNames = true;
                     options.RemoveEmptyRequestSchema = true;
-                    options.EnableJWTBearerAuth = false;
                 };
             });
 

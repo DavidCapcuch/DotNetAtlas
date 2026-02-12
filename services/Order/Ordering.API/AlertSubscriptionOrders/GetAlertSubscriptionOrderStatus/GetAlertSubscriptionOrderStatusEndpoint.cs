@@ -7,7 +7,7 @@ using Serilog.Context;
 
 namespace Ordering.API.AlertSubscriptionOrders.GetAlertSubscriptionOrderStatus;
 
-internal class GetAlertSubscriptionOrderStatusEndpoint :
+internal sealed class GetAlertSubscriptionOrderStatusEndpoint :
     Endpoint<GetAlertSubscriptionOrderStatusQuery, GetAlertSubscriptionOrderStatusResponse>
 {
     private readonly
@@ -28,7 +28,7 @@ internal class GetAlertSubscriptionOrderStatusEndpoint :
         Group<AlertSubscriptionOrdersGroup>();
         Summary(s =>
         {
-            s.Summary = "Returns weather feedback by ID.";
+            s.Summary = "Returns alert subscription order status by ID.";
             s.ExampleRequest =
                 new GetAlertSubscriptionOrderStatusQuery
                 {
@@ -42,12 +42,13 @@ internal class GetAlertSubscriptionOrderStatusEndpoint :
         GetAlertSubscriptionOrderStatusQuery query,
         CancellationToken ct)
     {
-        using var _ = LogContext.PushProperty("FeedbackId", query.Id.ToString());
+        using var _ = LogContext.PushProperty("OrderId", query.Id.ToString());
 
-        var getFeedbackResult = await _getAlertSubscriptionOrderStatusQueryHandler.HandleAsync(query, ct);
+        var getAlertSubscriptionOrderStatusResult =
+            await _getAlertSubscriptionOrderStatusQueryHandler.HandleAsync(query, ct);
 
-        await getFeedbackResult.MatchAsync(
-            feedbackResponse => Send.OkAsync(feedbackResponse, ct),
+        await getAlertSubscriptionOrderStatusResult.MatchAsync(
+            orderResponse => Send.OkAsync(orderResponse, ct),
             failureResult => Send.SendErrorResponseAsync(failureResult, ct));
     }
 }

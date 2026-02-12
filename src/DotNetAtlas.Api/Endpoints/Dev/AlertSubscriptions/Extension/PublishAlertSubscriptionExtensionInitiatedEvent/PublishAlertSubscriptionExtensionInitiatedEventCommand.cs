@@ -46,10 +46,4 @@ public class PublishAlertSubscriptionExtensionInitiatedEventCommand
     [Required]
     [StringLength(3)]
     public required string Currency { get; set; }
-
-    /// <summary>
-    /// Idempotency key for preventing duplicate extensions.
-    /// </summary>
-    [Required]
-    public required string IdempotencyKey { get; set; }
 }

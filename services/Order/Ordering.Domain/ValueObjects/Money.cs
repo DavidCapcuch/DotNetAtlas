@@ -55,6 +55,16 @@ public sealed record Money : ValueObject
         };
     }
 
+    public static Result<Money> Create(decimal amount, string currency)
+    {
+        if (!Enum.TryParse<CurrencyCode>(currency, ignoreCase: true, out var currencyCode))
+        {
+            return Result.Fail(MoneyErrors.InvalidCurrencyCode());
+        }
+
+        return Create(amount, currencyCode);
+    }
+
     /// <summary>
     /// Adds two monetary values. Both operands must have the same currency.
     /// </summary>
@@ -66,10 +76,9 @@ public sealed record Money : ValueObject
     {
         EnsureSameCurrency(left, right);
 
-        return new Money
+        return left with
         {
-            Amount = left.Amount + right.Amount,
-            Currency = left.Currency
+            Amount = left.Amount + right.Amount
         };
     }
 
@@ -94,16 +103,30 @@ public sealed record Money : ValueObject
                 $"Subtraction would result in a non-positive amount: {result} {left.Currency}.");
         }
 
-        return new Money
+        return left with
         {
-            Amount = result,
-            Currency = left.Currency
+            Amount = result
         };
     }
 
-    /// <inheritdoc/>
-    public override string ToString()
-        => $"{Amount} {Currency.ToString().ToUpperInvariant()}";
+    /// <summary>
+    /// Adds another monetary value to this one. Both must have the same currency.
+    /// </summary>
+    /// <param name="other">The monetary value to add.</param>
+    /// <returns>A new <see cref="Money"/> with the summed amount and the shared currency.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when currencies do not match.</exception>
+    public Money Add(Money other) => this + other;
+
+    /// <summary>
+    /// Subtracts another monetary value from this one. Both must have the same currency.
+    /// The result must be strictly positive.
+    /// </summary>
+    /// <param name="other">The monetary value to subtract.</param>
+    /// <returns>A new <see cref="Money"/> with the difference and the shared currency.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when currencies do not match or when the result would be zero or negative.
+    /// </exception>
+    public Money Subtract(Money other) => this - other;
 
     private static void EnsureSameCurrency(Money left, Money right)
     {
@@ -115,4 +138,3 @@ public sealed record Money : ValueObject
         }
     }
 }
-

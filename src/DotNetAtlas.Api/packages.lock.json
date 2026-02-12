@@ -101,6 +101,11 @@
           "System.CodeDom": "8.0.0"
         }
       },
+      "Ardalis.Specification": {
+        "type": "Transitive",
+        "resolved": "9.3.1",
+        "contentHash": "GWrE6BA0smWFLbN+XPU2l5rDF9Uzelfbb3w35jJ0CGIat+p1ChbtLcbkvYRMEculBHOAo12omwAAOm3VFWkoJQ=="
+      },
       "AspNetCore.HealthChecks.UI.Client": {
         "type": "Transitive",
         "resolved": "9.0.0",
@@ -1473,12 +1478,6 @@
           "Ardalis.SmartEnum": "8.1.0",
           "Microsoft.EntityFrameworkCore": "7.0.13"
         }
-      },
-      "Ardalis.Specification": {
-        "type": "CentralTransitive",
-        "requested": "[9.3.1, )",
-        "resolved": "9.3.1",
-        "contentHash": "GWrE6BA0smWFLbN+XPU2l5rDF9Uzelfbb3w35jJ0CGIat+p1ChbtLcbkvYRMEculBHOAo12omwAAOm3VFWkoJQ=="
       },
       "Ardalis.Specification.EntityFrameworkCore": {
         "type": "CentralTransitive",

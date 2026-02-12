@@ -47,11 +47,6 @@ public sealed class AlertSubscriptionExtensionSagaState : ISagaStateInstance, IA
     public string Currency { get; set; }
 
     /// <summary>
-    /// Idempotency key for preventing duplicate extensions.
-    /// </summary>
-    public string IdempotencyKey { get; set; }
-
-    /// <summary>
     /// Payment transaction ID (set after payment is completed).
     /// Used for compensation (refunds) if extension fails.
     /// </summary>

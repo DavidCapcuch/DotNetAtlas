@@ -5,7 +5,6 @@
     <ItemGroup>
         <PackageVersion Include="Ardalis.SmartEnum" Version="8.1.0"/>
         <PackageVersion Include="Ardalis.SmartEnum.EFCore" Version="8.1.0"/>
-        <PackageVersion Include="Ardalis.Specification" Version="9.3.1"/>
         <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="9.3.1"/>
         <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Hangfire" Version="9.0.0"/>

@@ -47,8 +47,7 @@ internal class
                 Tier = SubscriptionTier.Pro,
                 DurationDays = 30,
                 Amount = 9.99m,
-                Currency = "USD",
-                IdempotencyKey = Guid.CreateVersion7().ToString()
+                Currency = "USD"
             };
         });
     }
@@ -58,14 +57,13 @@ internal class
     {
         var alertSubscriptionPurchaseInitiatedEvent = new AlertSubscriptionPurchaseInitiatedEvent
         {
-            CorrelationId = req.CorrelationId,
+            AlertSubscriptionOrderId = req.CorrelationId,
             UserId = req.UserId,
             PaymentMethodId = req.PaymentMethodId,
             Tier = req.Tier,
             DurationDays = req.DurationDays,
             Amount = req.Amount.ToAvroDecimal(4),
             Currency = req.Currency,
-            IdempotencyKey = req.IdempotencyKey,
             InitiatedAtUtc = DateTime.UtcNow
         };
 

@@ -463,14 +463,13 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
     {
         return new AlertSubscriptionPurchaseInitiatedEvent
         {
-            CorrelationId = correlationId,
+            AlertSubscriptionOrderId = correlationId,
             UserId = userId,
             PaymentMethodId = paymentMethodId ?? Guid.CreateVersion7(),
             Tier = tier,
             DurationDays = durationDays,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            IdempotencyKey = $"purchase-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }

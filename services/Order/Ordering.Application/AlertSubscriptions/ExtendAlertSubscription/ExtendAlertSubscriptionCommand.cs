@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DotNetAtlas.CQS;
 using FastEndpoints;
 
 namespace Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
@@ -7,7 +8,7 @@ namespace Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
 /// Command to initiate an alert subscription extension.
 /// Triggers the Extend Alert Subscription Saga via an outbox event.
 /// </summary>
-public class ExtendAlertSubscriptionCommand
+public class ExtendAlertSubscriptionCommand : ICommand<Guid>
 {
     /// <summary>
     /// ID of the saved payment method to use.
@@ -28,11 +29,6 @@ public class ExtendAlertSubscriptionCommand
     /// ISO 4217 currency code (e.g., 'USD', 'EUR').
     /// </summary>
     public required string Currency { get; set; }
-
-    /// <summary>
-    /// Idempotency key for preventing duplicate extensions.
-    /// </summary>
-    public required string IdempotencyKey { get; set; }
 
     /// <summary>
     /// User ID extracted from the JWT token.
