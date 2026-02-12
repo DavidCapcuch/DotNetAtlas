@@ -19,11 +19,11 @@ namespace Order.AlertSubscriptions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class AlertSubscriptionPurchaseInitiatedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AlertSubscriptionPurchaseInitiatedEvent"",""doc"":""Event emitted when a user initiates a new alert subscription purchase. Triggers the Purchase Alert Subscription Saga."",""namespace"":""Order.AlertSubscriptions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for the entire purchase flow (purchase → payment → activation)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User initiating the subscription purchase."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Tier"",""doc"":""Subscription tier being purchased."",""type"":{""type"":""enum"",""name"":""SubscriptionTier"",""namespace"":""Order.AlertSubscriptions"",""symbols"":[""Pro"",""Ultra""]}},{""name"":""DurationDays"",""doc"":""Duration of the subscription in days."",""type"":""int""},{""name"":""Amount"",""doc"":""Payment amount for the subscription."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code (e.g., 'USD', 'EUR')."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key for preventing duplicate purchases."",""type"":""string""},{""name"":""InitiatedAtUtc"",""doc"":""UTC timestamp when purchase was initiated."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AlertSubscriptionPurchaseInitiatedEvent"",""doc"":""Event emitted when a user initiates a new alert subscription purchase. Triggers the Purchase Alert Subscription Saga."",""namespace"":""Order.AlertSubscriptions"",""fields"":[{""name"":""AlertSubscriptionOrderId"",""doc"":""Alert subscription order id."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User initiating the subscription purchase."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Tier"",""doc"":""Subscription tier being purchased."",""type"":{""type"":""enum"",""name"":""SubscriptionTier"",""namespace"":""Order.AlertSubscriptions"",""symbols"":[""Pro"",""Ultra""]}},{""name"":""DurationDays"",""doc"":""Duration of the subscription in days."",""type"":""int""},{""name"":""Amount"",""doc"":""Payment amount for the subscription."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code (e.g., 'USD', 'EUR')."",""type"":""string""},{""name"":""InitiatedAtUtc"",""doc"":""UTC timestamp when purchase was initiated."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for the entire purchase flow (purchase → payment → activation).
 		/// </summary>
-		private System.Guid _CorrelationId;
+		private System.Guid _alertSubscriptionOrderId;
 		/// <summary>
 		/// User initiating the subscription purchase.
 		/// </summary>
@@ -49,10 +49,6 @@ namespace Order.AlertSubscriptions
 		/// </summary>
 		private string _Currency;
 		/// <summary>
-		/// Idempotency key for preventing duplicate purchases.
-		/// </summary>
-		private string _IdempotencyKey;
-		/// <summary>
 		/// UTC timestamp when purchase was initiated.
 		/// </summary>
 		private System.DateTime _InitiatedAtUtc;
@@ -66,15 +62,15 @@ namespace Order.AlertSubscriptions
 		/// <summary>
 		/// Correlation ID for the entire purchase flow (purchase → payment → activation).
 		/// </summary>
-		public System.Guid CorrelationId
+		public System.Guid AlertSubscriptionOrderId
 		{
 			get
 			{
-				return this._CorrelationId;
+				return this._alertSubscriptionOrderId;
 			}
 			set
 			{
-				this._CorrelationId = value;
+				this._alertSubscriptionOrderId = value;
 			}
 		}
 		/// <summary>
@@ -162,20 +158,6 @@ namespace Order.AlertSubscriptions
 			}
 		}
 		/// <summary>
-		/// Idempotency key for preventing duplicate purchases.
-		/// </summary>
-		public string IdempotencyKey
-		{
-			get
-			{
-				return this._IdempotencyKey;
-			}
-			set
-			{
-				this._IdempotencyKey = value;
-			}
-		}
-		/// <summary>
 		/// UTC timestamp when purchase was initiated.
 		/// </summary>
 		public System.DateTime InitiatedAtUtc
@@ -193,15 +175,14 @@ namespace Order.AlertSubscriptions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
+			case 0: return this.AlertSubscriptionOrderId;
 			case 1: return this.UserId;
 			case 2: return this.PaymentMethodId;
 			case 3: return this.Tier;
 			case 4: return this.DurationDays;
 			case 5: return this.Amount;
 			case 6: return this.Currency;
-			case 7: return this.IdempotencyKey;
-			case 8: return this.InitiatedAtUtc;
+			case 7: return this.InitiatedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -209,15 +190,14 @@ namespace Order.AlertSubscriptions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
+			case 0: this.AlertSubscriptionOrderId = (System.Guid)fieldValue; break;
 			case 1: this.UserId = (System.Guid)fieldValue; break;
 			case 2: this.PaymentMethodId = (System.Guid)fieldValue; break;
 			case 3: this.Tier = (Order.AlertSubscriptions.SubscriptionTier)fieldValue; break;
 			case 4: this.DurationDays = (System.Int32)fieldValue; break;
 			case 5: this.Amount = (Avro.AvroDecimal)fieldValue; break;
 			case 6: this.Currency = (System.String)fieldValue; break;
-			case 7: this.IdempotencyKey = (System.String)fieldValue; break;
-			case 8: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
+			case 7: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

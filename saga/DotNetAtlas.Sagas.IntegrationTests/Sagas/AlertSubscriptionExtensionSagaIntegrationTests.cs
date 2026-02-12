@@ -456,13 +456,12 @@ public class AlertSubscriptionExtensionSagaIntegrationTests : BaseSagaIntegratio
     {
         return new AlertSubscriptionExtensionInitiatedEvent
         {
-            CorrelationId = correlationId,
+            AlertSubscriptionOrderId = correlationId,
             UserId = userId,
             PaymentMethodId = paymentMethodId ?? Guid.CreateVersion7(),
             DurationDays = durationDays,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            IdempotencyKey = $"extension-{userId}-{Guid.CreateVersion7()}",
             InitiatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }

@@ -7,7 +7,6 @@ public class GetAlertSubscriptionOrderStatusQueryValidator : AbstractValidator<G
     public GetAlertSubscriptionOrderStatusQueryValidator()
     {
         RuleFor(gfr => gfr.Id)
-            .NotEmpty()
-            .WithMessage("Feedback ID must not be empty.");
+            .NotEmpty();
     }
 }

@@ -107,6 +107,11 @@
           "System.CodeDom": "8.0.0"
         }
       },
+      "Ardalis.Specification": {
+        "type": "Transitive",
+        "resolved": "9.3.1",
+        "contentHash": "GWrE6BA0smWFLbN+XPU2l5rDF9Uzelfbb3w35jJ0CGIat+p1ChbtLcbkvYRMEculBHOAo12omwAAOm3VFWkoJQ=="
+      },
       "Confluent.Kafka": {
         "type": "Transitive",
         "resolved": "2.13.0",
@@ -394,12 +399,6 @@
         "requested": "[8.1.0, )",
         "resolved": "8.1.0",
         "contentHash": "+OpcDNwgfwdKEhEwq6U5lrXiBpdA3LxfZR7nTtF6vzbkXc1hKa2Uv/rHduzxwNLYrzOfR/7QUVyjWTliSS7pOA=="
-      },
-      "Ardalis.Specification": {
-        "type": "CentralTransitive",
-        "requested": "[9.3.1, )",
-        "resolved": "9.3.1",
-        "contentHash": "GWrE6BA0smWFLbN+XPU2l5rDF9Uzelfbb3w35jJ0CGIat+p1ChbtLcbkvYRMEculBHOAo12omwAAOm3VFWkoJQ=="
       },
       "Ardalis.Specification.EntityFrameworkCore": {
         "type": "CentralTransitive",

@@ -1,43 +1,26 @@
 using System.Net;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
-using DotNetAtlas.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using FastEndpoints;
-using Microsoft.Extensions.Options;
-using Order.AlertSubscriptions;
+using Ordering.API.AlertSubscriptionOrders.GetAlertSubscriptionOrderStatus;
+using Ordering.API.Common.Extensions;
 using Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
-using Ordering.Application.Common.Data;
-using Ordering.Application.Common.Messaging;
-using Ordering.Domain.AlertSubscriptionOrders;
-using Serilog.Context;
+using Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
+using CQS = DotNetAtlas.CQS;
 
 namespace Ordering.API.AlertSubscriptionOrders.ExtendAlertSubscription;
 
 /// <summary>
 /// Endpoint for initiating an alert subscription extension.
-/// Creates a SubscriptionOrder entity and publishes an AlertSubscriptionExtensionInitiatedEvent
-/// via the transactional outbox to trigger the Extend Alert Subscription Saga.
+/// Delegates to <see cref="ExtendAlertSubscriptionCommandHandler"/> which creates the order,
+/// raises domain events, and publishes the integration event via the transactional outbox.
 /// </summary>
-internal class ExtendAlertSubscriptionEndpoint : Endpoint<ExtendAlertSubscriptionCommand>
+internal sealed class ExtendAlertSubscriptionEndpoint : Endpoint<ExtendAlertSubscriptionCommand>
 {
-    private readonly IOrderingDbContext _orderingDbContext;
-    private readonly ITransactionalOutbox<IOrderingDbContext> _transactionalOutbox;
-    private readonly TimeProvider _timeProvider;
-    private readonly TopicsOptions _topicsOptions;
-    private readonly ILogger<ExtendAlertSubscriptionEndpoint> _logger;
+    private readonly CQS.ICommandHandler<ExtendAlertSubscriptionCommand, Guid> _extendAlertSubscriptionHandler;
 
     public ExtendAlertSubscriptionEndpoint(
-        IOrderingDbContext orderingDbContext,
-        ITransactionalOutbox<IOrderingDbContext> transactionalOutbox,
-        TimeProvider timeProvider,
-        IOptions<TopicsOptions> topicsOptions,
-        ILogger<ExtendAlertSubscriptionEndpoint> logger)
+        CQS.ICommandHandler<ExtendAlertSubscriptionCommand, Guid> extendAlertSubscriptionHandler)
     {
-        _orderingDbContext = orderingDbContext;
-        _transactionalOutbox = transactionalOutbox;
-        _timeProvider = timeProvider;
-        _topicsOptions = topicsOptions.Value;
-        _logger = logger;
+        _extendAlertSubscriptionHandler = extendAlertSubscriptionHandler;
     }
 
     public override void Configure()
@@ -56,66 +39,28 @@ internal class ExtendAlertSubscriptionEndpoint : Endpoint<ExtendAlertSubscriptio
                 PaymentMethodId = Guid.CreateVersion7(),
                 DurationDays = 30,
                 Amount = 4.99m,
-                Currency = "USD",
-                IdempotencyKey = Guid.CreateVersion7().ToString()
+                Currency = "USD"
             };
         });
         Description(b =>
         {
             b.Produces((int)HttpStatusCode.Created);
             b.Produces((int)HttpStatusCode.BadRequest);
+            b.Produces((int)HttpStatusCode.Conflict);
         });
     }
 
     public override async Task HandleAsync(ExtendAlertSubscriptionCommand req, CancellationToken ct)
     {
-        var order = new AlertSubscriptionOrder
-        {
-            Id = Guid.CreateVersion7(),
-            UserId = req.UserId,
-            AlertSubscriptionOrderType = AlertSubscriptionOrderType.Extension,
-            PaymentMethodId = req.PaymentMethodId,
-            Tier = null,
-            DurationDays = req.DurationDays,
-            Amount = req.Amount,
-            Currency = req.Currency,
-            IdempotencyKey = req.IdempotencyKey,
-            Status = AlertSubscriptionOrderStatus.Initiated,
-            CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-        };
+        var extendResult = await _extendAlertSubscriptionHandler.HandleAsync(req, ct);
 
-        await _transactionalOutbox.Database.EnsureTransactionAsync(async () =>
-        {
-            _orderingDbContext.AlertSubscriptionOrders.Add(order);
-
-            _transactionalOutbox.AddOutboxMessage(
-                _topicsOptions.OrderAlertSubscriptions,
-                order.Id.ToString(),
-                new AlertSubscriptionExtensionInitiatedEvent
+        await extendResult.MatchAsync(
+            orderId => Send.CreatedAtAsync<GetAlertSubscriptionOrderStatusEndpoint>(
+                new GetAlertSubscriptionOrderStatusQuery
                 {
-                    UserId = req.UserId,
-                    PaymentMethodId = req.PaymentMethodId,
-                    DurationDays = req.DurationDays,
-                    Amount = req.Amount.ToAvroDecimal(4),
-                    Currency = req.Currency,
-                    IdempotencyKey = req.IdempotencyKey,
-                    InitiatedAtUtc = order.CreatedAtUtc
-                });
-
-            await _transactionalOutbox.SaveChangesAsync(ct);
-        }, ct);
-
-        _logger.LogInformation(
-            "Alert subscription extension initiated - OrderId: {OrderId}, " +
-            "UserId: {UserId}, Amount: {Amount} {Currency}",
-            order.Id, req.UserId, req.Amount, req.Currency);
-
-        using var _ = LogContext.PushProperty("FeedbackId", sendFeedbackCommand.Id.ToString());
-
-        var changeFeedbackResult = await _changeFeedbackHandler.HandleAsync(sendFeedbackCommand, ct);
-
-        await changeFeedbackResult.MatchAsync(
-            () => Send.NoContentAsync(ct),
+                    Id = orderId
+                },
+                cancellation: ct),
             failureResult => Send.SendErrorResponseAsync(failureResult, ct));
     }
 }

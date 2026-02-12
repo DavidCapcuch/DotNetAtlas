@@ -3,19 +3,17 @@ namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatu
 public class GetAlertSubscriptionOrderStatusResponse
 {
     /// <summary>
-    /// Unique identifier of the feedback.
+    /// Unique identifier of the subscription order.
     /// </summary>
     public required Guid Id { get; set; }
 
     /// <summary>
-    /// The weather feedback content.
+    /// Current status of the order (Initiated, Completed, or Failed).
     /// </summary>
-    public required string Feedback { get; set; }
-
-    public required int Rating { get; set; }
+    public required string Status { get; set; }
 
     /// <summary>
-    /// Who created the feedback.
+    /// UTC timestamp when the order was created.
     /// </summary>
-    public required Guid CreatedByUser { get; set; }
+    public required DateTime CreatedAtUtc { get; set; }
 }

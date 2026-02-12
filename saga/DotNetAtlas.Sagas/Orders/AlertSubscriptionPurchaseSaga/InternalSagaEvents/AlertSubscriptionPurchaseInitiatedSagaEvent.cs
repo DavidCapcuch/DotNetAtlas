@@ -44,11 +44,6 @@ public sealed record AlertSubscriptionPurchaseInitiatedSagaEvent
     public required string Currency { get; init; }
 
     /// <summary>
-    /// Idempotency key for preventing duplicate purchases.
-    /// </summary>
-    public required string IdempotencyKey { get; init; }
-
-    /// <summary>
     /// UTC timestamp when purchase was initiated.
     /// </summary>
     public required DateTime InitiatedAtUtc { get; init; }

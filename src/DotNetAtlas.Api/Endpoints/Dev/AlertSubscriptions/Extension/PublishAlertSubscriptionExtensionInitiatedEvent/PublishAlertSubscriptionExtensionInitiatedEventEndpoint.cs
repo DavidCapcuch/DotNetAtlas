@@ -45,8 +45,7 @@ internal class PublishAlertSubscriptionExtensionInitiatedEventEndpoint
                 PaymentMethodId = Guid.CreateVersion7(),
                 DurationDays = 30,
                 Amount = 9.99m,
-                Currency = "USD",
-                IdempotencyKey = Guid.CreateVersion7().ToString()
+                Currency = "USD"
             };
         });
     }
@@ -57,13 +56,12 @@ internal class PublishAlertSubscriptionExtensionInitiatedEventEndpoint
     {
         var alertSubscriptionExtensionInitiatedEvent = new AlertSubscriptionExtensionInitiatedEvent
         {
-            CorrelationId = req.CorrelationId,
+            AlertSubscriptionOrderId = req.CorrelationId,
             UserId = req.UserId,
             PaymentMethodId = req.PaymentMethodId,
             DurationDays = req.DurationDays,
             Amount = req.Amount.ToAvroDecimal(4),
             Currency = req.Currency,
-            IdempotencyKey = req.IdempotencyKey,
             InitiatedAtUtc = DateTime.UtcNow
         };
 

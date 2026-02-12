@@ -1,6 +1,12 @@
+using System.Diagnostics;
+using Ardalis.Specification.EntityFrameworkCore;
 using DotNetAtlas.CQS;
 using FluentResults;
+using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Common.Data;
+using Ordering.Application.Common.Observability.Tracing;
+using Ordering.Domain.AlertSubscriptionOrders.Errors;
+using Ordering.Domain.AlertSubscriptionOrders.Specifications;
 
 namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 
@@ -18,8 +24,19 @@ public sealed class GetAlertSubscriptionOrderStatusQueryHandler
         GetAlertSubscriptionOrderStatusQuery query,
         CancellationToken ct)
     {
-        // Activity.Current?.SetTag(TraceTags.FeedbackId, query.Id.ToString());
+        Activity.Current?.SetTag(TraceTags.AlertSubscriptionOrder, query.Id.ToString());
 
-        return null;
+        var response = await _orderingDbContext.AlertSubscriptionOrders
+            .AsNoTracking()
+            .WithSpecification(new AlertSubscriptionOrderByIdSpec(query.Id))
+            .ProjectToOrderStatusResponse()
+            .FirstOrDefaultAsync(ct);
+
+        if (response is null)
+        {
+            return Result.Fail(AlertSubscriptionOrderErrors.NotFound(query.Id));
+        }
+
+        return response;
     }
 }

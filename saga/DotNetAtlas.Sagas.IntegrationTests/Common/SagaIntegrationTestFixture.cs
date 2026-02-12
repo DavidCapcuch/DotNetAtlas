@@ -42,7 +42,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
     public SagaIntegrationTestFixture()
     {
         var migrationsPath = Path.Combine(
-            SolutionPaths.GetSolutionRootDirectory(), "saga", "DotNetAtlas.Sagas", "Persistence", "Database",
+            SolutionPaths.GetSolutionRootDirectory(), "saga", "DotNetAtlas.Sagas", "Common", "Persistence", "Database",
             "Migrations", "SqlScripts");
 
         _dbContainer = new SqlServerTestContainer(

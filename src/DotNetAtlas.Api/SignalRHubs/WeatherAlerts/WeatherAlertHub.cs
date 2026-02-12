@@ -1,6 +1,7 @@
 using DotNetAtlas.Application.WeatherAlerts.Common.Contracts;
 using DotNetAtlas.Application.WeatherAlerts.SubscribeForLocationAlerts;
 using DotNetAtlas.Application.WeatherAlerts.UnsubscribeFromLocationAlerts;
+using DotNetAtlas.CQS;
 using DotNetAtlas.Infrastructure.Common.Constants;
 using DotNetAtlas.SharedKernel.Errors;
 using Microsoft.AspNetCore.SignalR;

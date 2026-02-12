@@ -26,18 +26,17 @@ public sealed class AlertSubscriptionPurchaseInitiatedConsumer : IConsumer<Alert
         _logger.LogInformation(
             "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}, tier {Tier}",
             nameof(AlertSubscriptionPurchaseInitiatedConsumer), nameof(AlertSubscriptionPurchaseInitiatedEvent),
-            message.UserId, message.CorrelationId, message.Tier);
+            message.UserId, message.AlertSubscriptionOrderId, message.Tier);
 
         var subscriptionPurchaseInitiatedSagaEvent = new AlertSubscriptionPurchaseInitiatedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            CorrelationId = message.AlertSubscriptionOrderId,
             UserId = message.UserId,
             PaymentMethodId = message.PaymentMethodId,
             SubscriptionTier = message.Tier,
             DurationDays = message.DurationDays,
             Amount = (decimal)message.Amount,
             Currency = message.Currency,
-            IdempotencyKey = message.IdempotencyKey,
             InitiatedAtUtc = message.InitiatedAtUtc
         };
 

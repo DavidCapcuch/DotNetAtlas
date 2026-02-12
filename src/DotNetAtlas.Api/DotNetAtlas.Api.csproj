@@ -56,10 +56,4 @@
         <InternalsVisibleTo Include="DotNetAtlas.FunctionalTests"/>
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Endpoints\Dev\AlertSubscriptions\Extension\" />
-      <Folder Include="Endpoints\Dev\AlertSubscriptions\Purchase\" />
-      <Folder Include="Endpoints\Dev\Payments\" />
-    </ItemGroup>
-
 </Project>

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DotNetAtlas.CQS;
 using FastEndpoints;
 using Ordering.Domain.AlertSubscriptionOrders;
 
@@ -8,7 +9,7 @@ namespace Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
 /// Command to initiate a new alert subscription purchase.
 /// Triggers the Purchase Alert Subscription Saga via an outbox event.
 /// </summary>
-public class PurchaseAlertSubscriptionCommand
+public class PurchaseAlertSubscriptionCommand : ICommand<Guid>
 {
     /// <summary>
     /// ID of the saved payment method to use.
@@ -34,11 +35,6 @@ public class PurchaseAlertSubscriptionCommand
     /// ISO 4217 currency code (e.g., 'USD', 'EUR').
     /// </summary>
     public required string Currency { get; set; }
-
-    /// <summary>
-    /// Idempotency key for preventing duplicate purchases.
-    /// </summary>
-    public required string IdempotencyKey { get; set; }
 
     /// <summary>
     /// User ID extracted from the JWT token.

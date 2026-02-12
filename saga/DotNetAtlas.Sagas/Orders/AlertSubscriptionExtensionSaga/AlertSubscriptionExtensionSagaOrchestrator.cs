@@ -91,7 +91,6 @@ public sealed class
                     ctx.Saga.DurationDays = ctx.Message.DurationDays;
                     ctx.Saga.Amount = ctx.Message.Amount;
                     ctx.Saga.Currency = ctx.Message.Currency;
-                    ctx.Saga.IdempotencyKey = ctx.Message.IdempotencyKey;
                     ctx.Saga.ExtensionInitiatedAtUtc = ctx.Message.InitiatedAtUtc;
                 })
                 .Activity(x => x.OfType<SagaStartedActivity>())
@@ -105,7 +104,7 @@ public sealed class
                         PaymentMethodId = ctx.Saga.PaymentMethodId,
                         Amount = ctx.Saga.Amount.ToAvroDecimal(4),
                         Currency = ctx.Saga.Currency,
-                        IdempotencyKey = ctx.Saga.IdempotencyKey,
+                        IdempotencyKey = ctx.Saga.CorrelationId.ToString(),
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
                 .Schedule(PaymentTimeout,

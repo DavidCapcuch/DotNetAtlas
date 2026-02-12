@@ -1,43 +1,27 @@
 using System.Net;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
-using DotNetAtlas.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using FastEndpoints;
-using Microsoft.Extensions.Options;
-using Order.AlertSubscriptions;
 using Ordering.API.AlertSubscriptionOrders.GetAlertSubscriptionOrderStatus;
+using Ordering.API.Common.Extensions;
+using Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 using Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
-using Ordering.Application.Common.Data;
-using Ordering.Application.Common.Messaging;
 using Ordering.Domain.AlertSubscriptionOrders;
+using CQS = DotNetAtlas.CQS;
 
 namespace Ordering.API.AlertSubscriptionOrders.PurchaseAlertSubscription;
 
 /// <summary>
 /// Endpoint for initiating a new alert subscription purchase.
-/// Creates a SubscriptionOrder entity and publishes an AlertSubscriptionPurchaseInitiatedEvent
-/// via the transactional outbox to trigger the Purchase Alert Subscription Saga.
+/// Delegates to <see cref="PurchaseAlertSubscriptionCommandHandler"/> which creates the order,
+/// raises domain events, and publishes the integration event via the transactional outbox.
 /// </summary>
-internal class PurchaseAlertSubscriptionEndpoint : Endpoint<PurchaseAlertSubscriptionCommand>
+internal sealed class PurchaseAlertSubscriptionEndpoint : Endpoint<PurchaseAlertSubscriptionCommand>
 {
-    private readonly IOrderingDbContext _orderingDbContext;
-    private readonly ITransactionalOutbox<IOrderingDbContext> _transactionalOutbox;
-    private readonly TimeProvider _timeProvider;
-    private readonly TopicsOptions _topicsOptions;
-    private readonly ILogger<PurchaseAlertSubscriptionEndpoint> _logger;
+    private readonly CQS.ICommandHandler<PurchaseAlertSubscriptionCommand, Guid> _purchaseHandler;
 
     public PurchaseAlertSubscriptionEndpoint(
-        IOrderingDbContext orderingDbContext,
-        ITransactionalOutbox<IOrderingDbContext> transactionalOutbox,
-        TimeProvider timeProvider,
-        IOptions<TopicsOptions> topicsOptions,
-        ILogger<PurchaseAlertSubscriptionEndpoint> logger)
+        CQS.ICommandHandler<PurchaseAlertSubscriptionCommand, Guid> purchaseHandler)
     {
-        _orderingDbContext = orderingDbContext;
-        _transactionalOutbox = transactionalOutbox;
-        _timeProvider = timeProvider;
-        _topicsOptions = topicsOptions.Value;
-        _logger = logger;
+        _purchaseHandler = purchaseHandler;
     }
 
     public override void Configure()
@@ -57,68 +41,26 @@ internal class PurchaseAlertSubscriptionEndpoint : Endpoint<PurchaseAlertSubscri
                 Tier = AlertSubscriptionTier.Pro,
                 DurationDays = 30,
                 Amount = 9.99m,
-                Currency = "USD",
-                IdempotencyKey = Guid.CreateVersion7().ToString()
+                Currency = "USD"
             };
         });
         Description(b =>
         {
             b.Produces((int)HttpStatusCode.Created);
             b.Produces((int)HttpStatusCode.BadRequest);
+            b.Produces((int)HttpStatusCode.Conflict);
         });
     }
 
     public override async Task HandleAsync(PurchaseAlertSubscriptionCommand req, CancellationToken ct)
     {
-        var order = new AlertSubscriptionOrder
-        {
-            Id = Guid.CreateVersion7(),
-            UserId = req.UserId,
-            AlertSubscriptionOrderType = AlertSubscriptionOrderType.Purchase,
-            PaymentMethodId = req.PaymentMethodId,
-            Tier = req.Tier.ToString(),
-            DurationDays = req.DurationDays,
-            Amount = req.Amount,
-            Currency = req.Currency,
-            IdempotencyKey = req.IdempotencyKey,
-            Status = AlertSubscriptionOrderStatus.Initiated,
-            CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-        };
+        var purchaseResult = await _purchaseHandler.HandleAsync(req, ct);
 
-        await _transactionalOutbox.Database.EnsureTransactionAsync(async () =>
-        {
-            _orderingDbContext.AlertSubscriptionOrders.Add(order);
-
-            _transactionalOutbox.AddOutboxMessage(
-                _topicsOptions.OrderAlertSubscriptions,
-                order.Id.ToString(),
-                new AlertSubscriptionPurchaseInitiatedEvent
+        await purchaseResult.MatchAsync(
+            orderId => Send.CreatedAtAsync<GetAlertSubscriptionOrderStatusEndpoint>(
+                new GetAlertSubscriptionOrderStatusQuery
                 {
-                    UserId = req.UserId,
-                    PaymentMethodId = req.PaymentMethodId,
-                    Tier = req.Tier,
-                    DurationDays = req.DurationDays,
-                    Amount = req.Amount.ToAvroDecimal(4),
-                    Currency = req.Currency,
-                    IdempotencyKey = req.IdempotencyKey,
-                    InitiatedAtUtc = order.CreatedAtUtc
-                });
-
-            await _transactionalOutbox.SaveChangesAsync(ct);
-        }, ct);
-
-        _logger.LogInformation(
-            "Alert subscription purchase initiated - OrderId: {OrderId}, " +
-            "UserId: {UserId}, Tier: {Tier}, Amount: {Amount} {Currency}",
-            order.Id, req.UserId, req.Tier, req.Amount, req.Currency);
-
-        var sendFeedbackResult = await _sendFeedbackHandler.HandleAsync(sendFeedbackCommand, ct);
-
-        await sendFeedbackResult.MatchAsync(
-            id => Send.CreatedAtAsync<GetFeedbackByIdEndpoint>(
-                new GetFeedbackByIdQuery
-                {
-                    Id = id
+                    Id = orderId
                 },
                 cancellation: ct),
             failureResult => Send.SendErrorResponseAsync(failureResult, ct));
