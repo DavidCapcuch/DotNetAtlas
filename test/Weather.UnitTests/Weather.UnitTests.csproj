@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Weather.Domain\Weather.Domain.csproj" />
+        <ProjectReference Include="..\..\src\DotNetAtlas.Application\DotNetAtlas.Application.csproj" />
+        <ProjectReference Include="..\..\src\Weather.Infrastructure\Weather.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.KafkaFlow.Inbox.EFCore\Platform.KafkaFlow.Inbox.EFCore.csproj" />
+    </ItemGroup>
+
+</Project>

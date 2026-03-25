@@ -25,6 +25,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\DotNetAtlas.Infrastructure\DotNetAtlas.Infrastructure.csproj"/>
+        <ProjectReference Include="..\..\src\Weather.Infrastructure\Weather.Infrastructure.csproj" />
     </ItemGroup>
 </Project>

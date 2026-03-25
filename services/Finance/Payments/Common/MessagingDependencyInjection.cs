@@ -1,15 +1,9 @@
-using DotNetAtlas.KafkaFlow.DeadLetter.Common;
-using DotNetAtlas.KafkaFlow.Inbox.EFCore.Common;
-using DotNetAtlas.KafkaFlow.ProducerHeaders;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore.Common;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using Finance.Payments;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Payments.Common.Config;
 using Payments.Common.Config.Kafka;
 using Payments.Common.Observability;
 using Payments.Common.Persistence.Database;
@@ -17,8 +11,11 @@ using Payments.Payments.AuthorizePayment;
 using Payments.Payments.CapturePayment;
 using Payments.Payments.RequestRefund;
 using Payments.Payments.VoidPayment;
-using Payments.Persistence.Database;
-using Weather.Alerts;
+using Platform.KafkaFlow.DeadLetter.Common;
+using Platform.KafkaFlow.Inbox.EFCore.Common;
+using Platform.KafkaFlow.ProducerHeaders;
+using Platform.ReliableMessaging.Inbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Payments.Common;
 

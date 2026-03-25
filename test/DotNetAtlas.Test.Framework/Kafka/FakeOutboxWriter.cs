@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Avro.Specific;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 

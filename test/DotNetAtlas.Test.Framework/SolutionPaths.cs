@@ -7,7 +7,7 @@ public static class SolutionPaths
     private const string SolutionFileName = "DotNetAtlas.slnx";
 
     public static string DatabaseRootDirectory =>
-        Path.Combine(GetSolutionRootDirectory(), "src", "DotNetAtlas.Infrastructure", "Persistence", "Database");
+        Path.Combine(GetSolutionRootDirectory(), "src", "Weather.Infrastructure", "Persistence", "Database");
 
     public static string EfMigrationsDirectory => Path.Combine(DatabaseRootDirectory, "Migrations");
 

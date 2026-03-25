@@ -5,7 +5,7 @@ using Ordering.API.Common.Extensions;
 using Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 using Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
 using Ordering.Domain.AlertSubscriptionOrders;
-using CQS = DotNetAtlas.CQS;
+using CQS = Platform.CQS;
 
 namespace Ordering.API.AlertSubscriptionOrders.PurchaseAlertSubscription;
 

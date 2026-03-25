@@ -1,11 +1,11 @@
 using System.Diagnostics;
-using DotNetAtlas.CQS;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using Ordering.Application.Common.Data;
 using Ordering.Application.Common.Observability.Tracing;
 using Ordering.Domain.AlertSubscriptionOrders;
 using Ordering.Domain.ValueObjects;
+using Platform.CQS;
 
 namespace Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
 

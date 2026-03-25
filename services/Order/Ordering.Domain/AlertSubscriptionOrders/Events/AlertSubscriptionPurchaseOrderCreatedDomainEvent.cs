@@ -1,5 +1,5 @@
-using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Ordering.Domain.ValueObjects;
+using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Ordering.Domain.AlertSubscriptionOrders.Events;
 

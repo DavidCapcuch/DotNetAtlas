@@ -1,6 +1,6 @@
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Domain.AlertSubscriptionOrders;
+using Platform.ReliableMessaging.Outbox.EFCore;
 
 namespace Ordering.Application.Common.Data;
 

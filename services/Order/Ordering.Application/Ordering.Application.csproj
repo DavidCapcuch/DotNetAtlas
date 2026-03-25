@@ -18,9 +18,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.CQS\DotNetAtlas.CQS.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
+        <ProjectReference Include="..\..\..\platform\Platform.CQS\Platform.CQS.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

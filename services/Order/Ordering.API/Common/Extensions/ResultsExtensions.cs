@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using DotNetAtlas.SharedKernel.Errors;
 using FastEndpoints;
 using FluentResults;
 using FluentValidation.Results;
+using Platform.SharedKernel.Errors;
 
 namespace Ordering.API.Common.Extensions;
 

@@ -1,4 +1,4 @@
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
 
 namespace Notifications.Common.Persistence.Database;
 

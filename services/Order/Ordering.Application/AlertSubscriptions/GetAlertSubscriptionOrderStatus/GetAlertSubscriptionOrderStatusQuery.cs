@@ -1,5 +1,5 @@
-using DotNetAtlas.CQS;
 using FastEndpoints;
+using Platform.CQS;
 
 namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 

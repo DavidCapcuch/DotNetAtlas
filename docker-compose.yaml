@@ -112,7 +112,7 @@ services:
     command:
       - --web.console.templates=/etc/prometheus/consoles
       - --web.console.libraries=/etc/prometheus/console_libraries
-      - --storage.tsdb.retention.time=1h
+      - --storage.tsdb.retention.time=3h
       - --config.file=/etc/prometheus/prometheus-config.yaml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
@@ -321,6 +321,7 @@ services:
       - OutboxRelay__PollingIntervalMs=2000
       # - ASPNETCORE_ENVIRONMENT=Local
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=WeatherOutboxRelay
     ports:
       - "8088:8080"  # Health checks endpoint
     deploy:
@@ -354,8 +355,42 @@ services:
       - OutboxRelay__TableName=OutboxMessages
       # - ASPNETCORE_ENVIRONMENT=Local
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=SagaOutboxRelay
     ports:
       - "8089:8080"  # Health checks endpoint
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-ordering:
+    build:
+      context: .
+      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-ordering
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      mssqldb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Ordering;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-ordering-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=ordering
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      # - ASPNETCORE_ENVIRONMENT=Local
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=OrderingOutboxRelay
+    ports:
+      - "8090:8080"  # Health checks endpoint
     deploy:
       resources:
         limits:

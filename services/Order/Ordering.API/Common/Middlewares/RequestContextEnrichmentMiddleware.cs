@@ -10,7 +10,7 @@ namespace Ordering.API.Common.Middlewares;
 /// - Adds CorrelationId to response header and log scope (from "X-Correlation-ID" request header if provided, otherwise uses TraceIdentifier).
 /// - Adds UserId to OpenTelemetry Activity and log scope when available.
 /// </summary>
-internal class RequestContextEnrichmentMiddleware
+internal sealed class RequestContextEnrichmentMiddleware
 {
     private const string CorrelationIdHeaderName = "X-Correlation-ID";
     private readonly RequestDelegate _next;

@@ -1,0 +1,61 @@
+{
+    "type": "record",
+    "name": "AlertSubscriptionExtensionInitiatedEvent",
+    "namespace": "Order.AlertSubscriptions",
+    "doc": "Event emitted when a user initiates an alert subscription extension. Triggers the Extend Alert Subscription Saga.",
+    "fields": [
+        {
+            "name": "AlertSubscriptionOrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the alert subscription order. Used as the saga CorrelationId by downstream workflow consumers."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User initiating the subscription extension."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "ID of the saved payment method to use."
+        },
+        {
+            "name": "DurationDays",
+            "type": "int",
+            "doc": "Duration to extend the subscription in days."
+        },
+        {
+            "name": "Amount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Payment amount for the extension."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code (e.g., 'USD', 'EUR')."
+        },
+        {
+            "name": "InitiatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when extension was initiated."
+        }
+    ]
+}
+

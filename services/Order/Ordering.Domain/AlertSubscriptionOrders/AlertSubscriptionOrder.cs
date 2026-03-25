@@ -1,7 +1,7 @@
-using DotNetAtlas.SharedKernel.Base;
-using DotNetAtlas.SharedKernel.Exceptions;
 using Ordering.Domain.AlertSubscriptionOrders.Events;
 using Ordering.Domain.ValueObjects;
+using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
 
 namespace Ordering.Domain.AlertSubscriptionOrders;
 

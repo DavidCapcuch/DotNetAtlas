@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using Ardalis.Specification.EntityFrameworkCore;
-using DotNetAtlas.CQS;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Common.Data;
 using Ordering.Application.Common.Observability.Tracing;
 using Ordering.Domain.AlertSubscriptionOrders.Errors;
 using Ordering.Domain.AlertSubscriptionOrders.Specifications;
+using Platform.CQS;
 
 namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 

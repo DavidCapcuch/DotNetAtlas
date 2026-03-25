@@ -1,12 +1,10 @@
 using Confluent.Kafka;
-using DotNetAtlas.ServiceDefaults.Config;
 using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Payments.Common.Config;
 using Payments.Common.Config.Kafka;
 using Payments.Common.Constants;
 using Payments.Common.Persistence.Database;
-using Payments.Persistence.Database;
+using Platform.ServiceDefaults.Config;
 
 namespace Payments.Common;
 

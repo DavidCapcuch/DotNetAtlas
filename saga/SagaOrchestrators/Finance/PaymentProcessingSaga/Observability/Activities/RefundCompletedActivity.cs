@@ -1,0 +1,62 @@
+using MassTransit;
+using SagaOrchestrators.Common.Observability.Metrics;
+using SagaOrchestrators.Common.Observability.Tracing;
+using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
+
+namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Observability.Activities;
+
+/// <summary>
+/// Activity that records metrics, traces, and logs when payment refund completes successfully
+/// for the <see cref="PaymentProcessingSagaOrchestrator"/>.
+/// </summary>
+public sealed class
+    RefundCompletedActivity : IStateMachineActivity<PaymentProcessingSagaState, PaymentRefundCompletedSagaEvent>
+{
+    private readonly ILogger<RefundCompletedActivity> _logger;
+
+    public RefundCompletedActivity(ILogger<RefundCompletedActivity> logger)
+    {
+        _logger = logger;
+    }
+
+    public void Probe(ProbeContext context)
+    {
+        context.CreateScope("refund-completed-activity");
+    }
+
+    public void Accept(StateMachineVisitor visitor)
+    {
+        visitor.Visit(this);
+    }
+
+    public async Task Execute(
+        BehaviorContext<PaymentProcessingSagaState, PaymentRefundCompletedSagaEvent> context,
+        IBehavior<PaymentProcessingSagaState, PaymentRefundCompletedSagaEvent> next)
+    {
+        var saga = context.Saga;
+
+        using var activity =
+            PaymentProcessingSagaMetrics.StartActivity(nameof(RefundCompletedActivity), saga.CorrelationId);
+        if (activity?.IsAllDataRequested == true)
+        {
+            activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
+            activity.SetTag(SagaActivityTags.RefundTransactionId, context.Message.RefundTransactionId.ToString());
+        }
+
+        PaymentProcessingSagaMetrics.RecordRefundCompleted();
+
+        _logger.LogInformation(
+            "{SagaType} {CorrelationId} refund completed. RefundTransactionId: {RefundTransactionId}",
+            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, context.Message.RefundTransactionId);
+
+        await next.Execute(context);
+    }
+
+    public Task Faulted<TException>(
+        BehaviorExceptionContext<PaymentProcessingSagaState, PaymentRefundCompletedSagaEvent, TException> context,
+        IBehavior<PaymentProcessingSagaState, PaymentRefundCompletedSagaEvent> next)
+        where TException : Exception
+    {
+        return next.Faulted(context);
+    }
+}

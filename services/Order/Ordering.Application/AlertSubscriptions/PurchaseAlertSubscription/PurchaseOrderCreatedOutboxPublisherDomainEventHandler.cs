@@ -1,10 +1,10 @@
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ordering.Application.Common.Data;
 using Ordering.Application.Common.Messaging;
 using Ordering.Domain.AlertSubscriptionOrders.Events;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
 
@@ -30,7 +30,7 @@ public class PurchaseOrderCreatedOutboxPublisherDomainEventHandler
         _topicsOptions = topicsOptions.Value;
     }
 
-    public async Task Handle(AlertSubscriptionPurchaseOrderCreatedDomainEvent domainEvent, CancellationToken ct)
+    public Task Handle(AlertSubscriptionPurchaseOrderCreatedDomainEvent domainEvent, CancellationToken ct)
     {
         var integrationEvent = domainEvent.ToPurchaseInitiatedEvent();
 
@@ -39,10 +39,9 @@ public class PurchaseOrderCreatedOutboxPublisherDomainEventHandler
             domainEvent.AlertSubscriptionOrderId.ToString(),
             integrationEvent);
 
-        await _transactionalOutbox.SaveChangesAsync(ct);
-
         _logger.LogDebug(
             "Added AlertSubscriptionPurchaseInitiatedEvent to outbox for AlertSubscriptionOrderId: {OrderId}",
             domainEvent.AlertSubscriptionOrderId);
+        return Task.CompletedTask;
     }
 }

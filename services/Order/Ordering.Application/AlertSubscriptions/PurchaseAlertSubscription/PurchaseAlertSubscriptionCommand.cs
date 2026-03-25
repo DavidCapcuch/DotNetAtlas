@@ -1,7 +1,7 @@
 using System.Security.Claims;
-using DotNetAtlas.CQS;
 using FastEndpoints;
 using Ordering.Domain.AlertSubscriptionOrders;
+using Platform.CQS;
 
 namespace Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
 

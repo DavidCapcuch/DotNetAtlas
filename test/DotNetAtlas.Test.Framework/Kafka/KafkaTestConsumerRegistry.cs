@@ -1,6 +1,6 @@
-using DotNetAtlas.Application.Common.Messaging;
-using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
+using Weather.Application.Common.Messaging;
 using Weather.Forecast;
+using Weather.Infrastructure.Messaging.Kafka.Config;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 

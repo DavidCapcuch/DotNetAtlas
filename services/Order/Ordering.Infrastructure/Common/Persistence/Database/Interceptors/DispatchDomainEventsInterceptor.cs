@@ -1,6 +1,6 @@
-using DotNetAtlas.SharedKernel.Base;
-using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Ordering.Infrastructure.Common.Persistence.Database.Interceptors;
 
@@ -11,11 +11,11 @@ namespace Ordering.Infrastructure.Common.Persistence.Database.Interceptors;
 /// </summary>
 public class DispatchDomainEventsInterceptor : SaveChangesInterceptor
 {
-    private readonly IDomainEventDispatcher domainEventDispatcher;
+    private readonly IDomainEventDispatcher _domainEventDispatcher;
 
     public DispatchDomainEventsInterceptor(IDomainEventDispatcher domainEventDispatcher)
     {
-        this.domainEventDispatcher = domainEventDispatcher;
+        _domainEventDispatcher = domainEventDispatcher;
     }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -39,7 +39,7 @@ public class DispatchDomainEventsInterceptor : SaveChangesInterceptor
             // Dispatching domain events BEFORE base.SaveChanges,
             // allows handlers to add outbox messages in the same transaction
             // and therefore have guaranteed atomicity and message delivery.
-            await domainEventDispatcher.DispatchAsync(domainEvent, cancellationToken);
+            await _domainEventDispatcher.DispatchAsync(domainEvent, cancellationToken);
         }
 
         return await base.SavingChangesAsync(eventData, result, cancellationToken);

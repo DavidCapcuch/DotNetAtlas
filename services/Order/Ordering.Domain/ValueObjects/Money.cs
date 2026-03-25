@@ -1,6 +1,6 @@
-using DotNetAtlas.SharedKernel.Base;
 using FluentResults;
 using Ordering.Domain.Errors;
+using Platform.SharedKernel.Base;
 
 namespace Ordering.Domain.ValueObjects;
 

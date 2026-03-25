@@ -1,10 +1,10 @@
 using Confluent.Kafka;
-using DotNetAtlas.ServiceDefaults.Config;
 using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Notifications.Common.Config;
 using Notifications.Common.Constants;
 using Notifications.Common.Persistence.Database;
+using Platform.ServiceDefaults.Config;
 
 namespace Notifications.Common;
 

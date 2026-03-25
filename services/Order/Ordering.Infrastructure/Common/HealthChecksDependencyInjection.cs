@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using DotNetAtlas.ServiceDefaults.Config;
 using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +7,7 @@ using Ordering.Infrastructure.Common.Config;
 using Ordering.Infrastructure.Common.Config.Kafka;
 using Ordering.Infrastructure.Common.Constants;
 using Ordering.Infrastructure.Common.Persistence.Database;
+using Platform.ServiceDefaults.Config;
 
 namespace Ordering.Infrastructure.Common;
 

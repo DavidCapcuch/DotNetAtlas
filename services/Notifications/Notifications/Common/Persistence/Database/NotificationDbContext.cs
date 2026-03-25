@@ -1,9 +1,9 @@
-using DotNetAtlas.ReliableMessaging.Inbox.Core;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore.Common;
-using DotNetAtlas.ReliableMessaging.Outbox.Core;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using Microsoft.EntityFrameworkCore;
+using Platform.ReliableMessaging.Inbox.Core;
+using Platform.ReliableMessaging.Inbox.EFCore;
+using Platform.ReliableMessaging.Inbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.Core;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Notifications.Common.Persistence.Database;
 
