@@ -1,8 +1,8 @@
 using System.Net;
-using DotNetAtlas.CQS;
 using FastEndpoints;
 using Ordering.API.Common.Extensions;
 using Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
+using Platform.CQS;
 using Serilog.Context;
 
 namespace Ordering.API.AlertSubscriptionOrders.GetAlertSubscriptionOrderStatus;

@@ -4,17 +4,20 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ordering.API.Common.Exceptions;
 
-internal class GlobalExceptionHandler : IExceptionHandler
+internal sealed class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly IProblemDetailsService _problemDetailsService;
     private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly IHostEnvironment _environment;
 
     public GlobalExceptionHandler(
         IProblemDetailsService problemDetailsService,
-        ILogger<GlobalExceptionHandler> logger)
+        ILogger<GlobalExceptionHandler> logger,
+        IHostEnvironment environment)
     {
         _problemDetailsService = problemDetailsService;
         _logger = logger;
+        _environment = environment;
     }
 
     public async ValueTask<bool> TryHandleAsync(
@@ -29,23 +32,30 @@ internal class GlobalExceptionHandler : IExceptionHandler
         int statusCode;
         string title;
         string detail;
+        string type;
         switch (exception)
         {
             case ApplicationException:
                 statusCode = StatusCodes.Status400BadRequest;
                 title = "Bad Request";
-                detail = exception.Message;
+                detail = _environment.IsDevelopment()
+                    ? exception.Message
+                    : "The request was invalid.";
+                type = "https://tools.ietf.org/html/rfc9110#section-15.5.1";
                 break;
             case TimeoutException:
                 statusCode = StatusCodes.Status408RequestTimeout;
                 title = "Request Timeout";
-                detail =
-                    $"{httpContext.Request.Method} {httpContext.Request.Path} {httpContext.Request.QueryString}".Trim();
+                detail = _environment.IsDevelopment()
+                    ? $"{httpContext.Request.Method} {httpContext.Request.Path} {httpContext.Request.QueryString}".Trim()
+                    : "The request timed out.";
+                type = "https://tools.ietf.org/html/rfc9110#section-15.5.9";
                 break;
             default:
                 statusCode = StatusCodes.Status500InternalServerError;
                 title = "Internal Server Error";
                 detail = "An error occurred while processing the request.";
+                type = "https://tools.ietf.org/html/rfc9110#section-15.6.1";
                 break;
         }
 
@@ -56,7 +66,7 @@ internal class GlobalExceptionHandler : IExceptionHandler
             Exception = exception,
             ProblemDetails = new ProblemDetails
             {
-                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.6.1",
+                Type = type,
                 Title = title,
                 Detail = detail
             }

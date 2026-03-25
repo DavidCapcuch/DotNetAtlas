@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
+        <PackageReference Include="Microsoft.Extensions.Options"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="Apache.Avro"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.Avro.UniversalSerDes\Platform.Avro.UniversalSerDes.csproj" />
+        <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj" />
+        <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
+    </ItemGroup>
+</Project>
+

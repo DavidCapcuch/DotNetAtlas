@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using DotNetAtlas.Application.Common.Observability.Tracing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
+using Weather.Application.Common.Observability.Tracing;
 
 namespace DotNetAtlas.Test.Framework.Tracing;
 

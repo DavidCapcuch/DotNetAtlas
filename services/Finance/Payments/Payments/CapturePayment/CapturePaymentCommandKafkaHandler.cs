@@ -1,13 +1,11 @@
-using DotNetAtlas.KafkaFlow.Inbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using Finance.Payments;
 using KafkaFlow;
 using Microsoft.Extensions.Options;
-using Payments.Common.Config;
 using Payments.Common.Config.Kafka;
 using Payments.Common.Persistence.Database;
-using Payments.Persistence.Database;
+using Platform.KafkaFlow.Inbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Payments.Payments.CapturePayment;
 

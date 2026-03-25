@@ -38,7 +38,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ServiceDefaults\DotNetAtlas.ServiceDefaults.csproj"/>
+        <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <SonarQubeTestProject>true</SonarQubeTestProject>
+        <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/</CoverletOutput>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SagaOrchestrators\SagaOrchestrators.csproj" />
+        <ProjectReference Include="..\..\test\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MassTransit.TestFramework" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+        <PackageReference Include="NSubstitute" />
+    </ItemGroup>
+</Project>

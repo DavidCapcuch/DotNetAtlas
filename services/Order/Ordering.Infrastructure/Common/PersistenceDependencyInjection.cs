@@ -68,7 +68,7 @@ public static class PersistenceDependencyInjection
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
-            .UseExceptionProcessor() // required for the Inbox pattern, see DotNetAtlas.ReliableMessaging.Inbox.EFCore
+            .UseExceptionProcessor() // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
             .UseSeeding() // see https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding
             .UseAsyncSeeding()
             .AddInterceptors(

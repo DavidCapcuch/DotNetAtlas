@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dotnetatlas-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/DotNetAtlas.Api", "--launch-profile", "DotNetAtlas.Api.Local.Http"],
+      "port": 5159
+    },
+    {
+      "name": "ordering-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "services/Order/Ordering.API", "--launch-profile", "http"],
+      "port": 5081
+    },
+    {
+      "name": "sagas-worker",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "saga/DotNetAtlas.Sagas", "--launch-profile", "DotNetAtlas.Sagas.WorkerService.Local"],
+      "port": 65420
+    },
+    {
+      "name": "payments-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "services/Finance/Payments", "--launch-profile", "http"],
+      "port": 5298
+    },
+    {
+      "name": "notifications-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "services/Notifications/Notifications", "--launch-profile", "http"],
+      "port": 5235
+    },
+    {
+      "name": "outbox-relay",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "platform/DotNetAtlas.OutboxRelay.WorkerService", "--launch-profile", "DotNetAtlas.OutboxRelay.WorkerService.Local"],
+      "port": 65410
+    }
+  ]
+}

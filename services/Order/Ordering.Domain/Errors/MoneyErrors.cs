@@ -1,4 +1,4 @@
-using DotNetAtlas.SharedKernel.Errors;
+using Platform.SharedKernel.Errors;
 
 namespace Ordering.Domain.Errors;
 

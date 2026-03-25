@@ -1,11 +1,11 @@
-using DotNetAtlas.KafkaFlow.Inbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using Finance.Payments;
 using KafkaFlow;
 using Microsoft.Extensions.Options;
 using Notifications.Common.Config;
 using Notifications.Common.Persistence.Database;
+using Platform.KafkaFlow.Inbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Notifications.Notifications.AuthorizePayment;
 

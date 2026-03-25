@@ -1,6 +1,6 @@
-using DotNetAtlas.SharedKernel.Base;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Platform.SharedKernel.Base;
 
 namespace Ordering.Infrastructure.Common.Persistence.Database.Interceptors;
 

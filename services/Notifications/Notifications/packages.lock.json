@@ -990,79 +990,80 @@
         "resolved": "9.0.0",
         "contentHash": "U9msthvnH2Fsw7xwAvIhNHOdnIjOQTwOc8Vd0oGOsiRcGMGoBFlUD6qtYawRUoQdKH9ysxesZ9juFElt1Jw/7A=="
       },
-      "dotnetatlas.avro.universalserdes": {
+      "platform.avro.universalserdes": {
         "type": "Project",
         "dependencies": {
           "Confluent.SchemaRegistry": "[2.13.0, )",
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )"
         }
       },
-      "dotnetatlas.kafkaflow.deadletter": {
+      "platform.kafkaflow.deadletter": {
         "type": "Project",
         "dependencies": {
           "KafkaFlow": "[4.0.1, )",
           "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )"
         }
       },
-      "dotnetatlas.kafkaflow.inbox.efcore": {
+      "platform.kafkaflow.inbox.efcore": {
         "type": "Project",
         "dependencies": {
-          "DotNetAtlas.Messaging.Abstractions": "[1.0.0, )",
-          "DotNetAtlas.ReliableMessaging.Inbox.EFCore": "[1.0.0, )",
           "EntityFrameworkCore.Exceptions.Common": "[8.1.3, )",
           "KafkaFlow": "[4.0.1, )",
-          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )"
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
+          "Platform.Messaging.Abstractions": "[1.0.0, )",
+          "Platform.ReliableMessaging.Inbox.Core": "[1.0.0, )",
+          "Platform.ReliableMessaging.Inbox.EFCore": "[1.0.0, )"
         }
       },
-      "dotnetatlas.kafkaflow.producerheaders": {
+      "platform.kafkaflow.producerheaders": {
         "type": "Project",
         "dependencies": {
-          "DotNetAtlas.Messaging.Abstractions": "[1.0.0, )",
           "KafkaFlow": "[4.0.1, )",
-          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )"
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
+          "Platform.Messaging.Abstractions": "[1.0.0, )"
         }
       },
-      "dotnetatlas.messaging.abstractions": {
+      "platform.messaging.abstractions": {
         "type": "Project"
       },
-      "dotnetatlas.reliablemessaging.inbox.core": {
+      "platform.reliablemessaging.inbox.core": {
         "type": "Project"
       },
-      "dotnetatlas.reliablemessaging.inbox.efcore": {
+      "platform.reliablemessaging.inbox.efcore": {
         "type": "Project",
         "dependencies": {
-          "DotNetAtlas.ReliableMessaging.Inbox.Core": "[1.0.0, )",
           "EntityFrameworkCore.Exceptions.Common": "[8.1.3, )",
           "Microsoft.EntityFrameworkCore": "[10.0.0, )",
-          "Microsoft.EntityFrameworkCore.Relational": "[10.0.0, )"
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.0, )",
+          "Platform.ReliableMessaging.Inbox.Core": "[1.0.0, )"
         }
       },
-      "dotnetatlas.reliablemessaging.outbox.core": {
+      "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
           "OpenTelemetry.Api": "[1.12.0, )"
         }
       },
-      "dotnetatlas.reliablemessaging.outbox.efcore": {
+      "platform.reliablemessaging.outbox.efcore": {
         "type": "Project",
         "dependencies": {
           "Apache.Avro": "[1.12.1, )",
           "Confluent.Kafka": "[2.13.0, )",
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )",
-          "DotNetAtlas.Avro.UniversalSerDes": "[1.0.0, )",
-          "DotNetAtlas.Messaging.Abstractions": "[1.0.0, )",
-          "DotNetAtlas.ReliableMessaging.Outbox.Core": "[1.0.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.0, )",
-          "Microsoft.EntityFrameworkCore.Relational": "[10.0.0, )"
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.0, )",
+          "Platform.Avro.UniversalSerDes": "[1.0.0, )",
+          "Platform.Messaging.Abstractions": "[1.0.0, )",
+          "Platform.ReliableMessaging.Outbox.Core": "[1.0.0, )"
         }
       },
-      "dotnetatlas.schemaregistry.contracts": {
+      "platform.schemaregistry.contracts": {
         "type": "Project",
         "dependencies": {
           "Apache.Avro": "[1.12.1, )"
         }
       },
-      "dotnetatlas.servicedefaults": {
+      "platform.servicedefaults": {
         "type": "Project",
         "dependencies": {
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",

@@ -49,13 +49,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.Core\DotNetAtlas.ReliableMessaging.Inbox.Core.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ReliableMessaging.Inbox.EFCore\DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.KafkaFlow.DeadLetter\DotNetAtlas.KafkaFlow.DeadLetter.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.KafkaFlow.Inbox.EFCore\DotNetAtlas.KafkaFlow.Inbox.EFCore.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.KafkaFlow.ProducerHeaders\DotNetAtlas.KafkaFlow.ProducerHeaders.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.ServiceDefaults\DotNetAtlas.ServiceDefaults.csproj"/>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.SchemaRegistry.Contracts\DotNetAtlas.SchemaRegistry.Contracts.csproj"/>
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Inbox.Core\Platform.ReliableMessaging.Inbox.Core.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Inbox.EFCore\Platform.ReliableMessaging.Inbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.DeadLetter\Platform.KafkaFlow.DeadLetter.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.Inbox.EFCore\Platform.KafkaFlow.Inbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.ProducerHeaders\Platform.KafkaFlow.ProducerHeaders.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

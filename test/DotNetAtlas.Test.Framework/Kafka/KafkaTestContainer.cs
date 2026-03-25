@@ -3,9 +3,9 @@ using Confluent.Kafka.Admin;
 using Confluent.SchemaRegistry;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
-using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using DotNetAtlas.Test.Framework.Common;
 using Testcontainers.Kafka;
+using Weather.Infrastructure.Messaging.Kafka.Config;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 

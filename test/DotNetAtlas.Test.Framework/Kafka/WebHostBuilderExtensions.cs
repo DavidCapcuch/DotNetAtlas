@@ -1,5 +1,5 @@
-using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
 using Microsoft.AspNetCore.Hosting;
+using Weather.Infrastructure.Messaging.Kafka.Config;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 

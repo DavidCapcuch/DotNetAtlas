@@ -1,5 +1,6 @@
 using FastEndpoints.ClientGen.Kiota;
 using Kiota.Builder;
+using Microsoft.AspNetCore.Http.Features;
 using Ordering.API.Common.Config;
 using Ordering.API.Common.Exceptions;
 
@@ -18,7 +19,19 @@ public static class ApiDependencyInjection
             services.AddRazorPages();
 
             services
-                .AddProblemDetails()
+                .AddProblemDetails(options =>
+                {
+                    options.CustomizeProblemDetails = context =>
+                    {
+                        context.ProblemDetails.Instance =
+                            $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}";
+
+                        context.ProblemDetails.Extensions.TryAdd("requestId", context.HttpContext.TraceIdentifier);
+
+                        var activity = context.HttpContext.Features.Get<IHttpActivityFeature>()?.Activity;
+                        context.ProblemDetails.Extensions.TryAdd("traceId", activity?.Id);
+                    };
+                })
                 .AddExceptionHandler<GlobalExceptionHandler>();
 
             return services;

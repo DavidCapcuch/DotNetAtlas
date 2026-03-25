@@ -27,7 +27,7 @@ namespace Payments.Persistence.Database.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("DotNetAtlas.ReliableMessaging.Inbox.Core.InboxMessage", b =>
+            modelBuilder.Entity("Platform.ReliableMessaging.Inbox.Core.InboxMessage", b =>
                 {
                     b.Property<Guid>("MessageId")
                         .HasColumnType("uniqueidentifier")
@@ -48,7 +48,7 @@ namespace Payments.Persistence.Database.Migrations
                         });
                 });
 
-            modelBuilder.Entity("DotNetAtlas.ReliableMessaging.Outbox.Core.OutboxMessage", b =>
+            modelBuilder.Entity("Platform.ReliableMessaging.Outbox.Core.OutboxMessage", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()

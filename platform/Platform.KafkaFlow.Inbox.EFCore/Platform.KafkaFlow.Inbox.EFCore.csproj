@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="EntityFrameworkCore.Exceptions.Common" />
+        <PackageReference Include="KafkaFlow"/>
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj" />
+        <ProjectReference Include="..\Platform.ReliableMessaging.Inbox.Core\Platform.ReliableMessaging.Inbox.Core.csproj" />
+        <ProjectReference Include="..\Platform.ReliableMessaging.Inbox.EFCore\Platform.ReliableMessaging.Inbox.EFCore.csproj" />
+    </ItemGroup>
+</Project>

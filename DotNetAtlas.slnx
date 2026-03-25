@@ -40,28 +40,28 @@
   </Folder>
   <Folder Name="/platform/">
     <File Path="platform/Directory.Packages.props" />
-    <Project Path="platform/DotNetAtlas.Avro.UniversalSerDes/DotNetAtlas.Avro.UniversalSerDes.csproj" />
-    <Project Path="platform/DotNetAtlas.CQS/DotNetAtlas.CQS.csproj" />
-    <Project Path="platform/DotNetAtlas.KafkaFlow.DeadLetter/DotNetAtlas.KafkaFlow.DeadLetter.csproj" />
-    <Project Path="platform/DotNetAtlas.KafkaFlow.Inbox.EFCore/DotNetAtlas.KafkaFlow.Inbox.EFCore.csproj" />
-    <Project Path="platform/DotNetAtlas.KafkaFlow.ProducerHeaders/DotNetAtlas.KafkaFlow.ProducerHeaders.csproj" />
-    <Project Path="platform/DotNetAtlas.Messaging.Abstractions/DotNetAtlas.Messaging.Abstractions.csproj" />
-    <Project Path="platform/DotNetAtlas.OutboxRelay.Benchmark/DotNetAtlas.OutboxRelay.Benchmark.csproj" />
-    <Project Path="platform/DotNetAtlas.OutboxRelay.WorkerService/DotNetAtlas.OutboxRelay.WorkerService.csproj" />
-    <Project Path="platform/DotNetAtlas.ReliableMessaging.Inbox.Core/DotNetAtlas.ReliableMessaging.Inbox.Core.csproj" />
-    <Project Path="platform/DotNetAtlas.ReliableMessaging.Inbox.EFCore/DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj" />
-    <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.Core/DotNetAtlas.ReliableMessaging.Outbox.Core.csproj" />
-    <Project Path="platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
-    <Project Path="platform/DotNetAtlas.SchemaRegistry.Contracts/DotNetAtlas.SchemaRegistry.Contracts.csproj" />
-    <Project Path="platform/DotNetAtlas.ServiceDefaults/DotNetAtlas.ServiceDefaults.csproj" />
-    <Project Path="platform/DotNetAtlas.SharedKernel/DotNetAtlas.SharedKernel.csproj" />
+    <Project Path="platform/Platform.Avro.UniversalSerDes/Platform.Avro.UniversalSerDes.csproj" />
+    <Project Path="platform/Platform.CQS/Platform.CQS.csproj" />
+    <Project Path="platform/Platform.KafkaFlow.DeadLetter/Platform.KafkaFlow.DeadLetter.csproj" />
+    <Project Path="platform/Platform.KafkaFlow.Inbox.EFCore/Platform.KafkaFlow.Inbox.EFCore.csproj" />
+    <Project Path="platform/Platform.KafkaFlow.ProducerHeaders/Platform.KafkaFlow.ProducerHeaders.csproj" />
+    <Project Path="platform/Platform.Messaging.Abstractions/Platform.Messaging.Abstractions.csproj" />
+    <Project Path="platform/Platform.OutboxRelay.Benchmark/Platform.OutboxRelay.Benchmark.csproj" />
+    <Project Path="platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj" />
+    <Project Path="platform/Platform.ReliableMessaging.Inbox.Core/Platform.ReliableMessaging.Inbox.Core.csproj" />
+    <Project Path="platform/Platform.ReliableMessaging.Inbox.EFCore/Platform.ReliableMessaging.Inbox.EFCore.csproj" />
+    <Project Path="platform/Platform.ReliableMessaging.Outbox.Core/Platform.ReliableMessaging.Outbox.Core.csproj" />
+    <Project Path="platform/Platform.ReliableMessaging.Outbox.EFCore/Platform.ReliableMessaging.Outbox.EFCore.csproj" />
+    <Project Path="platform/Platform.SchemaRegistry.Contracts/Platform.SchemaRegistry.Contracts.csproj" />
+    <Project Path="platform/Platform.ServiceDefaults/Platform.ServiceDefaults.csproj" />
+    <Project Path="platform/Platform.SharedKernel/Platform.SharedKernel.csproj" />
   </Folder>
   <Folder Name="/saga/">
     <File Path="saga/Directory.Build.props" />
     <File Path="saga/Directory.Packages.props" />
-    <Project Path="saga/DotNetAtlas.Sagas.IntegrationTests/DotNetAtlas.Sagas.IntegrationTests.csproj" />
-    <Project Path="saga/DotNetAtlas.Sagas.UnitTests/DotNetAtlas.Sagas.UnitTests.csproj" />
-    <Project Path="saga/DotNetAtlas.Sagas/DotNetAtlas.Sagas.csproj" />
+    <Project Path="saga/SagaOrchestrators.IntegrationTests/SagaOrchestrators.IntegrationTests.csproj" />
+    <Project Path="saga/SagaOrchestrators.UnitTests/SagaOrchestrators.UnitTests.csproj" />
+    <Project Path="saga/SagaOrchestrators/SagaOrchestrators.csproj" />
   </Folder>
   <Folder Name="/services/">
     <File Path="services/Directory.Packages.props" />
@@ -94,17 +94,17 @@
     <File Path="Dockerfile" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/DotNetAtlas.Api/DotNetAtlas.Api.csproj" />
-    <Project Path="src/DotNetAtlas.Application/DotNetAtlas.Application.csproj" />
-    <Project Path="src/DotNetAtlas.Domain/DotNetAtlas.Domain.csproj" />
-    <Project Path="src/DotNetAtlas.Infrastructure/DotNetAtlas.Infrastructure.csproj" />
+    <Project Path="src/Weather.Api/Weather.Api.csproj" />
+    <Project Path="src/Weather.Application/Weather.Application.csproj" />
+    <Project Path="src/Weather.Domain/Weather.Domain.csproj" />
+    <Project Path="src/Weather.Infrastructure/Weather.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/DotNetAtlas.ArchitectureTests/DotNetAtlas.ArchitectureTests.csproj" />
-    <Project Path="test/DotNetAtlas.FunctionalTests/DotNetAtlas.FunctionalTests.csproj" />
-    <Project Path="test/DotNetAtlas.IntegrationTests/DotNetAtlas.IntegrationTests.csproj" />
     <Project Path="test/DotNetAtlas.Test.Framework/DotNetAtlas.Test.Framework.csproj" />
-    <Project Path="test/DotNetAtlas.UnitTests/DotNetAtlas.UnitTests.csproj" />
+    <Project Path="test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj" />
+    <Project Path="test/Weather.FunctionalTests/Weather.FunctionalTests.csproj" />
+    <Project Path="test/Weather.IntegrationTests/Weather.IntegrationTests.csproj" />
+    <Project Path="test/Weather.UnitTests/Weather.UnitTests.csproj" />
   </Folder>
   <Folder Name="/test/Common/">
     <File Path="test/coverlet.runsettings" />

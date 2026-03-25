@@ -1,12 +1,12 @@
-using DotNetAtlas.ReliableMessaging.Inbox.Core;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore.Common;
-using DotNetAtlas.ReliableMessaging.Outbox.Core;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
-using DotNetAtlas.SharedKernel.Base;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Common.Data;
 using Ordering.Domain.AlertSubscriptionOrders;
+using Platform.ReliableMessaging.Inbox.Core;
+using Platform.ReliableMessaging.Inbox.EFCore;
+using Platform.ReliableMessaging.Inbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.Core;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.SharedKernel.Base;
 using SmartEnum.EFCore;
 
 namespace Ordering.Infrastructure.Common.Persistence.Database;

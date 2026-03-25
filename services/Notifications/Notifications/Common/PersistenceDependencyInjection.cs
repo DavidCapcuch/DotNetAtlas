@@ -54,7 +54,7 @@ public static class PersistenceDependencyInjection
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
-            .UseExceptionProcessor()); // required for the Inbox pattern, see DotNetAtlas.ReliableMessaging.Inbox.EFCore
+            .UseExceptionProcessor()); // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
 
         services.AddScoped<INotificationDbContext>(sp => sp.GetRequiredService<NotificationDbContext>());
 

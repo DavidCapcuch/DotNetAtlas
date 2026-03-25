@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <PackageReference Include="Ardalis.SmartEnum"/>
+        <PackageReference Include="Ardalis.Specification.EntityFrameworkCore"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
+    </ItemGroup>
+
+    <!-- Allow Infrastructure and UnitTests to access internal members (e.g., CanonicalValue for EF Core mapping) -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="Weather.Infrastructure"/>
+        <InternalsVisibleTo Include="Weather.UnitTests"/>
+    </ItemGroup>
+</Project>

@@ -1,8 +1,3 @@
-using DotNetAtlas.KafkaFlow.DeadLetter.Common;
-using DotNetAtlas.KafkaFlow.Inbox.EFCore.Common;
-using DotNetAtlas.KafkaFlow.ProducerHeaders;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore.Common;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
@@ -12,6 +7,11 @@ using Notifications.Common.Config;
 using Notifications.Common.Observability;
 using Notifications.Common.Persistence.Database;
 using Notifications.Notifications.AuthorizePayment;
+using Platform.KafkaFlow.DeadLetter.Common;
+using Platform.KafkaFlow.Inbox.EFCore.Common;
+using Platform.KafkaFlow.ProducerHeaders;
+using Platform.ReliableMessaging.Inbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using Weather.Alerts;
 
 namespace Notifications.Common;

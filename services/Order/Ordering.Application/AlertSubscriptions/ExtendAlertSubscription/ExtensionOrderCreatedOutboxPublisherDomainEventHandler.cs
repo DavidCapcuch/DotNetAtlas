@@ -1,10 +1,10 @@
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.SharedKernel.Base.DomainEvents;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ordering.Application.Common.Data;
 using Ordering.Application.Common.Messaging;
 using Ordering.Domain.AlertSubscriptionOrders.Events;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
 
@@ -30,17 +30,16 @@ public class ExtensionOrderCreatedOutboxPublisherDomainEventHandler
         _topicsOptions = topicsOptions.Value;
     }
 
-    public async Task Handle(AlertSubscriptionExtensionOrderCreatedDomainEvent domainEvent, CancellationToken ct)
+    public Task Handle(AlertSubscriptionExtensionOrderCreatedDomainEvent domainEvent, CancellationToken ct)
     {
         var integrationEvent = domainEvent.ToExtensionInitiatedEvent();
 
         _transactionalOutbox.AddOutboxMessage(
             _topicsOptions.OrderAlertSubscriptions, domainEvent.AlertSubscriptionOrderId.ToString(), integrationEvent);
 
-        await _transactionalOutbox.SaveChangesAsync(ct);
-
         _logger.LogDebug(
             "Added AlertSubscriptionExtensionInitiatedEvent to outbox for AlertSubscriptionOrderId: {OrderId}",
             domainEvent.AlertSubscriptionOrderId);
+        return Task.CompletedTask;
     }
 }

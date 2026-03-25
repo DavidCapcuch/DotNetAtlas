@@ -4,9 +4,9 @@ using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
-using DotNetAtlas.Avro.UniversalSerDes;
-using DotNetAtlas.Infrastructure.Messaging.Kafka.Config;
-using DotNetAtlas.Messaging.Abstractions;
+using Platform.Avro.UniversalSerDes;
+using Platform.Messaging.Abstractions;
+using Weather.Infrastructure.Messaging.Kafka.Config;
 
 namespace DotNetAtlas.Test.Framework.Kafka;
 

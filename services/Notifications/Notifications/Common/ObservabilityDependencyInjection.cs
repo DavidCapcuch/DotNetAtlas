@@ -30,9 +30,11 @@ public static class ObservabilityDependencyInjection
         var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(oltpExporterEndpoint))
         {
+            var serviceName = configuration["OTEL_SERVICE_NAME"] ?? ApplicationInfo.AppName;
+
             var otel = services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource
-                    .AddService(serviceName: ApplicationInfo.AppName, serviceVersion: ApplicationInfo.Version)
+                    .AddService(serviceName: serviceName, serviceVersion: ApplicationInfo.Version)
                     .AddContainerDetector()
                     .AddHostDetector())
                 .WithTracing(tracing =>

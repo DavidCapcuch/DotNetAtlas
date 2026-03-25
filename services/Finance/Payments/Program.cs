@@ -1,7 +1,7 @@
-using DotNetAtlas.ServiceDefaults;
 using KafkaFlow;
 using Payments.Common;
 using Payments.Common.Observability;
+using Platform.ServiceDefaults;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -13,8 +13,10 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? ApplicationInfo.AppName;
+
     builder.AddPlatformHostConfiguration();
-    builder.UsePlatformSerilog(options => options.ServiceName = ApplicationInfo.AppName);
+    builder.UsePlatformSerilog(options => options.ServiceName = serviceName);
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 

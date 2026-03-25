@@ -1,7 +1,7 @@
-using DotNetAtlas.CQS.Common;
-using DotNetAtlas.SharedKernel.Common;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.CQS.Common;
+using Platform.SharedKernel.Common;
 
 namespace Ordering.Application.Common;
 

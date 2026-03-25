@@ -1,9 +1,9 @@
 using Avro;
-using DotNetAtlas.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Order.AlertSubscriptions;
 using Ordering.Domain;
 using Ordering.Domain.AlertSubscriptionOrders;
 using Ordering.Domain.AlertSubscriptionOrders.Events;
+using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Riok.Mapperly.Abstractions;
 
 namespace Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;

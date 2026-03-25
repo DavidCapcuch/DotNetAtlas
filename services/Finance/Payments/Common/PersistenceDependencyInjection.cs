@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Payments.Common.Config;
 using Payments.Common.Persistence.Database;
-using Payments.Persistence.Database;
 
 namespace Payments.Common;
 
@@ -55,7 +54,7 @@ public static class PersistenceDependencyInjection
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
-            .UseExceptionProcessor()); // required for the Inbox pattern, see DotNetAtlas.ReliableMessaging.Inbox.EFCore
+            .UseExceptionProcessor()); // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
 
         services.AddScoped<IPaymentDbContext>(sp => sp.GetRequiredService<PaymentDbContext>());
 

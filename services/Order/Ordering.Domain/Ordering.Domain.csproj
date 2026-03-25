@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\platform\DotNetAtlas.SharedKernel\DotNetAtlas.SharedKernel.csproj"/>
+        <ProjectReference Include="..\..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
     </ItemGroup>
     
 </Project>

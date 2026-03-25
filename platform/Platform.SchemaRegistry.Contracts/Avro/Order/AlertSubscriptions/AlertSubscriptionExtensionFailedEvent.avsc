@@ -1,0 +1,47 @@
+{
+    "type": "record",
+    "name": "AlertSubscriptionExtensionFailedEvent",
+    "namespace": "Order.AlertSubscriptions",
+    "doc": "Event emitted by the Extension Saga when the subscription extension workflow fails. Consumed by Order service to update order status.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID matching the AlertSubscriptionOrderId."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose subscription extension failed."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Error code identifying the failure reason."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable error message."
+        },
+        {
+            "name": "CompensationTriggered",
+            "type": "boolean",
+            "doc": "Whether a compensation (refund) was triggered for this failure."
+        },
+        {
+            "name": "FailedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the extension workflow failed."
+        }
+    ]
+}
