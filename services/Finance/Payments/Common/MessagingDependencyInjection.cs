@@ -2,8 +2,8 @@ using Finance.Payments;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Payments.Common.Config.Kafka;
 using Payments.Common.Observability;
 using Payments.Common.Persistence.Database;
@@ -85,7 +85,7 @@ internal static class MessagingDependencyInjection
                         .AddDeadLetter()
                         .RetryForever(config => config
                             .Handle<DbUpdateException>()
-                            .Handle<SqlException>()
+                            .Handle<NpgsqlException>()
                             .Handle<TimeoutException>()
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),

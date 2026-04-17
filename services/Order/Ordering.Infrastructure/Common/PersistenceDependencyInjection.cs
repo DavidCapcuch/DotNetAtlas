@@ -65,6 +65,7 @@ public static class PersistenceDependencyInjection
                         maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
                         errorCodesToAdd: null);
                 })
+            .UseSnakeCaseNamingConvention()
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)

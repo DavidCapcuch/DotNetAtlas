@@ -15,7 +15,7 @@ using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga.Consumers;
 using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga;
 using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga.Consumers;
 using SagaOrchestrators.Persistence.Database.Interceptors;
-using Database_SagaDbContext = SagaOrchestrators.Persistence.Database.SagaDbContext;
+using SagaDbContext = SagaOrchestrators.Persistence.Database.SagaDbContext;
 
 namespace SagaOrchestrators.Common;
 
@@ -73,7 +73,7 @@ public static class SagaDependencyInjection
                     options.ConnectionString = connectionStringsOptions.Saga;
                 });
 
-            services.AddSqlServerMigrationHostedService();
+            services.AddPostgresMigrationHostedService();
 
             services.AddMassTransit(cfg =>
             {
@@ -83,8 +83,8 @@ public static class SagaDependencyInjection
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<Database_SagaDbContext>();
-                        r.LockStatementProvider = new SqlServerLockStatementProvider();
+                        r.ExistingDbContext<SagaDbContext>();
+                        r.UsePostgres();
                     })
                     .Endpoint(e =>
                     {
@@ -96,8 +96,8 @@ public static class SagaDependencyInjection
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<Database_SagaDbContext>();
-                        r.LockStatementProvider = new SqlServerLockStatementProvider();
+                        r.ExistingDbContext<SagaDbContext>();
+                        r.UsePostgres();
                     })
                     .Endpoint(e =>
                     {
@@ -109,8 +109,8 @@ public static class SagaDependencyInjection
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<Database_SagaDbContext>();
-                        r.LockStatementProvider = new SqlServerLockStatementProvider();
+                        r.ExistingDbContext<SagaDbContext>();
+                        r.UsePostgres();
                     })
                     .Endpoint(e =>
                     {
@@ -120,7 +120,7 @@ public static class SagaDependencyInjection
 
                 cfg.AddSagaKafkaRider(sagaKafkaOptions);
 
-                cfg.UsingSqlServer((context, busCfg) =>
+                cfg.UsingPostgres((context, busCfg) =>
                 {
                     busCfg.UseSqlMessageScheduler();
 
@@ -170,20 +170,21 @@ public static class SagaDependencyInjection
             });
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
-            services.AddDbContext<Database_SagaDbContext>((
+            services.AddDbContext<SagaDbContext>((
                 sp,
                 options) => options
-                .UseSqlServer(
+                .UseNpgsql(
                     configuration.GetConnectionString(nameof(ConnectionStringsOptions.Saga)),
-                    sqlServerOptions =>
+                    npgsqlOptions =>
                     {
-                        sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
-                            Database_SagaDbContext.DefaultSchemaName);
-                        sqlServerOptions.EnableRetryOnFailure(
+                        npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
+                            SagaDbContext.DefaultSchemaName);
+                        npgsqlOptions.EnableRetryOnFailure(
                             maxRetryCount: efCoreOptions.RetryMaxCount,
                             maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
-                            errorNumbersToAdd: null);
+                            errorCodesToAdd: null);
                     })
+                .UseSnakeCaseNamingConvention()
                 .EnableSensitiveDataLogging(
                     !isClusterEnvironment) // this is very useful for local debugging/investigating failed tests
                 .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)

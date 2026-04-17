@@ -1,10 +1,10 @@
 using KafkaFlow;
 using KafkaFlow.Configuration;
-using Npgsql;
 using KafkaFlow.Retry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Order.AlertSubscriptions;
 using Ordering.Application.Common.Messaging;
 using Ordering.Application.Common.Observability;

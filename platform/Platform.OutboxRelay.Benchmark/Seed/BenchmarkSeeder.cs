@@ -1,12 +1,11 @@
-using System.Data;
 using System.Diagnostics;
 using Bogus;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using OpenTelemetry;
 using Platform.Avro.UniversalSerDes;
 using Platform.OutboxRelay.WorkerService.OutboxRelay;
@@ -18,7 +17,7 @@ namespace Platform.OutboxRelay.Benchmark.Seed;
 
 /// <summary>
 /// Seeds the outbox table with ForecastRequestedEvent messages using Bogus faker,
-/// parallel Avro serialization, and SqlBulkCopy for high-performance bulk insertion.
+/// parallel Avro serialization, and Npgsql binary COPY for high-performance bulk insertion.
 /// </summary>
 public class BenchmarkSeeder
 {
@@ -40,7 +39,7 @@ public class BenchmarkSeeder
 
     /// <summary>
     /// Seeds the specified number of ForecastRequestedEvent messages into the outbox table.
-    /// Uses Bogus for generation, serialization, and SqlBulkCopy for high-performance insertion.
+    /// Uses Bogus for generation, serialization, and Npgsql binary COPY for high-performance insertion.
     /// </summary>
     public async Task SeedAsync(
         int messageCountToSeed,
@@ -116,52 +115,36 @@ public class BenchmarkSeeder
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         var count = outboxMessages.Count;
-        Log.Information("Starting SqlBulkCopy of {Count:N0} messages...", count);
+        Log.Information("Starting Npgsql COPY of {Count:N0} messages...", count);
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(ct);
-        await using var connection = new SqlConnection(dbContext.Database.GetConnectionString());
+        await using var connection = new NpgsqlConnection(dbContext.Database.GetConnectionString());
         await connection.OpenAsync(ct);
-
-        // Since we seed 1000s of messages, SqlBulkCopy is preferred over EF Core methods since it's
-        // at least 10x faster https://timdeschryver.dev/blog/faster-sql-bulk-inserts-with-csharp
-        using var dataTable = new DataTable();
-
-        dataTable.Columns.Add(nameof(OutboxMessage.KafkaKey), typeof(string));
-        dataTable.Columns.Add(nameof(OutboxMessage.AvroPayload), typeof(byte[]));
-        dataTable.Columns.Add(nameof(OutboxMessage.Type), typeof(string));
-        dataTable.Columns.Add(nameof(OutboxMessage.Headers), typeof(string));
-        dataTable.Columns.Add(nameof(OutboxMessage.CreatedUtc), typeof(DateTimeOffset));
-
-        foreach (var message in outboxMessages)
-        {
-            dataTable.Rows.Add(
-                message.KafkaKey,
-                message.AvroPayload,
-                message.Type,
-                message.Headers,
-                message.CreatedUtc
-            );
-        }
 
         var tableMetadata = dbContext.OutboxMessages.EntityType;
         var tableName = tableMetadata.GetTableName();
         var schema = tableMetadata.GetSchema();
         var fullTableName = $"{schema}.{tableName}";
 
-        using var bulkCopy = new SqlBulkCopy(connection);
-        bulkCopy.DestinationTableName = fullTableName;
-        bulkCopy.BulkCopyTimeout = 0;
-        bulkCopy.BatchSize = 10000;
-        bulkCopy.ColumnMappings.Add(nameof(OutboxMessage.KafkaKey), nameof(OutboxMessage.KafkaKey));
-        bulkCopy.ColumnMappings.Add(nameof(OutboxMessage.AvroPayload), nameof(OutboxMessage.AvroPayload));
-        bulkCopy.ColumnMappings.Add(nameof(OutboxMessage.Type), nameof(OutboxMessage.Type));
-        bulkCopy.ColumnMappings.Add(nameof(OutboxMessage.Headers), nameof(OutboxMessage.Headers));
-        bulkCopy.ColumnMappings.Add(nameof(OutboxMessage.CreatedUtc), nameof(OutboxMessage.CreatedUtc));
+        await using var writer = await connection.BeginBinaryImportAsync(
+            $"COPY \"{fullTableName}\" (\"{nameof(OutboxMessage.KafkaKey)}\", \"{nameof(OutboxMessage.AvroPayload)}\", " +
+            $"\"{nameof(OutboxMessage.Type)}\", \"{nameof(OutboxMessage.Headers)}\", \"{nameof(OutboxMessage.CreatedUtc)}\") " +
+            "FROM STDIN (FORMAT BINARY)", ct);
 
-        await bulkCopy.WriteToServerAsync(dataTable, ct);
+        foreach (var message in outboxMessages)
+        {
+            await writer.StartRowAsync(ct);
+            await writer.WriteAsync(message.KafkaKey, ct);
+            await writer.WriteAsync(message.AvroPayload, ct);
+            await writer.WriteAsync(message.Type, ct);
+            await writer.WriteAsync(message.Headers ?? (object)DBNull.Value, ct);
+            await writer.WriteAsync(message.CreatedUtc, ct);
+        }
+
+        await writer.CompleteAsync(ct);
 
         var elapsedSeconds = Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds;
-        Log.Information("SqlBulkCopy completed in {Seconds:F2}s ({Rate:N0} msg/s)",
+        Log.Information("Npgsql COPY completed in {Seconds:F2}s ({Rate:N0} msg/s)",
             elapsedSeconds, count / elapsedSeconds);
     }
 }

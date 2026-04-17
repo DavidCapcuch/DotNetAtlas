@@ -28,7 +28,7 @@ public class
         builder.Property(s => s.LastModifiedUtc)
             .HasComment("Last modification timestamp (UTC).");
 
-        builder.Property(s => s.Timestamp)
+        builder.Property(s => s.RowVersion)
             .IsRowVersion()
             .HasComment("Optimistic concurrency token.");
     }

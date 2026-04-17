@@ -125,7 +125,7 @@ public static class HealthChecksDependencyInjection
                 settings.AddHealthCheckEndpoint("Readiness", ServiceDefaultHealthCheckTags.ReadinessEndpointPath);
                 settings.SetNotifyUnHealthyOneTimeUntilChange();
             })
-            .AddSqlServerStorage(configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather))!);
+            .AddPostgreSqlStorage(configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather))!);
 
         return services;
     }

@@ -4,10 +4,10 @@ using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
 using MessagePack;
 using MessagePack.Resolvers;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
@@ -116,7 +116,7 @@ internal static class MessagingDependencyInjection
                         .AddDeadLetter()
                         .RetryForever(config => config
                             .Handle<DbUpdateException>()
-                            .Handle<SqlException>()
+                            .Handle<NpgsqlException>()
                             .Handle<TimeoutException>()
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
@@ -193,7 +193,7 @@ internal static class MessagingDependencyInjection
             .AddStackExchangeRedis(options =>
             {
                 options.ConnectionFactory = _ => Task.FromResult(redisMultiplexer);
-                options.Configuration.ChannelPrefix = RedisChannel.Literal("signalr.dotnetatlas");
+                options.Configuration.ChannelPrefix = RedisChannel.Literal("signalr.weather");
             });
 
         return services;

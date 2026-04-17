@@ -1,32 +1,32 @@
 services:
-  mssqldb:
-    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04@sha256:c1aa8afe9b06eab64c9774a4802dcd032205d1be785b1fd51e1c0151e7586b74
-    container_name: mssql12345
+  postgresdb:
+    image: postgres:18.3
+    container_name: postgres5433
     restart: always
     profiles:
       - core
       - full
     environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      - "12345:1433"
+      - "5433:5432"
     volumes:
-      - sqlserver_data:/var/opt/mssql
+      - postgres_data:/var/lib/postgresql/data
     deploy:
       resources:
         limits:
-          memory: 2G
-          cpus: '2'
-        reservations:
           memory: 1G
           cpus: '1'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
     healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -Q "SELECT 1" || exit 1
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 30s
 
   redis:
     image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
@@ -299,20 +299,20 @@ services:
   outbox-relay:
     build:
       context: .
-      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
     container_name: outbox-relay
     restart: unless-stopped
     profiles:
       - full
     depends_on:
-      mssqldb:
+      postgresdb:
         condition: service_healthy
       kafka:
         condition: service_healthy
       schema-registry:
         condition: service_healthy
     environment:
-      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Weather;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-worker
       - KafkaProducer__LingerMs=5
@@ -332,20 +332,20 @@ services:
   outbox-relay-saga:
     build:
       context: .
-      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
     container_name: outbox-relay-saga
     restart: unless-stopped
     profiles:
       - full
     depends_on:
-      mssqldb:
+      postgresdb:
         condition: service_healthy
       kafka:
         condition: service_healthy
       schema-registry:
         condition: service_healthy
     environment:
-      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Weather;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-saga-worker
       - KafkaProducer__LingerMs=5
@@ -366,20 +366,20 @@ services:
   outbox-relay-ordering:
     build:
       context: .
-      dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
     container_name: outbox-relay-ordering
     restart: unless-stopped
     profiles:
       - full
     depends_on:
-      mssqldb:
+      postgresdb:
         condition: service_healthy
       kafka:
         condition: service_healthy
       schema-registry:
         condition: service_healthy
     environment:
-      - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Ordering;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true;
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-ordering-worker
       - KafkaProducer__LingerMs=5
@@ -513,7 +513,7 @@ networks:
     driver: bridge
 
 volumes:
-  sqlserver_data:
+  postgres_data:
   elasticsearch-data:
   seq_data:
   redis-insight:

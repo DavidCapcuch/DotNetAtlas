@@ -119,7 +119,7 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
     /// <summary>
     /// Optimistic concurrency token.
     /// </summary>
-    public byte[]? RowVersion { get; set; }
+    public uint RowVersion { get; set; }
 
     // Scheduler tokens for MassTransit scheduled messages
     public Guid? AuthorizationTimeoutTokenId { get; set; }

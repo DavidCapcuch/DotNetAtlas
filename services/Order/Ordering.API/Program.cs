@@ -50,7 +50,6 @@ try
 
     app.UseRouting()
         .UseCors(CorsPolicyOptions.DefaultCorsPolicyName)
-        .UseOutputCache()
         .UseRequestContextTelemetry();
 
     app.UseFastEndpointsInternal();
