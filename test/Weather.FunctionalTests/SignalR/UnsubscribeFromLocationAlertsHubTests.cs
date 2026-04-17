@@ -18,7 +18,7 @@ namespace Weather.FunctionalTests.SignalR;
 /// Tests verify the complete end-to-end flow:
 /// Subscribe → Unsubscribe → RecordWeatherReadingCommand → No SignalR notification received.
 /// </summary>
-[Collection<SignalRTestCollection>]
+[Collection<FunctionalTestCollection>]
 public class UnsubscribeFromLocationAlertsHubTests : BaseApiTest
 {
     // Values used in tests that should NOT trigger alerts (within safe ranges)

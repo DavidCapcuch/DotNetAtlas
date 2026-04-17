@@ -8,7 +8,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherFeedback;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class SendFeedbackCommandHandlerTests : BaseIntegrationTest
 {
     private readonly ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackCommandHandler;

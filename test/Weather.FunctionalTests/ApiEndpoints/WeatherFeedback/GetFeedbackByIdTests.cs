@@ -7,7 +7,7 @@ using Weather.FunctionalTests.Common;
 
 namespace Weather.FunctionalTests.ApiEndpoints.WeatherFeedback;
 
-[Collection<FeedbackTestCollection>]
+[Collection<FunctionalTestCollection>]
 public class GetFeedbackByIdTests : BaseApiTest
 {
     public GetFeedbackByIdTests(ApiTestFixture app)

@@ -8,7 +8,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Infrastructure.HttpClients;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class OpenMeteoWeatherProviderIntegrationTests : BaseIntegrationTest
 {
     private readonly OpenMeteoWeatherProvider _openMeteoWeatherProvider;

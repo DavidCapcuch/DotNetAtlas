@@ -10,7 +10,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherAlerts;
 
-[Collection<SignalRTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class UnsubscribeFromLocationAlertsCommandHandlerTests : BaseIntegrationTest
 {
     private readonly ICommandHandler<SubscribeForLocationAlertsCommand> _subscribeForLocationAlertsCommandHandler;

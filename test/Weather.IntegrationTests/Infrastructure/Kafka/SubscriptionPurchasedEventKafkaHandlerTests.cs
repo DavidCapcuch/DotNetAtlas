@@ -18,7 +18,7 @@ using SubscriptionTier = Weather.Alerts.SubscriptionTier;
 
 namespace Weather.IntegrationTests.Infrastructure.Kafka;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private readonly ActivateSubscriptionCommandKafkaHandler _activateSubscriptionCommandKafkaHandler;

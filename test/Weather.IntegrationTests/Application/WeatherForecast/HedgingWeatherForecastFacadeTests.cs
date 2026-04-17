@@ -13,7 +13,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherForecast;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class HedgingWeatherForecastServiceTests : BaseIntegrationTest
 {
     private readonly ILogger<HedgingWeatherForecastService> _logger;

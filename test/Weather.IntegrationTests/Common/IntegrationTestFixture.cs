@@ -27,9 +27,7 @@ using Weather.Infrastructure.Persistence.Database;
 
 namespace Weather.IntegrationTests.Common;
 
-internal sealed class ForecastTestCollection : TestCollection<IntegrationTestFixture>;
-
-internal sealed class SignalRTestCollection : TestCollection<IntegrationTestFixture>;
+internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>

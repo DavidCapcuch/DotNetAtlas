@@ -16,7 +16,7 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Weather.IntegrationTests.Application.WeatherForecast;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class CachedWeatherForecastServiceTests : BaseIntegrationTest
 {
     public CachedWeatherForecastServiceTests(IntegrationTestFixture app)

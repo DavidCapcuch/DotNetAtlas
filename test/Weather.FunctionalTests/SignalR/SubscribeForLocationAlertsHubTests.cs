@@ -17,7 +17,7 @@ namespace Weather.FunctionalTests.SignalR;
 /// Tests verify the complete end-to-end flow:
 /// Subscribe → RecordWeatherReadingCommand → MonitoredLocation aggregate → WeatherAlertIssuedDomainEvent → Handler → SignalR notification.
 /// </summary>
-[Collection<SignalRTestCollection>]
+[Collection<FunctionalTestCollection>]
 public class SubscribeForLocationAlertsHubTests : BaseApiTest
 {
     private const double SafeTemperatureC = 20.0;

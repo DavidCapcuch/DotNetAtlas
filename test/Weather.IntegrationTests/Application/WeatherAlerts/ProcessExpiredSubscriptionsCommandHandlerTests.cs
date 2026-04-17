@@ -11,7 +11,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherAlerts;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class ProcessExpiredSubscriptionsCommandHandlerTests : BaseIntegrationTest
 {
     private const string SendEmailNotificationCommandType = "Notifications.Email.SendEmailNotificationCommand";

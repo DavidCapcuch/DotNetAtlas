@@ -1,7 +1,3 @@
-using DotNetAtlas.Test.Framework;
-using DotNetAtlas.Test.Framework.Database;
-using DotNetAtlas.Test.Framework.Kafka;
-using DotNetAtlas.Test.Framework.Redis;
 using FastEndpoints.Testing;
 using Hangfire;
 using HealthChecks.UI.Core.HostedService;
@@ -11,6 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using OpenTelemetry;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Redis;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -23,21 +23,17 @@ using Weather.Infrastructure.Persistence.Database;
 
 namespace Weather.FunctionalTests.Common;
 
-internal sealed class FeedbackTestCollection : TestCollection<ApiTestFixture>;
-
-internal sealed class ForecastTestCollection : TestCollection<ApiTestFixture>;
-
-internal sealed class SignalRTestCollection : TestCollection<ApiTestFixture>;
+internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
 {
-    private readonly SqlServerTestContainer _dbContainer = new(
+    private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Weather",
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectory,
         new RespawnerOptions
         {
-            SchemasToInclude = [WeatherDbContext.DefaultSchemaName, "HangFire"]
+            SchemasToInclude = [WeatherDbContext.DefaultSchemaName, "hangfire"]
         });
 
     private readonly RedisTestContainer _redisContainer = new();
