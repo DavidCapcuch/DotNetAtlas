@@ -1,4 +1,5 @@
 using Finance.Payments;
+using Microsoft.EntityFrameworkCore;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using SagaOrchestrators.Finance.PaymentProcessingSaga;
 using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
@@ -35,11 +36,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -76,18 +77,18 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             AuthorizationId = authorizationId,
             Amount = 99.99m.ToAvroDecimal(4),
             Currency = "USD",
-            CapturedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, capturedEvent);
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -124,11 +125,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.AwaitingAuthorization, DefaultTimeout);
         await SagaStateMonitor.WaitForStateAsync(correlationId2, state => state.AwaitingAuthorization, DefaultTimeout);
 
-        var state1 = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var state1 = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId1);
 
-        var state2 = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var state2 = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId2);
 
@@ -161,7 +162,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Verify: AwaitingAuthorization state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
-        var stateAfterInitiation = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var stateAfterInitiation = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -184,15 +185,15 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             AuthorizationId = authorizationId,
             Amount = 49.99m.ToAvroDecimal(4),
             Currency = "USD",
-            AuthorizedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime,
-            ExpiresAtUtc = System.TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
+            AuthorizedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
+            ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, authorizedEvent);
 
         // Verify: AwaitingCapture state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
-        var stateAfterAuthorization = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var stateAfterAuthorization = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -213,18 +214,18 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             AuthorizationId = authorizationId,
             Amount = 49.99m.ToAvroDecimal(4),
             Currency = "USD",
-            CapturedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, capturedEvent);
 
         // Verify: PaymentCompleted state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        var stateAfterCapture = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var stateAfterCapture = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -260,7 +261,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
-            RequestedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }
 
@@ -285,7 +286,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             ErrorCode = "CARD_DECLINED",
             ErrorMessage = "Card was declined by issuer",
             IsRetryable = false,
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, authFailedEvent);
@@ -314,7 +315,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Capture failed permanently",
             IsRetryable = false,
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId,
@@ -322,11 +323,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
 
         // Assert
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -360,7 +361,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
-            VoidedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            VoidedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, voidedEvent);
@@ -388,18 +389,18 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
             Reason = "Customer requested refund",
-            RequestedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await Bus.Publish(refundCommand);
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -459,11 +460,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.PaymentProcessingSagaStates
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -548,8 +549,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             AuthorizationId = authorizationId,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            AuthorizedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime,
-            ExpiresAtUtc = System.TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
+            AuthorizedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
+            ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, authorizedEvent);
@@ -574,7 +575,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Capture failed",
             IsRetryable = false,
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId,
@@ -602,7 +603,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             AuthorizationId = authorizationId,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            CapturedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.FinancePayments, userId, capturedEvent);
@@ -626,7 +627,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
             Reason = "Test refund",
-            RequestedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await Bus.Publish(refundCommand);

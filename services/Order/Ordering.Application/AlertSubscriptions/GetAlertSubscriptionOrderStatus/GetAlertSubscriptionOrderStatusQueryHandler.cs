@@ -6,7 +6,7 @@ using Ordering.Application.Common.Data;
 using Ordering.Application.Common.Observability.Tracing;
 using Ordering.Domain.AlertSubscriptionOrders.Errors;
 using Ordering.Domain.AlertSubscriptionOrders.Specifications;
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 

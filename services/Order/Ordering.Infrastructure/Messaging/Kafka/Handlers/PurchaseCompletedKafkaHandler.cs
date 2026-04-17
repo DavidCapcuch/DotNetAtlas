@@ -2,7 +2,7 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Order.AlertSubscriptions;
 using Ordering.Application.AlertSubscriptions.CompleteAlertSubscriptionOrder;
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Ordering.Infrastructure.Messaging.Kafka.Handlers;
 

@@ -1,4 +1,4 @@
-# DotNetAtlas.Messaging.Abstractions
+# Platform.Messaging.Abstractions
 
 Standardized message header key constants for reliable messaging.
 
@@ -28,7 +28,7 @@ A single source of truth for header key constants. All messaging packages refere
 ## Usage
 
 ```csharp
-using DotNetAtlas.Messaging.Abstractions;
+using Platform.Messaging.Abstractions;
 
 // Setting headers
 headers[MessageHeaderKeys.MessageId] = Guid.CreateVersion7().ToString();
@@ -40,5 +40,5 @@ var messageId = headers[MessageHeaderKeys.MessageId];
 
 ## Related Packages
 
-- [DotNetAtlas.ReliableMessaging.Outbox.EFCore](../DotNetAtlas.ReliableMessaging.Outbox.EFCore) - Uses these headers when adding outbox messages
-- [DotNetAtlas.KafkaFlow.Inbox.EFCore](../DotNetAtlas.KafkaFlow.Inbox.EFCore) - Reads MessageId for deduplication
+- [Platform.ReliableMessaging.Outbox.EFCore](../Platform.ReliableMessaging.Outbox.EFCore) - Uses these headers when adding outbox messages
+- [Platform.KafkaFlow.Inbox.EFCore](../Platform.KafkaFlow.Inbox.EFCore) - Reads MessageId for deduplication

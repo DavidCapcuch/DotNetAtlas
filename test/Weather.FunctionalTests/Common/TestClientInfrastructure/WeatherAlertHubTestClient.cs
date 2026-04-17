@@ -103,7 +103,7 @@ public class WeatherAlertHubTestClient : IWeatherAlertClientContract, IAsyncDisp
 
     public async Task ReceiveWeatherAlert(WeatherAlertMessageDto weatherAlertMessageDto)
     {
-        using var activity = DotNetAtlasActivitySource.StartActivity(nameof(ReceiveWeatherAlert));
+        using var activity = WeatherActivitySource.StartActivity(nameof(ReceiveWeatherAlert));
 
         await ReceivedMessages.Writer.WriteAsync(weatherAlertMessageDto, _cancellationToken);
     }

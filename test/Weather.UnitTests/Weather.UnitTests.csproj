@@ -8,7 +8,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Weather.Domain\Weather.Domain.csproj" />
-        <ProjectReference Include="..\..\src\DotNetAtlas.Application\DotNetAtlas.Application.csproj" />
+        <ProjectReference Include="..\..\src\Weather.Application\Weather.Application.csproj" />
         <ProjectReference Include="..\..\src\Weather.Infrastructure\Weather.Infrastructure.csproj" />
         <ProjectReference Include="..\..\platform\Platform.KafkaFlow.Inbox.EFCore\Platform.KafkaFlow.Inbox.EFCore.csproj" />
     </ItemGroup>

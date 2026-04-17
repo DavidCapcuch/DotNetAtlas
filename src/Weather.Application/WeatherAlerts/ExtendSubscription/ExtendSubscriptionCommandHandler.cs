@@ -2,7 +2,7 @@ using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.Common.Data;
 using Weather.Domain.Alerts.Errors;
 using Weather.Domain.Alerts.Specifications;

@@ -63,3 +63,4 @@ riderModule.iml
 /_ReSharper.Caches/
 DotNetAtlas.sln.DotSettings.user
 scripts/*
+*.lscache

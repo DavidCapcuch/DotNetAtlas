@@ -1,4 +1,4 @@
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Domain.Alerts.ValueObjects;
 
 namespace Weather.Application.WeatherAlerts.PurchaseSubscription;

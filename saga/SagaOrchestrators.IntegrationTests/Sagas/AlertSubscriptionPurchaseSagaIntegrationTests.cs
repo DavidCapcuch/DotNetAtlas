@@ -1,4 +1,5 @@
 using Finance.Payments;
+using Microsoft.EntityFrameworkCore;
 using Order.AlertSubscriptions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using SagaOrchestrators.IntegrationTests.Common;
@@ -41,11 +42,11 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var persistedState = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -80,8 +81,8 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             Tier = Weather.Alerts.SubscriptionTier.Ultra,
             DurationDays = 365,
-            ExpiresAtUtc = System.TimeProvider.GetUtcNow().AddDays(365).UtcDateTime,
-            ActivatedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(365).UtcDateTime,
+            ActivatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(
@@ -116,11 +117,11 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.WaitingForPayment, DefaultTimeout);
         await SagaStateMonitor.WaitForStateAsync(correlationId2, state => state.WaitingForPayment, DefaultTimeout);
 
-        var state1 = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var state1 = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId1);
 
-        var state2 = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var state2 = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId2);
 
@@ -151,7 +152,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
 
         // Verify: WaitingForPayment state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.WaitingForPayment, DefaultTimeout);
-        var stateAfterInitiation = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var stateAfterInitiation = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
@@ -176,7 +177,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             Amount = 29.99m.ToAvroDecimal(4),
             Currency = "USD",
-            CompletedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(
@@ -184,11 +185,11 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
 
         // Verify: AwaitingActivation state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingActivation, DefaultTimeout);
-        var stateAfterPayment = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var stateAfterPayment = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessagesAfterPayment = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessagesAfterPayment = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -213,8 +214,8 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             Tier = Weather.Alerts.SubscriptionTier.Pro,
             DurationDays = 30,
-            ExpiresAtUtc = System.TimeProvider.GetUtcNow().AddDays(30).UtcDateTime,
-            ActivatedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(30).UtcDateTime,
+            ActivatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(
@@ -245,7 +246,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             UserId = userId,
             ErrorCode = "PAYMENT_DECLINED",
             ErrorMessage = "Payment was declined",
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(
@@ -274,7 +275,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             ErrorCode = "ACTIVATION_FAILED",
             ErrorMessage = "Failed to activate subscription",
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime,
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
             ShouldCompensate = true
         };
 
@@ -282,11 +283,11 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var persistedState = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -319,7 +320,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             ErrorCode = "ACTIVATION_ALREADY_EXISTS",
             ErrorMessage = "Subscription already activated",
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime,
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
             ShouldCompensate = false
         };
 
@@ -350,7 +351,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             RefundTransactionId = refundTransactionId,
             RefundedAmount = 99.99m.ToAvroDecimal(4),
             Currency = "USD",
-            RefundedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            RefundedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(
@@ -407,11 +408,11 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.CompensationInProgress, DefaultTimeout);
-        var persistedState = await Microsoft.EntityFrameworkCore.DbContext.AlertSubscriptionPurchaseSagaStates
+        var persistedState = await SagaDbContext.AlertSubscriptionPurchaseSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-        var outboxMessages = await Microsoft.EntityFrameworkCore.DbContext.OutboxMessages
+        var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .ToListAsync();
 
@@ -469,7 +470,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             DurationDays = durationDays,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            InitiatedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            InitiatedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
     }
 
@@ -496,7 +497,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
-            CompletedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime
+            CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
         await KafkaTestProducer.ProduceAsync(
@@ -525,7 +526,7 @@ public class AlertSubscriptionPurchaseSagaIntegrationTests : BaseSagaIntegration
             PaymentTransactionId = paymentTransactionId,
             ErrorCode = "ACTIVATION_FAILED",
             ErrorMessage = "Failed to activate subscription",
-            FailedAtUtc = System.TimeProvider.GetUtcNow().UtcDateTime,
+            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
             ShouldCompensate = true
         };
 

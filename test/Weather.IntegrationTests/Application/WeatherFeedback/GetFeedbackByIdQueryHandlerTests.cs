@@ -1,6 +1,6 @@
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Platform.CQS;
+using Platform.CQRS;
 using Platform.SharedKernel.Errors;
 using Weather.Application.WeatherFeedback.GetFeedback;
 using Weather.Infrastructure.Persistence.Database.Seed;

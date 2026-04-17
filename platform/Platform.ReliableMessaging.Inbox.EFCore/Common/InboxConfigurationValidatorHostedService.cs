@@ -26,7 +26,7 @@ namespace Platform.ReliableMessaging.Inbox.EFCore.Common;
 /// <example>
 /// <code>
 /// services.AddDbContext&lt;MyDbContext&gt;(options =&gt;
-///     options.UseSqlServer(connectionString)
+///     options.UseNpgsql(connectionString)
 ///            .UseExceptionProcessor());
 /// </code>
 /// </example>
@@ -98,10 +98,9 @@ internal sealed class InboxConfigurationValidatorHostedService<TContext> : IHost
                 $"The DbContext '{context.GetType().Name}' must be configured with UseExceptionProcessor() " +
                 "from the EntityFramework.Exceptions library. This is required for the inbox middleware to " +
                 "handle concurrent duplicate message inserts gracefully. " +
-                "Install the appropriate package for your database provider (e.g., EntityFrameworkCore.Exceptions.SqlServer " +
-                "for SQL Server, EntityFrameworkCore.Exceptions.PostgreSQL for PostgreSQL). " +
+                "Install the EntityFrameworkCore.Exceptions.PostgreSQL package. " +
                 "Then add '.UseExceptionProcessor()' to your DbContext configuration: " +
-                "services.AddDbContext<MyDbContext>(options => options.UseSqlServer(connectionString).UseExceptionProcessor());");
+                "services.AddDbContext<MyDbContext>(options => options.UseNpgsql(connectionString).UseExceptionProcessor());");
         }
     }
 }

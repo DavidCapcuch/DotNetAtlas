@@ -1,7 +1,7 @@
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.WeatherAlerts.RecordWeatherReading;
 using Weather.Domain.Alerts;
 using Weather.Domain.Alerts.Entities;

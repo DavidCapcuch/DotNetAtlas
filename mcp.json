@@ -4,34 +4,23 @@
       "command": "npx",
       "args": [
         "-y",
-        "@upstash/context7-mcp"
+        "@upstash/context7-mcp@2.1.8"
       ],
       "env": {
-        "DEFAULT_MINIMUM_TOKENS": ""
+        "DEFAULT_MINIMUM_TOKENS": "5000"
       },
       "alwaysAllow": [
         "resolve-library-id",
         "get-library-docs"
       ]
     },
-    "DeepWiki": {
-      "type": "http",
-      "url": "https://mcp.deepwiki.com/mcp"
-    },
-    "Fetch": {
-      "type": "http",
-      "url": "https://remote.mcpservers.org/fetch/mcp"
-    },
-    "GitHub.com": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer ${input:github_mcp_pat}"
-      }
-    },
     "Microsoft Docs": {
+      "type": "sse",
       "url": "https://learn.microsoft.com/api/mcp",
-      "type": "sse"
+      "alwaysAllow": [
+        "microsoft_docs_search",
+        "microsoft_docs_fetch"
+      ]
     },
     "NuGet Server": {
       "type": "stdio",
@@ -40,15 +29,11 @@
         "NuGet.Mcp.Server",
         "--prerelease",
         "--yes"
+      ],
+      "alwaysAllow": [
+        "search_packages",
+        "get_package_details"
       ]
     }
-  },
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "github_mcp_pat",
-      "description": "GitHub Personal Access Token",
-      "password": true
-    }
-  ]
+  }
 }

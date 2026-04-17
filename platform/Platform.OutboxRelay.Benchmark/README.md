@@ -1,7 +1,7 @@
 # OutboxRelay Performance Benchmark
 ## Overview
 
-This benchmark measures the performance of [OutboxMessageRelay](../DotNetAtlas.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs)
+This benchmark measures the performance of [OutboxMessageRelay](../Platform.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs)
 when Publishing pre-seeded Outbox Messages to Kafka using real infrastructure (SQL Server + Kafka). Uses [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) library.
 
 ### Quick Start
@@ -9,23 +9,23 @@ when Publishing pre-seeded Outbox Messages to Kafka using real infrastructure (S
 As with integration tests, real infrastructure is spun up using Docker, make sure it's [installed](https://rancherdesktop.io/) and running. \
 Before running the benchmark, it's recommended to turn off background applications etc. to free up resources.
 
-**From platform/DotNetAtlas.OutboxRelay.Benchmark run:**
+**From platform/Platform.OutboxRelay.Benchmark run:**
 ```bash
 # Release configuration is MANDATORY for accurate results
-dotnet run --project DotNetAtlas.OutboxRelay.Benchmark.csproj -c Release
+dotnet run --project Platform.OutboxRelay.Benchmark.csproj -c Release
 ```
 
 ### Running Subset of Benchmarks
 
 ```bash
 # Only NoCompression benchmark
-dotnet run --project DotNetAtlas.OutboxRelay.Benchmark.csproj -c Release -- --filter *NoCompression
+dotnet run --project Platform.OutboxRelay.Benchmark.csproj -c Release -- --filter *NoCompression
 
 # Only Snappy and Zstd
-dotnet run --project DotNetAtlas.OutboxRelay.Benchmark.csproj -c Release -- --filter '*Snappy*|*Zstd*'
+dotnet run --project Platform.OutboxRelay.Benchmark.csproj -c Release -- --filter '*Snappy*|*Zstd*'
 
 # Exclude baseline
-dotnet run --project DotNetAtlas.OutboxRelay.Benchmark.csproj -c Release -- --filter '*' --filter-exclude '*NoCompression*'
+dotnet run --project Platform.OutboxRelay.Benchmark.csproj -c Release -- --filter '*' --filter-exclude '*NoCompression*'
 ```
 
 ## Performance/Memory profiling with [dotMemory](https://www.jetbrains.com/dotmemory/) or [dotTrace](https://www.jetbrains.com/profiler/)
@@ -44,7 +44,7 @@ dotnet run --project DotNetAtlas.OutboxRelay.Benchmark.csproj -c Release -- --fi
 
 ## How the benchmark works
 1. Global setup: spins up SQL Server, Kafka, Schema Registry, preseeds outbox messages
-2. Multiple [OutboxRelayWorkers](../DotNetAtlas.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs) are created using [OutboxMessageRelayBuilder](OutboxMessageRelayBuilder.cs) with customized configs,
+2. Multiple [OutboxRelayWorkers](../Platform.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs) are created using [OutboxMessageRelayBuilder](OutboxMessageRelayBuilder.cs) with customized configs,
 in this benchmark, each one using different a Kafka producer compression algorithm config, with no compression as a baseline.
 3. Each one gets its own Benchmark method for Publishing Outbox Messages which measures its performance.
 

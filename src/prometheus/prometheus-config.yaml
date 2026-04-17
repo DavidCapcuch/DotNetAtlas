@@ -12,14 +12,14 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']  # OTLP Prometheus exporter endpoint
 
-  - job_name: 'dotnetatlas-healthchecks'
+  - job_name: 'weather-healthchecks'
     scrape_interval: 10s
     scrape_timeout: 9s
     metrics_path: /api/health/prometheus
     static_configs:
       - targets: ['host.docker.internal:5159']
         labels:
-          app: dotnetatlas-api
+          app: weather-api
           kind: healthchecks
 
   - job_name: 'outbox-relay-healthchecks'

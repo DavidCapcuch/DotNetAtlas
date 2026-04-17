@@ -1,4 +1,4 @@
-# DotNetAtlas.KafkaFlow.Inbox.EFCore
+# Platform.KafkaFlow.Inbox.EFCore
 
 KafkaFlow middleware for idempotent message processing using the [Inbox pattern](https://microservices.io/patterns/communication-style/idempotent-consumer.html).
 
@@ -82,10 +82,10 @@ services.AddKafka(kafka => kafka
 
 ## Requirements
 
-- Messages must have a `message.id` header (use [ProducerHeaders](../DotNetAtlas.KafkaFlow.ProducerHeaders) or OutboxRelay)
+- Messages must have a `message.id` header (use [ProducerHeaders](../Platform.KafkaFlow.ProducerHeaders) or OutboxRelay)
 - DbContext must use `UseExceptionProcessor()` for concurrent duplicate handling
 
 ## Related Packages
 
-- [DotNetAtlas.Messaging.Abstractions](../DotNetAtlas.Messaging.Abstractions) - Header key constants
-- [DotNetAtlas.KafkaFlow.ProducerHeaders](../DotNetAtlas.KafkaFlow.ProducerHeaders) - Adds `message.id` header to produced messages
+- [Platform.Messaging.Abstractions](../Platform.Messaging.Abstractions) - Header key constants
+- [Platform.KafkaFlow.ProducerHeaders](../Platform.KafkaFlow.ProducerHeaders) - Adds `message.id` header to produced messages

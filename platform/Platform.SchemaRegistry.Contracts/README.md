@@ -1,4 +1,4 @@
-# DotNetAtlas.SchemaRegistry.Contracts
+# Platform.SchemaRegistry.Contracts
 
 Schema definitions for Kafka messages with C# class generation support.
 
@@ -16,7 +16,7 @@ Kafka messages need a contract between producers and consumers. Without schema m
 
 ## Adding a New Schema (Local flow only)
 
-1. **Create `.avsc` file** in the `platform/DotNetAtlas.SchemaRegistry.Contracts` folder
+1. **Create `.avsc` file** in the `platform/Platform.SchemaRegistry.Contracts` folder
 2. **Run the generator** - the script moves the file to the correct location based on the namespace:
 
    ```bash
@@ -26,7 +26,7 @@ Kafka messages need a contract between producers and consumers. Without schema m
 ### 1. Add Project Reference
 
 ```xml
-<ProjectReference Include="..\..\platform\DotNetAtlas.SchemaRegistry\DotNetAtlas.SchemaRegistry.Contracts.csproj" />
+<ProjectReference Include="..\..\platform\Platform.SchemaRegistry\Platform.SchemaRegistry.Contracts.csproj" />
 ```
 
 ### 2. Configure Schema Registry
@@ -137,7 +137,7 @@ Consumer must:
   ❌ Break if producer refactors internal model
 ```
 
-**Denormalized events** are self-contained business facts. DotNetAtlas demonstrates this with `SubscriptionPurchasedEvent`:
+**Denormalized events** are self-contained business facts. Platform demonstrates this with `SubscriptionPurchasedEvent`:
 
 ```json
 // Billing.Subscriptions.SubscriptionPurchasedEvent (actual schema)
@@ -180,7 +180,7 @@ Topic: weather.feedback.events (key = FeedbackId)
 Consumer receives events in correct order for each aggregate.
 ```
 
-DotNetAtlas uses this pattern - the OutboxRelay maps both `FeedbackCreatedEvent` and `FeedbackChangedEvent` to the same topic:
+Platform uses this pattern - the OutboxRelay maps both `FeedbackCreatedEvent` and `FeedbackChangedEvent` to the same topic:
 
 ```json
 // OutboxRelay TypeTopicMappings (actual config)
@@ -351,11 +351,11 @@ Create a new topic with the new schema. Simpler but requires coordinating the cu
 
 ## Related Packages
 
-- [DotNetAtlas.Messaging.Abstractions](../DotNetAtlas.Messaging.Abstractions) - Message header constants (`message.id`)
-- [DotNetAtlas.KafkaFlow.ProducerHeaders](../DotNetAtlas.KafkaFlow.ProducerHeaders) - Auto-adds `message.id` header for idempotency
-- [DotNetAtlas.KafkaFlow.Inbox.EFCore](../DotNetAtlas.KafkaFlow.Inbox.EFCore) - Consumer-side deduplication using `message.id`
-- [DotNetAtlas.KafkaFlow.DeadLetter](../DotNetAtlas.KafkaFlow.DeadLetter) - Routes failed messages to Dead Letter Topics
-- [DotNetAtlas.ReliableMessaging.Outbox.EFCore](../DotNetAtlas.ReliableMessaging.Outbox.EFCore) - Transactional outbox for reliable publishing
+- [Platform.Messaging.Abstractions](../Platform.Messaging.Abstractions) - Message header constants (`message.id`)
+- [Platform.KafkaFlow.ProducerHeaders](../Platform.KafkaFlow.ProducerHeaders) - Auto-adds `message.id` header for idempotency
+- [Platform.KafkaFlow.Inbox.EFCore](../Platform.KafkaFlow.Inbox.EFCore) - Consumer-side deduplication using `message.id`
+- [Platform.KafkaFlow.DeadLetter](../Platform.KafkaFlow.DeadLetter) - Routes failed messages to Dead Letter Topics
+- [Platform.ReliableMessaging.Outbox.EFCore](../Platform.ReliableMessaging.Outbox.EFCore) - Transactional outbox for reliable publishing
 
 ## Resources
 

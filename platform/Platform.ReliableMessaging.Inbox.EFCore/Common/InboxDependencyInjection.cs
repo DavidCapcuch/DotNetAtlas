@@ -36,7 +36,7 @@ public static class InboxDependencyInjection
     /// <code>
     /// // Configure DbContext with UseExceptionProcessor
     /// services.AddDbContextPool&lt;MyDbContext&gt;(options => options
-    ///     .UseSqlServer(connectionString)
+    ///     .UseNpgsql(connectionString)
     ///     .UseExceptionProcessor());
     ///
     /// // Register inbox services (order doesn't matter)

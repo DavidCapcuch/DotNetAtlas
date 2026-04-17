@@ -6,7 +6,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Weather.Api\Weather.Api.csproj" />
-        <ProjectReference Include="..\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 
 </Project>

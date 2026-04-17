@@ -1,6 +1,6 @@
 using Hangfire;
 using Microsoft.Extensions.Logging;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.WeatherAlerts.RecordWeatherReading;
 using Weather.Infrastructure.BackgroundJobs.Common;
 

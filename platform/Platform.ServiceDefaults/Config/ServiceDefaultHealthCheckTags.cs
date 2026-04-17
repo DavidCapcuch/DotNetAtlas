@@ -2,7 +2,7 @@ namespace Platform.ServiceDefaults.Config;
 
 /// <summary>
 /// Constants for service defaults including health check endpoint paths and tags.
-/// This is the single source of truth for these values across all DotNetAtlas services.
+/// This is the single source of truth for these values across all services.
 /// </summary>
 public static class ServiceDefaultHealthCheckTags
 {

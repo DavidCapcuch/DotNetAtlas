@@ -1,8 +1,8 @@
 using System.Reflection;
-using DotNetAtlas.Test.Framework.Kafka;
 using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using NetArchTest.Rules;
+using Platform.Test.Framework.Kafka;
 using Weather.Api.Common;
 using Weather.Application.Common;
 using Weather.Domain.Alerts.Events;

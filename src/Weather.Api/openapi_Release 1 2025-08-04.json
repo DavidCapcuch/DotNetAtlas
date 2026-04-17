@@ -2,7 +2,7 @@
   "x-generator": "NSwag v14.4.0.0 (NJsonSchema v11.3.2.0 (Newtonsoft.Json v13.0.0.0))",
   "openapi": "3.0.0",
   "info": {
-    "title": "DotNetAtlas API",
+    "title": "Weather API",
     "description": "DotNet Atlas - Made with ❤️, Powered by ☕",
     "contact": {
       "name": "David Capcuch",

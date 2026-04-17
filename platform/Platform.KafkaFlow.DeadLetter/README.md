@@ -1,4 +1,4 @@
-# DotNetAtlas.KafkaFlow.DeadLetter
+# Platform.KafkaFlow.DeadLetter
 
 KafkaFlow middleware that routes messages with unhandled exceptions to a Dead Letter Topic (DLT).
 
@@ -43,4 +43,4 @@ Original message headers are also preserved.
 
 ## Related Packages
 
-- [DotNetAtlas.KafkaFlow.Inbox.EFCore](../DotNetAtlas.KafkaFlow.Inbox.EFCore) - Idempotent message consumption
+- [Platform.KafkaFlow.Inbox.EFCore](../Platform.KafkaFlow.Inbox.EFCore) - Idempotent message consumption

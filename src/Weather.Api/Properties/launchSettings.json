@@ -1,7 +1,7 @@
 ﻿{
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "DotNetAtlas.Api.Local.Http": {
+    "Weather.Api.Local.Http": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
@@ -10,11 +10,11 @@
         "ASPNETCORE_ENVIRONMENT": "Local"
       }
     },
-    "DotNetAtlas.Api.Local.Https": {
+    "Weather.Api.Local.Https": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "https://dotnetatlas.dev.localhost:7095",
+      "applicationUrl": "https://weather.dev.localhost:7095",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Local"
       }

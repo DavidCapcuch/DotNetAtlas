@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsTestProject>false</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FastEndpoints.Testing"/>
+        
+        <!-- Database -->
+        <PackageReference Include="Testcontainers.PostgreSql"/>
+        <PackageReference Include="Evolve"/>
+        <PackageReference Include="Respawn"/>
+
+        <!-- Redis -->
+        <PackageReference Include="Testcontainers.Redis"/>
+        <PackageReference Include="StackExchange.Redis"/>
+
+        <!-- Kafka -->
+        <PackageReference Include="Testcontainers.Kafka"/>
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+
+        <!-- OpenTelemetry -->
+        <PackageReference Include="OpenTelemetry"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Weather.Infrastructure\Weather.Infrastructure.csproj" />
+    </ItemGroup>
+</Project>

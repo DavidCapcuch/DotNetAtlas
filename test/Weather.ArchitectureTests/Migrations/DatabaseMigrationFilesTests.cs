@@ -1,4 +1,4 @@
-using DotNetAtlas.Test.Framework;
+using Platform.Test.Framework;
 
 namespace Weather.ArchitectureTests.Migrations;
 

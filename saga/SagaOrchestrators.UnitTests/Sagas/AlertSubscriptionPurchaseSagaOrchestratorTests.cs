@@ -1,4 +1,3 @@
-using DotNetAtlas.Test.Framework.Kafka;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Order.AlertSubscriptions;
+using Platform.Test.Framework.Kafka;
 using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga;
 using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga.InternalSagaEvents;
 using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga.Schedules;

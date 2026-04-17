@@ -34,7 +34,7 @@ jobs:
         uses: AndreKurait/docker-cache@0fe76702a40db986d9663c24954fc14c6a6031b7 #0.6.0
         continue-on-error: true
         with:
-          key: docker-${{ runner.os }}-${{ hashFiles('test/DotNetAtlas.Test.Framework/**/*Container.cs') }}
+          key: docker-${{ runner.os }}-${{ hashFiles('platform/Platform.Test.Framework/**/*Container.cs') }}
       - name: Test with coverage
         env:
           CONFIGURATION: ${{ inputs.configuration }}

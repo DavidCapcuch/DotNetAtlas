@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using Platform.CQS;
+using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Errors;
 using Weather.Alerts;

@@ -92,7 +92,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "count(healthcheck{job=\"dotnetatlas-healthchecks\"})",
+          "expr": "count(healthcheck{job=\"weather-healthchecks\"})",
           "legendFormat": "Total",
           "range": true,
           "refId": "A"
@@ -154,7 +154,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "count(healthcheck{job=\"dotnetatlas-healthchecks\"} == 0) or on() vector(0)",
+          "expr": "count(healthcheck{job=\"weather-healthchecks\"} == 0) or on() vector(0)",
           "legendFormat": "Unhealthy",
           "range": true,
           "refId": "A"
@@ -216,7 +216,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "count(healthcheck{job=\"dotnetatlas-healthchecks\"} == 1) or on() vector(0)",
+          "expr": "count(healthcheck{job=\"weather-healthchecks\"} == 1) or on() vector(0)",
           "legendFormat": "Degraded",
           "range": true,
           "refId": "A"
@@ -319,7 +319,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "healthcheck{job=\"dotnetatlas-healthchecks\",healthcheck=~\"$hc\"}",
+          "expr": "healthcheck{job=\"weather-healthchecks\",healthcheck=~\"$hc\"}",
           "legendFormat": "{{healthcheck}}",
           "range": false,
           "refId": "A"
@@ -393,7 +393,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "healthcheck_duration_seconds{job=\"dotnetatlas-healthchecks\",healthcheck=~\"$hc\"}",
+          "expr": "healthcheck_duration_seconds{job=\"weather-healthchecks\",healthcheck=~\"$hc\"}",
           "legendFormat": "{{healthcheck}}",
           "range": true,
           "refId": "A"
@@ -495,7 +495,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "healthcheck{job=\"dotnetatlas-healthchecks\"}",
+          "expr": "healthcheck{job=\"weather-healthchecks\"}",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{healthcheck}}",
@@ -519,7 +519,7 @@
           "type": "prometheus",
           "uid": "webstore-metrics"
         },
-        "definition": "label_values(healthcheck{job=\"dotnetatlas-healthchecks\"},healthcheck)",
+        "definition": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
         "hide": 1,
         "includeAll": true,
         "label": "hc",
@@ -527,7 +527,7 @@
         "name": "hc",
         "options": [],
         "query": {
-          "query": "label_values(healthcheck{job=\"dotnetatlas-healthchecks\"},healthcheck)",
+          "query": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

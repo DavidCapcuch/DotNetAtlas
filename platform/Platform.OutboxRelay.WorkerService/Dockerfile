@@ -20,22 +20,22 @@ COPY NuGet.config .
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY global.json .
-COPY platform/DotNetAtlas.ReliableMessaging.Outbox.Core/DotNetAtlas.ReliableMessaging.Outbox.Core.csproj platform/DotNetAtlas.ReliableMessaging.Outbox.Core/
-COPY platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj platform/DotNetAtlas.ReliableMessaging.Outbox.EFCore/
-COPY platform/DotNetAtlas.OutboxRelay.WorkerService/DotNetAtlas.OutboxRelay.WorkerService.csproj platform/DotNetAtlas.OutboxRelay.WorkerService/
+COPY platform/Platform.ReliableMessaging.Outbox.Core/Platform.ReliableMessaging.Outbox.Core.csproj platform/Platform.ReliableMessaging.Outbox.Core/
+COPY platform/Platform.ReliableMessaging.Outbox.EFCore/Platform.ReliableMessaging.Outbox.EFCore.csproj platform/Platform.ReliableMessaging.Outbox.EFCore/
+COPY platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj platform/Platform.OutboxRelay.WorkerService/
 
 # Restore with cache mounts
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true platform/DotNetAtlas.OutboxRelay.WorkerService/DotNetAtlas.OutboxRelay.WorkerService.csproj
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
 
 # Copy the worker service source files
 COPY . .
-WORKDIR /workspace/platform/DotNetAtlas.OutboxRelay.WorkerService
+WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
 
 # Ensure full restore after copying all sources (includes analyzers/source generators)
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true DotNetAtlas.OutboxRelay.WorkerService.csproj
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
 
 # Build without restore; cache NuGet packages
-RUN dotnet build DotNetAtlas.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
+RUN dotnet build Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
     -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM build AS publish
@@ -45,12 +45,12 @@ ARG ASSEMBLY_VERSION=0.0.0.0
 ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
-WORKDIR /workspace/platform/DotNetAtlas.OutboxRelay.WorkerService
-RUN dotnet publish DotNetAtlas.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
+RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
 WORKDIR /app
 
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "DotNetAtlas.OutboxRelay.WorkerService.dll"]
+ENTRYPOINT ["dotnet", "Platform.OutboxRelay.WorkerService.dll"]

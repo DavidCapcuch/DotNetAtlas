@@ -1,5 +1,5 @@
 using FastEndpoints;
-using Platform.CQS;
+using Platform.CQRS;
 using Serilog.Context;
 using Weather.Api.Common.Extensions;
 using Weather.Application.WeatherForecast.GetForecasts;

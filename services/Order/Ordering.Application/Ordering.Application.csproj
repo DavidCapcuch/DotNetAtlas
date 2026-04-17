@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\platform\Platform.CQS\Platform.CQS.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.CQRS\Platform.CQRS.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
     </ItemGroup>

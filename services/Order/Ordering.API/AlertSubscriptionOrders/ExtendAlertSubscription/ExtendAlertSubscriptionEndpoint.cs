@@ -4,7 +4,7 @@ using Ordering.API.AlertSubscriptionOrders.GetAlertSubscriptionOrderStatus;
 using Ordering.API.Common.Extensions;
 using Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
 using Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
-using CQS = Platform.CQS;
+using CQRS = Platform.CQRS;
 
 namespace Ordering.API.AlertSubscriptionOrders.ExtendAlertSubscription;
 
@@ -15,10 +15,10 @@ namespace Ordering.API.AlertSubscriptionOrders.ExtendAlertSubscription;
 /// </summary>
 internal sealed class ExtendAlertSubscriptionEndpoint : Endpoint<ExtendAlertSubscriptionCommand>
 {
-    private readonly CQS.ICommandHandler<ExtendAlertSubscriptionCommand, Guid> _extendAlertSubscriptionHandler;
+    private readonly CQRS.ICommandHandler<ExtendAlertSubscriptionCommand, Guid> _extendAlertSubscriptionHandler;
 
     public ExtendAlertSubscriptionEndpoint(
-        CQS.ICommandHandler<ExtendAlertSubscriptionCommand, Guid> extendAlertSubscriptionHandler)
+        CQRS.ICommandHandler<ExtendAlertSubscriptionCommand, Guid> extendAlertSubscriptionHandler)
     {
         _extendAlertSubscriptionHandler = extendAlertSubscriptionHandler;
     }

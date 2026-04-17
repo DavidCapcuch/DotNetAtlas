@@ -1,11 +1,11 @@
-using DotNetAtlas.Test.Framework;
-using DotNetAtlas.Test.Framework.Database;
-using DotNetAtlas.Test.Framework.Kafka;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
 using Respawn;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
@@ -24,12 +24,12 @@ namespace SagaOrchestrators.IntegrationTests.Common;
 public sealed class SagaTestCollection : ICollectionFixture<SagaIntegrationTestFixture>;
 
 /// <summary>
-/// Integration test fixture for saga tests using WebApplicationFactory and real SQL Server container.
+/// Integration test fixture for saga tests using WebApplicationFactory and real PostgreSQL container.
 /// Provides MassTransit test harness with EF Core saga persistence and real Kafka consumers.
 /// </summary>
 public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly SqlServerTestContainer _dbContainer;
+    private readonly PostgreSqlTestContainer _dbContainer;
     private readonly KafkaTestContainer _kafkaContainer = new();
 
     public FakeOutboxWriter FakeOutboxWriter { get; } = new();
@@ -43,7 +43,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
             SolutionPaths.GetSolutionRootDirectory(), "saga", "SagaOrchestrators", "Common", "Persistence", "Database",
             "Migrations", "SqlScripts");
 
-        _dbContainer = new SqlServerTestContainer(
+        _dbContainer = new PostgreSqlTestContainer(
             databaseName: "Saga",
             sqlScriptsMigrationsPath: migrationsPath,
             new RespawnerOptions

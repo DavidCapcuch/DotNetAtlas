@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using FluentResults;
 using Microsoft.Extensions.Logging;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.Common.Observability.Tracing;
 using Weather.Application.WeatherForecast.Common;
 using Weather.Application.WeatherForecast.Services.Abstractions;

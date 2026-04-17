@@ -3,7 +3,7 @@
         <!-- MassTransit Core -->
         <PackageReference Include="MassTransit"/>
         <PackageReference Include="MassTransit.EntityFrameworkCore"/>
-        <PackageReference Include="MassTransit.SqlTransport.SqlServer"/>
+        <PackageReference Include="MassTransit.SqlTransport.PostgreSQL"/>
         <PackageReference Include="MassTransit.Kafka"/>
 
         <!-- Confluent Schema Registry -->
@@ -11,7 +11,7 @@
         <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
 
         <!-- EF Core -->
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -29,7 +29,7 @@
         <!-- Health checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
-        <PackageReference Include="AspNetCore.HealthChecks.UI.SqlServer.Storage"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.PostgreSQL.Storage"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
         <!-- Analyzers -->
@@ -49,7 +49,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="DotNetAtlas.Sagas.IntegrationTests"/>
+        <InternalsVisibleTo Include="SagaOrchestrators.IntegrationTests"/>
     </ItemGroup>
 
     <ItemGroup>

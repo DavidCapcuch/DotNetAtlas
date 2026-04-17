@@ -1,7 +1,7 @@
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Platform.CQS;
+using Platform.CQRS;
 using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;

@@ -14,12 +14,12 @@
         <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
 
         <!-- EF Core -->
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="EntityFrameworkCore.Exceptions.SqlServer"/>
+        <PackageReference Include="EntityFrameworkCore.Exceptions.PostgreSQL"/>
 
         <PackageReference Include="Bogus"/>
 

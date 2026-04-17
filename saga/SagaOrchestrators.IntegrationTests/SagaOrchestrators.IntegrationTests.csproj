@@ -8,7 +8,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\SagaOrchestrators\SagaOrchestrators.csproj" />
-        <ProjectReference Include="..\..\test\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj"/>
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

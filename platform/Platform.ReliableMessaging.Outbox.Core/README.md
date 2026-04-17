@@ -1,4 +1,4 @@
-# DotNetAtlas.ReliableMessaging.Outbox.Core
+# Platform.ReliableMessaging.Outbox.Core
 
 Core entity and header utilities for the [Transactional Outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html).
 
@@ -52,4 +52,4 @@ Headers use W3C Trace Context format (`traceparent`, `tracestate`, `baggage`).
 
 ## Related Packages
 
-- [DotNetAtlas.ReliableMessaging.Outbox.EFCore](../DotNetAtlas.ReliableMessaging.Outbox.EFCore) - EF Core integration and `AddOutboxMessage` extension
+- [Platform.ReliableMessaging.Outbox.EFCore](../Platform.ReliableMessaging.Outbox.EFCore) - EF Core integration and `AddOutboxMessage` extension

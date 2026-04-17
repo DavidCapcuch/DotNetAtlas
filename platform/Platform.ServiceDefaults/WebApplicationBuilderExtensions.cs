@@ -1,9 +1,9 @@
 using System.Reflection;
-using Platform.ServiceDefaults.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
+using Platform.ServiceDefaults.Logging;
 
 namespace Platform.ServiceDefaults;
 

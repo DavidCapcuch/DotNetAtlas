@@ -1,6 +1,6 @@
-using DotNetAtlas.Test.Framework.Kafka;
-using DotNetAtlas.Test.Framework.Tracing;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Weather.Infrastructure.Persistence.Database;
 
