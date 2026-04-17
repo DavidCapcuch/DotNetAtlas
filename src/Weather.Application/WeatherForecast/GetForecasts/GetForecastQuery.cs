@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using FastEndpoints;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Domain.Common.ValueObjects;
 
 namespace Weather.Application.WeatherForecast.GetForecasts;

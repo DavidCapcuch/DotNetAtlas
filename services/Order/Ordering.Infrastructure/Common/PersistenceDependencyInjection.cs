@@ -1,4 +1,4 @@
-using EntityFramework.Exceptions.SqlServer;
+using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +17,7 @@ namespace Ordering.Infrastructure.Common;
 public static class PersistenceDependencyInjection
 {
     /// <summary>
-    /// Configures Entity Framework Core database context with SQL Server.
+    /// Configures Entity Framework Core database context with PostgreSQL.
     /// </summary>
     public static IServiceCollection AddDatabase(
         this IServiceCollection services,
@@ -50,20 +50,20 @@ public static class PersistenceDependencyInjection
         services.AddDbContext<OrderingDbContext>((
             sp,
             options) => options
-            .UseSqlServer(
+            .UseNpgsql(
                 configuration.GetConnectionString(nameof(ConnectionStringsOptions.Ordering)),
-                sqlServerOptions =>
+                npgsqlOptions =>
                 {
-                    sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
+                    npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
                         OrderingDbContext.DefaultSchemaName);
-                    sqlServerOptions.UseQuerySplittingBehavior(
+                    npgsqlOptions.UseQuerySplittingBehavior(
                         efCoreOptions.UseQuerySplitting
                             ? QuerySplittingBehavior.SplitQuery
                             : QuerySplittingBehavior.SingleQuery);
-                    sqlServerOptions.EnableRetryOnFailure(
+                    npgsqlOptions.EnableRetryOnFailure(
                         maxRetryCount: efCoreOptions.RetryMaxCount,
                         maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
-                        errorNumbersToAdd: null);
+                        errorCodesToAdd: null);
                 })
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests

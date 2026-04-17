@@ -40,7 +40,7 @@ public static class KafkaFlowInboxDependencyInjection
     /// <code>
     /// // During service registration
     /// services.AddDbContextPool&lt;MyDbContext&gt;(options => options
-    ///     .UseSqlServer(connectionString)
+    ///     .UseNpgsql(connectionString)
     ///     .UseExceptionProcessor());
     /// services.AddInbox&lt;MyDbContext&gt;();
     ///

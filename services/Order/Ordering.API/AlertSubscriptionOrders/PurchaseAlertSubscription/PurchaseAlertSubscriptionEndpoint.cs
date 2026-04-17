@@ -5,7 +5,7 @@ using Ordering.API.Common.Extensions;
 using Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 using Ordering.Application.AlertSubscriptions.PurchaseAlertSubscription;
 using Ordering.Domain.AlertSubscriptionOrders;
-using CQS = Platform.CQS;
+using CQRS = Platform.CQRS;
 
 namespace Ordering.API.AlertSubscriptionOrders.PurchaseAlertSubscription;
 
@@ -16,10 +16,10 @@ namespace Ordering.API.AlertSubscriptionOrders.PurchaseAlertSubscription;
 /// </summary>
 internal sealed class PurchaseAlertSubscriptionEndpoint : Endpoint<PurchaseAlertSubscriptionCommand>
 {
-    private readonly CQS.ICommandHandler<PurchaseAlertSubscriptionCommand, Guid> _purchaseHandler;
+    private readonly CQRS.ICommandHandler<PurchaseAlertSubscriptionCommand, Guid> _purchaseHandler;
 
     public PurchaseAlertSubscriptionEndpoint(
-        CQS.ICommandHandler<PurchaseAlertSubscriptionCommand, Guid> purchaseHandler)
+        CQRS.ICommandHandler<PurchaseAlertSubscriptionCommand, Guid> purchaseHandler)
     {
         _purchaseHandler = purchaseHandler;
     }

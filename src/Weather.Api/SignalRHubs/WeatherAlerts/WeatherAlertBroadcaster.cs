@@ -43,7 +43,7 @@ public class WeatherAlertBroadcaster : IWeatherAlertBroadcaster
 
     public async Task BroadcastToGroupAsync(AlertGroup alertGroup, WeatherAlert weatherAlert)
     {
-        using var activity = DotNetAtlasActivitySource.StartActivity(nameof(BroadcastToGroupAsync));
+        using var activity = WeatherActivitySource.StartActivity(nameof(BroadcastToGroupAsync));
 
         activity?.SetTag(TraceTags.City, alertGroup.City.Name);
         activity?.SetTag(TraceTags.CountryCode, alertGroup.CountryCode.ToString());

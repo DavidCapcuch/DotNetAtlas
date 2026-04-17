@@ -5,7 +5,7 @@ using Ordering.Application.Common.Data;
 using Ordering.Application.Common.Observability.Tracing;
 using Ordering.Domain.AlertSubscriptionOrders;
 using Ordering.Domain.ValueObjects;
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Ordering.Application.AlertSubscriptions.ExtendAlertSubscription;
 

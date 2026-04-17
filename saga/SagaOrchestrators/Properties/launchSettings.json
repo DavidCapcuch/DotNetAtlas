@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "DotNetAtlas.Sagas.WorkerService.Local": {
+    "SagaOrchestrators.Local": {
       "commandName": "Project",
       "launchBrowser": false,
       "environmentVariables": {

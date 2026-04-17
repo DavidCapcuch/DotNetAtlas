@@ -1,5 +1,5 @@
 using NetArchTest.Rules;
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Weather.ArchitectureTests.Application;
 

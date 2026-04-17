@@ -1,7 +1,7 @@
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Platform.CQS;
+using Platform.CQRS;
 using Platform.SharedKernel.Errors;
 using Weather.Application.Common.Data;
 using Weather.Domain.Alerts.Errors;

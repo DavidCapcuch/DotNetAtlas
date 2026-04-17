@@ -1,4 +1,4 @@
-# DotNetAtlas.SharedKernel
+# Platform.SharedKernel
 
 A foundational library providing [Domain-Driven Design (DDD)](https://martinfowler.com/bliki/DomainDrivenDesign.html)
 building blocks for .NET applications. This library includes base classes for entities, aggregates, value objects,
@@ -12,7 +12,7 @@ Add a project reference:
 
 ```xml
 
-<ProjectReference Include="..\DotNetAtlas.SharedKernel\DotNetAtlas.SharedKernel.csproj"/>
+<ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj"/>
 ```
 
 ## Features
@@ -84,7 +84,7 @@ constructors, they would fire during hydration - causing duplicate notifications
 ### Value Objects
 
 ```csharp
-using DotNetAtlas.SharedKernel.Base;
+using Platform.SharedKernel.Base;
 
 public record Money(decimal Amount, string Currency) : ValueObject
 {

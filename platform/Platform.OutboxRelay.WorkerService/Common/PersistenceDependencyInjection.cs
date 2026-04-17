@@ -33,14 +33,14 @@ public static class PersistenceDependencyInjection
             .ValidateDataAnnotations();
 
         services.AddPooledDbContextFactory<OutboxDbContext>(options =>
-                options.UseSqlServer(
+                options.UseNpgsql(
                         configuration.GetConnectionString(nameof(ConnectionStringsOptions.Outbox)),
-                        sqlServerOptions =>
+                        npgsqlOptions =>
                         {
-                            sqlServerOptions.EnableRetryOnFailure(
+                            npgsqlOptions.EnableRetryOnFailure(
                                 maxRetryCount: efCoreOptions.RetryMaxCount,
                                 maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
-                                errorNumbersToAdd: null);
+                                errorCodesToAdd: null);
                         })
                     .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors),
             poolSize: efCoreOptions.DbContextPoolSize);

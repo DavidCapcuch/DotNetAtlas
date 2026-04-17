@@ -1,7 +1,7 @@
 using KafkaFlow;
 using KafkaFlow.Configuration;
+using Npgsql;
 using KafkaFlow.Retry;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -78,7 +78,7 @@ internal static class MessagingDependencyInjection
                         .AddDeadLetter()
                         .RetryForever(config => config
                             .Handle<DbUpdateException>()
-                            .Handle<SqlException>()
+                            .Handle<NpgsqlException>()
                             .Handle<TimeoutException>()
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),

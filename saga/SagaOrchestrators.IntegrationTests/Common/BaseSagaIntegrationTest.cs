@@ -1,8 +1,8 @@
-using DotNetAtlas.Test.Framework.Kafka;
-using DotNetAtlas.Test.Framework.Tracing;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Tracing;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.SagaAbstractions;
 using SagaOrchestrators.Persistence.Database;
@@ -20,7 +20,7 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
 
     protected SagaTopicsOptions TopicsOptions { get; }
     protected IServiceScope Scope { get; }
-    protected SagaDbContext DbContext { get; }
+    protected SagaDbContext SagaDbContext { get; }
     protected TimeProvider TimeProvider { get; }
     protected FakeOutboxWriter FakeOutboxWriter { get; }
     protected KafkaTestProducer KafkaTestProducer { get; }
@@ -39,7 +39,7 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         outputSink.Inject(TestContext.Current.TestOutputHelper!);
 
         Scope = fixture.Services.CreateScope();
-        DbContext = Scope.ServiceProvider.GetRequiredService<SagaDbContext>();
+        SagaDbContext = Scope.ServiceProvider.GetRequiredService<SagaDbContext>();
         TimeProvider = Scope.ServiceProvider.GetRequiredService<TimeProvider>();
         TopicsOptions = Scope.ServiceProvider.GetRequiredService<IOptions<SagaTopicsOptions>>().Value;
         FakeOutboxWriter = fixture.FakeOutboxWriter;
@@ -83,6 +83,6 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         where TSagaState : class, ISagaStateInstance
     {
         var stateMachine = Scope.ServiceProvider.GetRequiredService<TSaga>();
-        return new SagaStateMonitor<TSaga, TSagaState>(DbContext, stateMachine);
+        return new SagaStateMonitor<TSaga, TSagaState>(SagaDbContext, stateMachine);
     }
 }

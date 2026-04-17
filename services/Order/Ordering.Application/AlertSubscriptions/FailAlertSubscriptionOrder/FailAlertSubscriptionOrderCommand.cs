@@ -1,4 +1,4 @@
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Ordering.Application.AlertSubscriptions.FailAlertSubscriptionOrder;
 

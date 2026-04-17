@@ -107,7 +107,7 @@ public static class ApiDependencyInjection
                 {
                     genConfig.SwaggerDocumentName = documentName;
                     genConfig.Language = generationLanguage;
-                    genConfig.ClientNamespaceName = "DotNetAtlas";
+                    genConfig.ClientNamespaceName = "Weather";
                     genConfig.ClientClassName = $"{generationLanguage}Client";
                 },
                 options =>

@@ -1,4 +1,4 @@
-# DotNetAtlas.ReliableMessaging.Outbox.EFCore
+# Platform.ReliableMessaging.Outbox.EFCore
 
 EF Core implementation of the [Transactional Outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html).
 
@@ -20,7 +20,7 @@ Store messages in the same database transaction as your business data. A backgro
 Add a project reference:
 
 ```xml
-<ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Outbox.EFCore\DotNetAtlas.ReliableMessaging.Outbox.EFCore.csproj" />
+<ProjectReference Include="..\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
 ```
 
 ## Features
@@ -34,9 +34,9 @@ Add a project reference:
 ### Configure DbContext
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Outbox.Core;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.Core;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 public class AppDbContext : DbContext, IOutboxDbContext
 {
@@ -59,7 +59,7 @@ public class AppDbContext : DbContext, IOutboxDbContext
 ### Register Services
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
 
 services.AddOutbox(outbox =>
 {
@@ -85,7 +85,7 @@ services.AddOutbox(outbox =>
 Inject `ITransactionalOutbox<TContext>` for request-scoped handlers. Both the writer and DbContext share the same instance within a scope.
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
 
 public class OrderService
 {
@@ -118,7 +118,7 @@ public class OrderService
 Inject `IOutboxWriter` (non-generic) when using `IDbContextFactory<TContext>`:
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore;
 
 public class OrderBackgroundService
 {
@@ -150,8 +150,8 @@ public class OrderBackgroundService
 For Kafka message handlers that need explicit transaction control, use the `Database` property:
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 public class OrderEventKafkaHandler : IMessageHandler<OrderPlacedEvent>
 {
@@ -255,9 +255,9 @@ public class OrderEventKafkaHandler : IMessageHandler<OrderPlacedEvent>
 
 ## Related Packages
 
-- [DotNetAtlas.ReliableMessaging.Outbox.Core](../DotNetAtlas.ReliableMessaging.Outbox.Core) - Core outbox abstractions
-- [DotNetAtlas.OutboxRelay.WorkerService](../DotNetAtlas.OutboxRelay.WorkerService) - Background relay service
-- [DotNetAtlas.Messaging.Abstractions](../DotNetAtlas.Messaging.Abstractions) - Message header constants
+- [Platform.ReliableMessaging.Outbox.Core](../Platform.ReliableMessaging.Outbox.Core) - Core outbox abstractions
+- [Platform.OutboxRelay.WorkerService](../Platform.OutboxRelay.WorkerService) - Background relay service
+- [Platform.Messaging.Abstractions](../Platform.Messaging.Abstractions) - Message header constants
 
 ## License
 

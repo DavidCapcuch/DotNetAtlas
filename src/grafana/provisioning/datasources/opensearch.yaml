@@ -12,7 +12,7 @@ datasources:
     editable: true
     isDefault: false
     jsonData:
-      database: dotnetatlas-logs-*
+      database: weather-logs-*
       flavor: opensearch
       logLevelField: level.keyword
       logMessageField: message

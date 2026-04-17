@@ -1,6 +1,6 @@
 using Hangfire;
 using Microsoft.Extensions.Options;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.WeatherAlerts.ProcessExpiredSubscriptions;
 using Weather.Infrastructure.BackgroundJobs.Common;
 using Weather.Infrastructure.BackgroundJobs.Config;

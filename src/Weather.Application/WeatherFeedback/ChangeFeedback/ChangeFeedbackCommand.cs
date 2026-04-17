@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Weather.Application.WeatherFeedback.ChangeFeedback;
 

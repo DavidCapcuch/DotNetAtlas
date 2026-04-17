@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "DotNetAtlas.OutboxRelay.WorkerService.Local": {
+    "Platform.OutboxRelay.WorkerService.Local": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

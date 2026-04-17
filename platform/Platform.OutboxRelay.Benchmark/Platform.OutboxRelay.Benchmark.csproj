@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\test\DotNetAtlas.Test.Framework\DotNetAtlas.Test.Framework.csproj"/>
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
         <ProjectReference Include="..\Platform.Avro.UniversalSerDes\Platform.Avro.UniversalSerDes.csproj" />
         <ProjectReference Include="..\Platform.OutboxRelay.WorkerService\Platform.OutboxRelay.WorkerService.csproj" />
         <ProjectReference Include="..\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />

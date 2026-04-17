@@ -1,5 +1,5 @@
-using DotNetAtlas.Test.Framework.Common;
 using NetArchTest.Rules;
+using Platform.Test.Framework.Common;
 
 namespace Weather.ArchitectureTests.TestFramework;
 

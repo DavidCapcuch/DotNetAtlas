@@ -1,4 +1,4 @@
-# DotNetAtlas.KafkaFlow.ProducerHeaders
+# Platform.KafkaFlow.ProducerHeaders
 
 KafkaFlow middleware that automatically adds `message.id` and `origin` headers to produced messages.
 
@@ -45,5 +45,5 @@ await _producer.ProduceAsync(order.Id.ToString(), new OrderCreatedEvent(order.Id
 
 ## Related Packages
 
-- [DotNetAtlas.Messaging.Abstractions](../DotNetAtlas.Messaging.Abstractions) - Header key constants
-- [DotNetAtlas.KafkaFlow.Inbox.EFCore](../DotNetAtlas.KafkaFlow.Inbox.EFCore) - Reads `message.id` for deduplication
+- [Platform.Messaging.Abstractions](../Platform.Messaging.Abstractions) - Header key constants
+- [Platform.KafkaFlow.Inbox.EFCore](../Platform.KafkaFlow.Inbox.EFCore) - Reads `message.id` for deduplication

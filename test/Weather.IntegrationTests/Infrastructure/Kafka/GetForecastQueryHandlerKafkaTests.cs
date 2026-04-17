@@ -3,7 +3,7 @@ using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.WeatherForecast.Common;
 using Weather.Application.WeatherForecast.GetForecasts;
 using Weather.Application.WeatherForecast.Services.Abstractions;

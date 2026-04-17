@@ -1,5 +1,5 @@
-using DotNetAtlas.Test.Framework.Tracing;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Weather.FunctionalTests.Common.TestClientInfrastructure;
 using Weather.Infrastructure.Persistence.Database;

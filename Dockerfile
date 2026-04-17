@@ -20,26 +20,26 @@ COPY NuGet.config .
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY global.json .
-COPY src/DotNetAtlas.Domain/DotNetAtlas.Domain.csproj src/DotNetAtlas.Domain/
-COPY src/DotNetAtlas.Infrastructure/DotNetAtlas.Infrastructure.csproj src/DotNetAtlas.Infrastructure/
-COPY src/DotNetAtlas.Application/DotNetAtlas.Application.csproj src/DotNetAtlas.Application/
-COPY src/DotNetAtlas.Api/DotNetAtlas.Api.csproj src/DotNetAtlas.Api/
+COPY src/Weather.Domain/Weather.Domain.csproj src/Weather.Domain/
+COPY src/Weather.Infrastructure/Weather.Infrastructure.csproj src/Weather.Infrastructure/
+COPY src/Weather.Application/Weather.Application.csproj src/Weather.Application/
+COPY src/Weather.Api/Weather.Api.csproj src/Weather.Api/
 
 # Restore with cache mounts
 RUN --mount=type=cache,target=/root/.nuget/packages \
-    dotnet restore --locked-mode -p:PublishReadyToRun=true src/DotNetAtlas.Api/DotNetAtlas.Api.csproj
+    dotnet restore --locked-mode -p:PublishReadyToRun=true src/Weather.Api/Weather.Api.csproj
 
 # Copy the rest of the source
 COPY . .
-WORKDIR /workspace/src/DotNetAtlas.Api
+WORKDIR /workspace/src/Weather.Api
 
 # Ensure full restore after copying all sources (includes analyzers/source generators)
 RUN --mount=type=cache,target=/root/.nuget/packages \
-    dotnet restore --locked-mode -p:PublishReadyToRun=true DotNetAtlas.Api.csproj
+    dotnet restore --locked-mode -p:PublishReadyToRun=true Weather.Api.csproj
 
 # Build without restore; cache NuGet packages
 RUN --mount=type=cache,target=/root/.nuget/packages \
-    dotnet build DotNetAtlas.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
+    dotnet build Weather.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
     -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM build AS publish
@@ -50,11 +50,11 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 RUN --mount=type=cache,target=/root/.nuget/packages \
-    dotnet publish DotNetAtlas.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+    dotnet publish Weather.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
 WORKDIR /app
 
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "DotNetAtlas.Api.dll"]
+ENTRYPOINT ["dotnet", "Weather.Api.dll"]

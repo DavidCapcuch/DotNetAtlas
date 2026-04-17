@@ -1,4 +1,4 @@
-# DotNetAtlas.OutboxRelay.WorkerService
+# Platform.OutboxRelay.WorkerService
 
 Background worker service that polls the outbox table and publishes messages to Kafka, completing the [Transactional Outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html).
 
@@ -32,7 +32,7 @@ Package as a Docker image and distribute via container registry:
 
 ```bash
 # Build the image
-docker build -f platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile -t myregistry/outbox-relay:1.0.0 .
+docker build -f platform/Platform.OutboxRelay.WorkerService/Dockerfile -t myregistry/outbox-relay:1.0.0 .
 
 # Push to registry
 docker push myregistry/outbox-relay:1.0.0
@@ -48,7 +48,7 @@ Use docker-compose and run along with the main application:
 outbox-relay:
   build:
     context: .
-    dockerfile: platform/DotNetAtlas.OutboxRelay.WorkerService/Dockerfile
+    dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
   container_name: outbox-relay
   restart: unless-stopped
   depends_on:
@@ -121,5 +121,5 @@ The service exposes health endpoints on port 8080:
 
 ## Related Packages
 
-- [DotNetAtlas.ReliableMessaging.Outbox.Core](../DotNetAtlas.ReliableMessaging.Outbox.Core) - Outbox entity
-- [DotNetAtlas.ReliableMessaging.Outbox.EFCore](../DotNetAtlas.ReliableMessaging.Outbox.EFCore) - EF Core integration for adding messages
+- [Platform.ReliableMessaging.Outbox.Core](../Platform.ReliableMessaging.Outbox.Core) - Outbox entity
+- [Platform.ReliableMessaging.Outbox.EFCore](../Platform.ReliableMessaging.Outbox.EFCore) - EF Core integration for adding messages

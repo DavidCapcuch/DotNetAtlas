@@ -1,6 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using Platform.CQS.Common;
+using Platform.CQRS.Common;
 using Platform.SharedKernel.Common;
 using Weather.Application.WeatherForecast.Services;
 using Weather.Application.WeatherForecast.Services.Abstractions;
@@ -18,14 +18,14 @@ public static class ApplicationDependencyInjection
 
             services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
 
-            services.AddCqsHandlersFromAssembly(assembly);
+            services.AddCqrsHandlersFromAssembly(assembly);
             services
                 .AddDomainEventHandlersFromAssembly(assembly)
                 .AddDomainEventDispatcher();
 
             services
                 .AddWeatherForecast()
-                .AddCqsHandlerBehaviors();
+                .AddCqrsHandlerBehaviors();
 
             return services;
         }
@@ -45,15 +45,15 @@ public static class ApplicationDependencyInjection
             return services;
         }
 
-        private IServiceCollection AddCqsHandlerBehaviors()
+        private IServiceCollection AddCqrsHandlerBehaviors()
         {
             // Decorator order: last registered = first to execute
             // Tracing (outer) -> Logging -> Metrics -> Validation -> Handler (inner)
-            services.AddCqsValidationBehavior();
-            services.AddCqsMetricsBehavior();
-            services.AddCqsLoggingBehavior();
+            services.AddCqrsValidationBehavior();
+            services.AddCqrsMetricsBehavior();
+            services.AddCqrsLoggingBehavior();
             // Always keep before metrics so that OTEL exemplars work
-            services.AddCqsTracingBehavior();
+            services.AddCqrsTracingBehavior();
 
             return services;
         }

@@ -1,4 +1,4 @@
-# DotNetAtlas.ReliableMessaging.Inbox.EFCore
+# Platform.ReliableMessaging.Inbox.EFCore
 
 EF Core implementation of the [Idempotent Consumer pattern](https://microservices.io/patterns/communication-style/idempotent-consumer.html).
 
@@ -23,7 +23,7 @@ Track processed message IDs in the database within the same transaction as your 
 Add a project reference:
 
 ```xml
-<ProjectReference Include="..\DotNetAtlas.ReliableMessaging.Inbox.EFCore\DotNetAtlas.ReliableMessaging.Inbox.EFCore.csproj" />
+<ProjectReference Include="..\Platform.ReliableMessaging.Inbox.EFCore\Platform.ReliableMessaging.Inbox.EFCore.csproj" />
 ```
 
 ## Features
@@ -38,9 +38,9 @@ Add a project reference:
 **Important:** The DbContext must be configured with `UseExceptionProcessor()` from [EntityFramework.Exceptions](https://github.com/Giorgi/EntityFramework.Exceptions) to handle concurrent duplicate inserts gracefully.
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Inbox.Core;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore;
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore.Common;
+using Platform.ReliableMessaging.Inbox.Core;
+using Platform.ReliableMessaging.Inbox.EFCore;
+using Platform.ReliableMessaging.Inbox.EFCore.Common;
 
 public class AppDbContext : DbContext, IInboxDbContext
 {
@@ -63,7 +63,7 @@ public class AppDbContext : DbContext, IInboxDbContext
 ### Register Services
 
 ```csharp
-using DotNetAtlas.ReliableMessaging.Inbox.EFCore;
+using Platform.ReliableMessaging.Inbox.EFCore;
 
 // Configure DbContext with UseExceptionProcessor (required!)
 services.AddDbContextPool<AppDbContext>(options => options
@@ -103,10 +103,10 @@ services.AddInbox<AppDbContext>();
 
 ## Usage with KafkaFlow
 
-This package provides the infrastructure for inbox pattern. For automatic inbox integration with KafkaFlow consumers, use [DotNetAtlas.KafkaFlow.Inbox.EFCore](../DotNetAtlas.KafkaFlow.Inbox.EFCore):
+This package provides the infrastructure for inbox pattern. For automatic inbox integration with KafkaFlow consumers, use [Platform.KafkaFlow.Inbox.EFCore](../Platform.KafkaFlow.Inbox.EFCore):
 
 ```csharp
-using DotNetAtlas.KafkaFlow.Inbox.EFCore;
+using Platform.KafkaFlow.Inbox.EFCore;
 
 services.AddKafka(kafka => kafka
     .AddCluster(cluster => cluster
@@ -152,9 +152,9 @@ public class InboxCleanupService : BackgroundService
 
 ## Related Packages
 
-- [DotNetAtlas.ReliableMessaging.Inbox.Core](../DotNetAtlas.ReliableMessaging.Inbox.Core) - Core inbox abstractions
-- [DotNetAtlas.KafkaFlow.Inbox.EFCore](../DotNetAtlas.KafkaFlow.Inbox.EFCore) - KafkaFlow middleware
-- [DotNetAtlas.Messaging.Abstractions](../DotNetAtlas.Messaging.Abstractions) - Message header constants
+- [Platform.ReliableMessaging.Inbox.Core](../Platform.ReliableMessaging.Inbox.Core) - Core inbox abstractions
+- [Platform.KafkaFlow.Inbox.EFCore](../Platform.KafkaFlow.Inbox.EFCore) - KafkaFlow middleware
+- [Platform.Messaging.Abstractions](../Platform.Messaging.Abstractions) - Message header constants
 
 ## License
 

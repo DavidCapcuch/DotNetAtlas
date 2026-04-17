@@ -110,6 +110,6 @@ Integration and Functional tests that have infrastructure dependencies (Database
   [Respawn](https://github.com/jbogard/Respawn) to clean database tables)
 - Safe parallel execution across collections without interference with each other
 
-For example, in [Functional Tests](DotNetAtlas.FunctionalTests), there are three collections
+For example, in [Functional Tests](Weather.FunctionalTests), there are three collections
 (each with its own Fixture): `FeedbackTestCollection`, `ForecastTestCollection`,
 `SignalRTestCollection`, which run in parallel to each other.

@@ -1,5 +1,5 @@
 using FastEndpoints;
-using Platform.CQS;
+using Platform.CQRS;
 
 namespace Ordering.Application.AlertSubscriptions.GetAlertSubscriptionOrderStatus;
 

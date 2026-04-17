@@ -1368,7 +1368,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "healthcheck{job=\"dotnetatlas-healthchecks\",healthcheck=~\"$hc\"}",
+          "expr": "healthcheck{job=\"weather-healthchecks\",healthcheck=~\"$hc\"}",
           "legendFormat": "{{healthcheck}}",
           "range": false,
           "refId": "A"
@@ -1394,7 +1394,7 @@
           "type": "prometheus",
           "uid": "webstore-metrics"
         },
-        "definition": "label_values(healthcheck{job=\"dotnetatlas-healthchecks\"},healthcheck)",
+        "definition": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
         "hide": 1,
         "includeAll": true,
         "label": "hc",
@@ -1402,7 +1402,7 @@
         "name": "hc",
         "options": [],
         "query": {
-          "query": "label_values(healthcheck{job=\"dotnetatlas-healthchecks\"},healthcheck)",
+          "query": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
-using Platform.CQS;
+using Platform.CQRS;
 using Platform.SharedKernel.Errors;
 using Weather.Application.WeatherAlerts.Common.Contracts;
 using Weather.Application.WeatherAlerts.SubscribeForLocationAlerts;

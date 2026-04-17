@@ -1,7 +1,4 @@
 using Confluent.SchemaRegistry;
-using DotNetAtlas.Test.Framework;
-using DotNetAtlas.Test.Framework.Database;
-using DotNetAtlas.Test.Framework.Kafka;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -10,6 +7,9 @@ using Microsoft.Extensions.Hosting;
 using Platform.OutboxRelay.WorkerService.Common.Config;
 using Platform.OutboxRelay.WorkerService.OutboxRelay;
 using Platform.OutboxRelay.WorkerService.OutboxRelay.Config;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
 using Respawn;
 using Serilog;
 using Weather.Infrastructure.Messaging.Kafka.Config;
@@ -18,12 +18,12 @@ using Weather.Infrastructure.Persistence.Database;
 namespace Platform.OutboxRelay.Benchmark;
 
 /// <summary>
-/// BenchmarkFixture with SQL Server and Kafka test containers for OutboxMessageRelay benchmarking.
+/// BenchmarkFixture with PostgreSQL and Kafka test containers for OutboxMessageRelay benchmarking.
 /// </summary>
 [DisableWafCache]
 internal sealed class BenchmarkFixture : AppFixture<Platform.OutboxRelay.WorkerService.Program>
 {
-    private readonly SqlServerTestContainer _dbContainer = new(
+    private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "OutboxBenchmark",
         sqlScriptsMigrationsPath:
         Path.Combine(SolutionPaths.GetSolutionRootDirectory(), "platform", "Platform.OutboxRelay.Benchmark", "Seed"),

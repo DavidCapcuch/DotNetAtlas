@@ -337,7 +337,7 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )"
         }
       },
-      "platform.cqs": {
+      "platform.cqrs": {
         "type": "Project",
         "dependencies": {
           "FluentResults": "[4.0.0, )",

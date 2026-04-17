@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.WeatherAlerts.Common.Contracts;
 using Weather.Application.WeatherAlerts.RecordWeatherReading;
 using Weather.Domain.Alerts;

@@ -8,9 +8,9 @@ namespace Weather.Api.Endpoints.Weather;
 
 internal class SendFeedbackEndpoint : Endpoint<SendFeedbackCommand>
 {
-    private readonly Platform.CQS.ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackHandler;
+    private readonly Platform.CQRS.ICommandHandler<SendFeedbackCommand, Guid> _sendFeedbackHandler;
 
-    public SendFeedbackEndpoint(Platform.CQS.ICommandHandler<SendFeedbackCommand, Guid> sendFeedbackHandler)
+    public SendFeedbackEndpoint(Platform.CQRS.ICommandHandler<SendFeedbackCommand, Guid> sendFeedbackHandler)
     {
         _sendFeedbackHandler = sendFeedbackHandler;
     }

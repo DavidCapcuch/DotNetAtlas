@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dotnetatlas-api",
+      "name": "weather-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/DotNetAtlas.Api", "--launch-profile", "DotNetAtlas.Api.Local.Http"],
+      "runtimeArgs": ["run", "--project", "src/Weather.Api", "--launch-profile", "Weather.Api.Local.Http"],
       "port": 5159
     },
     {
@@ -16,7 +16,7 @@
     {
       "name": "sagas-worker",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "saga/DotNetAtlas.Sagas", "--launch-profile", "DotNetAtlas.Sagas.WorkerService.Local"],
+      "runtimeArgs": ["run", "--project", "saga/SagaOrchestrators", "--launch-profile", "SagaOrchestrators.Local"],
       "port": 65420
     },
     {
@@ -34,7 +34,7 @@
     {
       "name": "outbox-relay",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "platform/DotNetAtlas.OutboxRelay.WorkerService", "--launch-profile", "DotNetAtlas.OutboxRelay.WorkerService.Local"],
+      "runtimeArgs": ["run", "--project", "platform/Platform.OutboxRelay.WorkerService", "--launch-profile", "Platform.OutboxRelay.WorkerService.Local"],
       "port": 65410
     }
   ]

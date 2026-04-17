@@ -1,4 +1,3 @@
-using DotNetAtlas.Test.Framework.Kafka;
 using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
@@ -6,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using Platform.Test.Framework.Kafka;
 using SagaOrchestrators.Finance.PaymentProcessingSaga;
 using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
 using SagaOrchestrators.Finance.PaymentProcessingSaga.Schedules;

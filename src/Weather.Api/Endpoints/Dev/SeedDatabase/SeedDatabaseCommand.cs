@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using FastEndpoints;
-using ICommand = Platform.CQS.ICommand;
+using ICommand = Platform.CQRS.ICommand;
 
 namespace Weather.Api.Endpoints.Dev.SeedDatabase;
 

@@ -1,4 +1,4 @@
-# DotNetAtlas.ReliableMessaging.Inbox.Core
+# Platform.ReliableMessaging.Inbox.Core
 
 Core entity for the [Idempotent Consumer pattern](https://microservices.io/patterns/communication-style/idempotent-consumer.html).
 
@@ -34,4 +34,4 @@ Each service maintains its own inbox table. The `MessageId` is sufficient for de
 
 ## Related Packages
 
-- [DotNetAtlas.ReliableMessaging.Inbox.EFCore](../DotNetAtlas.ReliableMessaging.Inbox.EFCore) - EF Core integration
+- [Platform.ReliableMessaging.Inbox.EFCore](../Platform.ReliableMessaging.Inbox.EFCore) - EF Core integration

@@ -2,7 +2,7 @@ using FluentResults.Extensions.FluentAssertions;
 using Hangfire;
 using Hangfire.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Platform.CQS;
+using Platform.CQRS;
 using Weather.Application.WeatherAlerts.SubscribeForLocationAlerts;
 using Weather.Application.WeatherAlerts.UnsubscribeFromLocationAlerts;
 using Weather.Domain.Common.ValueObjects;

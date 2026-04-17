@@ -41,7 +41,7 @@
   <Folder Name="/platform/">
     <File Path="platform/Directory.Packages.props" />
     <Project Path="platform/Platform.Avro.UniversalSerDes/Platform.Avro.UniversalSerDes.csproj" />
-    <Project Path="platform/Platform.CQS/Platform.CQS.csproj" />
+    <Project Path="platform/Platform.CQRS/Platform.CQRS.csproj" />
     <Project Path="platform/Platform.KafkaFlow.DeadLetter/Platform.KafkaFlow.DeadLetter.csproj" />
     <Project Path="platform/Platform.KafkaFlow.Inbox.EFCore/Platform.KafkaFlow.Inbox.EFCore.csproj" />
     <Project Path="platform/Platform.KafkaFlow.ProducerHeaders/Platform.KafkaFlow.ProducerHeaders.csproj" />
@@ -55,6 +55,7 @@
     <Project Path="platform/Platform.SchemaRegistry.Contracts/Platform.SchemaRegistry.Contracts.csproj" />
     <Project Path="platform/Platform.ServiceDefaults/Platform.ServiceDefaults.csproj" />
     <Project Path="platform/Platform.SharedKernel/Platform.SharedKernel.csproj" />
+    <Project Path="platform/Platform.Test.Framework/Platform.Test.Framework.csproj" />
   </Folder>
   <Folder Name="/saga/">
     <File Path="saga/Directory.Build.props" />
@@ -100,7 +101,6 @@
     <Project Path="src/Weather.Infrastructure/Weather.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/DotNetAtlas.Test.Framework/DotNetAtlas.Test.Framework.csproj" />
     <Project Path="test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj" />
     <Project Path="test/Weather.FunctionalTests/Weather.FunctionalTests.csproj" />
     <Project Path="test/Weather.IntegrationTests/Weather.IntegrationTests.csproj" />

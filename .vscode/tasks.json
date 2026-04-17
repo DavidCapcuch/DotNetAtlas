@@ -200,7 +200,7 @@
       "command": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/test/DotNetAtlas.UnitTests/DotNetAtlas.UnitTests.csproj",
+        "${workspaceFolder}/test/Weather.UnitTests/Weather.UnitTests.csproj",
         "--configuration",
         "Release",
         "--no-build"
@@ -216,7 +216,7 @@
       "command": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/test/DotNetAtlas.IntegrationTests/DotNetAtlas.IntegrationTests.csproj",
+        "${workspaceFolder}/test/Weather.IntegrationTests/Weather.IntegrationTests.csproj",
         "--configuration",
         "Release",
         "--no-build"
@@ -232,7 +232,7 @@
       "command": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/test/DotNetAtlas.FunctionalTests/DotNetAtlas.FunctionalTests.csproj",
+        "${workspaceFolder}/test/Weather.FunctionalTests/Weather.FunctionalTests.csproj",
         "--configuration",
         "Release",
         "--no-build"
@@ -248,7 +248,7 @@
       "command": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/test/DotNetAtlas.ArchitectureTests/DotNetAtlas.ArchitectureTests.csproj",
+        "${workspaceFolder}/test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj",
         "--configuration",
         "Release",
         "--no-build"
@@ -269,11 +269,11 @@
         "add",
         "${input:MigrationName}",
         "--project",
-        "src/DotNetAtlas.Infrastructure",
+        "src/Weather.Infrastructure",
         "--startup-project",
-        "src/DotNetAtlas.Api",
+        "src/Weather.Api",
         "--context",
-        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
       ],
       "group": "build"
     },
@@ -286,11 +286,11 @@
         "database",
         "update",
         "--project",
-        "src/DotNetAtlas.Infrastructure",
+        "src/Weather.Infrastructure",
         "--startup-project",
-        "src/DotNetAtlas.Api",
+        "src/Weather.Api",
         "--context",
-        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
       ],
       "group": "build"
     },
@@ -305,15 +305,15 @@
         "${input:FromMigration}",
         "${input:ToMigration}",
         "--project",
-        "src/DotNetAtlas.Infrastructure/DotNetAtlas.Infrastructure.csproj",
+        "src/Weather.Infrastructure/Weather.Infrastructure.csproj",
         "--startup-project",
-        "src/DotNetAtlas.Api/DotNetAtlas.Api.csproj",
+        "src/DotNetAWeathertlas.Api/Weather.Api.csproj",
         "--context",
-        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
         "--configuration",
         "Debug",
         "--output",
-        "src/DotNetAtlas.Infrastructure/Persistence/Database/Migrations/SqlScripts/${input:OutputFileName}",
+        "src/Weather.Infrastructure/Persistence/Database/Migrations/SqlScripts/${input:OutputFileName}",
         "--idempotent"
       ],
       "group": "build"
@@ -327,11 +327,11 @@
         "migrations",
         "remove",
         "--project",
-        "src/DotNetAtlas.Infrastructure",
+        "src/Weather.Infrastructure",
         "--startup-project",
-        "src/DotNetAtlas.Api",
+        "src/Weather.Api",
         "--context",
-        "DotNetAtlas.Infrastructure.Persistence.Database.WeatherDbContext",
+        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
         "--force"
       ],
       "group": "build"
