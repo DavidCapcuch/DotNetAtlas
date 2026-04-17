@@ -15,8 +15,7 @@ public sealed class SchemaRegistryTestContainer : ITestContainer
 
     public SchemaRegistryTestContainer(INetwork network, string kafkaBootstrapServer)
     {
-        _container = new ContainerBuilder()
-            .WithImage(ImageName)
+        _container = new ContainerBuilder(ImageName)
             .WithName($"TestSchemaRegistryFixture-{Guid.NewGuid()}")
             .WithNetwork(network)
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")

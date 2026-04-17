@@ -33,7 +33,7 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.LastModifiedUtc)
             .HasComment("Last modification timestamp (UTC).");
 
-        builder.Property(s => s.Timestamp)
+        builder.Property(s => s.RowVersion)
             .IsRowVersion()
             .HasComment("Optimistic concurrency token.");
     }

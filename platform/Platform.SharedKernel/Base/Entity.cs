@@ -5,7 +5,7 @@ public abstract class Entity<TId> : IComparable, IComparable<Entity<TId>>
 {
     public virtual TId Id { get; protected set; } = default!;
 
-    public virtual byte[]? Timestamp { get; set; }
+    public virtual uint RowVersion { get; set; }
 
     protected Entity()
     {

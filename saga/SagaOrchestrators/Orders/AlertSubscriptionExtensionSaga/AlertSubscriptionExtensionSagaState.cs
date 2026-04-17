@@ -105,7 +105,7 @@ public sealed class AlertSubscriptionExtensionSagaState : ISagaStateInstance, IA
     /// <summary>
     /// Optimistic concurrency token.
     /// </summary>
-    public byte[]? RowVersion { get; set; }
+    public uint RowVersion { get; set; }
 
     /// <summary>
     /// Token ID for the payment timeout scheduler.

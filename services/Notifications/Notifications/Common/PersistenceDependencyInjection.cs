@@ -1,4 +1,4 @@
-using EntityFramework.Exceptions.SqlServer;
+using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Notifications.Common.Config;
@@ -12,7 +12,7 @@ namespace Notifications.Common;
 public static class PersistenceDependencyInjection
 {
     /// <summary>
-    /// Configures Entity Framework Core database context with SQL Server.
+    /// Configures Entity Framework Core database context with PostgreSQL.
     /// Sets up connection pooling, interceptors, retry policies, seeding, and outbox pattern.
     /// </summary>
     public static IServiceCollection AddDatabase(
@@ -36,21 +36,22 @@ public static class PersistenceDependencyInjection
         services.AddDbContext<NotificationDbContext>((
             sp,
             options) => options
-            .UseSqlServer(
+            .UseNpgsql(
                 configuration.GetConnectionString(nameof(ConnectionStringsOptions.Payment)),
-                sqlServerOptions =>
+                npgsqlOptions =>
                 {
-                    sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
+                    npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
                         NotificationDbContext.DefaultSchemaName);
-                    sqlServerOptions.UseQuerySplittingBehavior(
+                    npgsqlOptions.UseQuerySplittingBehavior(
                         efCoreOptions.UseQuerySplitting
                             ? QuerySplittingBehavior.SplitQuery
                             : QuerySplittingBehavior.SingleQuery);
-                    sqlServerOptions.EnableRetryOnFailure(
+                    npgsqlOptions.EnableRetryOnFailure(
                         maxRetryCount: efCoreOptions.RetryMaxCount,
                         maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
-                        errorNumbersToAdd: null);
+                        errorCodesToAdd: null);
                 })
+            .UseSnakeCaseNamingConvention()
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)

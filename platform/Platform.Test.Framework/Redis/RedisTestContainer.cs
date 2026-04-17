@@ -35,8 +35,7 @@ public sealed class RedisTestContainer : ITestContainer
     /// </summary>
     public RedisTestContainer()
     {
-        _container = new RedisBuilder()
-            .WithImage(ImageName)
+        _container = new RedisBuilder(ImageName)
             .WithName($"TestRedis-{Guid.NewGuid()}")
             .WithCleanUp(true)
             .Build();

@@ -64,3 +64,4 @@ riderModule.iml
 DotNetAtlas.sln.DotSettings.user
 scripts/*
 *.lscache
+.claude/settings.local.json

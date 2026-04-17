@@ -106,7 +106,7 @@ public sealed class AlertSubscriptionPurchaseSagaState : ISagaStateInstance, IAu
     /// <summary>
     /// Optimistic concurrency token.
     /// </summary>
-    public byte[]? RowVersion { get; set; }
+    public uint RowVersion { get; set; }
 
     /// <summary>
     /// Token ID for the payment timeout scheduler.

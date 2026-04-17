@@ -1,4 +1,4 @@
-using EntityFramework.Exceptions.SqlServer;
+using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
@@ -57,21 +57,22 @@ public static class PersistenceDependencyInjection
         services.AddDbContext<WeatherDbContext>((
             sp,
             options) => options
-            .UseSqlServer(
+            .UseNpgsql(
                 configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather)),
-                sqlServerOptions =>
+                npgsqlOptions =>
                 {
-                    sqlServerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
+                    npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
                         WeatherDbContext.DefaultSchemaName);
-                    sqlServerOptions.UseQuerySplittingBehavior(
+                    npgsqlOptions.UseQuerySplittingBehavior(
                         efCoreOptions.UseQuerySplitting
                             ? QuerySplittingBehavior.SplitQuery
                             : QuerySplittingBehavior.SingleQuery);
-                    sqlServerOptions.EnableRetryOnFailure(
+                    npgsqlOptions.EnableRetryOnFailure(
                         maxRetryCount: efCoreOptions.RetryMaxCount,
                         maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
-                        errorNumbersToAdd: null);
+                        errorCodesToAdd: null);
                 })
+            .UseSnakeCaseNamingConvention()
             .EnableSensitiveDataLogging(
                 !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)

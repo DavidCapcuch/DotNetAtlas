@@ -1,12 +1,12 @@
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Notifications.Common.Config;
 using Notifications.Common.Observability;
 using Notifications.Common.Persistence.Database;
 using Notifications.Notifications.AuthorizePayment;
+using Npgsql;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
@@ -82,7 +82,7 @@ internal static class MessagingDependencyInjection
                         .AddDeadLetter()
                         .RetryForever(config => config
                             .Handle<DbUpdateException>()
-                            .Handle<SqlException>()
+                            .Handle<NpgsqlException>()
                             .Handle<TimeoutException>()
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),

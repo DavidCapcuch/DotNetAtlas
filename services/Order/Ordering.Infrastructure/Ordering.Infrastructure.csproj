@@ -15,10 +15,7 @@
 
         <!-- EF Core -->
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
+        <PackageReference Include="EFCore.NamingConventions" />
         <PackageReference Include="EntityFrameworkCore.Exceptions.PostgreSQL"/>
 
         <PackageReference Include="Bogus"/>

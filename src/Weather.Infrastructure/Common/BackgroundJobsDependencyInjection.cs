@@ -1,5 +1,5 @@
 using Hangfire;
-using Hangfire.SqlServer;
+using Hangfire.PostgreSql;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Weather.Application.WeatherAlerts.Common.Abstractions;
@@ -42,8 +42,9 @@ internal static class BackgroundJobsDependencyInjection
             config.UseRecommendedSerializerSettings();
             config.UseSimpleAssemblyNameTypeSerializer();
             config.UseSerilogLogProvider();
-            config.UseSqlServerStorage(connectionStrings.Weather,
-                new SqlServerStorageOptions
+            config.UsePostgreSqlStorage(
+                c => c.UseNpgsqlConnection(connectionStrings.Weather),
+                new PostgreSqlStorageOptions
                 {
                     JobExpirationCheckInterval =
                         TimeSpan.FromMilliseconds(hangfireOptions.JobExpirationCheckIntervalMs),

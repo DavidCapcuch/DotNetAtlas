@@ -42,6 +42,7 @@ public static class PersistenceDependencyInjection
                                 maxRetryDelay: TimeSpan.FromSeconds(efCoreOptions.RetryMaxDelaySeconds),
                                 errorCodesToAdd: null);
                         })
+                    .UseSnakeCaseNamingConvention()
                     .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors),
             poolSize: efCoreOptions.DbContextPoolSize);
 

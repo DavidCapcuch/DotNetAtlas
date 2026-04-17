@@ -44,8 +44,7 @@ public sealed class KafkaTestContainer : ITestContainer
             .WithCleanUp(true)
             .Build();
 
-        _kafkaContainer = new KafkaBuilder()
-            .WithImage(ImageName)
+        _kafkaContainer = new KafkaBuilder(ImageName)
             .WithName($"TestKafkaFixture-{Guid.NewGuid()}")
             .WithKRaft()
             .WithCleanUp(true)

@@ -47,8 +47,7 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
             .HasMaxLength(128);
 
         builder.Property(om => om.AvroPayload)
-            .HasComment("Avro-serialized domain event payload")
-            .HasColumnType("varbinary(max)");
+            .HasComment("Avro-serialized domain event payload");
 
         builder.Property(om => om.Type)
             .HasComment(
