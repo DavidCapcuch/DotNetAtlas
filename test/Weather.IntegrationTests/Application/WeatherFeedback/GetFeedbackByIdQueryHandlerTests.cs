@@ -8,7 +8,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherFeedback;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class GetFeedbackByIdQueryHandlerTests : BaseIntegrationTest
 {
     private readonly IQueryHandler<GetFeedbackByIdQuery, GetFeedbackByIdResponse> _getFeedbackByIdQueryHandler;

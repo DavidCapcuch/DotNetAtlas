@@ -102,14 +102,16 @@ Shared code coverage configuration for Coverlet:
 
 ## Test Collections
 
-Integration and Functional tests that have infrastructure dependencies (Database, Kafka, Redis, etc.) are separated into collections, each with a dedicated Fixture hosting required dependencies.
+Integration and Functional tests that have infrastructure dependencies (Database, Kafka, Redis, etc.) share a single collection per assembly, backed by a single Fixture that hosts the required dependencies.
 
-**Within a collection, tests run sequentially; across collections, tests run in parallel. This ensures:**
+**Within a collection, tests run sequentially. This ensures:**
 
-- Fixture state is reset between tests than run within a collection (e.g., using
-  [Respawn](https://github.com/jbogard/Respawn) to clean database tables)
-- Safe parallel execution across collections without interference with each other
+- Fixture state is reset between tests (e.g., using
+  [Respawn](https://github.com/jbogard/Respawn) to clean database tables, Redis `FLUSHALL`, Hangfire job cleanup)
+- A single set of test containers is alive per assembly — bounding peak Docker RAM and avoiding OOM-driven flakiness
 
-For example, in [Functional Tests](Weather.FunctionalTests), there are three collections
-(each with its own Fixture): `FeedbackTestCollection`, `ForecastTestCollection`,
-`SignalRTestCollection`, which run in parallel to each other.
+Each assembly has exactly one collection:
+
+- `Weather.IntegrationTests` → `IntegrationTestCollection` (backed by `IntegrationTestFixture`)
+- `Weather.FunctionalTests` → `FunctionalTestCollection` (backed by `ApiTestFixture`)
+- `SagaOrchestrators.IntegrationTests` → `SagaTestCollection` (backed by `SagaIntegrationTestFixture`)

@@ -10,7 +10,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherAlerts;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class RecordWeatherReadingCommandHandlerTests : BaseIntegrationTest
 {
     private readonly ICommandHandler<RecordWeatherReadingCommand, BatchRecordingResult>

@@ -8,7 +8,7 @@ using Weather.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Weather.FunctionalTests.ApiEndpoints.WeatherFeedback;
 
-[Collection<FeedbackTestCollection>]
+[Collection<FunctionalTestCollection>]
 public class ChangeFeedbackTests : BaseApiTest
 {
     public ChangeFeedbackTests(ApiTestFixture app)

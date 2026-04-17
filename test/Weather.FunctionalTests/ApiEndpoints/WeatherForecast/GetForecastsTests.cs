@@ -7,7 +7,7 @@ using Weather.FunctionalTests.Common;
 
 namespace Weather.FunctionalTests.ApiEndpoints.WeatherForecast;
 
-[Collection<ForecastTestCollection>]
+[Collection<FunctionalTestCollection>]
 public class GetForecastsTests : BaseApiTest
 {
     public GetForecastsTests(ApiTestFixture app)

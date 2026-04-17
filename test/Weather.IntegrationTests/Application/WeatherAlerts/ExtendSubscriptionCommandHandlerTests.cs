@@ -12,7 +12,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherAlerts;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class ExtendSubscriptionCommandHandlerTests : BaseIntegrationTest
 {
     private readonly FakeTimeProvider _fakeTimeProvider = new();

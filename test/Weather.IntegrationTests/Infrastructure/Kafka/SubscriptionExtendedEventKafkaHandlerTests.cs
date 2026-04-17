@@ -11,7 +11,7 @@ namespace Weather.IntegrationTests.Infrastructure.Kafka;
 /// These tests publish messages to Kafka and verify the full middleware pipeline,
 /// including the InboxMiddleware for idempotent processing.
 /// </summary>
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class ExtendSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly TimeSpan ConsumerTimeout = TimeSpan.FromSeconds(10);

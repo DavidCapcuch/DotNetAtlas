@@ -6,7 +6,7 @@ using Weather.FunctionalTests.Common;
 
 namespace Weather.FunctionalTests.ApiEndpoints.Dev;
 
-[Collection<FeedbackTestCollection>]
+[Collection<FunctionalTestCollection>]
 public class SeedDatabaseTests : BaseApiTest
 {
     public SeedDatabaseTests(ApiTestFixture app)

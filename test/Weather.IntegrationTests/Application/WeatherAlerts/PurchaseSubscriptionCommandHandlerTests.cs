@@ -11,7 +11,7 @@ using Weather.IntegrationTests.Common;
 
 namespace Weather.IntegrationTests.Application.WeatherAlerts;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
 {
     private readonly FakeTimeProvider _fakeTimeProvider = new();

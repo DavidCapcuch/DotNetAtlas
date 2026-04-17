@@ -14,7 +14,7 @@ using DomainCountryCode = Weather.Domain.Common.ValueObjects.CountryCode;
 
 namespace Weather.IntegrationTests.Infrastructure.Kafka;
 
-[Collection<ForecastTestCollection>]
+[Collection<IntegrationTestCollection>]
 public class GetForecastQueryHandlerKafkaTests : BaseIntegrationTest
 {
     private readonly IQueryHandler<GetForecastQuery, GetForecastResponse> _getForecastQueryHandler;
