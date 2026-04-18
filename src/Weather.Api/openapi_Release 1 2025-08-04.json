@@ -943,8 +943,8 @@
         "description": "IMPORTANT NOTE: If you do not specify any scope in the authentication request\n                        then generated access token gets all scopes the specified client_id is authorized for.",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "http://localhost:9011/oauth2/authorize",
-            "tokenUrl": "http://localhost:9011/oauth2/token",
+            "authorizationUrl": "http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/auth",
+            "tokenUrl": "http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token",
             "scopes": {
               "email": "Email.",
               "offline_access": "Generate refresh token.",

@@ -91,7 +91,7 @@
     <File Path="global.json" />
     <File Path="NuGet.config" />
     <File Path="README.md" />
-    <File Path="src/fusionauth/kickstart.json" />
+    <File Path="src/keycloak/realm-export.json" />
     <File Path="Dockerfile" />
   </Folder>
   <Folder Name="/src/">

@@ -19,17 +19,3 @@ datasources:
           name: trace_id
           urlDisplayLabel: View in Jaeger UI
 
-  - name: OpenSearch
-    uid: weather-opensearch
-    type: grafana-opensearch-datasource
-    url: http://fusionauthsearch:9200
-    editable: true
-    jsonData:
-      database: "logs-*"
-      flavor: opensearch
-      version: "2.11.0"
-      timeField: "@timestamp"
-      logMessageField: message
-      logLevelField: level
-      maxConcurrentShardRequests: 5
-      pplEnabled: true

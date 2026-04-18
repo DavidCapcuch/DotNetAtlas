@@ -63,9 +63,13 @@ try
 
     app.UseFastEndpointsInternal();
 
-    app.MapPlatformHealthCheckEndpoints()
-        .MapHealthChecksUI()
-        .RequireAuthorization(AuthPolicies.DevOnly);
+    app.MapPlatformHealthCheckEndpoints();
+
+    if (!isDeployedEnvironment)
+    {
+        app.MapHealthChecksUI()
+            .RequireAuthorization(AuthPolicies.DevOnly);
+    }
 
     app.MapSignalRWithDevTools()
         .MapClientGenerationApisInternal()

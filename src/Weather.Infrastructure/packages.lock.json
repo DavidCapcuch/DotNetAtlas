@@ -83,14 +83,14 @@
           "Microsoft.Extensions.Http": "8.0.0"
         }
       },
-      "AspNetCore.HealthChecks.UI.PostgreSQL.Storage": {
+      "AspNetCore.HealthChecks.UI.InMemory.Storage": {
         "type": "Direct",
         "requested": "[9.0.0, )",
         "resolved": "9.0.0",
-        "contentHash": "y9xoptiBl9qQqc/HMLPFaYaUOPzUxyfd7dVC1nVshfpVaWQ08Fk8ED0vogQRV7f3ngu9dJbEhJHUNx0SNzvKPQ==",
+        "contentHash": "xuq+HBH8Ckz9r5d+yP1pk7cgIbPLBqCGfYu0MxtvbtsxIo7cv5nQoUCJsdgqN5/a4ndVUJZco6GjWFk6r4xN1w==",
         "dependencies": {
           "AspNetCore.HealthChecks.UI.Data": "9.0.0",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "8.0.11"
+          "Microsoft.EntityFrameworkCore.InMemory": "8.0.11"
         }
       },
       "AspNetCore.HealthChecks.Uris": {
@@ -312,6 +312,17 @@
           "Microsoft.Extensions.Logging": "10.0.0",
           "Mono.TextTemplating": "3.0.0",
           "Newtonsoft.Json": "13.0.3"
+        }
+      },
+      "Microsoft.EntityFrameworkCore.InMemory": {
+        "type": "Direct",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "06yN/NR9bOM7GjUR1hnucciiK8nrr0bs7MP6RKCdHQp5BCcR4P9zemtlz6aznJms1xvybPzKwESTtoC6XMAPQQ==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "10.0.0",
+          "Microsoft.Extensions.Caching.Memory": "10.0.0",
+          "Microsoft.Extensions.Logging": "10.0.0"
         }
       },
       "Microsoft.Extensions.Caching.StackExchangeRedis": {

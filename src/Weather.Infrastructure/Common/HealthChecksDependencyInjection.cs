@@ -25,10 +25,12 @@ public static class HealthChecksDependencyInjection
     /// Configures health checks for the application.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="isDeployedEnvironment">Whether running in a deployed environment.</param>
     /// <param name="configuration">The configuration manager.</param>
     /// <returns>The service collection for chaining.</returns>
     internal static IServiceCollection AddHealthChecksInternal(
         this IServiceCollection services,
+        bool isDeployedEnvironment,
         ConfigurationManager configuration)
     {
         services.AddOptionsWithValidateOnStart<HealthChecksOptions>()
@@ -45,7 +47,11 @@ public static class HealthChecksDependencyInjection
         var weatherApiComOptions = configuration
             .GetRequiredSection(WeatherApiComOptions.Section)
             .Get<WeatherApiComOptions>()!;
-        var fusionAuthUrl = configuration[$"{AuthConfigSections.OAuthConfigSection}:Authority"]!;
+        var idmAuthorityUrl = configuration[$"{AuthConfigSections.OAuthConfigSection}:Authority"]!;
+        if (!idmAuthorityUrl.EndsWith('/'))
+        {
+            idmAuthorityUrl += "/";
+        }
 
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
@@ -94,9 +100,9 @@ public static class HealthChecksDependencyInjection
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.ExternalProvidersApiTimeout)
             .AddOpenIdConnectServer(
-                oidcSvrUri: new Uri(fusionAuthUrl),
-                discoverConfigurationSegment: "/.well-known/openid-configuration",
-                name: "FusionAuth IDM",
+                oidcSvrUri: new Uri(idmAuthorityUrl),
+                discoverConfigurationSegment: ".well-known/openid-configuration",
+                name: "Keycloak IDM",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.IdmApiTimeout)
@@ -118,14 +124,17 @@ public static class HealthChecksDependencyInjection
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeoutsOptions.KafkaTimeout);
 
-        services.AddHealthChecksUI(settings =>
+        if (!isDeployedEnvironment)
+        {
+            services.AddHealthChecksUI(settings =>
             {
                 settings.SetEvaluationTimeInSeconds(5);
                 settings.AddHealthCheckEndpoint("Liveness", ServiceDefaultHealthCheckTags.HealthEndpointPath);
                 settings.AddHealthCheckEndpoint("Readiness", ServiceDefaultHealthCheckTags.ReadinessEndpointPath);
                 settings.SetNotifyUnHealthyOneTimeUntilChange();
             })
-            .AddPostgreSqlStorage(configuration.GetConnectionString(nameof(ConnectionStringsOptions.Weather))!);
+            .AddInMemoryStorage();
+        }
 
         return services;
     }

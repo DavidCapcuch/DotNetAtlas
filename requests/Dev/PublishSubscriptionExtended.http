@@ -3,7 +3,7 @@
 # Simulates what the Billing Service would emit when a subscription extension is purchased.
 # @name PublishSubscriptionExtended_30Days
 POST {{AppHostAddress}}/api/v1/dev/publish-subscription-extended
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {
@@ -15,7 +15,7 @@ Content-Type: application/json
 ### Publish Subscription Extended Event - 90 Days
 # @name PublishSubscriptionExtended_90Days
 POST {{AppHostAddress}}/api/v1/dev/publish-subscription-extended
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {
@@ -27,7 +27,7 @@ Content-Type: application/json
 ### Publish Subscription Extended Event - 365 Days (1 year)
 # @name PublishSubscriptionExtended_365Days
 POST {{AppHostAddress}}/api/v1/dev/publish-subscription-extended
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {

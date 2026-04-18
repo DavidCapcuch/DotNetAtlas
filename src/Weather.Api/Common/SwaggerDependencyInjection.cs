@@ -1,5 +1,4 @@
 using FastEndpoints.Swagger;
-using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authorization;
 using NSwag;
 using NSwag.AspNetCore;
@@ -46,8 +45,8 @@ internal static class SwaggerDependencyInjection
                 settings.DocumentProcessors.Add(new SignalRTypesDocumentProcessor());
 
                 var authority = configuration[$"{AuthConfigSections.JwtBearerConfigSection}:Authority"]!;
-                var tokenUrl = $"{authority}/oauth2/token";
-                var authorizationUrl = $"{authority}/oauth2/authorize";
+                var tokenUrl = $"{authority}/protocol/openid-connect/token";
+                var authorizationUrl = $"{authority}/protocol/openid-connect/auth";
 
                 var scopes = AuthScopes.List.ToDictionary(s1 => s1.Name, s2 => s2.Description);
                 settings.AddAuth(nameof(OpenApiSecuritySchemeType.OAuth2), new OpenApiSecurityScheme
@@ -86,15 +85,16 @@ internal static class SwaggerDependencyInjection
             uiSettings.ConfigureDefaults();
             uiSettings.DocExpansion = "list";
 
-            var oAuthConfig = configuration
-                .GetRequiredSection(AuthConfigSections.OAuthConfigSection)
-                .Get<OAuthOptions>()!;
+            // Swagger uses a dedicated public Keycloak client (see realm-export.json ->
+            // "dotnetatlas-swagger") with PKCE. No ClientSecret is shipped to the browser
+            // because the confidential backend client secret must never leak into JS bundles.
+            var swaggerClientId = configuration[
+                $"{AuthConfigSections.SwaggerClientConfigSection}:ClientId"]!;
 
             uiSettings.OAuth2Client = new OAuth2ClientSettings
             {
                 AppName = $"{ApplicationInfo.AppName} Swagger Client",
-                ClientId = oAuthConfig.ClientId,
-                ClientSecret = oAuthConfig.ClientSecret,
+                ClientId = swaggerClientId,
                 UsePkceWithAuthorizationCodeGrant = true
             };
 

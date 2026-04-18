@@ -1,7 +1,7 @@
 ###
 # @name ClearAllCache
 POST {{AppHostAddress}}/api/v1/admin/clear-all-cache
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {

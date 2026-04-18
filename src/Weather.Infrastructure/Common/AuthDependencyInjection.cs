@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Weather.Infrastructure.Common.Authentication;
 using Weather.Infrastructure.Common.Authorization;
@@ -42,10 +43,12 @@ public static class AuthDependencyInjection
             {
                 options.ForwardDefaultSelector = ctx =>
                 {
+                    // Route strictly by path. Earlier revisions also routed to JWT on any
+                    // Authorization header; that let a bearer token sneak into UI paths
+                    // that were designed to be cookie-gated. API and Hub paths use JWT;
+                    // everything else falls back to the Cookie scheme.
                     var path = ctx.Request.Path;
-                    var hasAuthHeader = ctx.Request.Headers.ContainsKey("Authorization");
-                    if (hasAuthHeader ||
-                        path.StartsWithSegments(BasePaths.ApiBasePath,
+                    if (path.StartsWithSegments(BasePaths.ApiBasePath,
                             StringComparison.OrdinalIgnoreCase) ||
                         path.StartsWithSegments(BasePaths.HubsBasePath,
                             StringComparison.OrdinalIgnoreCase))
@@ -59,6 +62,7 @@ public static class AuthDependencyInjection
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 configuration.Bind(AuthConfigSections.JwtBearerConfigSection, options);
+                options.TokenValidationParameters.RoleClaimType = "roles";
                 if (isDeployedEnvironment)
                 {
                     options.RequireHttpsMetadata = true;
@@ -85,8 +89,13 @@ public static class AuthDependencyInjection
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
                 configuration.Bind(AuthConfigSections.CookieConfigSection, options);
+                options.Cookie.Name = "Weather.Auth";
                 options.Cookie.IsEssential = true;
                 options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.SecurePolicy = isDeployedEnvironment
+                    ? CookieSecurePolicy.Always
+                    : CookieSecurePolicy.SameAsRequest;
 
                 options.Events = new CookieAuthenticationEvents
                 {
@@ -134,6 +143,20 @@ public static class AuthDependencyInjection
                                 return Task.CompletedTask;
                             }
 
+                            if (context.Principal is null)
+                            {
+                                // Defensive: OIDC middleware always sets Principal before
+                                // OnTokenValidated fires. A null here means something
+                                // upstream is misconfigured - fail loud rather than silently
+                                // drop role claims.
+                                var logger = context.HttpContext.RequestServices
+                                    .GetRequiredService<ILoggerFactory>()
+                                    .CreateLogger("OpenIdConnectEvents");
+                                logger.LogWarning(
+                                    "OIDC token validated without a Principal; role claims will not be added.");
+                                return Task.CompletedTask;
+                            }
+
                             var roles = jwtAccessToken.Claims
                                 .Where(c => c.Type is "roles" or "role")
                                 .Select(c => c.Value)
@@ -141,7 +164,7 @@ public static class AuthDependencyInjection
                             var roleClaims = roles.Select(r => new Claim(ClaimTypes.Role, r));
 
                             var identity = new ClaimsIdentity(roleClaims);
-                            context.Principal?.AddIdentity(identity);
+                            context.Principal.AddIdentity(identity);
 
                             var expiration = jwtAccessToken.ValidTo;
                             if (context.Properties is not null)

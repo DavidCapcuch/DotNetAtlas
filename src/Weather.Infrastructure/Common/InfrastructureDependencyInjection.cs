@@ -16,7 +16,7 @@ public static class InfrastructureDependencyInjection
     {
         services
             .AddOpenTelemetry(isDeployedEnvironment, configuration)
-            .AddHealthChecksInternal(configuration);
+            .AddHealthChecksInternal(isDeployedEnvironment, configuration);
 
         services
             .AddAuthenticationInternal(configuration, isDeployedEnvironment)

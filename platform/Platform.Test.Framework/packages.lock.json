@@ -177,13 +177,13 @@
           "Microsoft.EntityFrameworkCore": "8.0.0"
         }
       },
-      "AspNetCore.HealthChecks.UI.PostgreSQL.Storage": {
+      "AspNetCore.HealthChecks.UI.InMemory.Storage": {
         "type": "Transitive",
         "resolved": "9.0.0",
-        "contentHash": "y9xoptiBl9qQqc/HMLPFaYaUOPzUxyfd7dVC1nVshfpVaWQ08Fk8ED0vogQRV7f3ngu9dJbEhJHUNx0SNzvKPQ==",
+        "contentHash": "xuq+HBH8Ckz9r5d+yP1pk7cgIbPLBqCGfYu0MxtvbtsxIo7cv5nQoUCJsdgqN5/a4ndVUJZco6GjWFk6r4xN1w==",
         "dependencies": {
           "AspNetCore.HealthChecks.UI.Data": "9.0.0",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "8.0.11"
+          "Microsoft.EntityFrameworkCore.InMemory": "8.0.11"
         }
       },
       "AspNetCore.HealthChecks.Uris": {
@@ -614,6 +614,16 @@
         "type": "Transitive",
         "resolved": "10.0.5",
         "contentHash": "ipC4u1VojgEfoIZhtbS2Sx5IluJTP/Jf1hz3yGsxGBgSukYY/CquI6rAjxn5H58CZgVn36qcuPPtNMwZ0AUzMg=="
+      },
+      "Microsoft.EntityFrameworkCore.InMemory": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "06yN/NR9bOM7GjUR1hnucciiK8nrr0bs7MP6RKCdHQp5BCcR4P9zemtlz6aznJms1xvybPzKwESTtoC6XMAPQQ==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "10.0.0",
+          "Microsoft.Extensions.Caching.Memory": "10.0.0",
+          "Microsoft.Extensions.Logging": "10.0.0"
+        }
       },
       "Microsoft.Extensions.AmbientMetadata.Application": {
         "type": "Transitive",
@@ -1533,7 +1543,7 @@
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
           "AspNetCore.HealthChecks.UI": "[9.0.0, )",
-          "AspNetCore.HealthChecks.UI.PostgreSQL.Storage": "[9.0.0, )",
+          "AspNetCore.HealthChecks.UI.InMemory.Storage": "[9.0.0, )",
           "AspNetCore.HealthChecks.Uris": "[9.0.0, )",
           "AspNetCore.SignalR.OpenTelemetry": "[1.7.0, )",
           "Bogus": "[35.6.3, )",
@@ -1552,6 +1562,7 @@
           "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": "[10.0.0, )",
           "Microsoft.AspNetCore.SignalR.StackExchangeRedis": "[10.0.0, )",
           "Microsoft.Build.Tasks.Core": "[18.4.0, )",
+          "Microsoft.EntityFrameworkCore.InMemory": "[10.0.0, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.5, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.5, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.5, )",

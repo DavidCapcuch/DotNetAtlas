@@ -1,7 +1,7 @@
 ###
 # @name SendFeedback
 POST {{AppHostAddress}}/api/v1/weather/feedback
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {
