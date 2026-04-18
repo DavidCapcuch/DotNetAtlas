@@ -29,7 +29,7 @@ echo "   │ Prometheus          │ http://localhost:9090                      
 echo "   │ Grafana             │ http://localhost:3000                            │"
 echo "   │ Kafka (AKHQ)        │ http://localhost:9000                            │"
 echo "   │ Schema Registry     │ http://localhost:8081                            │"
-echo "   │ FusionAuth          │ http://localhost:9011                            │"
+echo "   │ Keycloak            │ http://localhost:9011                            │"
 echo "   └─────────────────────────────────────────────────────────────────────────┘"
 echo ""
 echo "🛠️  Useful Commands:"

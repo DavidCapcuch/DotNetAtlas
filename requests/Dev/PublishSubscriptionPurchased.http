@@ -3,7 +3,7 @@
 # Simulates what the Billing Service would emit when a purchase is completed.
 # @name PublishSubscriptionPurchased_Pro
 POST {{AppHostAddress}}/api/v1/dev/publish-subscription-purchased
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {
@@ -16,7 +16,7 @@ Content-Type: application/json
 ### Publish Subscription Purchased Event - Ultra Tier
 # @name PublishSubscriptionPurchased_Ultra
 POST {{AppHostAddress}}/api/v1/dev/publish-subscription-purchased
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {
@@ -29,7 +29,7 @@ Content-Type: application/json
 ### Publish Subscription Purchased Event - Pro Tier (365 days)
 # @name PublishSubscriptionPurchased_Pro_365
 POST {{AppHostAddress}}/api/v1/dev/publish-subscription-purchased
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}
 Content-Type: application/json
 
 {

@@ -12,7 +12,8 @@
         <PackageReference Include="AspNetCore.HealthChecks.OpenIdConnectServer"/>
         <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
         <PackageReference Include="AspNetCore.HealthChecks.UI"/>
-        <PackageReference Include="AspNetCore.HealthChecks.UI.PostgreSQL.Storage"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
         <PackageReference Include="AspNetCore.HealthChecks.Uris"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>

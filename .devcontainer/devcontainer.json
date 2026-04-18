@@ -122,10 +122,7 @@
     8081, // Schema Registry
     9000, // AKHQ (Kafka UI)
     8088, // Outbox Relay health endpoint
-    9011, // FusionAuth
-    5432, // PostgreSQL (FusionAuth)
-    9200, // OpenSearch (FusionAuth)
-    9600 // OpenSearch Performance Analyzer
+    9011 // Keycloak
   ],
   // Port labels for better identification
   "portsAttributes": {
@@ -198,20 +195,8 @@
       "onAutoForward": "silent"
     },
     "9011": {
-      "label": "FusionAuth",
+      "label": "Keycloak",
       "onAutoForward": "notify"
-    },
-    "5432": {
-      "label": "PostgreSQL",
-      "onAutoForward": "silent"
-    },
-    "9200": {
-      "label": "OpenSearch",
-      "onAutoForward": "silent"
-    },
-    "9600": {
-      "label": "OpenSearch Perf",
-      "onAutoForward": "silent"
     }
   }
 }

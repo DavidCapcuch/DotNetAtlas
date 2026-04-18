@@ -1,0 +1,202 @@
+{
+  "realm": "dotnetatlas",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "quickLoginCheckMilliSeconds": 1000,
+  "minimumQuickLoginWaitSeconds": 60,
+  "maxDeltaTimeSeconds": 43200,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "Developer", "description": "Developer role (maps to AuthPolicies.DevOnly)" },
+      { "name": "admin",     "description": "Admin role" }
+    ]
+  },
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "updateProfileFirstLoginMode": "on",
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "authenticateByDefault": false,
+      "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "851240598849-tji85r9f4mpjne714rm7m5ttsruhs54d.apps.googleusercontent.com",
+        "clientSecret": "GoogleClientSecretThatShouldBeInVaultAndNotExposed",
+        "defaultScope": "openid profile email",
+        "syncMode": "IMPORT"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "username": "admin@dotnetatlas.com",
+      "email": "admin@dotnetatlas.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Dinesh",
+      "lastName": "Chugtai",
+      "credentials": [{ "type": "password", "value": "123456789", "temporary": false }],
+      "realmRoles": ["admin", "offline_access", "uma_authorization"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-111111111111",
+      "username": "dev@dotnetatlas.com",
+      "email": "dev@dotnetatlas.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Fred",
+      "lastName": "Flintstone",
+      "credentials": [{ "type": "password", "value": "123456789", "temporary": false }],
+      "realmRoles": ["Developer", "offline_access", "uma_authorization"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "username": "pleb@dotnetatlas.com",
+      "email": "pleb@dotnetatlas.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Pleb",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "123456789", "temporary": false }],
+      "realmRoles": ["offline_access", "uma_authorization"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "username": "d.capcuch@gmail.com",
+      "email": "d.capcuch@gmail.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "David",
+      "lastName": "Capcuch",
+      "credentials": [{ "type": "password", "value": "123456789", "temporary": false }],
+      "realmRoles": ["Developer", "admin", "offline_access", "uma_authorization"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
+      "name": "DotNet Atlas",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "super-secret-secret-that-should-be-regenerated-for-production",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:5159/signin-oidc",
+        "https://localhost:7095/signin-oidc",
+        "http://localhost:5159/signout-callback-oidc",
+        "https://localhost:7095/signout-callback-oidc"
+      ],
+      "webOrigins": [
+        "http://localhost:5159",
+        "https://localhost:7095"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5159/##http://localhost:5159/*##https://localhost:7095/##https://localhost:7095/*"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "roles-flat",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "audience-app",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "dotnetatlas-swagger",
+      "name": "DotNet Atlas Swagger UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:5159/swagger/oauth2-redirect.html",
+        "https://localhost:7095/swagger/oauth2-redirect.html",
+        "http://localhost:63342/rest/oauth2/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5159",
+        "https://localhost:7095"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "roles-flat",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "audience-app",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 using FastEndpoints.Testing;
 using Hangfire;
 using HealthChecks.UI.Core.HostedService;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,6 +94,24 @@ public class ApiTestFixture : AppFixture<Program>
                 services.AddSingleton(Substitute.For<IHealthCheckReportCollector>());
                 // API tests don't need a real Kafka producer
                 services.AddSingleton(Substitute.For<IForecastEventsProducer>());
+                // Relax JWT validation ONLY for the test host. This intentionally does not
+                // live in appsettings.Testing.json so an accidental ASPNETCORE_ENVIRONMENT=Testing
+                // on a real host cannot accept unsigned tokens produced by FakeTokenCreator.
+                services.PostConfigure<JwtBearerOptions>(
+                    JwtBearerDefaults.AuthenticationScheme,
+                    options =>
+                    {
+                        options.RequireHttpsMetadata = false;
+#pragma warning disable CA5404 // Intentional for the in-process test host only.
+                        options.TokenValidationParameters.ValidateIssuer = false;
+                        options.TokenValidationParameters.ValidateAudience = false;
+                        options.TokenValidationParameters.ValidateLifetime = false;
+#pragma warning restore CA5404
+                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
+                        options.TokenValidationParameters.RequireSignedTokens = false;
+                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
+                            new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
+                    });
             });
     }
 

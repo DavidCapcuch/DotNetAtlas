@@ -6,4 +6,5 @@ public static class AuthConfigSections
     public const string OAuthConfigSection = "Authentication:OAuth";
     public const string OidcConfigSection = "Authentication:Oidc";
     public const string CookieConfigSection = "Authentication:Cookie";
+    public const string SwaggerClientConfigSection = "Authentication:SwaggerClient";
 }

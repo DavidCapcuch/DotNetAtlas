@@ -17,14 +17,14 @@
           "Confluent.Kafka": "2.3.0"
         }
       },
-      "AspNetCore.HealthChecks.UI.PostgreSQL.Storage": {
+      "AspNetCore.HealthChecks.UI.InMemory.Storage": {
         "type": "Direct",
         "requested": "[9.0.0, )",
         "resolved": "9.0.0",
-        "contentHash": "y9xoptiBl9qQqc/HMLPFaYaUOPzUxyfd7dVC1nVshfpVaWQ08Fk8ED0vogQRV7f3ngu9dJbEhJHUNx0SNzvKPQ==",
+        "contentHash": "xuq+HBH8Ckz9r5d+yP1pk7cgIbPLBqCGfYu0MxtvbtsxIo7cv5nQoUCJsdgqN5/a4ndVUJZco6GjWFk6r4xN1w==",
         "dependencies": {
           "AspNetCore.HealthChecks.UI.Data": "9.0.0",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "8.0.11"
+          "Microsoft.EntityFrameworkCore.InMemory": "8.0.11"
         }
       },
       "Confluent.SchemaRegistry": {
@@ -802,6 +802,15 @@
         "contentHash": "1Ub3Wvvbz7CMuFNWgLEc9qqQibiMoovDML/WHrwr5J83RPgtI20giCR92s/ipLgu7IIuqw+W/y7WpIeHqAICxg==",
         "dependencies": {
           "AspNetCore.HealthChecks.UI.Core": "9.0.0"
+        }
+      },
+      "Microsoft.EntityFrameworkCore.InMemory": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "8.0.11",
+        "contentHash": "gFFdubZlRfudSw94OxO7s8OvLQZncnR0S1ll//wRtZP3mMYVeq8DrMnEILK6hBJwbTBB1SNm3apg9SdvdE/ySg==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "8.0.11"
         }
       },
       "Serilog.AspNetCore": {

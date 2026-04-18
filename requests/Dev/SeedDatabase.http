@@ -1,4 +1,4 @@
 ###
 # @name SeedDatabase
 POST {{AppHostAddress}}/api/v1/dev/seed-database?numberOfRecords=100
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{$auth.token("keycloak-local")}}

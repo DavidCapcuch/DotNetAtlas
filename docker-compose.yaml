@@ -1,7 +1,8 @@
 services:
   postgresdb:
-    image: postgres:18.3
+    image: postgres:18.3@sha256:52e6ffd11fddd081ae63880b635b2a61c14008c17fc98cdc7ce5472265516dd0
     container_name: postgres5433
+    shm_size: 256mb
     restart: always
     profiles:
       - core
@@ -12,7 +13,8 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
+      - ./src/keycloak/init-db.sql:/docker-entrypoint-initdb.d/10-keycloak.sql:ro
     deploy:
       resources:
         limits:
@@ -22,11 +24,16 @@ services:
           memory: 512M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres -h 127.0.0.1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
@@ -419,106 +426,54 @@ services:
   #    ports:
   #      - "5601:5601"
 
-  # FUSION AUTH SERVICES
-  fusionauthpostgredb:
-    image: postgres:16.10-bookworm@sha256:4f70c01cd4db87706cea6eabee1f8a93340dc493a46f6fbe206750f273d21949
-    profiles:
-      - full
-    environment:
-      PGDATA: /var/lib/postgresql/data/pgdata
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    volumes:
-      - fusionauthpostgredb_data:/var/lib/postgresql/data
-
-  fusionauthsearch:
-    image: opensearchproject/opensearch:3.2.0@sha256:23297b8d8545e129dd58c254ed08d786dc552410ba772983ad2af31048d2f04b
-    profiles:
-      - full
-    environment:
-      - cluster.name=fusionauth
-      - discovery.type=single-node
-      - node.name=search
-      - bootstrap.memory_lock=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true
-      - _JAVA_OPTIONS
-    healthcheck:
-      interval: 10s
-      retries: 80
-      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:9200/
-    restart: unless-stopped
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    ports:
-      - 9200:9200 # REST API
-      - 9600:9600 # Performance Analyzer
-    volumes:
-      - fusionauthsearch_data:/usr/share/opensearch/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  fusionauth:
-    image: fusionauth/fusionauth-app:1.60.2@sha256:fb1eda06fc9665b6212dadf2619f82cf9b6333d6dee9c7785d7847ca7d4037f0
+  # KEYCLOAK IDENTITY PROVIDER
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.2
+    container_name: keycloak9011
     profiles:
       - full
     depends_on:
-      fusionauthpostgredb:
+      postgresdb:
         condition: service_healthy
-      fusionauthsearch:
-        condition: service_healthy
+    command:
+      - start-dev
+      - --import-realm
+      - --http-port=8080
+      - --hostname=http://localhost:9011
+      - --hostname-strict=false
     environment:
-      DATABASE_URL: jdbc:postgresql://fusionauthpostgredb:5432/fusionauth
-      DATABASE_ROOT_USERNAME: postgres
-      DATABASE_ROOT_PASSWORD: postgres
-      DATABASE_USERNAME: fusionauth
-      DATABASE_PASSWORD: hkaLBM3RVnyYeYeqE3WI1w2e4Avpy0Wd5O3s3
-      FUSIONAUTH_APP_MEMORY: 512M
-      FUSIONAUTH_APP_RUNTIME_MODE: development
-      FUSIONAUTH_APP_URL: http://fusionauth:9011
-      SEARCH_SERVERS: http://fusionauthsearch:9200
-      SEARCH_TYPE: elasticsearch
-      FUSIONAUTH_APP_KICKSTART_FILE: /usr/local/fusionauth/kickstart/kickstart.json
-    restart: unless-stopped
-    ports:
-      - 9011:9011
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresdb:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # Local-dev bootstrap admin (admin/admin). In any non-local environment,
+      # set KC_BOOTSTRAP_ADMIN_USERNAME/KC_BOOTSTRAP_ADMIN_PASSWORD via a secret
+      # store and rotate the first admin immediately after realm import.
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
     volumes:
-      - fusionauth_config:/usr/local/fusionauth/config
-      - ./src/fusionauth:/usr/local/fusionauth/kickstart
+      - ./src/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "9011:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 1G
 
-networks:
-  db_net:
-    driver: bridge
-  search_net:
-    driver: bridge
-
 volumes:
   postgres_data:
-  elasticsearch-data:
   seq_data:
   redis-insight:
-  fusionauthpostgredb_data:
-  fusionauth_config:
-  fusionauthsearch_data:
   kafka_data:
   kafka_metadata:
