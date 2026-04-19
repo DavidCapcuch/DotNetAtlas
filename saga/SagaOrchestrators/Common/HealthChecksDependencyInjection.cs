@@ -6,7 +6,7 @@ using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.Constants;
 using SagaOrchestrators.Common.Observability.HealthChecks;
-using SagaOrchestrators.Persistence.Database;
+using SagaOrchestrators.Common.Persistence.Database;
 
 namespace SagaOrchestrators.Common;
 

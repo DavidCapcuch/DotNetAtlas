@@ -22,7 +22,7 @@
     {
       "name": "payments-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Finance/Payments", "--launch-profile", "http"],
+      "runtimeArgs": ["run", "--project", "services/Payments/Payments", "--launch-profile", "http"],
       "port": 5298
     },
     {

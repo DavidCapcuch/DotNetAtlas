@@ -1,7 +1,7 @@
 using Platform.SharedKernel.Base;
 using SagaOrchestrators.Common.SagaAbstractions;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 
 /// <summary>
 /// Represents the state of the <see cref="PaymentProcessingSagaOrchestrator"/>.

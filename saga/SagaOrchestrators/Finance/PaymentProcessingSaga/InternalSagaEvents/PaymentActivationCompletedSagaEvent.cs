@@ -1,4 +1,4 @@
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 
 /// <summary>
 /// Event emitted when the subscription has been successfully activated after payment capture.

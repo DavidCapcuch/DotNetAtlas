@@ -1,7 +1,7 @@
 using Platform.ServiceDefaults;
 using SagaOrchestrators.Common;
 using SagaOrchestrators.Common.Observability;
-using SagaOrchestrators.Persistence.Database;
+using SagaOrchestrators.Common.Persistence.Database;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()

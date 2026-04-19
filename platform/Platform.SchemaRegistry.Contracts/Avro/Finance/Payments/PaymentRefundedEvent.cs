@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Finance.Payments
+namespace Payments.Payments
 {
 	using System;
 	using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Finance.Payments
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentRefundedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRefundedEvent"",""doc"":""Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture."",""namespace"":""Finance.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User who received the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Original payment transaction ID that was refunded."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundTransactionId"",""doc"":""New transaction ID for the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundedAmount"",""doc"":""Amount refunded."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""RefundedAtUtc"",""doc"":""UTC timestamp when refund was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRefundedEvent"",""doc"":""Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture."",""namespace"":""Payments.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User who received the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Original payment transaction ID that was refunded."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundTransactionId"",""doc"":""New transaction ID for the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundedAmount"",""doc"":""Amount refunded."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""RefundedAtUtc"",""doc"":""UTC timestamp when refund was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the payment workflow.
 		/// </summary>

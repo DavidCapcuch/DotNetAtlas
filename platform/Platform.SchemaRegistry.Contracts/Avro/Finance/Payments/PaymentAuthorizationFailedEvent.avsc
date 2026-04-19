@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentAuthorizationFailedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when payment authorization fails. No funds were reserved.",
     "fields": [
         {

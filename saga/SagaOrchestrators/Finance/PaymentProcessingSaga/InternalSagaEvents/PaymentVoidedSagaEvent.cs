@@ -1,4 +1,4 @@
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 
 /// <summary>
 /// Event emitted when an authorized payment has been voided (cancelled before capture).

@@ -1,7 +1,7 @@
 using Avro.Specific;
 using MassTransit;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using SagaOrchestrators.Persistence.Database;
+using SagaOrchestrators.Common.Persistence.Database;
 
 namespace SagaOrchestrators.Common.Extensions;
 
@@ -34,7 +34,7 @@ public static class SagaOutboxExtensions
     /// <example>
     /// <code>
     /// .PublishToOutbox(
-    ///     "finance.payments",
+    ///     "payments.payments",
     ///     ctx => ctx.Saga.CorrelationId.ToString(),
     ///     ctx => new PaymentRequestedEvent { /* ... */ })
     /// </code>

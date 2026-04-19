@@ -1,21 +1,16 @@
 using Confluent.SchemaRegistry;
 using MassTransit;
-using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.Observability;
+using SagaOrchestrators.Common.Persistence.Database.Interceptors;
 using SagaOrchestrators.Common.SagasDependencyInjection;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Consumers;
-using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga.Consumers;
-using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga.Consumers;
-using SagaOrchestrators.Persistence.Database.Interceptors;
-using SagaDbContext = SagaOrchestrators.Persistence.Database.SagaDbContext;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Consumers;
+using SagaDbContext = SagaOrchestrators.Common.Persistence.Database.SagaDbContext;
 
 namespace SagaOrchestrators.Common;
 
@@ -78,32 +73,6 @@ public static class SagaDependencyInjection
             services.AddMassTransit(cfg =>
             {
                 cfg.SetKebabCaseEndpointNameFormatter();
-
-                cfg.AddSagaStateMachine<AlertSubscriptionPurchaseSagaOrchestrator, AlertSubscriptionPurchaseSagaState>()
-                    .EntityFrameworkRepository(r =>
-                    {
-                        r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<SagaDbContext>();
-                        r.UsePostgres();
-                    })
-                    .Endpoint(e =>
-                    {
-                        e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
-                        e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
-                    });
-
-                cfg.AddSagaStateMachine<AlertSubscriptionExtensionSagaOrchestrator, AlertSubscriptionExtensionSagaState>()
-                    .EntityFrameworkRepository(r =>
-                    {
-                        r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-                        r.ExistingDbContext<SagaDbContext>();
-                        r.UsePostgres();
-                    })
-                    .Endpoint(e =>
-                    {
-                        e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
-                        e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
-                    });
 
                 cfg.AddSagaStateMachine<PaymentProcessingSagaOrchestrator, PaymentProcessingSagaState>()
                     .EntityFrameworkRepository(r =>
@@ -199,8 +168,6 @@ public static class SagaDependencyInjection
         {
             cfg.AddRider(rider =>
             {
-                rider.AddConsumersFromNamespaceContaining<AlertSubscriptionPurchaseInitiatedConsumer>();
-                rider.AddConsumersFromNamespaceContaining<AlertSubscriptionExtensionInitiatedConsumer>();
                 rider.AddConsumersFromNamespaceContaining<PaymentRequestedConsumer>();
 
                 rider.UsingKafka((registrationContext, kafkaConfigurator) =>
@@ -208,10 +175,6 @@ public static class SagaDependencyInjection
                     kafkaConfigurator.Host(kafkaOptions.BrokersFlat);
 
                     var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
-                    kafkaConfigurator.ConfigureAlertSubscriptionPurchaseSagaConsumers(registrationContext,
-                        schemaRegistryClient, kafkaOptions);
-                    kafkaConfigurator.ConfigureAlertSubscriptionExtensionSagaConsumers(registrationContext,
-                        schemaRegistryClient, kafkaOptions);
                     kafkaConfigurator.ConfigurePaymentSagaConsumers(registrationContext, schemaRegistryClient,
                         kafkaOptions);
                 });

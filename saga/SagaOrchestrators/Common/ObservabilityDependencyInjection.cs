@@ -6,12 +6,8 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SagaOrchestrators.Common.Observability;
 using SagaOrchestrators.Common.Observability.Tracing;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Observability;
-using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga.Observability;
-using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga.Observability;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Observability;
 
 namespace SagaOrchestrators.Common;
 
@@ -64,8 +60,6 @@ public static class ObservabilityDependencyInjection
 
         public IServiceCollection AddSagaStateObservability()
         {
-            services.AddStateObserver<AlertSubscriptionPurchaseSagaState, AlertSubscriptionSagaStateObserver>();
-            services.AddStateObserver<AlertSubscriptionExtensionSagaState, AlertSubscriptionExtensionSagaStateObserver>();
             services.AddStateObserver<PaymentProcessingSagaState, PaymentSagaStateObserver>();
 
             return services;

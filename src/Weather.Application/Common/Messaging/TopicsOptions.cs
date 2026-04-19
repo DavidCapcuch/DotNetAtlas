@@ -41,16 +41,6 @@ public sealed class TopicsOptions
     public required string WeatherAlertSubscriptions { get; set; }
 
     /// <summary>
-    /// Topic for Order Alert Subscription events.
-    /// Published by Order service:
-    /// - AlertSubscriptionPurchaseInitiatedEvent
-    /// - AlertSubscriptionExtensionInitiatedEvent.
-    /// </summary>
-    [Required]
-    [Length(1, MaximumKafkaTopicLength)]
-    public required string OrderAlertSubscriptions { get; set; }
-
-    /// <summary>
     /// Topic for Notification commands.
     /// Consumed by Notification service:
     /// - SendEmailNotificationCommand.

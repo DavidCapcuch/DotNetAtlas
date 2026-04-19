@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentVoidedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture.",
     "fields": [
         {

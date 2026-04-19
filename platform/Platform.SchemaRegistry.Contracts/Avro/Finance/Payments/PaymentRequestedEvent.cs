@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Finance.Payments
+namespace Payments.Payments
 {
 	using System;
 	using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Finance.Payments
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentRequestedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRequestedEvent"",""doc"":""Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.)."",""namespace"":""Finance.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (e.g., purchase → payment → activation)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User initiating the payment."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use for this transaction."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Amount"",""doc"":""Payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code (e.g., 'USD', 'EUR')."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key for preventing duplicate payment processing."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when payment was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRequestedEvent"",""doc"":""Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.)."",""namespace"":""Payments.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (e.g., purchase → payment → activation)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User initiating the payment."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use for this transaction."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Amount"",""doc"":""Payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code (e.g., 'USD', 'EUR')."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key for preventing duplicate payment processing."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when payment was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID shared across the entire business flow (e.g., purchase → payment → activation).
 		/// </summary>

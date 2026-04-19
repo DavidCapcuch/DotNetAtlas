@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)'!='Release'">
-        <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+        <OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -54,6 +54,10 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Weather.FunctionalTests"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Endpoints\Dev\AlertSubscriptions\Purchase\PublishAlertSubscriptionPurchaseInitiatedEvent\" />
     </ItemGroup>
 
 </Project>

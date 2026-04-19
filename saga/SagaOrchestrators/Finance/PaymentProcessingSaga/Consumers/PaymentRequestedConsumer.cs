@@ -1,8 +1,8 @@
-using Finance.Payments;
 using MassTransit;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
+using Payments.Payments;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Consumers;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Consumers;
 
 /// <summary>
 /// Consumer that receives <see cref="PaymentRequestedEvent"/> from Kafka

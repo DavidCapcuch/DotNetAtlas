@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentFailedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted by Payment Saga when payment processing fails terminally (after retries exhausted or non-retryable error). Business sagas listen to this to handle failure.",
     "fields": [
         {

@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Platform.SharedKernel.Base;
 
-namespace SagaOrchestrators.Persistence.Database.Interceptors;
+namespace SagaOrchestrators.Common.Persistence.Database.Interceptors;
 
 /// <summary>
 /// EF Core interceptor that automatically sets audit timestamps for saga entities

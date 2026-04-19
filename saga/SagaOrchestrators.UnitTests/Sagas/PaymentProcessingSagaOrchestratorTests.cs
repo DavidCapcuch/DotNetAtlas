@@ -1,14 +1,14 @@
-using Finance.Payments;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using Payments.Payments;
 using Platform.Test.Framework.Kafka;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Schedules;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Schedules;
 
 namespace SagaOrchestrators.UnitTests.Sagas;
 

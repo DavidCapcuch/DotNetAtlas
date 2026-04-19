@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Tracing;
 using SagaOrchestrators.Common.Config.Kafka;
+using SagaOrchestrators.Common.Persistence.Database;
 using SagaOrchestrators.Common.SagaAbstractions;
-using SagaOrchestrators.Persistence.Database;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
 namespace SagaOrchestrators.IntegrationTests.Common;

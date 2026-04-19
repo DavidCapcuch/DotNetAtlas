@@ -3,7 +3,6 @@
   <Folder Name="/docs/architecture/" />
   <Folder Name="/docs/design decisions/" />
   <Folder Name="/http-requests/">
-    <File Path="requests/Auth/GetAndSetAuthToken.http" />
     <File Path="requests/http-client.env.json" />
   </Folder>
   <Folder Name="/http-requests/Admin/">
@@ -67,20 +66,13 @@
   <Folder Name="/services/">
     <File Path="services/Directory.Packages.props" />
   </Folder>
-  <Folder Name="/services/Finance/">
-    <File Path="services/Finance/README.md" />
-    <Project Path="services/Finance/Payments/Payments.csproj" />
-  </Folder>
   <Folder Name="/services/Notifications/">
     <File Path="services/Notifications/README.md" />
     <Project Path="services/Notifications/Notifications/Notifications.csproj" />
   </Folder>
-  <Folder Name="/services/Order/">
-    <File Path="services/Order/README.md" />
-    <Project Path="services/Order/Ordering.API/Ordering.API.csproj" />
-    <Project Path="services/Order/Ordering.Application/Ordering.Application.csproj" />
-    <Project Path="services/Order/Ordering.Domain/Ordering.Domain.csproj" />
-    <Project Path="services/Order/Ordering.Infrastructure/Ordering.Infrastructure.csproj" />
+  <Folder Name="/services/Payments/">
+    <File Path="services/Payments/README.md" />
+    <Project Path="services/Payments/Payments/Payments.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

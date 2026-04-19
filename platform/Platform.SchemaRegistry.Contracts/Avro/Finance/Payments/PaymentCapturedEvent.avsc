@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentCapturedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when a payment has been successfully captured. The funds have been transferred.",
     "fields": [
         {

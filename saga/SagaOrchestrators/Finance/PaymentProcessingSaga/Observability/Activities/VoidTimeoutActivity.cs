@@ -1,9 +1,9 @@
 using MassTransit;
 using SagaOrchestrators.Common.Observability.Metrics;
 using SagaOrchestrators.Common.Observability.Tracing;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Schedules;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Schedules;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Observability.Activities;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment void times out

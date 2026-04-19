@@ -42,10 +42,9 @@ public class WeatherAlertEmailNotificationDomainEventHandlerTests : IDisposable
             ForecastRequested = "weather.forecast.requested",
             WeatherAlertSubscriptionsCommands = "weather.alert-subscriptions.commands",
             WeatherAlertSubscriptions = "weather.alerts.events",
-            OrderAlertSubscriptions = "order.alert-subscription.events",
             NotificationCommands = "notifications.commands",
-            PaymentCommands = "finance.payment.commands",
-            Payments = "finance.payment.events",
+            PaymentCommands = "payments.payment.commands",
+            Payments = "payments.payment.events",
             WeatherFeedbackEvents = "weather.feedback.events",
             DltTopicSuffix = ".DLT"
         });

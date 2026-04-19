@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Finance.Payments
+namespace Payments.Payments
 {
 	using System;
 	using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Finance.Payments
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentAuthorizationFailedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentAuthorizationFailedEvent"",""doc"":""Event emitted when payment authorization fails. No funds were reserved."",""namespace"":""Finance.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Error code from the payment provider (e.g., 'INSUFFICIENT_FUNDS', 'CARD_DECLINED', 'FRAUD_SUSPECTED')."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""IsRetryable"",""doc"":""Indicates whether this failure is retryable (e.g., temporary network issue vs. hard decline)."",""type"":""boolean""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when authorization failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentAuthorizationFailedEvent"",""doc"":""Event emitted when payment authorization fails. No funds were reserved."",""namespace"":""Payments.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Error code from the payment provider (e.g., 'INSUFFICIENT_FUNDS', 'CARD_DECLINED', 'FRAUD_SUSPECTED')."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""IsRetryable"",""doc"":""Indicates whether this failure is retryable (e.g., temporary network issue vs. hard decline)."",""type"":""boolean""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when authorization failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the payment workflow.
 		/// </summary>

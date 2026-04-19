@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS saga."__EFMigrationsHistory" (
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
         IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'saga') THEN
             CREATE SCHEMA saga;
         END IF;
@@ -22,111 +22,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE TABLE saga."AlertSubscriptionExtensionSagaState" (
-        correlation_id uuid NOT NULL,
-        current_state character varying(64) NOT NULL,
-        user_id uuid NOT NULL,
-        payment_method_id uuid NOT NULL,
-        duration_days integer NOT NULL,
-        amount numeric(19,4) NOT NULL,
-        currency character varying(3) NOT NULL,
-        payment_transaction_id uuid,
-        extension_initiated_at_utc timestamp with time zone NOT NULL,
-        payment_completed_at_utc timestamp with time zone,
-        created_utc timestamp with time zone NOT NULL,
-        last_modified_utc timestamp with time zone NOT NULL,
-        extension_completed_at_utc timestamp with time zone,
-        new_expires_at_utc timestamp with time zone,
-        error_message character varying(2048),
-        error_code character varying(64),
-        compensation_triggered boolean NOT NULL,
-        compensation_completed_at_utc timestamp with time zone,
-        payment_timeout_token_id uuid,
-        extension_timeout_token_id uuid,
-        compensation_timeout_token_id uuid,
-        CONSTRAINT pk_alert_subscription_extension_saga_state PRIMARY KEY (correlation_id)
-    );
-    COMMENT ON TABLE saga."AlertSubscriptionExtensionSagaState" IS 'Saga state for alert subscription extension orchestration.';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".correlation_id IS 'PK - Unique correlation ID (also PaymentTransactionId)';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".current_state IS 'Current state of the saga state machine';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".user_id IS 'User who is extending the subscription';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".payment_method_id IS 'ID of the saved payment method';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".duration_days IS 'Subscription extension duration in days';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".amount IS 'Payment amount';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".currency IS 'ISO 4217 currency code';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".payment_transaction_id IS 'Payment transaction ID (set after payment completes)';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".extension_initiated_at_utc IS 'UTC timestamp when extension was initiated';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".payment_completed_at_utc IS 'UTC timestamp when payment completed (null if not completed)';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".created_utc IS 'UTC timestamp when saga was created';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".last_modified_utc IS 'UTC timestamp when saga was last updated';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".extension_completed_at_utc IS 'UTC timestamp when extension completed (null if not completed)';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".new_expires_at_utc IS 'New subscription expiration date after extension (null if not completed)';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".error_message IS 'Error message if failed';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".error_code IS 'Error code for categorized failure handling';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".compensation_triggered IS 'Whether compensation (refund) has been triggered';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".compensation_completed_at_utc IS 'UTC timestamp when compensation completed';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".payment_timeout_token_id IS 'Token ID for payment timeout scheduler - set when schedule is active';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".extension_timeout_token_id IS 'Token ID for extension timeout scheduler - set when schedule is active';
-    COMMENT ON COLUMN saga."AlertSubscriptionExtensionSagaState".compensation_timeout_token_id IS 'Token ID for compensation timeout scheduler - set when schedule is active';
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE TABLE saga."AlertSubscriptionPurchaseSagaState" (
-        correlation_id uuid NOT NULL,
-        current_state character varying(64) NOT NULL,
-        user_id uuid NOT NULL,
-        payment_method_id uuid NOT NULL,
-        subscription_tier integer NOT NULL,
-        duration_days integer NOT NULL,
-        amount numeric(19,4) NOT NULL,
-        currency character varying(3) NOT NULL,
-        payment_transaction_id uuid,
-        purchase_initiated_utc timestamp with time zone NOT NULL,
-        payment_completed_utc timestamp with time zone,
-        created_utc timestamp with time zone NOT NULL,
-        last_modified_utc timestamp with time zone NOT NULL,
-        activation_completed_utc timestamp with time zone,
-        error_message character varying(2048),
-        error_code character varying(64),
-        compensation_triggered boolean NOT NULL,
-        compensation_completed_utc timestamp with time zone,
-        payment_timeout_token_id uuid,
-        activation_timeout_token_id uuid,
-        compensation_timeout_token_id uuid,
-        CONSTRAINT pk_alert_subscription_purchase_saga_state PRIMARY KEY (correlation_id)
-    );
-    COMMENT ON TABLE saga."AlertSubscriptionPurchaseSagaState" IS 'Saga state for alert subscription purchase orchestration.';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".correlation_id IS 'PK - Unique correlation ID (also PaymentTransactionId)';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".current_state IS 'Current state of the saga state machine';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".user_id IS 'User who purchased the subscription';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".payment_method_id IS 'ID of the saved payment method';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".subscription_tier IS 'Subscription tier (Pro, Ultra)';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".duration_days IS 'Subscription duration in days';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".amount IS 'Payment amount';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".currency IS 'ISO 4217 currency code';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".payment_transaction_id IS 'Payment transaction ID (set after payment completes)';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".purchase_initiated_utc IS 'UTC timestamp when purchase was initiated';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".payment_completed_utc IS 'UTC timestamp when payment completed (null if not completed)';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".created_utc IS 'UTC timestamp when saga was created';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".last_modified_utc IS 'UTC timestamp when saga was last updated';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".activation_completed_utc IS 'UTC timestamp when activation completed (null if not completed)';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".error_message IS 'Error message if failed';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".error_code IS 'Error code for categorized failure handling';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".compensation_triggered IS 'Whether compensation (refund) has been triggered';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".compensation_completed_utc IS 'UTC timestamp when compensation completed';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".payment_timeout_token_id IS 'Token ID for payment timeout scheduler - set when schedule is active';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".activation_timeout_token_id IS 'Token ID for activation timeout scheduler - set when schedule is active';
-    COMMENT ON COLUMN saga."AlertSubscriptionPurchaseSagaState".compensation_timeout_token_id IS 'Token ID for compensation timeout scheduler - set when schedule is active';
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE TABLE saga."OutboxMessages" (
         id bigint GENERATED BY DEFAULT AS IDENTITY,
         topic_name character varying(249) NOT NULL,
@@ -150,7 +46,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE TABLE saga."PaymentProcessingSagaState" (
         correlation_id uuid NOT NULL,
         current_state character varying(64) NOT NULL,
@@ -212,99 +108,43 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionExtensionSagaState_CurrentState" ON saga."AlertSubscriptionExtensionSagaState" (current_state);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionExtensionSagaState_State_Created" ON saga."AlertSubscriptionExtensionSagaState" (current_state, created_utc);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionExtensionSagaState_State_LastUpdated" ON saga."AlertSubscriptionExtensionSagaState" (current_state, last_modified_utc);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionExtensionSagaState_UserId" ON saga."AlertSubscriptionExtensionSagaState" (user_id);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionPurchaseSagaState_CurrentState" ON saga."AlertSubscriptionPurchaseSagaState" (current_state);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionPurchaseSagaState_State_Created" ON saga."AlertSubscriptionPurchaseSagaState" (current_state, created_utc);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionPurchaseSagaState_State_LastUpdated" ON saga."AlertSubscriptionPurchaseSagaState" (current_state, last_modified_utc);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
-    CREATE INDEX "IX_SubscriptionPurchaseSagaState_UserId" ON saga."AlertSubscriptionPurchaseSagaState" (user_id);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE INDEX "IX_PaymentSagaState_CurrentState" ON saga."PaymentProcessingSagaState" (current_state);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE UNIQUE INDEX "IX_PaymentSagaState_IdempotencyKey" ON saga."PaymentProcessingSagaState" (idempotency_key);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE INDEX "IX_PaymentSagaState_State_Created" ON saga."PaymentProcessingSagaState" (current_state, created_utc);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE INDEX "IX_PaymentSagaState_State_LastUpdated" ON saga."PaymentProcessingSagaState" (current_state, last_modified_utc);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     CREATE INDEX "IX_PaymentSagaState_UserId" ON saga."PaymentProcessingSagaState" (user_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260417105325_Init') THEN
+    IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260419185512_Initial') THEN
     INSERT INTO saga."__EFMigrationsHistory" (migration_id, product_version)
-    VALUES ('20260417105325_Init', '10.0.5');
+    VALUES ('20260419185512_Initial', '10.0.5');
     END IF;
 END $EF$;
