@@ -6,8 +6,8 @@ using Confluent.SchemaRegistry.Serdes;
 using MassTransit;
 using Platform.Avro.UniversalSerDes;
 using SagaOrchestrators.Common.Config.Kafka;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Consumers;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Consumers;
 
 namespace SagaOrchestrators.Common.SagasDependencyInjection;
 
@@ -30,7 +30,7 @@ internal static class PaymentProcessingSagaDependencyInjection
             KafkaOptions kafkaOptions)
         {
             kafka.TopicEndpoint<Guid, ISpecificRecord>(
-                kafkaOptions.Topics.FinancePayments,
+                kafkaOptions.Topics.PaymentsPayments,
                 kafkaOptions.ConsumerGroups.PaymentProcessingSaga,
                 consumerConfig =>
                 {

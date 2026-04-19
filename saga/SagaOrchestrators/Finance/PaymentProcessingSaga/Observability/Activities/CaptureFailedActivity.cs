@@ -1,9 +1,9 @@
 using MassTransit;
 using SagaOrchestrators.Common.Observability.Metrics;
 using SagaOrchestrators.Common.Observability.Tracing;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Observability.Activities;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability.Activities;
 
 /// <summary>
 /// Activity that records metrics, traces, and logs when payment capture fails

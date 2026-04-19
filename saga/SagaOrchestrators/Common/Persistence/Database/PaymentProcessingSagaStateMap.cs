@@ -1,9 +1,9 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
 
-namespace SagaOrchestrators.Persistence.Database;
+namespace SagaOrchestrators.Common.Persistence.Database;
 
 public sealed class PaymentProcessingSagaStateMap :
     SagaClassMap<PaymentProcessingSagaState>

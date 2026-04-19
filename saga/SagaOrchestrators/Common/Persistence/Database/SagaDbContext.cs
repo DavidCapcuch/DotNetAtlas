@@ -2,11 +2,9 @@ using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
 
-namespace SagaOrchestrators.Persistence.Database;
+namespace SagaOrchestrators.Common.Persistence.Database;
 
 public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbContext, IOutboxDbContext
 {
@@ -17,8 +15,6 @@ public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbCo
     {
     }
 
-    public DbSet<AlertSubscriptionPurchaseSagaState> AlertSubscriptionPurchaseSagaStates { get; set; }
-    public DbSet<AlertSubscriptionExtensionSagaState> AlertSubscriptionExtensionSagaStates { get; set; }
     public DbSet<PaymentProcessingSagaState> PaymentProcessingSagaStates { get; set; }
     public DbSet<Platform.ReliableMessaging.Outbox.Core.OutboxMessage> OutboxMessages { get; set; }
 
@@ -34,8 +30,6 @@ public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbCo
     {
         get
         {
-            yield return new AlertSubscriptionPurchaseSagaStateMap();
-            yield return new AlertSubscriptionExtensionSagaStateMap();
             yield return new PaymentProcessingSagaStateMap();
         }
     }

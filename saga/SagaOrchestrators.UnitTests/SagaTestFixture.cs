@@ -6,7 +6,7 @@ using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework.Kafka;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
-using SagaOrchestrators.Persistence.Database;
+using SagaOrchestrators.Common.Persistence.Database;
 
 namespace SagaOrchestrators.UnitTests;
 

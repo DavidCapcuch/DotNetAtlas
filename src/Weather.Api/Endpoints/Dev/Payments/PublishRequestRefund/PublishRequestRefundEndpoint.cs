@@ -1,6 +1,6 @@
 using FastEndpoints;
-using Finance.Payments;
 using Microsoft.Extensions.Options;
+using Payments.Payments;
 using Weather.Application.Common.Messaging;
 using Weather.Infrastructure.Messaging.Kafka.Dev;
 

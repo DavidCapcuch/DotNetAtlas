@@ -1,6 +1,6 @@
 using SagaOrchestrators.Common.Observability.Tracing;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Observability;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability;
 
 /// <summary>
 /// Activity tags specific to the Payment Processing saga.

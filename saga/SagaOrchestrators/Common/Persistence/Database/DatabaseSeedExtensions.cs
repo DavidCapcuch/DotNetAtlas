@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
-namespace SagaOrchestrators.Persistence.Database;
+namespace SagaOrchestrators.Common.Persistence.Database;
 
 public static class DatabaseSeedExtensions
 {

@@ -1,4 +1,4 @@
-﻿namespace Weather.Infrastructure.Common.Constants;
+namespace Weather.Infrastructure.Common.Constants;
 
 public static class BasePaths
 {

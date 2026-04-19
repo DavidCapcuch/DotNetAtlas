@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Finance.Payments
+namespace Payments.Payments
 {
 	using System;
 	using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Finance.Payments
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentVoidedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentVoidedEvent"",""doc"":""Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture."",""namespace"":""Finance.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was voided."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was voided."",""type"":""string""},{""name"":""VoidedAtUtc"",""doc"":""UTC timestamp when the void was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentVoidedEvent"",""doc"":""Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture."",""namespace"":""Payments.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was voided."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was voided."",""type"":""string""},{""name"":""VoidedAtUtc"",""doc"":""UTC timestamp when the void was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the payment workflow.
 		/// </summary>

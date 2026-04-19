@@ -237,12 +237,9 @@ services:
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.feedbacks --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alerts --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alert-subscriptions.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alert-subscriptions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic order.alert-subscriptions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notification.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic finance.payment-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic finance.payments --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payment-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payments --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists
       "
     depends_on:
@@ -365,39 +362,6 @@ services:
       - OTEL_SERVICE_NAME=SagaOutboxRelay
     ports:
       - "8089:8080"  # Health checks endpoint
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-ordering:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-ordering
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-ordering-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=ordering
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      # - ASPNETCORE_ENVIRONMENT=Local
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=OrderingOutboxRelay
-    ports:
-      - "8090:8080"  # Health checks endpoint
     deploy:
       resources:
         limits:

@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentCompletedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted by Payment Saga when payment processing is complete (authorization + capture succeeded). Business sagas listen to this event to continue their workflow.",
     "fields": [
         {

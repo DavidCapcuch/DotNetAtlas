@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Finance.Payments
+namespace Payments.Payments
 {
 	using System;
 	using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Finance.Payments
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class VoidPaymentCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""VoidPaymentCommand"",""doc"":""Command sent by Payment Saga to void (cancel) an authorized payment that has not yet been captured."",""namespace"":""Finance.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization to void."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider to void."",""type"":""string""},{""name"":""Reason"",""doc"":""Reason for voiding the authorization."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when void was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""VoidPaymentCommand"",""doc"":""Command sent by Payment Saga to void (cancel) an authorized payment that has not yet been captured."",""namespace"":""Payments.Payments"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization to void."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider to void."",""type"":""string""},{""name"":""Reason"",""doc"":""Reason for voiding the authorization."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when void was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the workflow.
 		/// </summary>

@@ -1,15 +1,15 @@
-using Finance.Payments;
 using MassTransit;
 using Microsoft.Extensions.Options;
+using Payments.Payments;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.Extensions;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.InternalSagaEvents;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Observability.Activities;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Schedules;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Observability.Activities;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Schedules;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 
 /// <summary>
 /// MassTransit state machine implementing the payment processing saga.
@@ -101,7 +101,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 })
                 .Activity(x => x.OfType<PaymentSagaStartedActivity>())
                 .PublishToOutbox(
-                    _topicsOptions.FinancePaymentCommands,
+                    _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new AuthorizePaymentCommand
                     {
@@ -134,7 +134,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<AuthorizationCompletedActivity>())
                 .Unschedule(AuthorizationTimeout)
                 .PublishToOutbox(
-                    _topicsOptions.FinancePaymentCommands,
+                    _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new CapturePaymentCommand
                     {
@@ -164,7 +164,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     retry => retry
                         .Then(ctx => ctx.Saga.AuthorizationRetryCount++)
                         .PublishToOutbox(
-                            _topicsOptions.FinancePaymentCommands,
+                            _topicsOptions.PaymentsPaymentCommands,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new AuthorizePaymentCommand
                             {
@@ -207,7 +207,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureCompletedActivity>())
                 .Unschedule(CaptureTimeout)
                 .PublishToOutbox(
-                    _topicsOptions.FinancePayments,
+                    _topicsOptions.PaymentsPayments,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new PaymentCompletedEvent
                     {
@@ -236,7 +236,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     retry => retry
                         .Then(ctx => ctx.Saga.CaptureRetryCount++)
                         .PublishToOutbox(
-                            _topicsOptions.FinancePaymentCommands,
+                            _topicsOptions.PaymentsPaymentCommands,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new CapturePaymentCommand
                             {
@@ -254,7 +254,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     noRetry => noRetry
                         .Then(ctx => ctx.Saga.CompensationTriggered = true)
                         .PublishToOutbox(
-                            _topicsOptions.FinancePaymentCommands,
+                            _topicsOptions.PaymentsPaymentCommands,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new VoidPaymentCommand
                             {
@@ -265,7 +265,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                                 RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                             })
                         .PublishToOutbox(
-                            _topicsOptions.FinancePayments,
+                            _topicsOptions.PaymentsPayments,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new PaymentFailedEvent
                             {
@@ -290,7 +290,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureTimeoutActivity>())
                 .Then(ctx => ctx.Saga.CompensationTriggered = true)
                 .PublishToOutbox(
-                    _topicsOptions.FinancePaymentCommands,
+                    _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
@@ -301,7 +301,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
                 .PublishToOutbox(
-                    _topicsOptions.FinancePayments,
+                    _topicsOptions.PaymentsPayments,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new PaymentFailedEvent
                     {
@@ -335,7 +335,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<RefundRequestedActivity>())
                 .Unschedule(SuccessFinalizationTimeout)
                 .PublishToOutbox(
-                    _topicsOptions.FinancePaymentCommands,
+                    _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new RequestRefundCommand
                     {

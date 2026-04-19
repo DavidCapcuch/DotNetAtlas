@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentAuthorizedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when a payment has been successfully authorized by the payment provider. The funds are reserved but not yet captured.",
     "fields": [
         {

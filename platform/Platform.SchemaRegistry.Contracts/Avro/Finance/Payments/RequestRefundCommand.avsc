@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "RequestRefundCommand",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Command sent by Payment Saga to request a refund for a captured payment.",
     "fields": [
         {

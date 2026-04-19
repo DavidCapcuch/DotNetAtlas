@@ -1,6 +1,6 @@
 using MassTransit;
 
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Observability;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability;
 
 /// <summary>
 /// MassTransit state observer for logging <see cref="PaymentProcessingSagaOrchestrator"/> state transitions.

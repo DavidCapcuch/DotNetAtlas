@@ -13,12 +13,6 @@ public sealed class SagaOptions
     public const string Section = "Saga";
 
     /// <summary>
-    /// Timeout configuration for the subscription purchase saga.
-    /// </summary>
-    [Required]
-    public required SubscriptionSagaTimeoutOptions SubscriptionTimeouts { get; set; }
-
-    /// <summary>
     /// Timeout configuration for the payment processing saga.
     /// </summary>
     [Required]

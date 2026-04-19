@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentRefundedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture.",
     "fields": [
         {

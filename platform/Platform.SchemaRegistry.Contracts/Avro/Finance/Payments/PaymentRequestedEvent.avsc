@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentRequestedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.).",
     "fields": [
         {

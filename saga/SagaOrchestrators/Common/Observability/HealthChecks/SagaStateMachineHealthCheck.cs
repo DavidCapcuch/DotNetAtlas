@@ -3,10 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using SagaOrchestrators.Common.Config;
-using SagaOrchestrators.Finance.PaymentProcessingSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionExtensionSaga;
-using SagaOrchestrators.Orders.AlertSubscriptionPurchaseSaga;
-using SagaOrchestrators.Persistence.Database;
+using SagaOrchestrators.Common.Persistence.Database;
+using SagaOrchestrators.Payments.PaymentProcessingSaga;
 
 namespace SagaOrchestrators.Common.Observability.HealthChecks;
 
@@ -28,23 +26,9 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
     private static readonly Meter Meter = new(ApplicationInfo.AppName, ApplicationInfo.Version);
 
     // Backing fields for observable gauges - updated by health check, read by Prometheus
-    private static int _stuckPurchaseSagaCount;
-    private static int _stuckExtensionSagaCount;
     private static int _stuckPaymentSagaCount;
 
     // Observable gauges for stuck saga counts per type - scraped by Prometheus/Grafana
-    private static readonly ObservableGauge<int> StuckPurchaseSagasGauge = Meter.CreateObservableGauge(
-        "saga.stuck.purchase",
-        () => _stuckPurchaseSagaCount,
-        "count",
-        "Number of stuck subscription purchase sagas");
-
-    private static readonly ObservableGauge<int> StuckExtensionSagasGauge = Meter.CreateObservableGauge(
-        "saga.stuck.extension",
-        () => _stuckExtensionSagaCount,
-        "count",
-        "Number of stuck subscription extension sagas");
-
     private static readonly ObservableGauge<int> StuckPaymentSagasGauge = Meter.CreateObservableGauge(
         "saga.stuck.payment",
         () => _stuckPaymentSagaCount,
@@ -79,18 +63,6 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
             var stuckSagaThreshold = TimeSpan.FromMinutes(_sagaHealthCheckOptions.StuckSagaThresholdMinutes);
             var threshold = _timeProvider.GetUtcNow() - stuckSagaThreshold;
 
-            var stuckPurchaseCount = await _sagaDbContext.Set<AlertSubscriptionPurchaseSagaState>()
-                .CountAsync(s =>
-                        !AlertSubscriptionPurchaseSagaState.TerminalStates.Contains(s.CurrentState) &&
-                        s.LastModifiedUtc < threshold,
-                    cancellationToken);
-
-            var stuckExtensionCount = await _sagaDbContext.Set<AlertSubscriptionExtensionSagaState>()
-                .CountAsync(s =>
-                        !AlertSubscriptionExtensionSagaState.TerminalStates.Contains(s.CurrentState) &&
-                        s.LastModifiedUtc < threshold,
-                    cancellationToken);
-
             var stuckPaymentCount = await _sagaDbContext.Set<PaymentProcessingSagaState>()
                 .CountAsync(s =>
                         !PaymentProcessingSagaState.TerminalStates.Contains(s.CurrentState) &&
@@ -98,19 +70,15 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
                     cancellationToken);
 
             // Update metrics for Grafana/Prometheus scraping
-            _stuckPurchaseSagaCount = stuckPurchaseCount;
-            _stuckExtensionSagaCount = stuckExtensionCount;
             _stuckPaymentSagaCount = stuckPaymentCount;
 
-            var stuckSagaCount = stuckPurchaseCount + stuckExtensionCount + stuckPaymentCount;
+            var stuckSagaCount = stuckPaymentCount;
 
             if (stuckSagaCount >= _sagaHealthCheckOptions.MaxStuckSagasBeforeUnhealthy)
             {
                 _logger.LogError(
-                    "Found {StuckSagaCount} stuck sagas ({StuckPurchaseCount} purchase, {StuckExtensionCount} extension, {StuckPaymentCount} payment) - no update in {ThresholdMinutes} minutes, exceeds unhealthy threshold of {MaxUnhealthy}",
+                    "Found {StuckSagaCount} stuck sagas ({StuckPaymentCount} payment) - no update in {ThresholdMinutes} minutes, exceeds unhealthy threshold of {MaxUnhealthy}",
                     stuckSagaCount,
-                    stuckPurchaseCount,
-                    stuckExtensionCount,
                     stuckPaymentCount,
                     _sagaHealthCheckOptions.StuckSagaThresholdMinutes,
                     _sagaHealthCheckOptions.MaxStuckSagasBeforeUnhealthy);
@@ -120,8 +88,6 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
                     data: new Dictionary<string, object>
                     {
                         ["StuckSagaCount"] = stuckSagaCount,
-                        ["StuckPurchaseSagaCount"] = stuckPurchaseCount,
-                        ["StuckExtensionSagaCount"] = stuckExtensionCount,
                         ["StuckPaymentSagaCount"] = stuckPaymentCount,
                         ["ThresholdMinutes"] = _sagaHealthCheckOptions.StuckSagaThresholdMinutes,
                         ["MaxUnhealthy"] = _sagaHealthCheckOptions.MaxStuckSagasBeforeUnhealthy
@@ -131,10 +97,8 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
             if (stuckSagaCount >= _sagaHealthCheckOptions.MaxStuckSagasBeforeDegraded)
             {
                 _logger.LogWarning(
-                    "Found {StuckSagaCount} potentially stuck sagas ({StuckPurchaseCount} purchase, {StuckExtensionCount} extension, {StuckPaymentCount} payment) - no update in {ThresholdMinutes} minutes",
+                    "Found {StuckSagaCount} potentially stuck sagas ({StuckPaymentCount} payment) - no update in {ThresholdMinutes} minutes",
                     stuckSagaCount,
-                    stuckPurchaseCount,
-                    stuckExtensionCount,
                     stuckPaymentCount,
                     _sagaHealthCheckOptions.StuckSagaThresholdMinutes);
 
@@ -143,8 +107,6 @@ public sealed class SagaStateMachineHealthCheck : IHealthCheck
                     data: new Dictionary<string, object>
                     {
                         ["StuckSagaCount"] = stuckSagaCount,
-                        ["StuckPurchaseSagaCount"] = stuckPurchaseCount,
-                        ["StuckExtensionSagaCount"] = stuckExtensionCount,
                         ["StuckPaymentSagaCount"] = stuckPaymentCount,
                         ["ThresholdMinutes"] = _sagaHealthCheckOptions.StuckSagaThresholdMinutes,
                         ["MaxDegraded"] = _sagaHealthCheckOptions.MaxStuckSagasBeforeDegraded

@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using SagaOrchestrators.Common.Observability.Tracing;
-using SagaOrchestrators.Finance.PaymentProcessingSaga.Observability;
+using SagaOrchestrators.Payments.PaymentProcessingSaga.Observability;
 
 namespace SagaOrchestrators.Common.Observability.Metrics;
 

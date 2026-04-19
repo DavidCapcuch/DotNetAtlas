@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "PaymentCaptureFailedEvent",
-    "namespace": "Finance.Payments",
+    "namespace": "Payments.Payments",
     "doc": "Event emitted when payment capture fails. The authorization should be voided.",
     "fields": [
         {

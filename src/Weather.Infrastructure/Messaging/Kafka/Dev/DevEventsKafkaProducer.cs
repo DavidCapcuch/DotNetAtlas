@@ -1,8 +1,7 @@
 using System.Text;
-using Finance.Payments;
 using KafkaFlow;
 using Microsoft.Extensions.Options;
-using Order.AlertSubscriptions;
+using Payments.Payments;
 using Platform.Messaging.Abstractions;
 using Weather.Alerts;
 using Weather.Application.Common.Messaging;
@@ -17,7 +16,6 @@ namespace Weather.Infrastructure.Messaging.Kafka.Dev;
 public class DevEventsKafkaProducer
 {
     private readonly IMessageProducer<DevEventsKafkaProducer> _producer;
-    private readonly string _orderAlertSubscriptionEventsTopic;
     private readonly string _weatherAlertSubscriptionsCommandsTopic;
     private readonly string _weatherAlertSubscriptionsTopic;
     private readonly string _paymentCommandsTopic;
@@ -30,7 +28,6 @@ public class DevEventsKafkaProducer
         _producer = producer;
         _weatherAlertSubscriptionsCommandsTopic = topicOptions.Value.WeatherAlertSubscriptionsCommands;
         _weatherAlertSubscriptionsTopic = topicOptions.Value.WeatherAlertSubscriptions;
-        _orderAlertSubscriptionEventsTopic = topicOptions.Value.OrderAlertSubscriptions;
         _paymentCommandsTopic = topicOptions.Value.PaymentCommands;
         _paymentsTopic = topicOptions.Value.Payments;
     }
@@ -107,23 +104,6 @@ public class DevEventsKafkaProducer
         return _producer.ProduceAsync(
             _weatherAlertSubscriptionsTopic, eventAlertSubscriptionExtensionActivationFailedEvent.UserId.ToString(),
             eventAlertSubscriptionExtensionActivationFailedEvent);
-    }
-
-    // Order Alert Subscription Events
-    public Task PublishAlertSubscriptionPurchaseInitiatedEventAsync(
-        AlertSubscriptionPurchaseInitiatedEvent eventAlertSubscriptionPurchaseInitiatedEvent)
-    {
-        return _producer.ProduceAsync(
-            _orderAlertSubscriptionEventsTopic, eventAlertSubscriptionPurchaseInitiatedEvent.UserId.ToString(),
-            eventAlertSubscriptionPurchaseInitiatedEvent);
-    }
-
-    public Task PublishAlertSubscriptionExtensionInitiatedEventAsync(
-        AlertSubscriptionExtensionInitiatedEvent eventAlertSubscriptionExtensionInitiatedEvent)
-    {
-        return _producer.ProduceAsync(
-            _orderAlertSubscriptionEventsTopic, eventAlertSubscriptionExtensionInitiatedEvent.UserId.ToString(),
-            eventAlertSubscriptionExtensionInitiatedEvent);
     }
 
     // Payment Commands

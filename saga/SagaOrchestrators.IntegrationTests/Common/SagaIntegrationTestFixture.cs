@@ -9,7 +9,7 @@ using Platform.Test.Framework.Kafka;
 using Respawn;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
-using SagaOrchestrators.Persistence.Database;
+using SagaOrchestrators.Common.Persistence.Database;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
@@ -74,7 +74,11 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
 
     public async ValueTask InitializeAsync()
     {
-        await Task.WhenAll(_dbContainer.StartAsync(), _kafkaContainer.StartAsync());
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+        await _kafkaContainer.StartAsync();
 
         // we cannot access Services for IOptions here because that automatically starts the server, and the
         // server will fail to start without topics pre-created

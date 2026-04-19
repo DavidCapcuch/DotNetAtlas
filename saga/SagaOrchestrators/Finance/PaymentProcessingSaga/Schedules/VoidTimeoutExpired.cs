@@ -1,4 +1,4 @@
-namespace SagaOrchestrators.Finance.PaymentProcessingSaga.Schedules;
+namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Schedules;
 
 /// <summary>
 /// Message sent when the void timeout has expired for a saga instance.
