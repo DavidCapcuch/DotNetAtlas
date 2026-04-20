@@ -70,5 +70,17 @@
         <PackageVersion Include="Respawn" Version="7.0.0"/>
         <PackageVersion Include="StackExchange.Redis" Version="2.8.31"/>
         <PackageVersion Include="OpenTelemetry" Version="1.12.0"/>
+
+        <!-- Test-framework packages for platform-tier test projects.
+             Keep in sync with test/Directory.Packages.props — CPM is nearest-wins and does not chain. -->
+        <PackageVersion Include="xunit.v3" Version="3.0.1"/>
+        <PackageVersion Include="xunit.analyzers" Version="1.24.0"/>
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4"/>
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
+        <PackageVersion Include="coverlet.collector" Version="6.0.4"/>
+        <PackageVersion Include="AwesomeAssertions" Version="9.1.0"/>
+        <PackageVersion Include="AwesomeAssertions.Analyzers" Version="9.0.3"/>
+        <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.6.0"/>
+        <PackageVersion Include="FluentResults.Extensions.FluentAssertions" Version="2.2.1"/>
     </ItemGroup>
 </Project>
