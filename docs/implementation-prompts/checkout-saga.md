@@ -1,6 +1,6 @@
 # Master System Prompt — Implement the **Checkout Saga**
 
-> Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
+> Paste this as the first message in a fresh Claude Code session for `C:\Users\dcapc\Desktop\Git\DotNetAtlas`.
 
 <thinking_first>
 Before writing any code, do these in your **first response** — explicitly, in order:
