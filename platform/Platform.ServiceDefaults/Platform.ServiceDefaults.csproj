@@ -23,5 +23,12 @@
         <!-- Health Checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics" />
         <PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
+
+        <!-- HTTP resilience (ADR-0009) -->
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj" />
     </ItemGroup>
 </Project>

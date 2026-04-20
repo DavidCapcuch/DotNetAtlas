@@ -1310,6 +1310,8 @@
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
           "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
+          "Microsoft.Extensions.Http.Resilience": "[9.9.0, )",
+          "Platform.SharedKernel": "[1.0.0, )",
           "Serilog.AspNetCore": "[9.0.0, )",
           "Serilog.Exceptions": "[8.4.0, )",
           "Serilog.Exceptions.EntityFrameworkCore": "[8.4.0, )",
