@@ -3,6 +3,7 @@
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     </PropertyGroup>
     <ItemGroup>
+        <PackageVersion Include="Ardalis.SmartEnum" Version="8.1.0"/>
         <PackageVersion Include="Apache.Avro" Version="1.12.1"/>
         <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0"/>
