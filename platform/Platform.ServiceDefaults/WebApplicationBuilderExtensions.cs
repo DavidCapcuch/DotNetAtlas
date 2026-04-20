@@ -1,9 +1,12 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
+using Platform.ServiceDefaults.CorrelationId;
 using Platform.ServiceDefaults.Logging;
+using Platform.SharedKernel.Common;
 
 namespace Platform.ServiceDefaults;
 
@@ -13,8 +16,10 @@ namespace Platform.ServiceDefaults;
 public static class WebApplicationBuilderExtensions
 {
     /// <summary>
-    /// Configures all service defaults including host configuration and Serilog logging.
-    /// This is a convenience method that calls <see cref="AddPlatformHostConfiguration"/> and <see cref="UsePlatformSerilog"/>.
+    /// Configures all service defaults including host configuration, Serilog logging, the shared
+    /// kernel ambient services (<see cref="Platform.SharedKernel.Time.IClock"/> per ADR-0015), and
+    /// the correlation-id HTTP edge DI surface (ADR-0008). Callers still need to invoke
+    /// <c>app.UseCorrelationId()</c> in the middleware pipeline.
     /// </summary>
     /// <param name="builder">The web application builder.</param>
     /// <param name="configureOptions">Optional callback to configure Serilog options.</param>
@@ -25,6 +30,9 @@ public static class WebApplicationBuilderExtensions
     {
         builder.AddPlatformHostConfiguration();
         builder.UsePlatformSerilog(configureOptions);
+
+        builder.Services.AddSharedKernel();
+        builder.Services.AddCorrelationId();
 
         return builder;
     }

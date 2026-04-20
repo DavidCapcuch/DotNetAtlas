@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props) -->
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj"/>
+    </ItemGroup>
+</Project>

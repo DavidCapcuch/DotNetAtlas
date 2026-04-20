@@ -586,6 +586,9 @@ dotnet_diagnostic.CA1848.severity = none
 # CA1860: Avoid using 'Enumerable.Any()' extension method
 dotnet_diagnostic.CA1860.severity = suggestion
 
+# CA1873 
+dotnet_diagnostic.CA1873.severity = suggestion
+
 # CA2000: Dispose objects before losing scope
 dotnet_diagnostic.CA2000.severity = suggestion
 
