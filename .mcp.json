@@ -26,6 +26,22 @@
         "--prerelease",
         "--yes"
       ]
+    },
+    "miro": {
+      "type": "stdio",
+      "command": "miro-mcp-server",
+      "args": [],
+      "env": {
+        "MIRO_ACCESS_TOKEN": "${MIRO_ACCESS_TOKEN}"
+      }
+    },
+    "drawio": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@drawio/mcp"
+      ]
     }
   }
 }
