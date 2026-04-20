@@ -25,7 +25,7 @@ We needed to decide where this orchestration logic lives.
 ## Decision Drivers (ranked)
 
 1. **Clear ownership of orchestration logic** — workflow coordination must have a single owner to avoid split-brain scenarios
-2. **Avoid circular dependencies between services** — sagas touch Order, Finance, and Weather; embedding them in one service would create coupling to the others
+2. **Avoid circular dependencies between services** — sagas touch Order, Payments, and Weather; embedding them in one service would create coupling to the others
 3. **Services remain autonomous command responders** — each service should own its domain logic without needing to know about multi-step workflows
 4. **Centralized observability for distributed transactions** — tracing a purchase flow across services is easier when the orchestrator is a single, observable process
 5. **Independent scaling** — saga processing load differs from API or consumer load
@@ -36,7 +36,7 @@ We needed to decide where this orchestration logic lives.
 
 A dedicated `saga/SagaOrchestrators` worker service hosts all MassTransit state machines. Services communicate via Kafka events; the saga service consumes events from all domains and publishes commands/events back.
 
-Sagas are organized by initiating domain (`Orders/`, `Finance/`) but deployed as a single unit. Each saga uses the consumer-adapter pattern: Kafka consumers transform Avro events into internal MassTransit saga events.
+Sagas are organized by initiating domain (`Orders/`, `Payments/`) but deployed as a single unit. Each saga uses the consumer-adapter pattern: Kafka consumers transform Avro events into internal MassTransit saga events.
 
 ### Option 2: Sagas Embedded in the Initiating Service
 
@@ -51,7 +51,7 @@ Remove explicit orchestration entirely. Each service reacts to events and publis
 | Driver (ranked)                    | Centralized Saga | Embedded in Services | Choreography |
 |------------------------------------|------------------|----------------------|--------------|
 | 1. Clear orchestration ownership   | ✅ Single owner   | ⚠️ Split across services | ❌ No owner   |
-| 2. No circular dependencies        | ✅ Saga is the hub | ❌ Order must know Finance/Weather | ✅ No direct deps |
+| 2. No circular dependencies        | ✅ Saga is the hub | ❌ Order must know Payments/Weather | ✅ No direct deps |
 | 3. Services stay autonomous        | ✅ Services are command responders | ❌ Initiating service gains orchestration duty | ✅ Fully autonomous |
 | 4. Centralized observability       | ✅ Single process to trace | ⚠️ Distributed across services | ❌ Must correlate across all services |
 | 5. Independent scaling             | ✅ Scales separately | ❌ Tied to service scaling | ✅ Each service scales independently |
@@ -62,7 +62,7 @@ We will use a **centralized saga service** (`saga/SagaOrchestrators`) hosting al
 
 ## Rationale
 
-**Centralized orchestration wins on the highest-priority drivers.** The purchase and extension sagas each coordinate three services — no single service is a natural owner. Embedding them in the Order service would force it to consume Finance and Weather events, creating tight coupling. Choreography would scatter the workflow logic across services, making it nearly impossible to reason about the end-to-end flow or implement reliable compensation.
+**Centralized orchestration wins on the highest-priority drivers.** The purchase and extension sagas each coordinate three services — no single service is a natural owner. Embedding them in the Order service would force it to consume Payments and Weather events, creating tight coupling. Choreography would scatter the workflow logic across services, making it nearly impossible to reason about the end-to-end flow or implement reliable compensation.
 
 **The PaymentProcessingSaga is intentionally layered as a sub-saga.** The Purchase and Extension sagas delegate payment processing by publishing `PaymentRequestedEvent`, which triggers the PaymentProcessingSaga to orchestrate authorize → capture → complete. This creates a saga-within-saga pattern that:
 
@@ -102,7 +102,7 @@ This layering adds indirection (two saga instances per purchase) but is justifie
 - Kafka consumers use the consumer-adapter pattern: Avro events → internal saga events via `IPublishEndpoint`
 - Consumer groups are per-saga: `saga-alert-subscription-purchase`, `saga-alert-subscription-extension`, `saga-payment-processing`
 - Outbox pattern ensures saga state changes and published messages are transactionally consistent
-- Saga folders: `Orders/AlertSubscriptionPurchaseSaga/`, `Orders/AlertSubscriptionExtensionSaga/`, `Finance/PaymentProcessingSaga/`
+- Saga folders: `Orders/AlertSubscriptionPurchaseSaga/`, `Orders/AlertSubscriptionExtensionSaga/`, `Payments/PaymentProcessingSaga/`
 
 ## Related Decisions
 

@@ -4,7 +4,7 @@
 
 DotNetAtlas is a .NET 10 microservices reference solution currently built around a Weather domain. The goal is to replace Weather with an **eShop reference solution** that showcases additional DDD/microservice patterns not yet covered: product catalog, shopping basket, inventory management (event sourced), checkout saga, BFF aggregation, and YARP reverse proxy.
 
-Existing services (Finance/Payments, Notifications) are cross-functional and will be **reused**. The Order service will be **evolved** into an eShop Ordering service. All existing platform libraries (Platform.CQRS, Platform.SharedKernel, Platform.ReliableMessaging, etc.) remain unchanged and are consumed by the new services.
+Existing services (Payments/Payments, Notifications) are cross-functional and will be **reused**. The Order service will be **evolved** into an eShop Ordering service. All existing platform libraries (Platform.CQRS, Platform.SharedKernel, Platform.ReliableMessaging, etc.) remain unchanged and are consumed by the new services.
 
 ---
 
@@ -34,7 +34,7 @@ DotNetAtlas/
 │   │   ├── Basket.Domain/
 │   │   └── Basket.Infrastructure/
 │   │
-│   ├── Ordering/                     # Order Lifecycle BC (evolved from current services/Order/)
+│   ├── Ordering/                     # Order Lifecycle BC (new — greenfield; former services/Order/ deleted)
 │   │   ├── Ordering.Api/             # (rename from Ordering.API)
 │   │   ├── Ordering.Application/
 │   │   ├── Ordering.Domain/
@@ -46,13 +46,13 @@ DotNetAtlas/
 │   │   ├── Inventory.Domain/
 │   │   └── Inventory.Infrastructure/
 │   │
-│   ├── Finance/                      # Existing — reused (Payments)
+│   ├── Payments/                      # Existing — reused (Payments)
 │   └── Notifications/                # Existing — reused as-is
 │
 ├── saga/
 │   └── SagaOrchestrators/
 │       ├── Checkout/                 # NEW: Checkout saga (multi-step)
-│       ├── Finance/                  # Existing: Payment processing saga
+│       ├── Payments/                  # Existing: Payment processing saga
 │       └── (old Order sagas removed/replaced)
 │
 ├── platform/                         # Shared libraries — unchanged
@@ -78,7 +78,7 @@ Domain models, aggregates, value objects, events, and use cases will be designed
 | **Basket** | Ephemeral shopping session — what a customer intends to buy | Redis-backed aggregate, Anti-Corruption Layer | Redis (primary) + SQL (fallback) |
 | **Ordering** | Order lifecycle — placement through fulfillment | Rich status machine (SmartEnum), state-guarded transitions | SQL |
 | **Inventory** | Stock levels and reservations — what's available to sell | **Event Sourcing** with projections (single ES example) | Event store + SQL projections |
-| **Finance** | Payment processing (existing, reused) | Saga sub-orchestration | SQL |
+| **Payments** | Payment processing (existing, reused) | Saga sub-orchestration | SQL |
 | **Notifications** | Communication delivery (existing, reused) | Event-driven consumers | — |
 
 ---
@@ -89,7 +89,7 @@ Domain models, aggregates, value objects, events, and use cases will be designed
 - **Catalog → Basket**: Anti-Corruption Layer — Basket stores product snapshots
 - **Basket → Ordering**: Saga — checkout triggers order creation
 - **Ordering → Inventory**: Saga — order triggers stock reservation
-- **Ordering → Finance**: Saga — order triggers payment processing
+- **Ordering → Payments**: Saga — order triggers payment processing
 - **Inventory → Catalog**: Events — stock changes update product availability
 - **Ordering → Notifications**: Events — order status changes trigger notifications
 - **BFF → all services**: HTTP aggregation for consumer-facing API
