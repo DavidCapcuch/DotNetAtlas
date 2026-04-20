@@ -9,7 +9,7 @@ namespace Platform.OutboxRelay.WorkerService;
 /// Can't use minimal host because Platform.OutboxRelay.Benchmark needs to reference the Program
 /// which wouldn't have a namespace.
 /// </summary>
-internal class Program
+public static class Program
 {
     public static async Task Main(string[] args)
     {
