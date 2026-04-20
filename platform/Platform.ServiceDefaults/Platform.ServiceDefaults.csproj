@@ -26,6 +26,19 @@
 
         <!-- HTTP resilience (ADR-0009) -->
         <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+
+        <!-- Service-to-service auth inbound validation (ADR-0010) -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+
+        <!-- Idempotency-Key output cache (ADR-0013) — Redis-backed -->
+        <PackageReference Include="Microsoft.AspNetCore.OutputCaching.StackExchangeRedis" />
+
+        <!-- Feature flags (ADR-0014) — vendor-neutral SDK + DI hosting -->
+        <PackageReference Include="OpenFeature" />
+        <PackageReference Include="OpenFeature.Hosting" />
+
+        <!-- OTel PII allowlist processor (ADR-0011) -->
+        <PackageReference Include="OpenTelemetry" />
     </ItemGroup>
 
     <ItemGroup>
