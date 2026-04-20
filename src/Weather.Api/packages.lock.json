@@ -1282,7 +1282,8 @@
         "dependencies": {
           "KafkaFlow": "[4.0.1, )",
           "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
-          "Platform.Messaging.Abstractions": "[1.0.0, )"
+          "Platform.Messaging.Abstractions": "[1.0.0, )",
+          "Serilog": "[4.2.0, )"
         }
       },
       "platform.messaging.abstractions": {

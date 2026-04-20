@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="KafkaFlow"/>
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="NSubstitute"/>
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.KafkaFlow.ProducerHeaders\Platform.KafkaFlow.ProducerHeaders.csproj"/>
+        <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj"/>
+        <ProjectReference Include="..\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj"/>
+    </ItemGroup>
+</Project>
