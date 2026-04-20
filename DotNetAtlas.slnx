@@ -93,6 +93,7 @@
     <Project Path="src/Weather.Infrastructure/Weather.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="platform/Platform.KafkaFlow.ProducerHeaders.UnitTests/Platform.KafkaFlow.ProducerHeaders.UnitTests.csproj" />
     <Project Path="platform/Platform.ServiceDefaults.UnitTests/Platform.ServiceDefaults.UnitTests.csproj" />
     <Project Path="platform/Platform.SharedKernel.UnitTests/Platform.SharedKernel.UnitTests.csproj" />
     <Project Path="test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj" />
