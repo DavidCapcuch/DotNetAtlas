@@ -62,7 +62,9 @@ public static class AuthDependencyInjection
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 configuration.Bind(AuthConfigSections.JwtBearerConfigSection, options);
-                options.TokenValidationParameters.RoleClaimType = "roles";
+                // Role claims: JsonWebTokenHandler with MapInboundClaims=true (default) remaps
+                // Keycloak's "roles" array claim to ClaimTypes.Role, which matches the default
+                // TokenValidationParameters.RoleClaimType. No override needed.
                 if (isDeployedEnvironment)
                 {
                     options.RequireHttpsMetadata = true;

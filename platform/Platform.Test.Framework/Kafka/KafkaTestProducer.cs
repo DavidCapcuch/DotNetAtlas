@@ -33,9 +33,9 @@ public sealed class KafkaTestProducer : IDisposable
             NormalizeSchemas = true
         };
         _producer = new ProducerBuilder<string, ISpecificRecord>(new ProducerConfig
-            {
-                BootstrapServers = kafkaOptions.BrokersFlat
-            })
+        {
+            BootstrapServers = kafkaOptions.BrokersFlat
+        })
             .SetValueSerializer(new UniversalAvroSerializer(_schemaRegistryClient, avroSerializerOptions).AsSyncOverAsync())
             .Build();
     }

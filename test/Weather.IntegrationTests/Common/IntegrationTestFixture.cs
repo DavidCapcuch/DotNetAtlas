@@ -47,10 +47,12 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        await Task.WhenAll(
-            _dbContainer.StartAsync(),
-            _redisContainer.StartAsync(),
-            _kafkaContainer.StartAsync());
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+        await _redisContainer.StartAsync();
+        await _kafkaContainer.StartAsync();
     }
 
     protected override ValueTask SetupAsync()

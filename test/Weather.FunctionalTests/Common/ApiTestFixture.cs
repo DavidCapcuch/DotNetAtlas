@@ -2,6 +2,7 @@ using FastEndpoints.Testing;
 using Hangfire;
 using HealthChecks.UI.Core.HostedService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,10 +45,12 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        await Task.WhenAll(
-            _dbContainer.StartAsync(),
-            _redisContainer.StartAsync(),
-            _kafkaContainer.StartAsync());
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+        await _redisContainer.StartAsync();
+        await _kafkaContainer.StartAsync();
     }
 
     protected override ValueTask SetupAsync()
@@ -94,10 +97,25 @@ public class ApiTestFixture : AppFixture<Program>
                 services.AddSingleton(Substitute.For<IHealthCheckReportCollector>());
                 // API tests don't need a real Kafka producer
                 services.AddSingleton(Substitute.For<IForecastEventsProducer>());
-                // Relax JWT validation ONLY for the test host. This intentionally does not
-                // live in appsettings.Testing.json so an accidental ASPNETCORE_ENVIRONMENT=Testing
-                // on a real host cannot accept unsigned tokens produced by FakeTokenCreator.
-                services.PostConfigure<JwtBearerOptions>(
+                // Relax the OIDC scheme's HTTPS-metadata requirement BEFORE the framework's
+                // default IPostConfigureOptions<OpenIdConnectOptions> runs. Using Configure
+                // (IConfigureNamedOptions) ensures ordering: all IConfigureOptions run before
+                // any IPostConfigureOptions, so the default post-configure sees
+                // RequireHttpsMetadata=false and skips the HTTPS-authority throw.
+                // PostConfigure would fire too late (after the default already threw).
+                services.Configure<OpenIdConnectOptions>(
+                    OpenIdConnectDefaults.AuthenticationScheme,
+                    options => options.RequireHttpsMetadata = false);
+                // Relax JWT validation ONLY for the test host. Same ordering reasoning as
+                // the OIDC block above: Configure (IConfigureNamedOptions) runs before the
+                // framework's JwtBearerPostConfigureOptions, so RequireHttpsMetadata=false
+                // is observed before the HTTPS-authority check fires. PostConfigure would
+                // run after the framework's post-configure had already thrown, because the
+                // framework's post-configure is registered first inside AddJwtBearer.
+                // This intentionally does not live in appsettings.Testing.json so an
+                // accidental ASPNETCORE_ENVIRONMENT=Testing on a real host cannot accept
+                // unsigned tokens produced by FakeTokenCreator.
+                services.Configure<JwtBearerOptions>(
                     JwtBearerDefaults.AuthenticationScheme,
                     options =>
                     {
