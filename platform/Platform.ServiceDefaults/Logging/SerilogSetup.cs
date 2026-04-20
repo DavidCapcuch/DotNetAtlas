@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.ServiceDefaults.Config;
+using Platform.ServiceDefaults.Pii;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Exceptions.Core;
@@ -41,6 +42,7 @@ internal static class SerilogSetup
 
             configuration
                 .ReadFrom.Configuration(builder.Configuration)
+                .Destructure.With<PiiDestructuringPolicy>()
                 .Enrich.WithEcsHttpContext(httpAccessor)
                 .Enrich.FromLogContext()
                 .Enrich.WithExceptionDetails(new DestructuringOptionsBuilder()
