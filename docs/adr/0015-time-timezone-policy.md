@@ -1,0 +1,179 @@
+# ADR-0015: Time & Timezone Policy — `DateTimeOffset` + `timestamptz`
+
+## Status
+
+Accepted (2026-04-19)
+
+## Context
+
+The eShop reference solution's aggregates, events, and projections all record timestamps: `Order.PlacedAt`, `PaymentTransaction.CapturedAtUtc`, `Invoice.IssueDate`, `ReservationExpiresAt`, Kafka message timestamps, DB audit columns, OTel span start/end times. These timestamps cross process boundaries: aggregate → domain event → outbox row → Kafka message (Avro schema) → inbox → consuming aggregate.
+
+Three small-but-high-impact inconsistencies are common in .NET codebases:
+
+1. **`DateTime` with `Kind=Unspecified`** — neither UTC nor local; ambiguous on deserialization.
+2. **Direct `DateTime.UtcNow` calls in domain code** — no test seam; impossible to write deterministic tests for anything time-dependent.
+3. **Postgres `timestamp` vs `timestamptz`** — the former drops timezone info on write; the latter normalizes to UTC with offset.
+
+A reference solution with event sourcing (Inventory), 10-year invoicing retention, a saga with timeouts, and TTL-driven reservations cannot afford any of these bugs. Nor can it afford to teach them implicitly.
+
+## Decision Drivers (ranked)
+
+1. **Determinism across boundaries** — a timestamp must round-trip through HTTP → DB → Kafka → DB → Kafka → consumer without losing offset / kind.
+2. **Testability** — domain code must be able to mock "now" for deterministic unit tests of TTLs, FSM transitions, etc.
+3. **Matches .NET + Postgres best practice** — learners should leave with production-correct instincts.
+4. **Zero ambiguity at read time** — a reader should never need to ask "is this timestamp UTC?".
+5. **Avro compatibility** — events stored long-term must use a well-defined Avro logical type.
+
+## Considered Options
+
+### Option 1: `DateTimeOffset` + `timestamptz` + `Clock` abstraction, Avro `timestamp-micros` (UTC-normalized)
+
+Domain uses `DateTimeOffset` (offset preserved in-process, written with offset to Postgres `timestamptz`). Domain never calls `DateTimeOffset.UtcNow` directly — uses `IClock.UtcNow` (injectable). Avro encodes event timestamps as `{"type": "long", "logicalType": "timestamp-micros"}`, which is UTC-epoch-microseconds.
+
+### Option 2: `DateTime` with `Kind=Utc` + Postgres `timestamp` + ambient UTC convention
+
+Force `Kind=Utc` everywhere. Stores offsetless UTC in Postgres. Use `DateTime.UtcNow` ambiently.
+
+### Option 3: `Instant` via NodaTime library
+
+Third-party library with rigorous time types. `Instant` for UTC, `ZonedDateTime` for civil time.
+
+### Option 4: Unix epoch `long` everywhere
+
+No DateTime type; every timestamp is a `long` millisecond/microsecond epoch.
+
+## Evaluation Matrix
+
+| Driver (ranked) | Option 1: DateTimeOffset + Clock | Option 2: DateTime Utc | Option 3: NodaTime | Option 4: Epoch long |
+|---|---|---|---|---|
+| 1. Determinism | Offset preserved; roundtrips cleanly | Offset lost; must be reconstructed | Offset preserved; cleaner semantics | Offset irrelevant — always UTC |
+| 2. Testability | `IClock` mockable | `DateTime.UtcNow` is static; shimming requires `System.Fakes` or hand-written wrappers | NodaTime's `IClock` mockable | Handwritten `IClock<long>` |
+| 3. .NET + Postgres best practice | Yes — MS-recommended default for multi-zone data | Common but not best-practice for Postgres (which has `timestamptz`) | Niche; power-user | Not idiomatic in .NET |
+| 4. Zero ambiguity | Offset makes it explicit | Relies on convention | Explicit | Explicit but loses human readability |
+| 5. Avro compatibility | `timestamp-micros` is standard | Same | Convert at boundary | `long` — trivial but loses logical-type tooling |
+
+## Decision
+
+We will use **Option 1: `DateTimeOffset` for in-process timestamps + `timestamptz` in Postgres + `IClock` abstraction in `Platform.SharedKernel` + Avro `timestamp-micros` (UTC-normalized) for event timestamps**. Architecture tests forbid direct `DateTime.UtcNow` / `DateTimeOffset.Now` / `DateTime.Now` calls in domain code.
+
+## Rationale
+
+`DateTimeOffset` is Microsoft's recommended default for any value that crosses process boundaries — it carries the offset, eliminating the "is this UTC?" ambiguity by construction. Postgres's `timestamptz` is the correct pair on the DB side: it normalizes to UTC on write, returns with offset on read, and is indexable. The combination is idiomatic, standard, and teaches the right instincts.
+
+`IClock` is the small but load-bearing piece. Every domain type that tests time-dependent behavior (reservation TTL, saga timeouts, gap-free sequence year rollover) needs deterministic "now". Architecture tests enforce the injection discipline; domain code that calls `DateTimeOffset.UtcNow` fails the build.
+
+Avro's `timestamp-micros` normalizes to UTC for the wire — events are persisted for 10 years and the offset at which they were produced is an in-process concern, not a business fact. This aligns with Kafka Streams, Flink, and most modern Avro consumers.
+
+Option 2's `DateTime.UtcNow` is a common trap; it silently drops offset and makes tests flaky. Option 3 (NodaTime) is superior in some respects but brings a dependency and a parallel type system most .NET teams have never seen. Option 4 is defensible for extreme-scale systems but hostile to debugging and logs.
+
+## Consequences
+
+### Positive
+
+- Round-trips HTTP → DB → Kafka → DB preserve offset. Read-side projections don't need to "guess UTC".
+- `IClock` makes TTL / timeout tests deterministic — reservation-expiry tests can set `clock.UtcNow = t0 + 16 minutes` without async waits.
+- Avro `timestamp-micros` standard means future consumers (Kafka Streams, Spark, Snowpipe) interpret timestamps without custom converters.
+- Architecture test catches the most common mistake (`DateTime.UtcNow` in domain) before it lands.
+- Logs and traces show offset — operators don't have to mentally convert.
+
+### Negative
+
+- One small discipline: inject `IClock` instead of calling `UtcNow`. Adds a constructor parameter to every time-aware class.
+- `DateTimeOffset` ≠ `DateTime` — JSON serializers default to different formats. Mitigation: configured `JsonSerializerOptions` uses ISO 8601 with offset (`2026-04-19T14:30:00+02:00`) everywhere.
+- EF Core 8 / 9 needs a `HasColumnType("timestamptz")` convention on `DateTimeOffset` properties. Mitigation: central convention in each DbContext's `OnModelCreating`.
+
+### Risks
+
+- **Mixed timezone display in UI** — the BFF may want to display local-time based on buyer locale. That's a presentation-layer concern; domain timestamps remain UTC-offset. BFF handles localization.
+- **Daylight-saving transitions** — CET → CEST rollover. DateTimeOffset handles this correctly because offset is explicit (+01:00 vs +02:00).
+- **Sub-microsecond precision loss** — `timestamp-micros` truncates to microseconds. .NET's `DateTimeOffset` has 100-ns precision; we lose two digits. Acceptable for audit/events.
+
+## Implementation Notes
+
+### `Platform.SharedKernel.Time`
+
+New file: `Platform.SharedKernel/Time/IClock.cs`:
+
+```csharp
+public interface IClock
+{
+    DateTimeOffset UtcNow { get; }
+}
+
+public sealed class SystemClock : IClock
+{
+    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+}
+
+public sealed class FakeClock(DateTimeOffset initial) : IClock
+{
+    private DateTimeOffset _now = initial;
+    public DateTimeOffset UtcNow => _now;
+    public void Advance(TimeSpan by) => _now = _now.Add(by);
+    public void Set(DateTimeOffset to) => _now = to;
+}
+```
+
+`IClock` is registered in `Platform.ServiceDefaults.AddServiceDefaults()` as `services.AddSingleton<IClock, SystemClock>()`. Test projects register `FakeClock`.
+
+### Architecture tests
+
+Per-BC `ArchitectureTests` project asserts:
+
+1. Types in `{BC}.Domain` do not reference `DateTime` (all domain timestamps are `DateTimeOffset`).
+2. Types in `{BC}.Domain` do not call `DateTimeOffset.UtcNow`, `DateTime.UtcNow`, `DateTime.Now`, `DateTimeOffset.Now` (enforce via a Roslyn analyzer rule or a reflection-based test).
+3. Constructors / methods that need "now" accept `IClock` or receive `DateTimeOffset` from the application layer.
+
+### EF Core convention
+
+Every DbContext:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetProperties()))
+    {
+        if (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?))
+        {
+            property.SetColumnType("timestamptz");
+        }
+    }
+}
+```
+
+Applied once per BC's DbContext via a shared base class in `Platform.ReliableMessaging.Outbox.EFCore`.
+
+### Avro schema convention
+
+All new `.avsc` files use:
+
+```json
+{"name": "OccurredAtUtc", "type": {"type": "long", "logicalType": "timestamp-micros"}}
+```
+
+The `UniversalSerDes` platform library handles `DateTimeOffset` → `long` conversion (epoch microseconds). On deserialisation, offset is reconstructed as `TimeSpan.Zero` (UTC) — consumers needing local time handle conversion at the presentation layer.
+
+### JSON serialization
+
+`System.Text.Json` options registered in `Platform.ServiceDefaults`:
+
+```csharp
+options.Converters.Add(new JsonDateTimeOffsetConverter()); // forces ISO 8601 with offset
+```
+
+### Logging & tracing
+
+- Serilog renders `DateTimeOffset` in ISO 8601 with offset.
+- OTel span timestamps are UTC microseconds per OpenTelemetry spec — unchanged.
+
+### DB column audit
+
+Audit that every `*_at` / `*_utc` column in Postgres schemas is `timestamp with time zone`. Integration test scans `information_schema.columns` and fails if any `timestamp without time zone` appears.
+
+## Related Decisions
+
+- [ADR-0008: Correlation-ID Propagation](0008-correlation-id-propagation.md) — correlation columns pair with `*_at` timestamps; both use `timestamptz`
+- [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — single-region simplifies the timezone story
+- [ADR-0006: Event Sourcing for Inventory](0006-event-sourcing-for-inventory.md) — event-stream `OccurredAtUtc` column uses this policy
+- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — `timestamp-micros` is the sanctioned logical type
+- [ADR-0011: PII Handling & GDPR](0011-pii-handling-gdpr.md) — timestamps are not PII and not encrypted
