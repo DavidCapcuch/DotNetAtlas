@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj"/>
+    </ItemGroup>
+</Project>
