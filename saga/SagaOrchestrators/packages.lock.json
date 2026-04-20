@@ -218,6 +218,11 @@
           "System.CodeDom": "8.0.0"
         }
       },
+      "Ardalis.SmartEnum": {
+        "type": "Transitive",
+        "resolved": "8.1.0",
+        "contentHash": "+OpcDNwgfwdKEhEwq6U5lrXiBpdA3LxfZR7nTtF6vzbkXc1hKa2Uv/rHduzxwNLYrzOfR/7QUVyjWTliSS7pOA=="
+      },
       "AspNetCore.HealthChecks.UI.Core": {
         "type": "Transitive",
         "resolved": "9.0.0",
@@ -782,6 +787,7 @@
       "platform.sharedkernel": {
         "type": "Project",
         "dependencies": {
+          "Ardalis.SmartEnum": "[8.1.0, )",
           "FluentResults": "[4.0.0, )",
           "Scrutor": "[6.1.0, )"
         }

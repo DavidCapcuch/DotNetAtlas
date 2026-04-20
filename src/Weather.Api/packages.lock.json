@@ -1323,6 +1323,7 @@
       "platform.sharedkernel": {
         "type": "Project",
         "dependencies": {
+          "Ardalis.SmartEnum": "[8.1.0, )",
           "FluentResults": "[4.0.0, )",
           "Scrutor": "[6.1.0, )"
         }
