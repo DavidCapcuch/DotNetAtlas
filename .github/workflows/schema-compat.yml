@@ -1,0 +1,214 @@
+name: Schema Compatibility Gate
+
+on:
+  pull_request:
+    paths:
+      - 'platform/Platform.SchemaRegistry.Contracts/Avro/**/*.avsc'
+      - '.github/workflows/schema-compat.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'platform/Platform.SchemaRegistry.Contracts/Avro/**/*.avsc'
+      - '.github/workflows/schema-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schema-compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema-compat:
+    name: Avro schema compatibility vs main baseline
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    services:
+      kafka:
+        image: confluentinc/cp-kafka:7.5.0
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+          KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      schema-registry:
+        image: confluentinc/cp-schema-registry:7.5.0
+        ports:
+          - 8081:8081
+        env:
+          SCHEMA_REGISTRY_HOST_NAME: schema-registry
+          SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+          SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+    env:
+      SR: http://localhost:8081
+      CT: 'Content-Type: application/vnd.schemaregistry.v1+json'
+      # Keep in sync with the paths: filter in the on: trigger above.
+      AVRO_ROOT: platform/Platform.SchemaRegistry.Contracts/Avro
+
+    steps:
+      - name: Checkout main (baseline)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: main
+          path: baseline
+
+      - name: Checkout HEAD (proposed)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          path: proposed
+
+      - name: Diagnose service networking
+        # Runs before the readiness wait so that a timed-out SR boot is attributable
+        # to cross-service DNS (runner-hosted jobs don't guarantee alias resolution
+        # between two `services:` containers).
+        run: |
+          echo "=== containers ==="
+          docker ps --format '{{.Names}}\t{{.Networks}}\t{{.Status}}' || true
+          echo "=== SR logs (last 50) ==="
+          sr_cid=$(docker ps -q --filter "ancestor=confluentinc/cp-schema-registry:7.5.0" | head -n1)
+          if [ -n "$sr_cid" ]; then
+            docker logs "$sr_cid" --tail 50 || true
+            echo "=== SR -> kafka DNS ==="
+            docker exec "$sr_cid" getent hosts kafka \
+              || echo "::warning::Schema Registry container cannot resolve hostname 'kafka' — cross-service DNS on this runner image is broken. If the readiness wait below times out, pivot to confluentinc/confluent-local:7.5.0 (plan PT1 fallback)."
+          else
+            echo "::warning::No Schema Registry container found yet — services may still be starting."
+          fi
+
+      - name: Wait for Schema Registry readiness
+        run: |
+          timeout 120 bash -c 'until curl -fsS "$SR/subjects" >/dev/null 2>&1; do sleep 2; done'
+          echo "Schema Registry is up."
+          curl -fsS "$SR/subjects"
+
+      - name: Set global compatibility default (FORWARD_TRANSITIVE)
+        run: |
+          curl -fsS -X PUT -H "$CT" \
+            --data '{"compatibility":"FORWARD_TRANSITIVE"}' \
+            "$SR/config"
+
+      - name: Register main baseline
+        id: baseline
+        run: |
+          set -euo pipefail
+          subject_re='^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$'
+          failed=0
+          count=0
+          baseline_has_schemas=0
+          proposed_has_schemas=0
+          if [ -d "baseline/$AVRO_ROOT" ] && [ -n "$(find "baseline/$AVRO_ROOT" -name '*.avsc' -type f -print -quit)" ]; then
+            baseline_has_schemas=1
+          fi
+          if [ -d "proposed/$AVRO_ROOT" ] && [ -n "$(find "proposed/$AVRO_ROOT" -name '*.avsc' -type f -print -quit)" ]; then
+            proposed_has_schemas=1
+          fi
+          if [ "$baseline_has_schemas" -eq 0 ] && [ "$proposed_has_schemas" -eq 1 ]; then
+            echo "::error::Avro baseline is empty on main but HEAD has .avsc files — baseline drift detected. Fix main before this gate can enforce (ADR-0007 F-B)."
+            exit 1
+          fi
+          if [ "$baseline_has_schemas" -eq 0 ]; then
+            echo "::notice::No Avro schemas in baseline or HEAD — nothing to register."
+            exit 0
+          fi
+          while IFS= read -r -d '' file; do
+            count=$((count + 1))
+            subject=$(jq -r '.namespace + "." + .name' < "$file")
+            # ADR-0007: records whose .name ends with "Command" get FULL_TRANSITIVE
+            # (bidirectional producer/consumer compatibility); all others get
+            # FORWARD_TRANSITIVE (producers ahead). Mislabeling a record "Command"
+            # silently applies stricter rules — the only safe fix is renaming.
+            mode=$(jq -r 'if (.name | endswith("Command")) then "FULL_TRANSITIVE" else "FORWARD_TRANSITIVE" end' < "$file")
+            if ! [[ "$subject" =~ $subject_re ]]; then
+              echo "::error file=$file::Invalid subject name '$subject' — must be dotted Avro identifiers [A-Za-z_][A-Za-z0-9_]*"
+              failed=1
+              continue
+            fi
+            cfg_code=$(curl -sS -o /tmp/cfg -w '%{http_code}' -X PUT -H "$CT" \
+              --data "{\"compatibility\":\"$mode\"}" \
+              "$SR/config/$subject")
+            if [[ "$cfg_code" != 2* ]]; then
+              echo "::error file=$file::Failed to set $mode on $subject (HTTP $cfg_code): $(cat /tmp/cfg)"
+              failed=1
+              continue
+            fi
+            body=$(jq -Rs '{schema: ., schemaType: "AVRO"}' < "$file")
+            code=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST -H "$CT" \
+              --data "$body" \
+              "$SR/subjects/$subject/versions")
+            if [ "$code" != "200" ]; then
+              echo "::error file=$file::BASELINE register failed for $subject (mode=$mode, HTTP $code): $(cat /tmp/resp)"
+              failed=1
+            fi
+          done < <(find "baseline/$AVRO_ROOT" -name '*.avsc' -type f -print0)
+          echo "Registered $count baseline schemas."
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::Baseline registration against main failed. Under ADR-0007 F-B, this signals pre-existing drift — fix the drift on main before M8 can enforce."
+            exit 1
+          fi
+
+      - name: Verify proposed schemas are compatible
+        run: |
+          set -euo pipefail
+          subject_re='^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$'
+          failed=0
+          count=0
+          if [ ! -d "proposed/$AVRO_ROOT" ] || [ -z "$(find "proposed/$AVRO_ROOT" -name '*.avsc' -type f -print -quit)" ]; then
+            echo "::notice::No Avro schemas at HEAD — nothing to verify."
+            exit 0
+          fi
+          while IFS= read -r -d '' file; do
+            count=$((count + 1))
+            subject=$(jq -r '.namespace + "." + .name' < "$file")
+            # ADR-0007 mode assignment — see baseline step for rationale.
+            mode=$(jq -r 'if (.name | endswith("Command")) then "FULL_TRANSITIVE" else "FORWARD_TRANSITIVE" end' < "$file")
+            if ! [[ "$subject" =~ $subject_re ]]; then
+              echo "::error file=$file::Invalid subject name '$subject' — must be dotted Avro identifiers [A-Za-z_][A-Za-z0-9_]*"
+              failed=1
+              continue
+            fi
+            # Set the mode for new subjects (baseline doesn't have them yet) so first
+            # register in this step applies the correct policy.
+            cfg_code=$(curl -sS -o /tmp/cfg -w '%{http_code}' -X PUT -H "$CT" \
+              --data "{\"compatibility\":\"$mode\"}" \
+              "$SR/config/$subject")
+            if [[ "$cfg_code" != 2* ]]; then
+              echo "::error file=$file::Failed to set $mode on $subject (HTTP $cfg_code): $(cat /tmp/cfg)"
+              failed=1
+              continue
+            fi
+            body=$(jq -Rs '{schema: ., schemaType: "AVRO"}' < "$file")
+            code=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST -H "$CT" \
+              --data "$body" \
+              "$SR/subjects/$subject/versions")
+            case "$code" in
+              200)
+                ;; # OK (new version, identical replay, or first-time register)
+              409)
+                echo "::error file=$file::INCOMPATIBLE with $subject under $mode: $(cat /tmp/resp)"
+                failed=1 ;;
+              422)
+                echo "::error file=$file::INVALID SCHEMA for $subject: $(cat /tmp/resp)"
+                failed=1 ;;
+              *)
+                echo "::error file=$file::Schema Registry fault (HTTP $code) for $subject — retry or investigate SR service: $(cat /tmp/resp)"
+                failed=1 ;;
+            esac
+          done < <(find "proposed/$AVRO_ROOT" -name '*.avsc' -type f -print0)
+          echo "Verified $count proposed schemas."
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
