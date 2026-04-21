@@ -15,11 +15,16 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
-# Copy NuGet config and project files to leverage Docker layer cache
+# Copy NuGet config and project files to leverage Docker layer cache.
+# CPM files are tier-isolated per CLAUDE.md: root + platform/ + services/ + saga/ + test/.
+# The platform-tier Directory.Packages.props must be copied so the restore at L30 below
+# can resolve PackageReference items on Platform.ReliableMessaging.Outbox.{Core,EFCore}
+# (e.g. OpenTelemetry.Api, Confluent.Kafka, Apache.Avro) that are pinned ONLY at platform tier.
 COPY NuGet.config .
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY global.json .
+COPY platform/Directory.Packages.props platform/
 COPY platform/Platform.ReliableMessaging.Outbox.Core/Platform.ReliableMessaging.Outbox.Core.csproj platform/Platform.ReliableMessaging.Outbox.Core/
 COPY platform/Platform.ReliableMessaging.Outbox.EFCore/Platform.ReliableMessaging.Outbox.EFCore.csproj platform/Platform.ReliableMessaging.Outbox.EFCore/
 COPY platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj platform/Platform.OutboxRelay.WorkerService/
