@@ -12,12 +12,10 @@ public static class CorrelationIdContextKeys
     public const string HttpHeaderName = "X-Correlation-Id";
 
     /// <summary>
-    /// Key used by the middleware to stash the ambient correlation id on <see cref="Microsoft.AspNetCore.Http.HttpContext.Items"/>.
-    /// </summary>
-    public const string HttpContextItemKey = "Platform.ServiceDefaults.CorrelationId";
-
-    /// <summary>
     /// OpenTelemetry activity tag name (matches Kafka header convention for cross-transport grep-ability).
+    /// The ambient correlation id is propagated via this tag on <see cref="System.Diagnostics.Activity.Current"/>;
+    /// consumers — including the outbound <c>CorrelationIdDelegatingHandler</c>, Kafka producers,
+    /// and background workers — read it there regardless of whether an HTTP request is in scope.
     /// </summary>
     public const string ActivityTagName = "correlation.id";
 

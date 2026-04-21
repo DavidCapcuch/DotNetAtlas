@@ -92,12 +92,12 @@ The cost of defining the contract now (column names, event shape, OTEL allowlist
 
 ### v1 (lands now — enforceable today)
 
-- **OTEL attribute allowlist middleware** (part of `Platform.ServiceDefaults`):
-  - Adds a processor to the OTEL pipeline that strips span attributes not on the allowlist.
-  - Allowlist is positive — fields must be explicitly added.
-  - Standard allowed attributes: `http.method`, `http.status_code`, `http.route`, `rpc.service`, `messaging.destination.name`, `messaging.kafka.consumer.group`, `db.system`, `db.name`, `correlation.id`, `order.id`, `payment.id`, `invoice.id`, `buyer.id.hash` (SHA-256 truncated to 16 hex chars).
-  - Forbidden: raw `buyer.email`, `buyer.address.*`, `payment.method.token`, `customer.name`, raw request bodies.
-  - Violations of the allowlist are dropped at the span processor level so no attribute leaves the process.
+- **OTEL attribute redaction — OpenTelemetry Collector `attributes` processor** (configured in `src/otel-collector/otelcol-config.yml`):
+  - Runs in the collector, not in the .NET process. Batches are scrubbed once per export rather than per span per service — cheaper, language-agnostic, testable in isolation against a config file.
+  - Initial deletion list covers the highest-risk keys: `http.request.header.authorization`, `http.request.header.cookie`, `http.response.header.set-cookie`, `url.query`, `user.email`, `user.name`, `buyer.email`, `buyer.name`. Production extends this list as data shapes emerge.
+  - For hardened GDPR workloads, a second in-process SDK processor (defense in depth) can be added back — not needed at the reference-solution profile.
+  - Forbidden span attributes: raw `buyer.email`, `buyer.address.*`, `payment.method.token`, `customer.name`, raw request bodies.
+  - Allowed span attributes (examples of what we want to keep): `http.method`, `http.status_code`, `http.route`, `rpc.service`, `messaging.destination.name`, `messaging.kafka.consumer.group`, `db.system`, `db.name`, `correlation.id`, `order.id`, `payment.id`, `invoice.id`, `buyer.id.hash` (SHA-256 truncated to 16 hex chars).
 - **Application logging**:
   - Serilog destructuring policy: `[PII]` attribute on models (in `Platform.SharedKernel`) causes the serialiser to emit `"***"`.
   - `Address`, `PaymentMethodId`, `GatewayTransactionId` VOs are `[PII]`-marked.
@@ -120,7 +120,7 @@ The cost of defining the contract now (column names, event shape, OTEL allowlist
 ### Architecture tests
 
 - Forbid logging calls with parameters typed `Address`, `PaymentMethodId`, `Email`, `PersonName` — require `[PII]`-destructured logging.
-- Forbid `Activity.SetTag("*.address", ...)` / `SetTag("*.email", ...)` / `SetTag("*.pan", ...)` directly — must go through the allowlist.
+- Forbid `Activity.SetTag("*.address", ...)` / `SetTag("*.email", ...)` / `SetTag("*.pan", ...)` directly — PII keys are deleted at the collector, but emitting them in the first place is still a smell worth blocking at code-review time.
 - Every column named `address_*` or `email_*` in a table MUST also end in `_enc` (unless marked with a waiver comment).
 
 ### Documentation

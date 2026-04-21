@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults.Auth;
-using Platform.SharedKernel.Time;
 
 namespace Platform.ServiceDefaults.UnitTests.Auth;
 
@@ -64,7 +63,7 @@ public class ServiceAuthServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(config);
         services.AddLogging();
-        services.AddSingleton<IClock>(new FakeClock(DateTimeOffset.UtcNow));
+        services.AddSingleton(TimeProvider.System);
         return services;
     }
 }

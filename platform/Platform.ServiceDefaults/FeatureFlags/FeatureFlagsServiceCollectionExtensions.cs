@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenFeature;
+using OpenFeature.Hooks;
 using OpenFeature.Hosting.Providers.Memory;
 
 namespace Platform.ServiceDefaults.FeatureFlags;
@@ -14,8 +15,9 @@ public static class FeatureFlagsServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="FeatureFlagsOptions"/> (bound to configuration section
-    /// <c>FeatureFlags</c>), the <see cref="OtelEvaluationHook"/>, and an in-memory OpenFeature
-    /// provider hydrated from the JSON flag file at <see cref="FeatureFlagsOptions.FilePath"/>.
+    /// <c>FeatureFlags</c>), the OpenFeature <see cref="TraceEnricherHook"/> (official OTel
+    /// semantic-convention enrichment), and an in-memory OpenFeature provider hydrated from the
+    /// JSON flag file at <see cref="FeatureFlagsOptions.FilePath"/>.
     /// </summary>
     /// <remarks>
     /// Opt-in — not wired into <c>AddServiceDefaults()</c>. Wave 1 BCs call this explicitly from
@@ -42,10 +44,7 @@ public static class FeatureFlagsServiceCollectionExtensions
                 return JsonFlagLoader.Load(opts.FilePath, logger);
             });
 
-            // AddHook registers the hook with OpenFeature.Hosting's lifecycle manager so it
-            // attaches to Api.Instance on startup. A plain AddSingleton<Hook> is invisible to that
-            // pipeline and would render ADR-0014 observability silently inert.
-            builder.AddHook<OtelEvaluationHook>(_ => new OtelEvaluationHook());
+            builder.AddHook(new TraceEnricherHook());
         });
 
         return services;

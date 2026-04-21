@@ -117,6 +117,34 @@ processors:
           - replace_pattern(name, "\\?.*", "")
   resourcedetection:
     detectors: [env, docker, system]
+  # ADR-0011 PII allowlist — centralized collector-side filtering replaces the former
+  # Platform.ServiceDefaults/Pii/PiiAllowlistProcessor. Runs once per batch in the Go collector
+  # instead of on every span in every .NET process (cheaper, language-agnostic, testable in isolation).
+  # Default allowlist mirrors the decision record; extend in production via additional `include`
+  # patterns or a denylist in `exclude`.
+  attributes/pii-allowlist:
+    include:
+      match_type: strict
+      services: []  # empty = apply to all services
+    actions:
+      # Known high-risk keys that can carry PII. Redaction over deletion preserves span shape
+      # and makes forensic review possible if a leak does occur.
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: http.response.header.set-cookie
+        action: delete
+      - key: url.query
+        action: delete
+      - key: user.email
+        action: delete
+      - key: user.name
+        action: delete
+      - key: buyer.email
+        action: delete
+      - key: buyer.name
+        action: delete
 
 connectors:
   spanmetrics:
@@ -125,7 +153,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resourcedetection, memory_limiter, transform, batch]
+      processors: [resourcedetection, memory_limiter, attributes/pii-allowlist, transform, batch]
       exporters: [otlp, debug, spanmetrics]
     metrics:
       receivers: [hostmetrics, docker_stats, otlp, spanmetrics]

@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.CorrelationId;
 using Platform.ServiceDefaults.Logging;
-using Platform.SharedKernel.Common;
 
 namespace Platform.ServiceDefaults;
 
@@ -16,10 +15,10 @@ namespace Platform.ServiceDefaults;
 public static class WebApplicationBuilderExtensions
 {
     /// <summary>
-    /// Configures all service defaults including host configuration, Serilog logging, the shared
-    /// kernel ambient services (<see cref="Platform.SharedKernel.Time.IClock"/> per ADR-0015), and
-    /// the correlation-id HTTP edge DI surface (ADR-0008). Callers still need to invoke
-    /// <c>app.UseCorrelationId()</c> in the middleware pipeline.
+    /// Configures all service defaults including host configuration, Serilog logging, and the
+    /// correlation-id HTTP edge DI surface (ADR-0008). Callers still need to invoke
+    /// <c>app.UseCorrelationId()</c> in the middleware pipeline. Time access uses the BCL
+    /// <see cref="TimeProvider"/> (registered by the Generic Host) per ADR-0015.
     /// </summary>
     /// <param name="builder">The web application builder.</param>
     /// <param name="configureOptions">Optional callback to configure Serilog options.</param>
@@ -31,7 +30,6 @@ public static class WebApplicationBuilderExtensions
         builder.AddPlatformHostConfiguration();
         builder.UsePlatformSerilog(configureOptions);
 
-        builder.Services.AddSharedKernel();
         builder.Services.AddCorrelationId();
 
         return builder;

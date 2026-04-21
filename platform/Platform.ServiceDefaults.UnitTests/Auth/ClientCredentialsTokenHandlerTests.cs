@@ -3,8 +3,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Platform.ServiceDefaults.Auth;
-using Platform.SharedKernel.Time;
 
 namespace Platform.ServiceDefaults.UnitTests.Auth;
 
@@ -53,15 +53,15 @@ public class ClientCredentialsTokenHandlerTests
     public async Task SendAsync_WhenCacheHitInsideThirtySecondBuffer_RefreshesToken()
     {
         // Arrange
-        var clock = new FakeClock(Fixed);
-        var (handler, target, tokenEndpoint) = Build(clock: clock, expiresInSeconds: 60);
+        var timeProvider = new FakeTimeProvider(Fixed);
+        var (handler, target, tokenEndpoint) = Build(timeProvider: timeProvider, expiresInSeconds: 60);
         target.Respond(HttpStatusCode.OK);
         target.Respond(HttpStatusCode.OK);
         using var client = new HttpClient(handler);
 
         _ = await client.GetAsync(new Uri("http://downstream/ping"), TestContext.Current.CancellationToken);
         // Advance into the 30s buffer (token expires at +60s, buffer is 30s → refresh at +30s+).
-        clock.Advance(TimeSpan.FromSeconds(35));
+        timeProvider.Advance(TimeSpan.FromSeconds(35));
 
         // Act
         _ = await client.GetAsync(new Uri("http://downstream/ping"), TestContext.Current.CancellationToken);
@@ -160,11 +160,11 @@ public class ClientCredentialsTokenHandlerTests
     }
 
     private static (ClientCredentialsTokenHandler Handler, StubMessageHandler Target, TokenEndpointHandler TokenEndpoint) Build(
-        FakeClock? clock = null,
+        FakeTimeProvider? timeProvider = null,
         int expiresInSeconds = 3600,
         TimeSpan? tokenFetchDelay = null)
     {
-        clock ??= new FakeClock(Fixed);
+        timeProvider ??= new FakeTimeProvider(Fixed);
 
         var tokenEndpoint = new TokenEndpointHandler(expiresInSeconds, tokenFetchDelay);
         var factory = new StubHttpClientFactory(tokenEndpoint);
@@ -179,7 +179,7 @@ public class ClientCredentialsTokenHandlerTests
         var monitor = new TestOptionsMonitor<ServiceAuthOptions>(options);
 
         var handler = new ClientCredentialsTokenHandler(
-            monitor, factory, clock, NullLogger<ClientCredentialsTokenHandler>.Instance);
+            monitor, factory, timeProvider, NullLogger<ClientCredentialsTokenHandler>.Instance);
 
         var target = new StubMessageHandler();
         handler.InnerHandler = target;

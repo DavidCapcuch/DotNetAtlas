@@ -5,7 +5,7 @@ namespace Platform.ServiceDefaults.Auth;
 /// </summary>
 /// <param name="AccessToken">The raw bearer value to attach to outbound requests.</param>
 /// <param name="ExpiresAt">Absolute expiry computed at cache-write time from
-/// <c>IClock.UtcNow + TimeSpan.FromSeconds(response.expires_in)</c>. Consumers apply the
+/// <c>TimeProvider.GetUtcNow() + TimeSpan.FromSeconds(response.expires_in)</c>. Consumers apply the
 /// 30-second buffer at check-time rather than cache-time.</param>
 internal sealed record CachedToken(string AccessToken, DateTimeOffset ExpiresAt)
 {

@@ -188,7 +188,7 @@ Credit notes: `CN-{year:0000}-{sequence:000000}` — separate format, separate a
 - **Happy path** — single issuance increments allocator by 1.
 - **Rollback preserves allocator** — force handler to fail mid-transaction (throw after allocator UPDATE but before commit); assert `next_value` unchanged.
 - **Concurrency** — two tasks issue simultaneously; assert consecutive numbers, no duplicates.
-- **Year rollover** — mock `IClock` to cross 2026-12-31 → 2027-01-01; assert new allocator row for 2027 with `next_value = 1`.
+- **Year rollover** — use `FakeTimeProvider` to cross 2026-12-31 → 2027-01-01; assert new allocator row for 2027 with `next_value = 1`.
 
 ### Audit integrity check
 
@@ -217,6 +217,6 @@ None of these are needed at the reference-solution profile.
 
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — throughput budget for serialized allocation
 - [ADR-0011: PII Handling & GDPR](0011-pii-handling-gdpr.md) — invoice numbers are NOT PII; survive erasure
-- [ADR-0015: Time & Timezone Policy](0015-time-timezone-policy.md) — year derived from `IClock.UtcNow` for testability
+- [ADR-0015: Time & Timezone Policy](0015-time-timezone-policy.md) — year derived from `TimeProvider.GetUtcNow()` for testability
 - [ADR-0017: Blob Storage + CDN](0017-blob-storage-cdn.md) — PDF upload happens inside the same transaction that allocates the number
 - [ADR-0019: PDF Generation (QuestPDF)](0019-pdf-generation-questpdf.md) — produces the document that bears the allocated number

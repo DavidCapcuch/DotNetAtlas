@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
 using Serilog.Context;
@@ -12,8 +11,6 @@ namespace Platform.ServiceDefaults.UnitTests.CorrelationId;
 
 public class CorrelationIdMiddlewareTests
 {
-    private static readonly IOptions<CorrelationIdOptions> DefaultOptions = Options.Create(new CorrelationIdOptions());
-
     [Fact]
     public async Task InvokeAsync_WhenInboundHeaderIsValidUuidV7_PreservesValueAndEchoesOnResponse()
     {
@@ -23,18 +20,13 @@ public class CorrelationIdMiddlewareTests
         context.Request.Headers[CorrelationIdContextKeys.HttpHeaderName] = correlationId;
         var middleware = new CorrelationIdMiddleware(
             NoOpNext,
-            DefaultOptions,
             NullLogger<CorrelationIdMiddleware>.Instance);
 
         // Act
         await middleware.InvokeAsync(context);
 
         // Assert
-        using (new AssertionScope())
-        {
-            context.Items[CorrelationIdContextKeys.HttpContextItemKey].Should().Be(correlationId);
-            context.Response.Headers[CorrelationIdContextKeys.HttpHeaderName].ToString().Should().Be(correlationId);
-        }
+        context.Response.Headers[CorrelationIdContextKeys.HttpHeaderName].ToString().Should().Be(correlationId);
     }
 
     [Fact]
@@ -44,7 +36,6 @@ public class CorrelationIdMiddlewareTests
         var context = new DefaultHttpContext();
         var middleware = new CorrelationIdMiddleware(
             NoOpNext,
-            DefaultOptions,
             NullLogger<CorrelationIdMiddleware>.Instance);
 
         // Act
@@ -56,7 +47,6 @@ public class CorrelationIdMiddlewareTests
         {
             Guid.TryParse(generated, out var parsed).Should().BeTrue();
             IsUuidV7(parsed).Should().BeTrue();
-            context.Items[CorrelationIdContextKeys.HttpContextItemKey].Should().Be(generated);
         }
     }
 
@@ -71,7 +61,6 @@ public class CorrelationIdMiddlewareTests
         context.Request.Headers[CorrelationIdContextKeys.HttpHeaderName] = inbound;
         var middleware = new CorrelationIdMiddleware(
             NoOpNext,
-            DefaultOptions,
             NullLogger<CorrelationIdMiddleware>.Instance);
 
         // Act
@@ -97,7 +86,6 @@ public class CorrelationIdMiddlewareTests
         context.Request.Headers[CorrelationIdContextKeys.HttpHeaderName] = v4;
         var middleware = new CorrelationIdMiddleware(
             NoOpNext,
-            DefaultOptions,
             NullLogger<CorrelationIdMiddleware>.Instance);
 
         // Act
@@ -124,14 +112,13 @@ public class CorrelationIdMiddlewareTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = _ => true,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
         };
         ActivitySource.AddActivityListener(listener);
         using var activity = source.StartActivity("test")!;
 
         var middleware = new CorrelationIdMiddleware(
             _ => Task.CompletedTask,
-            DefaultOptions,
             NullLogger<CorrelationIdMiddleware>.Instance);
 
         // Act
@@ -162,7 +149,6 @@ public class CorrelationIdMiddlewareTests
         };
         var middleware = new CorrelationIdMiddleware(
             next,
-            DefaultOptions,
             NullLogger<CorrelationIdMiddleware>.Instance);
 
         // Act
@@ -175,52 +161,6 @@ public class CorrelationIdMiddlewareTests
         sink.Events.Should().ContainSingle()
             .Which.Properties.Should().ContainKey(CorrelationIdContextKeys.SerilogPropertyName)
             .WhoseValue.ToString().Should().Contain(correlationId);
-    }
-
-    [Fact]
-    public async Task InvokeAsync_WhenGenerateWhenMissingIsFalseAndHeaderMissing_SkipsPropagation()
-    {
-        // Arrange
-        var options = Options.Create(new CorrelationIdOptions { GenerateWhenMissing = false });
-        var context = new DefaultHttpContext();
-        var middleware = new CorrelationIdMiddleware(
-            NoOpNext,
-            options,
-            NullLogger<CorrelationIdMiddleware>.Instance);
-
-        // Act
-        await middleware.InvokeAsync(context);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            context.Items.Should().NotContainKey(CorrelationIdContextKeys.HttpContextItemKey);
-            context.Response.Headers.Should().NotContainKey(CorrelationIdContextKeys.HttpHeaderName);
-        }
-    }
-
-    [Fact]
-    public async Task InvokeAsync_WhenGenerateWhenMissingIsFalseAndHeaderIsMalformed_SkipsPropagation()
-    {
-        // Arrange — internal service behind an edge gateway: must NOT silently rewrite a bad inbound id
-        // when the operator opted out of generation. The edge is responsible for the id; we only pass it through.
-        var options = Options.Create(new CorrelationIdOptions { GenerateWhenMissing = false });
-        var context = new DefaultHttpContext();
-        context.Request.Headers[CorrelationIdContextKeys.HttpHeaderName] = "not-a-guid";
-        var middleware = new CorrelationIdMiddleware(
-            NoOpNext,
-            options,
-            NullLogger<CorrelationIdMiddleware>.Instance);
-
-        // Act
-        await middleware.InvokeAsync(context);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            context.Items.Should().NotContainKey(CorrelationIdContextKeys.HttpContextItemKey);
-            context.Response.Headers.Should().NotContainKey(CorrelationIdContextKeys.HttpHeaderName);
-        }
     }
 
     private static Task NoOpNext(HttpContext context) => Task.CompletedTask;

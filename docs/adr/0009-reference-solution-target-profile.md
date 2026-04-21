@@ -99,6 +99,7 @@ A reader who later needs production shape gets the best of both: the pattern is 
 - Postgres: single instance, local storage, no read replicas. Schemas isolated per BC to simplify future extraction.
 - Saga timeouts: derived from single-hop network latency (≤ 10ms local) + gateway-stub response time (≤ 50ms) + headroom. See `checkout-saga.md § 7`.
 - Reservation TTL: 15 min — matches customer checkout abandon rate; not driven by scale.
+- **HTTP transport resilience** (retry, circuit-breaker, timeout): owned by the YARP ingress gateway, not by individual services. Services keep `HttpClient` configuration minimal and let the gateway manage backoff / break against the ADR-0009 envelope. This keeps the pattern centralized and avoids double-counting retries between the gateway and per-service handlers. Services retain *business* retries — outbox redelivery, Kafka consumer retry, idempotent command replay — which operate at a different layer than transport. If the gateway is offline in dev and a per-service fallback is needed, `Microsoft.Extensions.Http.Resilience`'s `AddStandardResilienceHandler()` is one line per client; no shared preset class needed.
 
 **"Taking this to production" checklist:**
 
