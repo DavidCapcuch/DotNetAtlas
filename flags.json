@@ -1,0 +1,23 @@
+{
+  "flags": {
+    "catalog.show-discontinued-in-search": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "off",
+      "targeting": {
+        "if": { "op": "percentage", "attribute": "targetingKey", "value": 10 },
+        "then": "on"
+      }
+    },
+    "bff.home-page-eager-cache-warm": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on"
+    },
+    "checkout.payment-then-stock": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "off"
+    }
+  }
+}
