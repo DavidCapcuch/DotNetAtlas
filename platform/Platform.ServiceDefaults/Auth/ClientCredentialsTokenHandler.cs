@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Platform.SharedKernel.Time;
 
 namespace Platform.ServiceDefaults.Auth;
 
@@ -18,7 +17,7 @@ namespace Platform.ServiceDefaults.Auth;
 /// <para>
 /// Cache key = (<see cref="ServiceAuthOptions.ServiceName"/>, scope). Concurrent callers to the
 /// same key share a single in-flight token fetch via the <see cref="Task{TResult}"/> stored in the
-/// dictionary. Expiry check uses <see cref="IClock.UtcNow"/> + the 30-second buffer per ADR-0010.
+/// dictionary. Expiry check uses <see cref="TimeProvider.GetUtcNow"/> + the 30-second buffer per ADR-0010.
 /// </para>
 /// <para>
 /// The per-request scope is passed via <see cref="HttpRequestMessage.Options"/> under
@@ -47,24 +46,24 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
 
     private readonly IOptionsMonitor<ServiceAuthOptions> _options;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IClock _clock;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ClientCredentialsTokenHandler> _logger;
 
     /// <summary>Creates a new handler. Typically resolved from DI.</summary>
     public ClientCredentialsTokenHandler(
         IOptionsMonitor<ServiceAuthOptions> options,
         IHttpClientFactory httpClientFactory,
-        IClock clock,
+        TimeProvider timeProvider,
         ILogger<ClientCredentialsTokenHandler> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(httpClientFactory);
-        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
         _options = options;
         _httpClientFactory = httpClientFactory;
-        _clock = clock;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -131,7 +130,7 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
                 throw;
             }
 
-            if (_clock.UtcNow + ExpiryBuffer < token.ExpiresAt)
+            if (_timeProvider.GetUtcNow() + ExpiryBuffer < token.ExpiresAt)
             {
                 return token;
             }
@@ -182,7 +181,7 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
             "Fetched client-credentials token for {ServiceName} scope='{Scope}' expires_in={ExpiresIn}s",
             options.ServiceName, scope, payload.ExpiresIn);
 
-        return new CachedToken(payload.AccessToken, _clock.UtcNow + TimeSpan.FromSeconds(payload.ExpiresIn));
+        return new CachedToken(payload.AccessToken, _timeProvider.GetUtcNow() + TimeSpan.FromSeconds(payload.ExpiresIn));
     }
 
     private static string ResolveScope(HttpRequestMessage request) =>

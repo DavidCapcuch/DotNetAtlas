@@ -26,9 +26,9 @@ A reference solution with event sourcing (Inventory), 10-year invoicing retentio
 
 ## Considered Options
 
-### Option 1: `DateTimeOffset` + `timestamptz` + `Clock` abstraction, Avro `timestamp-micros` (UTC-normalized)
+### Option 1: `DateTimeOffset` + `timestamptz` + `TimeProvider` abstraction, Avro `timestamp-micros` (UTC-normalized)
 
-Domain uses `DateTimeOffset` (offset preserved in-process, written with offset to Postgres `timestamptz`). Domain never calls `DateTimeOffset.UtcNow` directly — uses `IClock.UtcNow` (injectable). Avro encodes event timestamps as `{"type": "long", "logicalType": "timestamp-micros"}`, which is UTC-epoch-microseconds.
+Domain uses `DateTimeOffset` (offset preserved in-process, written with offset to Postgres `timestamptz`). Domain never calls `DateTimeOffset.UtcNow` directly — injects the BCL `System.TimeProvider` (since .NET 8) and calls `TimeProvider.GetUtcNow()`. Tests inject `Microsoft.Extensions.Time.Testing.FakeTimeProvider` for determinism. Avro encodes event timestamps as `{"type": "long", "logicalType": "timestamp-micros"}`, which is UTC-epoch-microseconds.
 
 ### Option 2: `DateTime` with `Kind=Utc` + Postgres `timestamp` + ambient UTC convention
 
@@ -47,20 +47,20 @@ No DateTime type; every timestamp is a `long` millisecond/microsecond epoch.
 | Driver (ranked) | Option 1: DateTimeOffset + Clock | Option 2: DateTime Utc | Option 3: NodaTime | Option 4: Epoch long |
 |---|---|---|---|---|
 | 1. Determinism | Offset preserved; roundtrips cleanly | Offset lost; must be reconstructed | Offset preserved; cleaner semantics | Offset irrelevant — always UTC |
-| 2. Testability | `IClock` mockable | `DateTime.UtcNow` is static; shimming requires `System.Fakes` or hand-written wrappers | NodaTime's `IClock` mockable | Handwritten `IClock<long>` |
+| 2. Testability | `FakeTimeProvider` is first-party BCL tooling | `DateTime.UtcNow` is static; shimming requires `System.Fakes` or hand-written wrappers | NodaTime's `IClock` mockable | Handwritten epoch clock |
 | 3. .NET + Postgres best practice | Yes — MS-recommended default for multi-zone data | Common but not best-practice for Postgres (which has `timestamptz`) | Niche; power-user | Not idiomatic in .NET |
 | 4. Zero ambiguity | Offset makes it explicit | Relies on convention | Explicit | Explicit but loses human readability |
 | 5. Avro compatibility | `timestamp-micros` is standard | Same | Convert at boundary | `long` — trivial but loses logical-type tooling |
 
 ## Decision
 
-We will use **Option 1: `DateTimeOffset` for in-process timestamps + `timestamptz` in Postgres + `IClock` abstraction in `Platform.SharedKernel` + Avro `timestamp-micros` (UTC-normalized) for event timestamps**. Architecture tests forbid direct `DateTime.UtcNow` / `DateTimeOffset.Now` / `DateTime.Now` calls in domain code.
+We will use **Option 1: `DateTimeOffset` for in-process timestamps + `timestamptz` in Postgres + the BCL `System.TimeProvider` abstraction (since .NET 8) + Avro `timestamp-micros` (UTC-normalized) for event timestamps**. Architecture tests forbid direct `DateTime.UtcNow` / `DateTimeOffset.Now` / `DateTime.Now` calls in domain code.
 
 ## Rationale
 
 `DateTimeOffset` is Microsoft's recommended default for any value that crosses process boundaries — it carries the offset, eliminating the "is this UTC?" ambiguity by construction. Postgres's `timestamptz` is the correct pair on the DB side: it normalizes to UTC on write, returns with offset on read, and is indexable. The combination is idiomatic, standard, and teaches the right instincts.
 
-`IClock` is the small but load-bearing piece. Every domain type that tests time-dependent behavior (reservation TTL, saga timeouts, gap-free sequence year rollover) needs deterministic "now". Architecture tests enforce the injection discipline; domain code that calls `DateTimeOffset.UtcNow` fails the build.
+`TimeProvider` is the small but load-bearing piece. Every domain type that tests time-dependent behavior (reservation TTL, saga timeouts, gap-free sequence year rollover) needs deterministic "now". The BCL ships `TimeProvider.System` in production and `FakeTimeProvider` (in `Microsoft.Extensions.TimeProvider.Testing`) for unit tests. Architecture tests enforce the injection discipline; domain code that calls `DateTimeOffset.UtcNow` fails the build.
 
 Avro's `timestamp-micros` normalizes to UTC for the wire — events are persisted for 10 years and the offset at which they were produced is an in-process concern, not a business fact. This aligns with Kafka Streams, Flink, and most modern Avro consumers.
 
@@ -71,14 +71,14 @@ Option 2's `DateTime.UtcNow` is a common trap; it silently drops offset and make
 ### Positive
 
 - Round-trips HTTP → DB → Kafka → DB preserve offset. Read-side projections don't need to "guess UTC".
-- `IClock` makes TTL / timeout tests deterministic — reservation-expiry tests can set `clock.UtcNow = t0 + 16 minutes` without async waits.
+- `FakeTimeProvider` makes TTL / timeout tests deterministic — reservation-expiry tests can call `timeProvider.Advance(TimeSpan.FromMinutes(16))` without async waits.
 - Avro `timestamp-micros` standard means future consumers (Kafka Streams, Spark, Snowpipe) interpret timestamps without custom converters.
 - Architecture test catches the most common mistake (`DateTime.UtcNow` in domain) before it lands.
 - Logs and traces show offset — operators don't have to mentally convert.
 
 ### Negative
 
-- One small discipline: inject `IClock` instead of calling `UtcNow`. Adds a constructor parameter to every time-aware class.
+- One small discipline: inject `TimeProvider` instead of calling `DateTimeOffset.UtcNow`. Adds a constructor parameter to every time-aware class.
 - `DateTimeOffset` ≠ `DateTime` — JSON serializers default to different formats. Mitigation: configured `JsonSerializerOptions` uses ISO 8601 with offset (`2026-04-19T14:30:00+02:00`) everywhere.
 - EF Core 8 / 9 needs a `HasColumnType("timestamptz")` convention on `DateTimeOffset` properties. Mitigation: central convention in each DbContext's `OnModelCreating`.
 
@@ -90,31 +90,23 @@ Option 2's `DateTime.UtcNow` is a common trap; it silently drops offset and make
 
 ## Implementation Notes
 
-### `Platform.SharedKernel.Time`
+### Time abstraction
 
-New file: `Platform.SharedKernel/Time/IClock.cs`:
+We use the BCL `System.TimeProvider` (ships with .NET 8+). Production consumers inject `TimeProvider` via constructor:
 
 ```csharp
-public interface IClock
+public sealed class Whatever(TimeProvider timeProvider)
 {
-    DateTimeOffset UtcNow { get; }
-}
-
-public sealed class SystemClock : IClock
-{
-    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
-}
-
-public sealed class FakeClock(DateTimeOffset initial) : IClock
-{
-    private DateTimeOffset _now = initial;
-    public DateTimeOffset UtcNow => _now;
-    public void Advance(TimeSpan by) => _now = _now.Add(by);
-    public void Set(DateTimeOffset to) => _now = to;
+    public DateTimeOffset Something() => timeProvider.GetUtcNow();
 }
 ```
 
-`IClock` is registered in `Platform.ServiceDefaults.AddServiceDefaults()` as `services.AddSingleton<IClock, SystemClock>()`. Test projects register `FakeClock`.
+`TimeProvider.System` is registered automatically by the Generic Host — no custom DI wiring in `AddServiceDefaults()`. Test projects reference `Microsoft.Extensions.TimeProvider.Testing` (already in `test/Directory.Build.props`) and construct `FakeTimeProvider` directly:
+
+```csharp
+var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 4, 20, 12, 0, 0, TimeSpan.Zero));
+timeProvider.Advance(TimeSpan.FromMinutes(16));
+```
 
 ### Architecture tests
 
@@ -122,7 +114,7 @@ Per-BC `ArchitectureTests` project asserts:
 
 1. Types in `{BC}.Domain` do not reference `DateTime` (all domain timestamps are `DateTimeOffset`).
 2. Types in `{BC}.Domain` do not call `DateTimeOffset.UtcNow`, `DateTime.UtcNow`, `DateTime.Now`, `DateTimeOffset.Now` (enforce via a Roslyn analyzer rule or a reflection-based test).
-3. Constructors / methods that need "now" accept `IClock` or receive `DateTimeOffset` from the application layer.
+3. Constructors / methods that need "now" accept `TimeProvider` via DI or receive `DateTimeOffset` from the application layer.
 
 ### EF Core convention
 
@@ -155,11 +147,7 @@ The `UniversalSerDes` platform library handles `DateTimeOffset` → `long` conve
 
 ### JSON serialization
 
-`System.Text.Json` options registered in `Platform.ServiceDefaults`:
-
-```csharp
-options.Converters.Add(new JsonDateTimeOffsetConverter()); // forces ISO 8601 with offset
-```
+`System.Text.Json`'s built-in `DateTimeOffset` serializer already emits ISO 8601 with offset (e.g. `"2026-04-19T14:30:00.0000000+02:00"`) and parses the same format on read. No custom converter is registered. Endpoint frameworks (FastEndpoints, MVC, minimal APIs) use the default behavior; outbox payloads round-trip through `DateTimeOffset` directly.
 
 ### Logging & tracing
 

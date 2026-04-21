@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Platform.ServiceDefaults.CorrelationId;
@@ -9,16 +8,12 @@ namespace Platform.ServiceDefaults.CorrelationId;
 public static class CorrelationIdServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="CorrelationIdOptions"/>, <see cref="IHttpContextAccessor"/>, and the
-    /// <see cref="CorrelationIdDelegatingHandler"/>. Call once per service.
+    /// Registers the <see cref="CorrelationIdDelegatingHandler"/> for outbound HTTP propagation.
     /// Pair with <c>app.UseCorrelationId()</c> for inbound middleware and
     /// <see cref="AddCorrelationIdPropagation"/> on each typed HttpClient that should propagate.
     /// </summary>
     public static IServiceCollection AddCorrelationId(this IServiceCollection services)
     {
-        services.AddOptionsWithValidateOnStart<CorrelationIdOptions>()
-            .BindConfiguration(CorrelationIdOptions.Section);
-        services.AddHttpContextAccessor();
         services.AddTransient<CorrelationIdDelegatingHandler>();
         return services;
     }

@@ -1,24 +1,31 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults.CorrelationId;
 
 namespace Platform.ServiceDefaults.UnitTests.CorrelationId;
 
 public class CorrelationIdDelegatingHandlerTests
 {
-    private static readonly IOptions<CorrelationIdOptions> DefaultOptions = Options.Create(new CorrelationIdOptions());
+    private static readonly ActivitySource Source = new("Platform.ServiceDefaults.UnitTests");
+
+    public CorrelationIdDelegatingHandlerTests()
+    {
+        ActivitySource.AddActivityListener(new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        });
+    }
 
     [Fact]
-    public async Task SendAsync_WithAmbientHttpContextItemsValue_AddsHeaderToOutbound()
+    public async Task SendAsync_WithAmbientActivityTag_AddsHeaderToOutbound()
     {
         // Arrange
         var correlationId = Guid.CreateVersion7().ToString();
-        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
-        accessor.HttpContext!.Items[CorrelationIdContextKeys.HttpContextItemKey] = correlationId;
+        using var activity = Source.StartActivity("test")!;
+        activity.SetTag(CorrelationIdContextKeys.ActivityTagName, correlationId);
 
         var capturing = new CapturingHandler();
-        using var client = BuildClient(accessor, capturing);
+        using var client = BuildClient(capturing);
 
         // Act
         _ = await client.GetAsync(new Uri("http://localhost/ping"), TestContext.Current.CancellationToken);
@@ -35,11 +42,11 @@ public class CorrelationIdDelegatingHandlerTests
         // Arrange
         var explicitValue = Guid.CreateVersion7().ToString();
         var ambientValue = Guid.CreateVersion7().ToString();
-        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
-        accessor.HttpContext!.Items[CorrelationIdContextKeys.HttpContextItemKey] = ambientValue;
+        using var activity = Source.StartActivity("test")!;
+        activity.SetTag(CorrelationIdContextKeys.ActivityTagName, ambientValue);
 
         var capturing = new CapturingHandler();
-        using var client = BuildClient(accessor, capturing);
+        using var client = BuildClient(capturing);
         using var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/ping");
         request.Headers.Add(CorrelationIdContextKeys.HttpHeaderName, explicitValue);
 
@@ -52,12 +59,11 @@ public class CorrelationIdDelegatingHandlerTests
     }
 
     [Fact]
-    public async Task SendAsync_WithoutAmbientContextOrActivity_DoesNotAddHeader()
+    public async Task SendAsync_WithoutAmbientActivity_DoesNotAddHeader()
     {
         // Arrange
-        var accessor = new HttpContextAccessor { HttpContext = null };
         var capturing = new CapturingHandler();
-        using var client = BuildClient(accessor, capturing);
+        using var client = BuildClient(capturing);
 
         // Act (run outside any Activity)
         Activity.Current = null;
@@ -67,38 +73,11 @@ public class CorrelationIdDelegatingHandlerTests
         capturing.LastRequest!.Headers.Contains(CorrelationIdContextKeys.HttpHeaderName).Should().BeFalse();
     }
 
-    [Fact]
-    public async Task SendAsync_WithActivityTagOnlyFallback_AddsHeaderFromActivity()
+    private static HttpClient BuildClient(HttpMessageHandler terminal)
     {
-        // Arrange
-        var correlationId = Guid.CreateVersion7().ToString();
-        var accessor = new HttpContextAccessor { HttpContext = null };
-        using var source = new ActivitySource("Platform.ServiceDefaults.UnitTests");
-        using var listener = new ActivityListener
+        var handler = new CorrelationIdDelegatingHandler
         {
-            ShouldListenTo = _ => true,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData
-        };
-        ActivitySource.AddActivityListener(listener);
-        using var activity = source.StartActivity("background")!;
-        activity.SetTag(CorrelationIdContextKeys.ActivityTagName, correlationId);
-
-        var capturing = new CapturingHandler();
-        using var client = BuildClient(accessor, capturing);
-
-        // Act
-        _ = await client.GetAsync(new Uri("http://localhost/ping"), TestContext.Current.CancellationToken);
-
-        // Assert
-        capturing.LastRequest!.Headers.GetValues(CorrelationIdContextKeys.HttpHeaderName)
-            .Should().ContainSingle().Which.Should().Be(correlationId);
-    }
-
-    private static HttpClient BuildClient(IHttpContextAccessor accessor, HttpMessageHandler terminal)
-    {
-        var handler = new CorrelationIdDelegatingHandler(accessor, DefaultOptions)
-        {
-            InnerHandler = terminal
+            InnerHandler = terminal,
         };
         return new HttpClient(handler, disposeHandler: true);
     }

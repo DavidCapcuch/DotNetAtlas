@@ -1,36 +1,35 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Serilog.Context;
 
 namespace Platform.ServiceDefaults.CorrelationId;
 
 /// <summary>
 /// Reads (and when necessary generates) the <c>X-Correlation-Id</c> header on inbound HTTP requests,
-/// publishes the resolved value onto <see cref="HttpContext.Items"/>, the ambient OpenTelemetry
-/// <see cref="Activity"/>, and the Serilog <see cref="LogContext"/>, and echoes the value back on the response.
-/// Implements ADR-0008 at the HTTP edge.
+/// publishes the resolved value onto the ambient OpenTelemetry <see cref="Activity"/> and the Serilog
+/// <see cref="LogContext"/>, and echoes the value back on the response. Implements ADR-0008 at the
+/// HTTP edge.
 /// </summary>
+/// <remarks>
+/// Header name (<see cref="CorrelationIdContextKeys.HttpHeaderName"/>) and the always-generate-when-missing
+/// policy are pinned by ADR-0008 and not configurable.
+/// </remarks>
 public sealed partial class CorrelationIdMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly CorrelationIdOptions _options;
     private readonly ILogger<CorrelationIdMiddleware> _logger;
 
     /// <summary>
     /// Initializes a new <see cref="CorrelationIdMiddleware"/>.
     /// </summary>
     /// <param name="next">Next middleware in the pipeline.</param>
-    /// <param name="options">Bound correlation-id options.</param>
     /// <param name="logger">Logger for edge diagnostics.</param>
     public CorrelationIdMiddleware(
         RequestDelegate next,
-        IOptions<CorrelationIdOptions> options,
         ILogger<CorrelationIdMiddleware> logger)
     {
         _next = next;
-        _options = options.Value;
         _logger = logger;
     }
 
@@ -40,22 +39,15 @@ public sealed partial class CorrelationIdMiddleware
     /// <param name="context">The current HTTP context.</param>
     public async Task InvokeAsync(HttpContext context)
     {
-        var inbound = context.Request.Headers[_options.HeaderName].FirstOrDefault();
+        var inbound = context.Request.Headers[CorrelationIdContextKeys.HttpHeaderName].FirstOrDefault();
         var correlationId = ResolveCorrelationId(inbound);
 
-        if (string.IsNullOrEmpty(correlationId))
-        {
-            await _next(context).ConfigureAwait(false);
-            return;
-        }
-
-        context.Items[CorrelationIdContextKeys.HttpContextItemKey] = correlationId;
         Activity.Current?.SetTag(CorrelationIdContextKeys.ActivityTagName, correlationId);
 
         // Set the echo header eagerly so clients always receive it — even when downstream
         // middleware short-circuits or an exception handler rewrites the response. Custom exception
         // handlers that rebuild the response must re-apply the header themselves.
-        context.Response.Headers[_options.HeaderName] = correlationId;
+        context.Response.Headers[CorrelationIdContextKeys.HttpHeaderName] = correlationId;
 
         using (LogContext.PushProperty(CorrelationIdContextKeys.SerilogPropertyName, correlationId))
         {
@@ -67,13 +59,13 @@ public sealed partial class CorrelationIdMiddleware
     {
         if (string.IsNullOrWhiteSpace(inbound))
         {
-            return _options.GenerateWhenMissing ? GenerateUuidV7() : string.Empty;
+            return GenerateUuidV7();
         }
 
         if (!Guid.TryParse(inbound, out var parsed) || !IsUuidV7(parsed))
         {
             LogMalformedCorrelationId(_logger, inbound);
-            return _options.GenerateWhenMissing ? GenerateUuidV7() : string.Empty;
+            return GenerateUuidV7();
         }
 
         return parsed.ToString();

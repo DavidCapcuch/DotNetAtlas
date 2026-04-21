@@ -1,32 +1,34 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults.CorrelationId;
 
 namespace Platform.ServiceDefaults.UnitTests.CorrelationId;
 
 public class CorrelationIdServiceCollectionExtensionsTests
 {
+    private static readonly ActivitySource Source = new("Platform.ServiceDefaults.UnitTests");
+
+    public CorrelationIdServiceCollectionExtensionsTests()
+    {
+        ActivitySource.AddActivityListener(new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        });
+    }
+
     [Fact]
-    public void AddCorrelationId_RegistersDelegatingHandlerAndOptions()
+    public void AddCorrelationId_RegistersDelegatingHandler()
     {
         // Arrange
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
         // Act
         services.AddCorrelationId();
 
         // Assert
         using var provider = services.BuildServiceProvider();
-        using (new AssertionScope())
-        {
-            provider.GetService<IHttpContextAccessor>().Should().NotBeNull();
-            provider.GetService<CorrelationIdDelegatingHandler>().Should().NotBeNull();
-            provider.GetRequiredService<IOptions<CorrelationIdOptions>>().Value.HeaderName
-                .Should().Be(CorrelationIdContextKeys.HttpHeaderName);
-        }
+        provider.GetService<CorrelationIdDelegatingHandler>().Should().NotBeNull();
     }
 
     [Fact]
@@ -38,16 +40,14 @@ public class CorrelationIdServiceCollectionExtensionsTests
         var capturing = new CapturingHandler();
 
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddCorrelationId();
         services.AddHttpClient("downstream")
             .ConfigurePrimaryHttpMessageHandler(() => capturing)
             .AddCorrelationIdPropagation();
 
         using var provider = services.BuildServiceProvider();
-        var accessor = provider.GetRequiredService<IHttpContextAccessor>();
-        accessor.HttpContext = new DefaultHttpContext();
-        accessor.HttpContext.Items[CorrelationIdContextKeys.HttpContextItemKey] = correlationId;
+        using var activity = Source.StartActivity("test")!;
+        activity.SetTag(CorrelationIdContextKeys.ActivityTagName, correlationId);
 
         using var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient("downstream");
 
