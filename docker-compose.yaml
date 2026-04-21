@@ -35,16 +35,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  redis:
+  # Redis split per ADR-0016:
+  #   - redis-basket : authoritative store (Basket aggregate). AOF everysec + noeviction.
+  #                    Loss = customer incident; failure mode surfaces as OOM errors, not silent evictions.
+  #   - redis-cache  : volatile (BFF L2 FusionCache backplane + ephemeral cache for other services).
+  #                    No persistence; 512 MB allkeys-lru eviction; loss = next request pays miss.
+  redis-basket:
     image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
-    container_name: redis12346
+    container_name: redis-basket
     restart: always
     profiles:
       - core
       - full
     ports:
-      - "12346:6379"
-    command: [ "redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru" ]
+      - "6379:6379"
+    command: [ "redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction" ]
+    volumes:
+      - redis-basket-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -52,6 +64,27 @@ services:
           cpus: '0.5'
         reservations:
           memory: 256M
+
+  redis-cache:
+    image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
+    container_name: redis-cache
+    restart: always
+    profiles:
+      - full
+    ports:
+      - "6380:6379"
+    command: [ "redis-server", "--appendonly", "no", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru" ]
+    # No volume — volatile by design (cache should be empty on restart).
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
 
   redis-insight:
     image: redis/redisinsight:2.70@sha256:b7aa18e73329ebb2e3d9e949b8d35193bf5415ef35c16fd9a50e6f832922b296
@@ -65,8 +98,10 @@ services:
     volumes:
       - redis-insight:/data
     depends_on:
-      - redis
-    command: [ "redis-insight", "--auto-connect", "redis://redis:6379" ]
+      - redis-basket
+    # Auto-connect to redis-basket (authoritative store — the interesting data lives here).
+    # Add redis-cache manually via the UI if cache-state inspection is needed.
+    command: [ "redis-insight", "--auto-connect", "redis://redis-basket:6379" ]
     deploy:
       resources:
         limits:
@@ -238,9 +273,18 @@ services:
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.feedbacks --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alerts --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notification.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payment-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payments --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.categories --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic basket.sessions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=2592000000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.orders --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.order-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.stock-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservations --partitions 6 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservation-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic invoicing.invoices --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=315360000000 --if-not-exists
       "
     depends_on:
       kafka:
@@ -300,11 +344,18 @@ services:
         limits:
           memory: 512M
 
-  outbox-relay:
+  # BC-scoped outbox relays — one per BC schema + one for the checkout saga.
+  #   - outbox-relay-weather : drains Weather (existing reference service).
+  #   - outbox-relay-{catalog,basket,ordering,inventory,payments,invoicing} : Wave 1 BCs.
+  #     NOTE: Wave 0 lands these containers but the target databases do NOT exist yet.
+  #     Expect Npgsql connection crash-loops until the Wave 1 BC lands its schema/migration.
+  #     `restart: unless-stopped` recovers automatically once the DB appears.
+  #   - outbox-relay-saga    : drains checkout saga's MassTransit outbox (unchanged).
+  outbox-relay-weather:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay
+    container_name: outbox-relay-weather
     restart: unless-stopped
     profiles:
       - full
@@ -318,7 +369,7 @@ services:
     environment:
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Weather;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-worker
+      - KafkaProducer__ClientId=outbox-relay-weather-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=weather
       - OutboxRelay__TableName=OutboxMessages
@@ -328,6 +379,198 @@ services:
       - OTEL_SERVICE_NAME=WeatherOutboxRelay
     ports:
       - "8088:8080"  # Health checks endpoint
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-basket:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-basket
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-basket-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=basket
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=BasketOutboxRelay
+    ports:
+      - "8091:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-catalog:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-catalog
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-catalog-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=catalog
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=CatalogOutboxRelay
+    ports:
+      - "8090:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-inventory:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-inventory
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-inventory-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=inventory
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=InventoryOutboxRelay
+    ports:
+      - "8093:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-invoicing:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-invoicing
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-invoicing-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=invoicing
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=InvoicingOutboxRelay
+    ports:
+      - "8095:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-ordering:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-ordering
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-ordering-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=ordering
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=OrderingOutboxRelay
+    ports:
+      - "8092:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-payments:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-payments
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-payments-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=payments
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=PaymentsOutboxRelay
+    ports:
+      - "8094:8080"
     deploy:
       resources:
         limits:
@@ -366,6 +609,88 @@ services:
       resources:
         limits:
           memory: 512M
+
+  # Blob storage + CDN per ADR-0017:
+  #   - azurite       : Azure Blob emulator (local origin); devstoreaccount1.
+  #   - azurite-init  : one-shot that creates the `invoices` container and attempts the
+  #                     10-year immutable-blob policy. Immutability is best-effort in the
+  #                     emulator (it lags real Azure Blob); failure is swallowed via `|| true`
+  #                     per ADR-0017 autonomous-evolution clause. Production migrates to a
+  #                     real storage account where the policy is enforced.
+  #   - nginx-cdn     : reverse proxy demonstrating edge-cache semantics (production uses
+  #                     Azure Front Door / Azure CDN). Cache: 1g size, 1h inactive (ADR-0017 literal).
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.31.0
+    container_name: azurite
+    restart: unless-stopped
+    profiles:
+      - core
+      - full
+    # `--skipApiVersionCheck` accepts newer SDK clients (e.g., `az` CLI's latest API
+    # version) that the pinned Azurite 3.31.0 does not natively understand. Without this
+    # flag, `azurite-init`'s `az storage container create` call fails with
+    # "The API version 2026-02-06 is not supported by Azurite" (emulator-lag — see
+    # ADR-0017 autonomous-evolution clause). Production uses real Azure Blob Storage
+    # where API version negotiation is always current; this flag is local-only.
+    command: [ "azurite-blob", "--blobHost", "0.0.0.0", "--location", "/data", "--debug", "/data/debug.log", "--skipApiVersionCheck" ]
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite-data:/data
+    healthcheck:
+      # TCP probe — Azurite image is Alpine-based with busybox `nc` supporting `-z`.
+      # Must use 127.0.0.1 explicitly: in this image `localhost` resolves IPv6-first
+      # (`::1`) but Azurite binds IPv4 only (0.0.0.0), so the IPv6 probe is refused.
+      # If the probe ever fails on a future image variant, fallback is `service_started`
+      # + a retry loop inside azurite-init (see Risk 1 note from M5 brainstorming).
+      test: ["CMD-SHELL", "nc -z -w 1 127.0.0.1 10000 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  azurite-init:
+    image: mcr.microsoft.com/azure-cli:latest
+    container_name: azurite-init
+    profiles:
+      - core
+      - full
+    depends_on:
+      azurite:
+        condition: service_healthy
+    environment:
+      # Azurite well-known dev account — Microsoft tooling expects this account name + key.
+      # Production migration swaps to a real account + managed identity (Aspire automatic).
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+    entrypoint: >
+      /bin/sh -c "
+      az storage container create --name invoices --public-access off;
+      az storage container immutability-policy create --container-name invoices --period 3650 --resource-group dev --account-name devstoreaccount1 || true;
+      exit 0;
+      "
+    restart: "no"
+
+  nginx-cdn:
+    image: nginx:1.27-alpine
+    container_name: nginx-cdn
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      azurite:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src/nginx-cdn/nginx.conf:/etc/nginx/nginx.conf:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   #  elasticsearch:
   #    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
@@ -439,5 +764,7 @@ volumes:
   postgres_data:
   seq_data:
   redis-insight:
+  redis-basket-data:
   kafka_data:
   kafka_metadata:
+  azurite-data:
