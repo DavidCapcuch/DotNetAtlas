@@ -49,6 +49,8 @@ On top of this file, every BC reads (in order):
 - **OpenFeature** + JSON-file provider for feature flags (per ADR-0014)
 - **Keycloak** OAuth2 (user auth + service-account client-credentials for service-to-service per ADR-0010)
 - **xUnit** + **Testcontainers**
+    - xunit.v3 enforces `xUnit1051` — pass `TestContext.Current.CancellationToken` to every async call in a test body, otherwise the build fails.
+    - ASP.NET middleware tests built on `DefaultHttpContext` do **not** fire `Response.OnStarting` callbacks (the callbacks are registered but never invoked without a real pipeline). Either set response headers eagerly, or stand up `Microsoft.AspNetCore.TestHost` for the assertion.
 
 Do not introduce new libraries without documenting rationale + asking.
 
@@ -86,7 +88,7 @@ The Weather service is a complete working reference. **Copy the shape, not the d
 - `Platform.Avro.UniversalSerDes` — Record-Name-Strategy subjects
 - `Platform.SchemaRegistry.Contracts` — all `.avsc` files live here
 - `Platform.OutboxRelay.WorkerService` — you ADD a container per service schema in docker-compose
-- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: correlation-id middleware, OAuth2 service-auth, OpenFeature DI, JSON `DateTimeOffset` converter, named Polly resilience presets**
+- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: correlation-id middleware, OAuth2 service-auth, OpenFeature DI, JSON `DateTimeOffset` converter, named Polly resilience presets**. BCs read the ambient correlation id via `CorrelationIdContextKeys` (public constants for the HTTP header name, `HttpContext.Items` key, OTel `Activity` tag, and Serilog property) — see `platform/Platform.ServiceDefaults/CorrelationId/CorrelationIdContextKeys.cs`.
 - `Platform.Test.Framework` — shared test fixtures
 
 If you hit a gap, **ASK** — adding platform code is an escalation.
@@ -125,9 +127,12 @@ Every BC prompt extends this list with BC-specific skills. Invoke skills proacti
 | Refactor pass | `nw-refactor` | RPP L1–L6 after tests are green |
 | Before PR | `superpowers:requesting-code-review` | structured review request |
 | On feedback | `superpowers:receiving-code-review` | rigour before implementing review suggestions |
+| **Pre-commit, every milestone** | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **mandatory** on any milestone commit touching ≥ 5 files — brief with file list + test list + what's intentionally deferred. M2 precedent: this pass caught one CRITICAL + three IMPORTANT findings that would otherwise have shipped. Use `opus` explicitly; the default model is weaker. |
 | Before claiming done | `superpowers:verification-before-completion` | evidence-first claim of completion (run all `<verification>` commands; paste output in summary) |
-| Final peer review | `nw-software-crafter-reviewer` | invoke with your session summary BEFORE declaring DoD met; fix any HIGH-severity findings |
+| Final peer review | `nw-software-crafter-reviewer` | invoke with your session summary BEFORE declaring DoD met; fix any HIGH-severity findings. Runs on Haiku — complement the Opus pre-commit review, don't substitute for it. |
 | .NET idioms | `dotnet-contribution:dotnet-backend-patterns` | continuous — C#/.NET pattern reference |
+
+> **Reviewer choice note.** Some older prompts reference `code-documentation:code-reviewer` for the pre-commit review step. The concrete `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` call above is the validated path (proven on Wave 0 M2) — use it unless you have specific reason to pick a different reviewer skill.
 
 ## 8. Autonomous evolution protocol
 
@@ -166,11 +171,15 @@ Every BC implementation is multi-file, multi-hour work. Manage the session as yo
 
 ## 11. Peer review before declaring done
 
+**Pre-commit, every milestone** (not only at DoD):
+
+0. Before `git commit` on any milestone that touches ≥ 5 files, invoke `Agent(subagent_type="feature-dev:code-reviewer", model="opus")`. Brief it with the exact file list, test list, design decisions taken, and what's intentionally deferred. Fix all CRITICAL/HIGH findings before staging; document accepted MEDIUM/LOW findings in the commit body. Use `model="opus"` — the Wave 0 M2 precedent showed the default Sonnet surfaced one CRITICAL + three IMPORTANT findings; Opus is strictly stronger for the same cost posture on a single review call.
+
 Before posting your session summary as "complete":
 
 1. Run every command in `<verification>` and paste the pass/fail output (not a summary — the actual output) into your session summary.
 2. Invoke `superpowers:verification-before-completion` (per § 7) — its checklist catches the common "I claimed done but didn't actually run X" gap.
-3. Invoke `nw-software-crafter-reviewer` with your session summary as input — it reviews against the BC's contract, applicable ADRs, and code quality. Fix any HIGH-severity findings before declaring done. MEDIUM/LOW findings can be documented as follow-ups in the summary.
+3. Invoke `nw-software-crafter-reviewer` with your session summary as input — it reviews against the BC's contract, applicable ADRs, and code quality. Fix any HIGH-severity findings before declaring done. MEDIUM/LOW findings can be documented as follow-ups in the summary. This reviewer runs on Haiku for cost; it complements but does not substitute for step 0's Opus pre-commit pass.
 
 ## 12. Shared Definition of Done
 

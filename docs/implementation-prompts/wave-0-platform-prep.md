@@ -153,10 +153,10 @@ Cross-cutting decisions that drive Wave 0 directly. Read each, then apply.
 <skills>
 Universal skills per `_shared.md § 7`. Wave-0-specific:
 
-| Phase | Skill | When |
+| Phase | Skill / Agent | When |
 |---|---|---|
-| Designing the `Platform.ServiceDefaults` extensions surface | `backend-development:api-design-principles` | extension methods are an API for every BC agent — read-heavy on naming/shape |
-| Reviewing platform changes before commit | `code-documentation:code-reviewer` | pre-commit self-review on a 50+-file PR |
+| Designing the `Platform.ServiceDefaults` extensions surface | `backend-development:api-design-principles` | extension methods are an API for every BC agent — read-heavy on naming/shape. Cite the precedent pattern from the existing surface (e.g., `CorrelationIdServiceCollectionExtensions`) when making the call. |
+| Reviewing platform changes before every milestone commit | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **Mandatory** pre-commit on any milestone touching ≥ 5 files. Validated on Wave 0 M2 — caught one CRITICAL + three IMPORTANT findings. Brief with file list + test list + deferred items. Fix CRITICAL/HIGH before staging. |
 | `docker-compose.yaml` ordering of new services | `superpowers:brainstorming` | init containers + dependency ordering have subtle race conditions |
 </skills>
 
