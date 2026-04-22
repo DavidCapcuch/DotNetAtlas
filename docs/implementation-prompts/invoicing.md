@@ -56,7 +56,7 @@ You own these. Justify each in your session summary.
 - `Invoice` aggregate backing-field layout (EF owned entities? JSON column for `Lines`? — decide + justify)
 - `InvoiceDocument` PDF template composition (QuestPDF fluent DSL) — logo placement, column widths, footer content
 - Enrichment consumer class organization — one consumer per event type or multiplexer (recommended: one per type for clarity)
-- Blob-upload retry strategy when Azurite/Azure Blob is transiently unavailable (Polly preset from `Platform.ServiceDefaults`)
+- Blob-upload retry strategy when Azurite/Azure Blob is transiently unavailable — use `Azure.Storage.Blobs`' built-in retry options (SDK-level retries, exponential backoff) rather than adding a Polly pipeline. Cross-service HTTP resilience is handled by YARP at the edge.
 - Admin endpoint authorization policy names (`AuthPolicies.InvoicingAdmin`)
 - Idempotency-Key integration on `POST /invoices/{id}/resend` via FastEndpoints `.Idempotency()` backed by ASP.NET Output Cache + `redis-cache` per ADR-0013
 - Credit-note-on-partial-refund behavior (v1 is full-refund only; v2 hook spot)
@@ -84,7 +84,7 @@ Cross-cutting decisions to apply:
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — `BillingAddress` + buyer name are PII; columns named `*_enc` per convention (v1 plaintext, v2 encrypts); Serilog `[PII]` on `Address`; **OTEL allowlist forbids tagging spans with address fields** (`invoice.billing_address` → hashed `buyer.id.hash` only); 10-year topic retention carries this PII — acknowledge the known v1 gap
 - [ADR-0012](../adr/0012-api-versioning.md) — all routes under `/api/v1/invoicing/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — **required on `POST /invoices/{id}/resend`** (admin resend) via FastEndpoints `.Idempotency()` backed by `redis-cache`; not required on GET endpoints
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — `Invoice.IssueDate`, `DeliveredAt`, `CancelledAt` all `DateTimeOffset`; `invoice_number_allocator` queries `EXTRACT(YEAR FROM IClock.UtcNow)` for deterministic year derivation in tests; arch test forbids `DateTime.UtcNow` in `Invoicing.Domain`
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — `Invoice.IssueDate`, `DeliveredAt`, `CancelledAt` all `DateTimeOffset`; inject BCL `TimeProvider` and pass `GetUtcNow().Year` into the `invoice_number_allocator` for deterministic year derivation in tests (`FakeTimeProvider`); arch test forbids `DateTime.UtcNow` in `Invoicing.Domain`
 - [ADR-0017](../adr/0017-blob-storage-cdn.md) — `IBlobStore` abstraction in `Invoicing.Infrastructure`; adapter uses `Azure.Storage.Blobs` against Azurite locally / real Azure Blob in production; **architecture test forbids direct `Azure.Storage.Blobs` imports in Application or Domain layers**
 - [ADR-0018](../adr/0018-invoice-numbering.md) — transactional allocator with `SELECT ... FOR UPDATE`; rollback preserves gap-free sequence; nightly audit query verifies `COUNT(invoices) == next_value - 1`
 - [ADR-0019](../adr/0019-pdf-generation-questpdf.md) — QuestPDF community edition; `IPdfGenerator` abstraction; deterministic output verified by byte-hash test; embed Inter + JetBrains Mono fonts via Docker image
@@ -230,7 +230,7 @@ Use the template in `_template.md § session_summary`. Invoicing-specific notes:
 - Cross-BC contract integrity: `Invoice.Total ≡ Order.Total ≡ Payment.Amount` verified by integration test
 - Projection-lag metric: added + wired to observability dashboard?
 - ADR-0011 PII — OTEL allowlist verified in-test (no address span tags leak)
-- ADR-0015 time — `IClock` used in allocator `EXTRACT(YEAR FROM NOW())` for deterministic year-rollover tests
+- ADR-0015 time — BCL `TimeProvider` used in allocator (year derived from `GetUtcNow().Year`) for deterministic year-rollover tests via `FakeTimeProvider`
 - ADR-0019 PDF determinism — hash test green across two runs
 
 Proceed.

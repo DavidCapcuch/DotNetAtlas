@@ -77,7 +77,7 @@ Cross-cutting decisions to apply:
 - [ADR-0010](../adr/0010-service-to-service-auth.md) — **saga is the primary consumer of service-auth** — every command publish attaches an `X-Service-Token` Kafka header via `Platform.ServiceDefaults.AddServiceAuth("checkout-saga")`; the Keycloak `checkout-saga` client must hold scopes for every command topic the saga writes to
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — addresses transit through saga state (`BasketCheckoutInitiatedEvent` carries shipping/billing addresses); **persist the addresses ONLY for the duration the saga needs them** — on `Confirmed` or terminal-failure, null out the address columns in `saga_checkout_states` (don't keep PII beyond workflow lifetime); OTEL allowlist forbids tagging spans with address fields; `correlation.id` is allowlisted
 - [ADR-0014](../adr/0014-feature-flags-openfeature.md) — **explicit consumer of `checkout.payment-then-stock` flag** — reads via `IFeatureClient` at the initial transition guard; default OFF (ADR-0004 locks stock-then-payment as v1 default); flag ON demonstrates the alternative topology without changing the ADR decision
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — saga state timestamps `DateTimeOffset`; MassTransit scheduler timeouts use `IClock.UtcNow` where possible (MassTransit's own scheduler uses `DateTime.UtcNow` internally — acceptable; your saga's own timestamp columns use `DateTimeOffset`)
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — saga state timestamps `DateTimeOffset`; MassTransit scheduler timeouts use injected BCL `TimeProvider.GetUtcNow()` where possible (MassTransit's own scheduler uses `DateTime.UtcNow` internally — acceptable; your saga's own timestamp columns use `DateTimeOffset`)
 </applicable_adrs>
 
 <skills>

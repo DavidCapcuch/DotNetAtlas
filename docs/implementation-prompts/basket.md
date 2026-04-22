@@ -49,7 +49,7 @@ You own these. Justify each in your session summary.
 
 - `IBasketRepository` shape (CAS pattern via Lua script or FusionCache conditional set — both acceptable)
 - Optimistic-concurrency envelope (`Version` field in the MemoryPack payload or a separate key)
-- ACL resilience composition: Polly timeout + retry + circuit-breaker in `ProductCatalogHttpAdapter` (use Wave 0's `read-idempotent` resilience preset from `Platform.ServiceDefaults`; tune values for ACL semantics)
+- ACL adapter config in `ProductCatalogHttpAdapter`: `BaseAddress`, request `Timeout`, `AddCorrelationId()`, `AddServiceAuth("catalog.read")`. No Polly — cross-service HTTP resilience is handled by YARP at the edge.
 - Post-checkout Redis-delete mechanics (direct `IConnectionMultiplexer` call bypassing FusionCache — you decide if there's a cleaner shape)
 - Architecture-test enforcement that `BasketDbContext` has NO `DbSet<Basket>` (only outbox + inbox)
 - Error-class API for `BasketErrors`
@@ -75,7 +75,7 @@ Cross-cutting decisions to apply:
 - [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation; `ProductCatalogHttpAdapter` outbound calls add service-auth token via `IHttpClientBuilder.AddServiceAuth("catalog.read")` extension
 - [ADR-0012](../adr/0012-api-versioning.md) — all routes under `/api/v1/basket/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — `POST /api/v1/basket/items` (double-click guard) AND `POST /api/v1/basket/checkout` (most expensive); use FastEndpoints `.Idempotency()` backed by `redis-cache`
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — `DateTimeOffset` for `CapturedAtUtc` on `ProductSnapshot`, `LastModifiedUtc` on `Basket`; inject `IClock`; arch test forbids `DateTime.UtcNow` in `Basket.Domain`
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — `DateTimeOffset` for `CapturedAtUtc` on `ProductSnapshot`, `LastModifiedUtc` on `Basket`; inject BCL `TimeProvider` (use `FakeTimeProvider` in tests); arch test forbids `DateTime.UtcNow` in `Basket.Domain`
 - [ADR-0016](../adr/0016-redis-topology.md) — Basket aggregate primary store is `redis-basket` (AOF, noeviction); idempotency middleware uses `redis-cache`. The two Redis instances must NOT be confused — arch test asserts `IBasketRepository` only references `Redis:Basket` connection string
 </applicable_adrs>
 
@@ -143,7 +143,7 @@ Per `_shared.md § 10`. Suggested commit milestones:
 2. Domain layer (`Basket`, `BasketItem`, `ProductSnapshot`, internal events) + unit tests
 3. `IBasketRepository` + Redis impl with CAS + unit tests
 4. Application layer (commands, query, validators, outbox publisher) + outbox integration test
-5. ACL adapter (`ProductCatalogHttpAdapter`) + Polly + service-auth
+5. ACL adapter (`ProductCatalogHttpAdapter`) with typed HttpClient + service-auth (no Polly — YARP handles resilience at the edge)
 6. Infrastructure layer (`BasketDbContext` outbox+inbox only, DI) + integration test
 7. Architecture tests (no `DbSet<Basket>`, no Redis cross-use)
 8. Functional tests + docker-compose smoke

@@ -18,7 +18,7 @@ You implement the **Ordering** bounded context greenfield under `services/Orderi
 </mission>
 
 <prerequisites>
-- Wave 0 platform prep merged. Specifically: `Platform.SharedKernel` has `Money` + `Address` + `IClock`; `Platform.ServiceDefaults` has correlation-id + service-auth + JSON `DateTimeOffset` converter; `ordering.orders` + `ordering.order-commands` topics + `outbox-relay-ordering` container; Keycloak `ordering-service` client.
+- Wave 0 platform prep merged. Specifically: `Platform.SharedKernel` has `Money` + `Address` (`TimeProvider` is BCL — no platform code needed per ADR-0015); `Platform.ServiceDefaults` has correlation-id + HTTP service-auth + JSON `DateTimeOffset` converter; `ordering.orders` + `ordering.order-commands` topics + `outbox-relay-ordering` container; Keycloak `ordering-service` client.
 </prerequisites>
 
 <role_in_system>
@@ -70,11 +70,11 @@ You own these. Justify each in your session summary.
 Cross-cutting decisions to apply:
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — every saga-command handler reads `CorrelationId` from the Kafka header; persists into `ordering.orders.correlation_id` column; outbox publisher copies into emitted Avro events
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin endpoints (scope `ordering.commands.*`); saga-command Kafka consumer validates the `X-Service-Token` header from `checkout-saga` client (per Wave 0 inbox middleware); no outbound HTTP from Ordering in v1
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin HTTP endpoints (scope `ordering.commands.*`); **saga-command Kafka consumers do NOT do per-message token validation in v1** (broker-level SASL/OAUTHBEARER + topic ACLs are the production layer; v1 docker-compose runs Kafka PLAINTEXT per ADR-0009 reference profile); no outbound HTTP from Ordering in v1
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — `ShippingAddress` + `BillingAddress` are PII; columns named `*_enc` per the convention (V1 stores plaintext; v2 will encrypt with per-buyer DEK); arch test forbids logging `Address`-typed parameters; OTEL allowlist forbids tagging spans with address fields
 - [ADR-0012](../adr/0012-api-versioning.md) — admin routes under `/api/v1/ordering/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — apply FastEndpoints `.Idempotency()` to `POST /api/v1/ordering/orders/{id}/cancel` (admin double-click guard) backed by `redis-cache`
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — every timestamp `DateTimeOffset` (persisted as `timestamptz`); inject `IClock` for `Order.PlacedAt`, `ShippedAt`, etc.; arch test forbids `DateTime.UtcNow` in `Ordering.Domain`
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — every timestamp `DateTimeOffset` (persisted as `timestamptz`); inject `TimeProvider` (BCL) for `Order.PlacedAt`, `ShippedAt`, etc.; tests use `FakeTimeProvider`; arch test forbids `DateTime.UtcNow` / `DateTimeOffset.UtcNow` in `Ordering.Domain`
 </applicable_adrs>
 
 <skills>
@@ -136,7 +136,6 @@ STOP and ask the user (in addition to `_shared.md § 9` universal stops) if:
 - `services/Order/` still exists (means Weather cleanup was not done — escalate).
 - `Platform.SharedKernel.Address` doesn't exist (Wave 0 prerequisite missing).
 - `events-catalog.md § 5.3` lists a different number of events than `ordering.md § 6`.
-- The saga-command Kafka consumer middleware (Wave 0) doesn't validate the service-auth token — this is a security-relevant gap, escalate.
 </stop_conditions>
 
 <session_management>
