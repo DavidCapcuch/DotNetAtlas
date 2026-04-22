@@ -179,7 +179,7 @@ The defining feature of the Basket BC is that **the aggregate itself never touch
 | Distributed cache | `RedisCache` (StackExchange.Redis) — already wired in `PersistenceDependencyInjection.AddCache` (lines 108–150) |
 | Cache facade | `FusionCache` from `ZiggyCreatures.Caching.Fusion` — exact library already in use |
 | Multi-instance coordination | `RedisBackplane` — already configured |
-| Serialization | `FusionCacheCysharpMemoryPackSerializer` — already configured; requires `Basket` + all VOs to be `[MemoryPackable]` partial records/classes |
+| Serialization | `FusionCacheCysharpMemoryPackSerializer` — already configured. The Basket aggregate and its VOs stay infra-free; serialization goes through a persistence DTO (`BasketStateDocument` + nested `BasketDocument` / `BasketItemDocument` / `ProductSnapshotDocument` under `Basket.Infrastructure.Persistence.Documents`) that carries the `[MemoryPackable] partial record` annotation. The domain never depends on MemoryPack, and shared-kernel `Money` is flattened to `(decimal PriceAmount, string PriceCurrencyName)` on the DTO side — mapped in `BasketStateMapper`. (M3 / 2026-04-22 self-correction: earlier drafts annotated the domain types directly, which would have required `Money` in `Platform.SharedKernel` to gain `[MemoryPackable]`; routing through a DTO keeps the Basket boundary clean.) |
 | Persistence mode | Redis AOF (`--appendonly yes` — see `docker-compose.yaml:47`). Survives restarts at ≤ 1 s data-loss window. |
 | Eviction | `allkeys-lru` + `maxmemory 256mb` (docker-compose). Under pressure, least-recently-used baskets are evicted before TTL — acceptable for an ephemeral session BC. |
 
@@ -554,7 +554,7 @@ All commands/queries route through `Platform.CQRS` mediator. Handlers sit in `Ba
 **What it demonstrates:**
 
 - **Repository interface lives in the Application layer.** `IBasketRepository` in `Basket.Application.Abstractions`. The *implementation*, `RedisBasketRepository` in `Basket.Infrastructure.Persistence`, is entirely a Redis/FusionCache construct — no DbContext, no EF entity mapping.
-- **MemoryPack serialization.** The aggregate and all its VOs are annotated `[MemoryPackable]`. Round-trip: Redis `byte[]` → MemoryPack deserialize → domain `Basket` → mutate → MemoryPack serialize → Redis `byte[]`. Readers never see a DTO — the deserialized aggregate *is* the domain object (private setters work because MemoryPack uses its own accessors).
+- **MemoryPack serialization via a persistence DTO.** The domain aggregate stays free of serialization attributes. The repository maps `Basket` ↔ `BasketStateDocument` at the persistence seam; only the DTO carries `[MemoryPackable] partial`. Round-trip: Redis `byte[]` → MemoryPack deserialize to `BasketStateDocument` → `BasketStateMapper.ToDomain` → domain `Basket` → mutate → `BasketStateMapper.ToDocument` → MemoryPack serialize → Redis `byte[]`. The DTO is a thin mirror of aggregate state with `Money` flattened to primitives — this is the standard DDD repository pattern and it keeps `Platform.SharedKernel.Money` clean of per-BC serialization concerns. (M3 / 2026-04-22 self-correction: earlier drafts annotated the domain types directly.)
 - **Optimistic concurrency without a database transaction.** The `(Version, Payload)` envelope plus per-user Redis lock gives CAS-like semantics. No database-level `ROWVERSION`. No pessimistic locking.
 - **TTL as soft "garbage collection".** No scheduled sweeper. Abandonment is free.
 - **Outbox-driven cross-BC integration, despite the aggregate living outside SQL.** The PostgreSQL `basket` schema holds only the outbox — just enough relational storage to satisfy the outbox pattern. This is the crucial architectural insight: **the outbox and the aggregate do not need to share a store, as long as the outbox write is transactionally consistent with whatever the system considers the "source of truth for publication intent."** In Basket's case, that source of truth is the outbox itself, and Redis aggregate deletion is a best-effort follow-up.
@@ -607,7 +607,7 @@ services/Basket/
 │   └── Baskets/                        # Commands + queries + domain-event handlers
 ├── Basket.Domain/
 │   ├── Baskets/
-│   │   ├── Basket.cs                   # [MemoryPackable] aggregate root
+│   │   ├── Basket.cs                   # Aggregate root (MemoryPackable lives on the persistence DTO, not here)
 │   │   ├── Errors/BasketErrors.cs
 │   │   ├── Events/                     # 7 internal domain events
 │   │   └── ValueObjects/               # BasketItem, ProductSnapshot, BasketTotal
@@ -628,7 +628,7 @@ Architecture tests (`test/Basket.ArchitectureTests`) must enforce:
 - `Basket.Domain` has **zero** references to `Microsoft.EntityFrameworkCore`, `StackExchange.Redis`, `ZiggyCreatures.Caching.Fusion`, `System.Net.Http`.
 - `Basket.Application` has zero references to `StackExchange.Redis`, `System.Net.Http`.
 - `Basket.Infrastructure` has no references to any other BC's assemblies.
-- `Basket.Domain.Baskets.Basket` is `[MemoryPackable]` (ArchUnit-style check for attribute presence).
+- `Basket.Infrastructure.Persistence.Documents.BasketStateDocument` is `[MemoryPackable]` (ArchUnit-style check for attribute presence). The domain `Basket` aggregate is NOT `[MemoryPackable]` — serialization is a DTO concern that does not leak into the domain.
 
 ### 14.2 Configuration
 
