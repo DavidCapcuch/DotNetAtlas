@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="NetArchTest.eNhancedEdition" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Inventory\Inventory.API\Inventory.API.csproj" />
+        <ProjectReference Include="..\..\services\Inventory\Inventory.Application\Inventory.Application.csproj" />
+        <ProjectReference Include="..\..\services\Inventory\Inventory.Domain\Inventory.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
+    </ItemGroup>
+</Project>
