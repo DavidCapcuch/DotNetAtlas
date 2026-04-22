@@ -140,7 +140,7 @@ public sealed record BasketConcurrencyError(Guid UserId, int Expected, int Actua
 
 Split per aggregate for locality (`ProductErrors.cs`, `CategoryErrors.cs`, value-object errors in `*/Errors/*.cs` following the [catalog.md](catalog.md) per-VO error lists). Each method returns `ValidationError` with a unique `errorCode` identifier (`Product.CannotRepriceDiscontinued`, `Category.HasDependents`, etc.).
 
-Full list already enumerated in [catalog.md](catalog.md):
+Value-object errors (already enumerated in [catalog.md](catalog.md)):
 - `SkuErrors.Empty` / `TooLong(max: 32)` / `InvalidCharacters`
 - `MoneyErrors.AmountMustBePositive` / `InvalidCurrencyCode`
 - `ProductNameErrors.Empty` / `TooLong(max: 200)`
@@ -149,6 +149,24 @@ Full list already enumerated in [catalog.md](catalog.md):
 - `CategoryPathErrors.Malformed` / `MaxDepthExceeded(max: 5)`
 - `ImageReferenceErrors.InvalidUrl` / `AltTextEmpty` / `NegativeDisplayOrder`
 - `BrandNameErrors.Empty` / `TooLong(max: 100)`
+
+Aggregate-level errors raised by Application-layer command/query handlers (HTTP mapping per § 4):
+- `ProductErrors.CategoryIdRequired` — 422 Unprocessable (user input; aggregate rejects empty category reference at `Product.Create`).
+- `ProductErrors.CannotRepriceDiscontinued` — 409 Conflict (precondition failure inside `Product.UpdatePrice`).
+- `ProductErrors.CannotModifyDiscontinued` — 409 Conflict (precondition failure inside `Product.Describe`).
+- `ProductErrors.ReasonRequired` — 422 Unprocessable (empty discontinue reason in `Product.Discontinue`).
+- `ProductErrors.ReactivationRequiresAdminFlag` — 422 Unprocessable (missing admin flag on `Product.Reactivate`).
+- `ProductErrors.NotFound(productId)` — 404 Not Found (handler-level lookup miss on any product-addressing command or query).
+- `ProductErrors.SkuAlreadyExists(sku)` — 409 Conflict (uniqueness violation pre-checked inside `CreateProductCommandHandler`).
+- `CategoryErrors.NameRequired` — 422 Unprocessable (`Category.Create` / `Category.Rename` rejects empty name).
+- `CategoryErrors.NameTooLong(max)` — 422 Unprocessable (name exceeds `Category.MaxNameLength`).
+- `CategoryErrors.MaxDepthExceeded(max)` — 422 Unprocessable (path depth > 5 on `Category.Create` / `Reparent`).
+- `CategoryErrors.CannotParentToSelf` — 422 Unprocessable (`Reparent` called with `NewParentCategoryId == Id`).
+- `CategoryErrors.NotFound(categoryId)` — 404 Not Found (handler-level lookup miss on any category-addressing command or query).
+- `CategoryErrors.ParentNotFound(parentCategoryId)` — 404 Not Found (parent lookup miss in `CreateCategoryCommandHandler` or `ReparentCategoryCommandHandler`).
+
+> Category dependency-based errors (`HasChildren`, `HasProducts`) and cycle-detection (`ReparentCreatesCycle`) are deferred alongside the `DeleteCategoryCommand`, `CategoryAncestryService`, and `CategoryPathService` descendant cascade — see the follow-up milestone to Catalog M3.
+> Product image-collection errors (`DuplicateImageDisplayOrder`, `ImageNotFound`) are deferred alongside the `AddProductImageCommand` / `RemoveProductImageCommand` handlers.
 
 ### 3.3 `OrderingErrors` (in `Ordering.Domain.Errors`)
 

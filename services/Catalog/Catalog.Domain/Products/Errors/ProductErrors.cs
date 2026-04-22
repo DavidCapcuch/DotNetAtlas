@@ -33,4 +33,16 @@ public static class ProductErrors
             propertyName: "AdminReactivation",
             errorMessage: "Reactivating a discontinued product requires the admin reactivation flag.",
             errorCode: "Product.ReactivationRequiresAdminFlag");
+
+    public static ValidationError NotFound(Guid productId)
+        => new ValidationError(
+            propertyName: "ProductId",
+            errorMessage: $"Product '{productId}' does not exist.",
+            errorCode: "Product.NotFound");
+
+    public static ValidationError SkuAlreadyExists(string sku)
+        => new ValidationError(
+            propertyName: "Sku",
+            errorMessage: $"A product with SKU '{sku}' already exists.",
+            errorCode: "Product.SkuAlreadyExists");
 }
