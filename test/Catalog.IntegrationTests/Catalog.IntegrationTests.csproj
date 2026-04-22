@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="Confluent.Kafka" />
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="NSubstitute.Analyzers.CSharp" />
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Catalog\Catalog.API\Catalog.API.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Application\Catalog.Application.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Domain\Catalog.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.KafkaFlow.Inbox.EFCore\Platform.KafkaFlow.Inbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
+    </ItemGroup>
+</Project>
