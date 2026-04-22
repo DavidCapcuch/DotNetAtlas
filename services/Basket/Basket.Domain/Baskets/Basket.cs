@@ -118,6 +118,43 @@ public sealed class Basket : AggregateRoot<Guid>
     }
 
     /// <summary>
+    /// Reconstitutes a previously-persisted basket from its stored state without
+    /// raising <see cref="BasketCreatedDomainEvent"/>. Used exclusively by the
+    /// persistence seam in <c>Basket.Infrastructure</c> (see <c>BasketStateMapper</c>);
+    /// application code must use <see cref="Create"/>.
+    /// </summary>
+    /// <param name="userId">The basket owner's identifier.</param>
+    /// <param name="version">The persisted <c>Version</c> token.</param>
+    /// <param name="createdAtUtc">The original creation instant.</param>
+    /// <param name="lastModifiedAtUtc">The instant of the last persisted mutation.</param>
+    /// <param name="items">All items at the time of serialization.</param>
+    /// <exception cref="DataIntegrityException">Thrown when <paramref name="userId"/> is <see cref="Guid.Empty"/>.</exception>
+    internal static Basket Rehydrate(
+        Guid userId,
+        int version,
+        DateTimeOffset createdAtUtc,
+        DateTimeOffset lastModifiedAtUtc,
+        IReadOnlyList<BasketItem> items)
+    {
+        Throw.If(userId == Guid.Empty, new DataIntegrityException(
+            "Basket.InvalidUserId",
+            "Basket UserId must not be empty."));
+
+        ArgumentNullException.ThrowIfNull(items);
+
+        var basket = new Basket
+        {
+            Id = userId,
+            Version = version,
+            CreatedAtUtc = createdAtUtc,
+            LastModifiedAtUtc = lastModifiedAtUtc,
+        };
+
+        basket._items.AddRange(items);
+        return basket;
+    }
+
+    /// <summary>
     /// Adds <paramref name="quantity"/> units of the given product to the basket.
     /// If the product is already present the quantities collapse into a single line.
     /// Raises <see cref="ItemAddedToBasketDomainEvent"/>.
