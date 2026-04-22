@@ -1,0 +1,247 @@
+using Catalog.Domain.Products.Errors;
+using Catalog.Domain.Products.Events;
+using Catalog.Domain.Products.ValueObjects;
+using FluentResults;
+using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
+using Platform.SharedKernel.ValueObjects;
+
+namespace Catalog.Domain.Products;
+
+/// <summary>
+/// Aggregate root representing a sellable item in the Catalog.
+/// Owns identity, business key (<see cref="Sku"/>), descriptive content, category reference,
+/// commercial terms (<see cref="Price"/>), and lifecycle <see cref="Status"/>.
+/// All state changes flow through factory / transition methods and raise domain events.
+/// </summary>
+/// <remarks>
+/// This aggregate can raise the following domain events:
+/// <list type="bullet">
+/// <item><see cref="ProductCreatedDomainEvent"/>: When a new product is created.</item>
+/// <item><see cref="ProductPriceChangedDomainEvent"/>: When price changes (non-no-op).</item>
+/// <item><see cref="ProductDescribedDomainEvent"/>: When description is updated.</item>
+/// <item><see cref="ProductActivatedDomainEvent"/>: When transitioning Draft → Active.</item>
+/// <item><see cref="ProductDiscontinuedDomainEvent"/>: When transitioning Active → Discontinued.</item>
+/// <item><see cref="ProductReactivatedDomainEvent"/>: When transitioning Discontinued → Active (admin only).</item>
+/// </list>
+/// </remarks>
+public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
+{
+    public Sku Sku { get; private set; } = null!;
+    public ProductName Name { get; private set; } = null!;
+    public ProductDescription Description { get; private set; } = null!;
+    public Guid CategoryId { get; private set; }
+    public BrandName Brand { get; private set; } = null!;
+    public Money Price { get; private set; } = null!;
+    public ProductStatus Status { get; private set; } = null!;
+    public Dimensions? Dimensions { get; private set; }
+
+    private readonly List<ImageReference> _images = [];
+    public IReadOnlyCollection<ImageReference> Images => _images;
+
+    public DateTimeOffset CreatedUtc { get; private set; }
+    public DateTimeOffset LastModifiedUtc { get; private set; }
+
+    private Product()
+    {
+    }
+
+    /// <summary>
+    /// Creates a new product in <see cref="ProductStatus.Draft"/> status.
+    /// SKU uniqueness is an application-layer concern (pre-checked against the read side);
+    /// this factory validates only value-composition rules.
+    /// </summary>
+    /// <remarks>
+    /// Raises <see cref="ProductCreatedDomainEvent"/> on success.
+    /// </remarks>
+    public static Result<Product> Create(
+        Sku sku,
+        ProductName name,
+        ProductDescription description,
+        Guid categoryId,
+        BrandName brand,
+        Money price,
+        Dimensions? dimensions,
+        IReadOnlyCollection<ImageReference> images)
+    {
+        ArgumentNullException.ThrowIfNull(sku);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(brand);
+        ArgumentNullException.ThrowIfNull(price);
+        ArgumentNullException.ThrowIfNull(images);
+
+        if (categoryId == Guid.Empty)
+        {
+            return Result.Fail(ProductErrors.CategoryIdRequired());
+        }
+
+        var product = new Product
+        {
+            Id = Guid.CreateVersion7(),
+            Sku = sku,
+            Name = name,
+            Description = description,
+            CategoryId = categoryId,
+            Brand = brand,
+            Price = price,
+            Status = ProductStatus.Draft,
+            Dimensions = dimensions
+        };
+
+        product._images.AddRange(images.OrderBy(i => i.DisplayOrder));
+
+        product.AddDomainEvent(new ProductCreatedDomainEvent
+        {
+            ProductId = product.Id,
+            Sku = sku,
+            Name = name,
+            CategoryId = categoryId,
+            Price = price
+        });
+
+        return product;
+    }
+
+    /// <summary>
+    /// Updates the product's price. No-op when the new price equals the current price.
+    /// </summary>
+    /// <remarks>
+    /// Raises <see cref="ProductPriceChangedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on a non-no-op change.
+    /// </remarks>
+    public Result UpdatePrice(Money newPrice, DateTimeOffset utcNow)
+    {
+        ArgumentNullException.ThrowIfNull(newPrice);
+
+        if (Status == ProductStatus.Discontinued)
+        {
+            return Result.Fail(ProductErrors.CannotRepriceDiscontinued());
+        }
+
+        if (newPrice == Price)
+        {
+            return Result.Ok();
+        }
+
+        var oldPrice = Price;
+        Price = newPrice;
+
+        AddDomainEvent(new ProductPriceChangedDomainEvent
+        {
+            ProductId = Id,
+            OldPrice = oldPrice,
+            NewPrice = newPrice,
+            OccurredOnUtc = utcNow
+        });
+
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Overwrites the product description.
+    /// </summary>
+    /// <remarks>
+    /// Raises <see cref="ProductDescribedDomainEvent"/> on success.
+    /// </remarks>
+    public Result Describe(ProductDescription newDescription)
+    {
+        ArgumentNullException.ThrowIfNull(newDescription);
+
+        if (Status == ProductStatus.Discontinued)
+        {
+            return Result.Fail(ProductErrors.CannotModifyDiscontinued());
+        }
+
+        Description = newDescription;
+
+        AddDomainEvent(new ProductDescribedDomainEvent
+        {
+            ProductId = Id,
+            NewDescription = newDescription
+        });
+
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Transitions the product from <see cref="ProductStatus.Draft"/> to
+    /// <see cref="ProductStatus.Active"/>. Throws <see cref="DataIntegrityException"/>
+    /// when called on a non-Draft product (the UI must gate the button).
+    /// </summary>
+    /// <remarks>
+    /// Raises <see cref="ProductActivatedDomainEvent"/> on success.
+    /// </remarks>
+    public Result Activate()
+    {
+        Throw.If(!Status.CanTransitionTo(ProductStatus.Active), new DataIntegrityException(
+            "Product.CannotActivateInStatus",
+            $"Cannot activate product in status '{Status.Name}'."));
+
+        Status = ProductStatus.Active;
+
+        AddDomainEvent(new ProductActivatedDomainEvent { ProductId = Id });
+
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Transitions the product from <see cref="ProductStatus.Active"/> to
+    /// <see cref="ProductStatus.Discontinued"/>. Requires a non-empty <paramref name="reason"/>.
+    /// Throws <see cref="DataIntegrityException"/> when the current status is not Active
+    /// (the UI must gate the button).
+    /// </summary>
+    /// <remarks>
+    /// Raises <see cref="ProductDiscontinuedDomainEvent"/> on success.
+    /// </remarks>
+    public Result Discontinue(string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Result.Fail(ProductErrors.ReasonRequired());
+        }
+
+        Throw.If(!Status.CanTransitionTo(ProductStatus.Discontinued), new DataIntegrityException(
+            "Product.CannotDiscontinueInStatus",
+            $"Cannot discontinue product in status '{Status.Name}'."));
+
+        Status = ProductStatus.Discontinued;
+
+        AddDomainEvent(new ProductDiscontinuedDomainEvent
+        {
+            ProductId = Id,
+            Reason = reason
+        });
+
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Transitions the product from <see cref="ProductStatus.Discontinued"/> back to
+    /// <see cref="ProductStatus.Active"/>. Requires <paramref name="adminReactivation"/>
+    /// to be <c>true</c> (policy error otherwise). Throws <see cref="DataIntegrityException"/>
+    /// when <paramref name="adminReactivation"/> is <c>true</c> but the current status is
+    /// not Discontinued (UI bug).
+    /// </summary>
+    /// <remarks>
+    /// Raises <see cref="ProductReactivatedDomainEvent"/> on success.
+    /// Not published as an external Kafka event in v1.
+    /// </remarks>
+    public Result Reactivate(bool adminReactivation)
+    {
+        if (!adminReactivation)
+        {
+            return Result.Fail(ProductErrors.ReactivationRequiresAdminFlag());
+        }
+
+        Throw.If(Status != ProductStatus.Discontinued, new DataIntegrityException(
+            "Product.CannotReactivateNonDiscontinued",
+            $"Cannot reactivate product in status '{Status.Name}'. Only discontinued products may be reactivated."));
+
+        Status = ProductStatus.Active;
+
+        AddDomainEvent(new ProductReactivatedDomainEvent { ProductId = Id });
+
+        return Result.Ok();
+    }
+}
