@@ -66,6 +66,30 @@
   <Folder Name="/services/">
     <File Path="services/Directory.Packages.props" />
   </Folder>
+  <Folder Name="/services/Basket/">
+    <Project Path="services/Basket/Basket.Api/Basket.Api.csproj" />
+    <Project Path="services/Basket/Basket.Application/Basket.Application.csproj" />
+    <Project Path="services/Basket/Basket.Domain/Basket.Domain.csproj" />
+    <Project Path="services/Basket/Basket.Infrastructure/Basket.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/Catalog/">
+    <Project Path="services/Catalog/Catalog.API/Catalog.API.csproj" />
+    <Project Path="services/Catalog/Catalog.Application/Catalog.Application.csproj" />
+    <Project Path="services/Catalog/Catalog.Domain/Catalog.Domain.csproj" />
+    <Project Path="services/Catalog/Catalog.Infrastructure/Catalog.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/Inventory/">
+    <Project Path="services/Inventory/Inventory.API/Inventory.API.csproj" />
+    <Project Path="services/Inventory/Inventory.Application/Inventory.Application.csproj" />
+    <Project Path="services/Inventory/Inventory.Domain/Inventory.Domain.csproj" />
+    <Project Path="services/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/Ordering/">
+    <Project Path="services/Ordering/Ordering.API/Ordering.API.csproj" />
+    <Project Path="services/Ordering/Ordering.Application/Ordering.Application.csproj" />
+    <Project Path="services/Ordering/Ordering.Domain/Ordering.Domain.csproj" />
+    <Project Path="services/Ordering/Ordering.Infrastructure/Ordering.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/services/Notifications/">
     <File Path="services/Notifications/README.md" />
     <Project Path="services/Notifications/Notifications/Notifications.csproj" />
@@ -96,6 +120,22 @@
     <Project Path="platform/Platform.KafkaFlow.ProducerHeaders.UnitTests/Platform.KafkaFlow.ProducerHeaders.UnitTests.csproj" />
     <Project Path="platform/Platform.ServiceDefaults.UnitTests/Platform.ServiceDefaults.UnitTests.csproj" />
     <Project Path="platform/Platform.SharedKernel.UnitTests/Platform.SharedKernel.UnitTests.csproj" />
+    <Project Path="test/Basket.ArchitectureTests/Basket.ArchitectureTests.csproj" />
+    <Project Path="test/Basket.FunctionalTests/Basket.FunctionalTests.csproj" />
+    <Project Path="test/Basket.IntegrationTests/Basket.IntegrationTests.csproj" />
+    <Project Path="test/Basket.UnitTests/Basket.UnitTests.csproj" />
+    <Project Path="test/Catalog.ArchitectureTests/Catalog.ArchitectureTests.csproj" />
+    <Project Path="test/Catalog.FunctionalTests/Catalog.FunctionalTests.csproj" />
+    <Project Path="test/Catalog.IntegrationTests/Catalog.IntegrationTests.csproj" />
+    <Project Path="test/Catalog.UnitTests/Catalog.UnitTests.csproj" />
+    <Project Path="test/Inventory.ArchitectureTests/Inventory.ArchitectureTests.csproj" />
+    <Project Path="test/Inventory.FunctionalTests/Inventory.FunctionalTests.csproj" />
+    <Project Path="test/Inventory.IntegrationTests/Inventory.IntegrationTests.csproj" />
+    <Project Path="test/Inventory.UnitTests/Inventory.UnitTests.csproj" />
+    <Project Path="test/Ordering.ArchitectureTests/Ordering.ArchitectureTests.csproj" />
+    <Project Path="test/Ordering.FunctionalTests/Ordering.FunctionalTests.csproj" />
+    <Project Path="test/Ordering.IntegrationTests/Ordering.IntegrationTests.csproj" />
+    <Project Path="test/Ordering.UnitTests/Ordering.UnitTests.csproj" />
     <Project Path="test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj" />
     <Project Path="test/Weather.FunctionalTests/Weather.FunctionalTests.csproj" />
     <Project Path="test/Weather.IntegrationTests/Weather.IntegrationTests.csproj" />

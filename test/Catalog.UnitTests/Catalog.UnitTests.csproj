@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="NSubstitute.Analyzers.CSharp" />
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Domain\Catalog.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Application\Catalog.Application.csproj" />
+    </ItemGroup>
+</Project>
