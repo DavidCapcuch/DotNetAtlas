@@ -479,7 +479,7 @@ interface IProductCatalogQueryPort
 - Returns `Result.Fail(BasketErrors.ProductNotFound(productId))` on HTTP 404.
 - `GetManyAsync` is **partial-tolerant**: if the Catalog response includes 9 of 10 requested products, the result is `Result.Ok(IReadOnlyList with 9 items)`. The missing `productId`s are silently dropped — the caller (e.g., `RefreshPricesCommandHandler`) decides what to do (here: leave the existing snapshot untouched).
 - Both methods are read-only and idempotent.
-- No retries at this layer — retries are layered on top in the handler via `Polly`-style policies if added later.
+- No retries or circuit-breaking at this layer. Cross-service HTTP resilience is handled by YARP at the edge, not by per-service Polly pipelines. The adapter configures only `BaseAddress`, request `Timeout`, `AddCorrelationId()`, and `AddServiceAuth("catalog.read")`.
 
 ### 9.3 Adapter — `ProductCatalogHttpAdapter`
 
@@ -535,7 +535,7 @@ Location: `Basket.Infrastructure.ExternalServices`.
 - `ChangeItemQuantityCommand(UserId, ProductId, NewQuantity)`
 - `RefreshBasketPricesCommand(UserId)`
 - `ClearBasketCommand(UserId)`
-- `CheckoutBasketCommand(UserId, CorrelationId)`
+- `CheckoutBasketCommand(UserId, CorrelationId, ShippingAddress, BillingAddress, PaymentMethodId)` — Basket is a **pass-through courier** for addresses and payment method per [ADR-0005](../adr/0005-customer-data-in-ordering.md); it validates only basic shape (non-empty strings, ISO 3166-1 alpha-2 country code) and stamps the values straight into `BasketCheckoutInitiatedEvent`. Exact field spec in [events-catalog.md § 5.2.1](events-catalog.md) and [use-cases.md § 2.1.6](use-cases.md).
 
 **Queries (read-only):**
 

@@ -18,7 +18,7 @@ You implement the **Catalog** bounded context. Your output is a working, tested,
 </mission>
 
 <prerequisites>
-- Wave 0 platform prep merged (`docs/implementation-prompts/wave-0-platform-prep.md`) — `Platform.SharedKernel` has `Money` / `Address` / `IClock`; `Platform.ServiceDefaults` has correlation-id + service-auth; `docker-compose.yaml` has `catalog.products` + `catalog.categories` topics + `outbox-relay-catalog` container; Keycloak realm has `catalog-service` client.
+- Wave 0 platform prep merged (`docs/implementation-prompts/wave-0-platform-prep.md`) — `Platform.SharedKernel` has `Money` / `Address`; BCL `TimeProvider` is auto-registered by the Generic Host; `Platform.ServiceDefaults` has correlation-id + service-auth; `docker-compose.yaml` has `catalog.products` + `catalog.categories` topics + `outbox-relay-catalog` container; Keycloak realm has `catalog-service` client.
 </prerequisites>
 
 <role_in_system>
@@ -70,7 +70,7 @@ Cross-cutting decisions to apply:
 - [ADR-0012](../adr/0012-api-versioning.md) — all routes under `/api/v1/catalog/...`; FastEndpoints `MapGroup("/api/v1/catalog")`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — apply FastEndpoints `.Idempotency()` to admin POST endpoints (`CreateProductCommand`, `CreateCategoryCommand`) backed by `redis-cache`
 - [ADR-0014](../adr/0014-feature-flags-openfeature.md) — explicit consumer of `catalog.show-discontinued-in-search` flag (gates a filter predicate in `ProductSearchViewProjectionHandler` / search query); use `IFeatureClient` from `Platform.ServiceDefaults.AddFeatureFlags()`
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — every timestamp `DateTimeOffset` (persisted as `timestamptz`); inject `IClock` for "now"; arch test forbids `DateTime.UtcNow` in `Catalog.Domain`
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — every timestamp `DateTimeOffset` (persisted as `timestamptz`); inject BCL `TimeProvider` for "now" (`FakeTimeProvider` in tests); arch test forbids `DateTime.UtcNow` in `Catalog.Domain`
 - [ADR-0016](../adr/0016-redis-topology.md) — if you cache HTTP responses (e.g., `GetCategoryTreeQuery`), use `redis-cache` (NOT `redis-basket`); idempotency middleware also points at `redis-cache`
 </applicable_adrs>
 

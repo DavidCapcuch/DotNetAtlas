@@ -78,7 +78,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 - **Client secret leak** — env-based secrets are not rotated in v1. Mitigation: document rotation procedure; production would use dynamic secrets (Vault / cloud KMS).
 - **Token validation failure on Kafka consumer** — if Keycloak signing keys rotate, consumers may reject valid tokens briefly. Mitigation: JWKS endpoint polled every 15 minutes; tolerance window of 5 min on clock skew.
 - **Over-privilege** — a service requests too broad a scope set. Mitigation: scopes are defined centrally in `keycloak/realm-export.json`; code review.
-- **Broker-level auth absent** — v1 does not enable Kafka SASL/OAUTHBEARER, so a rogue process inside the docker network could still produce to any topic. Acknowledged as a reference-solution simplification (ADR-0009 profile). Production must enable broker-level auth.
+- **Broker-level auth absent in v1** — docker-compose Kafka runs PLAINTEXT (no SASL/OAUTHBEARER, no AclAuthorizer). Any process inside the docker network can produce to any command topic. This is a deliberate reference-solution simplification ([ADR-0009 profile](0009-reference-solution-target-profile.md)). **Production deployment is GATED on enabling SASL/OAUTHBEARER on brokers and provisioning per-service topic ACLs** — this gate appears in ADR-0009's production callouts and must be checked before any non-laptop deployment. Application-layer per-message header auth is explicitly NOT used as a substitute (wrong layer; would teach readers a non-portable pattern).
 
 ## Implementation Notes
 
@@ -99,16 +99,14 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
   - Per-service ASP.NET `AddJwtBearer` config: `Authority = {keycloak}/realms/eshop`, `Audience = <this-service>`, `TokenValidationParameters.ValidateIssuer = true`, `ValidateAudience = true`, clock skew 5 min.
   - Scope-based authorization via `RequireClaim("scope", "catalog.read")`-style policies, or FastEndpoints' `Policies(...)` / `Permissions(...)`.
 
-- **Kafka command token propagation:**
-  - Outbox publisher writes a Kafka message header `X-Service-Token: Bearer <jwt>` when publishing command topics (not event topics).
-  - Inbox consumer middleware (`Platform.KafkaFlow.*`, new middleware class) validates the token before dispatching to the handler. Rejects with `DataIntegrityException` if missing/invalid on a command topic (not event topic — events are fire-and-forget and do not need sender auth).
-  - Validation uses the same JWT validation config as HTTP.
+- **Kafka command-topic authorization (broker-level, not per-message):**
+  - Industry standard for Kafka is **SASL/OAUTHBEARER** for connection-handshake authentication (broker validates Keycloak-issued JWTs at TCP setup) plus **Kafka topic ACLs** for per-topic authorisation. Application-layer per-message header validation (e.g., an `X-Service-Token` header inspected by an inbox middleware) is **not** the right layer — it duplicates broker controls and teaches readers to bolt auth onto the wrong boundary.
+  - **Production posture:** brokers run with `sasl.enabled.mechanisms=OAUTHBEARER`, `listener.name.<name>.oauthbearer.sasl.jaas.config` pointing to the Keycloak token endpoint, and `authorizer.class.name=kafka.security.authorizer.AclAuthorizer`. Per-service producer/consumer ACLs are provisioned, e.g. `kafka-acls --add --allow-principal User:checkout-saga --operation Write --topic ordering.order-commands`, `kafka-acls --add --allow-principal User:ordering-service --operation Read --topic ordering.order-commands --group ordering-order-commands`. Inventory / Payments command topics get equivalent ACL pairs. Event topics (`ordering.orders`, `inventory.events`, etc.) are open for `Read` cluster-wide and `Write` only to the producing service.
+  - **v1 reference posture:** docker-compose Kafka runs PLAINTEXT (no SASL, no ACLs) per [ADR-0009 reference profile](0009-reference-solution-target-profile.md) — laptop-runnable trumps production-correct. Saga-command consumers do not validate any sender token. The trust boundary is the docker network. **Production deployment checklist (in [ADR-0009 §Production callouts]) MUST enable SASL/OAUTHBEARER + AclAuthorizer + per-service ACLs before any deployment outside a single trust zone.**
+  - **What we do NOT implement in v1:** no `X-Service-Token` Kafka message header; no `Platform.KafkaFlow.Inbox.ServiceAuthMiddleware`; no per-message JWT extraction. These would be the wrong layer regardless of v1/v2 — they belong in the broker, not the consumer.
 
-- **Scope enforcement per command topic:**
-  - `inventory.reservation-commands` consumer requires scope `inventory.commands.reserve` / `inventory.commands.confirm` / `inventory.commands.release` (matching the command type).
-  - `payments.commands` consumer requires scope `payments.commands.authorize` / `payments.commands.capture` / etc.
-  - `ordering.order-commands` consumer requires scope `ordering.commands.create` / `ordering.commands.confirm` / `ordering.commands.cancel` / `ordering.commands.fail`.
-  - Event topics do not require sender auth — consumers are fire-and-forget observers.
+- **Scope enforcement on inbound HTTP (where it does belong):**
+  - The HTTP-side `AddJwtBearer` validation above already enforces audience + issuer per service. Scope policies (`RequireClaim("scope", "ordering.commands.cancel")`-style) gate admin endpoints inside each service. This is the only layer where service-to-service tokens need application-level inspection in v1, because admin commands enter via HTTP, not Kafka.
 
 - **Observability:**
   - Every validated inbound token adds `auth.client.id = <azp>` to the Activity span.

@@ -75,7 +75,7 @@ Cross-cutting decisions to apply:
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — `PaymentMethodId` + `GatewayTransactionId` are sensitive; columns named `*_enc` per convention (v1 plaintext, v2 encrypts); **architecture test forbids PAN/CVV-like field names** (`pan`, `cvv`, `cardNumber`, `cardholderName` — any of these in `Payments.Domain` or `Payments.Infrastructure` fails the build); Serilog `[PII]` attribute on `PaymentMethodId` VO
 - [ADR-0012](../adr/0012-api-versioning.md) — admin routes under `/api/v1/payments/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — **NOT required on Payments HTTP endpoints** (they are admin GET only; no state-changing HTTP). Document the decision in the session summary.
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — all transaction timestamps `DateTimeOffset` (`AuthorizedAtUtc`, `CapturedAtUtc`, etc.); persist as `timestamptz`; inject `IClock`; arch test forbids `DateTime.UtcNow` in `Payments.Domain`
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — all transaction timestamps `DateTimeOffset` (`AuthorizedAtUtc`, `CapturedAtUtc`, etc.); persist as `timestamptz`; inject BCL `TimeProvider` (`FakeTimeProvider` in tests); arch test forbids `DateTime.UtcNow` in `Payments.Domain`
 </applicable_adrs>
 
 <skills>

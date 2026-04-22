@@ -30,7 +30,7 @@ If any of the above is false, STOP and ask.
 </prerequisites>
 
 <role_in_system>
-Wave 0 is the foundation dispatch. Six BCs and one saga + the BFF will run as parallel sessions in Waves 1–3. Without Wave 0, the parallel sessions would collide on shared files: `docker-compose.yaml` (every BC adds a topic + relay container), `Platform.SharedKernel` (every BC needs `Money` / `Address` / `IClock`), `Platform.ServiceDefaults` (correlation-ID + service-auth + feature-flags + JSON serializer + resilience presets), Avro folder structure, schema-compat CI gate, Keycloak realm config (per-service clients).
+Wave 0 is the foundation dispatch. Six BCs and one saga + the BFF will run as parallel sessions in Waves 1–3. Without Wave 0, the parallel sessions would collide on shared files: `docker-compose.yaml` (every BC adds a topic + relay container), `Platform.SharedKernel` (every BC needs `Money` / `Address`), `Platform.ServiceDefaults` (correlation-ID + service-auth + feature-flags), Avro folder structure, schema-compat CI gate, Keycloak realm config (per-service clients). Time is the BCL `TimeProvider`; cross-service HTTP resilience is YARP at the edge — neither requires a platform abstraction.
 
 Wave 0 lands all the shared changes in one atomic PR so Wave 1 BCs can dispatch genuinely in parallel.
 
@@ -43,15 +43,15 @@ LOCKED. Each item below is reviewable as a single checkbox.
 **Shared kernel additions (`platform/Platform.SharedKernel/`):**
 - `Money` value object — decimal `Amount > 0`, `CurrencyCode` ISO 4217 enum, `Result<Money> Create(decimal, CurrencyCode)`, `+/-` operators with same-currency invariant
 - `Address` value object — `Street1`, `Street2?`, `City`, `State?`, `PostalCode`, `CountryCode` (ISO 3166-1 alpha-2)
-- `IClock` abstraction per ADR-0015 — `DateTimeOffset UtcNow { get; }`; default `SystemClock`; test `FakeClock` with `Advance` / `Set`
+- Time abstraction per ADR-0015 — use BCL `System.TimeProvider` (auto-registered by the Generic Host); tests substitute `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing`. No custom `IClock` interface is shipped.
 - DI registration extension: `AddSharedKernel()` on `IServiceCollection`
 
 **`Platform.ServiceDefaults` extensions** (no new project):
 - **Correlation-ID middleware** per ADR-0008: `AddCorrelationId()`; ASP.NET middleware reads / generates / validates `X-Correlation-Id` (UUID v7); `DelegatingHandler` for outbound HttpClient; Serilog enricher; OTel `Activity.SetTag("correlation.id", value)` hook
 - **Service-to-service auth** per ADR-0010: `AddServiceAuth(serviceName)`; `ClientCredentialsTokenHandler` (caches token until ≤ 30s before expiry); `IHttpClientBuilder.AddServiceAuth(scope)` extension; `AddJwtBearer` config helper for inbound validation
 - **Feature flags** per ADR-0014: `AddFeatureFlags(IConfiguration)` → registers OpenFeature SDK + JSON-file provider; `OtelEvaluationHook` emits `Activity` events on every flag evaluation
-- **Resilience presets** per ADR-0009: extend Aspire's `AddStandardResilienceHandler` with three named presets — `read-idempotent` (3 retries, jittered exp), `write-command` (1 retry, then circuit-break), `batch-read` (longer timeout, 1 retry)
-- **Time policy** per ADR-0015: register `IClock` → `SystemClock` as singleton; JSON serializer options include `JsonDateTimeOffsetConverter` producing ISO 8601 with offset
+- **Resilience policy** per ADR-0009: cross-service HTTP resilience is handled by YARP at the edge (retries, timeouts, circuit-breaking). No per-service Polly presets are shipped from `Platform.ServiceDefaults`. Individual SDKs (e.g., `Azure.Storage.Blobs`) may configure their own built-in retry options.
+- **Time policy** per ADR-0015: rely on the Generic Host's auto-registered BCL `TimeProvider`; tests swap in `FakeTimeProvider`. `DateTimeOffset` JSON round-trips use the default System.Text.Json ISO-8601 formatting.
 
 **`Platform.KafkaFlow.ProducerHeaders` extension:**
 - Producer-side: write `X-Correlation-Id` Kafka header on every produce
@@ -145,7 +145,7 @@ Cross-cutting decisions that drive Wave 0 directly. Read each, then apply.
 - [ADR-0012](../adr/0012-api-versioning.md) — no Wave 0 implementation work, but document the convention so Wave 1 prompts pick it up
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — register `Microsoft.AspNetCore.OutputCaching.StackExchangeRedis` package + helper extension; BCs opt-in per endpoint
 - [ADR-0014](../adr/0014-feature-flags-openfeature.md) — register OpenFeature SDK + JSON file provider + OTel hook; seed `flags.json`
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — `IClock` + `SystemClock` + `JsonDateTimeOffsetConverter` registration
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — rely on BCL `TimeProvider` (auto-registered by Generic Host); no custom clock abstraction or JSON converter needed
 - [ADR-0016](../adr/0016-redis-topology.md) — split Redis containers; appsettings naming convention
 - [ADR-0017](../adr/0017-blob-storage-cdn.md) — Azurite + nginx-cdn containers; do not introduce Aspire `AddAzureStorage` wiring (deferred)
 </applicable_adrs>
@@ -185,8 +185,8 @@ Wave-0-specific triggers:
 <dod>
 Concrete deliverables. Extends `_shared.md § 12`.
 
-- [ ] `Platform.SharedKernel` exposes `Money`, `Address`, `IClock` + `SystemClock` + `FakeClock`; `AddSharedKernel()` extension; unit tests for VO factories
-- [ ] `Platform.ServiceDefaults` exposes `AddCorrelationId()`, `AddServiceAuth()`, `AddFeatureFlags()`; `IClock` registered as singleton; JSON `DateTimeOffset` converter registered; OTel PII allowlist processor + Serilog `[PII]` policy wired
+- [ ] `Platform.SharedKernel` exposes `Money`, `Address`; `AddSharedKernel()` extension; unit tests for VO factories. (Time is the BCL `TimeProvider`, auto-registered by the Generic Host — no custom clock.)
+- [ ] `Platform.ServiceDefaults` exposes `AddCorrelationId()`, `AddServiceAuth()`, `AddFeatureFlags()`; OTel PII allowlist processor + Serilog `[PII]` policy wired. No per-service Polly presets (YARP at edge).
 - [ ] `Platform.KafkaFlow.ProducerHeaders` carries correlation-id producer + consumer middleware
 - [ ] `docker-compose.yaml`: 8 new Kafka topics with explicit retention flags; topic renames `payments.*` → `payments.*`; 6 outbox-relay containers; `redis-basket` + `redis-cache` split; `azurite` + `azurite-init` + `nginx-cdn`; `nginx-cdn` config in `src/nginx-cdn/nginx.conf`
 - [ ] `flags.json` at repo root with the 3 seed flags
@@ -237,8 +237,8 @@ STOP and ask the user (in addition to `_shared.md § 9` universal stops) if:
 <session_management>
 Per `_shared.md § 10`. Wave-0-specific suggested commit milestones:
 
-1. `Platform.SharedKernel` additions (`Money`, `Address`, `IClock`) + unit tests
-2. `Platform.ServiceDefaults` extensions (correlation-id + JSON converter + Polly presets) + integration test
+1. `Platform.SharedKernel` additions (`Money`, `Address`) + unit tests
+2. `Platform.ServiceDefaults` extensions (correlation-id middleware) + integration test
 3. `Platform.ServiceDefaults` extensions (service-auth + feature-flags) + integration test
 4. `Platform.KafkaFlow.ProducerHeaders` extensions + roundtrip test
 5. `docker-compose.yaml` updates (topics + relays + Redis split + Azurite + nginx-cdn) + smoke verify

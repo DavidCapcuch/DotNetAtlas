@@ -18,7 +18,7 @@ You implement the **Inventory** bounded context — **the single Event-Sourced e
 </mission>
 
 <prerequisites>
-- Wave 0 platform prep merged. Specifically: `Platform.SharedKernel` has `IClock`; `Platform.ServiceDefaults` has correlation-id + service-auth; 3 new Inventory topics (`inventory.stock-events`, `inventory.reservations`, `inventory.reservation-commands`) + `outbox-relay-inventory` container; Keycloak `inventory-service` client.
+- Wave 0 platform prep merged. Specifically: BCL `TimeProvider` is auto-registered by the Generic Host; `Platform.ServiceDefaults` has correlation-id + service-auth; 3 new Inventory topics (`inventory.stock-events`, `inventory.reservations`, `inventory.reservation-commands`) + `outbox-relay-inventory` container; Keycloak `inventory-service` client.
 - Catalog's `ProductCreatedEvent` Avro schema registered (Inventory consumes to initialize streams). Inventory can scaffold + unit-test in parallel; integration-test the Catalog-event consumer after Catalog lands.
 </prerequisites>
 
@@ -79,7 +79,7 @@ Cross-cutting decisions to apply:
 - [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin endpoints (scope `inventory.commands.*`); saga-command Kafka consumer validates the `X-Service-Token` header from `checkout-saga` client; Catalog-event consumer does NOT require service-auth (event topic, not command)
 - [ADR-0012](../adr/0012-api-versioning.md) — admin routes under `/api/v1/inventory/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — apply FastEndpoints `.Idempotency()` to admin `POST /api/v1/inventory/stock-items/{productId}/adjust` (stock-adjust double-click guard) backed by `redis-cache`
-- [ADR-0015](../adr/0015-time-timezone-policy.md) — `stock_events.OccurredAtUtc` + `AppendedAtUtc` are `timestamptz`; `ReservationExpiryWorker` uses `IClock.UtcNow` (makes the expiry deterministic in tests); reservation TTL arithmetic uses `DateTimeOffset`
+- [ADR-0015](../adr/0015-time-timezone-policy.md) — `stock_events.OccurredAtUtc` + `AppendedAtUtc` are `timestamptz`; `ReservationExpiryWorker` injects BCL `TimeProvider` and calls `GetUtcNow()` (makes expiry deterministic in tests via `FakeTimeProvider`); reservation TTL arithmetic uses `DateTimeOffset`
 </applicable_adrs>
 
 <skills>
@@ -107,7 +107,7 @@ Inventory-specific triggers:
 - A Wave-2 (Checkout saga) agent can drive full reserve → confirm and reserve → release compensation flows.
 - Catalog's `ProductCreatedEvent` initializes a new stream when consumed (integration test running Catalog + Inventory together).
 - `StockLevelChanged` fires **only on 0 ↔ positive** threshold crossings (never on every stock move).
-- Expired reservations auto-release via `ReservationExpiryWorker` — verifiable by setting `IClock.FakeClock` forward in integration test.
+- Expired reservations auto-release via `ReservationExpiryWorker` — verifiable by advancing `FakeTimeProvider` forward in an integration test.
 - `InsufficientStock` flows through as a `Result.Fail` → outbox → Kafka event, never as an exception (architecture test enforced).
 </success_criteria>
 
@@ -121,7 +121,7 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] 5 external Avro events + 3 saga-command Avro + outbox publishers for all 5 externals
 - [ ] 3 saga-command Kafka consumers + 1 Catalog-event consumer (ProductCreated) + 1 Ordering-event consumer (OrderCancelled → release-if-still-reserved) — ALL with inbox dedup; saga-command consumers validate service-auth token
 - [ ] Distinct consumer groups per master-design § E.10 — `inventory-stock-init` and `inventory-order-cancelled` NOT reused
-- [ ] `ReservationExpiryWorker` (hosted service): polls every 1 min using `IClock`; publishes `ReleaseReservationCommand(ReleaseReason.Expiry)` per expired
+- [ ] `ReservationExpiryWorker` (hosted service): polls every 1 min using injected BCL `TimeProvider`; publishes `ReleaseReservationCommand(ReleaseReason.Expiry)` per expired
 - [ ] `StockLevelChanged` fires **only on 0 ↔ positive** threshold crossings (integration test proves it)
 - [ ] `InsufficientStock` → `Result.Fail` → outbox `StockReservationFailedEvent` (NEVER throws; arch test forbids throwing domain errors from this handler)
 - [ ] Admin `POST /api/v1/inventory/stock-items/{productId}/adjust` with `.Idempotency()` + authorization
@@ -145,7 +145,7 @@ STOP and ask the user (in addition to `_shared.md § 9` universal stops) if:
 - Consumer groups collide (Wave 0 should have set `inventory-stock-init` and `inventory-order-cancelled` as DISTINCT — verify before implementing).
 - The `inventory.reservations` topic doesn't have 6 partitions (per `events-catalog.md` D-2; under-partitioning breaks saga fan-out).
 - ADR-0006's "when NOT to use ES" guidance contradicts something in `inventory.md` you're about to implement (means a doc drift — escalate).
-- `IClock` is not registered in `Platform.ServiceDefaults` (Wave 0 prerequisite missing).
+- BCL `TimeProvider` is not auto-registered by the Generic Host (Wave 0 prerequisite missing / host setup drift).
 </stop_conditions>
 
 <session_management>
@@ -156,7 +156,7 @@ Per `_shared.md § 10`. Suggested commit milestones:
 3. Event-store repository (append + rehydrate + retry-once) + integration test against Testcontainers Postgres
 4. Application layer (saga-command handlers, projection handlers, outbox publishers) + integration test
 5. Infrastructure layer (DbContext, EF mappings, Kafka consumers × 5) + integration test
-6. `ReservationExpiryWorker` hosted service + integration test with `FakeClock`
+6. `ReservationExpiryWorker` hosted service + integration test with `FakeTimeProvider`
 7. Admin HTTP endpoints + `.Idempotency()` + functional tests
 8. Architecture tests (append-only, no throws from InsufficientStock handler, no `DateTime.UtcNow`)
 9. Integration tests for `example-mapping` sessions + TTL/confirm race
@@ -211,7 +211,7 @@ Use the template in `_template.md § session_summary`. Inventory-specific notes:
 - Whether you needed snapshots (should be NO in v1 per ADR-0006 — confirm)
 - Hot-aggregate behaviour under load testing if tested — retry exhaustion rate
 - Consumer-group distinction verified (`inventory-stock-init` vs `inventory-order-cancelled`)
-- ADR-0015 time policy — `FakeClock` used in TTL-expiry tests for determinism
+- ADR-0015 time policy — `FakeTimeProvider` used in TTL-expiry tests for determinism
 
 Proceed.
 </session_summary>

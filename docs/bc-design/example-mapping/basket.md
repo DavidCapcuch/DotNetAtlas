@@ -29,7 +29,7 @@ As a **shopper** I want **the price I saw when adding an item to my basket to re
 #### The one where the Catalog price went up mid-session
 
 - **Given** user `U1` has a basket containing `P1` with `Snapshot.Price = $100` (captured at add-time) and Catalog's current price for `P1` is `$120`
-- **When** user `U1` issues `CheckoutBasketCommand(UserId=U1, CorrelationId=C1)`
+- **When** user `U1` issues `CheckoutBasketCommand(UserId=U1, CorrelationId=C1, ShippingAddress, BillingAddress, PaymentMethodId)`
 - **Verify** R1, R5
 - **Then** `BasketCheckedOutDomainEvent` carries `UnitPriceAmount = 100`, the external `BasketCheckoutInitiatedEvent` on `basket.sessions` carries `UnitPriceAmount = 100`, and the saga/Order line uses `$100` as the transacted price.
 
@@ -43,7 +43,7 @@ As a **shopper** I want **the price I saw when adding an item to my basket to re
 #### The one where the product was discontinued after add
 
 - **Given** user `U1` has a basket containing `P1` with `Snapshot.Price = $100` and Catalog has since raised `ProductDiscontinuedEvent(P1)`
-- **When** user `U1` issues `CheckoutBasketCommand(UserId=U1, CorrelationId=C2)`
+- **When** user `U1` issues `CheckoutBasketCommand(UserId=U1, CorrelationId=C2, ShippingAddress, BillingAddress, PaymentMethodId)`
 - **Verify** R2, R5, R6
 - **Then** Basket does NOT block the checkout — `BasketCheckoutInitiatedEvent` is emitted with the `$100` snapshot; the Checkout saga or Inventory downstream decides whether the order proceeds (Basket's contract ends at initiation).
 

@@ -79,7 +79,7 @@ The Weather service is a complete working reference. **Copy the shape, not the d
 
 ## 5. Platform libraries (consume, don't modify — Wave 0 extends `ServiceDefaults`)
 
-- `Platform.SharedKernel` — `Entity<TId>`, `AggregateRoot<TId>`, `ValueObject`, `DomainEvent`, `DataIntegrityException`, **`Money`**, **`Address`**, **`IClock`** (Wave 0 additions per ADR-0015)
+- `Platform.SharedKernel` — `Entity<TId>`, `AggregateRoot<TId>`, `ValueObject`, `DomainEvent`, `DataIntegrityException`, **`Money`**, **`Address`** (Wave 0 additions). Time abstraction is BCL `System.TimeProvider` (auto-registered by Generic Host per [ADR-0015](../adr/0015-time-timezone-policy.md)); no custom `IClock` interface — inject `TimeProvider` directly, use `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` in tests.
 - `Platform.CQRS` — `ICommand[<T>]`, `IQuery<T>`, handler + dispatcher + behaviour chain (Tracing → Logging → Metrics → Validation → Handler)
 - `Platform.ReliableMessaging.Outbox.EFCore` — `ITransactionalOutbox<TDbContext>.AddOutboxMessage(topic, key, ISpecificRecord)`
 - `Platform.ReliableMessaging.Inbox.EFCore` — `AddInbox<TDbContext>(typeof(...))` for Kafka dedup
@@ -88,7 +88,7 @@ The Weather service is a complete working reference. **Copy the shape, not the d
 - `Platform.Avro.UniversalSerDes` — Record-Name-Strategy subjects
 - `Platform.SchemaRegistry.Contracts` — all `.avsc` files live here
 - `Platform.OutboxRelay.WorkerService` — you ADD a container per service schema in docker-compose
-- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: correlation-id middleware, OAuth2 service-auth, OpenFeature DI, JSON `DateTimeOffset` converter, named Polly resilience presets**. BCs read the ambient correlation id via `CorrelationIdContextKeys` (public constants for the HTTP header name, `HttpContext.Items` key, OTel `Activity` tag, and Serilog property) — see `platform/Platform.ServiceDefaults/CorrelationId/CorrelationIdContextKeys.cs`.
+- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: correlation-id middleware, OAuth2 service-auth, OpenFeature DI**. Cross-service HTTP resilience is handled by YARP at the edge — no per-service Polly presets are shipped. BCs read the ambient correlation id via `CorrelationIdContextKeys` (public constants for the HTTP header name, `HttpContext.Items` key, OTel `Activity` tag, and Serilog property) — see `platform/Platform.ServiceDefaults/CorrelationId/CorrelationIdContextKeys.cs`. Time abstraction is BCL `System.TimeProvider` (auto-registered by Generic Host); use `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` in tests.
 - `Platform.Test.Framework` — shared test fixtures
 
 If you hit a gap, **ASK** — adding platform code is an escalation.
@@ -168,6 +168,7 @@ Every BC implementation is multi-file, multi-hour work. Manage the session as yo
 - **Test before committing.** After each milestone, run the relevant test slice from `<verification>`. Do not accumulate untested work — `dotnet test` failures debugged after 5 commits is much harder than after 1.
 - **Surface progress.** After each milestone, summarise to the user: "Completed `<dod_item>`; tests green; moving to `<next_item>`." This lets the user catch direction problems before more work compounds.
 - **Context-window discipline.** When approaching 80% full (≈ 30 large files read), stop, summarise, and ask whether to continue or hand off the remainder to a follow-up session with a context-summary.
+- **Emit a handoff prompt at every milestone boundary.** After a milestone commit lands and before ending the session, print the block from `docs/implementation-prompts/_handoff-template.md` with `{BC}` and `{N+1}` substituted for the next milestone. The user pastes it into a fresh session to continue.
 
 ## 11. Peer review before declaring done
 
