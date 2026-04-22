@@ -1,0 +1,85 @@
+{
+    "type": "record",
+    "name": "ProductCreatedEvent",
+    "namespace": "Catalog.Products",
+    "doc": "Event emitted when a new product is created in the Catalog. Enriched summary carrying all information downstream services need to initialize their own projections without calling back into Catalog.",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the product aggregate."
+        },
+        {
+            "name": "Sku",
+            "type": "string",
+            "doc": "Business key for the product (1-32 chars, alphanumeric + dashes, uppercase)."
+        },
+        {
+            "name": "Name",
+            "type": "string",
+            "doc": "Product display name (max 200 chars)."
+        },
+        {
+            "name": "Description",
+            "type": "string",
+            "doc": "Product description truncated to 1000 chars for transport. Consumers requiring full text must fetch via Catalog query API."
+        },
+        {
+            "name": "CategoryId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the category to which the product is assigned."
+        },
+        {
+            "name": "CategoryPath",
+            "type": "string",
+            "doc": "Materialized category path (e.g., '/electronics/computers/laptops'). Enables prefix filtering downstream without a Catalog lookup."
+        },
+        {
+            "name": "BrandName",
+            "type": "string",
+            "doc": "Brand name (max 100 chars)."
+        },
+        {
+            "name": "PriceAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Product price amount."
+        },
+        {
+            "name": "PriceCurrency",
+            "type": "string",
+            "doc": "ISO 4217 currency code (e.g., 'USD', 'EUR')."
+        },
+        {
+            "name": "Status",
+            "type": {
+                "type": "enum",
+                "name": "ProductStatus",
+                "symbols": [
+                    "Draft",
+                    "Active",
+                    "Discontinued"
+                ]
+            },
+            "doc": "Product lifecycle status at the time of the event."
+        },
+        {
+            "name": "CreatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the product was created."
+        }
+    ]
+}

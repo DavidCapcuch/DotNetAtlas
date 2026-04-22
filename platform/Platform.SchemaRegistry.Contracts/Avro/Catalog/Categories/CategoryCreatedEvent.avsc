@@ -1,0 +1,46 @@
+{
+    "type": "record",
+    "name": "CategoryCreatedEvent",
+    "namespace": "Catalog.Categories",
+    "doc": "Event emitted when a new category node is created in the Catalog taxonomy.",
+    "fields": [
+        {
+            "name": "CategoryId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the category."
+        },
+        {
+            "name": "Name",
+            "type": "string",
+            "doc": "Category display name (max 100 chars)."
+        },
+        {
+            "name": "ParentCategoryId",
+            "type": [
+                "null",
+                {
+                    "type": "string",
+                    "logicalType": "uuid"
+                }
+            ],
+            "default": null,
+            "doc": "Optional identifier of the parent category. Null for root nodes."
+        },
+        {
+            "name": "Path",
+            "type": "string",
+            "doc": "Materialized path of this category (e.g., '/electronics/computers'). Depth 1 to 5 segments."
+        },
+        {
+            "name": "CreatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the category was created."
+        }
+    ]
+}

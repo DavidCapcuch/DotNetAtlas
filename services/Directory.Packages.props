@@ -52,6 +52,9 @@
         <!-- Auth -->
         <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6"/>
 
+        <!-- Feature Flags (ADR-0014) — OpenFeature SDK consumed directly by Application layers that read flags -->
+        <PackageVersion Include="OpenFeature" Version="2.12.0"/>
+
         <!-- Health Checks -->
         <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0"/>
