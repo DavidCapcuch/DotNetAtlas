@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="NetArchTest.eNhancedEdition"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Ordering\Ordering.API\Ordering.API.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
+    </ItemGroup>
+
+</Project>

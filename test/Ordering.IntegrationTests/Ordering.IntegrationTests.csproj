@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable"/>
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions"/>
+        <PackageReference Include="NSubstitute"/>
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro"/>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Ordering\Ordering.API\Ordering.API.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
+    </ItemGroup>
+
+</Project>
