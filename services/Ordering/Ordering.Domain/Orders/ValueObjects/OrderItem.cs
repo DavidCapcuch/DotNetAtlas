@@ -1,0 +1,71 @@
+using FluentResults;
+using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Errors;
+using Platform.SharedKernel.ValueObjects;
+
+namespace Ordering.Domain.Orders.ValueObjects;
+
+/// <summary>
+/// A single line on an <see cref="Order"/>: one product (by id + snapshot),
+/// a quantity, a unit price, and the computed line total. Value-object, not
+/// an entity — <see cref="Order"/>'s items list has no independent lifecycle
+/// (per <c>ordering.md § 3.1 Vernon rule 2</c>).
+/// </summary>
+public sealed record OrderItem : ValueObject
+{
+    public Guid ProductId { get; private init; }
+    public ProductSnapshot ProductSnapshot { get; private init; } = null!;
+    public int Quantity { get; private init; }
+    public Money UnitPrice { get; private init; } = null!;
+    public Money LineTotal { get; private init; } = null!;
+
+    private OrderItem()
+    {
+    }
+
+    /// <summary>
+    /// Creates an <see cref="OrderItem"/>. Quantity must be positive; unit
+    /// price positivity is re-asserted (caller-side <see cref="Money.Create"/>
+    /// already guarantees this, but the VO is defense-in-depth). The line total
+    /// is stored rather than recomputed — lets EF Core map it as an owned
+    /// value without <c>[NotMapped]</c> hacks (<c>ordering.md § 4.3</c>).
+    /// </summary>
+    public static Result<OrderItem> Create(
+        Guid productId,
+        ProductSnapshot productSnapshot,
+        int quantity,
+        Money unitPrice)
+    {
+        ArgumentNullException.ThrowIfNull(productSnapshot);
+        ArgumentNullException.ThrowIfNull(unitPrice);
+
+        if (productId == Guid.Empty)
+        {
+            return Result.Fail(new ValidationError(
+                nameof(ProductId), "Product id must not be empty.", "OrderItem.ProductIdEmpty"));
+        }
+
+        if (quantity <= 0)
+        {
+            return Result.Fail(new ValidationError(
+                nameof(Quantity), "Quantity must be strictly positive.", "OrderItem.QuantityNotPositive"));
+        }
+
+        if (unitPrice.Amount <= 0)
+        {
+            return Result.Fail(new ValidationError(
+                nameof(UnitPrice), "Unit price must be strictly positive.", "OrderItem.UnitPriceNotPositive"));
+        }
+
+        var lineTotal = new Money(unitPrice.Amount * quantity, unitPrice.Currency);
+
+        return new OrderItem
+        {
+            ProductId = productId,
+            ProductSnapshot = productSnapshot,
+            Quantity = quantity,
+            UnitPrice = unitPrice,
+            LineTotal = lineTotal,
+        };
+    }
+}
