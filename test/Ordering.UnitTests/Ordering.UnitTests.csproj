@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Ordering\Ordering.Domain\Ordering.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Ordering\Ordering.Application\Ordering.Application.csproj" />
+        <ProjectReference Include="..\..\services\Ordering\Ordering.Infrastructure\Ordering.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable"/>
+        <PackageReference Include="NSubstitute"/>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Ordering\Ordering.API\Ordering.API.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
+        <ProjectReference Include="..\Ordering.IntegrationTests\Ordering.IntegrationTests.csproj" />
+    </ItemGroup>
+
+</Project>
