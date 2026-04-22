@@ -19,6 +19,7 @@
         <!-- Validation-->
         <PackageVersion Include="FluentValidation" Version="12.0.0"/>
         <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0"/>
+        <PackageVersion Include="FluentResults" Version="4.0.0"/>
 
         <!-- Kafka -->
         <PackageVersion Include="Confluent.SchemaRegistry" Version="2.13.0"/>
@@ -35,22 +36,39 @@
         <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
         <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0"/>
         <PackageVersion Include="EntityFrameworkCore.Exceptions.PostgreSQL" Version="10.0.0"/>
-        
+
         <PackageVersion Include="Bogus" Version="35.6.3"/>
-        
+
+        <!-- Redis + FusionCache (Basket primary store) -->
+        <PackageVersion Include="MemoryPack.Core" Version="1.21.4"/>
+        <PackageVersion Include="StackExchange.Redis" Version="2.8.31"/>
+        <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.6"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.4.0"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache.AspNetCore.OutputCaching" Version="2.4.0"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.4.0"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache.OpenTelemetry" Version="2.4.0"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack" Version="2.4.0"/>
+
+        <!-- Auth -->
+        <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6"/>
+
         <!-- Health Checks -->
         <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
 
         <!-- OpenTelemetry -->
         <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.12.0"/>
         <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0"/>
         <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0"/>
         <PackageVersion Include="OpenTelemetry.Extensions.Propagators" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0"/>
         <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.12.0-beta.2"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0"/>
         <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.12.0-beta.1"/>
         <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.12.0-beta.2"/>
         <PackageVersion Include="OpenTelemetry.Resources.Container" Version="1.12.0-beta.1"/>
         <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.12.0-beta.1"/>
 
