@@ -1,0 +1,54 @@
+{
+    "type": "record",
+    "name": "ProductPriceChanged",
+    "namespace": "Catalog.Products",
+    "doc": "Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot.",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the product whose price changed."
+        },
+        {
+            "name": "Sku",
+            "type": "string",
+            "doc": "Business key of the product (denormalized for consumer convenience)."
+        },
+        {
+            "name": "OldPriceAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Price amount before the change."
+        },
+        {
+            "name": "NewPriceAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Price amount after the change."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code. Same for old and new (Catalog does not support currency swap on a product)."
+        },
+        {
+            "name": "ChangedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the price change was recorded."
+        }
+    ]
+}
