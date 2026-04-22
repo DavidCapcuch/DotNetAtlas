@@ -133,6 +133,7 @@ end";
         // Direct bypass per basket.md § 6.4 — remove the Redis entry and invalidate
         // any FusionCache state so a subsequent GetByUserIdAsync sees "no basket".
         await database.KeyDeleteAsync(key).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
         await _cache.RemoveAsync(key, token: ct).ConfigureAwait(false);
 
         return Result.Ok();

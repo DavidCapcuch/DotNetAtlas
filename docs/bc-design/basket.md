@@ -188,8 +188,10 @@ The defining feature of the Basket BC is that **the aggregate itself never touch
 ### 5.2 Key pattern
 
 ```
-basket:{userId}     →  { Version: int, Payload: byte[] (MemoryPack of Basket) }
+basket:{userId}     →  { Version: int, Payload: byte[] (MemoryPack of BasketDocument) }
 ```
+
+Where `BasketDocument` is the persistence DTO under `Basket.Infrastructure.Persistence.Documents` — see § 5.1's MemoryPack note.
 
 - Lowercase, colon-separated, kebab-safe (already the prefix scheme for existing cache keys).
 - `{userId}` is the raw `Guid` in `D` format (lowercase 36 chars with dashes).
