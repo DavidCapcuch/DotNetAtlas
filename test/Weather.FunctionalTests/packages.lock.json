@@ -451,16 +451,6 @@
           "NSwag.AspNetCore": "14.4.0"
         }
       },
-      "FastEndpoints.Testing": {
-        "type": "Transitive",
-        "resolved": "7.0.1",
-        "contentHash": "AJfLPbpBRdqtONQxmNnsvxmJnqtk8oQmcwbYBb2BnQPCy5VLXFkUu4zffyXOaQRcrqQH9I5kX9jgZ/EnJA2J9w==",
-        "dependencies": {
-          "Bogus": "35.6.3",
-          "Microsoft.AspNetCore.Mvc.Testing": "10.0.0-preview.6.25358.103",
-          "xunit.v3.extensibility.core": "3.0.0"
-        }
-      },
       "FluentAssertions": {
         "type": "Transitive",
         "resolved": "6.7.0",
@@ -1932,11 +1922,6 @@
           "System.Configuration.ConfigurationManager": "6.0.1"
         }
       },
-      "Respawn": {
-        "type": "Transitive",
-        "resolved": "7.0.0",
-        "contentHash": "AyWlducZGOnmlEVz4PaL3Qv8wcY3ClPZS9CrlDnSVahGd/E9tTEgSFiC8yoV/F6o6P6IYm8xnHFa/vmWT8tfcw=="
-      },
       "Riok.Mapperly": {
         "type": "Transitive",
         "resolved": "4.2.1",
@@ -2134,15 +2119,6 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
         }
       },
-      "StackExchange.Redis": {
-        "type": "Transitive",
-        "resolved": "2.8.31",
-        "contentHash": "RCHVQa9Zke8k0oBgJn1Yl6BuYy8i6kv+sdMObiH60nOwD6QvWAjxdDwOm+LO78E8WsGiPqgOuItkz98fPS6haQ==",
-        "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "6.0.0",
-          "Pipelines.Sockets.Unofficial": "2.2.8"
-        }
-      },
       "Std.UriTemplate": {
         "type": "Transitive",
         "resolved": "2.0.5",
@@ -2232,30 +2208,6 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "SSH.NET": "2025.1.0",
           "SharpZipLib": "1.4.2"
-        }
-      },
-      "Testcontainers.Kafka": {
-        "type": "Transitive",
-        "resolved": "4.11.0",
-        "contentHash": "akpJ35K/ZP99AkOoJRTi3ABu9zjtW/Uoak+9MDZyg3NPbKWqt1AA7P8OM/Eac4GQQkVV4NoHrKSINhs24yVpPQ==",
-        "dependencies": {
-          "Testcontainers": "4.11.0"
-        }
-      },
-      "Testcontainers.PostgreSql": {
-        "type": "Transitive",
-        "resolved": "4.11.0",
-        "contentHash": "OWGi0Og+qFpr2OPDignA74aJSfUd0nvZOaXNGWXwMJR1BvpdzhCNHQB2h7yLSTb0a8JVmmQQ4mUpHAC9q27NLw==",
-        "dependencies": {
-          "Testcontainers": "4.11.0"
-        }
-      },
-      "Testcontainers.Redis": {
-        "type": "Transitive",
-        "resolved": "4.11.0",
-        "contentHash": "nw7no/3yfjRZFdYju9Wa5TMWlbnXNUVq5qfePrLjaWMYbcXGkT88ZPw82v4HLGSQPGPug24OlC1IT6Kf+4j//Q==",
-        "dependencies": {
-          "Testcontainers": "4.11.0"
         }
       },
       "TypedSignalR.Client.Attributes": {
@@ -2661,6 +2613,17 @@
           "Confluent.SchemaRegistry": "2.13.0"
         }
       },
+      "FastEndpoints.Testing": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.1, )",
+        "resolved": "7.0.1",
+        "contentHash": "AJfLPbpBRdqtONQxmNnsvxmJnqtk8oQmcwbYBb2BnQPCy5VLXFkUu4zffyXOaQRcrqQH9I5kX9jgZ/EnJA2J9w==",
+        "dependencies": {
+          "Bogus": "35.6.3",
+          "Microsoft.AspNetCore.Mvc.Testing": "10.0.0-preview.6.25358.103",
+          "xunit.v3.extensibility.core": "3.0.0"
+        }
+      },
       "FluentResults.Extensions.FluentAssertions": {
         "type": "CentralTransitive",
         "requested": "[2.2.1, )",
@@ -2700,6 +2663,49 @@
         "contentHash": "q5RfBI+wywJSFUNDE1L4ZbHEHCFTblo8Uf6A6oe4feOUFYiUQXyAf9GBh5qEZpvJaHiEbpBPkQumjEhXCJxdrg==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "10.0.0"
+        }
+      },
+      "Respawn": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "AyWlducZGOnmlEVz4PaL3Qv8wcY3ClPZS9CrlDnSVahGd/E9tTEgSFiC8yoV/F6o6P6IYm8xnHFa/vmWT8tfcw=="
+      },
+      "StackExchange.Redis": {
+        "type": "CentralTransitive",
+        "requested": "[2.8.31, )",
+        "resolved": "2.8.31",
+        "contentHash": "RCHVQa9Zke8k0oBgJn1Yl6BuYy8i6kv+sdMObiH60nOwD6QvWAjxdDwOm+LO78E8WsGiPqgOuItkz98fPS6haQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "6.0.0",
+          "Pipelines.Sockets.Unofficial": "2.2.8"
+        }
+      },
+      "Testcontainers.Kafka": {
+        "type": "CentralTransitive",
+        "requested": "[4.11.0, )",
+        "resolved": "4.11.0",
+        "contentHash": "akpJ35K/ZP99AkOoJRTi3ABu9zjtW/Uoak+9MDZyg3NPbKWqt1AA7P8OM/Eac4GQQkVV4NoHrKSINhs24yVpPQ==",
+        "dependencies": {
+          "Testcontainers": "4.11.0"
+        }
+      },
+      "Testcontainers.PostgreSql": {
+        "type": "CentralTransitive",
+        "requested": "[4.11.0, )",
+        "resolved": "4.11.0",
+        "contentHash": "OWGi0Og+qFpr2OPDignA74aJSfUd0nvZOaXNGWXwMJR1BvpdzhCNHQB2h7yLSTb0a8JVmmQQ4mUpHAC9q27NLw==",
+        "dependencies": {
+          "Testcontainers": "4.11.0"
+        }
+      },
+      "Testcontainers.Redis": {
+        "type": "CentralTransitive",
+        "requested": "[4.11.0, )",
+        "resolved": "4.11.0",
+        "contentHash": "nw7no/3yfjRZFdYju9Wa5TMWlbnXNUVq5qfePrLjaWMYbcXGkT88ZPw82v4HLGSQPGPug24OlC1IT6Kf+4j//Q==",
+        "dependencies": {
+          "Testcontainers": "4.11.0"
         }
       }
     },
