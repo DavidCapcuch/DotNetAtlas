@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);NU1902</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Health checks -->
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
+
+        <!-- KafkaFlow -->
+        <PackageReference Include="KafkaFlow.Retry"/>
+        <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="KafkaFlow.OpenTelemetry"/>
+        <PackageReference Include="KafkaFlow.Serializer.ApacheAvro"/>
+        <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
+
+        <!-- EF Core -->
+        <PackageReference Include="EntityFrameworkCore.Exceptions.PostgreSQL"/>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
+        <PackageReference Include="EFCore.NamingConventions" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+
+        <!-- Auth -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
+
+        <!-- Redis primary store (redis-basket) + FusionCache -->
+        <PackageReference Include="StackExchange.Redis"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack"/>
+
+        <!-- OpenTelemetry -->
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol"/>
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Process"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis"/>
+        <PackageReference Include="OpenTelemetry.Resources.Container"/>
+        <PackageReference Include="OpenTelemetry.Resources.Host"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Basket.Application\Basket.Application.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.DeadLetter\Platform.KafkaFlow.DeadLetter.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.Inbox.EFCore\Platform.KafkaFlow.Inbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.ProducerHeaders\Platform.KafkaFlow.ProducerHeaders.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Inbox.Core\Platform.ReliableMessaging.Inbox.Core.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Inbox.EFCore\Platform.ReliableMessaging.Inbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Basket.Api"/>
+        <InternalsVisibleTo Include="Basket.UnitTests"/>
+        <InternalsVisibleTo Include="Basket.IntegrationTests"/>
+        <InternalsVisibleTo Include="Basket.FunctionalTests"/>
+    </ItemGroup>
+</Project>

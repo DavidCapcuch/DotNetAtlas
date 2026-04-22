@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Basket\Basket.Domain\Basket.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Basket\Basket.Application\Basket.Application.csproj" />
+    </ItemGroup>
+</Project>

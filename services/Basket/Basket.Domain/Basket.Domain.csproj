@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <PackageReference Include="MemoryPack.Core" />
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Basket.Application"/>
+        <InternalsVisibleTo Include="Basket.Infrastructure"/>
+        <InternalsVisibleTo Include="Basket.UnitTests"/>
+    </ItemGroup>
+</Project>
