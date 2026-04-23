@@ -30,7 +30,6 @@ public class CategoryCreatedOutboxPublisherTests
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",
-                DltTopicSuffix = ".DLT",
             }),
             NullLogger<CategoryCreatedOutboxPublisher>.Instance);
 

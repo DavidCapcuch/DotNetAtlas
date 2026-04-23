@@ -37,8 +37,12 @@ public sealed class GetProductsByCategoryQueryHandler
                 return Result.Ok(EmptyPage(query));
             }
 
+            // Segment-bounded prefix match to avoid sibling leaks
+            // (e.g. "/electronics" must not match "/electronics-toys").
             var pathPrefix = category.Path.Value;
-            queryable = queryable.Where(r => r.CategoryPath.StartsWith(pathPrefix));
+            var pathPrefixWithSeparator = pathPrefix + "/";
+            queryable = queryable.Where(r =>
+                r.CategoryPath == pathPrefix || r.CategoryPath.StartsWith(pathPrefixWithSeparator));
         }
         else
         {

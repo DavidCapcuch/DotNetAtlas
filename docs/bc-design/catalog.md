@@ -562,7 +562,7 @@ Shape:
 ```csharp
 public sealed record SearchProductsQuery(
     string? Text,                  // matches Name+Description via to_tsquery
-    string? CategoryPathPrefix,    // e.g. "/electronics" -> WHERE CategoryPath LIKE '/electronics%'
+    string? CategoryPathPrefix,    // e.g. "/electronics" -> WHERE (CategoryPath = '/electronics' OR CategoryPath LIKE '/electronics/%')
     decimal? MinPrice,
     decimal? MaxPrice,
     string? Currency,
@@ -578,7 +578,7 @@ Two concrete examples:
    ```sql
    SELECT * FROM catalog.product_search_view
    WHERE Status = 1
-     AND CategoryPath LIKE '/electronics/computers/laptops%'
+     AND (CategoryPath = '/electronics/computers/laptops' OR CategoryPath LIKE '/electronics/computers/laptops/%')
      AND PriceAmount BETWEEN 500 AND 2000
      AND PriceCurrency = 'USD'
    ORDER BY PriceAmount
@@ -588,7 +588,7 @@ Two concrete examples:
    ```sql
    SELECT * FROM catalog.product_search_view
    WHERE Status = 1
-     AND CategoryPath LIKE '/electronics/audio%'
+     AND (CategoryPath = '/electronics/audio' OR CategoryPath LIKE '/electronics/audio/%')
      AND to_tsvector('english', Name || ' ' || Description)
          @@ to_tsquery('english', 'wireless & headphones');
    ```

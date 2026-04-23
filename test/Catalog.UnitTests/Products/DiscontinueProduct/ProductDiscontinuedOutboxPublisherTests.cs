@@ -31,7 +31,6 @@ public class ProductDiscontinuedOutboxPublisherTests
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",
-                DltTopicSuffix = ".DLT",
             }),
             NullLogger<ProductDiscontinuedOutboxPublisher>.Instance);
 

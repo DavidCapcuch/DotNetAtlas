@@ -28,10 +28,6 @@ public sealed class CatalogTopicsOptions
     [Length(1, MaximumKafkaTopicLength)]
     public required string CatalogCategories { get; set; }
 
-    /// <summary>
-    /// Suffix appended to topic names to create Dead Letter Topics (e.g., ".DLT").
-    /// </summary>
-    [Required]
-    [Length(1, 64)]
-    public required string DltTopicSuffix { get; set; }
+    // NOTE: DLT suffix intentionally omitted until M4 introduces the Kafka inbox consumer for
+    // StockLevelChanged. Add it when the consumer actually needs to route poison messages.
 }

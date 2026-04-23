@@ -56,6 +56,29 @@ public class GetCategoryTreeQueryHandlerTests
     }
 
     [Fact]
+    public async Task Given_RootFilter_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
+    {
+        // Root "/electronics" must match itself and its descendants, but NOT the sibling
+        // "/electronics-toys" whose raw path shares the leading substring.
+        await using var db = FakeCatalogDbContext.Create();
+        var electronics = CatalogFactories.RootCategory("Electronics");
+        var electronicsToys = CatalogFactories.RootCategory("Electronics Toys");
+        var laptops = CatalogFactories.ChildCategory(electronics, "Laptops");
+        db.Categories.AddRange(electronics, electronicsToys, laptops);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var handler = new GetCategoryTreeQueryHandler(db);
+
+        var result = await handler.HandleAsync(
+            new GetCategoryTreeQuery { RootCategoryId = electronics.Id },
+            TestContext.Current.CancellationToken);
+
+        result.Should().BeSuccess();
+        result.Value.Nodes.Select(n => n.CategoryId)
+            .Should().BeEquivalentTo([electronics.Id, laptops.Id]);
+    }
+
+    [Fact]
     public async Task Given_UnknownRoot_When_Querying_Then_ReturnsEmpty()
     {
         await using var db = FakeCatalogDbContext.Create();

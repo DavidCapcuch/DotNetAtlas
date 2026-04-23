@@ -22,7 +22,7 @@ public sealed class CategoryReparentedProjectionHandler
 
     public Task Handle(CategoryReparentedDomainEvent domainEvent, CancellationToken ct)
     {
-        _logger.LogWarning(
+        _logger.LogDebug(
             "CategoryReparentedDomainEvent for {CategoryId}: descendant CategoryPath cascade is deferred to a post-M3 milestone; " +
             "existing product_search_view rows under the old path may be temporarily stale.",
             domainEvent.CategoryId);
