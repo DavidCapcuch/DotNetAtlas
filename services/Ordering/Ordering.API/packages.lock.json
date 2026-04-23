@@ -508,11 +508,6 @@
           "NSwag.Generation": "14.4.0"
         }
       },
-      "OpenFeature": {
-        "type": "Transitive",
-        "resolved": "2.12.0",
-        "contentHash": "Z0D/uQ4kAQ89oRT60Ze26fgL4pYAnLHGANbQ+gHUtaBEmWBfGdhEhgswHsterVYJ/+M4u6GtQDnepL3vJgj93A=="
-      },
       "OpenFeature.Hosting": {
         "type": "Transitive",
         "resolved": "2.12.0",
@@ -1183,6 +1178,12 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.4, 11.0.0)",
           "Npgsql": "10.0.2"
         }
+      },
+      "OpenFeature": {
+        "type": "CentralTransitive",
+        "requested": "[2.12.0, )",
+        "resolved": "2.12.0",
+        "contentHash": "Z0D/uQ4kAQ89oRT60Ze26fgL4pYAnLHGANbQ+gHUtaBEmWBfGdhEhgswHsterVYJ/+M4u6GtQDnepL3vJgj93A=="
       },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
         "type": "CentralTransitive",

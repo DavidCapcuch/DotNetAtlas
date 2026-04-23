@@ -1,0 +1,60 @@
+{
+    "type": "record",
+    "name": "OrderCancelledEvent",
+    "namespace": "Ordering.Orders",
+    "doc": "Emitted when the Order is cancelled. Downstream consumers trigger compensation (release stock, refund, notify).",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order that was cancelled."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id. Used by the saga to correlate compensation flows."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who placed the order."
+        },
+        {
+            "name": "Reason",
+            "type": "string",
+            "doc": "Human- or system-assigned cancellation reason."
+        },
+        {
+            "name": "AtStatus",
+            "type": {
+                "type": "enum",
+                "name": "OrderStatusAtTransition",
+                "namespace": "Ordering.Orders",
+                "symbols": [
+                    "Created",
+                    "StockReserved",
+                    "PaymentCompleted",
+                    "Confirmed"
+                ]
+            },
+            "doc": "OrderStatus just before cancellation. Informs consumers what compensation to perform (release stock, refund, etc.)."
+        },
+        {
+            "name": "CancelledAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the order was cancelled."
+        }
+    ]
+}
