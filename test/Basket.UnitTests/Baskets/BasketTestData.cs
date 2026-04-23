@@ -26,4 +26,13 @@ internal static class BasketTestData
             new Money(amount, currency ?? CurrencyCode.Usd),
             capturedAtUtc ?? DefaultCapturedAt);
     }
+
+    /// <summary>
+    /// A deterministic <see cref="Address"/> fixture for checkout tests. The
+    /// courier-field pass-through is tested by equality; the specific values
+    /// are not meaningful beyond ISO 3166-1 alpha-2 correctness.
+    /// </summary>
+    public static Address Address(string countryCode = "US") => Platform.SharedKernel.ValueObjects.Address
+        .Create("221B Baker Street", null, "London", null, "NW1 6XE", countryCode)
+        .Value;
 }

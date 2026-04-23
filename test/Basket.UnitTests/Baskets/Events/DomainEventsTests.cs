@@ -122,12 +122,18 @@ public class DomainEventsTests
         var correlationId = Guid.CreateVersion7();
         var item = new BasketItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
         var snapshot = new BasketSnapshot([item], new BasketTotal(new Money(10m, CurrencyCode.Usd)));
+        var shipping = BasketTestData.Address("US");
+        var billing = BasketTestData.Address("US");
+        var paymentMethodId = Guid.CreateVersion7();
 
         var e = new BasketCheckedOutDomainEvent
         {
             UserId = Guid.CreateVersion7(),
             CorrelationId = correlationId,
             Snapshot = snapshot,
+            ShippingAddress = shipping,
+            BillingAddress = billing,
+            PaymentMethodId = paymentMethodId,
         };
 
         using (new AssertionScope())
@@ -135,6 +141,9 @@ public class DomainEventsTests
             e.Should().BeAssignableTo<DomainEvent>();
             e.CorrelationId.Should().Be(correlationId);
             e.Snapshot.Should().Be(snapshot);
+            e.ShippingAddress.Should().Be(shipping);
+            e.BillingAddress.Should().Be(billing);
+            e.PaymentMethodId.Should().Be(paymentMethodId);
         }
     }
 }

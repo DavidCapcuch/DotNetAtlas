@@ -31,7 +31,7 @@ As a **shopper** I want **the price I saw when adding an item to my basket to re
 - **Given** user `U1` has a basket containing `P1` with `Snapshot.Price = $100` (captured at add-time) and Catalog's current price for `P1` is `$120`
 - **When** user `U1` issues `CheckoutBasketCommand(UserId=U1, CorrelationId=C1, ShippingAddress, BillingAddress, PaymentMethodId)`
 - **Verify** R1, R5
-- **Then** `BasketCheckedOutDomainEvent` carries `UnitPriceAmount = 100`, the external `BasketCheckoutInitiatedEvent` on `basket.sessions` carries `UnitPriceAmount = 100`, and the saga/Order line uses `$100` as the transacted price.
+- **Then** `BasketCheckedOutDomainEvent` carries `UnitPriceAmount = 100` plus the three courier fields (`ShippingAddress`, `BillingAddress`, `PaymentMethodId`) stamped from the command, the external `BasketCheckoutInitiatedEvent` on `basket.sessions` carries `UnitPriceAmount = 100`, and the saga/Order line uses `$100` as the transacted price.
 
 #### The one where the user explicitly refreshes
 
