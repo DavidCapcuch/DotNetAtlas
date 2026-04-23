@@ -1,0 +1,120 @@
+{
+    "type": "record",
+    "name": "OrderCreatedEvent",
+    "namespace": "Ordering.Orders",
+    "doc": "Emitted when a new Order is created from a Basket checkout. Starts the Checkout saga instance.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who placed the order (JWT sub)."
+        },
+        {
+            "name": "Items",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "OrderItemCreated",
+                    "namespace": "Ordering.Orders",
+                    "fields": [
+                        {
+                            "name": "ProductId",
+                            "type": {
+                                "type": "string",
+                                "logicalType": "uuid"
+                            },
+                            "doc": "Catalog product identifier for this line."
+                        },
+                        {
+                            "name": "Sku",
+                            "type": "string",
+                            "doc": "Catalog SKU snapshot at order creation time."
+                        },
+                        {
+                            "name": "Name",
+                            "type": "string",
+                            "doc": "Product display name snapshot at order creation time."
+                        },
+                        {
+                            "name": "Quantity",
+                            "type": "int",
+                            "doc": "Quantity of this line (>= 1)."
+                        },
+                        {
+                            "name": "UnitPriceAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "Per-unit price amount."
+                        },
+                        {
+                            "name": "LineTotalAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "UnitPriceAmount * Quantity, pre-computed."
+                        }
+                    ]
+                }
+            },
+            "doc": "Order line items with frozen product snapshots and prices."
+        },
+        {
+            "name": "TotalAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Total order amount (sum of LineTotalAmount)."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code shared by all items."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payments-side payment method reference."
+        },
+        {
+            "name": "CreatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the order was created."
+        }
+    ]
+}

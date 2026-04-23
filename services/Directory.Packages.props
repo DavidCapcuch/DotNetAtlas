@@ -21,6 +21,10 @@
         <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0"/>
         <PackageVersion Include="FluentResults" Version="4.0.0"/>
 
+        <!-- Options -->
+        <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.6"/>
+        <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.6"/>
+
         <!-- Kafka -->
         <PackageVersion Include="Confluent.SchemaRegistry" Version="2.13.0"/>
         <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.13.0"/>

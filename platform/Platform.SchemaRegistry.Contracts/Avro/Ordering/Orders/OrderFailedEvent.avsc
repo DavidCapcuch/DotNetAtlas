@@ -1,0 +1,65 @@
+{
+    "type": "record",
+    "name": "OrderFailedEvent",
+    "namespace": "Ordering.Orders",
+    "doc": "Emitted when the Order transitions to a terminal Failed state. Downstream consumers notify the buyer and reverse any applied compensations.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order that failed."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who placed the order."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable error message."
+        },
+        {
+            "name": "AtStatus",
+            "type": {
+                "type": "enum",
+                "name": "OrderStatusAtTransition",
+                "namespace": "Ordering.Orders",
+                "symbols": [
+                    "Created",
+                    "StockReserved",
+                    "PaymentCompleted",
+                    "Confirmed"
+                ]
+            },
+            "doc": "OrderStatus just before failure."
+        },
+        {
+            "name": "FailedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the order failed."
+        }
+    ]
+}

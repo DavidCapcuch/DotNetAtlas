@@ -1,0 +1,32 @@
+{
+    "type": "record",
+    "name": "OrderDeliveredEvent",
+    "namespace": "Ordering.Orders",
+    "doc": "Emitted when the carrier confirms delivery. Terminal happy-path event for the order lifecycle.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order that was delivered."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who placed the order."
+        },
+        {
+            "name": "DeliveredAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the order was delivered."
+        }
+    ]
+}

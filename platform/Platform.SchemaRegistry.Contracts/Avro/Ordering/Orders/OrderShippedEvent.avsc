@@ -1,0 +1,50 @@
+{
+    "type": "record",
+    "name": "OrderShippedEvent",
+    "namespace": "Ordering.Orders",
+    "doc": "Emitted when the Order is handed to a carrier with a tracking number.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order that was shipped."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id (carried post-saga for forensic continuity; saga itself is finalised by this point)."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who placed the order."
+        },
+        {
+            "name": "Carrier",
+            "type": "string",
+            "doc": "Shipping carrier name (e.g., 'FedEx', 'DHL', 'UPS')."
+        },
+        {
+            "name": "TrackingNumber",
+            "type": "string",
+            "doc": "Carrier-assigned tracking number."
+        },
+        {
+            "name": "ShippedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the order was shipped."
+        }
+    ]
+}

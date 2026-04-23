@@ -1,0 +1,40 @@
+{
+    "type": "record",
+    "name": "OrderConfirmedEvent",
+    "namespace": "Ordering.Orders",
+    "doc": "Emitted when the Order has been successfully confirmed (stock reserved AND payment completed).",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order that was confirmed."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id. Consumers can correlate this event with the saga run."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who placed the order."
+        },
+        {
+            "name": "ConfirmedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the order was confirmed."
+        }
+    ]
+}

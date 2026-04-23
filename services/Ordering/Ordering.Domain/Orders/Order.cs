@@ -177,6 +177,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             OrderId = order.Id,
             BuyerId = order.BuyerId,
             CorrelationId = order.CorrelationId,
+            PaymentMethodId = order.PaymentMethodId,
             Items = items.Select(i => new OrderCreatedDomainEventItem(
                 i.ProductId,
                 i.ProductSnapshot.Sku,
