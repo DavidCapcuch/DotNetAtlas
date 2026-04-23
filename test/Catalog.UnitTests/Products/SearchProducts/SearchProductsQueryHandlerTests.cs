@@ -112,6 +112,27 @@ public class SearchProductsQueryHandlerTests
     }
 
     [Fact]
+    public async Task Given_CategoryPathPrefix_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
+    {
+        // "/electronics" must match itself and its descendants, but NOT "/electronics-toys".
+        await using var db = FakeCatalogDbContext.Create();
+        db.ProductSearchView.AddRange(
+            ProductSearchViewRowBuilder.Active("EXACT", categoryPath: "/electronics"),
+            ProductSearchViewRowBuilder.Active("CHILD", categoryPath: "/electronics/laptops"),
+            ProductSearchViewRowBuilder.Active("SIBLING", categoryPath: "/electronics-toys"));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+
+        var result = await handler.HandleAsync(
+            new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 },
+            TestContext.Current.CancellationToken);
+
+        result.Should().BeSuccess();
+        result.Value.Items.Select(i => i.Sku).Should().BeEquivalentTo(["EXACT", "CHILD"]);
+    }
+
+    [Fact]
     public async Task Given_PriceRange_When_Searching_Then_FiltersInclusive()
     {
         await using var db = FakeCatalogDbContext.Create();

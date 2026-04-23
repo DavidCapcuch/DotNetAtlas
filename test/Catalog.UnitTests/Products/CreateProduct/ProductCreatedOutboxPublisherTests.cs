@@ -19,7 +19,6 @@ public class ProductCreatedOutboxPublisherTests
     {
         CatalogProducts = "catalog.products",
         CatalogCategories = "catalog.categories",
-        DltTopicSuffix = ".DLT",
     };
 
     [Fact]

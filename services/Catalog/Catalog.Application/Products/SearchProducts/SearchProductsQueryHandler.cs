@@ -54,8 +54,12 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
 
         if (!string.IsNullOrEmpty(query.CategoryPathPrefix))
         {
+            // Segment-bounded prefix match: "/electronics" must match "/electronics" and
+            // "/electronics/laptops" but NOT siblings like "/electronics-toys".
             var prefix = query.CategoryPathPrefix;
-            queryable = queryable.Where(r => r.CategoryPath.StartsWith(prefix));
+            var prefixWithSeparator = prefix + "/";
+            queryable = queryable.Where(r =>
+                r.CategoryPath == prefix || r.CategoryPath.StartsWith(prefixWithSeparator));
         }
 
         if (query.MinPrice.HasValue)

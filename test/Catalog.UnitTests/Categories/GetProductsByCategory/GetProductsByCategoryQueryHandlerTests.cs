@@ -73,6 +73,39 @@ public class GetProductsByCategoryQueryHandlerTests
     }
 
     [Fact]
+    public async Task Given_IncludeDescendantsTrue_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
+    {
+        // Root "/electronics" must match itself and its descendants, but NOT the sibling
+        // "/electronics-toys" whose raw path shares the leading substring.
+        await using var db = FakeCatalogDbContext.Create();
+        var root = CatalogFactories.RootCategory("Electronics");
+        db.Categories.Add(root);
+
+        db.ProductSearchView.Add(ProductSearchViewRowBuilder.Active(
+            sku: "EXACT", categoryId: root.Id, categoryPath: root.Path.Value));
+        db.ProductSearchView.Add(ProductSearchViewRowBuilder.Active(
+            sku: "CHILD", categoryPath: root.Path.Value + "/laptops"));
+        db.ProductSearchView.Add(ProductSearchViewRowBuilder.Active(
+            sku: "SIBLING", categoryPath: root.Path.Value + "-toys"));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var handler = new GetProductsByCategoryQueryHandler(db);
+
+        var result = await handler.HandleAsync(
+            new GetProductsByCategoryQuery
+            {
+                CategoryId = root.Id,
+                IncludeDescendants = true,
+                PageNumber = 1,
+                PageSize = 10,
+            },
+            TestContext.Current.CancellationToken);
+
+        result.Should().BeSuccess();
+        result.Value.Items.Select(i => i.Sku).Should().BeEquivalentTo(["EXACT", "CHILD"]);
+    }
+
+    [Fact]
     public async Task Given_UnknownCategoryWithDescendants_Then_ReturnsEmptyPage()
     {
         await using var db = FakeCatalogDbContext.Create();

@@ -18,7 +18,6 @@ public class ProductPriceChangedOutboxPublisherTests
     {
         CatalogProducts = "catalog.products",
         CatalogCategories = "catalog.categories",
-        DltTopicSuffix = ".DLT",
     };
 
     [Fact]

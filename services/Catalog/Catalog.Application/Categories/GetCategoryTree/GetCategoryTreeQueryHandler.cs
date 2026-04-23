@@ -38,7 +38,12 @@ public sealed class GetCategoryTreeQueryHandler
         IQueryable<Category> categoryQuery = _db.Categories.AsNoTracking();
         if (rootPath is not null)
         {
-            categoryQuery = categoryQuery.Where(c => c.Path.Value.StartsWith(rootPath));
+            // Segment-bounded prefix match — include the root itself plus descendants, but
+            // never siblings whose raw path shares a leading substring ("/electronics" must
+            // not match "/electronics-toys").
+            var rootPathWithSeparator = rootPath + "/";
+            categoryQuery = categoryQuery.Where(c =>
+                c.Path.Value == rootPath || c.Path.Value.StartsWith(rootPathWithSeparator));
         }
 
         var categories = await categoryQuery
