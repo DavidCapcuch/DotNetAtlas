@@ -1,0 +1,141 @@
+{
+    "type": "record",
+    "name": "BasketCheckoutInitiatedEvent",
+    "namespace": "Basket.Sessions",
+    "doc": "Emitted when a user checks out their basket. Triggers the Checkout Saga. The basket is deleted from Redis after this event is written to the outbox.",
+    "fields": [
+        {
+            "name": "BasketCorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation identifier for the checkout flow. Becomes the CorrelationId of the downstream Checkout Saga state machine. Generated when CheckoutBasketCommand is invoked."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the user whose basket is being checked out. Also the Kafka message key for partitioning."
+        },
+        {
+            "name": "Items",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "BasketCheckoutItem",
+                    "namespace": "Basket.Sessions",
+                    "doc": "One line of the basket at the moment of checkout. Prices reflect the snapshot captured at add-time (or at the last explicit refresh).",
+                    "fields": [
+                        {
+                            "name": "ProductId",
+                            "type": {
+                                "type": "string",
+                                "logicalType": "uuid"
+                            },
+                            "doc": "Catalog Product identifier. Consumers use this to reserve stock and to load authoritative product data."
+                        },
+                        {
+                            "name": "Sku",
+                            "type": "string",
+                            "doc": "Catalog SKU at the time of checkout. Copied from the snapshot for consumer convenience."
+                        },
+                        {
+                            "name": "Name",
+                            "type": "string",
+                            "doc": "Product name at the time of checkout. Copied from the snapshot for order history/display."
+                        },
+                        {
+                            "name": "UnitPriceAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "Snapshot unit price amount. Decimal 19,4 matches the Catalog price precision."
+                        },
+                        {
+                            "name": "UnitPriceCurrency",
+                            "type": "string",
+                            "doc": "ISO 4217 currency code of UnitPriceAmount. Uniform across all items (enforced by the Basket aggregate invariant)."
+                        },
+                        {
+                            "name": "Quantity",
+                            "type": "int",
+                            "doc": "Number of units of this product in the basket. Always >= 1."
+                        },
+                        {
+                            "name": "LineTotal",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "UnitPriceAmount * Quantity, pre-computed for consumer convenience. Equals the domain value of the line at checkout."
+                        }
+                    ]
+                }
+            },
+            "doc": "All line items of the basket at the moment of checkout. Never empty (empty-basket checkout is rejected at the aggregate)."
+        },
+        {
+            "name": "TotalAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Sum of all LineTotal values. Pre-computed so consumers do not have to re-sum; they SHOULD re-verify."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code for TotalAmount. Equals all item UnitPriceCurrency values."
+        },
+        {
+            "name": "ShippingAddress",
+            "type": {
+                "type": "record",
+                "name": "CheckoutAddress",
+                "namespace": "Basket.Sessions",
+                "doc": "Postal address supplied at checkout. Basket is a pass-through: it does not validate deeply (only non-empty + ISO country code) and does not persist addresses beyond this event. The Ordering service re-snapshots this into the Order aggregate.",
+                "fields": [
+                    { "name": "Street1", "type": "string", "doc": "Primary street line." },
+                    { "name": "Street2", "type": ["null", "string"], "default": null, "doc": "Optional second street line (apartment, suite, etc.)." },
+                    { "name": "City", "type": "string", "doc": "City name." },
+                    { "name": "State", "type": ["null", "string"], "default": null, "doc": "Optional state/province/region. Null for countries without this concept." },
+                    { "name": "PostalCode", "type": "string", "doc": "Postal or ZIP code." },
+                    { "name": "CountryCode", "type": "string", "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')." }
+                ]
+            },
+            "doc": "Shipping address collected by the BFF/client at checkout time and passed through the CheckoutBasketCommand. Basket does NOT own addresses; it carries this payload to the saga unchanged."
+        },
+        {
+            "name": "BillingAddress",
+            "type": "Basket.Sessions.CheckoutAddress",
+            "doc": "Billing address. Same shape as ShippingAddress; may be identical to it."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Reference to a saved payment method in the Payments service. Collected at checkout by the BFF/client; passed through unchanged. Validation is delegated to Payments during payment."
+        },
+        {
+            "name": "InitiatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the CheckoutBasketCommand was handled and the domain event was raised."
+        }
+    ]
+}

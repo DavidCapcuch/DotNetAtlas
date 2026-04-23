@@ -689,7 +689,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
   - `PaymentMethodId` — NotEmpty.
 - **Flow:**
   1. Load basket; 404 if absent.
-  2. Call `basket.Checkout(correlationId)` — raises `BasketCheckedOutDomainEvent` with full `BasketSnapshot`. `Result.Fail(BasketErrors.EmptyBasket)` if `Items.Count == 0`.
+  2. Call `basket.Checkout(correlationId, shippingAddress, billingAddress, paymentMethodId, utcNow)` — raises `BasketCheckedOutDomainEvent` carrying the full `BasketSnapshot` plus the three courier fields (see [ADR-0005](../adr/0005-customer-data-in-ordering.md); Basket ferries addresses + payment method but does not own them). `Result.Fail(BasketErrors.EmptyBasket)` if `Items.Count == 0`.
   3. **Transactional boundary:**
      - Open `BasketDbContext` transaction (only for outbox write).
      - `BasketCheckoutInitiatedOutboxPublisherDomainEventHandler` writes `BasketCheckoutInitiatedEvent` (Avro) to outbox, topic `basket.sessions`, key = `{UserId}`.

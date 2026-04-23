@@ -533,7 +533,12 @@ public class BasketTests
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
-        var result = basket.Checkout(Guid.CreateVersion7(), UtcNow);
+        var result = basket.Checkout(
+            Guid.CreateVersion7(),
+            BasketTestData.Address(),
+            BasketTestData.Address(),
+            Guid.CreateVersion7(),
+            UtcNow);
 
         using (new AssertionScope())
         {
@@ -553,8 +558,11 @@ public class BasketTests
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
         var correlationId = Guid.CreateVersion7();
+        var shipping = BasketTestData.Address("US");
+        var billing = BasketTestData.Address("CZ");
+        var paymentMethodId = Guid.CreateVersion7();
 
-        var result = basket.Checkout(correlationId, UtcNow);
+        var result = basket.Checkout(correlationId, shipping, billing, paymentMethodId, UtcNow);
 
         using (new AssertionScope())
         {
@@ -568,6 +576,9 @@ public class BasketTests
             evt.CorrelationId.Should().Be(correlationId);
             evt.Snapshot.Items.Should().ContainSingle();
             evt.Snapshot.Total.Amount.Amount.Should().Be(30m);
+            evt.ShippingAddress.Should().Be(shipping);
+            evt.BillingAddress.Should().Be(billing);
+            evt.PaymentMethodId.Should().Be(paymentMethodId);
         }
     }
 
@@ -577,10 +588,32 @@ public class BasketTests
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, UtcNow);
 
-        var act = () => basket.Checkout(Guid.Empty, UtcNow);
+        var act = () => basket.Checkout(
+            Guid.Empty,
+            BasketTestData.Address(),
+            BasketTestData.Address(),
+            Guid.CreateVersion7(),
+            UtcNow);
 
         act.Should().Throw<DataIntegrityException>()
             .WithMessage("*CorrelationId*");
+    }
+
+    [Fact]
+    public void Checkout_WhenPaymentMethodIdEmpty_ThrowsDataIntegrityException()
+    {
+        var basket = NewEmptyBasket();
+        basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, UtcNow);
+
+        var act = () => basket.Checkout(
+            Guid.CreateVersion7(),
+            BasketTestData.Address(),
+            BasketTestData.Address(),
+            Guid.Empty,
+            UtcNow);
+
+        act.Should().Throw<DataIntegrityException>()
+            .WithMessage("*PaymentMethodId*");
     }
 
     // ------------------------------------------------------------------

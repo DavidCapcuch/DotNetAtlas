@@ -1,0 +1,128 @@
+using Basket.Application.Abstractions;
+using Basket.Application.Baskets.Common.Contracts;
+using Basket.Application.Common.Data;
+using Basket.Domain.Baskets.Errors;
+using FluentResults;
+using Microsoft.Extensions.Logging;
+using Platform.CQRS;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.SharedKernel.Base.DomainEvents;
+using Platform.SharedKernel.ValueObjects;
+
+namespace Basket.Application.Baskets.Checkout;
+
+/// <summary>
+/// Handles <see cref="CheckoutBasketCommand"/> — the Basket BC's one terminal
+/// transition. Per <c>basket.md § 6.4</c>:
+/// <list type="number">
+///   <item>Loads the basket; 404-equivalent failure if absent or empty.</item>
+///   <item>Calls <c>basket.Checkout(...)</c>, which raises <c>BasketCheckedOutDomainEvent</c>
+///     carrying the snapshot plus the three pass-through courier fields.</item>
+///   <item>Dispatches the domain event. The fan-out includes
+///     <c>BasketCheckoutInitiatedOutboxPublisherDomainEventHandler</c>, which writes the Avro
+///     integration event to the outbox via <c>ITransactionalOutbox&lt;IBasketDbContext&gt;</c>.</item>
+///   <item>Issues <see cref="Platform.ReliableMessaging.Outbox.EFCore.ITransactionalOutbox{TContext}.SaveChangesAsync"/>
+///     to persist the outbox row. M4 writes exactly one row per checkout, so EF's implicit
+///     single-<c>SaveChanges</c> transaction is sufficient — no explicit
+///     <c>EnsureTransactionAsync</c> wrap is necessary here. <b>M6 must revisit</b>
+///     and wrap in <c>_outbox.Database.EnsureTransactionAsync(...)</c> once the concrete
+///     <c>BasketDbContext</c> (and any additional SQL writes inside the fan-out, such as
+///     future inbox deduplication entries) come online — matching the convention used by
+///     the Payments Kafka handlers.</item>
+///   <item>After the SQL commit succeeds, deletes the Redis entry via the repository's
+///     direct-<c>DEL</c> path. A delete failure is logged but NOT propagated — the outbox
+///     is the source of truth, and a stale Redis entry will be cleaned up on the next
+///     checkout attempt or at the 30-day TTL expiry.</item>
+/// </list>
+/// </summary>
+internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBasketCommand, Guid>
+{
+    private readonly IBasketRepository _repository;
+    private readonly ITransactionalOutbox<IBasketDbContext> _outbox;
+    private readonly IDomainEventDispatcher _dispatcher;
+    private readonly TimeProvider _timeProvider;
+    private readonly ILogger<CheckoutBasketCommandHandler> _logger;
+
+    public CheckoutBasketCommandHandler(
+        IBasketRepository repository,
+        ITransactionalOutbox<IBasketDbContext> outbox,
+        IDomainEventDispatcher dispatcher,
+        TimeProvider timeProvider,
+        ILogger<CheckoutBasketCommandHandler> logger)
+    {
+        _repository = repository;
+        _outbox = outbox;
+        _dispatcher = dispatcher;
+        _timeProvider = timeProvider;
+        _logger = logger;
+    }
+
+    public async Task<Result<Guid>> HandleAsync(CheckoutBasketCommand command, CancellationToken ct)
+    {
+        var shippingResult = ToAddress(command.ShippingAddress);
+        var billingResult = ToAddress(command.BillingAddress);
+        var addressResults = Result.Merge(shippingResult, billingResult);
+        if (addressResults.IsFailed)
+        {
+            return Result.Fail<Guid>(addressResults.Errors);
+        }
+
+        var loadResult = await _repository.GetByUserIdAsync(command.UserId, ct);
+        if (loadResult.IsFailed)
+        {
+            return loadResult.ToResult<Guid>();
+        }
+
+        var basket = loadResult.Value;
+        if (basket is null || basket.Items.Count == 0)
+        {
+            return Result.Fail<Guid>(BasketErrors.EmptyBasket());
+        }
+
+        var utcNow = _timeProvider.GetUtcNow();
+        var checkoutResult = basket.Checkout(
+            command.CorrelationId,
+            shippingResult.Value,
+            billingResult.Value,
+            command.PaymentMethodId,
+            utcNow);
+        if (checkoutResult.IsFailed)
+        {
+            return checkoutResult.ToResult<Guid>();
+        }
+
+        // Domain-event fan-out writes the outbox row via the publisher handler.
+        // SaveChangesAsync commits everything in EF's implicit transaction.
+        foreach (var domainEvent in basket.PopDomainEvents())
+        {
+            await _dispatcher.DispatchAsync(domainEvent, ct);
+        }
+
+        await _outbox.SaveChangesAsync(ct);
+
+        // After SQL commit — delete the Redis entry (bypasses FusionCache inside
+        // the repository). Failure here is recoverable: the outbox is the source
+        // of truth; a stale key will be cleaned on the next checkout or at TTL.
+        var deleteResult = await _repository.DeleteAsync(command.UserId, ct);
+        if (deleteResult.IsFailed)
+        {
+            _logger.LogWarning(
+                "Post-checkout Redis delete failed for user {UserId} after outbox commit; relying on next-checkout cleanup or TTL.",
+                command.UserId);
+        }
+
+        return Result.Ok(command.CorrelationId);
+    }
+
+    private static Result<Address> ToAddress(CheckoutAddressDto dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        return Address.Create(
+            dto.Street1,
+            dto.Street2,
+            dto.City,
+            dto.State,
+            dto.PostalCode,
+            dto.CountryCode);
+    }
+}
