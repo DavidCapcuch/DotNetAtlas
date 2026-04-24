@@ -1,0 +1,148 @@
+{
+    "type": "record",
+    "name": "CreateOrderCommand",
+    "namespace": "Ordering.Orders",
+    "doc": "Command issued by the Checkout saga to create a new Order from a BasketSnapshot. Ordering responds by persisting the Order aggregate and publishing OrderCreatedEvent. The saga correlates the resulting OrderCreatedEvent by CorrelationId.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id. Becomes Order.CorrelationId. Primary saga correlation key."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "JWT sub claim of the buyer. Captured by the saga at basket-checkout time."
+        },
+        {
+            "name": "Items",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "CreateOrderItem",
+                    "namespace": "Ordering.Orders",
+                    "doc": "One line of the order at creation time. Prices are frozen at checkout.",
+                    "fields": [
+                        {
+                            "name": "ProductId",
+                            "type": {
+                                "type": "string",
+                                "logicalType": "uuid"
+                            },
+                            "doc": "Catalog product identifier."
+                        },
+                        {
+                            "name": "Sku",
+                            "type": "string",
+                            "doc": "Catalog SKU snapshot."
+                        },
+                        {
+                            "name": "Name",
+                            "type": "string",
+                            "doc": "Product display name snapshot."
+                        },
+                        {
+                            "name": "UnitPriceAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "Per-unit price at checkout."
+                        },
+                        {
+                            "name": "UnitPriceCurrency",
+                            "type": "string",
+                            "doc": "ISO 4217 currency code. Uniform across all items."
+                        },
+                        {
+                            "name": "Quantity",
+                            "type": "int",
+                            "doc": "Quantity of units (>= 1)."
+                        }
+                    ]
+                }
+            },
+            "doc": "Order line items. Non-empty; rejected by the Order aggregate factory if empty."
+        },
+        {
+            "name": "ShippingAddress",
+            "type": {
+                "type": "record",
+                "name": "OrderAddress",
+                "namespace": "Ordering.Orders",
+                "doc": "Postal address for shipping or billing.",
+                "fields": [
+                    {
+                        "name": "Street1",
+                        "type": "string",
+                        "doc": "Primary street line (max 200 chars, required)."
+                    },
+                    {
+                        "name": "Street2",
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "default": null,
+                        "doc": "Secondary street line (max 200 chars, optional)."
+                    },
+                    {
+                        "name": "City",
+                        "type": "string",
+                        "doc": "City (max 100 chars, required)."
+                    },
+                    {
+                        "name": "State",
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "default": null,
+                        "doc": "State or province (max 100 chars, optional for countries that do not use one)."
+                    },
+                    {
+                        "name": "PostalCode",
+                        "type": "string",
+                        "doc": "Postal or ZIP code (max 20 chars, required)."
+                    },
+                    {
+                        "name": "CountryCode",
+                        "type": "string",
+                        "doc": "ISO 3166-1 alpha-2 country code (exactly 2 uppercase letters, required)."
+                    }
+                ]
+            },
+            "doc": "Address to ship the order to."
+        },
+        {
+            "name": "BillingAddress",
+            "type": "Ordering.Orders.OrderAddress",
+            "doc": "Address for billing. Same shape as ShippingAddress; reuses the OrderAddress record."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payments-side payment method reference. Opaque to Ordering."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga issued the CreateOrderCommand."
+        }
+    ]
+}

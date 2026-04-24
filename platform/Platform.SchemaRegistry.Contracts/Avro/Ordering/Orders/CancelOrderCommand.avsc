@@ -1,0 +1,37 @@
+{
+    "type": "record",
+    "name": "CancelOrderCommand",
+    "namespace": "Ordering.Orders",
+    "doc": "Command issued by the Checkout saga (or ops tooling) to cancel an Order. Ordering transitions to Cancelled and emits OrderCancelledEvent, which downstream consumers use to release stock and refund if captured.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order to cancel. Also the Kafka message key."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id. Present for admin-driven cancellations too (null-sentinel omitted for v1)."
+        },
+        {
+            "name": "Reason",
+            "type": "string",
+            "doc": "Human- or system-assigned cancellation reason (max 500 chars). Propagates to OrderCancelledEvent.Reason."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the cancellation was requested."
+        }
+    ]
+}

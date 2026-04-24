@@ -1,0 +1,42 @@
+{
+    "type": "record",
+    "name": "MarkOrderFailedCommand",
+    "namespace": "Ordering.Orders",
+    "doc": "Command issued by the Checkout saga to mark an Order as terminally Failed when a saga step times out or cannot be completed (e.g., stock reservation failed, payment failed). Ordering transitions to Failed and emits OrderFailedEvent.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order to fail. Also the Kafka message key."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable error message. Propagates to OrderFailedEvent.ErrorMessage."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga issued the command."
+        }
+    ]
+}
