@@ -1,0 +1,48 @@
+{
+    "type": "record",
+    "name": "PaymentAuthorizationFailedEvent",
+    "namespace": "Payments.Transactions",
+    "doc": "Event emitted when payment authorization fails. No funds were reserved.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the payment workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose payment authorization failed."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Error code from the payment provider (e.g., 'INSUFFICIENT_FUNDS', 'CARD_DECLINED', 'FRAUD_SUSPECTED')."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable error message."
+        },
+        {
+            "name": "IsRetryable",
+            "type": "boolean",
+            "doc": "Indicates whether this failure is retryable (e.g., temporary network issue vs. hard decline)."
+        },
+        {
+            "name": "FailedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when authorization failed."
+        }
+    ]
+}
+

@@ -1,0 +1,64 @@
+{
+    "type": "record",
+    "name": "PaymentRefundedEvent",
+    "namespace": "Payments.Transactions",
+    "doc": "Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the payment workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who received the refund."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Original payment transaction ID that was refunded."
+        },
+        {
+            "name": "RefundTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "New transaction ID for the refund."
+        },
+        {
+            "name": "RefundedAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Amount refunded."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code."
+        },
+        {
+            "name": "RefundedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when refund was completed."
+        }
+    ]
+}
+

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
-using Payments.Payments;
+using Payments.Transactions;
 using Platform.Test.Framework.Kafka;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
 using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;

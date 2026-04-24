@@ -1,0 +1,53 @@
+{
+    "type": "record",
+    "name": "PaymentCaptureFailedEvent",
+    "namespace": "Payments.Transactions",
+    "doc": "Event emitted when payment capture fails. The authorization should be voided.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the payment workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose payment capture failed."
+        },
+        {
+            "name": "AuthorizationId",
+            "type": "string",
+            "doc": "Authorization ID that failed to capture."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Error code from the payment provider."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable error message."
+        },
+        {
+            "name": "IsRetryable",
+            "type": "boolean",
+            "doc": "Indicates whether this failure is retryable."
+        },
+        {
+            "name": "FailedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when capture failed."
+        }
+    ]
+}
+

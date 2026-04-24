@@ -1,0 +1,48 @@
+{
+    "type": "record",
+    "name": "CapturePaymentCommand",
+    "namespace": "Payments.Transactions",
+    "doc": "Command sent by Payment Saga to capture an authorized payment.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose payment to capture."
+        },
+        {
+            "name": "AuthorizationId",
+            "type": "string",
+            "doc": "Authorization ID from the payment provider to capture."
+        },
+        {
+            "name": "Amount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Amount to capture (may be less than or equal to authorized amount)."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when capture was requested."
+        }
+    ]
+}
+
