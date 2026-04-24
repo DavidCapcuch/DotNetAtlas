@@ -737,11 +737,11 @@
       },
       "Microsoft.Extensions.Configuration": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "fypDLNI6JZe1ipJLYF0quEHa6I9qRQUNMRA1x8+BSY+KJn70BiNNPDSkJFrnAUdrJT+N2otJRm64xRhou0Em6w==",
+        "resolved": "10.0.0",
+        "contentHash": "H4SWETCh/cC5L1WtWchHR6LntGk3rDTTznZMssr4cL8IbDmMWBxY+MOGDc/ASnqNolLKPIWHWeuC1ddiL/iNPw==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Primitives": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Primitives": "10.0.0"
         }
       },
       "Microsoft.Extensions.Configuration.Abstractions": {
@@ -754,10 +754,11 @@
       },
       "Microsoft.Extensions.Configuration.Binder": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "7dJhJ9ebXxqNeuabYk2gkzMr3LtrIp2qw7Mt2TXjCiEJudcK0z9ogm4vzwEH6AgUUiU+tGcJq8reEomzLZnkcw==",
+        "resolved": "10.0.0",
+        "contentHash": "tMF9wNh+hlyYDWB8mrFCQHQmWHlRosol1b/N2Jrefy1bFLnuTlgSYmPyHNmz8xVQgs7DpXytBRWxGhG+mSTp0g==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0"
         }
       },
       "Microsoft.Extensions.Configuration.CommandLine": {
@@ -967,17 +968,17 @@
       },
       "Microsoft.Extensions.Logging.Configuration": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "P2dXt5+e7pDwTrK7V9wT/lJ0m5L0NvDGrjKb1XVLBXp3i6leNKG/knChvAp31vSHuypOxDN4HTnHKApNm69cFQ==",
+        "resolved": "10.0.0",
+        "contentHash": "j8zcwhS6bYB6FEfaY3nYSgHdpiL2T+/V3xjpHtslVAegyI1JUbB9yAt/BFdvZdsNbY0Udm4xFtvfT/hUwcOOOg==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Configuration.Binder": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Logging": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Options": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Logging": "10.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Options": "10.0.0",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.0"
         }
       },
       "Microsoft.Extensions.Logging.Console": {
@@ -1033,14 +1034,14 @@
       },
       "Microsoft.Extensions.Options.ConfigurationExtensions": {
         "type": "Transitive",
-        "resolved": "10.0.0-preview.6.25358.103",
-        "contentHash": "dx3KoYXwXtivveyBEDjxmYuFnN/ZyYWJWVn7vWInCP9D1MQ0WmXms7L4bPsC6Ad+4OYi0lNCYz3Tv3fyJ9DD2Q==",
+        "resolved": "10.0.0",
+        "contentHash": "tL9cSl3maS5FPzp/3MtlZI21ExWhni0nnUCF8HY4npTsINw45n9SNDbkKXBMtFyUFGSsQep25fHIDN4f/Vp3AQ==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Configuration.Binder": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Options": "10.0.0-preview.6.25358.103",
-          "Microsoft.Extensions.Primitives": "10.0.0-preview.6.25358.103"
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Options": "10.0.0",
+          "Microsoft.Extensions.Primitives": "10.0.0"
         }
       },
       "Microsoft.Extensions.Primitives": {
@@ -1155,11 +1156,11 @@
       },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "t6Vk1143BfiisCWYbRcyzkAuN6Aq5RkYtfOSMoqCIRMvtN9p1e1xzc0nWQ+fccNGOVgHn3aMK5xFn2+iWMcr8A==",
+        "resolved": "1.15.3",
+        "contentHash": "SYn0lqYDwLMWhv/zlNGsQcl2yX++yTumanX46bmOZE/ZDOd1WjPBO2kZaZgKLEZTZk48pavIFGJ6vOvxXgWVFQ==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.0",
-          "OpenTelemetry.Api": "1.12.0"
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
+          "OpenTelemetry.Api": "1.15.3"
         }
       },
       "OpenTelemetry.Instrumentation.Hangfire": {
@@ -1527,15 +1528,15 @@
           "Microsoft.Build.Tasks.Core": "[18.4.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.6, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.1, )",
-          "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.12.0, )",
-          "OpenTelemetry.Exporter.Prometheus.AspNetCore": "[1.12.0-beta.1, )",
-          "OpenTelemetry.Extensions.Hosting": "[1.12.0, )",
-          "OpenTelemetry.Instrumentation.AspNetCore": "[1.12.0, )",
-          "OpenTelemetry.Instrumentation.Http": "[1.12.0, )",
-          "OpenTelemetry.Instrumentation.Process": "[1.12.0-beta.1, )",
-          "OpenTelemetry.Instrumentation.Runtime": "[1.12.0, )",
-          "OpenTelemetry.Resources.Container": "[1.12.0-beta.1, )",
-          "OpenTelemetry.Resources.Host": "[1.12.0-beta.1, )",
+          "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.15.3, )",
+          "OpenTelemetry.Exporter.Prometheus.AspNetCore": "[1.15.3-beta.1, )",
+          "OpenTelemetry.Extensions.Hosting": "[1.15.3, )",
+          "OpenTelemetry.Instrumentation.AspNetCore": "[1.15.2, )",
+          "OpenTelemetry.Instrumentation.Http": "[1.15.1, )",
+          "OpenTelemetry.Instrumentation.Process": "[1.15.1-beta.1, )",
+          "OpenTelemetry.Instrumentation.Runtime": "[1.15.1, )",
+          "OpenTelemetry.Resources.Container": "[1.15.1-beta.1, )",
+          "OpenTelemetry.Resources.Host": "[1.15.1-beta.1, )",
           "Platform.ReliableMessaging.Outbox.Core": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.ServiceDefaults": "[1.0.0, )"
@@ -1559,7 +1560,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
@@ -1594,7 +1595,7 @@
           "Microsoft.Extensions.Http.Resilience": "[9.9.0, )",
           "OpenFeature": "[2.12.0, )",
           "OpenFeature.Hosting": "[2.12.0, )",
-          "OpenTelemetry": "[1.12.0, )",
+          "OpenTelemetry": "[1.15.3, )",
           "Platform.SharedKernel": "[1.0.0, )",
           "Serilog.AspNetCore": "[9.0.0, )",
           "Serilog.Exceptions": "[8.4.0, )",
@@ -1622,7 +1623,7 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )",
           "Evolve": "[3.2.0, )",
           "FastEndpoints.Testing": "[7.0.1, )",
-          "OpenTelemetry": "[1.12.0, )",
+          "OpenTelemetry": "[1.15.3, )",
           "Respawn": "[7.0.0, )",
           "StackExchange.Redis": "[2.8.31, )",
           "Testcontainers.Kafka": "[4.11.0, )",
@@ -2047,24 +2048,24 @@
       },
       "OpenTelemetry": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "aIEu2O3xFOdwIVH0AJsIHPIMH1YuX18nzu7BHyaDNQ6NWSk4Zyrs9Pp6y8SATuSbvdtmvue4mj/QZ3838srbwA==",
+        "requested": "[1.15.3, )",
+        "resolved": "1.15.3",
+        "contentHash": "N0i6WjPoHPbZyms1ugbDIFAJFuGlpeExJMU/+XSL0lQRUkg/D0utFkDoLXf8Z1km5B+xVZ2GyMXXiX8qdeNmPg==",
         "dependencies": {
-          "Microsoft.Extensions.Diagnostics.Abstractions": "9.0.0",
-          "Microsoft.Extensions.Logging.Configuration": "9.0.0",
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.12.0"
+          "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Logging.Configuration": "10.0.0",
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.15.3"
         }
       },
       "OpenTelemetry.Api": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "Xt0qldi+iE2szGrM3jAqzEMEJd48YBtqI6mge0+ArXTZg3aTpRmyhL6CKKl3bLioaFSSVbBpEbPin8u6Z46Yrw=="
+        "requested": "[1.15.3, )",
+        "resolved": "1.15.3",
+        "contentHash": "fX+fkCysfPut+qCcT3bKqyX4QN9Saf4CgX8HLOHywEVD+Xr7sULtfuypITpoDysjx8R59dn/3mWhgimMH8cm/g=="
       },
       "OpenTelemetry.Exporter.Console": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
+        "requested": "[1.15.3, )",
         "resolved": "1.12.0",
         "contentHash": "0sxyasnQ1B4YzvVbu9onZZ0WXGEQsuKqkaebsSlSMHHxMXCFvr6Ce2ABvU8p28AcEWPyu5k56fWYBa3fPvQFSQ==",
         "dependencies": {
@@ -2073,35 +2074,35 @@
       },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "7LzQSPhz5pNaL4xZgT3wkZODA1NLrEq3bet8KDHgtaJ9q+VNP7wmiZky8gQfMkB4FXuI/pevT8ZurL4p5997WA==",
+        "requested": "[1.15.3, )",
+        "resolved": "1.15.3",
+        "contentHash": "FEXJepcseTGbATiCkUfP7ipoFEYYfl/0UmmUwi0KxCPg9PaUA8ab2P1LGopK+/HExasJ1ZutFhZrN6WvUIR23g==",
         "dependencies": {
-          "OpenTelemetry": "1.12.0"
+          "OpenTelemetry": "1.15.3"
         }
       },
       "OpenTelemetry.Exporter.Prometheus.AspNetCore": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "S34hBEn/g5TuCBhHFqR+efyQ8YIJ6BOjg7L/zPGyGAGBbQX4kY/pfiMA9BPniHXwSJqaEnbgddB6OfMEVTniug==",
+        "requested": "[1.15.3-beta.1, )",
+        "resolved": "1.15.3-beta.1",
+        "contentHash": "ZnF47rY81rHF36UFVQPfx5eIAbSFEkyrYjDsKBFuFDeLzgeaC91cA455OOtqe7yRtsRKXoHGbkcZOsD9IipKgQ==",
         "dependencies": {
-          "OpenTelemetry": "[1.12.0, 2.0.0)"
+          "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Extensions.Hosting": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "6/8O6rsJRwslg5/Fm3bscBelw4Yh9T9CN24p7cAsuEFkrmmeSO9gkYUCK02Qi+CmPM2KHYTLjKi0lJaCsDMWQA==",
+        "requested": "[1.15.3, )",
+        "resolved": "1.15.3",
+        "contentHash": "u8n/W8yIlqv0BXZmvId1iVaeWXG42tGKdTkuLYg5g57Y/r9CeUNzqtrSHNdG5IoO8iPX79w3v+WsbAHgUQbfeg==",
         "dependencies": {
-          "Microsoft.Extensions.Hosting.Abstractions": "9.0.0",
-          "OpenTelemetry": "1.12.0"
+          "Microsoft.Extensions.Hosting.Abstractions": "10.0.0",
+          "OpenTelemetry": "1.15.3"
         }
       },
       "OpenTelemetry.Extensions.Propagators": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
+        "requested": "[1.15.3, )",
         "resolved": "1.12.0",
         "contentHash": "SfgZfpzob9WZ1k3KrtnO9JPzNaBBsPOSPKnHMMmxq9DLlzlcn+0OIe7obA8m1fuvihq+0rSZW+dJuofEnh9VHw==",
         "dependencies": {
@@ -2110,16 +2111,16 @@
       },
       "OpenTelemetry.Instrumentation.AspNetCore": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "r+Mzggd2P4N0Y34QIO6kakVPBOKFYSHnLkTrXXM+r37ABp+iaUvVUe+u/uxszsi5f7P5mrG0uYYaJ1QGHvzo3A==",
+        "requested": "[1.15.2, )",
+        "resolved": "1.15.2",
+        "contentHash": "2nPd7r0ug/gd6/CNFL6Rlu+RSQ9WYGSGHAYQ1ssbSqyzKJpqTunfx2I/1O0WB5k+L0cyXbG4XVZpoSoUc3M7wg==",
         "dependencies": {
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.12.0, 2.0.0)"
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Instrumentation.EntityFrameworkCore": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.2, )",
+        "requested": "[1.15.1-beta.1, )",
         "resolved": "1.12.0-beta.2",
         "contentHash": "4D2PLiJWbBbQbauojkIflT11WGVXoRU+xgox1mvOkpfm7YXIfwTtROOlcdscS51sMh5fgwjGKJtLWpLKppe7dw==",
         "dependencies": {
@@ -2130,49 +2131,49 @@
       },
       "OpenTelemetry.Instrumentation.Http": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "0rW+MbHgUQAdbvBtRxPYoQBosbNdWegL7cYkRlxq+KQ/VFyU8itt4pWTccmu1/FWmTgqJyT3LaujyDZoRrm8Yg==",
+        "requested": "[1.15.1, )",
+        "resolved": "1.15.1",
+        "contentHash": "vFO4Fj/dXkoVNGo/nhoGpO2zYQmZwr4jTID7oRGo+XlQ8LqksyZjUXQ4p39RfUvTID7IzzL8Qe71tW7CcAFymA==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration": "9.0.0",
-          "Microsoft.Extensions.Options": "9.0.0",
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.12.0, 2.0.0)"
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Options": "10.0.0",
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Instrumentation.Process": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "GrjqeNzH94WOpUpKO7xO13NjBujk0wxvxzGBFuvU+kIAzMB22a4PzOGPrvQivx27RIKaFH+psQP6dTPUmv/8sA==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "u9o2+eOow9Aua1NWyvW5ovsnWXmjW/0qzUUdIvrJTd4lIV9WAydtoDg5X34/9gYWoYU+VYjr/Yc5rlHX5geP4w==",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, 2.0.0)"
+          "OpenTelemetry.Api": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Instrumentation.Runtime": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "xmd0TAm2x+T3ztdf5BolIwLPh+Uy6osaBeIQtCXv611PN7h/Pnhsjg5lU2hkAWj7M7ns74U5wtVpS8DXmJ+94w==",
+        "requested": "[1.15.1, )",
+        "resolved": "1.15.1",
+        "contentHash": "cpPwlUT5HXcLGPaIgsbSy0W9eFYAPGVbTP1p8/uyQ4Osvf5BJuPpEXE7crL09SmEd44r0DGNKDtsqxaAz0HxQw==",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, 2.0.0)"
+          "OpenTelemetry.Api": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Resources.Container": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "a/R9ru7FWV9UhlySwX8CfTCroYNSDint0ZaIGNFnXhTBgXbbWEm31/YCGjFtqXQxqB+K11vt1d9rumdqK5klYA==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "CYHfth1cotlOhwH2S2EKZXDYqpLK+j9OYAb+JE05Y9dq4T9Zk0fbnrZODVsL7skuTicHeeMWmfjDOqR19HpBsA==",
         "dependencies": {
-          "OpenTelemetry": "[1.12.0, 2.0.0)"
+          "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Resources.Host": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "CXuz9kyuy8VIAkMy/vQHIXFFDsGXnOiBrfBLbDJSOa6XeIEKn+LEZ+lAu8QSN1CT7t0CS8VIswzS5OEpj4fKEg==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "fSj9NTFIr1HNGI+12XMpkvhFDOAgvphizWHxCScESMneOR3HXQUzHrxydZbZ5PPkXahYuXj4p+wJunGaaKCxXQ==",
         "dependencies": {
-          "OpenTelemetry": "[1.12.0, 2.0.0)"
+          "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
       },
       "Respawn": {

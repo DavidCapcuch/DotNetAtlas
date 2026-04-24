@@ -175,11 +175,6 @@
           "Microsoft.Extensions.Logging.Abstractions": "2.1.1"
         }
       },
-      "FluentValidation": {
-        "type": "Transitive",
-        "resolved": "12.0.0",
-        "contentHash": "8NVLxtMUXynRHJIX3Hn1ACovaqZIJASufXIIFkD0EUbcd5PmMsL1xUD5h548gCezJ5BzlITaR9CAMrGe29aWpA=="
-      },
       "FluentValidation.DependencyInjectionExtensions": {
         "type": "Transitive",
         "resolved": "12.0.0",
@@ -369,8 +364,8 @@
       },
       "OpenTelemetry.Api": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "Xt0qldi+iE2szGrM3jAqzEMEJd48YBtqI6mge0+ArXTZg3aTpRmyhL6CKKl3bLioaFSSVbBpEbPin8u6Z46Yrw=="
+        "resolved": "1.15.3",
+        "contentHash": "fX+fkCysfPut+qCcT3bKqyX4QN9Saf4CgX8HLOHywEVD+Xr7sULtfuypITpoDysjx8R59dn/3mWhgimMH8cm/g=="
       },
       "Riok.Mapperly": {
         "type": "Transitive",
@@ -517,7 +512,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
@@ -569,6 +564,12 @@
           "Confluent.Kafka": "2.13.0",
           "Confluent.SchemaRegistry": "2.13.0"
         }
+      },
+      "FluentValidation": {
+        "type": "CentralTransitive",
+        "requested": "[12.0.0, )",
+        "resolved": "12.0.0",
+        "contentHash": "8NVLxtMUXynRHJIX3Hn1ACovaqZIJASufXIIFkD0EUbcd5PmMsL1xUD5h548gCezJ5BzlITaR9CAMrGe29aWpA=="
       }
     },
     "net10.0/linux-x64": {

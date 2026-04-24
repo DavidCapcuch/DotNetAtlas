@@ -115,6 +115,15 @@
           "StyleCop.Analyzers.Unstable": "1.2.0.556"
         }
       },
+      "Testcontainers.PostgreSql": {
+        "type": "Direct",
+        "requested": "[4.11.0, )",
+        "resolved": "4.11.0",
+        "contentHash": "OWGi0Og+qFpr2OPDignA74aJSfUd0nvZOaXNGWXwMJR1BvpdzhCNHQB2h7yLSTb0a8JVmmQQ4mUpHAC9q27NLw==",
+        "dependencies": {
+          "Testcontainers": "4.11.0"
+        }
+      },
       "xunit.analyzers": {
         "type": "Direct",
         "requested": "[1.24.0, )",
@@ -1570,26 +1579,26 @@
       },
       "OpenTelemetry": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "aIEu2O3xFOdwIVH0AJsIHPIMH1YuX18nzu7BHyaDNQ6NWSk4Zyrs9Pp6y8SATuSbvdtmvue4mj/QZ3838srbwA==",
+        "resolved": "1.15.3",
+        "contentHash": "N0i6WjPoHPbZyms1ugbDIFAJFuGlpeExJMU/+XSL0lQRUkg/D0utFkDoLXf8Z1km5B+xVZ2GyMXXiX8qdeNmPg==",
         "dependencies": {
-          "Microsoft.Extensions.Diagnostics.Abstractions": "9.0.0",
-          "Microsoft.Extensions.Logging.Configuration": "9.0.0",
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.12.0"
+          "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Logging.Configuration": "10.0.0",
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.15.3"
         }
       },
       "OpenTelemetry.Api": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "Xt0qldi+iE2szGrM3jAqzEMEJd48YBtqI6mge0+ArXTZg3aTpRmyhL6CKKl3bLioaFSSVbBpEbPin8u6Z46Yrw=="
+        "resolved": "1.15.3",
+        "contentHash": "fX+fkCysfPut+qCcT3bKqyX4QN9Saf4CgX8HLOHywEVD+Xr7sULtfuypITpoDysjx8R59dn/3mWhgimMH8cm/g=="
       },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "t6Vk1143BfiisCWYbRcyzkAuN6Aq5RkYtfOSMoqCIRMvtN9p1e1xzc0nWQ+fccNGOVgHn3aMK5xFn2+iWMcr8A==",
+        "resolved": "1.15.3",
+        "contentHash": "SYn0lqYDwLMWhv/zlNGsQcl2yX++yTumanX46bmOZE/ZDOd1WjPBO2kZaZgKLEZTZk48pavIFGJ6vOvxXgWVFQ==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.0",
-          "OpenTelemetry.Api": "1.12.0"
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
+          "OpenTelemetry.Api": "1.15.3"
         }
       },
       "OpenTelemetry.Exporter.Console": {
@@ -2282,7 +2291,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
@@ -2317,7 +2326,7 @@
           "Microsoft.Extensions.Http.Resilience": "[9.9.0, )",
           "OpenFeature": "[2.12.0, )",
           "OpenFeature.Hosting": "[2.12.0, )",
-          "OpenTelemetry": "[1.12.0, )",
+          "OpenTelemetry": "[1.15.3, )",
           "Platform.SharedKernel": "[1.0.0, )",
           "Serilog.AspNetCore": "[9.0.0, )",
           "Serilog.Exceptions": "[8.4.0, )",
@@ -2345,7 +2354,7 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )",
           "Evolve": "[3.2.0, )",
           "FastEndpoints.Testing": "[7.0.1, )",
-          "OpenTelemetry": "[1.12.0, )",
+          "OpenTelemetry": "[1.15.3, )",
           "Respawn": "[7.0.0, )",
           "StackExchange.Redis": "[2.8.31, )",
           "Testcontainers.Kafka": "[4.11.0, )",
@@ -2511,15 +2520,6 @@
         "requested": "[4.11.0, )",
         "resolved": "4.11.0",
         "contentHash": "akpJ35K/ZP99AkOoJRTi3ABu9zjtW/Uoak+9MDZyg3NPbKWqt1AA7P8OM/Eac4GQQkVV4NoHrKSINhs24yVpPQ==",
-        "dependencies": {
-          "Testcontainers": "4.11.0"
-        }
-      },
-      "Testcontainers.PostgreSql": {
-        "type": "CentralTransitive",
-        "requested": "[4.11.0, )",
-        "resolved": "4.11.0",
-        "contentHash": "OWGi0Og+qFpr2OPDignA74aJSfUd0nvZOaXNGWXwMJR1BvpdzhCNHQB2h7yLSTb0a8JVmmQQ4mUpHAC9q27NLw==",
         "dependencies": {
           "Testcontainers": "4.11.0"
         }
