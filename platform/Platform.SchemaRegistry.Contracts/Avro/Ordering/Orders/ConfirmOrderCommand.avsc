@@ -1,0 +1,32 @@
+{
+    "type": "record",
+    "name": "ConfirmOrderCommand",
+    "namespace": "Ordering.Orders",
+    "doc": "Command issued by the Checkout saga to confirm an Order after stock reservation and payment have both succeeded. Ordering transitions PaymentCompleted -> Confirmed and emits OrderConfirmedEvent.",
+    "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Order to confirm. Also the Kafka message key."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga issued the command."
+        }
+    ]
+}

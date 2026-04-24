@@ -1,0 +1,204 @@
+using Ardalis.Specification.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Ordering.Application.Common.Data;
+using Ordering.Application.Orders.CreateOrder;
+using Ordering.Domain.Baskets;
+using Ordering.Domain.Orders;
+using Ordering.Domain.Orders.Specifications;
+using Ordering.Infrastructure.Persistence.Database;
+using Ordering.IntegrationTests.Common;
+using Platform.SharedKernel.ValueObjects;
+
+namespace Ordering.IntegrationTests.Persistence;
+
+/// <summary>
+/// M4 smoke test: proves the Infrastructure layer can round-trip an
+/// <see cref="Order"/> aggregate through Postgres — OrderingDbContext,
+/// EF mappings (including <c>_enc</c> PII columns + owned Money + owned
+/// OrderItem collection), SmartEnum conversion, and the
+/// <c>DispatchDomainEventsInterceptor</c> all participate.
+/// Full Kafka saga-command ingress coverage lands in M7.
+/// </summary>
+[Collection(nameof(IntegrationTestCollection))]
+public sealed class OrderPersistenceTests
+{
+    private readonly IntegrationTestFixture _fixture;
+
+    public OrderPersistenceTests(IntegrationTestFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task Given_valid_basket_When_Order_created_and_saved_Then_round_trips_all_owned_types()
+    {
+        using var scope = _fixture.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+
+        var correlationId = Guid.CreateVersion7();
+        var buyerId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var productId = Guid.CreateVersion7();
+
+        var basketItems = new[]
+        {
+            new BasketSnapshotItem(
+                ProductId: productId,
+                Sku: "SKU-42",
+                Name: "Acme Widget",
+                Quantity: 2,
+                UnitPriceAmount: 19.99m),
+        };
+
+        var basket = new BasketSnapshot(buyerId, CurrencyCode.Eur, basketItems);
+
+        var shipping = Address.Create("221B Baker Street", null, "London", null, "NW1 6XE", "GB").Value;
+        var billing = Address.Create("10 Downing Street", null, "London", null, "SW1A 2AA", "GB").Value;
+
+        var order = Order.CreateFromBasket(
+            correlationId,
+            buyerId,
+            basket,
+            shipping,
+            billing,
+            paymentMethodId,
+            _fixture.FakeTime.GetUtcNow());
+
+        dbContext.Orders.Add(order);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Fresh scope to force a real DB read (bypass the change tracker).
+        using var readScope = _fixture.CreateScope();
+        var readContext = readScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+
+        var loaded = await readContext.Orders
+            .WithSpecification(new OrderByIdSpec(order.Id))
+            .Include(o => o.Items)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+        loaded.Should().NotBeNull();
+        loaded!.BuyerId.Should().Be(buyerId);
+        loaded.CorrelationId.Should().Be(correlationId);
+        loaded.PaymentMethodId.Should().Be(paymentMethodId);
+        loaded.Status.Should().Be(OrderStatus.Created);
+        loaded.Total.Amount.Should().Be(39.98m);
+        loaded.Total.Currency.Should().Be(CurrencyCode.Eur);
+
+        loaded.ShippingAddress.Street1.Should().Be("221B Baker Street");
+        loaded.ShippingAddress.CountryCode.Should().Be("GB");
+        loaded.BillingAddress.PostalCode.Should().Be("SW1A 2AA");
+
+        loaded.Items.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new
+            {
+                ProductId = productId,
+                Quantity = 2,
+                UnitPrice = new { Amount = 19.99m, Currency = CurrencyCode.Eur },
+                LineTotal = new { Amount = 39.98m, Currency = CurrencyCode.Eur },
+                ProductSnapshot = new { Sku = "SKU-42", Name = "Acme Widget" },
+            });
+
+        // Audit-interceptor stamps set from FakeTimeProvider.
+        loaded.CreatedUtc.Should().Be(_fixture.FakeTime.GetUtcNow());
+        loaded.LastModifiedUtc.Should().Be(_fixture.FakeTime.GetUtcNow());
+    }
+
+    [Fact]
+    public async Task Given_same_CorrelationId_When_inserted_twice_Then_second_save_is_blocked_by_unique_index()
+    {
+        using var scope = _fixture.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+
+        var correlationId = Guid.CreateVersion7();
+        var buyerId = Guid.CreateVersion7();
+        var paymentMethodId = Guid.CreateVersion7();
+        var basket = new BasketSnapshot(buyerId, CurrencyCode.Usd,
+        [
+            new BasketSnapshotItem(
+                ProductId: Guid.CreateVersion7(),
+                Sku: "SKU-1",
+                Name: "Duplicate test",
+                Quantity: 1,
+                UnitPriceAmount: 10m),
+        ]);
+        // EF's owned-entity change tracker requires distinct instances per owner slot,
+        // so construct fresh Addresses for shipping vs billing and for the two Orders.
+        static Address Addr() => Address.Create("1 Test Ln", null, "Palo Alto", "CA", "94301", "US").Value;
+
+        var first = Order.CreateFromBasket(
+            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, _fixture.FakeTime.GetUtcNow());
+        var second = Order.CreateFromBasket(
+            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, _fixture.FakeTime.GetUtcNow());
+
+        dbContext.Orders.Add(first);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.Orders.Add(second);
+
+        await FluentActions
+            .Awaiting(() => dbContext.SaveChangesAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<DbUpdateException>("CorrelationId is unique per Order");
+    }
+
+    /// <summary>
+    /// Exercises the <see cref="CreateOrderCommandHandler"/> idempotency branch
+    /// against the real Postgres-backed <see cref="OrderingDbContext"/> — a
+    /// Kafka redelivery (or saga retry) of the same <c>CorrelationId</c> must
+    /// return the original <c>OrderId</c> without raising the unique-index
+    /// error (the pre-check short-circuits before insert).
+    /// </summary>
+    [Fact]
+    public async Task Given_duplicate_CorrelationId_When_handler_invoked_twice_Then_second_returns_existing_OrderId()
+    {
+        using var scope = _fixture.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<CreateOrderCommandHandler>>();
+        var handler = new CreateOrderCommandHandler(
+            (IOrderingDbContext)dbContext,
+            _fixture.FakeTime,
+            logger);
+
+        var correlationId = Guid.CreateVersion7();
+        var command = new CreateOrderCommand
+        {
+            CorrelationId = correlationId,
+            BuyerId = Guid.CreateVersion7(),
+            PaymentMethodId = Guid.CreateVersion7(),
+            Currency = CurrencyCode.Usd.Name,
+            Items =
+            [
+                new CreateOrderItemInput(
+                    ProductId: Guid.CreateVersion7(),
+                    Sku: "IDEMPOTENT-SKU",
+                    Name: "Idempotent widget",
+                    Quantity: 1,
+                    UnitPriceAmount: 42m),
+            ],
+            ShippingAddress = new AddressInput(
+                "1 Idempotent Way", null, "Palo Alto", "CA", "94301", "US"),
+            BillingAddress = new AddressInput(
+                "1 Idempotent Way", null, "Palo Alto", "CA", "94301", "US"),
+            RequestedAtUtc = _fixture.FakeTime.GetUtcNow(),
+        };
+
+        var first = await handler.HandleAsync(command, TestContext.Current.CancellationToken);
+        first.IsSuccess.Should().BeTrue();
+
+        // Second dispatch with the same CorrelationId — handler's pre-check
+        // should short-circuit and return the same OrderId, NOT throw DbUpdateException.
+        var second = await handler.HandleAsync(command, TestContext.Current.CancellationToken);
+        second.IsSuccess.Should().BeTrue();
+        second.Value.Should().Be(first.Value, "replay must be idempotent on CorrelationId");
+
+        // And only ONE row actually persisted.
+        using var verifyScope = _fixture.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+        var count = await verifyContext.Orders
+            .AsNoTracking()
+            .CountAsync(o => o.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+        count.Should().Be(1);
+    }
+}
