@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="FastEndpoints.Testing" />
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="Testcontainers.PostgreSql" />
+        <PackageReference Include="Testcontainers.Kafka" />
+        <PackageReference Include="Confluent.Kafka" />
+        <PackageReference Include="WireMock.Net" />
+        <PackageReference Include="Respawn" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\services\Payments\Payments.Api\Payments.Api.csproj" />
+        <ProjectReference Include="..\Payments.IntegrationTests\Payments.IntegrationTests.csproj" />
+    </ItemGroup>
+</Project>
