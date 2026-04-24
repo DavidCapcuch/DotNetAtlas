@@ -1,7 +1,7 @@
 using System.Text;
 using KafkaFlow;
 using Microsoft.Extensions.Options;
-using Payments.Payments;
+using Payments.Transactions;
 using Platform.Messaging.Abstractions;
 using Weather.Alerts;
 using Weather.Application.Common.Messaging;

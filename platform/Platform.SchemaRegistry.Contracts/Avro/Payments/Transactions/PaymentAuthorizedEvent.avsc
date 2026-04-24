@@ -1,0 +1,61 @@
+{
+    "type": "record",
+    "name": "PaymentAuthorizedEvent",
+    "namespace": "Payments.Transactions",
+    "doc": "Event emitted when a payment has been successfully authorized by the payment provider. The funds are reserved but not yet captured.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID for tracking the payment workflow."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User whose payment was authorized."
+        },
+        {
+            "name": "AuthorizationId",
+            "type": "string",
+            "doc": "Authorization ID from the payment provider. Used for capture or void operations."
+        },
+        {
+            "name": "Amount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Authorized payment amount."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code."
+        },
+        {
+            "name": "AuthorizedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when authorization was granted."
+        },
+        {
+            "name": "ExpiresAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the authorization expires. Must capture before this time."
+        }
+    ]
+}
+

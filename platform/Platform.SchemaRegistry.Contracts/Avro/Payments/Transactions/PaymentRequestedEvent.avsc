@@ -1,0 +1,61 @@
+{
+    "type": "record",
+    "name": "PaymentRequestedEvent",
+    "namespace": "Payments.Transactions",
+    "doc": "Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.).",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Correlation ID shared across the entire business flow (e.g., purchase → payment → activation)."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User initiating the payment."
+        },
+        {
+            "name": "PaymentMethodId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "ID of the saved payment method to use for this transaction."
+        },
+        {
+            "name": "Amount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Payment amount."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code (e.g., 'USD', 'EUR')."
+        },
+        {
+            "name": "IdempotencyKey",
+            "type": "string",
+            "doc": "Idempotency key for preventing duplicate payment processing."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when payment was requested."
+        }
+    ]
+}
+

@@ -2,12 +2,12 @@ using KafkaFlow;
 using Microsoft.Extensions.Options;
 using Payments.Common.Config.Kafka;
 using Payments.Common.Persistence.Database;
-using Payments.Payments;
+using Payments.Transactions;
 using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
-namespace Payments.Payments.CapturePayment;
+namespace Payments.Transactions.CapturePayment;
 
 /// <summary>
 /// Handles CapturePaymentCommand from the Payment Processing Saga.

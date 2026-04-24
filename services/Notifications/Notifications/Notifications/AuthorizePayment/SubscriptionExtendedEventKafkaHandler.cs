@@ -2,7 +2,7 @@ using KafkaFlow;
 using Microsoft.Extensions.Options;
 using Notifications.Common.Config;
 using Notifications.Common.Persistence.Database;
-using Payments.Payments;
+using Payments.Transactions;
 using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;

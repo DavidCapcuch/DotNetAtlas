@@ -2,12 +2,12 @@ using KafkaFlow;
 using Microsoft.Extensions.Options;
 using Payments.Common.Config.Kafka;
 using Payments.Common.Persistence.Database;
-using Payments.Payments;
+using Payments.Transactions;
 using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
-namespace Payments.Payments.RequestRefund;
+namespace Payments.Transactions.RequestRefund;
 
 /// <summary>
 /// Handles RequestRefundCommand from the Payment Processing Saga.
