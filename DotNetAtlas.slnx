@@ -84,6 +84,12 @@
     <Project Path="services/Inventory/Inventory.Domain/Inventory.Domain.csproj" />
     <Project Path="services/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/services/Invoicing/">
+    <Project Path="services/Invoicing/Invoicing.API/Invoicing.API.csproj" />
+    <Project Path="services/Invoicing/Invoicing.Application/Invoicing.Application.csproj" />
+    <Project Path="services/Invoicing/Invoicing.Domain/Invoicing.Domain.csproj" />
+    <Project Path="services/Invoicing/Invoicing.Infrastructure/Invoicing.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/services/Ordering/">
     <Project Path="services/Ordering/Ordering.API/Ordering.API.csproj" />
     <Project Path="services/Ordering/Ordering.Application/Ordering.Application.csproj" />
@@ -132,6 +138,10 @@
     <Project Path="test/Inventory.FunctionalTests/Inventory.FunctionalTests.csproj" />
     <Project Path="test/Inventory.IntegrationTests/Inventory.IntegrationTests.csproj" />
     <Project Path="test/Inventory.UnitTests/Inventory.UnitTests.csproj" />
+    <Project Path="test/Invoicing.ArchitectureTests/Invoicing.ArchitectureTests.csproj" />
+    <Project Path="test/Invoicing.FunctionalTests/Invoicing.FunctionalTests.csproj" />
+    <Project Path="test/Invoicing.IntegrationTests/Invoicing.IntegrationTests.csproj" />
+    <Project Path="test/Invoicing.UnitTests/Invoicing.UnitTests.csproj" />
     <Project Path="test/Ordering.ArchitectureTests/Ordering.ArchitectureTests.csproj" />
     <Project Path="test/Ordering.FunctionalTests/Ordering.FunctionalTests.csproj" />
     <Project Path="test/Ordering.IntegrationTests/Ordering.IntegrationTests.csproj" />
