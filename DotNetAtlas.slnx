@@ -102,7 +102,10 @@
   </Folder>
   <Folder Name="/services/Payments/">
     <File Path="services/Payments/README.md" />
-    <Project Path="services/Payments/Payments/Payments.csproj" />
+    <Project Path="services/Payments/Payments.Api/Payments.Api.csproj" />
+    <Project Path="services/Payments/Payments.Application/Payments.Application.csproj" />
+    <Project Path="services/Payments/Payments.Domain/Payments.Domain.csproj" />
+    <Project Path="services/Payments/Payments.Infrastructure/Payments.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
@@ -146,6 +149,10 @@
     <Project Path="test/Ordering.FunctionalTests/Ordering.FunctionalTests.csproj" />
     <Project Path="test/Ordering.IntegrationTests/Ordering.IntegrationTests.csproj" />
     <Project Path="test/Ordering.UnitTests/Ordering.UnitTests.csproj" />
+    <Project Path="test/Payments.ArchitectureTests/Payments.ArchitectureTests.csproj" />
+    <Project Path="test/Payments.FunctionalTests/Payments.FunctionalTests.csproj" />
+    <Project Path="test/Payments.IntegrationTests/Payments.IntegrationTests.csproj" />
+    <Project Path="test/Payments.UnitTests/Payments.UnitTests.csproj" />
     <Project Path="test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj" />
     <Project Path="test/Weather.FunctionalTests/Weather.FunctionalTests.csproj" />
     <Project Path="test/Weather.IntegrationTests/Weather.IntegrationTests.csproj" />

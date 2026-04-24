@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <PackageReference Include="Ardalis.SmartEnum" />
+        <PackageReference Include="FluentResults" />
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Payments.Application"/>
+        <InternalsVisibleTo Include="Payments.Infrastructure"/>
+        <InternalsVisibleTo Include="Payments.UnitTests"/>
+    </ItemGroup>
+</Project>
