@@ -1,5 +1,7 @@
 using Azure.Storage.Blobs;
+using Invoicing.Application.Pdf;
 using Invoicing.Infrastructure.Blobs;
+using Invoicing.Infrastructure.Pdf;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -8,10 +10,10 @@ namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
 /// DI extensions for the Invoicing infrastructure layer.
-/// M1 stub \u2192 M3 adds <c>IBlobStore</c> + Azurite adapter. Subsequent milestones wire:
-///   M4 \u2014 <c>IPdfGenerator</c> + QuestPDF adapter
-///   M5 \u2014 <c>InvoicingDbContext</c> + outbox/inbox + allocator services
-///   M6 \u2014 KafkaFlow consumers + inbox dedup
+/// M1 stub → M3 adds <c>IBlobStore</c> + Azurite adapter → M4 adds <c>IPdfGenerator</c>
+/// + QuestPDF adapter. Subsequent milestones wire:
+///   M5 — <c>InvoicingDbContext</c> + outbox/inbox + allocator services
+///   M6 — KafkaFlow consumers + inbox dedup
 /// </summary>
 public static class InfrastructureDependencyInjection
 {
@@ -26,8 +28,9 @@ public static class InfrastructureDependencyInjection
         _ = isDeployedEnvironment; // reserved for env-specific wiring in later milestones.
 
         services.AddBlobStorage(configuration);
+        services.AddPdfGeneration(configuration);
 
-        // M4+: AddPdfGeneration, AddPersistence, AddMessaging, AddHealthChecks.
+        // M5+: AddPersistence, AddMessaging, AddHealthChecks.
         return services;
     }
 
@@ -53,6 +56,22 @@ public static class InfrastructureDependencyInjection
         });
 
         services.AddSingleton<IBlobStore, AzureBlobStore>();
+
+        return services;
+    }
+
+    internal static IServiceCollection AddPdfGeneration(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Seller-side display strings (legal entity name + legal footer) live under the
+        // PdfGeneration section. The adapter itself (QuestPdfInvoiceGenerator) holds no
+        // mutable state and is registered as a singleton, matching AzureBlobStore above.
+        services
+            .AddOptions<PdfGenerationOptions>()
+            .Bind(configuration.GetSection(PdfGenerationOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton<IPdfGenerator, QuestPdfInvoiceGenerator>();
 
         return services;
     }
