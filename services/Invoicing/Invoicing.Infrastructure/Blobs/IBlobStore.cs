@@ -1,0 +1,60 @@
+using Invoicing.Domain.Common.ValueObjects;
+
+namespace Invoicing.Infrastructure.Blobs;
+
+/// <summary>
+/// Abstraction over blob storage per ADR-0017. Production targets Azure Blob Storage;
+/// local dev + integration tests run against Azurite. The implementation uses the
+/// <c>Azure.Storage.Blobs</c> SDK directly (one infrastructure consumer so the v1
+/// abstraction lives here; promoted to <c>Platform.BlobStorage.*</c> only when a
+/// second BC needs it per ADR-0017 \u00a7 Implementation Notes).
+/// </summary>
+/// <remarks>
+/// Architecture rule (ADR-0017 \u00a7 IBlobStore abstraction): Application and Domain layers
+/// must go through this interface and never reference <c>Azure.Storage.Blobs</c> directly.
+/// Enforced by architecture test in M9.
+/// </remarks>
+public interface IBlobStore
+{
+    /// <summary>
+    /// Uploads <paramref name="content"/> to the given container under
+    /// <paramref name="blobName"/>. Computes SHA-256 of the content as the integrity
+    /// digest, uploads the bytes, and returns a presigned GET URL with
+    /// <paramref name="sasTtl"/>-long expiry.
+    /// </summary>
+    /// <param name="containerName">Azure Blob container (e.g., <c>invoices</c>).</param>
+    /// <param name="blobName">Relative blob path within the container (e.g., <c>2026/04/INV-2026-000142.pdf</c>).</param>
+    /// <param name="content">PDF bytes (or any binary payload).</param>
+    /// <param name="contentType">MIME type (e.g., <c>application/pdf</c>).</param>
+    /// <param name="metadata">Optional custom blob metadata key/value pairs.</param>
+    /// <param name="sasTtl">How long the returned SAS URL remains valid. 10 minutes per ADR-0017 for invoices.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<PdfBlobRef> UploadAsync(
+        string containerName,
+        string blobName,
+        ReadOnlyMemory<byte> content,
+        string contentType,
+        IReadOnlyDictionary<string, string>? metadata,
+        TimeSpan sasTtl,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Produces a presigned read URL for an existing blob (without re-uploading).
+    /// Used by query handlers to return a fresh SAS URL whenever a buyer re-fetches
+    /// their invoice metadata.
+    /// </summary>
+    Task<Uri> GetSasUrlAsync(
+        string containerName,
+        string blobName,
+        TimeSpan expiry,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Streams the blob content. Primarily used by the byte-deterministic PDF test
+    /// in M4 to hash-compare two regenerations.
+    /// </summary>
+    Task<Stream> DownloadAsync(
+        string containerName,
+        string blobName,
+        CancellationToken ct);
+}

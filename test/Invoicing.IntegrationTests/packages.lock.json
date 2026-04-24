@@ -108,6 +108,15 @@
           "StyleCop.Analyzers.Unstable": "1.2.0.556"
         }
       },
+      "Testcontainers.Azurite": {
+        "type": "Direct",
+        "requested": "[4.11.0, )",
+        "resolved": "4.11.0",
+        "contentHash": "fDML8KiS9alTzmXD8gZziRZWNQDeElejBWr+Wg5vpg6IsK2PhM94coQDNmPyabTpuDQ8XopqxJIw2hyv7YdGqw==",
+        "dependencies": {
+          "Testcontainers": "4.11.0"
+        }
+      },
       "Testcontainers.Kafka": {
         "type": "Direct",
         "requested": "[4.11.0, )",

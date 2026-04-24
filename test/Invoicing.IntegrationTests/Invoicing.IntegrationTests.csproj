@@ -10,6 +10,7 @@
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers.Kafka" />
+        <PackageReference Include="Testcontainers.Azurite" />
         <PackageReference Include="Azure.Storage.Blobs" />
         <PackageReference Include="Confluent.Kafka" />
         <PackageReference Include="WireMock.Net" />
