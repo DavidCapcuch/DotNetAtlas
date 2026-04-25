@@ -21,7 +21,7 @@ public class DiscontinueProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new DiscontinueProductCommandHandler(
-            db, NullLogger<DiscontinueProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<DiscontinueProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new DiscontinueProductCommand { ProductId = product.Id, Reason = "EOL" },
@@ -43,7 +43,7 @@ public class DiscontinueProductCommandHandlerTests
     {
         await using var db = FakeCatalogDbContext.Create();
         var handler = new DiscontinueProductCommandHandler(
-            db, NullLogger<DiscontinueProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<DiscontinueProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new DiscontinueProductCommand { ProductId = Guid.CreateVersion7(), Reason = "x" },

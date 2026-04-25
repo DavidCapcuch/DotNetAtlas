@@ -27,17 +27,20 @@ public sealed class ReparentCategoryCommandHandler : ICommandHandler<ReparentCat
     private readonly ICatalogDbContext _db;
     private readonly ICategoryAncestryService _ancestry;
     private readonly ICategoryPathService _pathService;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ReparentCategoryCommandHandler> _logger;
 
     public ReparentCategoryCommandHandler(
         ICatalogDbContext db,
         ICategoryAncestryService ancestry,
         ICategoryPathService pathService,
+        TimeProvider timeProvider,
         ILogger<ReparentCategoryCommandHandler> logger)
     {
         _db = db;
         _ancestry = ancestry;
         _pathService = pathService;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -67,7 +70,10 @@ public sealed class ReparentCategoryCommandHandler : ICommandHandler<ReparentCat
         }
 
         var oldPath = category.Path;
-        var reparentResult = category.Reparent(command.NewParentCategoryId, newParent?.Path);
+        var reparentResult = category.Reparent(
+            command.NewParentCategoryId,
+            newParent?.Path,
+            _timeProvider.GetUtcNow());
         if (reparentResult.IsFailed)
         {
             return reparentResult;

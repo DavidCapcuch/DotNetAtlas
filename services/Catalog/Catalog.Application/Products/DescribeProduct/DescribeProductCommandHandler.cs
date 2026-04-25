@@ -11,13 +11,16 @@ namespace Catalog.Application.Products.DescribeProduct;
 public sealed class DescribeProductCommandHandler : ICommandHandler<DescribeProductCommand>
 {
     private readonly ICatalogDbContext _db;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<DescribeProductCommandHandler> _logger;
 
     public DescribeProductCommandHandler(
         ICatalogDbContext db,
+        TimeProvider timeProvider,
         ILogger<DescribeProductCommandHandler> logger)
     {
         _db = db;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -35,7 +38,7 @@ public sealed class DescribeProductCommandHandler : ICommandHandler<DescribeProd
             return descriptionResult.ToResult();
         }
 
-        var describeResult = product.Describe(descriptionResult.Value);
+        var describeResult = product.Describe(descriptionResult.Value, _timeProvider.GetUtcNow());
         if (describeResult.IsFailed)
         {
             return describeResult;

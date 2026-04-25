@@ -10,13 +10,16 @@ namespace Catalog.Application.Products.DiscontinueProduct;
 public sealed class DiscontinueProductCommandHandler : ICommandHandler<DiscontinueProductCommand>
 {
     private readonly ICatalogDbContext _db;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<DiscontinueProductCommandHandler> _logger;
 
     public DiscontinueProductCommandHandler(
         ICatalogDbContext db,
+        TimeProvider timeProvider,
         ILogger<DiscontinueProductCommandHandler> logger)
     {
         _db = db;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -28,7 +31,7 @@ public sealed class DiscontinueProductCommandHandler : ICommandHandler<Discontin
             return Result.Fail(ProductErrors.NotFound(command.ProductId));
         }
 
-        var discontinueResult = product.Discontinue(command.Reason);
+        var discontinueResult = product.Discontinue(command.Reason, _timeProvider.GetUtcNow());
         if (discontinueResult.IsFailed)
         {
             return discontinueResult;

@@ -14,7 +14,7 @@ public class CreateCategoryCommandHandlerTests
     {
         await using var db = FakeCatalogDbContext.Create();
         var handler = new CreateCategoryCommandHandler(
-            db, NullLogger<CreateCategoryCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new CreateCategoryCommand { Name = "Electronics", ParentCategoryId = null },
@@ -42,7 +42,7 @@ public class CreateCategoryCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new CreateCategoryCommandHandler(
-            db, NullLogger<CreateCategoryCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new CreateCategoryCommand { Name = "Laptops", ParentCategoryId = root.Id },
@@ -63,7 +63,7 @@ public class CreateCategoryCommandHandlerTests
     {
         await using var db = FakeCatalogDbContext.Create();
         var handler = new CreateCategoryCommandHandler(
-            db, NullLogger<CreateCategoryCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateCategoryCommandHandler>.Instance);
         var unknownParent = Guid.CreateVersion7();
 
         var result = await handler.HandleAsync(

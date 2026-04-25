@@ -27,7 +27,8 @@ public class ProductTests
             BrandName.Create("TestBrand").Value,
             Money.Create(10m, CurrencyCode.Usd).Value,
             dimensions: null,
-            images: []);
+            images: [],
+            UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -59,7 +60,8 @@ public class ProductTests
             BrandName.Create("Brand").Value,
             Money.Create(1m, CurrencyCode.Usd).Value,
             dimensions: null,
-            images: []);
+            images: [],
+            UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -159,7 +161,7 @@ public class ProductTests
         var newDescription = ProductDescription.Create("updated").Value;
 
         // Act
-        var result = product.Describe(newDescription);
+        var result = product.Describe(newDescription, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -180,7 +182,7 @@ public class ProductTests
         var newDescription = ProductDescription.Create("updated").Value;
 
         // Act
-        var result = product.Describe(newDescription);
+        var result = product.Describe(newDescription, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -204,7 +206,7 @@ public class ProductTests
         _ = product.PopDomainEvents();
 
         // Act
-        var result = product.Activate();
+        var result = product.Activate(UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -224,7 +226,7 @@ public class ProductTests
         var product = CreateActiveProduct();
 
         // Act
-        var act = () => product.Activate();
+        var act = () => product.Activate(UtcNow);
 
         // Assert
         act.Should().Throw<DataIntegrityException>()
@@ -238,7 +240,7 @@ public class ProductTests
         var product = CreateDiscontinuedProduct();
 
         // Act
-        var act = () => product.Activate();
+        var act = () => product.Activate(UtcNow);
 
         // Assert
         act.Should().Throw<DataIntegrityException>()
@@ -256,7 +258,7 @@ public class ProductTests
         _ = product.PopDomainEvents();
 
         // Act
-        var result = product.Discontinue(reason!);
+        var result = product.Discontinue(reason!, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -276,7 +278,7 @@ public class ProductTests
         _ = product.PopDomainEvents();
 
         // Act
-        var result = product.Discontinue("End of life");
+        var result = product.Discontinue("End of life", UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -298,7 +300,7 @@ public class ProductTests
         var product = CreateDraftProduct();
 
         // Act
-        var act = () => product.Discontinue("reason");
+        var act = () => product.Discontinue("reason", UtcNow);
 
         // Assert
         act.Should().Throw<DataIntegrityException>()
@@ -312,7 +314,7 @@ public class ProductTests
         var product = CreateDiscontinuedProduct();
 
         // Act
-        var act = () => product.Discontinue("reason");
+        var act = () => product.Discontinue("reason", UtcNow);
 
         // Assert
         act.Should().Throw<DataIntegrityException>()
@@ -327,7 +329,7 @@ public class ProductTests
         _ = product.PopDomainEvents();
 
         // Act
-        var result = product.Reactivate(adminReactivation: false);
+        var result = product.Reactivate(adminReactivation: false, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -347,7 +349,7 @@ public class ProductTests
         var product = CreateActiveProduct();
 
         // Act
-        var result = product.Reactivate(adminReactivation: false);
+        var result = product.Reactivate(adminReactivation: false, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -366,7 +368,7 @@ public class ProductTests
         var product = CreateDraftProduct();
 
         // Act
-        var result = product.Reactivate(adminReactivation: false);
+        var result = product.Reactivate(adminReactivation: false, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -386,7 +388,7 @@ public class ProductTests
         _ = product.PopDomainEvents();
 
         // Act
-        var result = product.Reactivate(adminReactivation: true);
+        var result = product.Reactivate(adminReactivation: true, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -406,7 +408,7 @@ public class ProductTests
         var product = CreateActiveProduct();
 
         // Act
-        var act = () => product.Reactivate(adminReactivation: true);
+        var act = () => product.Reactivate(adminReactivation: true, UtcNow);
 
         // Assert
         act.Should().Throw<DataIntegrityException>()
@@ -423,14 +425,15 @@ public class ProductTests
             BrandName.Create("TestBrand").Value,
             Money.Create(10m, CurrencyCode.Usd).Value,
             dimensions: null,
-            images: images ?? []);
+            images: images ?? [],
+            UtcNow);
         return result.Value;
     }
 
     private static Product CreateActiveProduct()
     {
         var product = CreateDraftProduct();
-        product.Activate();
+        product.Activate(UtcNow);
         _ = product.PopDomainEvents();
         return product;
     }
@@ -438,8 +441,8 @@ public class ProductTests
     private static Product CreateDiscontinuedProduct()
     {
         var product = CreateDraftProduct();
-        product.Activate();
-        product.Discontinue("End of life");
+        product.Activate(UtcNow);
+        product.Discontinue("End of life", UtcNow);
         _ = product.PopDomainEvents();
         return product;
     }

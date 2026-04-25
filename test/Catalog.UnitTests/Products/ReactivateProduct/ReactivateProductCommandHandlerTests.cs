@@ -21,7 +21,7 @@ public class ReactivateProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new ReactivateProductCommandHandler(
-            db, NullLogger<ReactivateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<ReactivateProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReactivateProductCommand { ProductId = product.Id, AdminReactivation = true },
@@ -49,7 +49,7 @@ public class ReactivateProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new ReactivateProductCommandHandler(
-            db, NullLogger<ReactivateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<ReactivateProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReactivateProductCommand { ProductId = product.Id, AdminReactivation = false },
@@ -63,7 +63,7 @@ public class ReactivateProductCommandHandlerTests
     {
         await using var db = FakeCatalogDbContext.Create();
         var handler = new ReactivateProductCommandHandler(
-            db, NullLogger<ReactivateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<ReactivateProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReactivateProductCommand

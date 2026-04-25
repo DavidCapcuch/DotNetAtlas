@@ -52,7 +52,7 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     /// this factory validates only value-composition rules.
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="ProductCreatedDomainEvent"/> on success.
+    /// Raises <see cref="ProductCreatedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c> on success.
     /// </remarks>
     public static Result<Product> Create(
         Sku sku,
@@ -62,7 +62,8 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
         BrandName brand,
         Money price,
         Dimensions? dimensions,
-        IReadOnlyCollection<ImageReference> images)
+        IReadOnlyCollection<ImageReference> images,
+        DateTimeOffset utcNow)
     {
         ArgumentNullException.ThrowIfNull(sku);
         ArgumentNullException.ThrowIfNull(name);
@@ -97,7 +98,8 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             Sku = sku,
             Name = name,
             CategoryId = categoryId,
-            Price = price
+            Price = price,
+            OccurredOnUtc = utcNow
         });
 
         return product;
@@ -142,9 +144,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     /// Overwrites the product description.
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="ProductDescribedDomainEvent"/> on success.
+    /// Raises <see cref="ProductDescribedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on success.
     /// </remarks>
-    public Result Describe(ProductDescription newDescription)
+    public Result Describe(ProductDescription newDescription, DateTimeOffset utcNow)
     {
         ArgumentNullException.ThrowIfNull(newDescription);
 
@@ -158,7 +161,8 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new ProductDescribedDomainEvent
         {
             ProductId = Id,
-            NewDescription = newDescription
+            NewDescription = newDescription,
+            OccurredOnUtc = utcNow
         });
 
         return Result.Ok();
@@ -170,9 +174,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     /// when called on a non-Draft product (the UI must gate the button).
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="ProductActivatedDomainEvent"/> on success.
+    /// Raises <see cref="ProductActivatedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on success.
     /// </remarks>
-    public Result Activate()
+    public Result Activate(DateTimeOffset utcNow)
     {
         Throw.If(!Status.CanTransitionTo(ProductStatus.Active), new DataIntegrityException(
             "Product.CannotActivateInStatus",
@@ -180,7 +185,11 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
 
         Status = ProductStatus.Active;
 
-        AddDomainEvent(new ProductActivatedDomainEvent { ProductId = Id });
+        AddDomainEvent(new ProductActivatedDomainEvent
+        {
+            ProductId = Id,
+            OccurredOnUtc = utcNow
+        });
 
         return Result.Ok();
     }
@@ -192,9 +201,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     /// (the UI must gate the button).
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="ProductDiscontinuedDomainEvent"/> on success.
+    /// Raises <see cref="ProductDiscontinuedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on success.
     /// </remarks>
-    public Result Discontinue(string reason)
+    public Result Discontinue(string reason, DateTimeOffset utcNow)
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
@@ -210,7 +220,8 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new ProductDiscontinuedDomainEvent
         {
             ProductId = Id,
-            Reason = reason
+            Reason = reason,
+            OccurredOnUtc = utcNow
         });
 
         return Result.Ok();
@@ -224,10 +235,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     /// not Discontinued (UI bug).
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="ProductReactivatedDomainEvent"/> on success.
-    /// Not published as an external Kafka event in v1.
+    /// Raises <see cref="ProductReactivatedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on success. Not published as an external Kafka event in v1.
     /// </remarks>
-    public Result Reactivate(bool adminReactivation)
+    public Result Reactivate(bool adminReactivation, DateTimeOffset utcNow)
     {
         if (!adminReactivation)
         {
@@ -240,7 +251,11 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
 
         Status = ProductStatus.Active;
 
-        AddDomainEvent(new ProductReactivatedDomainEvent { ProductId = Id });
+        AddDomainEvent(new ProductReactivatedDomainEvent
+        {
+            ProductId = Id,
+            OccurredOnUtc = utcNow
+        });
 
         return Result.Ok();
     }

@@ -8,11 +8,13 @@ namespace Catalog.UnitTests.Categories.Aggregates;
 
 public class CategoryTests
 {
+    private static readonly DateTimeOffset UtcNow = new(2026, 4, 25, 12, 0, 0, TimeSpan.Zero);
+
     [Fact]
     public void Create_AsRoot_BuildsPathFromSlugAndRaisesEvent()
     {
         // Act
-        var result = Category.Create("Electronics", parentCategoryId: null, parentPath: null);
+        var result = Category.Create("Electronics", parentCategoryId: null, parentPath: null, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -40,7 +42,7 @@ public class CategoryTests
         var parentPath = CategoryPath.Create("/electronics/computers").Value;
 
         // Act
-        var result = Category.Create("Laptops", parentCategoryId: parentId, parentPath: parentPath);
+        var result = Category.Create("Laptops", parentCategoryId: parentId, parentPath: parentPath, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -59,7 +61,7 @@ public class CategoryTests
         var parentPath = CategoryPath.Create("/a/b/c/d/e").Value;
 
         // Act
-        var result = Category.Create("f", parentCategoryId: parentId, parentPath: parentPath);
+        var result = Category.Create("f", parentCategoryId: parentId, parentPath: parentPath, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -77,7 +79,7 @@ public class CategoryTests
     public void Create_WhenNameEmpty_ReturnsFailureWithNameRequired(string? name)
     {
         // Act
-        var result = Category.Create(name!, parentCategoryId: null, parentPath: null);
+        var result = Category.Create(name!, parentCategoryId: null, parentPath: null, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -95,7 +97,7 @@ public class CategoryTests
         var longName = new string('A', 101);
 
         // Act
-        var result = Category.Create(longName, parentCategoryId: null, parentPath: null);
+        var result = Category.Create(longName, parentCategoryId: null, parentPath: null, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -112,12 +114,12 @@ public class CategoryTests
         // Arrange
         var parentId = Guid.CreateVersion7();
         var parentPath = CategoryPath.Create("/electronics").Value;
-        var category = Category.Create("Computers", parentId, parentPath).Value;
+        var category = Category.Create("Computers", parentId, parentPath, UtcNow).Value;
         var oldPath = category.Path;
         _ = category.PopDomainEvents();
 
         // Act
-        var result = category.Rename("Workstations");
+        var result = category.Rename("Workstations", UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -141,11 +143,11 @@ public class CategoryTests
     public void Rename_WhenRootCategory_UpdatesPathAndKeepsNullParent()
     {
         // Arrange
-        var category = Category.Create("Electronics", parentCategoryId: null, parentPath: null).Value;
+        var category = Category.Create("Electronics", parentCategoryId: null, parentPath: null, UtcNow).Value;
         _ = category.PopDomainEvents();
 
         // Act
-        var result = category.Rename("Gadgets");
+        var result = category.Rename("Gadgets", UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -163,7 +165,7 @@ public class CategoryTests
         // Arrange
         var oldParentId = Guid.CreateVersion7();
         var oldParentPath = CategoryPath.Create("/electronics").Value;
-        var category = Category.Create("Laptops", oldParentId, oldParentPath).Value;
+        var category = Category.Create("Laptops", oldParentId, oldParentPath, UtcNow).Value;
         var oldPath = category.Path;
         _ = category.PopDomainEvents();
 
@@ -171,7 +173,7 @@ public class CategoryTests
         var newParentPath = CategoryPath.Create("/portable-devices").Value;
 
         // Act
-        var result = category.Reparent(newParentId, newParentPath);
+        var result = category.Reparent(newParentId, newParentPath, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -196,14 +198,14 @@ public class CategoryTests
         // Arrange
         var oldParentId = Guid.CreateVersion7();
         var oldParentPath = CategoryPath.Create("/a").Value;
-        var category = Category.Create("leaf", oldParentId, oldParentPath).Value;
+        var category = Category.Create("leaf", oldParentId, oldParentPath, UtcNow).Value;
         _ = category.PopDomainEvents();
 
         var newParentId = Guid.CreateVersion7();
         var newParentPath = CategoryPath.Create("/a/b/c/d/e").Value;
 
         // Act
-        var result = category.Reparent(newParentId, newParentPath);
+        var result = category.Reparent(newParentId, newParentPath, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -221,11 +223,11 @@ public class CategoryTests
         // Arrange
         var oldParentId = Guid.CreateVersion7();
         var oldParentPath = CategoryPath.Create("/electronics").Value;
-        var category = Category.Create("Laptops", oldParentId, oldParentPath).Value;
+        var category = Category.Create("Laptops", oldParentId, oldParentPath, UtcNow).Value;
         _ = category.PopDomainEvents();
 
         // Act
-        var result = category.Reparent(newParentCategoryId: null, newParentPath: null);
+        var result = category.Reparent(newParentCategoryId: null, newParentPath: null, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -240,12 +242,12 @@ public class CategoryTests
     public void Reparent_WhenNewParentIdEqualsSelf_ReturnsCannotParentToSelf()
     {
         // Arrange
-        var category = Category.Create("Electronics", parentCategoryId: null, parentPath: null).Value;
+        var category = Category.Create("Electronics", parentCategoryId: null, parentPath: null, UtcNow).Value;
         var selfPath = CategoryPath.Create("/electronics").Value;
         _ = category.PopDomainEvents();
 
         // Act
-        var result = category.Reparent(newParentCategoryId: category.Id, newParentPath: selfPath);
+        var result = category.Reparent(newParentCategoryId: category.Id, newParentPath: selfPath, UtcNow);
 
         // Assert
         using (new AssertionScope())

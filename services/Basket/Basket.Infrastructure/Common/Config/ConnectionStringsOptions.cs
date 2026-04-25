@@ -15,4 +15,11 @@ internal static class ConnectionStringNames
     /// the basket repository may use (ADR-0016).
     /// </summary>
     public const string BasketRedis = "Redis:Basket";
+
+    /// <summary>
+    /// Postgres SQL side-car — carries outbox + inbox tables only (ADR-0003 +
+    /// basket.md § 5.5). The <c>BasketDbContext</c> binds to this key in
+    /// <c>Common.PersistenceDependencyInjection.AddDatabase</c>.
+    /// </summary>
+    public const string Basket = "Basket";
 }

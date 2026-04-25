@@ -43,7 +43,8 @@ public class ReparentCategoryCommandHandlerTests
 
         var (ancestry, pathService) = Services();
         var handler = new ReparentCategoryCommandHandler(
-            db, ancestry, pathService, NullLogger<ReparentCategoryCommandHandler>.Instance);
+            db, ancestry, pathService, TimeProvider.System,
+            NullLogger<ReparentCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
@@ -76,7 +77,8 @@ public class ReparentCategoryCommandHandlerTests
         await using var db = FakeCatalogDbContext.Create();
         var (ancestry, pathService) = Services();
         var handler = new ReparentCategoryCommandHandler(
-            db, ancestry, pathService, NullLogger<ReparentCategoryCommandHandler>.Instance);
+            db, ancestry, pathService, TimeProvider.System,
+            NullLogger<ReparentCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
@@ -99,7 +101,8 @@ public class ReparentCategoryCommandHandlerTests
 
         var (ancestry, pathService) = Services();
         var handler = new ReparentCategoryCommandHandler(
-            db, ancestry, pathService, NullLogger<ReparentCategoryCommandHandler>.Instance);
+            db, ancestry, pathService, TimeProvider.System,
+            NullLogger<ReparentCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
@@ -129,7 +132,8 @@ public class ReparentCategoryCommandHandlerTests
 
         var (ancestry, pathService) = Services(wouldCycle: false);
         var handler = new ReparentCategoryCommandHandler(
-            db, ancestry, pathService, NullLogger<ReparentCategoryCommandHandler>.Instance);
+            db, ancestry, pathService, TimeProvider.System,
+            NullLogger<ReparentCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
@@ -164,7 +168,8 @@ public class ReparentCategoryCommandHandlerTests
 
         var (ancestry, pathService) = Services(wouldCycle: true);
         var handler = new ReparentCategoryCommandHandler(
-            db, ancestry, pathService, NullLogger<ReparentCategoryCommandHandler>.Instance);
+            db, ancestry, pathService, TimeProvider.System,
+            NullLogger<ReparentCategoryCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand

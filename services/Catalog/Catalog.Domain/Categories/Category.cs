@@ -48,9 +48,14 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
     /// <c>"/" + slug(name)</c> for a root category.
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="CategoryCreatedDomainEvent"/> on success.
+    /// Raises <see cref="CategoryCreatedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on success.
     /// </remarks>
-    public static Result<Category> Create(string name, Guid? parentCategoryId, CategoryPath? parentPath)
+    public static Result<Category> Create(
+        string name,
+        Guid? parentCategoryId,
+        CategoryPath? parentPath,
+        DateTimeOffset utcNow)
     {
         var nameValidation = ValidateName(name);
         if (nameValidation.IsFailed)
@@ -90,7 +95,8 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
             CategoryId = category.Id,
             Name = category.Name,
             ParentCategoryId = parentCategoryId,
-            Path = category.Path
+            Path = category.Path,
+            OccurredOnUtc = utcNow
         });
 
         return category;
@@ -103,9 +109,9 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
     /// </summary>
     /// <remarks>
     /// Raises <see cref="CategoryReparentedDomainEvent"/> with
-    /// <c>OldParentId == NewParentId</c> on success.
+    /// <c>OldParentId == NewParentId</c> and <c>OccurredOnUtc = utcNow</c> on success.
     /// </remarks>
-    public Result Rename(string newName)
+    public Result Rename(string newName, DateTimeOffset utcNow)
     {
         var nameValidation = ValidateName(newName);
         if (nameValidation.IsFailed)
@@ -136,7 +142,8 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
             OldParentId = ParentCategoryId,
             NewParentId = ParentCategoryId,
             OldPath = oldPath,
-            NewPath = Path
+            NewPath = Path,
+            OccurredOnUtc = utcNow
         });
 
         return Result.Ok();
@@ -148,9 +155,10 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
     /// <c>CategoryAncestryService</c>); this aggregate only rejects the self-parent case.
     /// </summary>
     /// <remarks>
-    /// Raises <see cref="CategoryReparentedDomainEvent"/> on success.
+    /// Raises <see cref="CategoryReparentedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
+    /// on success.
     /// </remarks>
-    public Result Reparent(Guid? newParentCategoryId, CategoryPath? newParentPath)
+    public Result Reparent(Guid? newParentCategoryId, CategoryPath? newParentPath, DateTimeOffset utcNow)
     {
         if (newParentCategoryId.HasValue && newParentCategoryId.Value == Id)
         {
@@ -182,7 +190,8 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
             OldParentId = oldParentId,
             NewParentId = newParentCategoryId,
             OldPath = oldPath,
-            NewPath = Path
+            NewPath = Path,
+            OccurredOnUtc = utcNow
         });
 
         return Result.Ok();
