@@ -19,6 +19,8 @@ public class ProductCreatedOutboxPublisherTests
     {
         CatalogProducts = "catalog.products",
         CatalogCategories = "catalog.categories",
+        StockLevelChanged = "inventory.stock-level-changed",
+        DltTopicSuffix = ".DLT",
     };
 
     [Fact]
