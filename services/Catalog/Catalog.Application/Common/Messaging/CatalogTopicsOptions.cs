@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations;
 namespace Catalog.Application.Common.Messaging;
 
 /// <summary>
-/// Kafka topic names for Catalog outbox publishing.
-/// Bound to configuration section <c>CatalogTopics</c> and consumed by outbox publishers.
+/// Kafka topic names for Catalog outbox publishing AND for the inbound
+/// <c>StockLevelChanged</c> consumer wired in M4.2. Bound to configuration section
+/// <c>CatalogTopics</c>.
 /// </summary>
 public sealed class CatalogTopicsOptions
 {
@@ -28,6 +29,20 @@ public sealed class CatalogTopicsOptions
     [Length(1, MaximumKafkaTopicLength)]
     public required string CatalogCategories { get; set; }
 
-    // NOTE: DLT suffix intentionally omitted until M4 introduces the Kafka inbox consumer for
-    // StockLevelChanged. Add it when the consumer actually needs to route poison messages.
+    /// <summary>
+    /// Inbound topic for <c>Inventory.Stock.StockLevelChanged</c>. Owned by Inventory;
+    /// Catalog consumes via the <c>catalog-stock-level-watcher</c> consumer group.
+    /// </summary>
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string StockLevelChanged { get; set; }
+
+    /// <summary>
+    /// Suffix appended to a topic name for its dead-letter sibling (KafkaFlow DLT
+    /// middleware convention). E.g. <c>".DLT"</c> turns <c>catalog.products</c> into
+    /// <c>catalog.products.DLT</c>.
+    /// </summary>
+    [Required]
+    [Length(1, 64)]
+    public required string DltTopicSuffix { get; set; }
 }

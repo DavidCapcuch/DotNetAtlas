@@ -30,6 +30,8 @@ public class CategoryCreatedOutboxPublisherTests
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",
+                StockLevelChanged = "inventory.stock-level-changed",
+                DltTopicSuffix = ".DLT",
             }),
             NullLogger<CategoryCreatedOutboxPublisher>.Instance);
 

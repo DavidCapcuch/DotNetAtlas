@@ -31,6 +31,8 @@ public class ProductDiscontinuedOutboxPublisherTests
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",
+                StockLevelChanged = "inventory.stock-level-changed",
+                DltTopicSuffix = ".DLT",
             }),
             NullLogger<ProductDiscontinuedOutboxPublisher>.Instance);
 
