@@ -5,9 +5,10 @@ namespace Payments.Domain.Transactions.ValueObjects;
 /// <summary>
 /// Classification of a terminal payment failure. Populated on the <see cref="FailureInfo"/>
 /// value object when the aggregate transitions to <see cref="PaymentStatus.Failed"/>.
-/// Mapping from raw gateway codes to <see cref="FailureReason"/> values lives in the
-/// <c>StubPaymentGateway</c> adapter (M3) and is documented in
-/// <c>docs/bc-design/payments.md § 3</c>.
+/// Mapping from raw gateway codes to <see cref="FailureReason"/> values lives in
+/// <c>Payments.Application.Abstractions.GatewayResponseClassifier</c> (Application layer, so
+/// command handlers can call it without referencing a concrete adapter — see ADR-0007 /
+/// architecture-tests.md) and is documented in <c>docs/bc-design/payments.md § 3</c>.
 /// </summary>
 public sealed class FailureReason : SmartEnum<FailureReason>
 {
