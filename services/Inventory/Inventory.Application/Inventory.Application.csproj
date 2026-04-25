@@ -9,6 +9,8 @@
         <PackageReference Include="FastEndpoints.Attributes"/>
         <PackageReference Include="FluentValidation"/>
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions"/>
+        <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions"/>
+        <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations"/>
         <PackageReference Include="Riok.Mapperly"/>
 
         <PackageReference Include="StyleCop.Analyzers">

@@ -1,0 +1,40 @@
+{
+    "type": "record",
+    "name": "ReservationConfirmedEvent",
+    "namespace": "Inventory.Reservations",
+    "doc": "Emitted when a reservation is confirmed (stock physically committed to the order). OnHand is decremented by Quantity as part of the same transaction.",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product whose reservation was confirmed."
+        },
+        {
+            "name": "ReservationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Reservation that was confirmed."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Owning order."
+        },
+        {
+            "name": "ConfirmedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp of confirmation."
+        }
+    ]
+}

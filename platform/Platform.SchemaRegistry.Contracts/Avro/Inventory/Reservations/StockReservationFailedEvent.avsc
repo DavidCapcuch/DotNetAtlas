@@ -1,0 +1,42 @@
+{
+    "type": "record",
+    "name": "StockReservationFailedEvent",
+    "namespace": "Inventory.Reservations",
+    "doc": "Emitted when a reservation request cannot be fulfilled because Available < RequestedQuantity. Consumed by the checkout saga to trigger compensation. No corresponding ES event (failed reservations do not mutate the aggregate).",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product for which the reservation failed."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Owning order (saga correlation id)."
+        },
+        {
+            "name": "RequestedQuantity",
+            "type": "int",
+            "doc": "Units the saga attempted to reserve."
+        },
+        {
+            "name": "AvailableQuantity",
+            "type": "int",
+            "doc": "Units actually available at the time of rejection (OnHand - Reserved). Included so the saga/UI can report the shortfall precisely."
+        },
+        {
+            "name": "FailedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the reservation attempt was rejected."
+        }
+    ]
+}

@@ -1,0 +1,39 @@
+{
+    "type": "record",
+    "name": "StockLevelChanged",
+    "namespace": "Inventory.Stock",
+    "doc": "Emitted when a StockItem's availability crosses a business-meaningful threshold (0 to positive or positive to 0). Not emitted on every stock change.",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product whose stock level changed. Shared key with Catalog."
+        },
+        {
+            "name": "NewOnHand",
+            "type": "int",
+            "doc": "Total physical units on hand after the change."
+        },
+        {
+            "name": "NewReserved",
+            "type": "int",
+            "doc": "Units currently reserved across all active reservations after the change."
+        },
+        {
+            "name": "NewAvailable",
+            "type": "int",
+            "doc": "Units a new reservation could still claim (OnHand - Reserved) after the change."
+        },
+        {
+            "name": "ChangedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp of the triggering event."
+        }
+    ]
+}

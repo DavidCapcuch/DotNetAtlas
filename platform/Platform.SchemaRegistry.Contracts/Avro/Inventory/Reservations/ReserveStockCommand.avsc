@@ -1,0 +1,53 @@
+{
+    "type": "record",
+    "name": "ReserveStockCommand",
+    "namespace": "Inventory.Reservations",
+    "doc": "Command issued by the Checkout saga to reserve N units of one product for an order. The saga issues one command per line item; Inventory responds asynchronously with StockReservedEvent on success or StockReservationFailedEvent on failure.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id. Also the Kafka message key."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Order for which stock is being reserved. Used by Inventory to tag the reservation."
+        },
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product to reserve. Keys the event-sourced stream in Inventory."
+        },
+        {
+            "name": "ReservationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Saga-generated reservation id (GUIDv7). Becomes the ReservationId on StockReservedEvent / ReservationConfirmedEvent / ReservationReleasedEvent."
+        },
+        {
+            "name": "Quantity",
+            "type": "int",
+            "doc": "Units to reserve (>= 1)."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga issued the command."
+        }
+    ]
+}

@@ -1,0 +1,53 @@
+{
+    "type": "record",
+    "name": "StockReservedEvent",
+    "namespace": "Inventory.Reservations",
+    "doc": "Emitted when units have been successfully reserved for an order. Consumed by the checkout saga as the positive outcome of ReserveStockCommand. The reservation is time-bounded by ExpiresAtUtc.",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product that was reserved. Shared key with Catalog."
+        },
+        {
+            "name": "ReservationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique id of this reservation. Used by ConfirmReservationCommand and ReleaseReservationCommand."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Owning order (saga correlation id). Enables fan-in of multiple line-item reservations per order."
+        },
+        {
+            "name": "Quantity",
+            "type": "int",
+            "doc": "Units reserved."
+        },
+        {
+            "name": "ExpiresAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp after which the reservation is automatically released by the TTL worker unless confirmed or explicitly released."
+        },
+        {
+            "name": "ReservedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the reservation was created."
+        }
+    ]
+}
