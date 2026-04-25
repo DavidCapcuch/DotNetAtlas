@@ -991,7 +991,7 @@ These commands enter via HTTP; the buyer or admin initiates them through the BFF
 
 **Consumer group:** `ordering-commands-consumer`.
 
-**Kafka handler classes** (in `Ordering.Infrastructure.Messaging.Kafka.Handlers`):
+**Kafka handler classes** (in `Ordering.Infrastructure.Messaging.Kafka.SagaCommands`):
 
 | Avro command record | Handler class | Internal command it dispatches |
 |---------------------|---------------|-------------------------------|
