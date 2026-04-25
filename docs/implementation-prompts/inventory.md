@@ -198,7 +198,8 @@ Living log. Each session appends its own block before ending; next-session agent
 **Known DoD gaps carried forward to M5+:**
 
 - 5 Kafka consumers (3 saga-command intake handlers + Catalog `ProductCreatedEvent` + Ordering `OrderCancelledEvent` — both still stubbed pending upstream BC schemas) → M5
-- Service-auth on saga-command consumers → M5
+- ~~Service-auth on saga-command consumers~~ — **dropped per ADR-0010 lines 102-106**: per-message `X-Service-Token` validation is the wrong layer. v1 = PLAINTEXT broker (ADR-0009 reference profile); production = broker SASL/OAUTHBEARER + per-service ACLs.
+- **Rehydration observability** ([ADR-0006 §Observability and the snapshot threshold](../adr/0006-event-sourcing-for-inventory.md)) — emit `inventory.aggregate.rehydration.duration` (ms histogram) + `inventory.aggregate.rehydration.event_count` (events folded) from `EventStoreRepository.RehydrateAsync`, tagged by `ProductId`. Add an alert/integration-test asserting p99 duration < 1s over a representative replay (1k-event stream). Provides the signal that opens the v2 snapshot work item; no snapshot code in v1. → M5
 - `ReservationExpiryWorker` hosted service + integration test with `FakeTimeProvider` → M6
 - Admin HTTP endpoints (`POST /api/v1/inventory/stock-items/{productId}/{receive,adjust}`) + `.Idempotency()` per ADR-0013 → M7
 - CQRS behavior chain reactivation in `ApplicationDependencyInjection.AddApplication` → M7 (when responses arrive)
@@ -207,6 +208,86 @@ Living log. Each session appends its own block before ending; next-session agent
 - `docker compose --profile full up -d` smoke + final session summary → M10
 
 **Next milestone: M4 wave_progress contains the M4 deliverables; the next session executes M5** — Infrastructure layer (KafkaFlow consumer wiring for `inventory.reservation-commands` saga commands × 3, `catalog.products` `ProductCreatedEvent` consumer — STUBBED until Catalog ships its Avro schema, `ordering.orders` `OrderCancelledEvent` consumer — STUBBED until Ordering ships its schema; service-auth header validation; outbox-relay-inventory health check; integration test that puts a fake saga-command on the topic and verifies the resulting reservation-audit row + external Avro outbox emission).
+
+### Session 4 (2026-04-26) — M5 complete
+
+**Delivered (M5 main scope — Infrastructure layer Kafka consumer wiring + integration tests):**
+
+- **3 per-consumer config classes** (`Confluent.Kafka.ConsumerConfig` subclasses) under `services/Inventory/Inventory.Infrastructure/Messaging/Kafka/{SagaCommands,StockInit}/`:
+    - `ReservationCommandsConsumerOptions` — section `KafkaReservationCommandsConsumer`, group `inventory-reservation-commands`, topic `inventory.reservation-commands`
+    - `CatalogProductsConsumerOptions` — section `KafkaCatalogProductsConsumer`, group `inventory-stock-init` (shared per deviation #1), topic `catalog.products`
+    - `OrderingOrdersConsumerOptions` — section `KafkaOrderingOrdersConsumer`, **same group** `inventory-stock-init` per deviation #1, topic `ordering.orders`
+- **`SagaCommandMappers`** — pure static Avro→AppCommand mappers for the 3 saga commands (`Reserve`/`Confirm`/`Release`), explicit `ReleaseReason` switch (Avro enum → domain enum) raising `DataIntegrityException` on unknown symbols, defensive `DateTime.SpecifyKind` for Avro `DateTime` → `DateTimeOffset`
+- **`SagaCommandHandlerBase<TAvroCommand>`** — generic transactional-outbox wrapper (parameterized over Avro command type) with `EnsureTransactionAsync` envelope, variable log-context dictionary (Inventory's saga commands have non-uniform id shape — see decision below), and **business-expected-error filter** so `Result.Fail(InsufficientStockError)` does NOT throw and roll back the staged saga response
+- **`SagaCommandDispatchException`** — thrown on non-business `Result.Fail` so KafkaFlow's DLT middleware routes the message to `<topic>.Inventory.DLT`
+- **3 saga-command Kafka handlers** (`Inventory.Reservations.{Reserve,Confirm,Release}` Avro types):
+    - `ReserveStockCommandKafkaHandler`, `ConfirmReservationCommandKafkaHandler`, `ReleaseReservationCommandKafkaHandler` — each ~14 LoC, single-method `Handle` delegating to `SagaCommandHandlerBase.ExecuteAsync` with the appropriate log-context keys
+- **2 cross-BC event handlers (REAL — both Avro schemas now shipped, deviations #2 & #3 from Session 1 RESOLVED)**:
+    - `ProductCreatedEventKafkaHandler` — `Catalog.Products.ProductCreatedEvent` → `InitializeStockItemCommand`. Reuses `SagaCommandHandlerBase` for the transactional envelope; idempotent against re-delivery via the application handler's `Version > 0` guard.
+    - `OrderCancelledEventKafkaHandler` — `Ordering.Orders.OrderCancelledEvent` → fan-out releases. Does NOT use `SagaCommandHandlerBase`: queries `reservation_audit WHERE OrderId = X AND Status = Active`, dispatches one `ReleaseReservationCommand(reason=Cancellation)` per row, throws `DbUpdateException` (retry-eligible) on partial failure so KafkaFlow's `RetryForever` re-runs the message and the `WHERE Status = Active` requery makes it naturally idempotent.
+- **`InfrastructureDependencyInjection.AddInfrastructure`** — public composition root chaining `AddDatabase` + `AddMessaging`. No health checks (M7).
+- **`MessagingDependencyInjection.AddMessaging` extended** — KafkaFlow cluster + 3 consumer blocks (one per topic — distinct topics need distinct `.AddConsumer` blocks). Each consumer's middleware order: `AddSchemaRegistryAvroDeserializer → AddCorrelationIdConsumerMiddleware → AddDeadLetter → RetryForever(DbUpdateException, NpgsqlException, TimeoutException) → AddInbox(...) → AddTypedHandlers(Scoped)`. Cluster-level DLT producer with `AddProducerHeaders("Inventory")`.
+- **`Inventory.API/Program.cs`** — minimal wire-up: `AddApplication() + AddInfrastructure() + kafkaBus.StartAsync()` guarded by `!app.Environment.IsTesting()`. ServiceDefaults / FastEndpoints / auth land in M7. `public partial class Program;` marker added for `WebApplicationFactory<Program>` use in future tests.
+- **`appsettings.json`** — appended `Kafka` (Brokers, SchemaRegistry, AvroSerializer), `Topics`, and the 3 `Kafka*Consumer` sections.
+- **Integration tests** — `IntegrationTestFixture` extended to register the 5 Kafka handler types as Scoped (matching KafkaFlow's `WithHandlerLifetime(InstanceLifetime.Scoped)`); new `FakeKafkaMessageContext` (NSubstitute-backed `IMessageContext` stub with `Headers` and `ConsumerContext.WorkerStopped`); 10 new tests across 6 files covering happy paths + InsufficientStock business-failure path + DLT-routing contract:
+    - `ReserveStockCommandKafkaHandlerTests` (2: HappyPath + InsufficientStock_DoesNotThrow)
+    - `ConfirmReservationCommandKafkaHandlerTests` (1: HappyPath)
+    - `ReleaseReservationCommandKafkaHandlerTests` (1: Compensation_AuditReleased)
+    - `ProductCreatedEventKafkaHandlerTests` (2: NewProduct + DuplicateDelivery)
+    - `OrderCancelledEventKafkaHandlerTests` (2: TwoActiveReservations + NoActiveReservations)
+    - `SagaCommandHandlerBaseTests` (2: ResultFail_Throws + HappyPath)
+
+**Design decisions resolved in M5** (persisted so fresh sessions don't re-litigate):
+
+| Question | Resolution | Rationale |
+|---|---|---|
+| Cross-BC consumers — real or stubbed? | **REAL for both.** Both `Catalog.Products.ProductCreatedEvent.avsc` and `Ordering.Orders.OrderCancelledEvent.avsc` exist in `platform/Platform.SchemaRegistry.Contracts/Avro/`. Session 1 deviations #2 + #3 are SUPERSEDED. | Wave 1 shipped both schemas; the "stubbed pending upstream BCs" wording in the original prompt is stale. Pre-plan ambient verification via `Glob` confirmed the Avro `.cs` types are generated. |
+| Kafka-side service-auth (X-Service-Token) | **Dropped entirely** — user removed `X-Service-Token` from Kafka headers as bad design. DoD line 314 wording reconciled to drop the validation. | Per ADR-0010 lines 102-106: v1 = PLAINTEXT broker (ADR-0009 reference profile); production-deployment gate is broker SASL/OAUTHBEARER + per-service ACLs, NOT per-message header validation. Ordering's saga-command handlers also don't validate any token. |
+| `OrderCancelledEvent` dispatch model — in-process loop vs. self-loop through Kafka? | **In-process loop, NOT wrapped by `SagaCommandHandlerBase`.** Handler queries active reservations, dispatches one `ReleaseReservationCommand` per row inline; throws `DbUpdateException` on `Result.Fail` so KafkaFlow's `RetryForever` re-runs the message. | Self-loop through Kafka would have Inventory talk to itself (architectural noise; breaks `events-catalog.md:93` which lists only saga + ops as producers of `ReleaseReservationCommand`). The wrapper isn't used because its DLT-on-failure semantics would hard-fail the whole cancellation if any single release failed; retry + audit-table requery is naturally idempotent. |
+| `SagaCommandHandlerBase` — how to handle `Result.Fail(InsufficientStockError)` without DLT-routing the staged saga response? | Hard-coded `BusinessExpectedErrorCodes` HashSet (`Inventory.InsufficientStock` for now); on `Result.Fail` whose `Errors` contains a known business-expected code, log + commit + return without throw. | The application handler stages `StockReservationFailedEvent` to outbox AND returns `Result.Fail` (M4 contract, preserves typed error visibility for in-process callers). If the wrapper threw, the inbox tx would roll back the outbox row → saga never sees the failure event. New business-expected errors must be added to the HashSet explicitly. |
+| `ExecuteAsync` log-context shape — Ordering uses fixed `(CorrelationId, OrderId)`; Inventory's commands have variable id shape | Wrapper takes `Dictionary<string, object?>` of log keys; caller passes exactly the ids that command carries (Reserve has OrderId+ProductId+ReservationId; Confirm/Release have ProductId+ReservationId; ProductCreated has ProductId+Sku; OrderCancelled has OrderId+AtStatus). | Generalises over Ordering's signature without much extra cost. Each handler's call-site is one literal dictionary. |
+| Test approach — Testcontainers Kafka+SR vs. direct handler invocation? | **Direct handler invocation.** Match Ordering's M5 precedent at `test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20`. Tests resolve typed handlers from DI and call `Handle(IMessageContext, T)` directly with synthetic `FakeKafkaMessageContext` (NSubstitute-backed). | Real Kafka + Schema Registry containers add 30-60s test runtime + container coordination complexity; the typed handler is the meaningful integration point (Avro deserialization + KafkaFlow plumbing are platform code). End-to-end byte-fidelity is M7. |
+| `IntegrationTestFixture` extension shape | Register all 5 Kafka handlers as `Scoped` (matches KafkaFlow's `WithHandlerLifetime(InstanceLifetime.Scoped)`); `FakeKafkaMessageContext.Create` includes a non-null `MessageId` header even though tests bypass the inbox middleware. | The MessageId-on-context invariant guards against future refactors that wire the middleware in. NSubstitute is already a project reference. |
+| EF Core `EndsWith` translation in tests | Tests filter outbox rows by full FQN equality (`m.Type == "Inventory.Reservations.ReservationConfirmedEvent"`) instead of `EndsWith("ReservationConfirmedEvent")`. | `FakeOutboxWriter` stores the full type name; FQN equality is translatable to SQL and unambiguous. The first test pass surfaced an EF translation error that switching to FQN equality fixed cleanly. |
+
+**Deviations from locked/stated contracts — acknowledged and accepted:**
+
+1. **`OrderCancelledEventKafkaHandler` does NOT use `SagaCommandHandlerBase`** — see decisions table. Documented in the handler's xmldoc.
+2. **`SagaCommandHandlerBase` business-expected-error filter** — adds an Inventory-specific concept (the `BusinessExpectedErrorCodes` HashSet) absent from Ordering's wrapper. Justified because Inventory's `ReserveStockCommand` is the only saga command in the solution today that semantically commits an outbox row alongside `Result.Fail`. New business errors must be added to the HashSet explicitly per `inventory.md error-taxonomy`.
+3. **Session 1 deviations #2 + #3 RESOLVED** — `Catalog.Products.ProductCreatedEvent` and `Ordering.Orders.OrderCancelledEvent` are both wired as REAL handlers (not stubs); the original `inventory.md` DoD wording at line 314 ("STUBBED until Catalog/Ordering lands") is stale. Wave_progress is the authoritative record.
+
+**Pre-commit reviewer pass** (`Agent(subagent_type="feature-dev:code-reviewer", model="opus")`):
+- 0 CRITICAL, 1 HIGH, 2 IMPORTANT, 2 LOW findings.
+- **HIGH-1 fixed**: tightened the `BusinessExpectedErrorCodes` HashSet docstring on `SagaCommandHandlerBase` to make the addition criteria explicit — listing the three failure modes (business-expected with staged outbox = add; non-staged Result.Fail = don't add, DLT-route; bug-class throw = never reaches the filter). Prevents future maintainers from silently swallowing concurrency / validation errors.
+- **IMPORTANT-2 fixed**: rewrote `SagaCommandHandlerBaseTests` to actually drive the documented `Result.Fail → SagaCommandDispatchException` contract. Test suite now covers all three observable failure modes (business-expected with staged outbox; non-business `Result.Fail` triggering DLT throw; unhandled exception propagating unchanged). Old test asserted `ThrowAsync<Exception>()` on a path that triggered `DataIntegrityException` rather than the wrapper's `SagaCommandDispatchException` — false sense of safety.
+- **IMPORTANT-1 deferred to M6 follow-up**: integration test for the partial-fan-out failure path of `OrderCancelledEventKafkaHandler` (release succeeds for product A, fails for product B → throw → KafkaFlow re-runs the message; `WHERE Status = Active` requery makes it idempotent). The design is sound on paper but unverified by test. M6's `ReservationExpiryWorker` work introduces similar fan-out semantics — bundle the regression test there.
+- **LOW-1 deferred** (`OrderingOrdersConsumerOptions` single-handler subscription on a multi-event topic — operational nuisance only; non-handled types pass through inbox no-op + KafkaFlow log warnings).
+- **LOW-2 deferred** (defensive comment about `_transactionalOutbox.SaveChangesAsync` skip in OrderCancelled no-op branch — `AsNoTracking` snapshot guarantees no DbContext mutations).
+
+**Verification — paste of actual output (command → result):**
+
+| Gate | Command | Result |
+|---|---|---|
+| Restore (locked) | `dotnet restore --locked-mode` | ✅ exit 0, no lock-file changes |
+| Build (M5 slice) | `dotnet build {Inventory.API, IntegrationTests, UnitTests} -m --no-restore` | ✅ 0 errors per project (full-solution `dotnet build -m` fails on PRE-EXISTING errors in Invoicing/Catalog.ArchitectureTests/Basket.ArchitectureTests/Payments uncommitted work — outside M5 boundary, untouched) |
+| Format whitespace | `dotnet format whitespace --no-restore --verify-no-changes` | ✅ exit 0 |
+| Format style | `dotnet format style --no-restore --verify-no-changes` | ✅ exit 0 |
+| Unit tests | `dotnet test test/Inventory.UnitTests/` | ✅ 56/56 passed (no M2 regressions) |
+| Integration tests | `dotnet test test/Inventory.IntegrationTests/` | ✅ 22/22 passed (M3:6 + M4:5 + M5:11) |
+
+**Known DoD gaps carried forward to M6+:**
+
+- `ReservationExpiryWorker` hosted service + integration test with `FakeTimeProvider` → **M6** (next)
+- Admin HTTP endpoints (`POST /api/v1/inventory/stock-items/{productId}/{receive,adjust}`) + `.Idempotency()` per ADR-0013 → M7
+- ServiceDefaults + FastEndpoints + auth + output-cache + health endpoints in `Program.cs` → M7
+- Health check endpoint for `outbox-relay-inventory` → M7
+- CQRS behavior chain reactivation in `ApplicationDependencyInjection.AddApplication` → M7 (when responses arrive)
+- Rehydration observability (ADR-0006) — `inventory.aggregate.rehydration.{duration,event_count}` histograms + p99 < 1s integration test on a 1k-event stream → M8 (paired with arch tests)
+- Architecture tests (append-only `stock_events`, no `DateTime.UtcNow` in domain, `ReserveStockCommandHandler` doesn't throw) → M8
+- `example-mapping/inventory.md` Sessions 1-3 → M9
+- `docker compose --profile full up -d` smoke + final session summary → M10
+
+**Next milestone: M6** — `ReservationExpiryWorker` background hosted service polling `reservation_audit WHERE Status='Active' AND ExpiresAtUtc < now()` every 60s using injected `TimeProvider`; publishes `ReleaseReservationCommand(reason=Expiry)` per expired row via the outbox. Integration test uses `FakeTimeProvider` to advance past the TTL boundary and asserts the worker emits exactly one release per expired reservation.
 </wave_progress>
 
 <role_in_system>
@@ -225,7 +306,7 @@ LOCKED at the seams.
 - Projection tables: `inventory.current_stock_levels` + `inventory.reservation_audit`
 - Topics: `inventory.stock-events` (3 partitions) + `inventory.reservations` (6 partitions — saga fan-out) + `inventory.reservation-commands` (3 partitions, 7-day retention)
 - Consumer groups: `inventory-stock-init` (ProductCreated + OrderCancelled — single shared group per `events-catalog.md:96`; deviates from `eshop-master-design.md § E.10` — see `<wave_progress>` deviation #1), `inventory-reservation-commands` (saga cmds)
-- Reservation TTL = 15 min default (configurable)
+- Reservation TTL = 15 min default (configurable). **Cross-BC invariant** (ADR-0004 §Implementation Notes + [saga-stuck-runbook.md § 6 line 297](../bc-design/saga-stuck-runbook.md)): the value here is enforced upstream by `saga/SagaOrchestrators.UnitTests/Checkout/CheckoutTimeoutInvariantTests.cs` (see [checkout-saga.md `<dod>`](checkout-saga.md)) against the formula `Sum(saga step timeouts) + 2 × CompensationSeconds < TTL`. **If this TTL is shortened, coordinate with the saga team — the test will fail the build until saga timeouts are retuned.**
 - `InsufficientStock` is **BUSINESS-EXPECTED**, not a bug — returns `Result.Fail(...)` → external `StockReservationFailedEvent`; NEVER throws
 - Schemas FORWARD_TRANSITIVE (events) + FULL_TRANSITIVE (commands) per [ADR-0007](../adr/0007-avro-compatibility-modes.md)
 - HTTP routes (admin only) under `/api/v1/inventory/...` per ADR-0012
@@ -266,7 +347,7 @@ STILL OPEN:
 Cross-cutting decisions to apply:
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — every saga-command handler reads `CorrelationId` from the Kafka header; `stock_events.CorrelationId` column persists it; outbox publisher copies it into `StockReservedEvent` / `StockReservationFailedEvent` / `ReservationConfirmedEvent` / `ReservationReleasedEvent` Avro headers
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin endpoints (scope `inventory.commands.*`); saga-command Kafka consumer validates the `X-Service-Token` header from `checkout-saga` client; Catalog-event consumer does NOT require service-auth (event topic, not command)
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin endpoints (scope `inventory.commands.*`); saga-command Kafka consumers run on PLAINTEXT in v1 — **no per-message `X-Service-Token` validation** ([ADR-0010 lines 102-106](../adr/0010-service-to-service-auth.md:102) + ADR-0009 reference profile). Production hardening = enable broker SASL/OAUTHBEARER + per-service Kafka topic ACLs. Catalog-event consumer also runs on PLAINTEXT (event topic, not command).
 - [ADR-0012](../adr/0012-api-versioning.md) — admin routes under `/api/v1/inventory/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — apply FastEndpoints `.Idempotency()` to admin `POST /api/v1/inventory/stock-items/{productId}/adjust` (stock-adjust double-click guard) backed by `redis-cache`
 - [ADR-0015](../adr/0015-time-timezone-policy.md) — `stock_events.OccurredAtUtc` + `AppendedAtUtc` are `timestamptz`; `ReservationExpiryWorker` injects BCL `TimeProvider` and calls `GetUtcNow()` (makes expiry deterministic in tests via `FakeTimeProvider`); reservation TTL arithmetic uses `DateTimeOffset`
@@ -308,8 +389,9 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] 2 projection tables + handlers upserting within same DbContext transaction as event append
 - [ ] 6 ES events with reducers; `StockItem.Fold` verified correct on unit tests
 - [ ] Optimistic concurrency: `UniqueViolationException` → retry once; second conflict → `InventoryErrors.ConcurrencyConflict`
+- [ ] **Rehydration observability** per [ADR-0006 §Observability and the snapshot threshold](../adr/0006-event-sourcing-for-inventory.md): `EventStoreRepository.RehydrateAsync` emits `inventory.aggregate.rehydration.duration` (ms histogram) + `inventory.aggregate.rehydration.event_count` histograms tagged by `ProductId`. Integration test asserts p99 duration < 1s on a 1k-event stream. The metric + threshold open the v2 snapshot work item; no snapshot code in v1.
 - [ ] 5 external Avro events + 3 saga-command Avro + outbox publishers for all 5 externals
-- [ ] 3 saga-command Kafka consumers + 1 Catalog-event consumer (ProductCreated — STUBBED until Catalog lands) + 1 Ordering-event consumer (OrderCancelled → release-if-still-reserved — STUBBED until Ordering lands) — ALL with inbox dedup; saga-command consumers validate service-auth token
+- [ ] 3 saga-command Kafka consumers + 1 Catalog-event consumer (ProductCreated — **REAL** as of M5; Avro shipped Wave 1) + 1 Ordering-event consumer (OrderCancelled → release-if-still-reserved — **REAL** as of M5; Avro shipped Wave 1) — ALL with inbox dedup. **No** per-message service-auth token validation per ADR-0010 lines 102-106 (v1 = PLAINTEXT broker; production = broker SASL/OAUTHBEARER + ACLs).
 - [ ] Shared consumer group `inventory-stock-init` for BOTH Catalog and Ordering event consumers, separate from `inventory-reservation-commands` (commands group) — see `<wave_progress>` deviation #1
 - [ ] `ReservationExpiryWorker` (hosted service): polls every 1 min using injected BCL `TimeProvider`; publishes `ReleaseReservationCommand(ReleaseReason.Expiry)` per expired
 - [ ] `StockLevelChanged` fires **only on 0 ↔ positive** threshold crossings (integration test proves it)
