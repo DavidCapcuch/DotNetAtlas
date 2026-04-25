@@ -241,7 +241,7 @@ Types.InAssembly(BasketInfraAssembly)
 - **`Order.Items` backing field is private** — exposed as `IReadOnlyCollection<OrderItem>`; the private backing field is `List<OrderItem>` with `private set;` or `init;`.
 - **`OrderStatus` changes only via `CanTransitionTo`** — direct `Status = newStatus` assignment outside the FSM guard is forbidden. Every transition goes through a named method (`MarkStockReserved`, `MarkPaymentCompleted`, `Confirm`, `Ship`, `Deliver`, `Cancel`, `Fail`) that calls `Throw.If(!Status.CanTransitionTo(target))` internally (see [ordering.md § State transitions](ordering.md)).
 - **`ShippingAddress` / `BillingAddress` are immutable VOs** — declared as `sealed record` with `init;`-only properties.
-- **Saga-command consumers location** — `Ordering.Infrastructure.Messaging.Kafka.Consumers` is the only namespace that hosts classes implementing KafkaFlow `IMessageHandler<T>` for command topics; each dispatches via `ISender.Send(...)` per [use-cases.md § 3.3](use-cases.md).
+- **Saga-command consumers location** — `Ordering.Infrastructure.Messaging.Kafka.SagaCommands` is the only namespace that hosts classes implementing KafkaFlow `IMessageHandler<T>` for command topics; each dispatches via `ISender.Send(...)` per [use-cases.md § 3.3](use-cases.md).
 
 ```csharp
 Types.InAssembly(OrderingDomainAssembly)
@@ -251,7 +251,7 @@ Types.InAssembly(OrderingDomainAssembly)
 
 Types.InAssembly(OrderingInfraAssembly)
     .That().ImplementInterface(typeof(IMessageHandler<>))
-    .Should().ResideInNamespace("Ordering.Infrastructure.Messaging.Kafka.Consumers")
+    .Should().ResideInNamespace("Ordering.Infrastructure.Messaging.Kafka.SagaCommands")
     .GetResult();
 ```
 
