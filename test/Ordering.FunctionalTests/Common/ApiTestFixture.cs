@@ -1,0 +1,178 @@
+using FastEndpoints.Testing;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Time.Testing;
+using Ordering.FunctionalTests.Common.TestClientInfrastructure;
+using Ordering.Infrastructure.Persistence.Database;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Redis;
+using Serilog;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Abstract;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
+using Testcontainers.PostgreSql;
+
+namespace Ordering.FunctionalTests.Common;
+
+[CollectionDefinition(nameof(FunctionalTestCollection))]
+public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
+
+/// <summary>
+/// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Ordering API.
+/// Spins up Postgres + Redis Testcontainers, applies EF Core migrations
+/// programmatically (no Evolve — Ordering owns its EF migrations per
+/// <c>CLAUDE.md</c>), forces <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the
+/// host skips the saga-command Kafka consumer, and relaxes JWT validation
+/// so <see cref="FakeTokenCreator"/>'s unsigned tokens authenticate.
+/// </summary>
+[DisableWafCache]
+public class ApiTestFixture : AppFixture<Program>
+{
+    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
+        .WithDatabase("Ordering")
+        .WithUsername("postgres")
+        .WithPassword("TestingPasswordThatShouldBeInVault123!")
+        .WithCleanUp(true)
+        .Build();
+
+    private readonly RedisTestContainer _redisContainer = new();
+
+    /// <summary>
+    /// Pinned to 2026-04-23 10:00 UTC so cancellation/ship/deliver
+    /// timestamps in functional-test assertions stay deterministic.
+    /// </summary>
+    public FakeTimeProvider FakeTime { get; } = new(
+        new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero));
+
+    public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
+
+    protected override async ValueTask PreSetupAsync()
+    {
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync
+        // calls over the Windows named pipe interleave on the shared
+        // ChunkedReadStream and intermittently raise "Invalid chunk header
+        // encountered". Mirrors the Weather fixture's reasoning.
+        await _pgContainer.StartAsync();
+        await _redisContainer.StartAsync();
+    }
+
+    protected override async ValueTask SetupAsync()
+    {
+        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+
+        // Apply EF Core migrations once per fixture lifetime against the
+        // freshly-started container.
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+        await db.Database.MigrateAsync();
+    }
+
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        a.ConfigureWebHost(webBuilder =>
+        {
+            webBuilder
+                .UseSetting("ConnectionStrings:Ordering", _pgContainer.GetConnectionString())
+                .UseSetting("ConnectionStrings:Redis:Cache", _redisContainer.ConnectionString);
+        });
+
+        return base.ConfigureAppHost(a);
+    }
+
+    protected override void ConfigureApp(IWebHostBuilder a)
+    {
+        a
+            .UseEnvironment("Testing")
+            .ConfigureServices((context, services) =>
+            {
+                var injectableTestOutputSink = new InjectableTestOutputSink();
+                services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
+                services.AddSerilog((_, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .MinimumLevel.Debug()
+                        .ReadFrom.Configuration(context.Configuration)
+                        .WriteTo.InjectableTestOutput(injectableTestOutputSink)
+                        .Enrich.FromLogContext();
+                }, true, true);
+            })
+            .ConfigureTestServices(services =>
+            {
+                // Pin time so timestamp assertions are stable.
+                services.AddSingleton<TimeProvider>(FakeTime);
+
+                // Replace the real Avro/SchemaRegistry-backed outbox writer
+                // with an in-memory fake. The outbox publisher domain-event
+                // handlers fire on every SaveChanges; without this the seed
+                // helpers attempt to talk to a non-existent schema registry.
+                // Asserting on Kafka messages is M7's job; M5 only needs the
+                // HTTP surface to round-trip.
+                services.RemoveAll<IOutboxWriter>();
+                services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
+
+                // Relax JWT validation for the test host. Configure
+                // (IConfigureNamedOptions) runs before the framework's
+                // JwtBearerPostConfigureOptions, so RequireHttpsMetadata=false
+                // is observed before the HTTPS-authority check fires.
+                // PostConfigure would run after the framework's post-configure
+                // had already thrown.
+                services.Configure<JwtBearerOptions>(
+                    JwtBearerDefaults.AuthenticationScheme,
+                    options =>
+                    {
+                        options.RequireHttpsMetadata = false;
+                        // Authority + MetadataAddress are non-nullable; clear
+                        // them so the test host doesn't try to fetch the
+                        // OIDC discovery doc from a non-existent Keycloak.
+                        options.Authority = string.Empty;
+                        options.MetadataAddress = string.Empty;
+#pragma warning disable CA5404 // Test host only — never executed in deployed environments.
+                        options.TokenValidationParameters.ValidateIssuer = false;
+                        options.TokenValidationParameters.ValidateAudience = false;
+                        options.TokenValidationParameters.ValidateLifetime = false;
+#pragma warning restore CA5404
+                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
+                        options.TokenValidationParameters.RequireSignedTokens = false;
+                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
+                            new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
+                    });
+            });
+    }
+
+    public async Task ResetFixtureStateAsync()
+    {
+        // Wipe Redis so the idempotency cache from a prior test does not
+        // poison the next one. Postgres state is wiped by truncating the
+        // ordering schema's user tables.
+        await _redisContainer.CleanDataAsync();
+
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+        // Table names mirror the EF migration:
+        //   - "orders" + "order_items" (snake_case from EFCore.NamingConventions)
+        //   - "InboxMessages" + "OutboxMessages" (PascalCase, configured by
+        //     the Platform.ReliableMessaging.* helpers — quoted so Postgres
+        //     preserves the case).
+        await db.Database.ExecuteSqlRawAsync(
+            $"""
+             TRUNCATE TABLE
+                 "{OrderingDbContext.DefaultSchemaName}"."order_items",
+                 "{OrderingDbContext.DefaultSchemaName}"."orders",
+                 "{OrderingDbContext.DefaultSchemaName}"."OutboxMessages",
+                 "{OrderingDbContext.DefaultSchemaName}"."InboxMessages"
+             RESTART IDENTITY CASCADE;
+             """);
+    }
+
+    protected override async ValueTask TearDownAsync()
+    {
+        await _pgContainer.DisposeAsync();
+        await _redisContainer.DisposeAsync();
+    }
+}

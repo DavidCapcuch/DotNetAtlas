@@ -1,4 +1,6 @@
 using KafkaFlow;
+using Microsoft.Extensions.Hosting;
+using Ordering.API.Common;
 using Ordering.Application.Common;
 using Ordering.Infrastructure.Common;
 using Platform.ServiceDefaults;
@@ -22,19 +24,50 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
+        .AddOrderingAuth(builder.Configuration, isDeployedEnvironment)
+        .AddPresentation(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();
 
+    if (app.Environment.IsProduction())
+    {
+        app.UseExceptionHandler();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseStatusCodePages();
+
     app.UseCorrelationId();
+
+    app.UseRouting();
+
+    // Order matters: OutputCache reads must happen before authn so cached
+    // responses can short-circuit (FastEndpoints' .Idempotency() filter
+    // sits inside the endpoint pipeline, but AddIdempotencyKeyOutputCache
+    // wires the underlying IOutputCacheStore which UseOutputCache attaches).
+    app.UseOutputCache();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.UseOrderingFastEndpoints();
 
     app.MapPlatformHealthCheckEndpoints();
 
-    app.MapGet("/", () => "Ordering.Api — M4 Infrastructure wired; FastEndpoints land in M5.");
-
-    var kafkaBus = app.Services.CreateKafkaBus();
-    await kafkaBus.StartAsync();
+    // Skip the Kafka saga-command consumer in the test host. M5's
+    // functional-test slice exercises the HTTP surface only; the consumer
+    // is integration-tested in M4 / M7 against a real broker. Booting the
+    // consumer in tests would require a Kafka + schema-registry container
+    // pair that isn't part of M5's scope.
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        var kafkaBus = app.Services.CreateKafkaBus();
+        await kafkaBus.StartAsync();
+    }
 
     await app.RunAsync();
 }
@@ -53,7 +86,7 @@ finally
 }
 
 /// <summary>
-/// Partial <c>Program</c> marker so integration tests can use
+/// Partial <c>Program</c> marker so integration / functional tests can use
 /// <c>WebApplicationFactory&lt;Program&gt;</c>.
 /// </summary>
 public partial class Program;
