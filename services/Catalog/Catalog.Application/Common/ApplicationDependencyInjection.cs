@@ -1,3 +1,4 @@
+using Catalog.Application.Categories.Common.Services;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS.Common;
@@ -36,6 +37,9 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventDispatcher();
 
             services.AddOptions<Messaging.CatalogTopicsOptions>();
+
+            services.AddScoped<ICategoryAncestryService, CategoryAncestryService>();
+            services.AddScoped<ICategoryPathService, CategoryPathService>();
 
             services.AddCqrsHandlerBehaviors();
 

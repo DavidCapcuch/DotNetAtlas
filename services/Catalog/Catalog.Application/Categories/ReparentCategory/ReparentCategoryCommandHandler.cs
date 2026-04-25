@@ -1,3 +1,4 @@
+using Catalog.Application.Categories.Common.Services;
 using Catalog.Application.Common.Data;
 using Catalog.Domain.Categories;
 using Catalog.Domain.Categories.Errors;
@@ -5,36 +6,38 @@ using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Catalog.Application.Categories.ReparentCategory;
 
 /// <summary>
-/// Reparent command handler. M3 scope: validates the category exists, the new parent (if given)
-/// exists, rejects self-parenting, and delegates to <see cref="Category.Reparent"/>.
+/// Reparent command handler. Validates the category exists, the new parent (if given) exists,
+/// rejects self-parenting, calls <see cref="ICategoryAncestryService"/> to reject descendant
+/// cycles, and delegates to <see cref="Category.Reparent"/>.
 /// </summary>
 /// <remarks>
-/// <para>
-/// TODO(M3-followup): run <c>CategoryAncestryService.WouldCreateCycle(...)</c> before calling
-/// <c>category.Reparent(...)</c> so reparenting A under one of A's descendants is rejected with
-/// <c>CategoryErrors.ReparentCreatesCycle</c>.
-/// </para>
-/// <para>
-/// TODO(M3-followup): after a successful reparent, invoke <c>CategoryPathService</c> to rewrite
-/// descendant categories' paths and the corresponding <c>CategoryPath</c> columns in
-/// <c>product_search_view</c> — the descendant cascade is intentionally a no-op in M3 while the
-/// necessary bulk-SQL infrastructure is still landing in M4.
-/// </para>
+/// After a successful reparent, descendant categories' <c>Path</c> columns and the corresponding
+/// <c>CategoryPath</c> in <c>product_search_view</c> are rewritten by
+/// <see cref="ICategoryPathService"/>. The cascade and the aggregate save run inside a single
+/// EF transaction (<c>EnsureTransactionAsync</c>) so a SaveChanges failure rolls back the bulk
+/// updates as well.
 /// </remarks>
 public sealed class ReparentCategoryCommandHandler : ICommandHandler<ReparentCategoryCommand>
 {
     private readonly ICatalogDbContext _db;
+    private readonly ICategoryAncestryService _ancestry;
+    private readonly ICategoryPathService _pathService;
     private readonly ILogger<ReparentCategoryCommandHandler> _logger;
 
     public ReparentCategoryCommandHandler(
         ICatalogDbContext db,
+        ICategoryAncestryService ancestry,
+        ICategoryPathService pathService,
         ILogger<ReparentCategoryCommandHandler> logger)
     {
         _db = db;
+        _ancestry = ancestry;
+        _pathService = pathService;
         _logger = logger;
     }
 
@@ -56,15 +59,30 @@ public sealed class ReparentCategoryCommandHandler : ICommandHandler<ReparentCat
             {
                 return Result.Fail(CategoryErrors.NotFound(newParentId));
             }
+
+            if (await _ancestry.WouldCreateCycleAsync(category.Id, newParentId, ct))
+            {
+                return Result.Fail(CategoryErrors.ReparentCreatesCycle(category.Id, newParentId));
+            }
         }
 
+        var oldPath = category.Path;
         var reparentResult = category.Reparent(command.NewParentCategoryId, newParent?.Path);
         if (reparentResult.IsFailed)
         {
             return reparentResult;
         }
 
-        await _db.SaveChangesAsync(ct);
+        await _db.Database.EnsureTransactionAsync(async () =>
+        {
+            await _pathService.RewriteDescendantPathsAsync(
+                oldPath: oldPath.Value,
+                newPath: category.Path.Value,
+                excludedCategoryId: category.Id,
+                ct);
+
+            await _db.SaveChangesAsync(ct);
+        }, ct);
 
         _logger.LogInformation(
             "Reparented Category {CategoryId} under {NewParentCategoryId}",
