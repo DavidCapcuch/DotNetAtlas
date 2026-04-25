@@ -118,6 +118,95 @@ Living log. Each session appends its own block before ending; next-session agent
 - Architecture-test for "append-only on `stock_events`" + "no `DateTime.UtcNow` in `Inventory.Domain.dll`" + "`ReserveStockCommandHandler` doesn't throw" — deferred to M8.
 
 **Next milestone: M3** — Event-store repository (`EventStoreRepository.{AppendAsync, RehydrateAsync}`) with retry-once on `UniqueConstraintException` from `EntityFrameworkCore.Exceptions.PostgreSQL`; thin EF entity `StockEventRow` with `jsonb` Payload; integration test against Testcontainers Postgres covering optimistic-conflict retry.
+
+### Session 3 (2026-04-25) — M3 + M4 complete (M3 retroactively documented; M4 main delivery)
+
+> M3 was committed in commit `67bebcc feat(inventory): M3 event-store repo + Testcontainers integration tests` on 2026-04-24 22:30 by a session that did not append its own wave_progress block; M4 picked the work up. Treat this block as the authoritative record for both.
+
+**Delivered (M4 main scope — Application layer + enabling Infrastructure delta + Avro contracts):**
+
+- **8 Avro contracts** (5 external events + 3 saga commands) under `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/{Stock,Reservations}/` — each with hand-written `ISpecificRecord` C# wrapper mirroring the avrogen output style; shared `Inventory.Reservations.ReleaseReason` enum used by both `ReservationReleasedEvent` and `ReleaseReservationCommand` (both .avsc files declare the enum inline so each schema registers independently — see deviation note below)
+- **`Inventory.Application` layer**:
+    - `Common/Data/IEventStore.cs` + `Common/Data/IInventoryDbContext.cs` ports (Application → Infrastructure dependency direction)
+    - `Common/Messaging/TopicsOptions.cs` (`InventoryStockEvents`, `InventoryReservations`, `DltTopicSuffix`)
+    - `Common/ApplicationDependencyInjection.cs` — `extension(IServiceCollection)` with `AddApplication()`
+    - `Common/ReadModels/{CurrentStockLevelRow,ReservationAuditRow}.cs` (POCOs)
+    - 6 command triplets: `InitializeStockItem`, `ReceiveStock`, `AdjustStock`, `ReserveStock`, `ConfirmReservation`, `ReleaseReservation`
+    - 4 mappers (internal → external Avro): `StockLevelChanged`, `StockReserved`, `ReservationConfirmed`, `ReservationReleased`
+    - **2 multiplexed handlers** (one each for projection + lifecycle):
+        - `CurrentStockLevelsProjectionHandler` — `IDomainEventHandler<>` for ALL 6 ES events; owns the `current_stock_levels` row + the `0↔positive` threshold check + `StockLevelChanged` outbox emission
+        - `ReservationLifecycleHandler` — `IDomainEventHandler<>` for the 3 reservation events; owns `reservation_audit` row maintenance + the external `StockReservedEvent`/`ReservationConfirmedEvent`/`ReservationReleasedEvent` outbox emissions (keyed by `OrderId`)
+- **`Inventory.Infrastructure` delta**:
+    - `EventStoreRepository.AppendAsync` rewritten to inject `IDomainEventDispatcher` and dispatch internal events between `PopDomainEvents()` and `SaveChangesAsync()` so projection handlers + outbox publishers fire inside the same DB transaction as the event-store insert. Implements the new `IEventStore` port. On `UniqueConstraintException` retry: `_ctx.ChangeTracker.Clear()` (was: per-row detach) — handlers may have added projection + outbox rows on the failed attempt; clearing is the only correct reset.
+    - `InventoryDbContext` now implements `IInventoryDbContext` + `IInboxDbContext` and exposes the 4 new DbSets (`CurrentStockLevels`, `ReservationAudit`, `InboxMessages`, `OutboxMessages`); `OnModelCreating` calls `ConfigureOutbox` + `ConfigureInbox`
+    - `EntityConfigurations/{CurrentStockLevelRow,ReservationAuditRow}Configuration.cs` — partial indexes for `available <= 10` and `status = 'Active'` driving the M6 `ReservationExpiryWorker`
+    - `Common/MessagingDependencyInjection.cs` — `AddMessaging(...)` registers `AddInbox<InventoryDbContext>` + `AddOutbox(...)` (Kafka consumer wiring deferred to M5)
+    - `Messaging/Kafka/Config/{KafkaOptions,SchemaRegistryOptions,AvroSerializerOptions}.cs` — mirror Ordering's shape
+    - `PersistenceDependencyInjection.cs` — registers the `IEventStore` + `IInventoryDbContext` port mappings
+    - User-generated migration `20260425111658_AddProjectionsAndOutboxInbox` adds the 4 new tables; (re-generated once because an IDE-revert mid-session wiped the cumulative `InventoryDbContextModelSnapshot.cs` while leaving the migration's Designer.cs intact — `dotnet ef migrations remove` + `add` restored consistency)
+- **5 integration tests** under `test/Inventory.IntegrationTests/`:
+    - `Common/IntegrationTestFixture.cs` extended to register `AddApplication()`, `IInventoryDbContext`, `AddOutbox` and a fake `IOutboxWriter` (registered BEFORE `AddOutbox` so the platform's `TryAddSingleton` skips its real `OutboxWriter`)
+    - `Common/FakeOutboxWriter.cs` — bypasses Avro + Schema Registry; inserts `OutboxMessage` rows with `TopicName + KafkaKey + Type` preserved (empty `AvroPayload`). M4 verifies "right message lands in right topic"; end-to-end Avro byte-fidelity is M7 (matches Ordering's M4 precedent)
+    - `Common/NoOpDomainEventDispatcher.cs` — used by the M3 race-tests that construct `EventStoreRepository` manually with intercepted DbContext; needed because `EventStoreRepository` now requires a dispatcher
+    - `Application/ReserveStockCommandHandlerTests.cs` (3 tests) — happy path (event store + both projections + outbox commit atomically), `InsufficientStock` (no stock_events row, outbox has failure event), correlation-id roundtrip (Kafka header → `stock_events.correlation_id`)
+    - `Application/ConfirmReservationCommandHandlerTests.cs` — full transition: audit Status=Confirmed, OnHand decrement, external event in outbox
+    - `Application/StockLevelChangedEmissionTests.cs` — multi-step sequence proving the threshold rule fires exactly twice across `init → +5 → −2 → +1 → −4`
+
+**Design decisions resolved in M4** (persisted so fresh sessions don't re-litigate):
+
+| Question | Resolution | Rationale |
+|---|---|---|
+| How do projection handlers + outbox publishers see each other's writes inside one ES write cycle? | Dispatch internal events from `EventStoreRepository.AppendAsync` BETWEEN `PopDomainEvents()` and `SaveChangesAsync()` via `IDomainEventDispatcher`. All handlers write to tracked `DbSet`s; one `SaveChangesAsync` commits everything atomically. | Matches `inventory.md § 8.1` "Transactional envelope". `DispatchDomainEventsInterceptor` doesn't work for ES because aggregates aren't tracked entities. |
+| What happens to projection + outbox rows added by handlers on attempt 1 when attempt 2 retries after `UniqueConstraintException`? | `_ctx.ChangeTracker.Clear()` on the catch — wipes everything tracked, the next rehydrate starts clean. | Per-row detach (Reviewer of M3's idea) doesn't generalise; handlers can both `Add` and mutate, and we don't track which rows came from which handler. |
+| How do `StockLevelChangedOutboxPublisher` and `ReservationLifecycleHandler` avoid a registration-order race when they handle the same event? | Merge each concern into a single multiplexed handler: `CurrentStockLevelsProjectionHandler` owns BOTH the projection mutation AND the threshold-check + outbox emission for `StockLevelChanged`. `ReservationLifecycleHandler` owns BOTH the audit projection AND the external reservation-event emission. | Eliminates the ordering question entirely. Trade-off accepted: two concerns per handler class, but they share the same input event and the same output channel (outbox), so the cohesion is high. |
+| Threshold detection without aggregate replay? | New column `current_stock_levels.PreviousAvailable` — tracked atomically alongside `Available` by the projection handler. The publisher reads both and emits iff `prev==0 XOR new==0`. | O(1) per event vs. O(N) replay. Documented in `CurrentStockLevelRow` xmldoc as a deviation from `inventory.md § 9.1`. |
+| `InsufficientStock` failure path — where does the outbox write happen? | In `ReserveStockCommandHandler` directly. The aggregate emits no ES event on failure (nothing to dispatch); the handler reads the `Available` value off the typed error and assembles the external `StockReservationFailedEvent`. Other failure types (Concurrency, future business errors) intentionally do NOT map to a saga response — see in-line comment. | Keeps ES events as the sole source of truth for state mutations; outbox is the cross-service signal channel. |
+| CQRS behavior chain (Tracing → Logging → Metrics → Validation) | **Skipped in M4.** The platform's `AddCqrs*Behavior` extensions unconditionally call `services.Decorate(typeof(ICommandHandler<,>), ...)` which throws when no `<,>` handlers are registered, and Inventory M4 ships only `ICommandHandler<>` (no responses). The platform's behavior types are `internal sealed`, so Inventory cannot bypass with `TryDecorate`. | Re-enable in M7 when admin endpoints introduce queries + response-bearing commands. Deferral noted in `ApplicationDependencyInjection.cs` xmldoc. |
+| Avro saga-command namespace | `Inventory.Reservations` per `events-catalog.md:94` (locked authority). `use-cases.md:1333` says `Inventory.Commands` — accepted as a doc-internal inconsistency; events-catalog wins for cross-BC seams. | Future `events-catalog.md` regen should propagate to `use-cases.md`. |
+| Outbox in tests | Replace `IOutboxWriter` with `FakeOutboxWriter` BEFORE `AddOutbox` → platform's `TryAddSingleton` skips real `OutboxWriter`. Fake inserts `OutboxMessage` row directly with topic + key + CLR type preserved (empty `AvroPayload`). | Avoids needing a Schema Registry container for M4. End-to-end Avro fidelity validated in M7 alongside Kafka consumer wiring. Mirrors Ordering's M4 precedent (see `test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:53`). |
+
+**Deviations from locked/stated contracts — acknowledged and accepted:**
+
+1. **`current_stock_levels.PreviousAvailable` column** — not in `inventory.md § 9.1`. Added to enable threshold detection without state replay. Documented in `CurrentStockLevelRow.cs` xmldoc.
+2. **Saga-command namespace** — `Inventory.Reservations` per `events-catalog.md`; `use-cases.md:1333` is stale.
+3. **`ReleaseReason` enum embedded twice** — `ReservationReleasedEvent.avsc` and `ReleaseReservationCommand.avsc` both declare the enum inline. avrogen quirk (each .avsc registers independently, so each `_SCHEMA` payload must be self-contained). At runtime the schemas register as `Inventory.Reservations.ReleaseReason` in both subjects; runtime fine. **Maintenance gotcha:** if the enum gets a new symbol, regenerate BOTH .cs files (logged in LOW-3 from M4 reviewer).
+4. **`AvroPayload` is empty in fake-outbox tests** — masks any real Avro serialization issue. Acceptable for M4 (M7 verifies end-to-end). Reviewer flagged + accepted.
+5. **CQRS behavior chain skipped in M4** — see decisions table above. Re-enable in M7.
+
+**Doc-internal contradiction resolved (`inventory.md § 3.2 rule 2` vs `inventory.md:62`):** the aggregate retains terminal-status reservations in its in-memory dict (per :62) for the lifetime of a rehydrate; the projection-side `reservation_audit` table is the durable terminal-state store. M2 picked retention; M4 confirms by deferring to the audit table for lookups in confirm/release publishers. The `§ 3.2 rule 2` wording ("prune after Confirmed/Released") is read as advice for projection rebuilds, not aggregate lifetime.
+
+**Pre-commit reviewer pass** (`Agent(subagent_type="feature-dev:code-reviewer", model="opus")`):
+- 0 CRITICAL, 0 HIGH, 2 IMPORTANT, 4 LOW findings
+- IMPORTANT-1 fixed: `CurrentStockLevelRow.LastVersion` xmldoc rewritten to reflect that no idempotency guard is currently implemented (the field is reserved for a future replay-rebuild path; replay is impossible on the hot path because handlers run in the same tx as the ES append)
+- IMPORTANT-2 fixed: `ReserveStockCommandHandler` failure-branch comment expanded to explicitly state that non-`InsufficientStock` errors are NOT mapped to a saga-visible event (Concurrency = transient, DataIntegrityException = poison/DLT)
+- LOW-1 (defensive `GetRequiredSection` on outbox config callbacks) — accepted as M5 follow-up
+- LOW-2 (inbox/outbox table-name casing — `IX_InboxMessages_*` PascalCase from platform vs Inventory's snake_case ix_*) — accepted as platform follow-up
+- LOW-3 (regenerate both `ReleaseReason` schema embeddings on enum change) — documented in this block + `ReleaseReason.cs` will get a comment in a future maintenance pass
+- LOW-4 (postgres image tag pin drift across BC fixtures) — accepted, cosmetic
+
+**Verification — paste of actual output (command → result):**
+
+| Gate | Command | Result |
+|---|---|---|
+| Restore (locked) | `dotnet restore --locked-mode` | ✅ exit 0 |
+| Build | `dotnet build -m` | ✅ 0 errors, 90 pre-existing NU1903 warnings (allowlisted) |
+| Format whitespace | `dotnet format whitespace --no-restore --verify-no-changes` | ✅ exit 0 |
+| Format style | `dotnet format style --no-restore --verify-no-changes` | ✅ exit 0 |
+| Unit tests | `dotnet test test/Inventory.UnitTests/` | ✅ 56/56 passed (no M2 regressions) |
+| Integration tests | `dotnet test test/Inventory.IntegrationTests/` (with `HTTP_PROXY=` unset for Testcontainers Docker.DotNet `npipe://` URI compatibility) | ✅ 11/11 passed (6 from M3 + 5 new in M4) |
+
+**Known DoD gaps carried forward to M5+:**
+
+- 5 Kafka consumers (3 saga-command intake handlers + Catalog `ProductCreatedEvent` + Ordering `OrderCancelledEvent` — both still stubbed pending upstream BC schemas) → M5
+- Service-auth on saga-command consumers → M5
+- `ReservationExpiryWorker` hosted service + integration test with `FakeTimeProvider` → M6
+- Admin HTTP endpoints (`POST /api/v1/inventory/stock-items/{productId}/{receive,adjust}`) + `.Idempotency()` per ADR-0013 → M7
+- CQRS behavior chain reactivation in `ApplicationDependencyInjection.AddApplication` → M7 (when responses arrive)
+- Architecture tests (append-only `stock_events`, no `DateTime.UtcNow` in domain, `ReserveStockCommandHandler` doesn't throw) → M8
+- `example-mapping/inventory.md` Sessions 1-3 → M9
+- `docker compose --profile full up -d` smoke + final session summary → M10
+
+**Next milestone: M4 wave_progress contains the M4 deliverables; the next session executes M5** — Infrastructure layer (KafkaFlow consumer wiring for `inventory.reservation-commands` saga commands × 3, `catalog.products` `ProductCreatedEvent` consumer — STUBBED until Catalog ships its Avro schema, `ordering.orders` `OrderCancelledEvent` consumer — STUBBED until Ordering ships its schema; service-auth header validation; outbox-relay-inventory health check; integration test that puts a fake saga-command on the topic and verifies the resulting reservation-audit row + external Avro outbox emission).
 </wave_progress>
 
 <role_in_system>

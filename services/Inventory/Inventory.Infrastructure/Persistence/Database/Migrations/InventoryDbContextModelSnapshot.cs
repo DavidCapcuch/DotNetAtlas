@@ -23,6 +23,124 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Inventory.Application.Common.ReadModels.CurrentStockLevelRow", b =>
+                {
+                    b.Property<Guid>("ProductId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id")
+                        .HasComment("Aggregate identity / stream id. Shared with Catalog's Product.ProductId.");
+
+                    b.Property<int>("Available")
+                        .HasColumnType("integer")
+                        .HasColumnName("available")
+                        .HasComment("OnHand - Reserved after the last applied event. Materialised for indexable reads.");
+
+                    b.Property<DateTimeOffset>("LastUpdatedUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_updated_utc")
+                        .HasComment("= OccurredOnUtc of the last applied event.");
+
+                    b.Property<int>("LastVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_version")
+                        .HasComment("Monotonic per-stream event count applied to this row — guards future projection rebuilds against duplicates.");
+
+                    b.Property<int>("OnHand")
+                        .HasColumnType("integer")
+                        .HasColumnName("on_hand")
+                        .HasComment("Physical units present after the last applied event.");
+
+                    b.Property<int>("PreviousAvailable")
+                        .HasColumnType("integer")
+                        .HasColumnName("previous_available")
+                        .HasComment("Available BEFORE the last applied event; enables StockLevelChanged threshold detection without state replay.");
+
+                    b.Property<int>("Reserved")
+                        .HasColumnType("integer")
+                        .HasColumnName("reserved")
+                        .HasComment("Active reservations total after the last applied event.");
+
+                    b.HasKey("ProductId")
+                        .HasName("pk_current_stock_levels");
+
+                    b.HasIndex("Available")
+                        .HasDatabaseName("ix_current_stock_levels_available_low")
+                        .HasFilter("available <= 10");
+
+                    b.ToTable("current_stock_levels", "inventory", t =>
+                        {
+                            t.HasComment("Denormalised read projection: one row per ProductId, mutated by CurrentStockLevelsProjectionHandler on every ES event. Rebuildable from inventory.stock_events.");
+                        });
+                });
+
+            modelBuilder.Entity("Inventory.Application.Common.ReadModels.ReservationAuditRow", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("reservation_id")
+                        .HasComment("Saga-supplied reservation id (GUIDv7).");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc")
+                        .HasComment("UTC expiry (= ReservedAtUtc + TTL). Drives the TTL worker scan.");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id")
+                        .HasComment("Owning order. Fan-in key for saga correlation.");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id")
+                        .HasComment("Stream id joining back to inventory.current_stock_levels.ProductId.");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity")
+                        .HasComment("Units reserved. Immutable after the initial insert.");
+
+                    b.Property<string>("ReleaseReason")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("release_reason")
+                        .HasComment("Populated only on Status=Released (Compensation | Expiry | Cancellation).");
+
+                    b.Property<DateTimeOffset>("ReservedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reserved_at_utc")
+                        .HasComment("UTC timestamp the reservation was created.");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at_utc")
+                        .HasComment("UTC timestamp of the terminal transition; null while Active.");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status")
+                        .HasComment("Lifecycle: Active -> Confirmed | Released.");
+
+                    b.HasKey("ReservationId")
+                        .HasName("pk_reservation_audit");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("ix_reservation_audit_active_expiry")
+                        .HasFilter("status = 'Active'");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_reservation_audit_order");
+
+                    b.ToTable("reservation_audit", "inventory", t =>
+                        {
+                            t.HasComment("Per-reservation lifecycle projection. Inserted on StockReservedEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.");
+                        });
+                });
+
             modelBuilder.Entity("Inventory.Infrastructure.Persistence.EventStore.StockEventRow", b =>
                 {
                     b.Property<Guid>("StreamId")
@@ -81,6 +199,89 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                     b.ToTable("stock_events", "inventory", t =>
                         {
                             t.HasComment("Append-only event store for StockItem aggregates (ADR-0006). One row per internal ES event; composite PK (StreamId, Version) is the optimistic-concurrency mechanism.");
+                        });
+                });
+
+            modelBuilder.Entity("Platform.ReliableMessaging.Inbox.Core.InboxMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id")
+                        .HasComment("Unique message identifier (Primary Key).");
+
+                    b.Property<DateTimeOffset>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at_utc")
+                        .HasComment("UTC timestamp when the message was processed.");
+
+                    b.HasKey("MessageId")
+                        .HasName("pk_inbox_messages");
+
+                    b.HasIndex("ProcessedAtUtc")
+                        .HasDatabaseName("IX_InboxMessages_ProcessedAtUtc");
+
+                    b.ToTable("InboxMessages", "inventory", t =>
+                        {
+                            t.HasComment("Inbox pattern table for idempotent message processing. Tracks processed messages to prevent duplicate processing.");
+                        });
+                });
+
+            modelBuilder.Entity("Platform.ReliableMessaging.Outbox.Core.OutboxMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("PK, Identity");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<byte[]>("AvroPayload")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("avro_payload")
+                        .HasComment("Avro-serialized domain event payload");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_utc")
+                        .HasComment("Creation timestamp (UTC).");
+
+                    b.Property<string>("Headers")
+                        .HasMaxLength(8192)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("headers")
+                        .HasComment("JSON dictionary of OpenTelemetry-standard headers for distributed tracing and metadata. Headers are automatically generated by OpenTelemetry propagators for end-to-end trace context propagation.");
+
+                    b.Property<string>("KafkaKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("kafka_key")
+                        .HasComment("Kafka Key - typically the Aggregate ID for proper event ordering and partitioning");
+
+                    b.Property<string>("TopicName")
+                        .IsRequired()
+                        .HasMaxLength(249)
+                        .IsUnicode(false)
+                        .HasColumnType("character varying(249)")
+                        .HasColumnName("topic_name")
+                        .HasComment("The Kafka topic where this message will be published. Set by the message producer.");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(false)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("type")
+                        .HasComment("Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability");
+
+                    b.HasKey("Id")
+                        .HasName("pk_outbox_messages");
+
+                    b.ToTable("OutboxMessages", "inventory", t =>
+                        {
+                            t.HasComment("Outbox pattern table for storing domain events as Avro-serialized messages for reliable event publishing.");
                         });
                 });
 #pragma warning restore 612, 618

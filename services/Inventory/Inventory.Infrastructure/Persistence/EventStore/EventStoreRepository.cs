@@ -1,33 +1,53 @@
 using EntityFramework.Exceptions.Common;
 using FluentResults;
+using Inventory.Application.Common.Data;
 using Inventory.Domain.StockItems;
 using Inventory.Domain.StockItems.Errors;
 using Inventory.Infrastructure.Persistence.Database;
 using Microsoft.EntityFrameworkCore;
+using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Inventory.Infrastructure.Persistence.EventStore;
 
 /// <summary>
 /// Append-only repository for <see cref="StockItem"/> event streams persisted
-/// in <c>inventory.stock_events</c>. Encapsulates the ES write cycle
-/// described in <c>docs/bc-design/inventory.md</c> § 14.1: rehydrate, invoke
-/// the caller's command against the aggregate, insert the emitted events at
-/// the next contiguous versions. Optimistic concurrency is enforced by the
-/// <c>PK(StreamId, Version)</c> — a conflict surfaces as
-/// <see cref="UniqueConstraintException"/> from
-/// <c>EntityFrameworkCore.Exceptions.PostgreSQL</c> and is retried once
-/// (§ 10.2); a second conflict returns
-/// <see cref="InventoryErrors.Concurrency"/>.
+/// in <c>inventory.stock_events</c>. Encapsulates the ES write cycle described
+/// in <c>docs/bc-design/inventory.md</c> § 14.1: rehydrate, invoke the caller's
+/// command against the aggregate, insert the emitted events at the next
+/// contiguous versions, dispatch each event to its in-process domain-event
+/// handlers (projection handlers + outbox publishers, which write to the same
+/// <see cref="InventoryDbContext"/>), and commit everything in one
+/// <see cref="DbContext.SaveChangesAsync(CancellationToken)"/> — so the event
+/// rows, projection upserts, and outbox messages are atomic per
+/// <c>inventory.md</c> § 8.1 ("Transactional envelope").
 /// </summary>
-public sealed class EventStoreRepository
+/// <remarks>
+/// <para>
+/// Optimistic concurrency is enforced by the <c>PK(StreamId, Version)</c> — a
+/// conflict surfaces as <see cref="UniqueConstraintException"/> from
+/// <c>EntityFrameworkCore.Exceptions.PostgreSQL</c> and is retried once
+/// (§ 10.2); a second conflict returns <see cref="InventoryErrors.Concurrency"/>.
+/// </para>
+/// <para>
+/// On retry we clear the full <see cref="ChangeTracker"/>: the first attempt
+/// may have registered projection rows + outbox messages via the dispatched
+/// handlers, and those need to be re-evaluated against the now-current state
+/// rather than replayed blindly.
+/// </para>
+/// </remarks>
+public sealed class EventStoreRepository : IEventStore
 {
     private const int MaxAttempts = 2;
 
     private readonly InventoryDbContext _ctx;
+    private readonly IDomainEventDispatcher _dispatcher;
 
-    public EventStoreRepository(InventoryDbContext ctx)
+    public EventStoreRepository(
+        InventoryDbContext ctx,
+        IDomainEventDispatcher dispatcher)
     {
         _ctx = ctx;
+        _dispatcher = dispatcher;
     }
 
     /// <summary>
@@ -51,13 +71,15 @@ public sealed class EventStoreRepository
 
     /// <summary>
     /// Rehydrates the stream, invokes <paramref name="command"/> against the
-    /// aggregate, and appends the emitted domain events at versions
-    /// <c>current+1..current+N</c>. On a
-    /// <see cref="UniqueConstraintException"/> (another writer appended first)
-    /// the whole sequence is retried once against the now-current state;
-    /// a second conflict returns
-    /// <see cref="InventoryErrors.Concurrency"/>. A business-expected
-    /// <see cref="Result.Fail(FluentResults.IError)"/> from
+    /// aggregate, appends the emitted domain events at versions
+    /// <c>current+1..current+N</c>, dispatches each event through
+    /// <see cref="IDomainEventDispatcher"/> so projection handlers + outbox
+    /// publishers write to the same <see cref="InventoryDbContext"/>, and
+    /// commits atomically via <see cref="DbContext.SaveChangesAsync(CancellationToken)"/>.
+    /// On a <see cref="UniqueConstraintException"/> (another writer appended
+    /// first) the whole sequence is retried once against the now-current state;
+    /// a second conflict returns <see cref="InventoryErrors.Concurrency"/>.
+    /// A business-expected <see cref="Result.Fail(FluentResults.IError)"/> from
     /// <paramref name="command"/> short-circuits without touching the DB.
     /// </summary>
     /// <param name="streamId">The stream id (= <c>ProductId</c>).</param>
@@ -83,10 +105,9 @@ public sealed class EventStoreRepository
         // Npgsql execution strategy). That strategy retries only transient
         // errors — UniqueConstraintException (SQLSTATE 23505) is not one,
         // so it surfaces immediately and the loop below handles it.
-        // If a future milestone adds an explicit BeginTransactionAsync here
-        // (M4 wraps event append + projection upsert + outbox in one tx),
-        // wrap the retry block in CreateExecutionStrategy().ExecuteAsync(...)
-        // — EF rejects user-initiated transactions under a retrying strategy.
+        // SaveChangesAsync opens its own implicit transaction; event rows,
+        // projection rows added by dispatched handlers, and outbox rows
+        // likewise added by dispatched outbox publishers commit atomically.
 
         // Captured from the first rehydrate so a ConcurrencyError reports
         // the version the caller originally expected to append at, not the
@@ -119,7 +140,6 @@ public sealed class EventStoreRepository
                 return Result.Ok(aggregate);
             }
 
-            var addedRows = new List<StockEventRow>(events.Count);
             for (var i = 0; i < events.Count; i++)
             {
                 var @event = events[i];
@@ -133,7 +153,15 @@ public sealed class EventStoreRepository
                     correlationId: correlationId);
 
                 _ctx.StockEvents.Add(row);
-                addedRows.Add(row);
+            }
+
+            // Dispatch in version order — projection handlers + outbox
+            // publishers run in this order inside the same DbContext scope, so
+            // their DbSet writes are tracked alongside the StockEventRow inserts
+            // and land in the same SaveChangesAsync transaction.
+            foreach (var @event in events)
+            {
+                await _dispatcher.DispatchAsync(@event, ct).ConfigureAwait(false);
             }
 
             try
@@ -144,12 +172,11 @@ public sealed class EventStoreRepository
             catch (UniqueConstraintException)
             {
                 // PK(StreamId, Version) collision — another writer appended
-                // first. Detach our pending rows so the next rehydrate pulls
-                // a clean state, then loop to retry.
-                foreach (var row in addedRows)
-                {
-                    _ctx.Entry(row).State = EntityState.Detached;
-                }
+                // first. Clear the ChangeTracker so the next rehydrate starts
+                // from a clean slate; tracked projection rows + outbox messages
+                // added by handlers on this attempt must be re-evaluated
+                // against the now-current state, not replayed blindly.
+                _ctx.ChangeTracker.Clear();
             }
         }
 

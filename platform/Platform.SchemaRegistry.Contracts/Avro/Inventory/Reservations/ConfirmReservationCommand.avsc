@@ -1,0 +1,40 @@
+{
+    "type": "record",
+    "name": "ConfirmReservationCommand",
+    "namespace": "Inventory.Reservations",
+    "doc": "Command issued by the Checkout saga to confirm a reservation after payment has been captured. Inventory physically decrements OnHand by Quantity and emits ReservationConfirmedEvent. Idempotent on ReservationId.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id. Also the Kafka message key."
+        },
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product whose reservation to confirm. Keys the event-sourced stream."
+        },
+        {
+            "name": "ReservationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Reservation to confirm. Must refer to an Active reservation; confirming a non-Active reservation is a bug (DataIntegrityException)."
+        },
+        {
+            "name": "RequestedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga issued the command."
+        }
+    ]
+}

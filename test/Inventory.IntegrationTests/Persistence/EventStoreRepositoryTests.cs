@@ -183,7 +183,7 @@ public sealed class EventStoreRepositoryTests
             fireCount: 1);
 
         await using var raceCtx = CreateInterceptedDbContext(interceptor);
-        var raceRepo = new EventStoreRepository(raceCtx);
+        var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
 
         var result = await raceRepo.AppendAsync(
             productId,
@@ -247,7 +247,7 @@ public sealed class EventStoreRepositoryTests
             fireCount: 2);
 
         await using var raceCtx = CreateInterceptedDbContext(interceptor);
-        var raceRepo = new EventStoreRepository(raceCtx);
+        var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
 
         var result = await raceRepo.AppendAsync(
             productId,

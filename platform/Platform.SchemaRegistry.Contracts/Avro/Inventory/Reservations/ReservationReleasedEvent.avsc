@@ -1,0 +1,50 @@
+{
+    "type": "record",
+    "name": "ReservationReleasedEvent",
+    "namespace": "Inventory.Reservations",
+    "doc": "Emitted when a reservation is released without being shipped. ReleaseReason distinguishes deliberate compensation (saga rollback), automatic expiry (TTL worker), and explicit customer/operator cancellation.",
+    "fields": [
+        {
+            "name": "ProductId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Product whose reservation was released."
+        },
+        {
+            "name": "ReservationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Reservation that was released."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Owning order."
+        },
+        {
+            "name": "ReleaseReason",
+            "type": {
+                "type": "enum",
+                "name": "ReleaseReason",
+                "namespace": "Inventory.Reservations",
+                "symbols": ["Compensation", "Expiry", "Cancellation"]
+            },
+            "doc": "Compensation = saga rollback. Expiry = TTL worker auto-release. Cancellation = customer or ops explicit action."
+        },
+        {
+            "name": "ReleasedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp of release."
+        }
+    ]
+}

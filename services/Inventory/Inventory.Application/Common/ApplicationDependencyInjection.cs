@@ -1,0 +1,57 @@
+using FluentValidation;
+using Inventory.Application.Common.Messaging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Platform.CQRS.Common;
+using Platform.SharedKernel.Common;
+
+namespace Inventory.Application.Common;
+
+/// <summary>
+/// Composition root for the Inventory Application layer. The host project
+/// (<c>Inventory.API</c>) calls <c>services.AddApplication()</c>; Infrastructure
+/// DI wires the concretions (<c>InventoryDbContext</c>, event-store repo,
+/// outbox + inbox, and — in M5 — Kafka consumers) on top.
+/// </summary>
+public static class ApplicationDependencyInjection
+{
+    /// <param name="services">The service collection.</param>
+    extension(IServiceCollection services)
+    {
+        /// <summary>
+        /// Registers validators, CQRS handlers + behaviour chain, domain-event
+        /// handlers + dispatcher, and the <see cref="TopicsOptions"/> binding.
+        /// Call AFTER <c>AddServiceDefaults</c> and BEFORE the Infrastructure
+        /// registrations so the projection handlers and outbox publishers pick
+        /// up the concrete <c>IInventoryDbContext</c> / outbox services.
+        /// </summary>
+        public IServiceCollection AddApplication()
+        {
+            var assembly = typeof(ApplicationDependencyInjection).Assembly;
+
+            services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+            services.AddCqrsHandlersFromAssembly(assembly);
+            services
+                .AddDomainEventHandlersFromAssembly(assembly)
+                .AddDomainEventDispatcher();
+
+            // CQRS behavior chain (Tracing > Logging > Metrics > Validation)
+            // is intentionally NOT wired in M4. The platform decorators
+            // (Platform.CQRS.Common.AddCqrs*Behavior) eagerly call
+            // services.Decorate(typeof(ICommandHandler<,>), ...) which throws
+            // when no <,> handlers are registered. M4 only ships
+            // ICommandHandler<> (saga-command handlers return Result, not
+            // Result<TResponse>); IQueryHandler<,> + ICommandHandler<,>
+            // arrive in M7 with the admin endpoints. Re-enable the chain
+            // here when M7 lands those handlers.
+
+            services.AddOptionsWithValidateOnStart<TopicsOptions>()
+                .BindConfiguration(TopicsOptions.Section)
+                .ValidateDataAnnotations();
+
+            return services;
+        }
+    }
+}

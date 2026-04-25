@@ -1,4 +1,5 @@
 using EntityFramework.Exceptions.PostgreSQL;
+using Inventory.Application.Common.Data;
 using Inventory.Infrastructure.Common.Config;
 using Inventory.Infrastructure.Persistence.Database;
 using Inventory.Infrastructure.Persistence.EventStore;
@@ -11,9 +12,9 @@ namespace Inventory.Infrastructure.Common;
 
 /// <summary>
 /// DI wiring for the Inventory persistence slice: Npgsql, EF Core,
-/// <see cref="InventoryDbContext"/>, and the event-store repository. Outbox,
-/// inbox, and interceptors land in M4+ when the application layer exists to
-/// drive them.
+/// <see cref="InventoryDbContext"/>, the event-store repository, and the
+/// <see cref="IInventoryDbContext"/> + <see cref="IEventStore"/> port
+/// bindings consumed by the Application layer.
 /// </summary>
 internal static class PersistenceDependencyInjection
 {
@@ -57,6 +58,8 @@ internal static class PersistenceDependencyInjection
             .UseExceptionProcessor());
 
         services.AddScoped<EventStoreRepository>();
+        services.AddScoped<IEventStore>(sp => sp.GetRequiredService<EventStoreRepository>());
+        services.AddScoped<IInventoryDbContext>(sp => sp.GetRequiredService<InventoryDbContext>());
 
         return services;
     }
