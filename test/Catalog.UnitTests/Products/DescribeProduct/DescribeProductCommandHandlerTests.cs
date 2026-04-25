@@ -20,7 +20,7 @@ public class DescribeProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new DescribeProductCommandHandler(
-            db, NullLogger<DescribeProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<DescribeProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new DescribeProductCommand
@@ -52,7 +52,7 @@ public class DescribeProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new DescribeProductCommandHandler(
-            db, NullLogger<DescribeProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<DescribeProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new DescribeProductCommand
@@ -70,7 +70,7 @@ public class DescribeProductCommandHandlerTests
     {
         await using var db = FakeCatalogDbContext.Create();
         var handler = new DescribeProductCommandHandler(
-            db, NullLogger<DescribeProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<DescribeProductCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new DescribeProductCommand

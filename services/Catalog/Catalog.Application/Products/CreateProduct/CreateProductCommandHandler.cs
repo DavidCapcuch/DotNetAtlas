@@ -25,13 +25,16 @@ namespace Catalog.Application.Products.CreateProduct;
 public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Guid>
 {
     private readonly ICatalogDbContext _db;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<CreateProductCommandHandler> _logger;
 
     public CreateProductCommandHandler(
         ICatalogDbContext db,
+        TimeProvider timeProvider,
         ILogger<CreateProductCommandHandler> logger)
     {
         _db = db;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -121,7 +124,8 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
             brandResult.Value,
             priceResult.Value,
             dimensions,
-            images);
+            images,
+            _timeProvider.GetUtcNow());
 
         if (productResult.IsFailed)
         {

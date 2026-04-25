@@ -10,13 +10,16 @@ namespace Catalog.Application.Products.ReactivateProduct;
 public sealed class ReactivateProductCommandHandler : ICommandHandler<ReactivateProductCommand>
 {
     private readonly ICatalogDbContext _db;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ReactivateProductCommandHandler> _logger;
 
     public ReactivateProductCommandHandler(
         ICatalogDbContext db,
+        TimeProvider timeProvider,
         ILogger<ReactivateProductCommandHandler> logger)
     {
         _db = db;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -28,7 +31,7 @@ public sealed class ReactivateProductCommandHandler : ICommandHandler<Reactivate
             return Result.Fail(ProductErrors.NotFound(command.ProductId));
         }
 
-        var reactivateResult = product.Reactivate(command.AdminReactivation);
+        var reactivateResult = product.Reactivate(command.AdminReactivation, _timeProvider.GetUtcNow());
         if (reactivateResult.IsFailed)
         {
             return reactivateResult;

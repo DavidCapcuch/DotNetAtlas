@@ -36,7 +36,7 @@ public class CreateProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new CreateProductCommandHandler(
-            db, NullLogger<CreateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateProductCommandHandler>.Instance);
 
         // Act
         var result = await handler.HandleAsync(
@@ -68,7 +68,7 @@ public class CreateProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new CreateProductCommandHandler(
-            db, NullLogger<CreateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateProductCommandHandler>.Instance);
 
         // Act
         var result = await handler.HandleAsync(
@@ -85,7 +85,7 @@ public class CreateProductCommandHandlerTests
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new CreateProductCommandHandler(
-            db, NullLogger<CreateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateProductCommandHandler>.Instance);
         var unknownCategory = Guid.CreateVersion7();
 
         // Act
@@ -107,7 +107,7 @@ public class CreateProductCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new CreateProductCommandHandler(
-            db, NullLogger<CreateProductCommandHandler>.Instance);
+            db, TimeProvider.System, NullLogger<CreateProductCommandHandler>.Instance);
         var cmd = ValidCommand(category.Id);
         cmd.Sku = "abc-002";
 

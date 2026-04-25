@@ -11,13 +11,16 @@ namespace Catalog.Application.Categories.CreateCategory;
 public sealed class CreateCategoryCommandHandler : ICommandHandler<CreateCategoryCommand, Guid>
 {
     private readonly ICatalogDbContext _db;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<CreateCategoryCommandHandler> _logger;
 
     public CreateCategoryCommandHandler(
         ICatalogDbContext db,
+        TimeProvider timeProvider,
         ILogger<CreateCategoryCommandHandler> logger)
     {
         _db = db;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -35,7 +38,11 @@ public sealed class CreateCategoryCommandHandler : ICommandHandler<CreateCategor
             }
         }
 
-        var categoryResult = Category.Create(command.Name, command.ParentCategoryId, parent?.Path);
+        var categoryResult = Category.Create(
+            command.Name,
+            command.ParentCategoryId,
+            parent?.Path,
+            _timeProvider.GetUtcNow());
         if (categoryResult.IsFailed)
         {
             return categoryResult.ToResult<Guid>();
