@@ -1,0 +1,72 @@
+using EntityFramework.Exceptions.PostgreSQL;
+using Invoicing.Application.Common.Data;
+using Invoicing.Application.Common.Numbering;
+using Invoicing.Infrastructure.Common.Config;
+using Invoicing.Infrastructure.Persistence.Database;
+using Invoicing.Infrastructure.Persistence.Numbering;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Invoicing.Infrastructure.Common;
+
+/// <summary>
+/// DI wiring for the Invoicing persistence slice (M5): Npgsql, EF Core,
+/// <see cref="InvoicingDbContext"/>, the gap-free number allocators per
+/// ADR-0018, and the <see cref="IInvoicingDbContext"/> port binding.
+/// Outbox / inbox / projections land in M6 + M7 alongside the consumers and
+/// command handlers that drive them.
+/// </summary>
+internal static class PersistenceDependencyInjection
+{
+    internal static IServiceCollection AddPersistence(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool isDeployedEnvironment)
+    {
+        services.AddOptionsWithValidateOnStart<EfCoreOptions>()
+            .BindConfiguration(EfCoreOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<ConnectionStringsOptions>()
+            .BindConfiguration(ConnectionStringsOptions.Section)
+            .ValidateDataAnnotations();
+
+        var efCoreOptions = configuration
+            .GetRequiredSection(EfCoreOptions.Section)
+            .Get<EfCoreOptions>()!;
+
+        // EnableRetryOnFailure is intentionally NOT applied here. The gap-free
+        // allocator pattern (ADR-0018) requires the IssueInvoice / IssueCreditNote
+        // handlers to own the transaction via Database.BeginTransactionAsync —
+        // a usage shape that NpgsqlRetryingExecutionStrategy refuses with
+        // InvalidOperationException. Transient-failure recovery is delegated to
+        // the outbox-relay retry loop (the external event re-publishes on retry;
+        // a half-issued invoice is impossible because the FOR UPDATE row lock +
+        // SaveChangesAsync commit are atomic with the outbox row insert).
+        services.AddDbContext<InvoicingDbContext>((_, options) => options
+            .UseNpgsql(
+                configuration.GetConnectionString(nameof(ConnectionStringsOptions.Invoicing)),
+                npgsqlOptions =>
+                {
+                    npgsqlOptions.MigrationsHistoryTable(
+                        HistoryRepository.DefaultTableName,
+                        InvoicingDbContext.DefaultSchemaName);
+                    npgsqlOptions.UseQuerySplittingBehavior(
+                        efCoreOptions.UseQuerySplitting
+                            ? QuerySplittingBehavior.SplitQuery
+                            : QuerySplittingBehavior.SingleQuery);
+                })
+            .UseSnakeCaseNamingConvention()
+            .EnableSensitiveDataLogging(!isDeployedEnvironment)
+            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
+            .UseExceptionProcessor());
+
+        services.AddScoped<IInvoicingDbContext>(sp => sp.GetRequiredService<InvoicingDbContext>());
+        services.AddScoped<IInvoiceNumberAllocator, PostgresInvoiceNumberAllocator>();
+        services.AddScoped<ICreditNoteNumberAllocator, PostgresCreditNoteNumberAllocator>();
+
+        return services;
+    }
+}
