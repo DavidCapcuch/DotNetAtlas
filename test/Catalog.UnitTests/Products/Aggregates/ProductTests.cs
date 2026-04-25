@@ -45,6 +45,7 @@ public class ProductTests
                 .Subject;
             created.ProductId.Should().Be(product.Id);
             created.CategoryId.Should().Be(categoryId);
+            created.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
@@ -195,6 +196,7 @@ public class ProductTests
                 .Subject;
             evt.ProductId.Should().Be(product.Id);
             evt.NewDescription.Should().Be(newDescription);
+            evt.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
@@ -213,9 +215,10 @@ public class ProductTests
         {
             result.Should().BeSuccess();
             product.Status.Should().Be(ProductStatus.Active);
-            product.PopDomainEvents().Should()
+            var activated = product.PopDomainEvents().Should()
                 .ContainSingle()
-                .Which.Should().BeOfType<ProductActivatedDomainEvent>();
+                .Which.Should().BeOfType<ProductActivatedDomainEvent>().Subject;
+            activated.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
@@ -290,6 +293,7 @@ public class ProductTests
                 .Which.Should().BeOfType<ProductDiscontinuedDomainEvent>()
                 .Subject;
             evt.Reason.Should().Be("End of life");
+            evt.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
@@ -395,9 +399,10 @@ public class ProductTests
         {
             result.Should().BeSuccess();
             product.Status.Should().Be(ProductStatus.Active);
-            product.PopDomainEvents().Should()
+            var reactivated = product.PopDomainEvents().Should()
                 .ContainSingle()
-                .Which.Should().BeOfType<ProductReactivatedDomainEvent>();
+                .Which.Should().BeOfType<ProductReactivatedDomainEvent>().Subject;
+            reactivated.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 

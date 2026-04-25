@@ -31,6 +31,7 @@ public class CategoryTests
             created.CategoryId.Should().Be(category.Id);
             created.Path.Value.Should().Be("/electronics");
             created.ParentCategoryId.Should().BeNull();
+            created.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
@@ -136,6 +137,7 @@ public class CategoryTests
             evt.NewParentId.Should().Be(parentId);
             evt.OldPath.Should().Be(oldPath);
             evt.NewPath.Value.Should().Be("/electronics/workstations");
+            evt.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
@@ -189,6 +191,7 @@ public class CategoryTests
             evt.NewParentId.Should().Be(newParentId);
             evt.OldPath.Should().Be(oldPath);
             evt.NewPath.Should().Be(category.Path);
+            evt.OccurredOnUtc.Should().Be(UtcNow);
         }
     }
 
