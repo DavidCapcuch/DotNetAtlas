@@ -164,8 +164,9 @@ Aggregate-level errors raised by Application-layer command/query handlers (HTTP 
 - `CategoryErrors.CannotParentToSelf` — 422 Unprocessable (`Reparent` called with `NewParentCategoryId == Id`).
 - `CategoryErrors.NotFound(categoryId)` — 404 Not Found (handler-level lookup miss on any category-addressing command or query).
 - `CategoryErrors.ParentNotFound(parentCategoryId)` — 404 Not Found (parent lookup miss in `CreateCategoryCommandHandler` or `ReparentCategoryCommandHandler`).
+- `CategoryErrors.ReparentCreatesCycle(categoryId, newParentCategoryId)` — 422 Unprocessable (the candidate parent is the category itself or one of its descendants — surfaced by `CategoryAncestryService.WouldCreateCycleAsync` before `Category.Reparent` runs).
 
-> Category dependency-based errors (`HasChildren`, `HasProducts`) and cycle-detection (`ReparentCreatesCycle`) are deferred alongside the `DeleteCategoryCommand`, `CategoryAncestryService`, and `CategoryPathService` descendant cascade — see the follow-up milestone to Catalog M3.
+> Category dependency-based errors (`HasChildren`, `HasProducts`) are deferred alongside the `DeleteCategoryCommand` — see the follow-up milestone to Catalog M3.
 > Product image-collection errors (`DuplicateImageDisplayOrder`, `ImageNotFound`) are deferred alongside the `AddProductImageCommand` / `RemoveProductImageCommand` handlers.
 
 ### 3.3 `OrderingErrors` (in `Ordering.Domain.Errors`)

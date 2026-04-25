@@ -39,4 +39,12 @@ public static class CategoryErrors
             propertyName: "ParentCategoryId",
             errorMessage: $"Parent category '{parentCategoryId}' does not exist.",
             errorCode: "Category.ParentNotFound");
+
+    public static ValidationError ReparentCreatesCycle(Guid categoryId, Guid newParentCategoryId)
+        => new ValidationError(
+            propertyName: "ParentCategoryId",
+            errorMessage:
+                $"Reparenting category '{categoryId}' under '{newParentCategoryId}' would create a cycle "
+                + "(the candidate parent is the category itself or one of its descendants).",
+            errorCode: "Category.ReparentCreatesCycle");
 }

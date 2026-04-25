@@ -5,6 +5,7 @@ using Catalog.Domain.Categories.ValueObjects;
 using Catalog.Domain.Products;
 using Catalog.Domain.Products.ValueObjects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Platform.ReliableMessaging.Outbox.Core;
 using Platform.SharedKernel.ValueObjects;
 
@@ -36,6 +37,12 @@ public sealed class FakeCatalogDbContext : DbContext, ICatalogDbContext
     {
         var options = new DbContextOptionsBuilder<FakeCatalogDbContext>()
             .UseInMemoryDatabase(databaseName ?? Guid.CreateVersion7().ToString())
+            // The InMemory provider has no transactions; the production CatalogDbContext on
+            // Postgres uses Database.EnsureTransactionAsync (e.g. ReparentCategoryCommandHandler).
+            // Tell the provider to silently ignore the transaction so unit tests still exercise
+            // the same handler code path; the SQL-level transactional semantics are covered by
+            // Catalog.IntegrationTests against a Postgres Testcontainer in M4.
+            .ConfigureWarnings(b => b.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         return new FakeCatalogDbContext(options);
