@@ -115,6 +115,15 @@
           "StyleCop.Analyzers.Unstable": "1.2.0.556"
         }
       },
+      "Testcontainers.PostgreSql": {
+        "type": "Direct",
+        "requested": "[4.11.0, )",
+        "resolved": "4.11.0",
+        "contentHash": "OWGi0Og+qFpr2OPDignA74aJSfUd0nvZOaXNGWXwMJR1BvpdzhCNHQB2h7yLSTb0a8JVmmQQ4mUpHAC9q27NLw==",
+        "dependencies": {
+          "Testcontainers": "4.11.0"
+        }
+      },
       "xunit.analyzers": {
         "type": "Direct",
         "requested": "[1.24.0, )",
@@ -2501,15 +2510,6 @@
         "requested": "[4.11.0, )",
         "resolved": "4.11.0",
         "contentHash": "akpJ35K/ZP99AkOoJRTi3ABu9zjtW/Uoak+9MDZyg3NPbKWqt1AA7P8OM/Eac4GQQkVV4NoHrKSINhs24yVpPQ==",
-        "dependencies": {
-          "Testcontainers": "4.11.0"
-        }
-      },
-      "Testcontainers.PostgreSql": {
-        "type": "CentralTransitive",
-        "requested": "[4.11.0, )",
-        "resolved": "4.11.0",
-        "contentHash": "OWGi0Og+qFpr2OPDignA74aJSfUd0nvZOaXNGWXwMJR1BvpdzhCNHQB2h7yLSTb0a8JVmmQQ4mUpHAC9q27NLw==",
         "dependencies": {
           "Testcontainers": "4.11.0"
         }
