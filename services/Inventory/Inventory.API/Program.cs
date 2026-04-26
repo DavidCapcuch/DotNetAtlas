@@ -31,6 +31,17 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
+    // The reservation-expiry worker boots WITH the host. Skip it in the
+    // Testing environment so functional tests can run EF migrations after
+    // the host starts (the worker's eager startup tick would otherwise
+    // crash querying reservation_audit before the table exists). M6
+    // integration tests resolve the worker directly from DI without the
+    // hosted-service loop.
+    if (!builder.Environment.IsTesting())
+    {
+        builder.Services.AddReservationExpiryWorker();
+    }
+
     var app = builder.Build();
 
     if (app.Environment.IsProduction())

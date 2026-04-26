@@ -1,11 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <ItemGroup>
+        <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+        <PackageReference Include="StackExchange.Redis" />
+        <PackageReference Include="Testcontainers.PostgreSql" />
+        <PackageReference Include="Testcontainers.Redis" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\services\Inventory\Inventory.API\Inventory.API.csproj" />
+        <ProjectReference Include="..\..\services\Inventory\Inventory.Application\Inventory.Application.csproj" />
+        <ProjectReference Include="..\..\services\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\services\Inventory\Inventory.Domain\Inventory.Domain.csproj" />
         <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 </Project>
