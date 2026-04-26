@@ -575,16 +575,16 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
     "userId": "Guid (from JWT claim)"
   }
   ```
-- **Response:** 204 on success (idempotent — removing a non-present product is also 204 per `basket.md` § 2.1); 404 only if no basket exists at all.
+- **Response:** 204 on success. Idempotent at every layer: removing a non-present product, or removing from a non-existent basket, both return 204 (no basket is lazily created).
 - **Handler class:** `RemoveItemFromBasketCommandHandler`.
 - **Validator rules:**
   - `UserId` — NotEmpty.
   - `ProductId` — NotEmpty.
 - **Flow:**
-  1. Load basket; 404 if absent.
+  1. Load basket. If absent, return `Result.Ok()` → 204 (idempotent no-op; the aggregate is NOT lazily created on remove).
   2. Call `basket.RemoveItem(productId)` — idempotent; returns `Result.Ok()` even if item not present.
-  3. `SaveAsync` (one retry on concurrency conflict).
-- **Emits internal event(s):** `ItemRemovedFromBasketDomainEvent` (only when an item was actually removed; the idempotent no-op path does not raise).
+  3. `SaveAsync` (one retry on concurrency conflict) — only when the aggregate actually mutated.
+- **Emits internal event(s):** `ItemRemovedFromBasketDomainEvent` (only when an item was actually removed; both no-op paths — basket absent and item absent — do not raise).
 
 #### 2.1.3 `ChangeItemQuantityCommand`
 
@@ -622,16 +622,16 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
     "userId": "Guid (from JWT claim)"
   }
   ```
-- **Response:** 204 on success; 404 if no basket; 503 if Catalog unreachable.
+- **Response:** 204 on success. Idempotent no-op (still 204) when no basket exists or basket is empty — there is nothing to refresh and the ACL is not called. 503 if Catalog unreachable.
 - **Handler class:** `RefreshBasketPricesCommandHandler`.
 - **Validator rules:**
   - `UserId` — NotEmpty.
 - **Flow:**
-  1. Load basket; 404 if absent.
+  1. Load basket. If absent or `Items.Count == 0`, return `Result.Ok()` → 204 (idempotent no-op; ACL is not consulted).
   2. Extract distinct `ProductId` list.
   3. Call `_catalogPort.GetManyAsync(productIds, ct)` — partial-tolerant per `basket.md` § 9.2. If full network failure, return `Result.Fail(BasketErrors.CatalogUnavailable)` (no partial refresh).
   4. Call `basket.RefreshPrices(snapshots)` — missing product ids are left untouched (existing snapshots retained).
-  5. `SaveAsync` (one retry).
+  5. `SaveAsync` (one retry) — only when at least one snapshot price actually changed.
 - **Emits internal event(s):** `BasketPricesRefreshedDomainEvent` (payload lists only items whose price actually changed; empty list → no event).
 
 #### 2.1.5 `ClearBasketCommand`
@@ -645,15 +645,15 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
     "userId": "Guid (from JWT claim)"
   }
   ```
-- **Response:** 204 on success; 404 if no basket exists. **Note**: basket is NOT deleted — it remains at `Version+1` with an empty `Items` array; TTL is refreshed. Only `CheckoutBasketCommand` deletes.
+- **Response:** 204 on success. Idempotent no-op (still 204) when no basket exists, and again when the basket is already empty — both cases end the call with the same observable state. **Note**: a populated basket that is cleared is NOT deleted — it remains at `Version+1` with an empty `Items` array; TTL is refreshed. Only `CheckoutBasketCommand` deletes.
 - **Handler class:** `ClearBasketCommandHandler`.
 - **Validator rules:**
   - `UserId` — NotEmpty.
 - **Flow:**
-  1. Load basket; 404 if absent.
-  2. Call `basket.Clear()`.
-  3. `SaveAsync` (one retry).
-- **Emits internal event(s):** `BasketClearedDomainEvent`.
+  1. Load basket. If absent, return `Result.Ok()` → 204 (idempotent no-op).
+  2. Call `basket.Clear()` — emits no domain event when the basket was already empty.
+  3. `SaveAsync` (one retry) — only when at least one item was actually removed.
+- **Emits internal event(s):** `BasketClearedDomainEvent` (only when the basket actually had items to clear; both no-op paths — basket absent and basket already empty — do not raise).
 
 #### 2.1.6 `CheckoutBasketCommand`
 

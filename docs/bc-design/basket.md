@@ -259,6 +259,7 @@ The basket lifecycle from birth to death:
 - Invoke the domain method → raises the matching `*DomainEvent`.
 - `SaveAsync(basket, expectedVersion: N)` → persists at `Version = N+1`, resets the 30-day TTL.
 - No external event. Internal events are in-process only.
+- **No-basket idempotency.** `RemoveItem` and `Clear` against a non-existent basket are no-ops that return 204 — the aggregate is **not** lazily created on these paths (only `AddItem` creates). `ChangeQuantity` keeps the 404 contract because changing the quantity of an item in a basket that does not exist has no defensible meaning. See [use-cases.md § 2.1.2 / § 2.1.5](use-cases.md).
 
 ### 6.3 User-requested price refresh
 
@@ -268,6 +269,7 @@ The basket lifecycle from birth to death:
 - On success: `basket.RefreshPrices(snapshots)` → `BasketPricesRefreshedDomainEvent` with only the items whose price actually changed.
 - Save as a normal mutation.
 - Auto-refresh is **not** implemented. Stale prices are the user's responsibility to resolve before checkout, and checkout itself **does not silently re-check prices** — it commits to what is in the basket at the instant of checkout. This is a deliberate correctness-over-freshness trade-off.
+- **No-basket / empty-basket idempotency.** Refresh against a non-existent or empty basket returns 204 without calling the ACL — there is nothing to refresh. See [use-cases.md § 2.1.4](use-cases.md).
 
 ### 6.4 Checkout (terminal)
 
@@ -293,6 +295,7 @@ The basket lifecycle from birth to death:
 
 - `ClearBasketCommand` → `basket.Clear()` → `BasketClearedDomainEvent` → save empty basket (still at `Version+1`).
 - The basket is **not** deleted — it remains reachable and TTL is reset. Only checkout deletes.
+- **No-basket idempotency.** Clear against a non-existent basket returns 204 — no row is created and no event raised. See [use-cases.md § 2.1.5](use-cases.md).
 
 ---
 
