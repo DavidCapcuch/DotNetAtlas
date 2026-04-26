@@ -112,6 +112,21 @@ $ dotnet test test/Basket.FunctionalTests/   →  23/23 green (2 s)
 
 Functional tests environment: HTTP_PROXY / HTTPS_PROXY env vars unset for the test process per the M8 environmental note.
 
+### Example-mapping coverage disposition (basket.md `<dod>` line 116)
+
+The DoD item *"Integration tests cover both `example-mapping/basket.md` sessions (price drift + 30-day expiry) + the `CheckoutBasketCommand` happy path with + without Idempotency-Key"* is met at the application layer; two infrastructure-level rules in Session 2 are pinned by configuration rather than by automated tests.
+
+**Session 1 — Price drift** (rules R1, R3, R5 testable at the application layer; R2/R4/R6 are documentation-level invariants):
+- R1 (snapshot frozen at add) + R5 (checkout commits to snapshot) — covered by `Basket.UnitTests/Baskets/Aggregates/BasketTests.cs` (aggregate behavior) and `Basket.UnitTests/Baskets/Application/Checkout/BasketCheckoutInitiatedMapperTests.cs` (event payload preserves snapshot price); end-to-end via `Basket.FunctionalTests/ApiEndpoints/Baskets/CheckoutBasketTests.cs`.
+- R3 (only `RefreshBasketPricesCommand` replaces snapshots) — covered by `Basket.UnitTests/Baskets/Application/RefreshPrices/RefreshBasketPricesCommandHandlerTests.cs` and `Basket.FunctionalTests/ApiEndpoints/Baskets/RefreshBasketPricesTests.cs`.
+
+**Session 2 — 30-day expiry** (rules R1, R2, R5 testable; R3, R4 are infrastructure invariants):
+- R1 (sliding TTL on every mutation) + R2 (checkout DELETEs the key) — pinned at the repository contract level by `Basket.IntegrationTests/Baskets/Application/BasketCheckoutOutboxIntegrationTests.cs` and `Basket.IntegrationTests/Persistence/BasketCheckoutOutboxDbIntegrationTests.cs`.
+- R5 (lazy fresh basket on null lookup) — covered by `Basket.UnitTests/Baskets/Application/AddItem/AddItemToBasketCommandHandlerTests.cs` (the `basket is null → Basket.Create(userId)` branch).
+- R3 (AOF persistence with ≤ 1 s loss window on Redis restart) and R4 (LRU eviction under `maxmemory 256mb`) are **infrastructure-level invariants** pinned by `docker-compose.yaml` (`--appendonly yes`, `maxmemory-policy noeviction`) and validated by the M8 docker-compose smoke (`redis-cli CONFIG GET appendonly` + `CONFIG GET maxmemory-policy`). They are NOT exercised by automated tests because Testcontainers does not deterministically reproduce a kill-9 mid-write nor force an LRU eviction; ADR-0003 documents the data-loss window as accepted behavior for a session BC.
+
+**Checkout idempotency** (with + without `Idempotency-Key`) — both branches covered by `Basket.FunctionalTests/ApiEndpoints/Baskets/CheckoutBasketTests.cs` (`WhenIdempotencyKeyMissing_Returns400` pins the in-handler 400; the 202 path with a key pins the cached-replay).
+
 ## Pre-commit Opus reviewer findings + resolution
 
 `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` per `_shared.md § 11`. The user's dispatch prompt explicitly required this even though M9's diff is under the ≥ 5-files threshold of `_shared.md § 11` step 0.
@@ -127,6 +142,12 @@ The reviewer was given the full M9 diff (3 files: `use-cases.md` § 2.1.{2,4,5},
 | LOW | L-2 | This findings table was a placeholder at review time. | Populated in this commit before staging. |
 
 The reviewer also positively verified: doc-vs-code reconciliation accuracy (handler line numbers match), internal consistency between `basket.md § 6` and `use-cases.md § 2.1.{2,4,5}`, no cross-reference rot, "doc updates: 3" file-count math, boundary discipline against pre-existing uncommitted other-BC changes, and the verification-output claim's plausibility against the M8 baseline.
+
+**Post-commit Haiku reviewer (`nw-software-crafter-reviewer`) findings + resolution:**
+
+| Severity | ID | Finding | Resolution |
+|---|---|---|---|
+| HIGH | H-1 | Summary did not acknowledge basket.md `<dod>` line 116 — *"Integration tests cover both `example-mapping/basket.md` sessions (price drift + 30-day expiry)"* — was met or carried forward. | Added § "Example-mapping coverage disposition (basket.md `<dod>` line 116)" to § "Verification output". Documents application-layer rules (S1 R1/R3/R5, S2 R1/R2/R5) covered by named test files; documents infrastructure-level rules (S2 R3 AOF, S2 R4 LRU) as pinned-by-compose-config rather than by automated tests, with ADR-0003 cited for the accepted data-loss window. Landed in fix-up commit. |
 
 ## Boundary discipline
 
@@ -160,7 +181,7 @@ NOT touched:
 - [x] Four test slices green: 205 / 205.
 - [x] Pre-commit Opus reviewer ran; findings triaged. 0 CRITICAL, 0 HIGH, 1 MEDIUM (M-1, addressed inline by adding `## Open questions` section), 2 LOW (logged in findings table).
 - [x] M9 docs + summary committed on branch `aaqwdqwd` — single commit, all three files (`use-cases.md`, `basket.md`, `basket-m9.md`).
-- [ ] `nw-software-crafter-reviewer` (Haiku) — runs after the commit lands; HIGH-severity findings (if any) fixed in a follow-up commit.
+- [x] `nw-software-crafter-reviewer` (Haiku) ran post-commit. 1 HIGH (H-1, addressed by the example-mapping coverage disposition above + this fix-up commit). MEDIUM/LOW skipped per the dispatch (Haiku surfaces HIGH only).
 - [ ] Basket-complete announcement emitted as final user-facing chat output.
 
 ## Open questions
