@@ -1,0 +1,211 @@
+using Avro;
+using Payments.Application.Outbox;
+using Payments.Domain.Transactions.Events;
+using Payments.Domain.Transactions.ValueObjects;
+using Platform.SharedKernel.ValueObjects;
+
+namespace Payments.UnitTests.Application.Outbox;
+
+/// <summary>
+/// Field-level mapping tests for the 6 outbox mappers. Each test verifies the locked Avro
+/// shape (per <c>events-catalog.md § 2</c>) is produced from the internal domain event under
+/// Path B in the M4 plan: <c>BuyerId → UserId</c>; <c>GatewayTransactionId → AuthorizationId</c>;
+/// <c>OrderId</c> dropped; sentinels documented inline.
+/// </summary>
+public class PaymentEventMapperTests
+{
+    private const string GatewayTransactionId = "gw-tx-abc";
+
+    private static readonly DateTimeOffset Now = new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
+    private static readonly Guid PaymentId = Guid.CreateVersion7();
+    private static readonly Guid CorrelationId = Guid.CreateVersion7();
+    private static readonly Guid BuyerId = Guid.CreateVersion7();
+    private static readonly Guid OrderId = Guid.CreateVersion7();
+
+    private static Money UsdAmount(decimal amount = 100m) => Money.Create(amount, "USD").Value;
+
+    [Fact]
+    public void PaymentAuthorizedMapper_MapsAllFieldsAndProjectsExpiresAtUtcSentinel()
+    {
+        var domainEvent = new PaymentAuthorizedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            GatewayTransactionId = GatewayTransactionId,
+            Amount = UsdAmount(99.99m),
+            AuthorizedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentAuthorizedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.AuthorizationId.Should().Be(GatewayTransactionId);
+            avro.Amount.Should().Be(new AvroDecimal(99.9900m));
+            avro.Currency.Should().Be("USD");
+            avro.AuthorizedAtUtc.Should().Be(Now.UtcDateTime);
+            avro.ExpiresAtUtc.Should().Be(Now.AddDays(7).UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public void PaymentAuthorizationFailedMapper_MapsErrorCodeFromGatewayCodeWhenAvailable()
+    {
+        var failureInfo = new FailureInfo(FailureReason.InsufficientFunds, "insufficient_funds", Now);
+        var domainEvent = new PaymentAuthorizationFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            FailureInfo = failureInfo,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentAuthorizationFailedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.ErrorCode.Should().Be("insufficient_funds");
+            avro.ErrorMessage.Should().Be("InsufficientFunds");
+            avro.FailedAtUtc.Should().Be(Now.UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public void PaymentAuthorizationFailedMapper_FallsBackToReasonNameWhenGatewayCodeMissing()
+    {
+        var failureInfo = new FailureInfo(FailureReason.Unknown, GatewayCode: null, Now);
+        var domainEvent = new PaymentAuthorizationFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            FailureInfo = failureInfo,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentAuthorizationFailedEvent();
+
+        avro.ErrorCode.Should().Be("Unknown");
+    }
+
+    [Fact]
+    public void PaymentCapturedMapper_MapsAggregateIdToPaymentTransactionId()
+    {
+        var domainEvent = new PaymentCapturedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            GatewayTransactionId = GatewayTransactionId,
+            Amount = UsdAmount(),
+            CapturedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentCapturedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.PaymentTransactionId.Should().Be(PaymentId);
+            avro.AuthorizationId.Should().Be(GatewayTransactionId);
+            avro.Amount.Should().Be(new AvroDecimal(100.0000m));
+            avro.Currency.Should().Be("USD");
+            avro.CapturedAtUtc.Should().Be(Now.UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public void PaymentCaptureFailedMapper_PopulatesAuthorizationIdFromDomainEvent()
+    {
+        var failureInfo = new FailureInfo(FailureReason.GatewayDeclined, "card_declined", Now);
+        var domainEvent = new PaymentCaptureFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            GatewayTransactionId = GatewayTransactionId,
+            FailureInfo = failureInfo,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentCaptureFailedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.AuthorizationId.Should().Be(GatewayTransactionId);
+            avro.ErrorCode.Should().Be("card_declined");
+            avro.ErrorMessage.Should().Be("GatewayDeclined");
+        }
+    }
+
+    [Fact]
+    public void PaymentRefundedMapper_ReusesPaymentIdAsRefundTransactionId()
+    {
+        var domainEvent = new PaymentRefundedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            GatewayTransactionId = GatewayTransactionId,
+            Amount = UsdAmount(50m),
+            Reason = "saga_compensation",
+            RefundedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentRefundedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.PaymentTransactionId.Should().Be(PaymentId);
+            avro.RefundTransactionId.Should().Be(PaymentId);
+            avro.RefundedAmount.Should().Be(new AvroDecimal(50.0000m));
+            avro.Currency.Should().Be("USD");
+            avro.RefundedAtUtc.Should().Be(Now.UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public void PaymentVoidedMapper_MapsAllFields()
+    {
+        var domainEvent = new PaymentVoidedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            GatewayTransactionId = GatewayTransactionId,
+            VoidedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentVoidedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.AuthorizationId.Should().Be(GatewayTransactionId);
+            avro.VoidedAtUtc.Should().Be(Now.UtcDateTime);
+        }
+    }
+}

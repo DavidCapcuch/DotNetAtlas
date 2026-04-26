@@ -1,0 +1,54 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Payments.Application.Common.Data;
+using Payments.Application.Common.Messaging;
+using Payments.Domain.Transactions.Events;
+using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.SharedKernel.Base.DomainEvents;
+
+namespace Payments.Application.Outbox;
+
+/// <summary>
+/// Fan-out from <see cref="PaymentAuthorizationFailedDomainEvent"/> to the external Avro event
+/// on <c>payments.transactions</c>. Co-emitted with the in-process
+/// <see cref="PaymentFailedDomainEvent"/> (which has no Payments-side outbox publisher per the
+/// M4 Path B resolution — <c>PaymentFailedEvent</c> is produced by PaymentProcessingSaga
+/// according to events-catalog.md § 2).
+/// </summary>
+public sealed class PaymentAuthorizationFailedOutboxPublisherDomainEventHandler
+    : IDomainEventHandler<PaymentAuthorizationFailedDomainEvent>
+{
+    private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
+    private readonly PaymentsTopicsOptions _topics;
+    private readonly ILogger<PaymentAuthorizationFailedOutboxPublisherDomainEventHandler> _logger;
+
+    public PaymentAuthorizationFailedOutboxPublisherDomainEventHandler(
+        ITransactionalOutbox<IPaymentsDbContext> outbox,
+        IOptions<PaymentsTopicsOptions> topics,
+        ILogger<PaymentAuthorizationFailedOutboxPublisherDomainEventHandler> logger)
+    {
+        _outbox = outbox;
+        _topics = topics.Value;
+        _logger = logger;
+    }
+
+    public Task Handle(PaymentAuthorizationFailedDomainEvent domainEvent, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+
+        var integrationEvent = domainEvent.ToPaymentAuthorizationFailedEvent();
+
+        _outbox.AddOutboxMessage(
+            _topics.Transactions,
+            domainEvent.CorrelationId.ToString(),
+            integrationEvent);
+
+        _logger.LogInformation(
+            "Added PaymentAuthorizationFailedEvent to outbox. PaymentId: {PaymentId}, CorrelationId: {CorrelationId}, Reason: {Reason}",
+            domainEvent.PaymentId,
+            domainEvent.CorrelationId,
+            domainEvent.FailureInfo.Reason.Name);
+
+        return Task.CompletedTask;
+    }
+}

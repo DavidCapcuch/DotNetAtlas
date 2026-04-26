@@ -81,6 +81,7 @@ public class PaymentTransactionFailureTests
     public void MarkCaptureFailed_FromAuthorized_TransitionsToFailedAndRaisesBothEventsInOrder()
     {
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
+        var existingGatewayTransactionId = tx.GatewayTransactionId;
         var failureInfo = BuildFailureInfo();
 
         var result = tx.MarkCaptureFailed(failureInfo, UtcNow);
@@ -95,6 +96,10 @@ public class PaymentTransactionFailureTests
             events.Should().HaveCount(2);
             events[0].Should().BeOfType<PaymentCaptureFailedDomainEvent>();
             events[1].Should().BeOfType<PaymentFailedDomainEvent>();
+
+            var captureFailed = (PaymentCaptureFailedDomainEvent)events[0];
+            captureFailed.GatewayTransactionId.Should().Be(existingGatewayTransactionId);
+            captureFailed.FailureInfo.Should().Be(failureInfo);
         }
     }
 
