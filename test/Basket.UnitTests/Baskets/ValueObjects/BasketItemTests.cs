@@ -45,8 +45,8 @@ public class BasketItemTests
         var productId = Guid.CreateVersion7();
         var snapshot = BasketTestData.Snapshot();
 
-        var a = new BasketItem(productId, snapshot, 3);
-        var b = new BasketItem(productId, snapshot, 3);
+        var a = BasketItem.Create(productId, snapshot, 3).Value;
+        var b = BasketItem.Create(productId, snapshot, 3).Value;
 
         a.Should().Be(b);
         a.GetHashCode().Should().Be(b.GetHashCode());
@@ -58,7 +58,7 @@ public class BasketItemTests
         var productId = Guid.CreateVersion7();
         var snapshot = BasketTestData.Snapshot();
 
-        new BasketItem(productId, snapshot, 1)
-            .Should().NotBe(new BasketItem(productId, snapshot, 2));
+        BasketItem.Create(productId, snapshot, 1).Value
+            .Should().NotBe(BasketItem.Create(productId, snapshot, 2).Value);
     }
 }

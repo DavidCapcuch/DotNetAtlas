@@ -36,11 +36,11 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         var correlationId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-        var snapshot = new ProductSnapshot("SKU", "N", new Money(10m, CurrencyCode.Usd), capturedAt);
-        var item = new BasketItem(productId, snapshot, 1);
-        var basketSnapshot = new BasketSnapshot(
+        var snapshot = ProductSnapshot.Create("SKU", "N", new Money(10m, CurrencyCode.Usd), capturedAt);
+        var item = BasketItem.Create(productId, snapshot, 1).Value;
+        var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
-            new BasketTotal(new Money(10m, CurrencyCode.Usd)));
+            BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
         var address = Address.Create("S", null, "C", null, "P", "US").Value;
 
         var ev = new BasketCheckedOutDomainEvent

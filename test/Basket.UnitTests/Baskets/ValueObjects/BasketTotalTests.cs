@@ -6,11 +6,11 @@ namespace Basket.UnitTests.Baskets.ValueObjects;
 public class BasketTotalTests
 {
     [Fact]
-    public void Construction_ExposesAmount()
+    public void From_ExposesAmount()
     {
         var money = new Money(123.45m, CurrencyCode.Gbp);
 
-        var total = new BasketTotal(money);
+        var total = BasketTotal.From(money);
 
         total.Amount.Should().Be(money);
     }
@@ -20,13 +20,13 @@ public class BasketTotalTests
     {
         var money = new Money(123.45m, CurrencyCode.Gbp);
 
-        new BasketTotal(money).Should().Be(new BasketTotal(money));
+        BasketTotal.From(money).Should().Be(BasketTotal.From(money));
     }
 
     [Fact]
     public void StructuralEquality_DifferentCurrency_AreNotEqual()
     {
-        new BasketTotal(new Money(10m, CurrencyCode.Usd))
-            .Should().NotBe(new BasketTotal(new Money(10m, CurrencyCode.Eur)));
+        BasketTotal.From(new Money(10m, CurrencyCode.Usd))
+            .Should().NotBe(BasketTotal.From(new Money(10m, CurrencyCode.Eur)));
     }
 }

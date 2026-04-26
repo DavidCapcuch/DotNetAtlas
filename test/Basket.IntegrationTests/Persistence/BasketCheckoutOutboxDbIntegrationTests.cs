@@ -112,7 +112,7 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests
     };
 
     private static ProductSnapshot BuildSnapshot(decimal amount) =>
-        new(
+        ProductSnapshot.Create(
             "SKU-1",
             "Product 1",
             new Money(amount, CurrencyCode.Usd),

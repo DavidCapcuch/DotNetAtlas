@@ -84,7 +84,7 @@ public sealed class Basket : AggregateRoot<Guid>
                 sum += item.Snapshot.Price.Amount * item.Quantity;
             }
 
-            return new BasketTotal(new Money(sum, currency));
+            return BasketTotal.From(new Money(sum, currency));
         }
     }
 
@@ -190,7 +190,7 @@ public sealed class Basket : AggregateRoot<Guid>
                 return Result.Fail(BasketErrors.CurrencyMismatch());
             }
 
-            _items.Add(new BasketItem(productId, snapshot, quantity));
+            _items.Add(BasketItem.BuildUnchecked(productId, snapshot, quantity));
             capturedPriceForEvent = snapshot.Price;
         }
         else
@@ -207,7 +207,7 @@ public sealed class Basket : AggregateRoot<Guid>
             // consumers (logs, metrics, future projections) never see a price the basket
             // did not actually commit to.
             var index = _items.IndexOf(existing);
-            _items[index] = new BasketItem(productId, existing.Snapshot, existing.Quantity + quantity);
+            _items[index] = BasketItem.BuildUnchecked(productId, existing.Snapshot, existing.Quantity + quantity);
             capturedPriceForEvent = existing.Snapshot.Price;
         }
 
@@ -271,7 +271,7 @@ public sealed class Basket : AggregateRoot<Guid>
         }
 
         var index = _items.IndexOf(existing);
-        _items[index] = new BasketItem(productId, existing.Snapshot, newQuantity);
+        _items[index] = BasketItem.BuildUnchecked(productId, existing.Snapshot, newQuantity);
         Touch(utcNow);
         AddDomainEvent(new ItemQuantityChangedDomainEvent
         {
@@ -328,13 +328,13 @@ public sealed class Basket : AggregateRoot<Guid>
                 // Price did not change — still refresh Sku/Name/CapturedAt to reflect the
                 // latest catalog state, but do not list it as a price change.
                 var index = _items.IndexOf(existing);
-                _items[index] = new BasketItem(productId, newSnapshot, existing.Quantity);
+                _items[index] = BasketItem.BuildUnchecked(productId, newSnapshot, existing.Quantity);
                 continue;
             }
 
             changes.Add(new PriceChange(productId, existing.Snapshot.Price, newSnapshot.Price));
             var idx = _items.IndexOf(existing);
-            _items[idx] = new BasketItem(productId, newSnapshot, existing.Quantity);
+            _items[idx] = BasketItem.BuildUnchecked(productId, newSnapshot, existing.Quantity);
         }
 
         if (changes.Count == 0)
@@ -409,7 +409,7 @@ public sealed class Basket : AggregateRoot<Guid>
             return Result.Fail(BasketErrors.EmptyBasket());
         }
 
-        var snapshot = new BasketSnapshot(_items.ToImmutableArray(), Total!);
+        var snapshot = BasketSnapshot.Create(_items.ToImmutableArray(), Total!);
         Touch(utcNow);
         AddDomainEvent(new BasketCheckedOutDomainEvent
         {

@@ -48,8 +48,8 @@ public class BasketRehydrateTests
         var productB = Guid.CreateVersion7();
         var items = new List<BasketItem>
         {
-            new(productA, BasketTestData.Snapshot(amount: 1m), Quantity: 1),
-            new(productB, BasketTestData.Snapshot(amount: 2m), Quantity: 4),
+            BasketItem.Create(productA, BasketTestData.Snapshot(amount: 1m), quantity: 1).Value,
+            BasketItem.Create(productB, BasketTestData.Snapshot(amount: 2m), quantity: 4).Value,
         };
 
         var basket = BasketAggregate.Rehydrate(userId, version: 3, UtcNow, UtcNow, items);
