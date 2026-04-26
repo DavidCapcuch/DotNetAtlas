@@ -52,13 +52,13 @@ internal static class BasketStateMapper
         {
             var currency = CurrencyCode.FromName(itemDocument.Snapshot.PriceCurrencyName, ignoreCase: false);
             var price = new Money(itemDocument.Snapshot.PriceAmount, currency);
-            var snapshot = new ProductSnapshot(
+            var snapshot = ProductSnapshot.Create(
                 itemDocument.Snapshot.Sku,
                 itemDocument.Snapshot.Name,
                 price,
                 itemDocument.Snapshot.CapturedAtUtc);
 
-            items.Add(new BasketItem(itemDocument.ProductId, snapshot, itemDocument.Quantity));
+            items.Add(BasketItem.BuildUnchecked(itemDocument.ProductId, snapshot, itemDocument.Quantity));
         }
 
         return BasketAggregate.Rehydrate(

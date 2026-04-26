@@ -193,7 +193,7 @@ internal static class BasketTestData
         new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
 
     public static ProductSnapshot Snapshot(decimal amount = 10m)
-        => new(
+        => ProductSnapshot.Create(
             "SKU-1",
             "Product 1",
             new Platform.SharedKernel.ValueObjects.Money(

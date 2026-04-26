@@ -20,7 +20,7 @@ internal static class BasketTestData
         string name = "Product 1",
         DateTimeOffset? capturedAtUtc = null)
     {
-        return new ProductSnapshot(
+        return ProductSnapshot.Create(
             sku,
             name,
             new Money(amount, currency ?? CurrencyCode.Usd),

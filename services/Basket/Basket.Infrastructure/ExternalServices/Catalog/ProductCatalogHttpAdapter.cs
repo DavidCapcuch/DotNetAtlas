@@ -226,10 +226,10 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
             return moneyResult.ToResult<ProductSnapshot>();
         }
 
-        return Result.Ok(new ProductSnapshot(
-            Sku: dto.Sku,
-            Name: dto.Name,
-            Price: moneyResult.Value,
-            CapturedAtUtc: _timeProvider.GetUtcNow()));
+        return Result.Ok(ProductSnapshot.Create(
+            sku: dto.Sku,
+            name: dto.Name,
+            price: moneyResult.Value,
+            capturedAtUtc: _timeProvider.GetUtcNow()));
     }
 }

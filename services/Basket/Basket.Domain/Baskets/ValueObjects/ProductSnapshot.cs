@@ -6,7 +6,7 @@ namespace Basket.Domain.Baskets.ValueObjects;
 /// <summary>
 /// Frozen copy of Catalog product data captured at the instant an item was added
 /// to the basket (or replaced via RefreshBasketPrices). The linchpin of the ACL:
-/// <see cref="IProductCatalogQueryPort"/> (Application layer) produces this VO,
+/// <see cref="Application.Abstractions.IProductCatalogQueryPort"/> (Application layer) produces this VO,
 /// and the Basket domain knows nothing about Catalog's wire DTOs.
 /// </summary>
 /// <remarks>
@@ -15,12 +15,33 @@ namespace Basket.Domain.Baskets.ValueObjects;
 /// commits to whatever snapshot is currently in the basket; it does not re-query
 /// Catalog. See basket.md § 3.2.
 /// </remarks>
-/// <param name="Sku">Catalog SKU at the moment of capture.</param>
-/// <param name="Name">Catalog product name at the moment of capture.</param>
-/// <param name="Price">Catalog unit price at the moment of capture.</param>
-/// <param name="CapturedAtUtc">UTC timestamp when the snapshot was taken.</param>
-public sealed record ProductSnapshot(
-    string Sku,
-    string Name,
-    Money Price,
-    DateTimeOffset CapturedAtUtc) : ValueObject;
+public sealed record ProductSnapshot : ValueObject
+{
+    /// <summary>Catalog SKU at the moment of capture.</summary>
+    public string Sku { get; private init; } = null!;
+
+    /// <summary>Catalog product name at the moment of capture.</summary>
+    public string Name { get; private init; } = null!;
+
+    /// <summary>Catalog unit price at the moment of capture.</summary>
+    public Money Price { get; private init; } = null!;
+
+    /// <summary>UTC timestamp when the snapshot was taken.</summary>
+    public DateTimeOffset CapturedAtUtc { get; private init; }
+
+    private ProductSnapshot()
+    {
+    }
+
+    /// <summary>
+    /// Creates a frozen snapshot of Catalog product data.
+    /// </summary>
+    public static ProductSnapshot Create(string sku, string name, Money price, DateTimeOffset capturedAtUtc) =>
+        new()
+        {
+            Sku = sku,
+            Name = name,
+            Price = price,
+            CapturedAtUtc = capturedAtUtc,
+        };
+}
