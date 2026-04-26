@@ -288,6 +288,66 @@ Living log. Each session appends its own block before ending; next-session agent
 - `docker compose --profile full up -d` smoke + final session summary → M10
 
 **Next milestone: M6** — `ReservationExpiryWorker` background hosted service polling `reservation_audit WHERE Status='Active' AND ExpiresAtUtc < now()` every 60s using injected `TimeProvider`; publishes `ReleaseReservationCommand(reason=Expiry)` per expired row via the outbox. Integration test uses `FakeTimeProvider` to advance past the TTL boundary and asserts the worker emits exactly one release per expired reservation.
+
+### Session 5 (2026-04-26) — M6 complete
+
+**Delivered (M6 main scope — `ReservationExpiryWorker` hosted service + integration tests):**
+
+- `services/Inventory/Inventory.Infrastructure/BackgroundJobs/ReservationExpiryWorker.cs` — sealed internal `BackgroundService`. `ExecuteAsync` runs an **eager startup tick** (so a pod restart doesn't add up to 60s of TTL latency) and then loops on `new PeriodicTimer(TimeSpan.FromSeconds(60), _timeProvider)` — the `TimeProvider`-aware `PeriodicTimer` constructor is the .NET 8+ test seam (`FakeTimeProvider.Advance` deterministically fires the tick). One `IServiceScopeFactory.CreateAsyncScope()` per tick resolves scoped `IInventoryDbContext` + `ICommandHandler<ReleaseReservationCommand>`; per-row `try/catch` re-throws cancellation and swallows everything else (logged at Warning for `Result.Fail`, Error for unhandled `Exception`). Hard-coded `PollIntervalSeconds = 60` + `MaxBatchSize = 100` per `inventory.md § 11.1`.
+- `services/Inventory/Inventory.Infrastructure/Common/InfrastructureDependencyInjection.cs` — added `services.AddHostedService<ReservationExpiryWorker>()` after `.AddMessaging(...)`. xmldoc updated to mention the new worker; M7 health-checks deferral wording preserved.
+- `test/Inventory.IntegrationTests/BackgroundJobs/ReservationExpiryWorkerTests.cs` — 5 new integration tests under `[Collection(nameof(IntegrationTestCollection))]`, reusing the existing `IntegrationTestFixture`. Each test seeds via the existing Initialize → Receive → Reserve flow (`TimeToLive = 15min`), constructs the worker manually with a **local `FakeTimeProvider`** (no fixture mutation), and calls `ProcessExpiredReservationsAsync` directly — bypasses the BackgroundService loop entirely. Tests:
+    - `SingleExpiredReservation_IsReleasedWithExpiryReason` — DoD line 396 happy path
+    - `MultipleExpiredReservations_AllReleasedInOneTick` — fan-out across 3 reservations
+    - `ExpiredAndUnexpired_OnlyExpiredReleased` — `ExpiresAtUtc < now()` filter
+    - `AlreadyReleasedReservation_NoDoubleRelease` — `Status='Active'` filter excludes terminal-status rows
+    - `ConfirmedReservation_NotReleasedAfterExpiry` — race vs Confirm (DoD line 400, filter half — see IMP-5 acceptance below)
+
+**Design decisions resolved in M6** (persisted so fresh sessions don't re-litigate):
+
+| Question | Resolution | Rationale |
+|---|---|---|
+| `TimeProvider.CreatePeriodicTimer(...)` API shape | Method does not exist on the BCL `TimeProvider`. Use `new PeriodicTimer(TimeSpan, TimeProvider)` instead — the .NET 8+ constructor overload that respects the injected provider. | First implementation attempt with `_timeProvider.CreatePeriodicTimer(...)` failed `dotnet build` with CS1061; the constructor overload is the canonical `FakeTimeProvider`-driven test seam. |
+| Eager startup tick? | YES — run one `ProcessExpiredReservationsAsync` immediately on `ExecuteAsync` entry, then loop with `WaitForNextTickAsync`. | `PeriodicTimer.WaitForNextTickAsync` waits the full period before yielding the first tick. Without the eager tick, every pod restart would add up to 60s to the TTL release SLA. Per Opus reviewer IMP-1 (M6 pre-commit pass). |
+| Test seam pattern | Extract `internal Task ProcessExpiredReservationsAsync(CancellationToken)` and have tests call it directly with a manually-constructed worker (local `FakeTimeProvider`, fixture-resolved `IServiceScopeFactory`, `NullLogger`). | Avoids spinning up the BackgroundService loop in tests; deterministic single-tick semantics. Fixture stays untouched so M3-M5 tests keep their real-clock contract. |
+| Per-row error handling | Per-row `try/catch`: `OperationCanceledException` re-thrown; everything else logged + skipped so one bad row doesn't stall the batch. `Result.Fail` paths logged at Warning, never thrown. | Matches `inventory.md § 11.2` "At-least-once" guarantee. Audit row stays `Active` until command commits, so a re-tick after a swallowed exception naturally retries. Aggregate's `ReleaseReservation` is idempotent on already-`Released`/-`Confirmed` reservations. |
+| `OccurredOnUtc` value on the worker-issued command | `_timeProvider.GetUtcNow()` (the scan time), not `row.ExpiresAtUtc`. | Same convention as saga compensation + admin cancel; `ExpiresAtUtc` is the *business* expiry moment but `OccurredOnUtc` is the event-emission moment. ADR-0015 only requires UTC, not "use ExpiresAtUtc". Documented in IMP-6 (accepted, no change). |
+| `CorrelationId` value on the worker-issued command | `null`. TTL expiry has no upstream correlation context. | `IEventStore.AppendAsync` documents this contract; matches how `Inventory.Application` currently treats ops-originated writes. |
+| Hard-coded constants vs options class | Hard-coded `PollIntervalSeconds = 60` + `MaxBatchSize = 100`. | YAGNI — single-number knobs locked by `inventory.md § 11.1`. Easy to extract to options later if operations needs runtime tuning. |
+| `AsNoTracking()` on the audit-row scan | YES. | The worker reads only `(ReservationId, ProductId)` projection — never mutates `ReservationAuditRow` directly. The audit-row mutation happens later inside `ReleaseReservationCommandHandler → EventStoreRepository.AppendAsync → ReservationLifecycleHandler` in *its* DbContext scope. No tracking conflict possible. |
+
+**Pre-commit reviewer pass** (`Agent(subagent_type="feature-dev:code-reviewer", model="opus")`):
+- 0 CRITICAL, 0 HIGH, 6 IMPORTANT (all confidence 80, none blockers), 0 LOW correctness items.
+- **IMP-1 fixed**: added eager startup tick (see decision table above) + extracted `TryRunTickAsync(string tickKind, CancellationToken)` helper to avoid duplicating the try/catch envelope between startup + scheduled paths. Both call sites annotate the tick kind in log messages for ops triage.
+- **IMP-2 accepted (no change)**: `OperationCanceledException` discriminator on the outer token (not the exception's own token) is correct by design; revisit if/when `ReleaseReservationCommand` grows a per-command timeout. No code today exercises that path.
+- **IMP-3 accepted (no change)**: `RunOneTickAsync` test helper opens a temporary scope just to resolve `IServiceScopeFactory` (the singleton would resolve from any scope). Cosmetic; tests pass and the temporary scope's disposal is harmless because the factory is rooted on the singleton container.
+- **IMP-4 accepted (no change)**: `OrderBy(r => r.ExpiresAtUtc)` ordering is sensible default ("oldest TTLs released first under fairness pressure") but not contractual per `inventory.md § 11.1`. The fan-out test uses identical `reservedAtUtc` and so cannot prove ordering — acceptable given no contract. Stagger seed times if ordering ever becomes contract.
+- **IMP-5 accepted (defer to M7/M8 follow-up)**: the 5 integration tests prove DoD line 396 + the *filter half* of DoD line 400 (worker excludes already-Confirmed/Released audit rows). The *retry-handler half* (worker reads row as Active → Confirm commits → worker dispatches Release → aggregate returns `Result.Fail(ReservationNotActiveError)` → worker logs+skips) is unreached — no seam exists to deterministically interleave Confirm between scan and dispatch from outside the worker. The cleanest fix is a unit test of the worker against a stub `ICommandHandler<ReleaseReservationCommand>` returning `Fail(ReservationNotActiveError)`; deferred because Inventory has no `Inventory.Infrastructure.UnitTests` project today and adding one is outside M6's boundary. Bundle this alongside the M8 architecture-test work (which also adds new test patterns).
+- **IMP-6 accepted (no change)**: `OccurredOnUtc = nowUtc` (vs `row.ExpiresAtUtc`) is the same convention as saga compensation + admin cancel; reviewer notes "current choice is defensible". Not a contract violation.
+
+**Verification — paste of actual output (command → result):**
+
+| Gate | Command | Result |
+|---|---|---|
+| Restore (locked) | `dotnet restore --locked-mode` | ✅ exit 0; only pre-existing NU1903 advisories on transitive `System.Security.Cryptography.Xml` 9/10.0.x (allowlisted at root `Directory.Build.props`) |
+| Build (Inventory slice) | `dotnet build {Inventory.Infrastructure, Inventory.API, Inventory.IntegrationTests, Inventory.UnitTests} -m --no-restore` (per-project; full-solution `dotnet build -m` still fails on PRE-EXISTING errors in Invoicing/Catalog.ArchitectureTests/Basket.ArchitectureTests/Payments uncommitted work — outside M6 boundary, untouched, matches M5 precedent line 272) | ✅ 0 errors per project |
+| Format whitespace | `dotnet format whitespace services/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj --no-restore --verify-no-changes` | ✅ exit 0 |
+| Format style | `dotnet format style services/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj --no-restore --verify-no-changes` | ✅ exit 0 |
+| Unit tests | `dotnet test test/Inventory.UnitTests/` | ✅ 56/56 passed (no M2 regressions) |
+| Integration tests | `dotnet test test/Inventory.IntegrationTests/` (with `HTTP_PROXY=` unset for Testcontainers Docker.DotNet `npipe://` URI compatibility) | ✅ 27/27 passed (M3:6 + M4:5 + M5:11 + **M6:5**) |
+
+**Known DoD gaps carried forward to M7+:**
+
+- Admin HTTP endpoints (`POST /api/v1/inventory/stock-items/{productId}/{receive,adjust}`) + `.Idempotency()` per ADR-0013 → M7
+- ServiceDefaults + FastEndpoints + auth + output-cache + health endpoints in `Program.cs` → M7
+- Health check endpoint for `outbox-relay-inventory` → M7
+- CQRS behavior chain reactivation in `ApplicationDependencyInjection.AddApplication` → M7 (when responses arrive)
+- Rehydration observability (ADR-0006) — `inventory.aggregate.rehydration.{duration,event_count}` histograms + p99 < 1s integration test on a 1k-event stream → M8
+- Architecture tests (append-only `stock_events`, no `DateTime.UtcNow` in domain, `ReserveStockCommandHandler` doesn't throw) → M8
+- **M6 follow-up — race-vs-Confirm retry-handler unit test** (IMP-5 above): worker against stub `ICommandHandler<ReleaseReservationCommand>` returning `Fail(ReservationNotActiveError)` to cover the warning-log branch. Bundle with M8's architecture-test work (introduces new test patterns).
+- `example-mapping/inventory.md` Sessions 1-3 → M9
+- `docker compose --profile full up -d` smoke + final session summary → M10
+
+**Next milestone: M7** — Admin HTTP endpoints (`POST /api/v1/inventory/stock-items/{productId}/{receive,adjust}` + `GET` queries as needed) under `/api/v1/inventory/...` per ADR-0012, with FastEndpoints `.Idempotency()` on the adjust endpoint per ADR-0013 (backed by `redis-cache`) and Keycloak `inventory.commands.*` scope authorization per ADR-0010. Bring up `ServiceDefaults` (correlation-id middleware, health checks, OTel) + reactivate the CQRS behavior chain (Tracing → Logging → Metrics → Validation → Handler) in `ApplicationDependencyInjection.AddApplication` since responses now exist on queries. Outbox-relay-inventory health-check endpoint. Functional tests for the admin endpoints.
 </wave_progress>
 
 <role_in_system>
