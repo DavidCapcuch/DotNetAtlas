@@ -17,5 +17,13 @@ public sealed record PaymentCaptureFailedDomainEvent : DomainEvent
 
     public required Guid OrderId { get; init; }
 
+    /// <summary>
+    /// Gateway-issued authorization token from the prior <c>Authorize</c> call. Always non-null
+    /// because <c>MarkCaptureFailed</c> is only valid from <c>Authorized</c>, where the
+    /// aggregate has already accepted a <c>GatewayTransactionId</c>. Outbox publishers map this
+    /// onto <c>PaymentCaptureFailedEvent.AuthorizationId</c>.
+    /// </summary>
+    public required string GatewayTransactionId { get; init; }
+
     public required FailureInfo FailureInfo { get; init; }
 }

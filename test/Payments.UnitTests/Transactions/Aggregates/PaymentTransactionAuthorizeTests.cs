@@ -31,6 +31,7 @@ public class PaymentTransactionAuthorizeTests
                 .Which.Should().BeOfType<PaymentAuthorizedDomainEvent>().Subject;
             evt.GatewayTransactionId.Should().Be("gw-tx-abc");
             evt.AuthorizedAtUtc.Should().Be(UtcNow);
+            evt.Amount.Should().Be(tx.Amount);
         }
     }
 

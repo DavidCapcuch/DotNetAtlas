@@ -188,6 +188,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = gatewayTransactionId,
+            Amount = Amount,
             AuthorizedAtUtc = utcNow,
             OccurredOnUtc = utcNow,
         });
@@ -337,6 +338,10 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
 
         GuardTransition(PaymentStatus.Failed);
 
+        // GatewayTransactionId was set by Authorize and is append-only (I-4); the source-state
+        // guard above proves we passed through Authorized, so the bang is safe.
+        var gatewayTransactionId = GatewayTransactionId!;
+
         FailureInfo = failureInfo;
         Status = PaymentStatus.Failed;
 
@@ -346,6 +351,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
+            GatewayTransactionId = gatewayTransactionId,
             FailureInfo = failureInfo,
             OccurredOnUtc = utcNow,
         });
