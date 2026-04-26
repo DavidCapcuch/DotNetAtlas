@@ -1,0 +1,54 @@
+using System.Net.Http.Headers;
+using FastEndpoints.Testing;
+
+namespace Inventory.FunctionalTests.Common.TestClientInfrastructure;
+
+public sealed class HttpClientRegistry<TEntryPoint>
+    where TEntryPoint : class
+{
+    private readonly AppFixture<TEntryPoint> _appFixture;
+    private readonly HttpClient _nonAuthClient;
+    private readonly HttpClient _readOnlyClient;
+    private readonly HttpClient _commandsClient;
+
+    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture)
+    {
+        _appFixture = appFixture;
+        _nonAuthClient = CreateClientFor(ClientType.NonAuth);
+        _readOnlyClient = CreateClientFor(ClientType.ReadOnly);
+        _commandsClient = CreateClientFor(ClientType.Commands);
+    }
+
+    /// <summary>Bare client; no Authorization header. Drives the 401 branch.</summary>
+    public HttpClient NonAuthClient => _nonAuthClient;
+
+    /// <summary>JWT carries only <c>inventory.read</c>. Drives the 403 branch on admin POSTs.</summary>
+    public HttpClient ReadOnlyClient => _readOnlyClient;
+
+    /// <summary>JWT carries <c>inventory.commands.reserve</c>. Drives the success path on every endpoint.</summary>
+    public HttpClient CommandsClient => _commandsClient;
+
+    /// <summary>Per-test client carrying a specific <c>Idempotency-Key</c> header.</summary>
+    public HttpClient CommandsClientWithIdempotencyKey(string idempotencyKey)
+    {
+        var token = FakeTokenCreator.CreateToken(ClientType.Commands);
+        return _appFixture.CreateClient(client =>
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
+        });
+    }
+
+    private HttpClient CreateClientFor(ClientType clientType)
+    {
+        if (clientType == ClientType.NonAuth)
+        {
+            return _appFixture.CreateClient(client =>
+                client.DefaultRequestHeaders.Authorization = null);
+        }
+
+        var token = FakeTokenCreator.CreateToken(clientType);
+        return _appFixture.CreateClient(client =>
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token));
+    }
+}
