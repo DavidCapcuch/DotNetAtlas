@@ -1,36 +1,92 @@
-// Inventory.API - Program.cs
-// M5 minimal wire-up: composition root + KafkaFlow consumers.
-// ServiceDefaults / FastEndpoints / auth / output-cache / health endpoints
-// land in M7 alongside the admin HTTP surface.
+using Inventory.API.Common;
+using Inventory.API.Common.Config;
 using Inventory.Application.Common;
 using Inventory.Infrastructure.Common;
 using KafkaFlow;
 using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.CorrelationId;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .MinimumLevel.Debug()
+    .CreateBootstrapLogger();
 
-builder.Services
-    .AddApplication()
-    .AddInfrastructure(builder.Configuration, builder.Environment.IsDeployedEnvironment());
-
-var app = builder.Build();
-
-// Skip the Kafka cluster boot in the test host. Integration tests register
-// the Kafka handler classes directly and invoke them with synthetic message
-// contexts (matching Ordering's M5 precedent at
-// test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20);
-// booting the consumer here would require Kafka + Schema Registry
-// containers, which are deferred to M7's end-to-end slice.
-if (!app.Environment.IsTesting())
+try
 {
-    var kafkaBus = app.Services.CreateKafkaBus();
-    await kafkaBus.StartAsync();
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.AddPlatformHostConfiguration();
+    builder.UsePlatformSerilog(options =>
+    {
+        options.ServiceName = "Inventory";
+    });
+
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
+
+    builder.Services.AddCorrelationId();
+
+    builder.Services
+        .AddPresentation(builder.Configuration, builder.Environment)
+        .AddApplication()
+        .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
+
+    var app = builder.Build();
+
+    if (app.Environment.IsProduction())
+    {
+        app.UseExceptionHandler();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseStatusCodePages();
+
+    app.UseRouting()
+        .UseCors(InventoryCorsOptions.DefaultCorsPolicyName)
+        .UseOutputCache()
+        .UseCorrelationId()
+        .UseAuthentication()
+        .UseAuthorization();
+
+    app.UseInventoryFastEndpoints();
+
+    app.MapPlatformHealthCheckEndpoints();
+    app.UsePlatformHealthChecksPrometheusExporter();
+
+    // Skip the Kafka cluster boot in the test host. Functional / integration
+    // tests register the typed Kafka handlers directly and invoke them with
+    // synthetic message contexts (matches the Ordering M5 precedent at
+    // test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20).
+    // Booting the consumers in-test would require Kafka + Schema Registry
+    // containers — deferred to M10's end-to-end smoke.
+    if (!app.Environment.IsTesting())
+    {
+        var kafkaBus = app.Services.CreateKafkaBus();
+        await kafkaBus.StartAsync();
+    }
+
+    await app.RunAsync();
+}
+catch (HostAbortedException)
+{
+    Log.Information("Host aborted, shutting down gracefully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Host terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
 }
 
-await app.RunAsync();
-
 /// <summary>
-/// Partial <c>Program</c> marker so future integration / functional tests
-/// can use <c>WebApplicationFactory&lt;Program&gt;</c>.
+/// Partial <c>Program</c> marker so functional + integration tests can use
+/// <c>WebApplicationFactory&lt;Program&gt;</c> and FastEndpoints'
+/// <c>AppFixture&lt;Program&gt;</c>.
 /// </summary>
 public partial class Program;
