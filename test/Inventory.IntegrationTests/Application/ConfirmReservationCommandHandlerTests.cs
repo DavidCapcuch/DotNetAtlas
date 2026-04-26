@@ -1,4 +1,5 @@
 using FluentResults.Extensions.FluentAssertions;
+using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.ConfirmReservation;
 using Inventory.Application.StockItems.InitializeStockItem;
 using Inventory.Application.StockItems.ReceiveStock;
@@ -40,7 +41,7 @@ public sealed class ConfirmReservationCommandHandlerTests
         using (var seed = _fixture.CreateScope())
         {
             var init = seed.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-            var receive = seed.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand>>();
+            var receive = seed.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
             var reserve = seed.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
 
             (await init.HandleAsync(new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = UtcNow.AddMinutes(-3) }, TestContext.Current.CancellationToken)).Should().BeSuccess();

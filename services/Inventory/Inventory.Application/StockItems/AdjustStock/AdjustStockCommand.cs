@@ -1,13 +1,15 @@
+using Inventory.Application.StockItems.Common;
 using Platform.CQRS;
 
 namespace Inventory.Application.StockItems.AdjustStock;
 
 /// <summary>
 /// Signed correction to <c>OnHand</c> (damage write-off, recount, transfer-out).
-/// The HTTP admin endpoint lands in M7 (backed by <c>.Idempotency()</c> per
-/// ADR-0013); this handler is callable now for tests + the future endpoint.
+/// Returns the post-mutation
+/// <see cref="StockLevelResponse"/> so the admin caller (HTTP endpoint backed
+/// by <c>.Idempotency()</c> per ADR-0013) can render the updated figures.
 /// </summary>
-public sealed class AdjustStockCommand : ICommand
+public sealed class AdjustStockCommand : ICommand<StockLevelResponse>
 {
     public required Guid ProductId { get; init; }
 

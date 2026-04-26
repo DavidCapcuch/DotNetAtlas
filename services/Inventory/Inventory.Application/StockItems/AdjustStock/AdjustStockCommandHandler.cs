@@ -1,26 +1,32 @@
 using FluentResults;
 using Inventory.Application.Common.Data;
+using Inventory.Application.StockItems.Common;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.SharedKernel.Exceptions;
 
 namespace Inventory.Application.StockItems.AdjustStock;
 
-internal sealed class AdjustStockCommandHandler : ICommandHandler<AdjustStockCommand>
+internal sealed class AdjustStockCommandHandler : ICommandHandler<AdjustStockCommand, StockLevelResponse>
 {
     private readonly IEventStore _eventStore;
+    private readonly IInventoryDbContext _db;
     private readonly ILogger<AdjustStockCommandHandler> _logger;
 
     public AdjustStockCommandHandler(
         IEventStore eventStore,
+        IInventoryDbContext db,
         ILogger<AdjustStockCommandHandler> logger)
     {
         _eventStore = eventStore;
+        _db = db;
         _logger = logger;
     }
 
-    public async Task<Result> HandleAsync(AdjustStockCommand command, CancellationToken ct)
+    public async Task<Result<StockLevelResponse>> HandleAsync(AdjustStockCommand command, CancellationToken ct)
     {
-        var result = await _eventStore.AppendAsync(
+        var appendResult = await _eventStore.AppendAsync(
             streamId: command.ProductId,
             command: aggregate => aggregate.AdjustStock(
                 command.Delta,
@@ -30,13 +36,23 @@ internal sealed class AdjustStockCommandHandler : ICommandHandler<AdjustStockCom
             correlationId: command.CorrelationId,
             ct: ct).ConfigureAwait(false);
 
-        if (result.IsSuccess)
+        if (appendResult.IsFailed)
         {
-            _logger.LogInformation(
-                "Adjusted stock for Product {ProductId} by {Delta} (by {UserId}, version after append: {Version})",
-                command.ProductId, command.Delta, command.AdjustedByUserId, result.Value.Version);
+            return appendResult.ToResult<StockLevelResponse>();
         }
 
-        return result.ToResult();
+        _logger.LogInformation(
+            "Adjusted stock for Product {ProductId} by {Delta} (by {UserId}, version after append: {Version})",
+            command.ProductId, command.Delta, command.AdjustedByUserId, appendResult.Value.Version);
+
+        var row = await _db.CurrentStockLevels
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.ProductId == command.ProductId, ct)
+            .ConfigureAwait(false)
+            ?? throw new DataIntegrityException(
+                "Inventory.CurrentStockLevels.RowMissingAfterAppend",
+                $"current_stock_levels missing row for ProductId {command.ProductId} after successful event-store append.");
+
+        return Result.Ok(row.ToStockLevelResponse());
     }
 }

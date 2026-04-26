@@ -1,4 +1,5 @@
 using FluentResults.Extensions.FluentAssertions;
+using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.InitializeStockItem;
 using Inventory.Application.StockItems.ReceiveStock;
 using Inventory.Application.StockItems.ReserveStock;
@@ -36,7 +37,7 @@ public sealed class StockLevelChangedEmissionTests
 
         using var scope = _fixture.CreateScope();
         var init = scope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receive = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand>>();
+        var receive = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserve = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
 
         // Init — Available stays 0 (never positive); NO emission.

@@ -72,4 +72,36 @@ public class InventoryErrorsTests
             error.Reasons.Should().BeEmpty();
         }
     }
+
+    [Fact]
+    public void StockItemNotFound_CarriesEntityIdAndCode()
+    {
+        var productId = Guid.CreateVersion7();
+
+        var error = InventoryErrors.StockItemNotFound(productId);
+
+        using (new AssertionScope())
+        {
+            error.EntityName.Should().Be("StockItem");
+            error.Id.Should().Be(productId);
+            error.ErrorCode.Should().Be("Inventory.StockItem.NotFound");
+            error.Message.Should().Contain("StockItem").And.Contain(productId.ToString());
+        }
+    }
+
+    [Fact]
+    public void ReservationNotFound_CarriesEntityIdAndCode()
+    {
+        var reservationId = Guid.CreateVersion7();
+
+        var error = InventoryErrors.ReservationNotFound(reservationId);
+
+        using (new AssertionScope())
+        {
+            error.EntityName.Should().Be("Reservation");
+            error.Id.Should().Be(reservationId);
+            error.ErrorCode.Should().Be("Inventory.Reservation.NotFound");
+            error.Message.Should().Contain("Reservation").And.Contain(reservationId.ToString());
+        }
+    }
 }
