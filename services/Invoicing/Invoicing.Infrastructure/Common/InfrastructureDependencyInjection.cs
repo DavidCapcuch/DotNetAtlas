@@ -12,9 +12,9 @@ namespace Invoicing.Infrastructure.Common;
 /// DI extensions for the Invoicing infrastructure layer.
 /// M1 stub → M3 adds <c>IBlobStore</c> + Azurite adapter → M4 adds
 /// <c>IPdfGenerator</c> + QuestPDF adapter → M5 adds
-/// <c>InvoicingDbContext</c> + the gap-free number allocators (ADR-0018).
+/// <c>InvoicingDbContext</c> + the gap-free number allocators (ADR-0018) →
+/// M6 adds the four enrichment-projection KafkaFlow consumers + inbox dedup.
 /// Subsequent milestones wire:
-///   M6 — projection consumers + inbox dedup + outbox plumbing
 ///   M7 — IssueInvoice / IssueCreditNote command handlers + outbox publishers
 /// </summary>
 public static class InfrastructureDependencyInjection
@@ -30,8 +30,9 @@ public static class InfrastructureDependencyInjection
         services.AddBlobStorage(configuration);
         services.AddPdfGeneration(configuration);
         services.AddPersistence(configuration, isDeployedEnvironment);
+        services.AddKafkaMessaging(configuration);
 
-        // M6+: AddMessaging (KafkaFlow consumers + inbox dedup), AddHealthChecks.
+        // M7+: AddOutbox + outbox publishers for InvoiceIssued / CreditNoteIssued, AddHealthChecks.
         return services;
     }
 

@@ -9,21 +9,23 @@ using Testcontainers.PostgreSql;
 namespace Invoicing.IntegrationTests.Common;
 
 /// <summary>
-/// Spins a throwaway Postgres container per collection and wires the M5
-/// persistence slice: <see cref="InvoicingDbContext"/> and the
-/// <see cref="IInvoicingDbContext"/> port binding. The two allocator
-/// adapters are NOT registered in DI here — they take a
-/// <see cref="TimeProvider"/> dependency, and tests need fresh per-test
-/// fakes (the shared <c>FakeTimeProvider</c> rejects backward time moves
-/// across xUnit's non-deterministic test ordering). Tests instantiate the
-/// adapter directly with a per-test fake clock plus the scoped DbContext.
+/// Spins a throwaway Postgres container per collection and wires the M5/M6
+/// persistence slice: <see cref="InvoicingDbContext"/>, the
+/// <see cref="IInvoicingDbContext"/> port binding, and (M6) schema for the
+/// <c>pending_invoices</c> + <c>pending_credit_notes</c> projection tables
+/// plus the platform <c>inbox_messages</c> table. Tests construct the
+/// projection KafkaFlow handler classes directly with per-test
+/// <c>FakeTimeProvider</c> instances + an NSubstitute <c>IMessageContext</c>;
+/// the inbox middleware is exercised by Platform.KafkaFlow.Inbox.EFCore's
+/// own tests, not here. The two allocator adapters (M5) are also instantiated
+/// directly so tests can inject test-controlled clocks.
 /// </summary>
 /// <remarks>
-/// The fixture deliberately bypasses
-/// <c>InfrastructureDependencyInjection.AddInvoicingInfrastructure</c> — that
-/// extension also wires Azurite + QuestPDF (M3 / M4) which are exercised by
-/// their own dedicated fixtures. Pulling them in here would couple every
-/// allocator test to those external dependencies for no benefit.
+/// Schema is materialised via <see cref="DatabaseFacade.EnsureCreatedAsync"/>
+/// rather than EF migrations — per CLAUDE.md the user generates production
+/// migrations deterministically; tests derive the schema from the EF model
+/// so the fixture stays self-contained and a M6 (or later) test run does
+/// not block on a manually-authored migration. Mirrors Catalog M4's choice.
 /// </remarks>
 public sealed class IntegrationTestFixture : IAsyncLifetime
 {
@@ -54,9 +56,9 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
         _rootServices = services.BuildServiceProvider();
 
-        await using var migrationScope = _rootServices.CreateAsyncScope();
-        var dbContext = migrationScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        await using var setupScope = _rootServices.CreateAsyncScope();
+        var dbContext = setupScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
