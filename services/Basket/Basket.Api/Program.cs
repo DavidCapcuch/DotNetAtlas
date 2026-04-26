@@ -1,12 +1,77 @@
-// Basket.Api — Program.cs
-// Minimal scaffold (milestone M1). Subsequent milestones (M6) wire ServiceDefaults,
-// FastEndpoints, correlation ID middleware, JWT bearer auth, idempotency output cache,
-// the named "basket" FusionCache against redis-basket, and the Catalog ACL typed HttpClient.
+using Basket.Api.Common;
+using Basket.Application.Common;
+using Basket.Infrastructure.Common;
+using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.CorrelationId;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .MinimumLevel.Debug()
+    .CreateBootstrapLogger();
 
-var app = builder.Build();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-app.MapGet("/", () => "Basket.Api — scaffolded; implementation pending milestones M2–M9.");
+    builder.AddPlatformHostConfiguration();
+    builder.UsePlatformSerilog(options =>
+    {
+        options.ServiceName = "Basket";
+    });
 
-await app.RunAsync();
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
+
+    builder.Services.AddCorrelationId();
+
+    builder.Services
+        .AddPresentation(builder.Configuration, builder.Environment)
+        .AddApplication()
+        .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
+
+    var app = builder.Build();
+
+    if (app.Environment.IsProduction())
+    {
+        app.UseExceptionHandler();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseStatusCodePages();
+
+    app.UseRouting()
+        .UseCors(Basket.Api.Common.Config.BasketCorsOptions.DefaultCorsPolicyName)
+        .UseOutputCache()
+        .UseCorrelationId()
+        .UseAuthentication()
+        .UseAuthorization();
+
+    app.UseBasketFastEndpoints();
+
+    app.MapPlatformHealthCheckEndpoints();
+    app.UsePlatformHealthChecksPrometheusExporter();
+
+    await app.RunAsync();
+}
+catch (HostAbortedException)
+{
+    Log.Information("Host aborted, shutting down gracefully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Host terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+
+/// <summary>
+/// Public Program class so test hosts (FastEndpoints' <c>AppFixture&lt;Program&gt;</c>) can
+/// reference the entry point.
+/// </summary>
+public partial class Program;
