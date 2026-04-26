@@ -37,15 +37,16 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventHandlersFromAssembly(assembly)
                 .AddDomainEventDispatcher();
 
-            // CQRS behavior chain (Tracing > Logging > Metrics > Validation)
-            // is intentionally NOT wired in M4. The platform decorators
-            // (Platform.CQRS.Common.AddCqrs*Behavior) eagerly call
-            // services.Decorate(typeof(ICommandHandler<,>), ...) which throws
-            // when no <,> handlers are registered. M4 only ships
-            // ICommandHandler<> (saga-command handlers return Result, not
-            // Result<TResponse>); IQueryHandler<,> + ICommandHandler<,>
-            // arrive in M7 with the admin endpoints. Re-enable the chain
-            // here when M7 lands those handlers.
+            // CQRS behavior chain. Decorator order: last registered = first to
+            // execute. Tracing (outer) > Logging > Metrics > Validation > Handler
+            // (inner). Each AddCqrs*Behavior decorates all three handler kinds
+            // (ICommandHandler<>, ICommandHandler<,>, IQueryHandler<,>); M7
+            // satisfies every kind via the admin Receive/Adjust commands plus
+            // the GetStockLevel / GetReservation queries.
+            services.AddCqrsValidationBehavior();
+            services.AddCqrsMetricsBehavior();
+            services.AddCqrsLoggingBehavior();
+            services.AddCqrsTracingBehavior();
 
             services.AddOptionsWithValidateOnStart<TopicsOptions>()
                 .BindConfiguration(TopicsOptions.Section)

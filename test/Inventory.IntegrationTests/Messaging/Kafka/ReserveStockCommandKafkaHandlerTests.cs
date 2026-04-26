@@ -1,3 +1,4 @@
+using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.InitializeStockItem;
 using Inventory.Application.StockItems.ReceiveStock;
 using Inventory.Domain.StockItems.ValueObjects;
@@ -137,7 +138,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests
 
         using var seedScope = _fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand>>();
+        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
 
         await initHandler.HandleAsync(
             new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = seedUtc },

@@ -1,3 +1,4 @@
+using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.ConfirmReservation;
 using Inventory.Application.StockItems.InitializeStockItem;
 using Inventory.Application.StockItems.ReceiveStock;
@@ -281,7 +282,7 @@ public sealed class ReservationExpiryWorkerTests
     {
         using var seedScope = _fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand>>();
+        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
 
         await initHandler.HandleAsync(

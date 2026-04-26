@@ -1,13 +1,15 @@
+using Inventory.Application.StockItems.Common;
 using Platform.CQRS;
 
 namespace Inventory.Application.StockItems.ReceiveStock;
 
 /// <summary>
 /// Records an inbound stock movement (warehouse delivery, return re-shelved,
-/// transfer-in). Admin HTTP endpoint lands in M7; for now the handler is
-/// callable via DI from integration tests and from the future M7 endpoint.
+/// transfer-in). Returns the post-mutation
+/// <see cref="StockLevelResponse"/> so the admin caller can render the new
+/// on-hand / reserved / available figures without a follow-up GET.
 /// </summary>
-public sealed class ReceiveStockCommand : ICommand
+public sealed class ReceiveStockCommand : ICommand<StockLevelResponse>
 {
     public required Guid ProductId { get; init; }
 
