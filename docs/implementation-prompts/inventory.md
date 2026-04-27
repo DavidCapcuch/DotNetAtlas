@@ -443,6 +443,83 @@ Commits 2 + 5 skipped per `_shared.md § 11` (touch < 5 files; mechanical wiring
 - `docker compose --profile full up -d` smoke + final session summary → M10
 
 **Next milestone: M8** — Architecture tests (NetArchTest predicates: append-only `stock_events` repository, no `DateTime.UtcNow` in `Inventory.Domain.dll`, `ReserveStockCommandHandler` cannot throw — `InsufficientStock` flows through as `Result.Fail` only) + rehydration observability instrumentation in `EventStoreRepository.RehydrateAsync` (`inventory.aggregate.rehydration.duration` ms histogram + `event_count` histogram tagged by `ProductId`) + p99 < 1s integration test on a 1k-event stream + the M6 race-vs-Confirm retry-handler unit test + the FE idempotency-replay strengthening.
+
+### Session 7 (2026-04-27) — M8 complete
+
+**Delivered (M8 main scope — architecture tests + rehydration observability + M6 follow-up unit test):**
+
+- **`test/Inventory.ArchitectureTests/`** — 33 tests across 12 files + `BaseTest.cs`, mirroring Catalog's pattern; `Placeholder.cs` deleted.
+    - `BaseTest.cs` — 4 assembly anchors (`Inventory.{Domain,Application,Infrastructure,API}.IAssemblyMarker`) + 6 reusable `ICustomRule` implementations copied verbatim from Catalog (`PrivateConstructorsRule`, `NoStaticUtcNowRule`, `OnlyThrowsRule`, `DoesNotThrowRule`, `HandlerReturnsResultRule`) + a new `PublicMethodsAreSubsetOfRule` for the append-only event-store assertion. Mono.Cecil resolves transitively via `NetArchTest.eNhancedEdition` (matches Catalog's csproj — no explicit Mono.Cecil package reference needed).
+    - `Domain/AdrComplianceTests.cs` — ADR-0015 no-static-UtcNow on `Inventory.Domain` (carries forward M2 line 118).
+    - `Domain/AggregateRootTests.cs` — `StockItem` sealed + externally immutable + private ctor. The Catalog `HasPublicStaticFactoryMethodRule` is intentionally OMITTED here because Inventory's ES aggregate uses `Fold` rehydration (no `Create`/`From` factory) — design decision below.
+    - `Domain/ValueObjectTests.cs` — sealed + immutable + no public ctor over the 5 `ValueObject`-derived VOs; the doc-comment was tightened post-review to clarify enums (`ReservationStatus`, `ReleaseReason`) are intentionally outside the filter.
+    - `Domain/DomainEventTests.cs` — sealed + immutable + ends with `"Event"` (NOT `"DomainEvent"` like Catalog — Inventory's convention per `inventory.md` § 5 + `StockEventSerializer` registry) + lives under `Inventory.Domain.StockItems.Events`.
+    - `Application/ResultPatternTests.cs` — three facts: aggregates only throw `DataIntegrityException`; handlers don't raw-throw `Argument`/`InvalidOperation`/`ArgumentNullException`; `HandleAsync` returns `Task<Result>` / `Task<Result<T>>`. **Locks the M2 carry-forward "ReserveStockCommandHandler doesn't throw on InsufficientStock"** via the `DoesNotThrowRule` over all `*CommandHandler` types.
+    - `Application/CommandHandlerTests.cs` — naming + sealed.
+    - `Application/CommandTests.cs` — naming + every command has a handler (orphan check).
+    - `Application/QueryHandlerTests.cs` — naming + sealed (covers M7's two query handlers).
+    - `Application/ValidatorTests.cs` — naming.
+    - `CleanArchitecture/CleanArchitectureLayerTests.cs` — six layer-dependency rules.
+    - `BoundedContext/CrossBcReferenceTests.cs` — `Inventory.{Domain,Application}` don't reference Catalog/Basket/Ordering/Invoicing/Payments domain or application assemblies.
+    - `BoundedContext/EventStoreAppendOnlyTests.cs` — **append-only enforcement**: both `IEventStore` (port) and `EventStoreRepository` (impl) public methods are a subset of `{RehydrateAsync, AppendAsync}` via the new `PublicMethodsAreSubsetOfRule`. Each test anchors with a `matchedTypes.Should().ContainSingle()` precondition so a future rename of either type fails loudly instead of vacuously passing (post-review M1 fix).
+    - `BoundedContext/DomainEventHandlerTests.cs` — handlers sealed + live under `Inventory.Application.StockItems` (Inventory deviates from Catalog's "*ProjectionHandler" suffix because the multiplexed `CurrentStockLevelsProjectionHandler` + `ReservationLifecycleHandler` shape combines projection + outbox in one class — design rationale documented in the test file).
+
+- **Real production-code violation caught + fixed by the new tests:** `Inventory.Domain.StockItems.ValueObjects.ReservationInfo` was a positional `record` (implicit public ctor), failing `ValueObjects_Should_NotHavePublicConstructor`. Converted to non-positional `record` with `private ReservationInfo()` + `init`-only properties + a public static `Create` factory; `with` expressions in the aggregate's reducers (`StockItem.cs:419, :432`) continue to work via the compiler-synthesized copy ctor. Single explicit construction site at `StockItem.cs:390` updated to call `ReservationInfo.Create(...)`. Per `_shared.md § 9` "fix the production code rather than weakening the rule."
+
+- **Rehydration observability slice (ADR-0006 § Observability):**
+    - `services/Inventory/Inventory.Infrastructure/Observability/InventoryMetrics.cs` — NEW. Pattern A static class (saga precedent — `PaymentProcessingSagaMetrics.cs`); `Meter` name `"Inventory"`; two histograms — `inventory.aggregate.rehydration.duration` (ms) + `inventory.aggregate.rehydration.event_count` ({events}); single tag `product_id` per ADR-0006 § Observability.
+    - `services/Inventory/Inventory.Infrastructure/Persistence/EventStore/EventStoreRepository.cs:58-83` — `RehydrateAsync` body wrapped with `Stopwatch.GetTimestamp` + `Stopwatch.GetElapsedTime` (allocation-free); calls `InventoryMetrics.RecordRehydration(streamId, elapsedMs, rows.Count)` after the fold. Empty-stream rehydrates record (≈0ms, 0 events) — intentional per ADR-0006 (cliff detection cross-correlates duration with stream length).
+    - `test/Inventory.IntegrationTests/Persistence/EventStoreRepositoryRehydrationMetricsTests.cs` — NEW. Seeds 1000 events on a fresh stream via ONE `AppendAsync` call (1× `Initialize` + 999× `ReceiveStock` in a single lambda → one `SaveChangesAsync` writes 1000 `stock_events` rows + projection upserts in one transaction). Subscribes a `MeterListener` filtered by the test's `product_id` tag. Loops 100 `RehydrateAsync` calls. Asserts: 100 measurements per histogram, every event_count == 1000, every aggregate.Version == 1000, p99 < 1000ms (nearest-rank). Test passes in ~3s end-to-end.
+
+- **M6 follow-up unit test** — `test/Inventory.UnitTests/BackgroundJobs/ReservationExpiryWorkerWarningLogTests.cs` covers the warning-log branch at `ReservationExpiryWorker.cs:152-159` (the between-tick race where the audit row reads as Active at scan time but `Confirm` lands before dispatch — handler returns `Fail(ReservationNotActive)`, worker logs Warning, doesn't throw). Uses NSubstitute stub for `ICommandHandler<ReleaseReservationCommand>`, in-memory EF for `IInventoryDbContext`, and a hand-rolled `CapturingLogger<T>` (NSubstitute's Castle DynamicProxy can't synthesize `ILogger<InternalType>` against a strong-named assembly without `[InternalsVisibleTo("DynamicProxyGenAssembly2")]` on Inventory.Infrastructure — production-code change avoided). Asserts handler called once with right ids, exactly one Warning entry with the right message, no Error/Critical.
+
+- **`test/Inventory.UnitTests/Inventory.UnitTests.csproj`** — added `Inventory.Infrastructure` project reference (was Domain + Application only) so the unit test can construct `ReservationExpiryWorker` and `InventoryDbContext`. Future infrastructure-layer unit tests have a clean home.
+
+**Design decisions resolved in M8** (persisted so fresh sessions don't re-litigate):
+
+| Question | Resolution | Rationale |
+|---|---|---|
+| Architecture-test framework | NetArchTest.eNhancedEdition + Mono.Cecil custom rules — copied directly from `test/Catalog.ArchitectureTests/BaseTest.cs` | Single source of `ICustomRule` implementations across BCs; M8 added one new rule (`PublicMethodsAreSubsetOfRule`) for the append-only port assertion. Mono.Cecil resolves transitively via NetArchTest. |
+| `HasPublicStaticFactoryMethodRule` for `StockItem` | OMITTED — `StockItem.Fold(events)` is the rehydration path; there is no `Create`/`From` factory because the aggregate is constructed by replaying events. | The rule presupposes a Catalog-style factory pattern (Result<T> entry point). ES aggregates are different — their construction path is folding. Documenting the omission in `AggregateRootTests.cs`'s xmldoc keeps future contributors from wondering. |
+| Domain-event suffix | `"Event"` (Inventory) vs `"DomainEvent"` (Catalog) — adapted `DomainEventTests.cs` predicate to match Inventory's convention. | Naming was set in M2 and is the discriminator the `StockEventSerializer` round-trips through the jsonb payload — flipping to `"DomainEvent"` now would require an event-store migration. Convention deviation, intentional, documented. |
+| Projection-handler convention | Inventory keeps projection + outbox in one multiplexed class per projection table (`CurrentStockLevelsProjectionHandler`, `ReservationLifecycleHandler`) vs Catalog's one-class-per-event split. | Multiplexed shape preserves the same-DbContext-transaction invariant for the ES write path inside `EventStoreRepository.AppendAsync`'s dispatch loop. M8's `DomainEventHandlerTests` asserts only "sealed + lives under StockItems" rather than the Catalog "*ProjectionHandler" naming rule — see file xmldoc. |
+| Meter name | Literal `"Inventory"` (not `ApplicationInfo.AppName`) | Trade-off: integration test would hardcode the same string for the listener filter regardless. Acceptable for v1; if the service is ever renamed the meter name drifts (low impact, cosmetic). |
+| OTel registration in `Inventory.Infrastructure` DI | DEFERRED — `Platform.ServiceDefaults` does NOT call `AddOpenTelemetry`/`WithMetrics`; Catalog/Basket are in the same state. The new histograms emit measurements; the integration test asserts via `MeterListener` directly. OTLP/Seq export waits for cross-cutting OTel wiring. | M8's contract is "metrics are recorded" (ADR-0006) + "p99 < 1s integration test" — both satisfied. Wiring is a cross-cutting concern, not a per-BC milestone. |
+| `Microsoft.Extensions.Logging.Testing` (`FakeLogger`) | NOT added — built a hand-rolled `CapturingLogger<T>` (~15 lines) instead. | Adding a new NuGet package is a `_shared.md § 9` escalation and the avoidance is trivial. Plan stop-ask explicitly flagged this. |
+| `ReservationInfo` ctor refactor | Convert to non-positional record + private parameterless ctor + static `Create` factory + `init`-only properties | The `ValueObjects_Should_NotHavePublicConstructor` test caught it; per plan stop-ask "fix the production code rather than weakening the rule." `with` expressions still work via the compiler-synthesized copy ctor. JSON / EF Core paths don't construct `ReservationInfo` — verified by reviewer (it's a transient projection on `_reservations` dict, never serialized or persisted). |
+| Anchor-before-rule pattern in `EventStoreAppendOnlyTests` | Each test asserts `matchedTypes.Should().ContainSingle()` before applying the rule. | Post-review M1 fix. Without the anchor, a rename of `IEventStore` or `EventStoreRepository` would cause the rule to pass vacuously (NetArchTest's `MeetCustomRule` over zero types returns `FailingTypes=[]`). |
+
+**Pre-commit reviewer pass** (`Agent(subagent_type="feature-dev:code-reviewer", model="opus")`):
+- 0 CRITICAL, 0 HIGH, 2 MEDIUM, 4 LOW (after the reviewer self-withdrew M2 and M3 on re-examination).
+- **MEDIUM-1 fixed**: anchor-before-rule pattern added to both `EventStoreAppendOnlyTests` facts (vacuous-pass risk on type rename).
+- **MEDIUM-4 fixed**: `ValueObjectTests.cs` xmldoc trimmed to remove the misleading enum claim.
+- LOW findings (1-4) accepted as documented; none are blocking.
+
+**Verification — paste of actual output (command → result):**
+
+| Gate | Command | Result |
+|---|---|---|
+| Restore (locked) | `dotnet restore --locked-mode` | ✅ 0 errors (NU1903 warnings allowlisted) |
+| Build | `dotnet build -m --no-restore` | ✅ "Vytváření sestavení bylo úspěšně dokončeno." (build succeeded), exit 0 |
+| Format whitespace | `dotnet format whitespace --no-restore --verify-no-changes` | ✅ exit 0 |
+| Format style | `dotnet format style --no-restore --verify-no-changes` | ✅ exit 0 |
+| Unit tests | `dotnet test test/Inventory.UnitTests/` | ✅ 66/66 passed (M2:56 + M3-M7 additions + **M8:1 new** = 66) |
+| Architecture tests | `dotnet test test/Inventory.ArchitectureTests/` | ✅ **33/33 passed (was 0 in M7)** |
+| Integration tests | `dotnet test test/Inventory.IntegrationTests/` (with `HTTP_PROXY=` unset for Testcontainers Docker.DotNet `npipe://` URI compatibility) | ✅ 35/35 passed (M3-M7:34 + **M8:1 new rehydration p99 test** = 35) |
+| Functional tests | `dotnet test test/Inventory.FunctionalTests/` | ✅ 15/15 passed (no regressions from M7) |
+
+`docker compose --profile full up -d` smoke + topic-describe — deferred to M10 per the milestone matrix.
+
+**Known DoD gaps carried forward to M9+:**
+
+- `example-mapping/inventory.md` Sessions 1–3 → **M9** (next)
+- **M7 follow-up — FE 7.0.1 idempotency-replay assertion** strengthening (`AdjustStockTests.WhenSameIdempotencyKeyReplayed_BothCallsReturn200`) → **M9**
+- **M7 follow-up — inspect-Redis-after-first-POST assertion** → **M9**
+- **M7 follow-up — per-test Postgres truncate** in `InventoryApiFixture.ResetFixtureStateAsync` → **M9**
+- OTel meter registration for Inventory (`AddOpenTelemetry().WithMetrics(m => m.AddMeter("Inventory"))`) — cross-cutting; Catalog/Basket are in the same state. Out of scope for M8; track as a wave-level concern before production.
+- `docker compose --profile full up -d` smoke + final session summary → **M10**
+
+**Next milestone: M9** — Integration tests for the three `example-mapping/inventory.md` sessions (Reserve happy path, Confirm idempotent replay, Release race-with-Confirm) + the TTL-vs-Confirm race scenario + the three M7 idempotency-related follow-ups (FE replay strengthening, Redis-after-POST inspect, per-test Postgres truncate via Respawn or equivalent).
 </wave_progress>
 
 <role_in_system>

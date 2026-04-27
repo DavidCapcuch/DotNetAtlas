@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using EntityFramework.Exceptions.Common;
 using FluentResults;
 using Inventory.Application.Common.Data;
 using Inventory.Domain.StockItems;
 using Inventory.Domain.StockItems.Errors;
+using Inventory.Infrastructure.Observability;
 using Inventory.Infrastructure.Persistence.Database;
 using Microsoft.EntityFrameworkCore;
 using Platform.SharedKernel.Base.DomainEvents;
@@ -55,8 +57,19 @@ public sealed class EventStoreRepository : IEventStore
     /// and folds it into a fresh <see cref="StockItem"/>. Returns an
     /// uninitialized aggregate (<c>Version=0</c>) when the stream has no rows.
     /// </summary>
+    /// <remarks>
+    /// Per ADR-0006 § Observability, every rehydration is timed and the result emitted
+    /// to <see cref="InventoryMetrics"/> as the
+    /// <c>inventory.aggregate.rehydration.duration</c> +
+    /// <c>inventory.aggregate.rehydration.event_count</c> histograms tagged by
+    /// <c>product_id</c>. <see cref="Stopwatch.GetTimestamp"/> +
+    /// <see cref="Stopwatch.GetElapsedTime(long)"/> is allocation-free; recording a
+    /// measurement is itself zero-allocation when there are no listeners.
+    /// </remarks>
     public async Task<StockItem> RehydrateAsync(Guid streamId, CancellationToken ct)
     {
+        var startTimestamp = Stopwatch.GetTimestamp();
+
         var rows = await _ctx.StockEvents
             .AsNoTracking()
             .Where(r => r.StreamId == streamId)
@@ -66,7 +79,12 @@ public sealed class EventStoreRepository : IEventStore
             .ConfigureAwait(false);
 
         var events = rows.Select(r => StockEventSerializer.Deserialize(r.EventType, r.Payload));
-        return StockItem.Fold(events);
+        var aggregate = StockItem.Fold(events);
+
+        var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+        InventoryMetrics.RecordRehydration(streamId, elapsedMs, rows.Count);
+
+        return aggregate;
     }
 
     /// <summary>

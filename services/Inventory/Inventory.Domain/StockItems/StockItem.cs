@@ -387,14 +387,14 @@ public sealed class StockItem : AggregateRoot<Guid>
             $"StockReservedEvent on stream {Id} duplicates ReservationId {rid}."));
 
         Reserved += e.Quantity;
-        _reservations[rid] = new ReservationInfo(
-            ReservationId: rid,
-            ProductId: e.ProductId,
-            Quantity: e.Quantity,
-            OrderId: e.OrderId,
-            ReservedAtUtc: e.OccurredOnUtc,
-            ExpiresAtUtc: e.ExpiresAtUtc,
-            Status: ReservationStatus.Active);
+        _reservations[rid] = ReservationInfo.Create(
+            reservationId: rid,
+            productId: e.ProductId,
+            quantity: e.Quantity,
+            orderId: e.OrderId,
+            reservedAtUtc: e.OccurredOnUtc,
+            expiresAtUtc: e.ExpiresAtUtc,
+            status: ReservationStatus.Active);
     }
 
     private void ApplyConfirmed(ReservationConfirmedEvent e)
