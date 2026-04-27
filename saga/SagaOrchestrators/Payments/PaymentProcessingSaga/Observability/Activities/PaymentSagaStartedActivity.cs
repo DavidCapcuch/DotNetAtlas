@@ -40,6 +40,7 @@ public sealed class
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
+            activity.SetTag(PaymentSagaActivityTags.OrderId, saga.OrderId.ToString());
             activity.SetTag(PaymentSagaActivityTags.Amount, saga.Amount);
             activity.SetTag(PaymentSagaActivityTags.Currency, saga.Currency);
         }
@@ -47,8 +48,9 @@ public sealed class
         PaymentProcessingSagaMetrics.RecordSagaStarted(saga.Currency);
 
         _logger.LogInformation(
-            "{SagaType} {CorrelationId} initialized for user {UserId}, amount {Amount} {Currency}",
-            nameof(PaymentProcessingSagaOrchestrator), saga.CorrelationId, saga.UserId, saga.Amount, saga.Currency);
+            "{SagaType} {CorrelationId} initialized for user {UserId}, order {OrderId}, amount {Amount} {Currency}",
+            nameof(PaymentProcessingSagaOrchestrator),
+            saga.CorrelationId, saga.UserId, saga.OrderId, saga.Amount, saga.Currency);
 
         await next.Execute(context);
     }

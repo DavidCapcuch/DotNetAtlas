@@ -27,6 +27,15 @@ public sealed class PaymentProcessingSagaStateMap :
         entity.HasIndex(x => x.CurrentState)
             .HasDatabaseName("IX_PaymentSagaState_CurrentState");
 
+        // Ordering aggregate id this payment is attached to. Frozen at saga start
+        // (the Checkout saga always creates the Order before requesting payment).
+        // Indexed for admin lookups of "all payment sagas for order X".
+        entity.Property(x => x.OrderId)
+            .HasComment("Ordering aggregate id this payment is attached to. Frozen at saga start.");
+
+        entity.HasIndex(x => x.OrderId)
+            .HasDatabaseName("IX_PaymentSagaState_OrderId");
+
         // User and Payment Method
         entity.Property(x => x.UserId)
             .HasComment("User initiating the payment");

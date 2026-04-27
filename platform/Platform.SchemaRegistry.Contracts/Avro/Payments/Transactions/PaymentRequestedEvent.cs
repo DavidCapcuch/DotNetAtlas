@@ -14,16 +14,39 @@ namespace Payments.Transactions
 	using global::Avro.Specific;
 	
 	/// <summary>
-	/// Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.).
+	/// Event emitted when a payment is requested for an Order. Triggers the Payment Saga to process authorization and capture. The eShop's Checkout saga always creates the Order before requesting payment, so OrderId is always present at request time.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentRequestedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRequestedEvent"",""doc"":""Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.)."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (e.g., purchase → payment → activation)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User initiating the payment."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use for this transaction."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Amount"",""doc"":""Payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code (e.g., 'USD', 'EUR')."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key for preventing duplicate payment processing."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when payment was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"PaymentRequestedEvent\",\"doc\":\"Event emitted when a payme" +
+				"nt is requested for an Order. Triggers the Payment Saga to process authorization" +
+				" and capture. The eShop\'s Checkout saga always creates the Order before requesti" +
+				"ng payment, so OrderId is always present at request time.\",\"namespace\":\"Payments" +
+				".Transactions\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Correlation ID shared ac" +
+				"ross the entire business flow (e.g., checkout → order → payment → invoice).\",\"ty" +
+				"pe\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering ag" +
+				"gregate id this payment is attached to. Persisted on the Payments-side aggregate" +
+				" as a debugging/admin-lookup convenience; downstream Payments events drop it (cr" +
+				"oss-BC linkage stays CorrelationId).\",\"default\":\"00000000-0000-0000-0000-0000000" +
+				"00000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"Us" +
+				"er initiating the payment.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"nam" +
+				"e\":\"PaymentMethodId\",\"doc\":\"ID of the saved payment method to use for this trans" +
+				"action.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Amount\",\"doc\":\"" +
+				"Payment amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"" +
+				"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code (e.g., \'USD\', \'EUR\')" +
+				".\",\"type\":\"string\"},{\"name\":\"IdempotencyKey\",\"doc\":\"Idempotency key for preventi" +
+				"ng duplicate payment processing.\",\"type\":\"string\"},{\"name\":\"RequestedAtUtc\",\"doc" +
+				"\":\"UTC timestamp when payment was requested.\",\"type\":{\"type\":\"long\",\"logicalType" +
+				"\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Correlation ID shared across the entire business flow (e.g., purchase → payment → activation).
+		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice).
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Ordering aggregate id this payment is attached to. Persisted on the Payments-side aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage stays CorrelationId).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User initiating the payment.
 		/// </summary>
@@ -56,7 +79,7 @@ namespace Payments.Transactions
 			}
 		}
 		/// <summary>
-		/// Correlation ID shared across the entire business flow (e.g., purchase → payment → activation).
+		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice).
 		/// </summary>
 		public System.Guid CorrelationId
 		{
@@ -67,6 +90,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Ordering aggregate id this payment is attached to. Persisted on the Payments-side aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage stays CorrelationId).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -158,12 +195,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.PaymentMethodId;
-			case 3: return this.Amount;
-			case 4: return this.Currency;
-			case 5: return this.IdempotencyKey;
-			case 6: return this.RequestedAtUtc;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.PaymentMethodId;
+			case 4: return this.Amount;
+			case 5: return this.Currency;
+			case 6: return this.IdempotencyKey;
+			case 7: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -172,12 +210,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.PaymentMethodId = (System.Guid)fieldValue; break;
-			case 3: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 4: this.Currency = (System.String)fieldValue; break;
-			case 5: this.IdempotencyKey = (System.String)fieldValue; break;
-			case 6: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.PaymentMethodId = (System.Guid)fieldValue; break;
+			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 5: this.Currency = (System.String)fieldValue; break;
+			case 6: this.IdempotencyKey = (System.String)fieldValue; break;
+			case 7: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

@@ -19,11 +19,15 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class AuthorizePaymentCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AuthorizePaymentCommand"",""doc"":""Command sent by Payment Saga to request payment authorization from the Payment Service."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User to authorize payment for."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Amount"",""doc"":""Amount to authorize."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key to prevent duplicate authorizations."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when authorization was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AuthorizePaymentCommand"",""doc"":""Command sent by Payment Saga to request payment authorization from the Payment Service."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId)."",""default"":""00000000-0000-0000-0000-000000000000"",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User to authorize payment for."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""ID of the saved payment method to use."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Amount"",""doc"":""Amount to authorize."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key to prevent duplicate authorizations."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when authorization was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the workflow.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User to authorize payment for.
 		/// </summary>
@@ -67,6 +71,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -158,12 +176,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.PaymentMethodId;
-			case 3: return this.Amount;
-			case 4: return this.Currency;
-			case 5: return this.IdempotencyKey;
-			case 6: return this.RequestedAtUtc;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.PaymentMethodId;
+			case 4: return this.Amount;
+			case 5: return this.Currency;
+			case 6: return this.IdempotencyKey;
+			case 7: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -172,12 +191,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.PaymentMethodId = (System.Guid)fieldValue; break;
-			case 3: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 4: this.Currency = (System.String)fieldValue; break;
-			case 5: this.IdempotencyKey = (System.String)fieldValue; break;
-			case 6: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.PaymentMethodId = (System.Guid)fieldValue; break;
+			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 5: this.Currency = (System.String)fieldValue; break;
+			case 6: this.IdempotencyKey = (System.String)fieldValue; break;
+			case 7: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

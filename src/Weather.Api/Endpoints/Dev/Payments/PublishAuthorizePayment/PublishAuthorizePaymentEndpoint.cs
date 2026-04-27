@@ -40,6 +40,7 @@ internal class PublishAuthorizePaymentEndpoint : Endpoint<PublishAuthorizePaymen
             s.ExampleRequest = new PublishAuthorizePaymentCommand
             {
                 CorrelationId = Guid.CreateVersion7(),
+                OrderId = Guid.CreateVersion7(),
                 UserId = Guid.Parse("00000000-0000-0000-0000-111111111111"), // dev@dotnetatlas.com
                 PaymentMethodId = Guid.CreateVersion7(),
                 Amount = 9.99m,
@@ -54,6 +55,7 @@ internal class PublishAuthorizePaymentEndpoint : Endpoint<PublishAuthorizePaymen
         var authorizePaymentCommand = new AuthorizePaymentCommand
         {
             CorrelationId = req.CorrelationId,
+            OrderId = req.OrderId,
             UserId = req.UserId,
             PaymentMethodId = req.PaymentMethodId,
             Amount = req.Amount.ToAvroDecimal(4),

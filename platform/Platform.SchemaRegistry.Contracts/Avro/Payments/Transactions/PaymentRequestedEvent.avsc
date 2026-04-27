@@ -2,7 +2,7 @@
     "type": "record",
     "name": "PaymentRequestedEvent",
     "namespace": "Payments.Transactions",
-    "doc": "Event emitted when a payment is requested. Triggers the Payment Saga to process authorization and capture. This is a 'dumb' payment event - it knows nothing about the business context (subscription, order, etc.).",
+    "doc": "Event emitted when a payment is requested for an Order. Triggers the Payment Saga to process authorization and capture. The eShop's Checkout saga always creates the Order before requesting payment, so OrderId is always present at request time.",
     "fields": [
         {
             "name": "CorrelationId",
@@ -10,7 +10,16 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Correlation ID shared across the entire business flow (e.g., purchase → payment → activation)."
+            "doc": "Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice)."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "default": "00000000-0000-0000-0000-000000000000",
+            "doc": "Ordering aggregate id this payment is attached to. Persisted on the Payments-side aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage stays CorrelationId)."
         },
         {
             "name": "UserId",

@@ -251,11 +251,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         Guid userId,
         decimal amount = 9.99m,
         string currency = "USD",
-        Guid? paymentMethodId = null)
+        Guid? paymentMethodId = null,
+        Guid? orderId = null)
     {
         return new PaymentRequestedEvent
         {
             CorrelationId = correlationId,
+            OrderId = orderId ?? Guid.CreateVersion7(),
             UserId = userId,
             PaymentMethodId = paymentMethodId ?? Guid.CreateVersion7(),
             Amount = amount.ToAvroDecimal(4),

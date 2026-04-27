@@ -13,6 +13,15 @@
             "doc": "Correlation ID for tracking the workflow."
         },
         {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "default": "00000000-0000-0000-0000-000000000000",
+            "doc": "Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId)."
+        },
+        {
             "name": "UserId",
             "type": {
                 "type": "string",

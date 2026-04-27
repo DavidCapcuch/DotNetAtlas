@@ -14,6 +14,12 @@ public class PublishPaymentRequestedEventCommand
     public required Guid CorrelationId { get; set; }
 
     /// <summary>
+    /// Ordering aggregate id this payment is attached to.
+    /// </summary>
+    [Required]
+    public required Guid OrderId { get; set; }
+
+    /// <summary>
     /// User for whom payment was requested.
     /// </summary>
     [Required]

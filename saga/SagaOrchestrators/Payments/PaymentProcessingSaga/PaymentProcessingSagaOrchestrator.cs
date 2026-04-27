@@ -92,6 +92,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Then(ctx =>
                 {
                     ctx.Saga.CorrelationId = ctx.Message.CorrelationId;
+                    ctx.Saga.OrderId = ctx.Message.OrderId;
                     ctx.Saga.UserId = ctx.Message.UserId;
                     ctx.Saga.PaymentMethodId = ctx.Message.PaymentMethodId;
                     ctx.Saga.Amount = ctx.Message.Amount;
@@ -106,6 +107,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => new AuthorizePaymentCommand
                     {
                         CorrelationId = ctx.Saga.CorrelationId,
+                        OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
                         PaymentMethodId = ctx.Saga.PaymentMethodId,
                         Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -169,6 +171,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => new AuthorizePaymentCommand
                             {
                                 CorrelationId = ctx.Saga.CorrelationId,
+                                OrderId = ctx.Saga.OrderId,
                                 UserId = ctx.Saga.UserId,
                                 PaymentMethodId = ctx.Saga.PaymentMethodId,
                                 Amount = ctx.Saga.Amount.ToAvroDecimal(4),
