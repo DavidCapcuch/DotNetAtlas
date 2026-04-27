@@ -1,11 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
     <ItemGroup>
+        <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+        <PackageReference Include="Testcontainers.PostgreSql" />
+        <PackageReference Include="Testcontainers.Redis" />
+        <PackageReference Include="Testcontainers.Kafka" />
+        <PackageReference Include="Confluent.Kafka" />
+        <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+        <PackageReference Include="StackExchange.Redis" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\services\Catalog\Catalog.API\Catalog.API.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Application\Catalog.Application.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Domain\Catalog.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
         <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 </Project>
