@@ -75,6 +75,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
+            OrderId = Guid.CreateVersion7(),
             UserId = userId,
             PaymentMethodId = Guid.CreateVersion7(),
             Amount = 9.99m,
@@ -476,10 +477,12 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
 
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
+            OrderId = orderId,
             UserId = userId,
             PaymentMethodId = paymentMethodId,
             Amount = 9.99m,
@@ -501,6 +504,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
                 "AuthorizePaymentCommand should be added to the outbox");
             outboxMessages.Should().ContainSingle();
             outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            outboxMessages[0].IntegrationEvent.OrderId.Should().Be(orderId);
             outboxMessages[0].IntegrationEvent.UserId.Should().Be(userId);
             outboxMessages[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);
         }
@@ -515,6 +519,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         return new PaymentInitiatedSagaEvent
         {
             CorrelationId = correlationId,
+            OrderId = Guid.CreateVersion7(),
             UserId = userId,
             PaymentMethodId = Guid.CreateVersion7(),
             Amount = amount,

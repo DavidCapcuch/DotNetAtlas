@@ -4,9 +4,10 @@ using SagaOrchestrators.Common.SagaAbstractions;
 namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 
 /// <summary>
-/// Represents the state of the <see cref="PaymentProcessingSagaOrchestrator"/>.
-/// This is a "dumb" payment saga - it knows nothing about business context (subscriptions, orders, etc.).
-/// It only handles the payment lifecycle: authorization -> capture -> void/refund.
+/// Represents the state of the <see cref="PaymentProcessingSagaOrchestrator"/>. The eShop
+/// always creates an Order before initiating payment, so the saga state carries the
+/// <see cref="OrderId"/> from initialization through to the outbound
+/// <c>AuthorizePaymentCommand</c>. Lifecycle: authorization -&gt; capture -&gt; void/refund.
 /// </summary>
 public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableEntity
 {
@@ -20,6 +21,11 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
     /// Current state of the saga state machine.
     /// </summary>
     public string CurrentState { get; set; } = ""; // always auto set by factory
+
+    /// <summary>
+    /// Ordering aggregate id this payment is attached to. Frozen at saga start.
+    /// </summary>
+    public Guid OrderId { get; set; }
 
     /// <summary>
     /// Identifier of the user making the payment.

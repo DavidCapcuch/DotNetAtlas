@@ -15,6 +15,12 @@ public class PublishAuthorizePaymentCommand
     public required Guid CorrelationId { get; set; }
 
     /// <summary>
+    /// Ordering aggregate id this payment is attached to.
+    /// </summary>
+    [Required]
+    public required Guid OrderId { get; set; }
+
+    /// <summary>
     /// User to authorize payment for.
     /// </summary>
     [Required]
