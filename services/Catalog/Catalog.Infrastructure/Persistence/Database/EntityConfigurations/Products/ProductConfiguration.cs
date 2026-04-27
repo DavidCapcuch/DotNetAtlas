@@ -42,18 +42,15 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                 value => ProductStatus.FromValue(value));
         builder.HasIndex(p => p.Status).HasDatabaseName("IX_Products_Status");
 
-        // Unique index on Sku.Value at the outer (Product table) level, mirroring Ordering's
-        // index pattern. Defining it here avoids the owned-type index ambiguity that arises
-        // when the index is declared inside the OwnsOne builder.
-        builder.HasIndex(p => p.Sku.Value)
-            .IsUnique()
-            .HasDatabaseName("UX_Products_Sku");
-
         builder.Property(p => p.CreatedUtc)
             .HasComment("Row-level audit: created timestamp (UTC). Set by interceptor.");
         builder.Property(p => p.LastModifiedUtc)
             .HasComment("Row-level audit: last-modified timestamp (UTC). Set by interceptor.");
 
+        // Owned-type properties cannot be indexed via outer-level `HasIndex(p => p.Sku.Value)`
+        // — EF Core's `GetMemberAccessList` rejects the navigation step. Declaring the index
+        // inside the OwnsOne block is the canonical idiom (open since EF Core 3.x — see
+        // dotnet/efcore#19180).
         builder.OwnsOne(p => p.Sku, sku =>
         {
             sku.Property(s => s.Value)
@@ -61,6 +58,9 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                 .HasMaxLength(Sku.MaxLength)
                 .IsRequired()
                 .HasComment("Business key — unique per Catalog.");
+            sku.HasIndex(s => s.Value)
+                .IsUnique()
+                .HasDatabaseName("UX_Products_Sku");
         });
         builder.Navigation(p => p.Sku).IsRequired();
 

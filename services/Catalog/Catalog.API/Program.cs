@@ -1,11 +1,86 @@
-// Catalog.API — Program.cs
-// Minimal scaffold (milestone M1). Subsequent milestones wire ServiceDefaults,
-// FastEndpoints, EF Core, KafkaFlow, feature flags, and idempotency.
+using Catalog.API.Common;
+using Catalog.API.Common.Config;
+using Catalog.Application.Common;
+using Catalog.Infrastructure.Common;
+using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.CorrelationId;
+using Platform.ServiceDefaults.FeatureFlags;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .MinimumLevel.Debug()
+    .CreateBootstrapLogger();
 
-var app = builder.Build();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-app.MapGet("/", () => "Catalog.API — scaffolded; implementation pending milestones M2–M9.");
+    builder.AddPlatformHostConfiguration();
+    builder.UsePlatformSerilog(options =>
+    {
+        options.ServiceName = "Catalog";
+    });
 
-await app.RunAsync();
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
+
+    builder.Services.AddCorrelationId();
+
+    builder.Services.AddFeatureFlags(builder.Configuration);
+
+    builder.Services
+        .AddPresentation(builder.Configuration, builder.Environment)
+        .AddCatalogApplication()
+        .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
+
+    // Liveness probe — readiness probes are added once the M8 docker-compose work surfaces
+    // a list of dependencies (Postgres, Redis, Kafka). Liveness is enough for the M6
+    // smoke check + the FastEndpoints test host's MapPlatformHealthCheckEndpoints call.
+    builder.Services.AddHealthChecks();
+
+    var app = builder.Build();
+
+    if (app.Environment.IsProduction())
+    {
+        app.UseExceptionHandler();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseStatusCodePages();
+
+    app.UseRouting()
+        .UseCors(CatalogCorsOptions.DefaultCorsPolicyName)
+        .UseOutputCache()
+        .UseCorrelationId()
+        .UseAuthentication()
+        .UseAuthorization();
+
+    app.UseCatalogFastEndpoints();
+
+    app.MapPlatformHealthCheckEndpoints();
+    app.UsePlatformHealthChecksPrometheusExporter();
+
+    await app.RunAsync();
+}
+catch (HostAbortedException)
+{
+    Log.Information("Host aborted, shutting down gracefully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Host terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+
+/// <summary>
+/// Public Program class so test hosts (FastEndpoints' <c>AppFixture&lt;Program&gt;</c>) can
+/// reference the entry point.
+/// </summary>
+public partial class Program;
