@@ -1,5 +1,7 @@
 # Invoicing Bounded Context
 
+> **Implementation status (2026-05-02):** M1–M6 + Wave 1.5 are implemented. M7 (`IssueInvoiceCommand` + `IssueCreditNoteCommand` handlers) is the next milestone; it resumes against the rich `OrderConfirmedEvent` summary contract per [ADR-0020](../adr/0020-summary-events.md).
+>
 > **Status:** Authored 2026-04-19. Greenfield BC added to the eShop reference to showcase patterns absent from Catalog / Basket / Ordering / Inventory / Payments.
 > **Scope:** Invoice issuance, delivery, credit-note issuance on cancellation/refund.
 > **Patterns showcased:**
@@ -45,8 +47,8 @@ Two aggregates: `Invoice` and `CreditNote`. A `CreditNote` references the `Invoi
 | `OrderId` | `Guid` | The order this invoices |
 | `PaymentId` | `Guid` | The payment transaction |
 | `IssueDate` | `DateTimeOffset` | When the aggregate moved to `Issued` |
-| `BillingAddress` | `Address` | Snapshotted from `OrderConfirmedEvent` |
-| `Lines` | `IReadOnlyList<InvoiceLine>` | Frozen at issuance; immutable thereafter |
+| `BillingAddress` | `Address` | Snapshotted from `OrderConfirmedEvent.BillingAddress` (Summary Event per [ADR-0020](../adr/0020-summary-events.md)) |
+| `Lines` | `IReadOnlyList<InvoiceLine>` | Snapshotted from `OrderConfirmedEvent.Items`, frozen at issuance, immutable thereafter |
 | `Subtotal` | `Money` | Sum of `Lines[i].LineTotal` |
 | `VatLines` | `IReadOnlyList<VatLine>` | Per-rate breakdown (e.g., `21% → €42.00`, `0% → €10.00`) |
 | `Total` | `Money` | `Subtotal + sum(VatLines.Amount)` |
@@ -201,7 +203,7 @@ All HTTP routes under `/api/v1/invoicing/`.
 3. `IssueInvoiceCommandHandler`:
    - Load `pending_invoices` row by `CorrelationId`.
    - If `CompletedAtUtc IS NOT NULL AND IssuedInvoiceId IS NOT NULL` → idempotent no-op (already issued).
-   - Otherwise: create `Invoice` aggregate from both payloads, allocate number, generate PDF, upload blob, persist aggregate + outbox + update `pending_invoices.IssuedInvoiceId` + `CompletedAtUtc` in one transaction.
+   - Otherwise: create `Invoice` aggregate from both payloads (`OrderPayload` carries the order summary — `Items`, `TotalAmount`, `Currency`, `BillingAddress` — per the [ADR-0020](../adr/0020-summary-events.md) Summary Event contract on `OrderConfirmedEvent`; `PaymentPayload` carries `Amount`, `Currency`, `PaymentTransactionId`), allocate number, generate PDF, upload blob, persist aggregate + outbox + update `pending_invoices.IssuedInvoiceId` + `CompletedAtUtc` in one transaction.
 
 ### 8.3 Credit-note counterpart
 

@@ -2,7 +2,7 @@
     "type": "record",
     "name": "OrderConfirmedEvent",
     "namespace": "Ordering.Orders",
-    "doc": "Emitted when the Order has been successfully confirmed (stock reserved AND payment completed).",
+    "doc": "Summary Event (per ADR-0020) emitted when the Order is confirmed (stock reserved AND payment captured). Carries the full aggregate snapshot — Items, TotalAmount, Currency, BillingAddress — so downstream consumers (notably Invoicing under 10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production producers always populate them.",
     "fields": [
         {
             "name": "OrderId",
@@ -35,6 +35,142 @@
                 "logicalType": "timestamp-millis"
             },
             "doc": "UTC timestamp when the order was confirmed."
+        },
+        {
+            "name": "Items",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "OrderItemConfirmed",
+                    "namespace": "Ordering.Orders",
+                    "doc": "One confirmed-order line. Mirrors the OrderItemCreated shape from OrderCreatedEvent.avsc (different name to avoid Avro record-name collision in namespace 'Ordering.Orders'). Frozen at confirmation per Order invariant I-2.",
+                    "fields": [
+                        {
+                            "name": "ProductId",
+                            "type": {
+                                "type": "string",
+                                "logicalType": "uuid"
+                            },
+                            "doc": "Catalog product identifier for this line."
+                        },
+                        {
+                            "name": "Sku",
+                            "type": "string",
+                            "doc": "Catalog SKU snapshot at order creation time."
+                        },
+                        {
+                            "name": "Name",
+                            "type": "string",
+                            "doc": "Product display name snapshot at order creation time."
+                        },
+                        {
+                            "name": "Quantity",
+                            "type": "int",
+                            "doc": "Quantity of this line (>= 1)."
+                        },
+                        {
+                            "name": "UnitPriceAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "Per-unit price amount."
+                        },
+                        {
+                            "name": "LineTotalAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "UnitPriceAmount * Quantity, pre-computed."
+                        }
+                    ]
+                }
+            },
+            "default": [],
+            "doc": "Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 schema; production producers always populate at least one item per Order invariant I-7."
+        },
+        {
+            "name": "TotalAmount",
+            "type": [
+                "null",
+                {
+                    "type": "bytes",
+                    "logicalType": "decimal",
+                    "precision": 19,
+                    "scale": 4
+                }
+            ],
+            "default": null,
+            "doc": "Total order amount (sum of OrderItemConfirmed.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate."
+        },
+        {
+            "name": "Currency",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null,
+            "doc": "ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate."
+        },
+        {
+            "name": "BillingAddress",
+            "type": [
+                "null",
+                {
+                    "type": "record",
+                    "name": "OrderBillingAddress",
+                    "namespace": "Ordering.Orders",
+                    "doc": "Snapshot of the buyer's billing address at confirmation time. Field shape is identical to Basket.Sessions.CheckoutAddress; defined locally because avrogen processes each .avsc file in isolation and a cross-file reference would emit a class collision (see ADR-0020).",
+                    "fields": [
+                        {
+                            "name": "Street1",
+                            "type": "string",
+                            "doc": "Primary street line."
+                        },
+                        {
+                            "name": "Street2",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "doc": "Optional second street line (apartment, suite, etc.)."
+                        },
+                        {
+                            "name": "City",
+                            "type": "string",
+                            "doc": "City name."
+                        },
+                        {
+                            "name": "State",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "doc": "Optional state/province/region. Null for countries without this concept."
+                        },
+                        {
+                            "name": "PostalCode",
+                            "type": "string",
+                            "doc": "Postal or ZIP code."
+                        },
+                        {
+                            "name": "CountryCode",
+                            "type": "string",
+                            "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')."
+                        }
+                    ]
+                }
+            ],
+            "default": null,
+            "doc": "Buyer's billing address snapshot. Consumed by Invoicing for invoice generation."
         }
     ]
 }

@@ -263,6 +263,9 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             OrderId = Id,
             CorrelationId = CorrelationId,
             BuyerId = BuyerId,
+            Items = _items.ToList(),
+            Total = Total,
+            BillingAddress = BillingAddress,
             OccurredOnUtc = utcNow,
         });
 

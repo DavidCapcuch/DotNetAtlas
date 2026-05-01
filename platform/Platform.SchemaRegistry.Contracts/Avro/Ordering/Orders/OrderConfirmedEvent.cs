@@ -14,12 +14,61 @@ namespace Ordering.Orders
 	using global::Avro.Specific;
 	
 	/// <summary>
-	/// Emitted when the Order has been successfully confirmed (stock reserved AND payment completed).
+	/// Summary Event (per ADR-0020) emitted when the Order is confirmed (stock reserved AND payment captured). Carries the full aggregate snapshot — Items, TotalAmount, Currency, BillingAddress — so downstream consumers (notably Invoicing under 10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production producers always populate them.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class OrderConfirmedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""OrderConfirmedEvent"",""doc"":""Emitted when the Order has been successfully confirmed (stock reserved AND payment completed)."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order that was confirmed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id. Consumers can correlate this event with the saga run."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""User who placed the order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ConfirmedAtUtc"",""doc"":""UTC timestamp when the order was confirmed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"OrderConfirmedEvent\",\"doc\":\"Summary Event (per ADR-0020)" +
+				" emitted when the Order is confirmed (stock reserved AND payment captured). Carr" +
+				"ies the full aggregate snapshot — Items, TotalAmount, Currency, BillingAddress —" +
+				" so downstream consumers (notably Invoicing under 10-year retention) can rebuild" +
+				" state without an HTTP round-trip to Ordering. The four enrichment fields are nu" +
+				"llable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production" +
+				" producers always populate them.\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"name" +
+				"\":\"OrderId\",\"doc\":\"Unique identifier of the Order that was confirmed.\",\"type\":{\"" +
+				"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\":\"Checkout sa" +
+				"ga correlation id. Consumers can correlate this event with the saga run.\",\"type\"" +
+				":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"User who place" +
+				"d the order.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ConfirmedA" +
+				"tUtc\",\"doc\":\"UTC timestamp when the order was confirmed.\",\"type\":{\"type\":\"long\"," +
+				"\"logicalType\":\"timestamp-millis\"}},{\"name\":\"Items\",\"doc\":\"Order line items with " +
+				"frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE" +
+				" compatibility with the v1 schema; production producers always populate at least" +
+				" one item per Order invariant I-7.\",\"default\":[],\"type\":{\"type\":\"array\",\"items\":" +
+				"{\"type\":\"record\",\"name\":\"OrderItemConfirmed\",\"doc\":\"One confirmed-order line. Mi" +
+				"rrors the OrderItemCreated shape from OrderCreatedEvent.avsc (different name to " +
+				"avoid Avro record-name collision in namespace \'Ordering.Orders\'). Frozen at conf" +
+				"irmation per Order invariant I-2.\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"nam" +
+				"e\":\"ProductId\",\"doc\":\"Catalog product identifier for this line.\",\"type\":{\"type\":" +
+				"\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU snapshot at ord" +
+				"er creation time.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"Product display name s" +
+				"napshot at order creation time.\",\"type\":\"string\"},{\"name\":\"Quantity\",\"doc\":\"Quan" +
+				"tity of this line (>= 1).\",\"type\":\"int\"},{\"name\":\"UnitPriceAmount\",\"doc\":\"Per-un" +
+				"it price amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19," +
+				"\"scale\":4}},{\"name\":\"LineTotalAmount\",\"doc\":\"UnitPriceAmount * Quantity, pre-com" +
+				"puted.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}" +
+				"}]}}},{\"name\":\"TotalAmount\",\"doc\":\"Total order amount (sum of OrderItemConfirmed" +
+				".LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the " +
+				"v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production " +
+				"producers always populate.\",\"default\":null,\"type\":[\"null\",{\"type\":\"bytes\",\"logic" +
+				"alType\":\"decimal\",\"precision\":19,\"scale\":4}]},{\"name\":\"Currency\",\"doc\":\"ISO 4217" +
+				" currency code shared by all items. Nullable union covaries with TotalAmount; pr" +
+				"oduction producers always populate.\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"" +
+				"name\":\"BillingAddress\",\"doc\":\"Buyer\'s billing address snapshot. Consumed by Invo" +
+				"icing for invoice generation.\",\"default\":null,\"type\":[\"null\",{\"type\":\"record\",\"n" +
+				"ame\":\"OrderBillingAddress\",\"doc\":\"Snapshot of the buyer\'s billing address at con" +
+				"firmation time. Field shape is identical to Basket.Sessions.CheckoutAddress; def" +
+				"ined locally because avrogen processes each .avsc file in isolation and a cross-" +
+				"file reference would emit a class collision (see ADR-0020).\",\"namespace\":\"Orderi" +
+				"ng.Orders\",\"fields\":[{\"name\":\"Street1\",\"doc\":\"Primary street line.\",\"type\":\"stri" +
+				"ng\"},{\"name\":\"Street2\",\"doc\":\"Optional second street line (apartment, suite, etc" +
+				".).\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"City\",\"doc\":\"City name.\"," +
+				"\"type\":\"string\"},{\"name\":\"State\",\"doc\":\"Optional state/province/region. Null for" +
+				" countries without this concept.\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"nam" +
+				"e\":\"PostalCode\",\"doc\":\"Postal or ZIP code.\",\"type\":\"string\"},{\"name\":\"CountryCod" +
+				"e\",\"doc\":\"ISO 3166-1 alpha-2 country code (e.g., \'US\', \'CZ\').\",\"type\":\"string\"}]" +
+				"}]}]}");
 		/// <summary>
 		/// Unique identifier of the Order that was confirmed.
 		/// </summary>
@@ -36,6 +85,22 @@ namespace Ordering.Orders
 		/// UTC timestamp when the order was confirmed.
 		/// </summary>
 		private System.DateTime _ConfirmedAtUtc;
+		/// <summary>
+		/// Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 schema; production producers always populate at least one item per Order invariant I-7.
+		/// </summary>
+		private IList<Ordering.Orders.OrderItemConfirmed> _Items;
+		/// <summary>
+		/// Total order amount (sum of OrderItemConfirmed.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate.
+		/// </summary>
+		private System.Nullable<Avro.AvroDecimal> _TotalAmount;
+		/// <summary>
+		/// ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate.
+		/// </summary>
+		private string _Currency;
+		/// <summary>
+		/// Buyer's billing address snapshot. Consumed by Invoicing for invoice generation.
+		/// </summary>
+		private Ordering.Orders.OrderBillingAddress _BillingAddress;
 		public virtual global::Avro.Schema Schema
 		{
 			get
@@ -99,6 +164,62 @@ namespace Ordering.Orders
 				this._ConfirmedAtUtc = value;
 			}
 		}
+		/// <summary>
+		/// Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 schema; production producers always populate at least one item per Order invariant I-7.
+		/// </summary>
+		public IList<Ordering.Orders.OrderItemConfirmed> Items
+		{
+			get
+			{
+				return this._Items;
+			}
+			set
+			{
+				this._Items = value;
+			}
+		}
+		/// <summary>
+		/// Total order amount (sum of OrderItemConfirmed.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate.
+		/// </summary>
+		public System.Nullable<Avro.AvroDecimal> TotalAmount
+		{
+			get
+			{
+				return this._TotalAmount;
+			}
+			set
+			{
+				this._TotalAmount = value;
+			}
+		}
+		/// <summary>
+		/// ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate.
+		/// </summary>
+		public string Currency
+		{
+			get
+			{
+				return this._Currency;
+			}
+			set
+			{
+				this._Currency = value;
+			}
+		}
+		/// <summary>
+		/// Buyer's billing address snapshot. Consumed by Invoicing for invoice generation.
+		/// </summary>
+		public Ordering.Orders.OrderBillingAddress BillingAddress
+		{
+			get
+			{
+				return this._BillingAddress;
+			}
+			set
+			{
+				this._BillingAddress = value;
+			}
+		}
 		public virtual object Get(int fieldPos)
 		{
 			switch (fieldPos)
@@ -107,6 +228,10 @@ namespace Ordering.Orders
 			case 1: return this.CorrelationId;
 			case 2: return this.BuyerId;
 			case 3: return this.ConfirmedAtUtc;
+			case 4: return this.Items;
+			case 5: return this.TotalAmount;
+			case 6: return this.Currency;
+			case 7: return this.BillingAddress;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -118,6 +243,10 @@ namespace Ordering.Orders
 			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
 			case 2: this.BuyerId = (System.Guid)fieldValue; break;
 			case 3: this.ConfirmedAtUtc = (System.DateTime)fieldValue; break;
+			case 4: this.Items = (IList<Ordering.Orders.OrderItemConfirmed>)fieldValue; break;
+			case 5: this.TotalAmount = (System.Nullable<Avro.AvroDecimal>)fieldValue; break;
+			case 6: this.Currency = (System.String)fieldValue; break;
+			case 7: this.BillingAddress = (Ordering.Orders.OrderBillingAddress)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}
