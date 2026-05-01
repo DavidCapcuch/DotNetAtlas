@@ -6,15 +6,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
+        <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders"/>
 
-        <PackageReference Include="FastEndpoints.Security" />
-        <PackageReference Include="FastEndpoints.Swagger" />
+        <PackageReference Include="FastEndpoints.Security"/>
+        <PackageReference Include="FastEndpoints.Swagger"/>
         <PackageReference Include="FastEndpoints.Generator">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
 
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -22,14 +27,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
-        <ProjectReference Include="..\Payments.Application\Payments.Application.csproj" />
-        <ProjectReference Include="..\Payments.Infrastructure\Payments.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj"/>
+        <ProjectReference Include="..\Payments.Application\Payments.Application.csproj"/>
+        <ProjectReference Include="..\Payments.Infrastructure\Payments.Infrastructure.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Payments.FunctionalTests" />
-        <InternalsVisibleTo Include="Payments.IntegrationTests" />
-        <InternalsVisibleTo Include="Payments.ArchitectureTests" />
+        <InternalsVisibleTo Include="Payments.FunctionalTests"/>
+        <InternalsVisibleTo Include="Payments.IntegrationTests"/>
+        <InternalsVisibleTo Include="Payments.ArchitectureTests"/>
     </ItemGroup>
 </Project>

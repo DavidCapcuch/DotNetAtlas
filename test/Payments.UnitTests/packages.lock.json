@@ -1369,6 +1369,7 @@
       "payments.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "Ardalis.SmartEnum.EFCore": "[8.1.0, )",
           "AspNetCore.HealthChecks.ApplicationStatus": "[9.0.0, )",
           "AspNetCore.HealthChecks.Kafka": "[9.0.0, )",
           "EFCore.NamingConventions": "[10.0.1, )",
@@ -1527,6 +1528,16 @@
           "FluentResults": "[4.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.6, )",
           "Scrutor": "[6.1.0, )"
+        }
+      },
+      "Ardalis.SmartEnum.EFCore": {
+        "type": "CentralTransitive",
+        "requested": "[8.1.0, )",
+        "resolved": "8.1.0",
+        "contentHash": "IM3lFaJbPAWkTToEpNZbHG920Rt2vIT9yhcwQyekZrCH9A7EAAmI9SAIpr4yM3fjiTBmx7/qPEmL04o540xXxg==",
+        "dependencies": {
+          "Ardalis.SmartEnum": "8.1.0",
+          "Microsoft.EntityFrameworkCore": "7.0.13"
         }
       },
       "Confluent.Kafka": {
