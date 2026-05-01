@@ -112,12 +112,37 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         // System.Text.Json reflection serialisation. Listing the data fields explicitly
         // also future-proofs against avrogen reshaping the record (a regenerated class
         // with new internals would still produce stable JSON for M7 hydration).
+        //
+        // Per ADR-0020 (Wave 1.5) the Avro event is a Summary Event — Items, TotalAmount,
+        // Currency and BillingAddress travel with it. Persisting them into OrderPayload
+        // jsonb means M7's IssueInvoiceCommandHandler can construct Invoice.Create(...)
+        // from the converged pending_invoices row without an HTTP round-trip.
         return JsonSerializer.Serialize(new
         {
             message.OrderId,
             message.CorrelationId,
             message.BuyerId,
             message.ConfirmedAtUtc,
+            Items = message.Items?.Select(i => new
+            {
+                i.ProductId,
+                i.Sku,
+                i.Name,
+                i.Quantity,
+                UnitPriceAmount = (decimal)i.UnitPriceAmount,
+                LineTotalAmount = (decimal)i.LineTotalAmount,
+            }).ToList(),
+            TotalAmount = message.TotalAmount.HasValue ? (decimal?)message.TotalAmount.Value : null,
+            message.Currency,
+            BillingAddress = message.BillingAddress is null ? null : new
+            {
+                message.BillingAddress.Street1,
+                message.BillingAddress.Street2,
+                message.BillingAddress.City,
+                message.BillingAddress.State,
+                message.BillingAddress.PostalCode,
+                message.BillingAddress.CountryCode,
+            },
         });
     }
 }

@@ -25,6 +25,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0017](0017-blob-storage-cdn.md) | Blob Storage + CDN (Azurite + nginx) | Accepted | 2026-04-19 |
 | [0018](0018-invoice-numbering.md) | Invoice Numbering (Transactional Gap-Free Allocator) | Accepted | 2026-04-19 |
 | [0019](0019-pdf-generation-questpdf.md) | PDF Generation Library (QuestPDF) | Accepted | 2026-04-19 |
+| [0020](0020-summary-events.md) | Summary Events for Cross-BC Aggregate Snapshots | Accepted | 2026-05-02 |
 
 ## Creating a New ADR
 
