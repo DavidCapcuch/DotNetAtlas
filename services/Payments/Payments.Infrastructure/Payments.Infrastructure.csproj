@@ -19,13 +19,10 @@
         <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
 
         <!-- EF Core -->
+        <PackageReference Include="Ardalis.SmartEnum.EFCore"/>
         <PackageReference Include="EntityFrameworkCore.Exceptions.PostgreSQL"/>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
         <PackageReference Include="EFCore.NamingConventions" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
 
         <!-- Auth -->
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
