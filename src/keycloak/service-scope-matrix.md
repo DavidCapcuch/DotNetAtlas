@@ -285,6 +285,6 @@ Expected result on the last check: `azp catalog-service aud catalog-service scop
 
 1. **`realms/eshop` doc sweep.** Replace `realms/eshop` → `realms/dotnetatlas` and `:8081` → `:9011` in `docs/adr/0010-service-to-service-auth.md:94, 99` and `docs/implementation-prompts/wave-0-platform-prep.md:280`.
 2. **Wave 0 M7** — wire the nine `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
-3. **Kafka header token propagation** (ADR-0010 L102-111) — Wave 1 per BC: outbox publisher writes `X-Service-Token` header on command topics; inbox consumer middleware validates scope before dispatch.
+3. **No Kafka header token propagation** ([ADR-0010 lines 102-106](../../docs/adr/0010-service-to-service-auth.md:102)) — application-layer `X-Service-Token` is **NOT** implemented in v1 or v2 ("wrong layer regardless of v1/v2" per ADR). Saga-command consumers run on PLAINTEXT in v1; production hardening = broker SASL/OAUTHBEARER + per-service Kafka topic ACLs (see follow-up #4 below). Keycloak realm clients + scopes are still defined so the v2 broker-level ACL pairs are ready (see Section 3 of this matrix).
 4. **Broker-level Kafka auth** (ADR-0010 L81) — SASL/OAUTHBEARER is explicitly OUT for v1 (ADR-0009 profile). Production deployments must enable it.
 5. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.

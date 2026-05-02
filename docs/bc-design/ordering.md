@@ -129,11 +129,12 @@ Shared-kernel value object (planned: `Platform.SharedKernel.ValueObjects.Money`;
 - Factory: `static Result<OrderItem> Create(Guid productId, ProductSnapshot snapshot, int quantity, Money unitPrice)` — validates quantity, computes `LineTotal`.
 
 ### 4.4 `ProductSnapshot`
-Frozen, order-time capture of a product. *Duplicated per BC* — no shared kernel for cross-service DTOs (per CLAUDE.md "no shared kernel across services for DTOs").
+Frozen, order-time capture of a product. *Duplicated per BC* — no shared kernel for cross-service DTOs (per CLAUDE.md "no shared kernel across services for DTOs"). **Audit-fidelity rule (F6):** Ordering's `ProductSnapshot` is a structural superset of Basket's `ProductSnapshot` — every audit-relevant field captured in Basket must survive the ACL conversion.
 - `Sku : string` — max 64 chars.
 - `Name : string` — max 200 chars.
-- Factory: `static Result<ProductSnapshot> Create(string sku, string name)`.
-- **Design note:** this BC does not snapshot the Catalog's full description, images, or category — we only keep what appears on the order record itself. Basket's snapshot has a different shape (includes image url for basket display); each BC owns its own read-facing projection of the product concept.
+- `CapturedAtUtc : DateTimeOffset` — **required**; the timestamp at which Basket originally captured this snapshot from Catalog (not "when the order was created" — that's `Order.CreatedAtUtc`). Answers "when did the user see this price?" for chargebacks and price-change disputes. Sourced from `BasketCheckoutItem.CapturedAtUtc` (Avro). Currently absent from the v1 code; tracked as F6 in [docs/implementation-prompts/ordering.md `<dod>`](../implementation-prompts/ordering.md) with the full implementation chain. Architecture-test tripwire: [test/Ordering.ArchitectureTests/ProductSnapshotContractTests.cs](../../test/Ordering.ArchitectureTests/ProductSnapshotContractTests.cs).
+- Factory: `static Result<ProductSnapshot> Create(string sku, string name, DateTimeOffset capturedAtUtc)`.
+- **Design note:** this BC does not snapshot the Catalog's full description, images, or category — we only keep what appears on the order record itself. Basket's snapshot has a different shape (includes image url for basket display); each BC owns its own read-facing projection of the product concept. The structural-superset rule applies only to the audit-relevant subset (sku, name, price, captured-at), not to display-only Basket extras.
 
 ### 4.5 `CancellationInfo`
 - `Reason : string` — required, max 500 chars.

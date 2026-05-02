@@ -118,4 +118,4 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 - [ADR-0008: Correlation-ID Propagation Rule](0008-correlation-id-propagation.md) — service-auth identity is separate from CorrelationId; both travel on the same hops
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — production callouts include "enable Kafka SASL/OAUTHBEARER" (v1 absent)
 - [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — saga's outbound commands are the primary consumer of this mechanism
-- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — service-auth token is in Kafka headers, not Avro payload
+- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — Avro payloads carry no auth metadata; per § Implementation Notes "Kafka command-topic authorization", service-auth on Kafka is at the broker layer (SASL/OAUTHBEARER + ACLs) in production, not in message headers or Avro fields
