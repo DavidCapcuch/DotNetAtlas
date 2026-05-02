@@ -108,6 +108,14 @@ var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 4, 20, 12, 0, 0
 timeProvider.Advance(TimeSpan.FromMinutes(16));
 ```
 
+### MassTransit saga scheduler — known seam
+
+`TimeProvider` injection covers application code, but **MassTransit's saga scheduler holds its own clock**. When a saga handler reads `TimeProvider.GetUtcNow()` (replaced by `FakeTimeProvider` in tests) and a test advances `FakeTimeProvider` by 5 minutes, the handler's view of "now" jumps — but messages scheduled by `MessageScheduler` (in-memory or Quartz-backed) still fire at wall-clock time. Tests that exercise scheduled-timeout paths via `FakeTimeProvider.Advance` will appear hung in CI even when their assertion logic is correct.
+
+**Test seam:** saga timeout tests MUST advance time via MassTransit's `ITestHarness` time API (e.g., `harness.TestTimeout` / the in-memory scheduler's built-in advancement primitives), not `FakeTimeProvider.Advance`. Production code in saga handlers may still inject `TimeProvider` for any wall-clock reads it does itself — the seam is exclusively about scheduled messages. Reference example: `saga/SagaOrchestrators.UnitTests/Sagas/PaymentProcessingSagaOrchestratorTests.cs` for the Payments saga; the Checkout saga must follow the same pattern (see [`docs/implementation-prompts/checkout-saga.md` `<verification>`](../implementation-prompts/checkout-saga.md)).
+
+This is the single most common source of flaky saga tests in MassTransit codebases. Architecture tests cannot enforce this seam directly — it's a test-discipline rule, not a static-analysis target.
+
 ### Architecture tests
 
 Per-BC `ArchitectureTests` project asserts:

@@ -158,7 +158,7 @@ We will use **Option 1: Full Event Sourcing with projections** for Inventory ONL
 - **Learners over-apply ES.** A common failure mode for reference-solution readers is to treat every BC they build as ES. Mitigation: the "When NOT to Use ES" section below is mandatory reading, and every other BC in this reference uses traditional OLTP as a deliberate counterexample.
 - **Hot-aggregate contention.** Per-`ProductId` streams bound contention well in the common case, but a single best-seller under a flash sale could still thrash the optimistic retry loop. Mitigation: v1 documents this as a known limitation (`inventory.md` § 10.4); v2 options (command queuing, reservation batching, geographic sharding) are listed but deferred.
 - **Projection drift.** If a projection handler has a bug, the projection can silently diverge from the truth (the event stream). The classic symptom is "reservations look off by one but nobody notices until quarter-end." Mitigation: a nightly replay-validation job comparing projection state to a sample event-fold is listed as a v2 operational concern and is documented now so it isn't forgotten.
-- **Replay cost grows with history.** If a single stream grows to millions of events (unlikely for stock — more likely for a long-lived heavily-reserved SKU), rehydration slows linearly. Mitigation: snapshotting every N events is defined in `inventory.md` § 8.2 as a v2 addition if/when measurement shows it matters. Not implemented in v1 on purpose — streams are short-lived and moderate-volume.
+- **Replay cost grows with history.** If a single stream grows to millions of events (unlikely for stock — more likely for a long-lived heavily-reserved SKU), rehydration slows linearly. Mitigation in v1: emit `inventory.aggregate.rehydration.duration` and `inventory.aggregate.rehydration.event_count` histograms on every rehydrate, with a paging alert at p99 > 1s over a 15-minute window (see § Implementation Notes → Observability and the snapshot threshold). Snapshotting every N events is specified in `inventory.md` § 8.2 as a v2 work item that the alert opens.
 - **GDPR data deletion.** Append-only streams make "delete this user's events" hard. Inventory v1 carries no PII beyond user GUIDs, so the risk is small; crypto-shredding is the v2 approach if PII ever enters an event.
 - **Team knowledge concentration.** ES has a steeper onboarding curve than OLTP. If the one engineer who understands the replay pipeline leaves, the bus factor becomes a real operational risk. Mitigation: `inventory.md` and this ADR together form the self-contained onboarding material; a runbook for projection rebuild is an explicit operational artifact.
 
@@ -207,6 +207,17 @@ If none of the above apply AND the domain has genuine auditability, temporal-que
 - **Handler idempotency:** `LastVersion` column on each projection row — if `event.Version <= row.LastVersion`, skip. Protects against at-least-once delivery from the internal dispatcher.
 - **Replay procedure:** to rebuild a projection, TRUNCATE the projection table and re-apply all events per stream in version order through the same handler used at steady state (`inventory.md` § 9.3). Document this as a runbook, not tribal knowledge.
 
+### Observability and the snapshot threshold
+
+Snapshots are deferred to v2, but the **signal that triggers them** must exist in v1 — otherwise hot-aggregate slowdown is discovered by a paged on-call rather than by an alert. v1 MUST emit:
+
+- **Histogram metric `inventory.aggregate.rehydration.duration`** (units: milliseconds), tagged by `ProductId`, recorded in `EventStoreRepository.RehydrateAsync` around the SELECT-and-fold path.
+- **Histogram metric `inventory.aggregate.rehydration.event_count`** (units: events folded), same tagging, so high-latency rehydrations can be cross-correlated with stream length to confirm the cliff is O(N) and not a network blip.
+
+**Threshold (alert): `inventory.aggregate.rehydration.duration` p99 > 1s for any stream over a 15-minute window** → page → open a snapshot-implementation work item, OR shorten retention on that stream's terminal events (release/expire). The threshold is set well below the saga's `StockReservationSeconds: 60` ([ADR-0004:192](0004-checkout-saga-topology.md:192)) so the cliff is detected long before it interacts with saga timeouts.
+
+The decision boundary "ship snapshots OR shorten retention" stays open in v1 on purpose — both are valid responses to the alert; which one is right depends on the workload that triggered it. The alert exists so the trade-off is made deliberately, not silently.
+
 ### Cross-service messaging
 
 - **Outbox:** cross-service events (`inventory.stock-events`, `inventory.reservations`) are written to the existing `Platform.Outbox` table in the same transaction and relayed to Kafka by the existing `Platform.OutboxRelay`. Reuses the proven infrastructure — nothing bespoke.
@@ -216,7 +227,7 @@ If none of the above apply AND the domain has genuine auditability, temporal-que
 
 ### Future work (deliberately deferred)
 
-- **Snapshots:** NOT implemented in v1 by design. Streams are short-lived per reservation and moderate-volume overall — measure before optimizing. Specification in `inventory.md` § 8.2 if/when added.
+- **Snapshots:** NOT implemented in v1 by design. Streams are short-lived per reservation and moderate-volume overall — measure before optimizing. The "measure" is concrete: v1 emits `inventory.aggregate.rehydration.duration` (see § Observability above); when p99 exceeds 1s the alert fires and snapshots become a real work item. Specification in `inventory.md` § 8.2 if/when added.
 - **Multi-warehouse support:** v1 has one logical warehouse per `ProductId`; adding `LocationId` to the stream is a v2 concern.
 - **Projection-drift validation job:** nightly replay-sample comparison is documented as a v2 operational concern.
 - **GDPR crypto-shredding:** only needed if/when events carry PII beyond user GUIDs.

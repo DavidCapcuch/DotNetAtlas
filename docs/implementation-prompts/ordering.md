@@ -111,7 +111,7 @@ Ordering-specific triggers:
 Concrete deliverables. Extends `_shared.md § 12`.
 
 - [ ] 4-layer solution structure scaffolded under `services/Ordering/`, `.slnx` updated, `dotnet build -m` green
-- [ ] 6 external Avro events + 4 saga-command schemas + 8 internal `*DomainEvent` records + 4 outbox publishers + 4 saga-command Kafka consumers (with inbox dedup + service-token validation)
+- [ ] 6 external Avro events + 4 saga-command schemas + 8 internal `*DomainEvent` records + 4 outbox publishers + 4 saga-command Kafka consumers (with inbox dedup; **no** per-message `X-Service-Token` validation per ADR-0010 lines 102-106 — see this prompt's `<applicable_adrs>` ADR-0010 entry)
 - [ ] Admin HTTP endpoints under `/api/v1/ordering/` — `MarkOrderShipped`, `MarkOrderDelivered`, `Cancel` + authorization policies + `.Idempotency()` on cancel
 - [ ] Queries: `GetOrderById` (with buyer-or-admin authorization check), `GetOrdersByBuyer` (paginated)
 - [ ] Appendix B decisions all documented in session summary
@@ -121,6 +121,17 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] Correlation-id propagation: Kafka header → handler → DB column → outbox row → emitted event Avro header (integration test)
 - [ ] Integration tests cover all sessions in `example-mapping/ordering.md` + admin-cancel idempotency
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
+- [ ] **F6 — `ProductSnapshot.CapturedAtUtc` chain** (audit-trail invariant, see `test/Ordering.ArchitectureTests/ProductSnapshotContractTests.cs` skipped tests). Implementation chain (all required to unskip):
+    1. Add `CapturedAtUtc` field to `BasketCheckoutItem` in `platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc` (FORWARD_TRANSITIVE compat per ADR-0007 — nullable + default).
+    2. Re-run avrogen; propagate via Basket's `BasketCheckoutInitiatedMapper`.
+    3. Add `CapturedAtUtc` to `CreateOrderCommand.OrderItemInput`; thread through saga's `CreateOrderConsumer`.
+    4. Add `CapturedAtUtc` to `Ordering.Domain.Baskets.BasketSnapshotItem`.
+    5. Add `CapturedAtUtc` to `Ordering.Domain.Orders.ValueObjects.ProductSnapshot` (required init prop + `Create` validation).
+    6. Update `Order.CreateFromBasket` to forward the per-item timestamp.
+    7. EF mapping: add a `product_captured_at_utc` column on the owned `ProductSnapshot` in `OrderConfiguration.cs`. **User generates the migration** (CLAUDE.md rule).
+    8. Update unit + integration + functional tests to construct snapshots with timestamps.
+    9. Add `Basket.Domain` to `test/Ordering.ArchitectureTests/Ordering.ArchitectureTests.csproj` `ProjectReference` list.
+    10. Remove `Skip` on `ProductSnapshotContractTests` — both facts must pass.
 - [ ] Peer-review chain (`_shared.md § 11`) executed; HIGH findings fixed
 </dod>
 

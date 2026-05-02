@@ -74,7 +74,7 @@ You own these. Justify each in your session summary.
 Cross-cutting decisions to apply:
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — saga state's `CorrelationId` is the workflow correlation id; every outbound command carries it in the Kafka header; every inbound response event is correlated by `CorrelationId` (not `OrderId`, which arrives only after `OrderCreated`)
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — **saga is the primary consumer of service-auth** — every command publish attaches an `X-Service-Token` Kafka header via `Platform.ServiceDefaults.AddServiceAuth("checkout-saga")`; the Keycloak `checkout-saga` client must hold scopes for every command topic the saga writes to
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — saga publishes commands on Kafka in v1 with **no per-message `X-Service-Token` header** ([ADR-0010 lines 102-106](../adr/0010-service-to-service-auth.md:102) explicitly forbid the application-layer pattern: "wrong layer regardless of v1/v2"). v1 trust boundary = the docker network (PLAINTEXT broker per ADR-0009). Production hardening = enable broker SASL/OAUTHBEARER + per-service Kafka topic ACLs; the Keycloak `checkout-saga` client + scopes are still defined so the v2 broker-level ACL pairs are ready.
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — addresses transit through saga state (`BasketCheckoutInitiatedEvent` carries shipping/billing addresses); **persist the addresses ONLY for the duration the saga needs them** — on `Confirmed` or terminal-failure, null out the address columns in `saga_checkout_states` (don't keep PII beyond workflow lifetime); OTEL allowlist forbids tagging spans with address fields; `correlation.id` is allowlisted
 - [ADR-0014](../adr/0014-feature-flags-openfeature.md) — **explicit consumer of `checkout.payment-then-stock` flag** — reads via `IFeatureClient` at the initial transition guard; default OFF (ADR-0004 locks stock-then-payment as v1 default); flag ON demonstrates the alternative topology without changing the ADR decision
 - [ADR-0015](../adr/0015-time-timezone-policy.md) — saga state timestamps `DateTimeOffset`; MassTransit scheduler timeouts use injected BCL `TimeProvider.GetUtcNow()` where possible (MassTransit's own scheduler uses `DateTime.UtcNow` internally — acceptable; your saga's own timestamp columns use `DateTimeOffset`)
@@ -126,12 +126,19 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (no `services/` folder
 - [ ] `SagaTestHarness<CheckoutSagaState>` tests: happy path + each compensation branch + multi-item fan-out + timeout firing
 - [ ] Integration test (Testcontainers) runs end-to-end: `POST /api/v1/bff/checkout` (simulated) → saga reaches `Confirmed`
 - [ ] Saga state persists + resumes across container restart (kill container mid-flow, verify state restored)
-- [ ] Every outbound command carries correlation-id + service-auth token in Kafka headers
+- [ ] Every outbound command carries correlation-id in Kafka headers (per ADR-0008). **No** `X-Service-Token` Kafka header — see this prompt's `<applicable_adrs>` ADR-0010 entry; v1 = PLAINTEXT, production = broker SASL/OAUTHBEARER + ACLs.
 - [ ] Addresses nulled out in `saga_checkout_states` on terminal (Confirmed / Failed / Compensated / CompensationStuck) per ADR-0011 retention rule
 - [ ] `checkout.payment-then-stock` flag read via `IFeatureClient`; OFF path (default) verified; ON path stubbed + marked experimental
 - [ ] `SagaOptions.Checkout` configured in all 3 appsettings files
 - [ ] `docker compose --profile full up -d` starts saga container; AKHQ shows `saga-checkout` consumer group; healthcheck passes
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
+- [ ] **Cross-BC invariant test (F4 / ADR-0004 §Implementation Notes / [saga-stuck-runbook.md § 6 line 297](../bc-design/saga-stuck-runbook.md))** — add `saga/SagaOrchestrators.UnitTests/Checkout/CheckoutTimeoutInvariantTests.cs` asserting:
+    ```
+    Sum(OrderCreationSeconds, StockReservationSeconds, PaymentSeconds, OrderConfirmationSeconds)
+      + 2 × CompensationSeconds
+      < InventoryReservationTtlSeconds
+    ```
+    The test MUST fail the build if a future tune (e.g., `CompensationSeconds: 300 → 600`) would invert the inequality. Read `Saga:CheckoutTimeouts:*` from `saga/SagaOrchestrators/appsettings.json` and the Inventory TTL from a shared invariant constant defined in `saga/SagaOrchestrators/Common/Config/InventoryReservationInvariants.cs` (a new `public const int InventoryReservationTtlSeconds = 900;` mirroring [inventory.md prompt:228](inventory.md) — the same constant must be sourced from / cross-checked against the Inventory BC's own configured TTL via a test in Inventory.ArchitectureTests if/when Inventory exposes `Inventory:ReservationTtlSeconds` configurably). On TTL change in Inventory, update this constant and re-run.
 - [ ] Peer-review chain (`_shared.md § 11`) executed; HIGH findings fixed
 </dod>
 
@@ -157,7 +164,7 @@ Per `_shared.md § 10`. Suggested commit milestones:
 2. `CheckoutSagaState` + internal saga events + Correlation strategy
 3. Consumer adapters (one per external event — `BasketCheckoutInitiated`, `OrderCreated`, `StockReserved`, `StockReservationFailed`, `PaymentCompleted`, `PaymentFailed`, `PaymentRefunded`, `ReservationConfirmed`, `ReservationReleased`, `OrderConfirmed`)
 4. State machine definitions (states + transitions + activities) + unit tests per transition
-5. Schedule classes + timeout tests (`SagaTestHarness` with time-skip)
+5. Schedule classes + timeout tests (`SagaTestHarness` with time-skip). **CRITICAL test-discipline rule** ([ADR-0015 §MassTransit saga scheduler — known seam](../adr/0015-time-timezone-policy.md)): advance time via MassTransit's `ITestHarness` time API, **NOT** `FakeTimeProvider.Advance` — the scheduler holds its own clock and tests will hang otherwise. Reference: `saga/SagaOrchestrators.UnitTests/Sagas/PaymentProcessingSagaOrchestratorTests.cs`.
 6. Fan-out tracking + multi-item integration test
 7. Compensation branches + `CompensationStuck` path + observability emit
 8. Feature-flag integration + flag-on/off tests
@@ -213,7 +220,7 @@ Use the template in `_template.md § session_summary`, plus saga-specifics:
 - Runbook verification: does `CompensationStuck` emit enough context for investigation?
 - Payments event-named-commands proposal table (if you surfaced one for user review)
 - ADR-0008 correlation roundtrip — evidence saga correlates across every event/command
-- ADR-0010 service-auth — every outbound command carries a validated token; screenshot / excerpt of one verified flow
+- ADR-0010 service-auth — confirm **no** `X-Service-Token` Kafka header is emitted (per ADR lines 102-106); Keycloak `checkout-saga` client + scopes defined for v2 broker-level ACLs but not validated at the application layer in v1
 - ADR-0011 PII retention — addresses nulled on terminal; integration test verified
 - ADR-0014 feature-flag — both flag states tested
 

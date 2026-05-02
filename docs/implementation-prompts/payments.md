@@ -71,7 +71,7 @@ You own these. Justify each in your session summary.
 Cross-cutting decisions to apply:
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — every command handler reads `CorrelationId` from the Kafka header; `payments.transactions.correlation_id` column persists it; outbox publisher copies it into emitted Avro events
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin endpoints (scope `payments.read`); `payments.commands` consumer validates the `X-Service-Token` header from `PaymentProcessingSaga`; no outbound HTTP from Payments in v1 (gateway is stub, behind `IPaymentGateway`)
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin endpoints (scope `payments.read`); `payments.commands` Kafka consumer runs on PLAINTEXT in v1 — **no per-message `X-Service-Token` validation** ([ADR-0010 lines 102-106](../adr/0010-service-to-service-auth.md:102) + ADR-0009 reference profile). Production hardening = enable broker SASL/OAUTHBEARER + per-service Kafka topic ACLs. No outbound HTTP from Payments in v1 (gateway is stub, behind `IPaymentGateway`).
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — `PaymentMethodId` + `GatewayTransactionId` are sensitive; columns named `*_enc` per convention (v1 plaintext, v2 encrypts); **architecture test forbids PAN/CVV-like field names** (`pan`, `cvv`, `cardNumber`, `cardholderName` — any of these in `Payments.Domain` or `Payments.Infrastructure` fails the build); Serilog `[PII]` attribute on `PaymentMethodId` VO
 - [ADR-0012](../adr/0012-api-versioning.md) — admin routes under `/api/v1/payments/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — **NOT required on Payments HTTP endpoints** (they are admin GET only; no state-changing HTTP). Document the decision in the session summary.
@@ -109,7 +109,7 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] `services/Payments/` present (renamed from `services/Payments/` in Wave 0); 4-layer projects + namespaces consistent
 - [ ] 9 external Avro events + 4 command schemas under `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/`
 - [ ] 9 internal `*DomainEvent` records + outbox publishers for each external event
-- [ ] 4 Kafka consumers for commands (with inbox dedup via `Platform.ReliableMessaging.Inbox.EFCore` + service-auth token validation)
+- [ ] 4 Kafka consumers for commands (with inbox dedup via `Platform.ReliableMessaging.Inbox.EFCore`). **No** per-message service-auth token validation per ADR-0010 lines 102-106 (v1 = PLAINTEXT broker; production = broker SASL/OAUTHBEARER + ACLs).
 - [ ] `IPaymentGateway` port + `StubPaymentGateway` adapter with deterministic test rules
 - [ ] Admin HTTP endpoints under `/api/v1/payments/` — `GET /{id}`, `GET ?orderId=…` + authorization policy
 - [ ] `PaymentsErrors` implemented to match `error-taxonomy.md § 3.5`
