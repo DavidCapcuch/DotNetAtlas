@@ -836,12 +836,14 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc`
 
+> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) (Wave 1.6 promotion) — carries the order's state at the cancellation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) alongside the original `Reason` / `AtStatus` delta payload, so Invoicing's M8 credit-note handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them. Compensation consumers (Inventory, Payments, Notifications, BFF, checkout saga) keep reading only the `Reason` / `AtStatus` fields they already used.
+
 ```json
 {
     "type": "record",
     "name": "OrderCancelledEvent",
     "namespace": "Ordering.Orders",
-    "doc": "Emitted when the Order is cancelled. Downstream consumers trigger compensation (release stock, refund, notify).",
+    "doc": "Summary Event (per ADR-0020) emitted when the Order is cancelled. Carries the aggregate snapshot at the cancellation transition — Items, TotalAmount, Currency, BillingAddress — so downstream consumers (notably Invoicing's credit-note path under 10-year retention) can rebuild state without an HTTP round-trip back to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production producers always populate them. Downstream compensation consumers (Inventory release, Payments refund, Notifications, BFF cache, checkout saga) continue to read only the Reason / AtStatus delta payload they already used.",
     "fields": [
         {
             "name": "OrderId",
@@ -877,6 +879,7 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
             "type": {
                 "type": "enum",
                 "name": "OrderStatusAtTransition",
+                "namespace": "Ordering.Orders",
                 "symbols": [
                     "Created",
                     "StockReserved",
@@ -893,6 +896,62 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
                 "logicalType": "timestamp-millis"
             },
             "doc": "UTC timestamp when the order was cancelled."
+        },
+        {
+            "name": "Items",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "OrderItemCancelled",
+                    "namespace": "Ordering.Orders",
+                    "doc": "One cancelled-order line. Mirrors the OrderItemConfirmed shape from OrderConfirmedEvent.avsc (different name to avoid an avrogen per-file class collision in namespace 'Ordering.Orders' — see ADR-0020 § Implementation Notes). Frozen at cancellation per Order invariant I-2.",
+                    "fields": [
+                        { "name": "ProductId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "Catalog product identifier for this line." },
+                        { "name": "Sku", "type": "string", "doc": "Catalog SKU snapshot at order creation time." },
+                        { "name": "Name", "type": "string", "doc": "Product display name snapshot at order creation time." },
+                        { "name": "Quantity", "type": "int", "doc": "Quantity of this line (>= 1)." },
+                        { "name": "UnitPriceAmount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 }, "doc": "Per-unit price amount." },
+                        { "name": "LineTotalAmount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 }, "doc": "UnitPriceAmount * Quantity, pre-computed." }
+                    ]
+                }
+            },
+            "default": [],
+            "doc": "Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 (pre-Wave-1.6) schema; production producers always populate at least one item per Order invariant I-7."
+        },
+        {
+            "name": "TotalAmount",
+            "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 } ],
+            "default": null,
+            "doc": "Total order amount (sum of OrderItemCancelled.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate."
+        },
+        {
+            "name": "Currency",
+            "type": [ "null", "string" ],
+            "default": null,
+            "doc": "ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate."
+        },
+        {
+            "name": "BillingAddress",
+            "type": [
+                "null",
+                {
+                    "type": "record",
+                    "name": "OrderCancellationBillingAddress",
+                    "namespace": "Ordering.Orders",
+                    "doc": "Snapshot of the buyer's billing address at cancellation time. Field shape is identical to Basket.Sessions.CheckoutAddress and Wave 1.5's Ordering.Orders.OrderBillingAddress; defined locally because avrogen processes each .avsc file in isolation and a cross-file reference would emit a class collision (see ADR-0020).",
+                    "fields": [
+                        { "name": "Street1", "type": "string", "doc": "Primary street line." },
+                        { "name": "Street2", "type": [ "null", "string" ], "default": null, "doc": "Optional second street line (apartment, suite, etc.)." },
+                        { "name": "City", "type": "string", "doc": "City name." },
+                        { "name": "State", "type": [ "null", "string" ], "default": null, "doc": "Optional state/province/region. Null for countries without this concept." },
+                        { "name": "PostalCode", "type": "string", "doc": "Postal or ZIP code." },
+                        { "name": "CountryCode", "type": "string", "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')." }
+                    ]
+                }
+            ],
+            "default": null,
+            "doc": "Buyer's billing address snapshot. Consumed by Invoicing for credit-note generation."
         }
     ]
 }

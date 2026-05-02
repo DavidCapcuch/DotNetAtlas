@@ -107,20 +107,33 @@ doesn't fully solve the problem.
 
 We will adopt Verraes' **Summary Event** pattern for cross-BC
 integration events whose downstream consumer needs the full aggregate
-state at the transition. `OrderConfirmedEvent` is the first adopter
-under this ADR. The general rule:
+state at the transition. The general rule:
 
 > **An integration event SHOULD be a Summary Event when** any
 > downstream consumer needs the producer aggregate's full state at the
 > transition AND that state is not reconstructible from the consumer's
 > own prior projections. Otherwise, prefer a delta event.
 
-Future candidates likely matching this rule (decided per-event at the
-relevant wave, not preemptively here):
+### Adopters
 
-- `OrderCancelledEvent` — Invoicing's M8 credit-note path needs
-  `OriginalInvoiceId`, `Reason`, and `BillingAddress` to issue a credit
-  note. Likely a Wave 1.6 promotion under this ADR.
+- **`OrderConfirmedEvent` (Wave 1.5)** — first adopter. Drives Invoicing's
+  M7 invoice-issuance path; Items / TotalAmount / Currency / BillingAddress
+  travel with the event. See [Implementation Notes](#orderconfirmedevent-field-defaults-wave-15).
+- **`OrderCancelledEvent` (Wave 1.6)** — second adopter. Drives Invoicing's
+  M8 credit-note path; same four enrichment fields, locally-named inline
+  records (`OrderItemCancelled`, `OrderCancellationBillingAddress`) to
+  satisfy the per-`.avsc`-file avrogen constraint. Compensation consumers
+  (Inventory, Payments, Notifications, BFF, checkout saga) keep reading
+  the original Reason / AtStatus delta payload only. See
+  [Implementation Notes](#ordercancelledevent-field-defaults-wave-16).
+  `OriginalInvoiceId` was deliberately NOT added — Ordering has no
+  knowledge of invoices; M8 looks the original invoice up by buyer +
+  correlation on the Invoicing side.
+
+### Future candidates
+
+Decided per-event at the relevant wave, not preemptively here:
+
 - `OrderShippedEvent` — Notifications' shipped-confirmation email needs
   the buyer's display name and shipment carrier; if those grow beyond
   what BFF can re-fetch cheaply, a summary promotion is the answer.
@@ -231,6 +244,42 @@ same six fields as `Basket.Sessions.CheckoutAddress` (Street1, Street2,
 City, State, PostalCode, CountryCode). The duplication is intentional;
 the conceptual mapping is one-to-one.
 
+### `OrderCancelledEvent` field defaults (Wave 1.6)
+
+| Field | Avro type | Default | Why |
+|---|---|---|---|
+| `Items` | `array<OrderItemCancelled>` | `[]` | Empty array is well-encoded; invariant I-7 forbids empty in real data |
+| `TotalAmount` | `["null", {bytes, decimal:19,4}]` | `null` | No repo precedent for bytes/decimal defaults; nullable union avoids encoding fragility |
+| `Currency` | `["null", string]` | `null` | Covaries with `TotalAmount` — kept symmetric |
+| `BillingAddress` | `["null", OrderCancellationBillingAddress]` | `null` | Optional in the schema; populated for cancelled orders |
+
+Producers (Ordering's `OrderCancelledOutboxPublisherDomainEventHandler`)
+always populate all four. The nullable shape is for FORWARD_TRANSITIVE
+compatibility with the v1 (pre-Wave-1.6) schema's existing messages,
+not for runtime omission. Compensation consumers (Inventory, Payments,
+Notifications, BFF, checkout saga) keep reading only the original
+`Reason` / `AtStatus` delta fields; only Invoicing's
+`OrderCancelledCreditNoteProjectionKafkaHandler` consumes the
+enrichment fields, persisting them into `pending_credit_notes.OrderPayload`
+(`jsonb` — no migration) for M8's credit-note issuance.
+
+### Locally-named records in `OrderCancelledEvent.avsc`
+
+For the same per-`.avsc`-file avrogen reason given above for
+Wave 1.5's `OrderBillingAddress`, Wave 1.6 inlines two locally-named
+records inside `OrderCancelledEvent.avsc`:
+
+- `Ordering.Orders.OrderItemCancelled` — six fields identical to
+  Wave 1.5's `OrderItemConfirmed`. A different name (not reuse) because
+  avrogen would emit a duplicate class definition when generating both
+  events' `.cs` siblings.
+- `Ordering.Orders.OrderCancellationBillingAddress` — six fields identical
+  to Wave 1.5's `OrderBillingAddress` and `Basket.Sessions.CheckoutAddress`.
+  Same per-file avrogen constraint; the third locally-named copy of the
+  same conceptual record. Future cleanup would consolidate via a shared
+  `.avsc` namespace + a multi-file avrogen run, but that is platform
+  work, not a wave concern.
+
 ### Future migrations
 
 Tightening a default-null field to required in a future schema version
@@ -253,5 +302,7 @@ unconditionally to keep the *de facto* contract tight even though the
   which consumers may subscribe to topics now carrying address PII.
 - [events-catalog.md § 5.3.2](../bc-design/events-catalog.md) — the
   `OrderConfirmedEvent` schema's canonical reference.
+- [events-catalog.md § 5.3.3](../bc-design/events-catalog.md) — the
+  `OrderCancelledEvent` schema's canonical reference (Wave 1.6 promotion).
 - [docs/bc-design/invoicing.md](../bc-design/invoicing.md) — Invoicing
-  M6/M7 — the consumer that drove the pattern's adoption.
+  M6/M7/M8 — the consumer that drove the pattern's adoption.

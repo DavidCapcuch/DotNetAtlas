@@ -98,6 +98,11 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
     {
         // See OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload for the rationale
         // on the hand-rolled DTO. The AtStatus enum is explicitly stringified for jsonb readability.
+        //
+        // Per ADR-0020 (Wave 1.6) the Avro event is a Summary Event — Items, TotalAmount,
+        // Currency and BillingAddress travel with it. Persisting them into OrderPayload
+        // jsonb means M8's IssueCreditNoteCommandHandler can construct the credit note
+        // from the converged pending_credit_notes row without an HTTP round-trip.
         return JsonSerializer.Serialize(new
         {
             message.OrderId,
@@ -106,6 +111,26 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             message.Reason,
             AtStatus = message.AtStatus.ToString(),
             message.CancelledAtUtc,
+            Items = message.Items?.Select(i => new
+            {
+                i.ProductId,
+                i.Sku,
+                i.Name,
+                i.Quantity,
+                UnitPriceAmount = (decimal)i.UnitPriceAmount,
+                LineTotalAmount = (decimal)i.LineTotalAmount,
+            }).ToList(),
+            TotalAmount = message.TotalAmount.HasValue ? (decimal?)message.TotalAmount.Value : null,
+            message.Currency,
+            BillingAddress = message.BillingAddress is null ? null : new
+            {
+                message.BillingAddress.Street1,
+                message.BillingAddress.Street2,
+                message.BillingAddress.City,
+                message.BillingAddress.State,
+                message.BillingAddress.PostalCode,
+                message.BillingAddress.CountryCode,
+            },
         });
     }
 }
