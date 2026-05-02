@@ -33,10 +33,9 @@ try
         .AddCatalogApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
-    // Liveness probe — readiness probes are added once the M8 docker-compose work surfaces
-    // a list of dependencies (Postgres, Redis, Kafka). Liveness is enough for the M6
-    // smoke check + the FastEndpoints test host's MapPlatformHealthCheckEndpoints call.
-    builder.Services.AddHealthChecks();
+    // Readiness probes (Self + Postgres + Kafka + redis-cache + Schema Registry) are
+    // wired by AddInfrastructure → AddCatalogHealthChecks (Catalog.Infrastructure.Common).
+    // MapPlatformHealthCheckEndpoints publishes /api/healthz (live) + /api/readiness (ready).
 
     var app = builder.Build();
 
