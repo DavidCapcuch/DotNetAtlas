@@ -10,7 +10,7 @@ namespace Catalog.Infrastructure.Common;
 /// handlers, projection handlers, outbox publishers).
 /// </summary>
 /// <remarks>
-/// Chains the two infrastructure slices already present from M4:
+/// Chains the three infrastructure slices:
 /// <list type="bullet">
 /// <item><description>
 /// <see cref="PersistenceDependencyInjection.AddDatabase"/> (M4.1) — <see cref="Persistence.Database.CatalogDbContext"/>
@@ -21,6 +21,11 @@ namespace Catalog.Infrastructure.Common;
 /// <see cref="MessagingDependencyInjection.AddKafkaMessaging"/> (M4.2) — KafkaFlow cluster
 /// with the <c>StockLevelChanged</c> inbox consumer, transactional outbox + DLT producer,
 /// and correlation-id propagation middleware.
+/// </description></item>
+/// <item><description>
+/// <see cref="HealthChecksDependencyInjection.AddCatalogHealthChecks"/> (M7) — readiness
+/// probes (Self + Postgres + Kafka + redis-cache + Schema Registry) tagged so
+/// <c>MapPlatformHealthCheckEndpoints</c> publishes them under <c>/api/readiness</c>.
 /// </description></item>
 /// </list>
 /// </remarks>
@@ -33,7 +38,8 @@ public static class InfrastructureDependencyInjection
     {
         services
             .AddDatabase(configuration, isDeployedEnvironment)
-            .AddKafkaMessaging(configuration);
+            .AddKafkaMessaging(configuration)
+            .AddCatalogHealthChecks(configuration);
 
         return services;
     }

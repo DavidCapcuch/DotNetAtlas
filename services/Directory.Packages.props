@@ -64,6 +64,7 @@
         <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0"/>
 
         <!-- Invoicing: PDF generation (ADR-0019) + Blob storage (ADR-0017) -->
         <PackageVersion Include="QuestPDF" Version="2025.1.0"/>
