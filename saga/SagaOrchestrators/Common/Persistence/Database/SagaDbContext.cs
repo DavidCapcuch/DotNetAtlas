@@ -2,6 +2,7 @@ using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
 
 namespace SagaOrchestrators.Common.Persistence.Database;
@@ -16,6 +17,7 @@ public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbCo
     }
 
     public DbSet<PaymentProcessingSagaState> PaymentProcessingSagaStates { get; set; }
+    public DbSet<CheckoutSagaState> CheckoutSagaStates { get; set; }
     public DbSet<Platform.ReliableMessaging.Outbox.Core.OutboxMessage> OutboxMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -31,6 +33,7 @@ public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbCo
         get
         {
             yield return new PaymentProcessingSagaStateMap();
+            yield return new CheckoutSagaStateMap();
         }
     }
 }
