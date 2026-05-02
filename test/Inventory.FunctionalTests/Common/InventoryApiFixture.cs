@@ -9,7 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Npgsql;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
@@ -57,6 +59,7 @@ public class InventoryApiFixture : AppFixture<Program>
         .Build();
 
     private ConnectionMultiplexer _redisMultiplexer = null!;
+    private Respawner _databaseCleaner = null!;
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
@@ -86,6 +89,24 @@ public class InventoryApiFixture : AppFixture<Program>
         await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         await dbContext.Database.MigrateAsync();
+
+        // M9 (M7 follow-up): build a Respawner once after migrations land so
+        // ResetFixtureStateAsync can wipe Postgres between tests. The Inventory
+        // schema houses every table we own (stock_events, current_stock_levels,
+        // reservation_audit, plus the platform outbox/inbox via
+        // InventoryDbContext.OnModelCreating's ConfigureOutbox/ConfigureInbox
+        // calls bound to DefaultSchemaName="inventory"). Respawn excludes the
+        // EF __EFMigrationsHistory table by default for tables it didn't create
+        // — schema is preserved, only data is wiped.
+        await using var respawnConnection = new NpgsqlConnection(_pgContainer.GetConnectionString());
+        await respawnConnection.OpenAsync();
+        _databaseCleaner = await Respawner.CreateAsync(
+            respawnConnection,
+            new RespawnerOptions
+            {
+                DbAdapter = DbAdapter.Postgres,
+                SchemasToInclude = [InventoryDbContext.DefaultSchemaName],
+            });
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -157,6 +178,17 @@ public class InventoryApiFixture : AppFixture<Program>
 
     public async Task ResetFixtureStateAsync()
     {
+        // M9 (M7 follow-up): wipe Postgres before flushing Redis so functional
+        // tests no longer rely solely on Guid.CreateVersion7 ProductId
+        // discipline for cross-test isolation. Respawn issues a TRUNCATE-ish
+        // delete strategy across the inventory schema's tables (skipping the
+        // EF migrations history) — schema is preserved, only rows are removed.
+        // Matches the Basket / Weather / Catalog precedent and lets future
+        // tests use deterministic ids without surprise collisions.
+        await using var connection = new NpgsqlConnection(_pgContainer.GetConnectionString());
+        await connection.OpenAsync();
+        await _databaseCleaner.ResetAsync(connection);
+
         // Flush Redis so idempotency-cache state cannot leak between tests.
         var endpoints = _redisMultiplexer.GetEndPoints();
         foreach (var endpoint in endpoints)
