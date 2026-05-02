@@ -598,6 +598,101 @@ Solution-wide `dotnet restore --locked-mode` was NOT run because intervening pen
 - OTel meter registration for Inventory (`AddOpenTelemetry().WithMetrics(m => m.AddMeter("Inventory"))`) — cross-cutting, unchanged from M8 carry-forward.
 
 **Next milestone: M10** — `docker compose --profile full up -d` smoke + topic-describe (verify `inventory.stock-events`=3 partitions, `inventory.reservations`=6 partitions, `inventory.reservation-commands`=3 partitions per `<verification>`) + final session summary documenting the BC's full DoD coverage status.
+
+### Session 9 (2026-05-02) — M10 complete (BC closing milestone)
+
+**Closes the Inventory bounded context.** M10 is the final milestone in `<session_management>`; no M11 exists. This session is verification + summary only — no production-code or test changes; single-file commit appending this block.
+
+**Delivered (M10 main scope — docker-compose smoke + topic-describe + final DoD walk):**
+
+- `docker compose --profile full up -d` brought the full stack to a healthy state — `kafka`, `schema-registry`, `postgresdb`, `redis-{basket,cache}`, `keycloak`, `akhq`, `azurite` all report `(healthy)`; all 7 `outbox-relay-*` containers (including `outbox-relay-inventory` per `docker-compose.yaml:493-523`) running stable; `kafka-create-topic` one-shot init container created all topics including the 3 Inventory topics on first boot per `docker-compose.yaml:284-286`.
+- Three `kafka-topics --describe` invocations against `kafka:9092` confirmed the partition + retention contract verbatim — outputs pasted in the verification table below. The 6-partition count on `inventory.reservations` is the saga-fan-out invariant flagged in `<stop_conditions>` — verified.
+- This wave_progress block (Session 9 / M10) added; structure + tone mirror Sessions 1-8.
+
+**Inventory `<dod>` coverage matrix (every line walked):**
+
+| `<dod>` line | Status | Citation |
+|---|---|---|
+| Event store table PK `(StreamId, Version)` + append-only enforcement (arch test) | ✅ | M3 (commit `67bebcc`); arch test in M8 (`EventStoreAppendOnlyTests`) — `inventory.md:464` |
+| 2 projection tables + handlers upserting in same DbContext tx | ✅ | M4 — `inventory.md:140-141` (CurrentStockLevels + ReservationAudit + multiplexed handlers) |
+| 6 ES events with reducers; `StockItem.Fold` correct on unit tests | ✅ | M2 — `inventory.md:80, 83` (56 unit tests, all reducers covered) |
+| Optimistic concurrency: `UniqueViolationException` → retry once → `ConcurrencyConflict` | ✅ | M3 + M4 — `inventory.md:140` (ChangeTracker.Clear on retry); test in M3 |
+| Rehydration observability: `inventory.aggregate.rehydration.{duration,event_count}` + p99<1s test | ✅ | M8 — `inventory.md:469-472` (InventoryMetrics + 1000-event Testcontainers test) |
+| 5 external Avro events + 3 saga-command Avro + outbox publishers for all 5 externals | ✅ | M4 — `inventory.md:128, 137-138` (8 Avro contracts; lifecycle handler emits 3 reservation events; projection handler emits StockLevelChanged) |
+| 3 saga-command Kafka consumers + Catalog `ProductCreatedEvent` (REAL since M5) + Ordering `OrderCancelledEvent` (REAL since M5); inbox dedup; PLAINTEXT per ADR-0010 | ✅ | M5 — `inventory.md:216-227` (consumer config classes + `SagaCommandMappers` + 3 saga handlers + 2 cross-BC handlers) |
+| Shared consumer group `inventory-stock-init` (Catalog + Ordering); separate `inventory-reservation-commands` group | ✅ | M5 + `<wave_progress>` deviation #1 — `inventory.md:70, 218-219` |
+| `ReservationExpiryWorker` hosted service: 60s `PeriodicTimer`; injected `TimeProvider`; publishes `ReleaseReservationCommand(Expiry)` per expired | ✅ | M6 — `inventory.md:62, 377` |
+| `StockLevelChanged` fires only on 0↔positive threshold crossings (integration test) | ✅ | M4 — `inventory.md:152-153` (`StockLevelChangedEmissionTests` — multi-step `init→+5→−2→+1→−4` proves exactly 2 crossings) |
+| `InsufficientStock` → `Result.Fail` → outbox `StockReservationFailedEvent`; arch test forbids throw | ✅ | M2 (Result path) + M4 (outbox emission line `inventory.md:163`) + M8 arch test `Application/ResultPatternTests.cs` (`DoesNotThrowRule` over `*CommandHandler`) — `inventory.md:457` |
+| Admin `POST /api/v1/inventory/stock-items/{productId}/adjust` with `.Idempotency()` + auth | ✅ | M7 — `inventory.md:372` |
+| Integration tests cover all 3 example-mapping sessions + TTL/confirm race | ✅ | M9 — `inventory.md:528-543` (7 new ExampleMapping facts + reuses M6 `ReservationExpiryWorkerTests` for Sessions 1.1/1.2 + M4 `ReserveStockCommandHandlerTests` for 2.1/2.2 + M4 `ConfirmReservationCommandHandlerTests` for 3.1) |
+| `InventoryErrors` mirrors `error-taxonomy.md § 3.4` | ✅ | M2 — `inventory.md:82, 90` (verbatim `InsufficientStockError` + `ConcurrencyError`; `ReservationNotActiveError` added per example-mapping evidence with rationale) |
+| All timestamps `DateTimeOffset`; no `DateTime.UtcNow` in domain (arch test) | ✅ | M2 (DateTimeOffset plumbing per `inventory.md:93`) + M8 arch test `Domain/AdrComplianceTests.cs` (`NoStaticUtcNowRule` per `inventory.md:453`) |
+| Correlation-id roundtrips Kafka header → handler → `stock_events.CorrelationId` → outbox → emitted event header | ✅ | M4 — `inventory.md:151` (`CorrelationIdRoundtripTests` integration test in `ReserveStockCommandHandlerTests`) |
+| All `<applicable_adrs>` enforced (arch tests + verification commands) | ✅ | ADR-0008 (M4 correlation-id roundtrip — `inventory.md:151`), ADR-0010 (M7 admin auth + arch tests; PLAINTEXT consumer per deviation — `inventory.md:201-202, 384`), ADR-0012 (M7 routes under `/api/v1/inventory/` — `inventory.md:372`), ADR-0013 (M7 `.Idempotency()` — `inventory.md:372`), ADR-0015 (M2 DateTimeOffset plumbing + M8 `NoStaticUtcNowRule` arch test — `inventory.md:93, 453`), ADR-0006 (M8 rehydration histograms — `inventory.md:469-472`) |
+| Peer-review chain executed; HIGH findings fixed | ✅ | Opus reviewer ran on every milestone with ≥5 files (M2/M3/M4/M5/M6/M7/M8/M9); all CRITICAL/HIGH fixed; MEDIUM/LOW dispositions documented per session block |
+
+**Universal `_shared.md § 12` coverage (every line walked):**
+
+| `§ 12` line | Status | Citation / evidence |
+|---|---|---|
+| 4-layer project compiles (`Api`/`Application`/`Domain`/`Infrastructure`) | ✅ | M1 — `inventory.md:45` (4 service projects scaffolded; build green); confirmed in this session by solution-wide `dotnet build -m --no-restore` exit 0 |
+| All commands + queries from use-cases.md § 4 implemented | ✅ | M4 (6 command triplets `inventory.md:134`) + M7 (2 query handlers `inventory.md:390`) |
+| All internal `*DomainEvent` declared in Domain | ✅ | M2 — `inventory.md:80` (6 ES events under `StockItems/Events/`) |
+| All external `*Event` Avro under `Platform.SchemaRegistry.Contracts/Avro/Inventory/` | ✅ | M4 — `inventory.md:128` (5 external + 3 commands; `Inventory.Stock` + `Inventory.Reservations` namespaces) |
+| Outbox publishers map internal → external per BC chapter | ✅ | M4 multiplexed handlers per `inventory.md:137-138` |
+| DbContext + naming conventions scaffolded; migration user-generated | ✅ | M3/M4 — `InventoryDbContext` per `inventory.md:141`; user-generated migration `20260425111658_AddProjectionsAndOutboxInbox` per `inventory.md:146` |
+| Messaging DI: outbox, inbox, Kafka consumers per BC | ✅ | M4 (outbox/inbox `inventory.md:143`) + M5 (Kafka consumers `inventory.md:216-220`) |
+| docker-compose delta: topics + outbox-relay container | ✅ | Pre-Wave-1 prereq satisfied per `inventory.md:28-29` (3 topics at `docker-compose.yaml:284-286`; `outbox-relay-inventory` at `:493-523`); confirmed running this session |
+| 4 test projects compile + pass; arch tests enforce architecture-tests.md § Inventory | ✅ | M1 (scaffolded); M2/M3/M4/M5/M6/M7/M8/M9 added tests; M8 arch tests (33 facts); confirmed this session — see verification table below |
+| All HTTP routes under `/api/v1/inventory/...` per ADR-0012 | ✅ | M7 — `inventory.md:372` (FastEndpoints `InventoryGroup` prefix `/inventory` combines with platform `api/v1/`) |
+| All timestamps `DateTimeOffset`; no `DateTime.UtcNow` in domain (arch test) | ✅ | M2 + M8 — see Inventory `<dod>` row above |
+| Correlation-id propagation working (HTTP → Kafka → DB column) per ADR-0008 | ✅ | M4 integration test per Inventory `<dod>` row above |
+| `dotnet build -m`, `dotnet restore --locked-mode`, `dotnet format whitespace`, `dotnet format style` all green | ✅ | This session — see verification table |
+| `docker compose --profile full up -d` starts the container + healthcheck passes | ✅ | This session — Step 3 above |
+| Docs self-corrected if needed | ✅ | M2 noted `inventory.md § 3.2 rule 2` vs `:62` aggregate-retention contradiction; M4 confirmed retention authoritative per `inventory.md:176`; example-mapping sessions in M9 cross-referenced bc-design doc per `inventory.md:528` |
+| Peer-review chain executed; HIGH findings fixed | ✅ | See Inventory `<dod>` row above |
+| Session summary posted | ✅ | This block |
+
+**Verification — paste of actual output (command → result):**
+
+| Gate | Command | Result |
+|---|---|---|
+| Restore (locked, solution-wide) | `dotnet restore --locked-mode` | ✅ "Všechny projekty jsou v aktuálním stavu pro obnovení." (all projects up-to-date), exit 0; only allowlisted NU1903 advisories on `System.Security.Cryptography.Xml` |
+| Build (solution-wide) | `dotnet build -m --no-restore` | ✅ "Počet chyb: 0" (0 errors), 47 NU1903 warnings (allowlisted), exit 0, elapsed 00:03:15 |
+| Format whitespace | `dotnet format whitespace --no-restore --verify-no-changes` | ✅ exit 0 |
+| Format style | `dotnet format style --no-restore --verify-no-changes` | ✅ exit 0 |
+| Unit tests | `HTTP_PROXY= dotnet test test/Inventory.UnitTests/ --no-build --no-restore` | ✅ **66/66 passed** (no regressions from M9), 2s |
+| Architecture tests | `HTTP_PROXY= dotnet test test/Inventory.ArchitectureTests/ --no-build --no-restore` | ✅ **33/33 passed** (no regressions from M9), 556 ms |
+| Integration tests | `HTTP_PROXY= dotnet test test/Inventory.IntegrationTests/ --no-build --no-restore` | ✅ **42/42 passed** (no regressions from M9), 7s |
+| Functional tests | `HTTP_PROXY= dotnet test test/Inventory.FunctionalTests/ --no-build --no-restore` | ✅ **15/15 passed** (no regressions from M9), 8s |
+| docker compose up | `docker compose --profile full up -d` | ✅ exit 0; all critical services `(healthy)`: kafka, schema-registry, postgresdb, redis-basket, redis-cache, keycloak, akhq, azurite; all 7 outbox-relay-* containers running incl. outbox-relay-inventory; `kafka-create-topic` init container completed (created all topics) |
+| Topic describe (1/3) | `docker compose exec -T kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic inventory.stock-events` | ✅ `Topic: inventory.stock-events  TopicId: 2GM06jMJT4eGWi6Qpt3mmA  PartitionCount: 3  ReplicationFactor: 1  Configs: min.insync.replicas=1,retention.ms=-1` + 3 partition lines |
+| Topic describe (2/3) | `docker compose exec -T kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic inventory.reservations` | ✅ `Topic: inventory.reservations  TopicId: axP5O7aXQw2uUw5wGZbOWg  PartitionCount: 6  ReplicationFactor: 1  Configs: min.insync.replicas=1,retention.ms=-1` + 6 partition lines — **saga-fan-out invariant `<stop_conditions>` confirmed** |
+| Topic describe (3/3) | `docker compose exec -T kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic inventory.reservation-commands` | ✅ `Topic: inventory.reservation-commands  TopicId: nYQGZaZlSeKsynMsf3rlZw  PartitionCount: 3  ReplicationFactor: 1  Configs: min.insync.replicas=1,retention.ms=604800000` + 3 partition lines (7-day retention per contract) |
+
+Solution-wide `dotnet restore --locked-mode` ran clean this session — no NU1902 from other BCs (in contrast to the M9 note at `inventory.md:589`); current `git status` shows no `*.csproj` / `Directory.Packages.props` modifications.
+
+**Pre-commit reviewer pass** (`Agent(subagent_type="feature-dev:code-reviewer", model="opus")`):
+
+Per `_shared.md § 11` the reviewer is "mandatory on any milestone commit touching ≥ 5 files". M10's commit touches **1 file** (this wave_progress block in `docs/implementation-prompts/inventory.md`). The user prompt explicitly invokes the reviewer regardless, so it ran.
+
+- **0 CRITICAL, 0 HIGH, 2 MEDIUM, 3 LOW.** No commit-blocking findings; the reviewer's verdict was "SAFE TO COMMIT".
+- **MEDIUM-1 fixed**: ADR-enforcement DoD-row citation tightened from a vague `inventory.md:177-181, 444, 469-472` (which pointed at reviewer-pass counts and a "Next milestone" header) to per-ADR precise citations (correlation-id roundtrip line, admin auth line, route-prefix line, idempotency line, DateTimeOffset+arch-test lines, rehydration-histograms lines).
+- **MEDIUM-2 fixed**: M5 saga-handlers DoD-row citation widened from `inventory.md:216-220` (which only covered the three `ConsumerConfig` subclasses) to `inventory.md:216-227` covering the full M5 deliverable (configs + mappers + saga-command handlers + cross-BC handlers), with an inline parenthetical naming each component class.
+- **LOW-1, LOW-2, LOW-3 accepted as-documented**: cosmetic citation-precision and verb-choice nits ("mirrors" vs "mirrors plus adds" on the `InventoryErrors` row; magic "7" outbox-relay-* count; transactional-envelope cite breadcrumb). None affect any DoD ✅ status; documented here per `_shared.md § 11`'s "document accepted MEDIUM/LOW findings" clause.
+- **Reviewer cross-checks confirmed**: verification numbers (66/33/42/15) match M9 baseline at `inventory.md:584-587` exactly; TopicId GUIDs are distinct 22-char Base64 UUIDs (not stale copy-paste); partition counts + retention values match `docker-compose.yaml:284-286` verbatim; `<session_management>` lists exactly 10 milestones with M10 last (confirms "no M11" closure); `<role_in_system>` confirms the Wave-2 Checkout-saga next-step suggestion; the boundary-discipline pre-existing-edits list matches the documented git status at session start; no claim contradicts any prior session's design decision, deviation, or DoD status.
+
+**Wave-level follow-ups carried beyond Inventory M10** (BC has no M11; these are cross-cutting concerns the next phase should pick up — they are NOT Inventory-scoped):
+
+- **M9 medium — `IntegrationTestFixture` per-test Respawn reset.** Only the Functional fixture got Respawn in M9 (`inventory.md:546-549`). Currently safe via `Guid.NewGuid()` discipline across the 42 integration tests; future tests using deterministic ids would surprise. Asymmetry vs Functional fixture is the smell. Track as wave-level fixture-symmetry cleanup. (Carried from `inventory.md:597`.)
+- **M7/M9 follow-up — FE 7.0.1 `.Idempotency()` + `StackExchangeRedisOutputCache` short-circuit not transparent in `WebApplicationFactory`.** `AdjustStockTests.WhenSameIdempotencyKeyReplayed_BothCallsReturn200` is logging-only with a soft `BeLessThanOrEqualTo(2)` regression guard; production verification stays manual. Tighten to `Be(1)` + non-empty Redis keys assertion if/when FE/output-cache become transparent in WAF. (Carried from `inventory.md:596`.)
+- **OTel meter registration for the `Inventory` meter** (`AddOpenTelemetry().WithMetrics(m => m.AddMeter("Inventory"))`) — cross-cutting; Catalog/Basket are in the same state. The M8 rehydration histograms emit measurements; integration test asserts via `MeterListener` directly per `inventory.md:472, 487`. OTLP/Seq export waits for cross-cutting OTel wiring. (Carried from `inventory.md:519, 598`.)
+- **`inventory.api` docker-compose service.** Catalog M7 added `catalog.api` to compose with health probes (commit `5e75c97`); Inventory has the health-check wiring (M7 commit `8b5ba06`) and a working Program.cs pipeline (M7 commit `83d660b`) but no compose service. NOT in M10's `<dod>` or `<verification>` block; flagged as a wave-level operational uplift if runtime parity with Catalog is desired. The Inventory BC is fully runnable via `dotnet run` against the compose-provided dependencies; the missing piece is purely "container-ize the API for production-shape smoke."
+- **`otel-collector` is in a restart loop** (observed during this session's smoke): `failed to create "attributes/pii-allowlist" processor, in pipeline "traces": at least one of "attributes", "libraries", or "resources" field must be specified` — pre-existing collector-config bug at the platform/observability layer, NOT caused by Inventory and NOT in Inventory's `<boundaries>`. Out of M10 scope; flagged here as a wave-level platform concern.
+- **Pre-existing uncommitted ADR/doc edits** present in working tree at session start were committed by the user in three parallel commits during this M10 session (none touched by M10 itself): `1093e4b feat(catalog): M8 docs self-corrections + session summary` (includes a centralized OpenTelemetry-package CPM bump that propagated to all `packages.lock.json` files solution-wide, including Inventory's six lock files — mechanical, no behavior change), `5aa4b2c docs: clarify Kafka auth layer, add ProductSnapshot audit-fidelity rule, document MassTransit saga scheduler seam` (includes the ADR-0006 diff that documents M8's rehydration observability — the previously-flagged Inventory-relevant ADR content has now landed under a `docs:` prefix), and `e206653 feat(ordering,invoicing): Wave 1.6 — promote OrderCancelledEvent to Summary Event` (Ordering/Invoicing scope). M10's verification gates (build / restore / test) succeeded cleanly against the post-bump lock files. No M10-scope action remaining for these.
+
+**Inventory bounded context is complete after M10.** No M11 milestone exists in `<session_management>`. Open follow-ups above are wave-level (not per-BC). Ready for Wave 2 (Checkout saga) consumption of Inventory's reservation lifecycle events.
 </wave_progress>
 
 <role_in_system>
