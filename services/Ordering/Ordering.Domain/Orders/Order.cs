@@ -360,6 +360,9 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             Reason = cancellationResult.Value.Reason,
             AtStatus = previousStatus.Name,
             CancelledAtUtc = utcNow,
+            Items = _items.ToList(),
+            Total = Total,
+            BillingAddress = BillingAddress,
             OccurredOnUtc = utcNow,
         });
 

@@ -14,12 +14,70 @@ namespace Ordering.Orders
 	using global::Avro.Specific;
 	
 	/// <summary>
-	/// Emitted when the Order is cancelled. Downstream consumers trigger compensation (release stock, refund, notify).
+	/// Summary Event (per ADR-0020) emitted when the Order is cancelled. Carries the aggregate snapshot at the cancellation transition — Items, TotalAmount, Currency, BillingAddress — so downstream consumers (notably Invoicing's credit-note path under 10-year retention) can rebuild state without an HTTP round-trip back to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production producers always populate them. Downstream compensation consumers (Inventory release, Payments refund, Notifications, BFF cache, checkout saga) continue to read only the Reason / AtStatus delta payload they already used.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class OrderCancelledEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""OrderCancelledEvent"",""doc"":""Emitted when the Order is cancelled. Downstream consumers trigger compensation (release stock, refund, notify)."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order that was cancelled."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id. Used by the saga to correlate compensation flows."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""User who placed the order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Reason"",""doc"":""Human- or system-assigned cancellation reason."",""type"":""string""},{""name"":""AtStatus"",""doc"":""OrderStatus just before cancellation. Informs consumers what compensation to perform (release stock, refund, etc.)."",""type"":{""type"":""enum"",""name"":""OrderStatusAtTransition"",""namespace"":""Ordering.Orders"",""symbols"":[""Created"",""StockReserved"",""PaymentCompleted"",""Confirmed""]}},{""name"":""CancelledAtUtc"",""doc"":""UTC timestamp when the order was cancelled."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"OrderCancelledEvent\",\"doc\":\"Summary Event (per ADR-0020)" +
+				" emitted when the Order is cancelled. Carries the aggregate snapshot at the canc" +
+				"ellation transition — Items, TotalAmount, Currency, BillingAddress — so downstre" +
+				"am consumers (notably Invoicing\'s credit-note path under 10-year retention) can " +
+				"rebuild state without an HTTP round-trip back to Ordering. The four enrichment f" +
+				"ields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007" +
+				"; production producers always populate them. Downstream compensation consumers (" +
+				"Inventory release, Payments refund, Notifications, BFF cache, checkout saga) con" +
+				"tinue to read only the Reason / AtStatus delta payload they already used.\",\"name" +
+				"space\":\"Ordering.Orders\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Unique identifier of" +
+				" the Order that was cancelled.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{" +
+				"\"name\":\"CorrelationId\",\"doc\":\"Checkout saga correlation id. Used by the saga to " +
+				"correlate compensation flows.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"" +
+				"name\":\"BuyerId\",\"doc\":\"User who placed the order.\",\"type\":{\"type\":\"string\",\"logi" +
+				"calType\":\"uuid\"}},{\"name\":\"Reason\",\"doc\":\"Human- or system-assigned cancellation" +
+				" reason.\",\"type\":\"string\"},{\"name\":\"AtStatus\",\"doc\":\"OrderStatus just before can" +
+				"cellation. Informs consumers what compensation to perform (release stock, refund" +
+				", etc.).\",\"type\":{\"type\":\"enum\",\"name\":\"OrderStatusAtTransition\",\"namespace\":\"Or" +
+				"dering.Orders\",\"symbols\":[\"Created\",\"StockReserved\",\"PaymentCompleted\",\"Confirme" +
+				"d\"]}},{\"name\":\"CancelledAtUtc\",\"doc\":\"UTC timestamp when the order was cancelled" +
+				".\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"Items\",\"doc" +
+				"\":\"Order line items with frozen product snapshots and prices. Empty default exis" +
+				"ts for FORWARD_TRANSITIVE compatibility with the v1 (pre-Wave-1.6) schema; produ" +
+				"ction producers always populate at least one item per Order invariant I-7.\",\"def" +
+				"ault\":[],\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"OrderItemCancel" +
+				"led\",\"doc\":\"One cancelled-order line. Mirrors the OrderItemConfirmed shape from " +
+				"OrderConfirmedEvent.avsc (different name to avoid an avrogen per-file class coll" +
+				"ision in namespace \'Ordering.Orders\' — see ADR-0020 § Implementation Notes). Fro" +
+				"zen at cancellation per Order invariant I-2.\",\"namespace\":\"Ordering.Orders\",\"fie" +
+				"lds\":[{\"name\":\"ProductId\",\"doc\":\"Catalog product identifier for this line.\",\"typ" +
+				"e\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU snap" +
+				"shot at order creation time.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"Product dis" +
+				"play name snapshot at order creation time.\",\"type\":\"string\"},{\"name\":\"Quantity\"," +
+				"\"doc\":\"Quantity of this line (>= 1).\",\"type\":\"int\"},{\"name\":\"UnitPriceAmount\",\"d" +
+				"oc\":\"Per-unit price amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"pre" +
+				"cision\":19,\"scale\":4}},{\"name\":\"LineTotalAmount\",\"doc\":\"UnitPriceAmount * Quanti" +
+				"ty, pre-computed.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19" +
+				",\"scale\":4}}]}}},{\"name\":\"TotalAmount\",\"doc\":\"Total order amount (sum of OrderIt" +
+				"emCancelled.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibilit" +
+				"y with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); " +
+				"production producers always populate.\",\"default\":null,\"type\":[\"null\",{\"type\":\"by" +
+				"tes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}]},{\"name\":\"Currency\",\"doc" +
+				"\":\"ISO 4217 currency code shared by all items. Nullable union covaries with Tota" +
+				"lAmount; production producers always populate.\",\"default\":null,\"type\":[\"null\",\"s" +
+				"tring\"]},{\"name\":\"BillingAddress\",\"doc\":\"Buyer\'s billing address snapshot. Consu" +
+				"med by Invoicing for credit-note generation.\",\"default\":null,\"type\":[\"null\",{\"ty" +
+				"pe\":\"record\",\"name\":\"OrderCancellationBillingAddress\",\"doc\":\"Snapshot of the buy" +
+				"er\'s billing address at cancellation time. Field shape is identical to Basket.Se" +
+				"ssions.CheckoutAddress and Wave 1.5\'s Ordering.Orders.OrderBillingAddress; defin" +
+				"ed locally because avrogen processes each .avsc file in isolation and a cross-fi" +
+				"le reference would emit a class collision (see ADR-0020 § Implementation Notes)." +
+				"\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"name\":\"Street1\",\"doc\":\"Primary stree" +
+				"t line.\",\"type\":\"string\"},{\"name\":\"Street2\",\"doc\":\"Optional second street line (" +
+				"apartment, suite, etc.).\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"City" +
+				"\",\"doc\":\"City name.\",\"type\":\"string\"},{\"name\":\"State\",\"doc\":\"Optional state/prov" +
+				"ince/region. Null for countries without this concept.\",\"default\":null,\"type\":[\"n" +
+				"ull\",\"string\"]},{\"name\":\"PostalCode\",\"doc\":\"Postal or ZIP code.\",\"type\":\"string\"" +
+				"},{\"name\":\"CountryCode\",\"doc\":\"ISO 3166-1 alpha-2 country code (e.g., \'US\', \'CZ\'" +
+				").\",\"type\":\"string\"}]}]}]}");
 		/// <summary>
 		/// Unique identifier of the Order that was cancelled.
 		/// </summary>
@@ -44,6 +102,22 @@ namespace Ordering.Orders
 		/// UTC timestamp when the order was cancelled.
 		/// </summary>
 		private System.DateTime _CancelledAtUtc;
+		/// <summary>
+		/// Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 (pre-Wave-1.6) schema; production producers always populate at least one item per Order invariant I-7.
+		/// </summary>
+		private IList<Ordering.Orders.OrderItemCancelled> _Items;
+		/// <summary>
+		/// Total order amount (sum of OrderItemCancelled.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate.
+		/// </summary>
+		private System.Nullable<Avro.AvroDecimal> _TotalAmount;
+		/// <summary>
+		/// ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate.
+		/// </summary>
+		private string _Currency;
+		/// <summary>
+		/// Buyer's billing address snapshot. Consumed by Invoicing for credit-note generation.
+		/// </summary>
+		private Ordering.Orders.OrderCancellationBillingAddress _BillingAddress;
 		public virtual global::Avro.Schema Schema
 		{
 			get
@@ -135,6 +209,62 @@ namespace Ordering.Orders
 				this._CancelledAtUtc = value;
 			}
 		}
+		/// <summary>
+		/// Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 (pre-Wave-1.6) schema; production producers always populate at least one item per Order invariant I-7.
+		/// </summary>
+		public IList<Ordering.Orders.OrderItemCancelled> Items
+		{
+			get
+			{
+				return this._Items;
+			}
+			set
+			{
+				this._Items = value;
+			}
+		}
+		/// <summary>
+		/// Total order amount (sum of OrderItemCancelled.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate.
+		/// </summary>
+		public System.Nullable<Avro.AvroDecimal> TotalAmount
+		{
+			get
+			{
+				return this._TotalAmount;
+			}
+			set
+			{
+				this._TotalAmount = value;
+			}
+		}
+		/// <summary>
+		/// ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate.
+		/// </summary>
+		public string Currency
+		{
+			get
+			{
+				return this._Currency;
+			}
+			set
+			{
+				this._Currency = value;
+			}
+		}
+		/// <summary>
+		/// Buyer's billing address snapshot. Consumed by Invoicing for credit-note generation.
+		/// </summary>
+		public Ordering.Orders.OrderCancellationBillingAddress BillingAddress
+		{
+			get
+			{
+				return this._BillingAddress;
+			}
+			set
+			{
+				this._BillingAddress = value;
+			}
+		}
 		public virtual object Get(int fieldPos)
 		{
 			switch (fieldPos)
@@ -145,6 +275,10 @@ namespace Ordering.Orders
 			case 3: return this.Reason;
 			case 4: return this.AtStatus;
 			case 5: return this.CancelledAtUtc;
+			case 6: return this.Items;
+			case 7: return this.TotalAmount;
+			case 8: return this.Currency;
+			case 9: return this.BillingAddress;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -158,6 +292,10 @@ namespace Ordering.Orders
 			case 3: this.Reason = (System.String)fieldValue; break;
 			case 4: this.AtStatus = (Ordering.Orders.OrderStatusAtTransition)fieldValue; break;
 			case 5: this.CancelledAtUtc = (System.DateTime)fieldValue; break;
+			case 6: this.Items = (IList<Ordering.Orders.OrderItemCancelled>)fieldValue; break;
+			case 7: this.TotalAmount = (System.Nullable<Avro.AvroDecimal>)fieldValue; break;
+			case 8: this.Currency = (System.String)fieldValue; break;
+			case 9: this.BillingAddress = (Ordering.Orders.OrderCancellationBillingAddress)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

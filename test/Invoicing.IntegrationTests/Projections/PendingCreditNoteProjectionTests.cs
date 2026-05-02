@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AwesomeAssertions;
 using Invoicing.Application.CreditNotes.Projections;
 using Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -9,7 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
+using AvroOrderCancellationBillingAddress = Ordering.Orders.OrderCancellationBillingAddress;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
+using AvroOrderItemCancelled = Ordering.Orders.OrderItemCancelled;
 using AvroOrderStatusAtTransition = Ordering.Orders.OrderStatusAtTransition;
 using AvroPaymentRefundedEvent = Payments.Transactions.PaymentRefundedEvent;
 
@@ -21,6 +25,12 @@ namespace Invoicing.IntegrationTests.Projections;
 /// Asserts the same three guarantees per <c>example-mapping/invoicing.md § 3</c>:
 /// order-cancel-first, refund-first, duplicate idempotency.
 /// </summary>
+/// <remarks>
+/// As of Wave 1.6 / ADR-0020 the consumed Avro <c>OrderCancelledEvent</c> is
+/// a Summary Event — Items, TotalAmount, Currency, BillingAddress all travel
+/// with it and are persisted into <c>pending_credit_notes.OrderPayload</c>
+/// for M8 to read. Each test asserts the round-trip through the jsonb column.
+/// </remarks>
 [Collection(nameof(IntegrationTestCollection))]
 public sealed class PendingCreditNoteProjectionTests
 {
@@ -49,15 +59,15 @@ public sealed class PendingCreditNoteProjectionTests
         var cancelClock = new FakeTimeProvider(CancelArrivalUtc);
         var refundClock = new FakeTimeProvider(RefundArrivalUtc);
 
+        var cancelEvent = BuildOrderCancelledEvent(correlationId, orderId, buyerId, CancelArrivalUtc);
+
         await using (var cancelScope = _fixture.CreateScope())
         {
             var db = cancelScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var cancelHandler = new OrderCancelledCreditNoteProjectionKafkaHandler(
                 db, cancelClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await cancelHandler.Handle(
-                BuildContext(ct),
-                BuildOrderCancelledEvent(correlationId, orderId, buyerId, CancelArrivalUtc));
+            await cancelHandler.Handle(BuildContext(ct), cancelEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -70,6 +80,7 @@ public sealed class PendingCreditNoteProjectionTests
             midRow.OrderId.Should().Be(orderId);
             midRow.BuyerId.Should().Be(buyerId);
             midRow.OrderPayload.Should().NotBeNullOrEmpty();
+            AssertOrderPayloadMatches(midRow.OrderPayload!, cancelEvent);
             midRow.PaymentId.Should().BeNull();
             midRow.CompletedAtUtc.Should().BeNull();
             midRow.IssuedCreditNoteId.Should().BeNull();
@@ -96,6 +107,7 @@ public sealed class PendingCreditNoteProjectionTests
             converged.OrderId.Should().Be(orderId);
             converged.PaymentId.Should().Be(paymentTransactionId);
             converged.OrderPayload.Should().NotBeNullOrEmpty();
+            AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
             converged.PaymentPayload.Should().NotBeNullOrEmpty();
             converged.FirstSeenAtUtc.Should().Be(CancelArrivalUtc);
             converged.CompletedAtUtc.Should().Be(RefundArrivalUtc);
@@ -142,15 +154,15 @@ public sealed class PendingCreditNoteProjectionTests
             midRow.CompletedAtUtc.Should().BeNull();
         }
 
+        var cancelEvent = BuildOrderCancelledEvent(
+            correlationId, orderId, buyerId, cancelClock.GetUtcNow());
         await using (var cancelScope = _fixture.CreateScope())
         {
             var db = cancelScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var cancelHandler = new OrderCancelledCreditNoteProjectionKafkaHandler(
                 db, cancelClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await cancelHandler.Handle(
-                BuildContext(ct),
-                BuildOrderCancelledEvent(correlationId, orderId, buyerId, cancelClock.GetUtcNow()));
+            await cancelHandler.Handle(BuildContext(ct), cancelEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -163,6 +175,8 @@ public sealed class PendingCreditNoteProjectionTests
             converged.OrderId.Should().Be(orderId);
             converged.PaymentId.Should().Be(paymentTransactionId);
             converged.BuyerId.Should().Be(buyerId);
+            converged.OrderPayload.Should().NotBeNullOrEmpty();
+            AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
             converged.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
             converged.CompletedAtUtc.Should().Be(cancelClock.GetUtcNow());
             converged.IssuedCreditNoteId.Should().BeNull();
@@ -218,6 +232,59 @@ public sealed class PendingCreditNoteProjectionTests
         }
     }
 
+    [Fact]
+    public async Task DuplicateOrderCancelledEvent_RowStaysIdempotent_FirstArrivalWins()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var buyerId = Guid.CreateVersion7();
+
+        var firstClock = new FakeTimeProvider(CancelArrivalUtc);
+        var secondClock = new FakeTimeProvider(CancelArrivalUtc.AddMinutes(2));
+
+        var firstEvent = BuildOrderCancelledEvent(correlationId, orderId, buyerId, CancelArrivalUtc);
+        // Second arrival deliberately differs so the assertion proves the row
+        // keeps the FIRST payload — locks in ADR-0020 / Wave 1.6 contract:
+        // first-arrival wins, second arrival never overwrites OrderPayload.
+        var secondEvent = BuildOrderCancelledEvent(
+            correlationId, orderId, buyerId, CancelArrivalUtc, totalOverride: 999.99m);
+
+        await using (var firstScope = _fixture.CreateScope())
+        {
+            var db = firstScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            var handler = new OrderCancelledCreditNoteProjectionKafkaHandler(
+                db, firstClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
+
+            await handler.Handle(BuildContext(ct), firstEvent);
+        }
+
+        await using (var secondScope = _fixture.CreateScope())
+        {
+            var db = secondScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            var handler = new OrderCancelledCreditNoteProjectionKafkaHandler(
+                db, secondClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
+
+            await handler.Handle(BuildContext(ct), secondEvent);
+        }
+
+        await using (var assertScope = _fixture.CreateScope())
+        {
+            var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+
+            var rows = await db.PendingCreditNotes.AsNoTracking()
+                .Where(r => r.CorrelationId == correlationId)
+                .ToListAsync(ct);
+
+            using var _ = new AssertionScope();
+            rows.Should().HaveCount(1, "duplicate same-CorrelationId arrival is absorbed");
+            rows[0].FirstSeenAtUtc.Should().Be(CancelArrivalUtc, "FirstSeenAtUtc is never overwritten");
+            rows[0].PaymentId.Should().BeNull("refund half never arrived");
+            rows[0].CompletedAtUtc.Should().BeNull();
+            AssertOrderPayloadMatches(rows[0].OrderPayload!, firstEvent);
+        }
+    }
+
     private static IMessageContext BuildContext(CancellationToken ct)
     {
         var context = Substitute.For<IMessageContext>();
@@ -229,8 +296,18 @@ public sealed class PendingCreditNoteProjectionTests
     }
 
     private static AvroOrderCancelledEvent BuildOrderCancelledEvent(
-        Guid correlationId, Guid orderId, Guid buyerId, DateTimeOffset cancelledAt)
+        Guid correlationId,
+        Guid orderId,
+        Guid buyerId,
+        DateTimeOffset cancelledAt,
+        decimal? totalOverride = null)
     {
+        // Use the production scale-4 helper so the test exercises the same
+        // wire path as Ordering's OrderCancelledMapper. Avoid the bare
+        // AvroDecimal(decimal) ctor — it preserves the .NET decimal's native
+        // scale and would never trip a scale-mismatch bug in the projection.
+        const int Scale = 4;
+        var lineTotal = totalOverride ?? 152.00m;
         return new AvroOrderCancelledEvent
         {
             OrderId = orderId,
@@ -239,6 +316,29 @@ public sealed class PendingCreditNoteProjectionTests
             Reason = "Customer requested",
             AtStatus = AvroOrderStatusAtTransition.Confirmed,
             CancelledAtUtc = cancelledAt.UtcDateTime,
+            Items =
+            [
+                new AvroOrderItemCancelled
+                {
+                    ProductId = Guid.CreateVersion7(),
+                    Sku = "SKU-1",
+                    Name = "Test Product",
+                    Quantity = 1,
+                    UnitPriceAmount = lineTotal.ToAvroDecimal(Scale),
+                    LineTotalAmount = lineTotal.ToAvroDecimal(Scale),
+                },
+            ],
+            TotalAmount = lineTotal.ToAvroDecimal(Scale),
+            Currency = "EUR",
+            BillingAddress = new AvroOrderCancellationBillingAddress
+            {
+                Street1 = "1 Main St",
+                Street2 = null,
+                City = "Prague",
+                State = null,
+                PostalCode = "11000",
+                CountryCode = "CZ",
+            },
         };
     }
 
@@ -256,4 +356,72 @@ public sealed class PendingCreditNoteProjectionTests
             RefundedAtUtc = RefundArrivalUtc.UtcDateTime,
         };
     }
+
+    private static void AssertOrderPayloadMatches(string orderPayloadJson, AvroOrderCancelledEvent expected)
+    {
+        var dto = JsonSerializer.Deserialize<OrderPayloadDto>(orderPayloadJson)
+                  ?? throw new InvalidOperationException("OrderPayload failed to deserialise.");
+
+        dto.OrderId.Should().Be(expected.OrderId);
+        dto.CorrelationId.Should().Be(expected.CorrelationId);
+        dto.BuyerId.Should().Be(expected.BuyerId);
+        dto.Reason.Should().Be(expected.Reason);
+        dto.AtStatus.Should().Be(expected.AtStatus.ToString());
+        dto.Currency.Should().Be(expected.Currency);
+        dto.TotalAmount.Should().Be((decimal)expected.TotalAmount!.Value);
+
+        dto.Items.Should().NotBeNull();
+        dto.Items!.Should().HaveCount(expected.Items.Count);
+        var firstActual = dto.Items[0];
+        var firstExpected = expected.Items[0];
+        firstActual.ProductId.Should().Be(firstExpected.ProductId);
+        firstActual.Sku.Should().Be(firstExpected.Sku);
+        firstActual.Name.Should().Be(firstExpected.Name);
+        firstActual.Quantity.Should().Be(firstExpected.Quantity);
+        firstActual.UnitPriceAmount.Should().Be((decimal)firstExpected.UnitPriceAmount);
+        firstActual.LineTotalAmount.Should().Be((decimal)firstExpected.LineTotalAmount);
+
+        dto.BillingAddress.Should().NotBeNull();
+        dto.BillingAddress!.Street1.Should().Be(expected.BillingAddress.Street1);
+        dto.BillingAddress.Street2.Should().Be(expected.BillingAddress.Street2);
+        dto.BillingAddress.City.Should().Be(expected.BillingAddress.City);
+        dto.BillingAddress.State.Should().Be(expected.BillingAddress.State);
+        dto.BillingAddress.PostalCode.Should().Be(expected.BillingAddress.PostalCode);
+        dto.BillingAddress.CountryCode.Should().Be(expected.BillingAddress.CountryCode);
+    }
+
+    /// <summary>
+    /// Mirror of the anonymous DTO emitted by
+    /// <see cref="OrderCancelledCreditNoteProjectionKafkaHandler.SerializePayload"/>.
+    /// Lives here (not in production code) because M8 will introduce its own
+    /// strongly-typed reader; this test-only DTO documents the wire contract
+    /// the projection currently produces.
+    /// </summary>
+    private sealed record OrderPayloadDto(
+        Guid OrderId,
+        Guid CorrelationId,
+        Guid BuyerId,
+        string Reason,
+        string AtStatus,
+        DateTime CancelledAtUtc,
+        IReadOnlyList<OrderPayloadItemDto>? Items,
+        decimal? TotalAmount,
+        string? Currency,
+        OrderPayloadAddressDto? BillingAddress);
+
+    private sealed record OrderPayloadItemDto(
+        Guid ProductId,
+        string Sku,
+        string Name,
+        int Quantity,
+        decimal UnitPriceAmount,
+        decimal LineTotalAmount);
+
+    private sealed record OrderPayloadAddressDto(
+        string Street1,
+        string? Street2,
+        string City,
+        string? State,
+        string PostalCode,
+        string CountryCode);
 }
