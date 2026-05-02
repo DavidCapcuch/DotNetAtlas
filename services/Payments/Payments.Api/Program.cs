@@ -1,5 +1,6 @@
 using KafkaFlow;
 using Microsoft.Extensions.Hosting;
+using Payments.Api.Common;
 using Payments.Application.Common;
 using Payments.Infrastructure.Common;
 using Platform.ServiceDefaults;
@@ -23,6 +24,8 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
+        .AddPaymentsAuth(builder.Configuration, isDeployedEnvironment)
+        .AddPresentation()
         .AddPaymentsApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
@@ -43,13 +46,16 @@ try
 
     app.UseRouting();
 
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.UsePaymentsFastEndpoints();
+
     app.MapPlatformHealthCheckEndpoints();
 
-    app.MapGet("/", () => "Payments.Api - M5 infrastructure online; admin HTTP endpoints land in M6.");
-
-    // Skip the Kafka saga-command consumer in the test host. Integration tests stand up their
-    // own Kafka container and start the bus explicitly via DI; booting it twice would produce
-    // duplicate consumer registrations.
+    // Skip the Kafka saga-command consumer in the test host. The consumer is
+    // integration-tested in M5 against a real broker; functional tests
+    // exercise the HTTP surface only and do not stand up a Kafka container.
     if (!app.Environment.IsEnvironment("Testing"))
     {
         var kafkaBus = app.Services.CreateKafkaBus();
