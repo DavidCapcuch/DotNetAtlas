@@ -3,6 +3,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.Observability;
@@ -75,6 +76,19 @@ public static class SagaDependencyInjection
                 cfg.SetKebabCaseEndpointNameFormatter();
 
                 cfg.AddSagaStateMachine<PaymentProcessingSagaOrchestrator, PaymentProcessingSagaState>()
+                    .EntityFrameworkRepository(r =>
+                    {
+                        r.ConcurrencyMode = ConcurrencyMode.Optimistic;
+                        r.ExistingDbContext<SagaDbContext>();
+                        r.UsePostgres();
+                    })
+                    .Endpoint(e =>
+                    {
+                        e.ConcurrentMessageLimit = sagaOptions.ConcurrencyLimit;
+                        e.PrefetchCount = sagaOptions.ConcurrencyLimit * 2;
+                    });
+
+                cfg.AddSagaStateMachine<CheckoutSagaOrchestrator, CheckoutSagaState>()
                     .EntityFrameworkRepository(r =>
                     {
                         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
