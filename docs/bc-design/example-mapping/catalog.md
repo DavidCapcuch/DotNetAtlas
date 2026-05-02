@@ -44,7 +44,7 @@ As a **catalog administrator** I want **to move a category (and its descendants)
 - **Given** category `Electronics` at `/electronics` with descendant `Laptops` at `/electronics/computers/laptops`
 - **When** `ReparentCategoryCommand(Electronics, newParentId=LaptopsId)` is handled
 - **Verify** R2
-- **Then** the command returns `Result.Fail(CategoryErrors.CannotParentToSelfOrDescendant)`, no path changes, no event raised.
+- **Then** the command returns `Result.Fail(CategoryErrors.ReparentCreatesCycle(category.Id, newParentId))`, no path changes, no event raised. The cycle is detected by `CategoryAncestryService` before the aggregate runs (see § Questions below).
 
 #### The one where a root category is moved under a real parent
 

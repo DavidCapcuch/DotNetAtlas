@@ -156,9 +156,9 @@ dotnet test test/Catalog.ArchitectureTests/
 dotnet test test/Catalog.IntegrationTests/
 dotnet test test/Catalog.FunctionalTests/
 docker compose --profile full up -d
-# Catalog smoke checks
-curl -s http://localhost:8080/api/v1/catalog/categories/tree | jq .
-curl -s "http://localhost:8080/api/v1/catalog/products?text=demo&page=1&limit=10" | jq .
+# Catalog readiness smoke (auth-free; protected query endpoints require catalog.read JWT scope per ADR-0010)
+curl -s http://localhost:8100/api/healthz   | jq .
+curl -s http://localhost:8100/api/readiness | jq .
 # Verify topics exist with correct retention
 docker compose exec kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic catalog.products
 docker compose exec kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic catalog.categories
