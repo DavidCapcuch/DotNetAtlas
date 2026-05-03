@@ -3,18 +3,20 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// <summary>
 /// Internal saga event signalling that Inventory reserved stock for one ProductId. Adapted from
 /// the external <c>Inventory.Reservations.StockReservedEvent</c> by the M3 consumer adapter.
-/// Per docs/bc-design/checkout-saga.md § 8.1 Option B, the external event carries
-/// <see cref="CorrelationId"/> directly (echoed back from <c>ReserveStockCommand</c>) so the
-/// adapter does not need a side-table lookup. Consumed (one per distinct ProductId) in
+/// Per docs/bc-design/checkout-saga.md § 8.1 Option B is not yet landed on Inventory's Avro
+/// schema; the saga therefore correlates this event by <see cref="OrderId"/> instead of by
+/// <c>CorrelationId</c> (M3 plan-file § C1 Path B). The state-machine sequence guarantees
+/// <c>OrderCreatedSagaEvent</c> precedes any Stock* event, so <c>CheckoutSagaState.OrderId</c>
+/// is always set when correlation runs. Consumed (one per distinct ProductId) in
 /// <c>AwaitingStockReservation</c>; the saga stays in state until <c>PendingReservations</c>
 /// reaches zero, then transitions to <c>AwaitingPayment</c> per § 4 transition table.
 /// </summary>
 public sealed record StockReservedSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - matches <c>CheckoutSagaState.CorrelationId</c>.
+    /// Ordering aggregate id - the saga correlation key for this event under Path B.
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Product whose stock was reserved.
@@ -26,11 +28,6 @@ public sealed record StockReservedSagaEvent
     /// idempotency key for compensation per docs/bc-design/checkout-saga.md § 5.5.
     /// </summary>
     public required Guid ReservationId { get; init; }
-
-    /// <summary>
-    /// Ordering aggregate id this reservation is attached to.
-    /// </summary>
-    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Quantity reserved for this ProductId (sum across the basket's lines for that ProductId).

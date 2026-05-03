@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using SagaOrchestrators.Checkout.CheckoutSaga;
+using SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.Observability;
@@ -183,6 +184,7 @@ public static class SagaDependencyInjection
             cfg.AddRider(rider =>
             {
                 rider.AddConsumersFromNamespaceContaining<PaymentRequestedConsumer>();
+                rider.AddConsumersFromNamespaceContaining<BasketCheckoutInitiatedConsumer>();
 
                 rider.UsingKafka((registrationContext, kafkaConfigurator) =>
                 {
@@ -190,6 +192,8 @@ public static class SagaDependencyInjection
 
                     var schemaRegistryClient = registrationContext.GetRequiredService<ISchemaRegistryClient>();
                     kafkaConfigurator.ConfigurePaymentSagaConsumers(registrationContext, schemaRegistryClient,
+                        kafkaOptions);
+                    kafkaConfigurator.ConfigureCheckoutSagaConsumers(registrationContext, schemaRegistryClient,
                         kafkaOptions);
                 });
             });
