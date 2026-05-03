@@ -12,6 +12,7 @@ using Payments.Transactions;
 using Platform.Test.Framework.Kafka;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
+using SagaOrchestrators.Checkout.CheckoutSaga.Schedules;
 
 namespace SagaOrchestrators.UnitTests.Sagas;
 
@@ -778,6 +779,200 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             state!.ShippingAddressJson.Should().NotBeNullOrEmpty();
             state.BillingAddressJson.Should().NotBeNullOrEmpty();
             state.CompensationTriggered.Should().BeTrue();
+        }
+    }
+
+    // ===== § 7 timeouts (M5) =====
+    //
+    // Test discipline (ADR-0015 "MassTransit saga scheduler - known seam"): we drive the
+    // timeout-fired branches by publishing the *TimeoutExpired record directly via
+    // _testHarness.Bus.Publish(...). FakeTimeProvider.Advance does NOT advance the saga
+    // scheduler's clock, so attempts to wait for a real-clock fire would hang. Direct
+    // publish exercises the same .Schedule() correlation rule the scheduler would dispatch
+    // through. The unschedule-on-success paths are validated indirectly: M4 tests for the
+    // happy paths still pass after this milestone (we did not regress them).
+
+    [Fact]
+    public async Task AwaitingOrderCreation_OnOrderCreationTimeout_TransitionsToFailed_AndPublishesCheckoutFailedAndMarkOrderFailed()
+    {
+        var correlationId = Guid.CreateVersion7();
+        await PublishInitiated(correlationId, BuildItem(Guid.CreateVersion7()));
+        _fakeOutboxWriter.Clear();
+
+        await _testHarness.Bus.Publish(new OrderCreationTimeoutExpired { CorrelationId = correlationId });
+
+        (await _sagaHarness.Consumed.Any<OrderCreationTimeoutExpired>()).Should().BeTrue();
+
+        var sagaFinalized = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        var failedEvents = _fakeOutboxWriter.GetMessages<CheckoutFailedEvent>().ToList();
+        var markFailedCmds = _fakeOutboxWriter.GetMessages<MarkOrderFailedCommand>().ToList();
+
+        using (new AssertionScope())
+        {
+            sagaFinalized.Should().BeTrue("Failed is terminal");
+            failedEvents.Should().ContainSingle();
+            failedEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            failedEvents[0].IntegrationEvent.ErrorCode.Should().Be("ORDER_CREATION_TIMEOUT");
+            // OrderId is null in AwaitingOrderCreation - the defensive command goes out with
+            // Guid.Empty + the CorrelationId for Ordering to resolve at its end (§ 3 row 4).
+            markFailedCmds.Should().ContainSingle();
+            markFailedCmds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            markFailedCmds[0].IntegrationEvent.ErrorCode.Should().Be("ORDER_CREATION_TIMEOUT");
+            markFailedCmds[0].IntegrationEvent.OrderId.Should().Be(Guid.Empty);
+        }
+    }
+
+    [Fact]
+    public async Task AwaitingStockReservation_OnStockReservationTimeout_TransitionsToCompensatingStockReservations()
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var product1 = Guid.CreateVersion7();
+
+        await ReachAwaitingStockReservation(correlationId, orderId, BuildItem(product1));
+        _fakeOutboxWriter.Clear();
+
+        await _testHarness.Bus.Publish(new StockReservationTimeoutExpired { CorrelationId = correlationId });
+
+        (await _sagaHarness.Consumed.Any<StockReservationTimeoutExpired>()).Should().BeTrue();
+
+        var compensating = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingStockReservations);
+        var cancelCmds = _fakeOutboxWriter.GetMessages<CancelOrderCommand>().ToList();
+
+        using (new AssertionScope())
+        {
+            compensating.Should().NotBeNull();
+            compensating!.ErrorCode.Should().Be("STOCK_TIMEOUT");
+            compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingStockReservation));
+            compensating.CompensationTriggered.Should().BeTrue();
+            // No StockReservedEvents have arrived yet, so no active reservations to release;
+            // CancelOrderCommand still goes out (OrderId is set after OrderCreated).
+            cancelCmds.Should().ContainSingle();
+            cancelCmds[0].IntegrationEvent.OrderId.Should().Be(orderId);
+            _fakeOutboxWriter.HasMessage<ReleaseReservationCommand>().Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public async Task AwaitingPayment_OnPaymentTimeout_TransitionsToCompensatingStockReservations_AndDispatchesReleasesAndCancel()
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var product1 = Guid.CreateVersion7();
+        var product2 = Guid.CreateVersion7();
+
+        await ReachAwaitingPayment(correlationId, orderId, product1, product2);
+        _fakeOutboxWriter.Clear();
+
+        await _testHarness.Bus.Publish(new PaymentTimeoutExpired { CorrelationId = correlationId });
+
+        (await _sagaHarness.Consumed.Any<PaymentTimeoutExpired>()).Should().BeTrue();
+
+        var compensating = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingStockReservations);
+        var releases = _fakeOutboxWriter.GetMessages<ReleaseReservationCommand>().ToList();
+        var cancels = _fakeOutboxWriter.GetMessages<CancelOrderCommand>().ToList();
+
+        using (new AssertionScope())
+        {
+            compensating.Should().NotBeNull();
+            compensating!.ErrorCode.Should().Be("PAYMENT_TIMEOUT");
+            compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingPayment));
+            compensating.CompensationTriggered.Should().BeTrue();
+            releases.Should().HaveCount(2, "two reservations were active when payment timed out");
+            cancels.Should().ContainSingle();
+            cancels[0].IntegrationEvent.OrderId.Should().Be(orderId);
+        }
+    }
+
+    [Fact]
+    public async Task AwaitingConfirmation_OnOrderConfirmationTimeout_TransitionsToCompensatingPayment_AndPublishesRequestRefund()
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var product1 = Guid.CreateVersion7();
+
+        await ReachAwaitingConfirmation(correlationId, orderId, product1);
+        _fakeOutboxWriter.Clear();
+
+        await _testHarness.Bus.Publish(new OrderConfirmationTimeoutExpired { CorrelationId = correlationId });
+
+        (await _sagaHarness.Consumed.Any<OrderConfirmationTimeoutExpired>()).Should().BeTrue();
+
+        var compensating = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingPayment);
+        var refunds = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
+
+        using (new AssertionScope())
+        {
+            compensating.Should().NotBeNull();
+            compensating!.ErrorCode.Should().Be("CONFIRMATION_TIMEOUT");
+            compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingConfirmation));
+            compensating.CompensationTriggered.Should().BeTrue();
+            refunds.Should().ContainSingle();
+            refunds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            // Refund-first per § 6.1: releases + cancel happen AFTER PaymentRefunded.
+            _fakeOutboxWriter.HasMessage<ReleaseReservationCommand>().Should().BeFalse();
+            _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public async Task CompensatingStockReservations_OnCompensationTimeout_TransitionsToCompensationStuck_AndPublishesCheckoutStuck()
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var product1 = Guid.CreateVersion7();
+
+        await ReachCompensatingStockReservations(correlationId, orderId, product1);
+        _fakeOutboxWriter.Clear();
+
+        await _testHarness.Bus.Publish(new CompensationTimeoutExpired { CorrelationId = correlationId });
+
+        (await _sagaHarness.Consumed.Any<CompensationTimeoutExpired>()).Should().BeTrue();
+
+        var sagaFinalized = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        var stuckEvents = _fakeOutboxWriter.GetMessages<CheckoutStuckEvent>().ToList();
+
+        using (new AssertionScope())
+        {
+            sagaFinalized.Should().BeTrue("CompensationStuck is abnormal-terminal");
+            stuckEvents.Should().ContainSingle();
+            stuckEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            stuckEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
+            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be("COMPENSATION_TIMEOUT");
+            stuckEvents[0].IntegrationEvent.LastState.Should().Be(
+                nameof(CheckoutSagaOrchestrator.CompensatingStockReservations));
+        }
+    }
+
+    [Fact]
+    public async Task CompensatingPayment_OnCompensationTimeout_TransitionsToCompensationStuck_AndPublishesCheckoutStuck()
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var product1 = Guid.CreateVersion7();
+
+        await ReachCompensatingPayment(correlationId, orderId, product1);
+        _fakeOutboxWriter.Clear();
+
+        await _testHarness.Bus.Publish(new CompensationTimeoutExpired { CorrelationId = correlationId });
+
+        (await _sagaHarness.Consumed.Any<CompensationTimeoutExpired>()).Should().BeTrue();
+
+        var sagaFinalized = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        var stuckEvents = _fakeOutboxWriter.GetMessages<CheckoutStuckEvent>().ToList();
+
+        using (new AssertionScope())
+        {
+            sagaFinalized.Should().BeTrue("CompensationStuck is abnormal-terminal");
+            stuckEvents.Should().ContainSingle();
+            stuckEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            stuckEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
+            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be("COMPENSATION_TIMEOUT");
+            stuckEvents[0].IntegrationEvent.LastState.Should().Be(
+                nameof(CheckoutSagaOrchestrator.CompensatingPayment));
         }
     }
 
