@@ -1,0 +1,69 @@
+{
+    "type": "record",
+    "name": "CheckoutFailedEvent",
+    "namespace": "Checkout.Sagas",
+    "doc": "Saga-level terminal event emitted by the Checkout saga when the workflow reaches Failed (no compensation needed) or Compensated (full rollback). CompensationTriggered distinguishes the two outcomes per checkout-saga.md § 9.1. Subscribed by Notifications and BFF.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "default": "00000000-0000-0000-0000-000000000000",
+            "doc": "Ordering aggregate id - default zero-uuid when the saga failed before the Order was created."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who initiated the checkout."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, ORDER_CREATION_TIMEOUT, CONFIRMATION_FAILED)."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable failure message."
+        },
+        {
+            "name": "FailedAtState",
+            "type": "string",
+            "doc": "Name of the state when failure first occurred. Aids ops forensics."
+        },
+        {
+            "name": "CompensationTriggered",
+            "type": "boolean",
+            "doc": "True when the saga reached Compensated (full rollback executed); false when the saga reached Failed (no downstream side effects to compensate)."
+        },
+        {
+            "name": "InitiatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga was first initiated."
+        },
+        {
+            "name": "FailedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga reached its terminal failure state."
+        }
+    ]
+}

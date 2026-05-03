@@ -39,6 +39,18 @@ public sealed class SagaTopicsOptions
     [Length(1, MaximumKafkaTopicLength)]
     public required string InventoryReservations { get; set; }
 
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string OrderingOrderCommands { get; set; }
+
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string InventoryReservationCommands { get; set; }
+
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string CheckoutSagas { get; set; }
+
     /// <summary>
     /// Gets all configured topics as an array.
     /// </summary>
@@ -52,7 +64,10 @@ public sealed class SagaTopicsOptions
             PaymentsPaymentCommands,
             BasketSessions,
             OrderingOrders,
-            InventoryReservations
+            InventoryReservations,
+            OrderingOrderCommands,
+            InventoryReservationCommands,
+            CheckoutSagas
         ];
     }
 }

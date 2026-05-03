@@ -111,6 +111,14 @@ public sealed class CheckoutSagaStateMap :
             .HasComment("UTC timestamp when OrderConfirmedSagaEvent arrived.");
 
         // Compensation
+        entity.Property(x => x.PendingReleases)
+            .HasComment("Decremented on each ReservationReleasedSagaEvent during compensation. Zero AND OrderCancelledReceived=true gates the transition to Compensated.")
+            .HasDefaultValue(0);
+
+        entity.Property(x => x.OrderCancelledReceived)
+            .HasComment("True once OrderCancelledSagaEvent has been observed during compensation - gates the transition to Compensated.")
+            .HasDefaultValue(false);
+
         entity.Property(x => x.CompensationStartedAtUtc)
             .HasComment("UTC timestamp at first transition into any Compensating* state.");
 

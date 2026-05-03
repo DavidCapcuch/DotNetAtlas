@@ -2,6 +2,7 @@ using System.Text.Json;
 using Basket.Sessions;
 using MassTransit;
 using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
+using SagaOrchestrators.Checkout.CheckoutSaga.Snapshots;
 
 namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 
@@ -67,31 +68,4 @@ public sealed class BasketCheckoutInitiatedConsumer : IConsumer<BasketCheckoutIn
             State: address.State,
             PostalCode: address.PostalCode,
             CountryCode: address.CountryCode);
-
-    /// <summary>
-    /// Snapshot DTO for a basket line item - the JSON shape persisted into
-    /// <c>CheckoutSagaState.BasketSnapshotJson</c>. M3 owns the writer side; M4 owns the reader
-    /// side and may move this record into a shared location once the reader contract solidifies.
-    /// </summary>
-    internal sealed record BasketItemSnapshot(
-        Guid ProductId,
-        string Sku,
-        string Name,
-        int Quantity,
-        decimal UnitPriceAmount,
-        string UnitPriceCurrency,
-        decimal LineTotal);
-
-    /// <summary>
-    /// Snapshot DTO for an address - the JSON shape persisted into
-    /// <c>CheckoutSagaState.{Shipping,Billing}AddressJson</c>. PII per ADR-0011: nulled out on
-    /// terminal saga states.
-    /// </summary>
-    internal sealed record AddressSnapshot(
-        string Street1,
-        string? Street2,
-        string City,
-        string? State,
-        string PostalCode,
-        string CountryCode);
 }
