@@ -11,7 +11,9 @@ using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 using SagaOrchestrators.Checkout.CheckoutSaga.Observability;
 using SagaOrchestrators.Checkout.CheckoutSaga.Observability.Activities;
+using SagaOrchestrators.Checkout.CheckoutSaga.Schedules;
 using SagaOrchestrators.Checkout.CheckoutSaga.Snapshots;
+using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Common.Extensions;
 using SagaDbContext = SagaOrchestrators.Common.Persistence.Database.SagaDbContext;
@@ -25,14 +27,16 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga;
 /// docs/bc-design/checkout-saga.md § 3.
 /// </summary>
 /// <remarks>
-/// M4 lands every event-driven cell of the § 4 transition table. Schedule arming /
-/// unscheduling and the timeout-driven cells are deliberately deferred to M5 - they appear in
-/// this file as <c>// M5:</c> TODO markers next to the action chains so the M5 agent has a
-/// clear punch list. Feature-flag wiring (ADR-0014, <c>checkout.payment-then-stock</c>) is
-/// deferred to M8; M4 ships only the default OFF (stock-then-payment) path.
+/// M4 landed the event-driven cells of the § 4 transition table. M5 wires the five
+/// timeout schedules (<c>OrderCreation</c>/<c>StockReservation</c>/<c>Payment</c>/
+/// <c>OrderConfirmation</c>/<c>Compensation</c> per § 7) and the timeout-driven cells of
+/// the § 3 transition table (<c>*Timeout.Received</c> rows). Feature-flag wiring
+/// (ADR-0014, <c>checkout.payment-then-stock</c>) is deferred to M8; this file ships only
+/// the default OFF (stock-then-payment) path.
 /// </remarks>
 public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutSagaState>
 {
+    private readonly SagaOptions _sagaOptions;
     private readonly SagaTopicsOptions _topicsOptions;
     private readonly TimeProvider _timeProvider;
 
@@ -70,14 +74,27 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     public Event<PaymentFailedSagaEvent> PaymentFailedEvent { get; private set; }
     public Event<PaymentRefundedSagaEvent> PaymentRefundedEvent { get; private set; }
 
-    public CheckoutSagaOrchestrator(IOptions<SagaTopicsOptions> topicsOptions, TimeProvider timeProvider)
+    // Timeout schedules (M5 — checkout-saga.md § 7). Tokens persist on CheckoutSagaState
+    // so the same saga instance can Unschedule a previously-armed timeout across hops.
+    public Schedule<CheckoutSagaState, OrderCreationTimeoutExpired> OrderCreationTimeout { get; private set; } = null!;
+    public Schedule<CheckoutSagaState, StockReservationTimeoutExpired> StockReservationTimeout { get; private set; } = null!;
+    public Schedule<CheckoutSagaState, PaymentTimeoutExpired> PaymentTimeout { get; private set; } = null!;
+    public Schedule<CheckoutSagaState, OrderConfirmationTimeoutExpired> OrderConfirmationTimeout { get; private set; } = null!;
+    public Schedule<CheckoutSagaState, CompensationTimeoutExpired> CompensationTimeout { get; private set; } = null!;
+
+    public CheckoutSagaOrchestrator(
+        IOptions<SagaOptions> sagaOptions,
+        IOptions<SagaTopicsOptions> topicsOptions,
+        TimeProvider timeProvider)
     {
+        _sagaOptions = sagaOptions.Value;
         _topicsOptions = topicsOptions.Value;
         _timeProvider = timeProvider;
 
         InstanceState(sagaState => sagaState.CurrentState);
 
         ConfigureEvents();
+        ConfigureSchedules();
         ConfigureStateMachine();
     }
 
@@ -122,7 +139,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     _topicsOptions.OrderingOrderCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => BuildCreateOrderCommand(ctx.Saga, _timeProvider.GetUtcNow()))
-                // M5: Schedule(OrderCreationTimeout, ...)
+                .Schedule(OrderCreationTimeout,
+                    ctx => new OrderCreationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                 .TransitionTo(AwaitingOrderCreation));
     }
 
@@ -158,7 +176,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     saga.StockReservationStartedAtUtc = _timeProvider.GetUtcNow();
                 })
                 .Activity(x => x.OfType<OrderCreatedActivity>())
-                // M5: Unschedule(OrderCreationTimeout)
+                .Unschedule(OrderCreationTimeout)
                 .Then(ctx =>
                 {
                     var (dbContext, outboxWriter) = GetOutboxDependencies(ctx);
@@ -186,7 +204,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                             command);
                     }
                 })
-                // M5: Schedule(StockReservationTimeout, ...)
+                .Schedule(StockReservationTimeout,
+                    ctx => new StockReservationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                 .TransitionTo(AwaitingStockReservation),
             When(OrderFailedEvent)
                 .Then(ctx =>
@@ -198,7 +217,42 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     saga.FailedAtState = nameof(AwaitingOrderCreation);
                 })
                 .Activity(x => x.OfType<OrderCreationFailedActivity>())
-                // M5: Unschedule(OrderCreationTimeout)
+                .Unschedule(OrderCreationTimeout)
+                .Then(ctx => CheckoutSagaMetrics.RecordFailed(
+                    ctx.Saga.ErrorCode ?? "UNKNOWN",
+                    _timeProvider.GetUtcNow() - ctx.Saga.InitiatedAtUtc))
+                .Then(ctx => CheckoutSagaMetrics.DecrementActive())
+                .PublishToOutbox(
+                    _topicsOptions.CheckoutSagas,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => BuildCheckoutFailedEvent(ctx.Saga, _timeProvider.GetUtcNow()))
+                .Then(NullOutAddresses)
+                .TransitionTo(Failed)
+                .Finalize(),
+            When(OrderCreationTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = "ORDER_CREATION_TIMEOUT";
+                    saga.ErrorMessage = "OrderCreatedEvent not received within OrderCreationSeconds budget";
+                    saga.FailedAtState = nameof(AwaitingOrderCreation);
+                })
+                .Activity(x => x.OfType<OrderCreationTimeoutActivity>())
+                // Defensive per § 3 row 4: tell Ordering to fail any silently-accepted Order.
+                // OrderId is always null at this point (Ordering's reply hasn't arrived) - we
+                // send Guid.Empty + the CorrelationId so Ordering can resolve by correlation id
+                // if it implements that path. Mirrors BuildCheckoutFailedEvent's OrderId fallback.
+                .PublishToOutbox(
+                    _topicsOptions.OrderingOrderCommands,
+                    ctx => (ctx.Saga.OrderId ?? ctx.Saga.CorrelationId).ToString(),
+                    ctx => new MarkOrderFailedCommand
+                    {
+                        OrderId = ctx.Saga.OrderId ?? Guid.Empty,
+                        CorrelationId = ctx.Saga.CorrelationId,
+                        ErrorCode = ctx.Saga.ErrorCode!,
+                        ErrorMessage = ctx.Saga.ErrorMessage!,
+                        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    })
                 .Then(ctx => CheckoutSagaMetrics.RecordFailed(
                     ctx.Saga.ErrorCode ?? "UNKNOWN",
                     _timeProvider.GetUtcNow() - ctx.Saga.InitiatedAtUtc))
@@ -231,7 +285,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                             saga.PaymentRequestedAtUtc = _timeProvider.GetUtcNow();
                         })
                         .Activity(x => x.OfType<AllStockReservedActivity>())
-                        // M5: Unschedule(StockReservationTimeout)
+                        .Unschedule(StockReservationTimeout)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPayments,
                             ctx => ctx.Saga.CorrelationId.ToString(),
@@ -246,7 +300,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                                 IdempotencyKey = ctx.Saga.CorrelationId.ToString(),
                                 RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                             })
-                        // M5: Schedule(PaymentTimeout, ...)
+                        .Schedule(PaymentTimeout,
+                            ctx => new PaymentTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                         .TransitionTo(AwaitingPayment),
                     stillPending => stillPending),
             When(StockReservationFailedEvent)
@@ -267,9 +322,24 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     saga.FailedAtState = nameof(AwaitingStockReservation);
                 })
                 .Activity(x => x.OfType<StockReservationFailedActivity>())
-                // M5: Unschedule(StockReservationTimeout)
+                .Unschedule(StockReservationTimeout)
                 .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
-                // M5: Schedule(CompensationTimeout, ...)
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                .TransitionTo(CompensatingStockReservations),
+            When(StockReservationTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = "STOCK_TIMEOUT";
+                    saga.ErrorMessage =
+                        $"Not all StockReservedEvents received within budget ({saga.PendingReservations} of {saga.ExpectedReservations} pending)";
+                    saga.FailedAtState = nameof(AwaitingStockReservation);
+                })
+                .Activity(x => x.OfType<StockReservationTimeoutActivity>())
+                .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                 .TransitionTo(CompensatingStockReservations));
     }
 
@@ -289,7 +359,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     saga.OrderConfirmationRequestedAtUtc = _timeProvider.GetUtcNow();
                 })
                 .Activity(x => x.OfType<PaymentCompletedCheckoutActivity>())
-                // M5: Unschedule(PaymentTimeout)
+                .Unschedule(PaymentTimeout)
                 .PublishToOutbox(
                     _topicsOptions.OrderingOrderCommands,
                     ctx => ctx.Saga.OrderId!.Value.ToString(),
@@ -300,7 +370,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
                 .Then(ctx => DispatchConfirmReservationsForActiveTracking(ctx))
-                // M5: Schedule(OrderConfirmationTimeout, ...)
+                .Schedule(OrderConfirmationTimeout,
+                    ctx => new OrderConfirmationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                 .TransitionTo(AwaitingConfirmation),
             When(PaymentFailedEvent)
                 .Then(ctx =>
@@ -312,9 +383,23 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     saga.FailedAtState = nameof(AwaitingPayment);
                 })
                 .Activity(x => x.OfType<PaymentFailedCheckoutActivity>())
-                // M5: Unschedule(PaymentTimeout)
+                .Unschedule(PaymentTimeout)
                 .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
-                // M5: Schedule(CompensationTimeout, ...)
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                .TransitionTo(CompensatingStockReservations),
+            When(PaymentTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = "PAYMENT_TIMEOUT";
+                    saga.ErrorMessage = "PaymentCompletedEvent not received within PaymentSeconds budget";
+                    saga.FailedAtState = nameof(AwaitingPayment);
+                })
+                .Activity(x => x.OfType<PaymentTimeoutCheckoutActivity>())
+                .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                 .TransitionTo(CompensatingStockReservations));
     }
 
@@ -328,7 +413,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
             When(OrderConfirmedEvent)
                 .Then(ctx => ctx.Saga.OrderConfirmedAtUtc = ctx.Message.ConfirmedAtUtc)
                 .Activity(x => x.OfType<OrderConfirmedActivity>())
-                // M5: Unschedule(OrderConfirmationTimeout)
+                .Unschedule(OrderConfirmationTimeout)
                 .PublishToOutbox(
                     _topicsOptions.CheckoutSagas,
                     ctx => ctx.Saga.CorrelationId.ToString(),
@@ -361,7 +446,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     saga.CompensationStartedAtUtc = _timeProvider.GetUtcNow();
                 })
                 .Activity(x => x.OfType<OrderConfirmationFailedActivity>())
-                // M5: Unschedule(OrderConfirmationTimeout)
+                .Unschedule(OrderConfirmationTimeout)
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
@@ -373,7 +458,33 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                         Reason = ctx.Saga.ErrorMessage ?? "Order confirmation failed",
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
-                // M5: Schedule(CompensationTimeout, ...)
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                .TransitionTo(CompensatingPayment),
+            When(OrderConfirmationTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = "CONFIRMATION_TIMEOUT";
+                    saga.ErrorMessage = "OrderConfirmedEvent not received within OrderConfirmationSeconds budget";
+                    saga.FailedAtState = nameof(AwaitingConfirmation);
+                    saga.CompensationTriggered = true;
+                    saga.CompensationStartedAtUtc = _timeProvider.GetUtcNow();
+                })
+                .Activity(x => x.OfType<OrderConfirmationTimeoutActivity>())
+                .PublishToOutbox(
+                    _topicsOptions.PaymentsPaymentCommands,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => new RequestRefundCommand
+                    {
+                        CorrelationId = ctx.Saga.CorrelationId,
+                        UserId = ctx.Saga.UserId,
+                        PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
+                        Reason = ctx.Saga.ErrorMessage ?? "Order confirmation timeout",
+                        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    })
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                 .TransitionTo(CompensatingPayment));
     }
 
@@ -390,7 +501,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => ctx.Saga.PendingReleases == 0 && ctx.Saga.OrderCancelledReceived,
                     compensated => compensated
                         .Then(ctx => FinalizeCompensation(ctx.Saga))
-                        // M5: Unschedule(CompensationTimeout)
+                        .Unschedule(CompensationTimeout)
                         .PublishToOutbox(
                             _topicsOptions.CheckoutSagas,
                             ctx => ctx.Saga.CorrelationId.ToString(),
@@ -406,7 +517,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => ctx.Saga.PendingReleases == 0 && ctx.Saga.OrderCancelledReceived,
                     compensated => compensated
                         .Then(ctx => FinalizeCompensation(ctx.Saga))
-                        // M5: Unschedule(CompensationTimeout)
+                        .Unschedule(CompensationTimeout)
                         .PublishToOutbox(
                             _topicsOptions.CheckoutSagas,
                             ctx => ctx.Saga.CorrelationId.ToString(),
@@ -414,7 +525,27 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                         .Then(NullOutAddresses)
                         .TransitionTo(Compensated)
                         .Finalize(),
-                    stillWaiting => stillWaiting));
+                    stillWaiting => stillWaiting),
+            When(CompensationTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = "COMPENSATION_TIMEOUT";
+                    saga.ErrorMessage = "Stock compensation did not complete in time";
+                })
+                .Activity(x => x.OfType<CompensationTimeoutActivity>())
+                .Activity(x => x.OfType<CheckoutStuckActivity>())
+                .Then(ctx => CheckoutSagaMetrics.DecrementActive())
+                .PublishToOutbox(
+                    _topicsOptions.CheckoutSagas,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => BuildCheckoutStuckEvent(
+                        ctx.Saga,
+                        nameof(CompensatingStockReservations),
+                        _timeProvider.GetUtcNow()))
+                .Then(NullOutAddresses)
+                .TransitionTo(CompensationStuck)
+                .Finalize());
     }
 
     /// <summary>
@@ -427,8 +558,32 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
             When(PaymentRefundedEvent)
                 .Activity(x => x.OfType<PaymentRefundedActivity>())
                 .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
-                // M5: reset CompensationTimeout for the stock phase
-                .TransitionTo(CompensatingStockReservations));
+                // The compensation budget restarts for the stock-release phase per § 6.1
+                // refund-then-stock split (refund is done, now bound the release+cancel work).
+                .Unschedule(CompensationTimeout)
+                .Schedule(CompensationTimeout,
+                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                .TransitionTo(CompensatingStockReservations),
+            When(CompensationTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = "COMPENSATION_TIMEOUT";
+                    saga.ErrorMessage = "Refund did not complete in time";
+                })
+                .Activity(x => x.OfType<CompensationTimeoutActivity>())
+                .Activity(x => x.OfType<CheckoutStuckActivity>())
+                .Then(ctx => CheckoutSagaMetrics.DecrementActive())
+                .PublishToOutbox(
+                    _topicsOptions.CheckoutSagas,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => BuildCheckoutStuckEvent(
+                        ctx.Saga,
+                        nameof(CompensatingPayment),
+                        _timeProvider.GetUtcNow()))
+                .Then(NullOutAddresses)
+                .TransitionTo(CompensationStuck)
+                .Finalize());
     }
 
     /// <summary>
@@ -515,6 +670,48 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
             e.OnMissingInstance(m => m.Discard());
+        });
+    }
+
+    /// <summary>
+    /// Wires the five MassTransit timeout schedules per docs/bc-design/checkout-saga.md § 7.
+    /// Delays bind from <c>Saga:CheckoutTimeouts:*</c> in seconds; the SQL message scheduler
+    /// (<c>UseSqlMessageScheduler</c>, registered in <c>SagaDependencyInjection</c>) persists
+    /// armed timeouts so they survive container restart. Token IDs live on
+    /// <see cref="CheckoutSagaState"/> so the in-flight saga can unschedule on the success
+    /// path. Each timeout-expired record correlates back by <c>CorrelationId</c>; ADR-0008
+    /// guarantees this id threads through the entire workflow.
+    /// </summary>
+    private void ConfigureSchedules()
+    {
+        Schedule(() => OrderCreationTimeout, instance => instance.OrderCreationTimeoutTokenId, s =>
+        {
+            s.Delay = TimeSpan.FromSeconds(_sagaOptions.CheckoutTimeouts.OrderCreationSeconds);
+            s.Received = r => r.CorrelateById(ctx => ctx.Message.CorrelationId);
+        });
+
+        Schedule(() => StockReservationTimeout, instance => instance.StockReservationTimeoutTokenId, s =>
+        {
+            s.Delay = TimeSpan.FromSeconds(_sagaOptions.CheckoutTimeouts.StockReservationSeconds);
+            s.Received = r => r.CorrelateById(ctx => ctx.Message.CorrelationId);
+        });
+
+        Schedule(() => PaymentTimeout, instance => instance.PaymentTimeoutTokenId, s =>
+        {
+            s.Delay = TimeSpan.FromSeconds(_sagaOptions.CheckoutTimeouts.PaymentSeconds);
+            s.Received = r => r.CorrelateById(ctx => ctx.Message.CorrelationId);
+        });
+
+        Schedule(() => OrderConfirmationTimeout, instance => instance.OrderConfirmationTimeoutTokenId, s =>
+        {
+            s.Delay = TimeSpan.FromSeconds(_sagaOptions.CheckoutTimeouts.OrderConfirmationSeconds);
+            s.Received = r => r.CorrelateById(ctx => ctx.Message.CorrelationId);
+        });
+
+        Schedule(() => CompensationTimeout, instance => instance.CompensationTimeoutTokenId, s =>
+        {
+            s.Delay = TimeSpan.FromSeconds(_sagaOptions.CheckoutTimeouts.CompensationSeconds);
+            s.Received = r => r.CorrelateById(ctx => ctx.Message.CorrelationId);
         });
     }
 
@@ -773,6 +970,23 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         InitiatedAtUtc = saga.InitiatedAtUtc.UtcDateTime,
         FailedAtUtc = now.UtcDateTime
     };
+
+    private static CheckoutStuckEvent BuildCheckoutStuckEvent(
+        CheckoutSagaState saga,
+        string lastState,
+        DateTimeOffset now) => new()
+        {
+            CorrelationId = saga.CorrelationId,
+            OrderId = saga.OrderId ?? Guid.Empty,
+            UserId = saga.UserId,
+            LastState = lastState,
+            ErrorCode = saga.ErrorCode ?? "COMPENSATION_TIMEOUT",
+            ErrorMessage = saga.ErrorMessage ?? string.Empty,
+            FailureReason = saga.ErrorMessage ?? "Compensation did not complete in time",
+            StuckSinceUtc = (saga.CompensationStartedAtUtc ?? saga.InitiatedAtUtc).UtcDateTime,
+            InitiatedAtUtc = saga.InitiatedAtUtc.UtcDateTime,
+            EmittedAtUtc = now.UtcDateTime
+        };
 
     private readonly record struct ProductGroup(Guid ProductId, int TotalQuantity);
 }

@@ -50,6 +50,28 @@ public static class CheckoutSagaMetrics
         Meter.CreateCounter<long>("saga.checkout.payment_failed", "count",
             "Number of payment failures (by reason)");
 
+    // Timeout counters (M5 - one per § 7 timeout kind, tag CheckoutSagaActivityTags.LastState
+    // for compensation timeout per § 11.2)
+    private static readonly Counter<long> OrderCreationTimeout =
+        Meter.CreateCounter<long>("saga.checkout.order_creation_timeout", "count",
+            "OrderCreationTimeout fired (saga in AwaitingOrderCreation)");
+
+    private static readonly Counter<long> StockReservationTimeout =
+        Meter.CreateCounter<long>("saga.checkout.stock_reservation_timeout", "count",
+            "StockReservationTimeout fired (saga in AwaitingStockReservation)");
+
+    private static readonly Counter<long> PaymentTimeout =
+        Meter.CreateCounter<long>("saga.checkout.payment_timeout", "count",
+            "PaymentTimeout fired (saga in AwaitingPayment)");
+
+    private static readonly Counter<long> ConfirmationTimeout =
+        Meter.CreateCounter<long>("saga.checkout.confirmation_timeout", "count",
+            "OrderConfirmationTimeout fired (saga in AwaitingConfirmation)");
+
+    private static readonly Counter<long> CompensationTimeout =
+        Meter.CreateCounter<long>("saga.checkout.compensation_timeout", "count",
+            "CompensationTimeout fired (saga in CompensatingStock/CompensatingPayment)");
+
     // Histograms - latency observability per § 11.2
     private static readonly Histogram<double> OrderCreationDuration =
         Meter.CreateHistogram<double>("saga.checkout.order_creation_duration_ms", "ms",
@@ -134,4 +156,16 @@ public static class CheckoutSagaMetrics
     public static void IncrementActive() => Active.Add(1);
 
     public static void DecrementActive() => Active.Add(-1);
+
+    public static void RecordOrderCreationTimeout() => OrderCreationTimeout.Add(1);
+
+    public static void RecordStockReservationTimeout() => StockReservationTimeout.Add(1);
+
+    public static void RecordPaymentTimeout() => PaymentTimeout.Add(1);
+
+    public static void RecordConfirmationTimeout() => ConfirmationTimeout.Add(1);
+
+    public static void RecordCompensationTimeout(string lastState) =>
+        CompensationTimeout.Add(1,
+            new KeyValuePair<string, object?>(CheckoutSagaActivityTags.LastState, lastState));
 }
