@@ -15,4 +15,7 @@ public sealed class SagaConsumerGroupsOptions
 
     [Required(AllowEmptyStrings = false)]
     public required string AlertSubscriptionExtensionSaga { get; set; }
+
+    [Required(AllowEmptyStrings = false)]
+    public required string CheckoutSaga { get; set; }
 }

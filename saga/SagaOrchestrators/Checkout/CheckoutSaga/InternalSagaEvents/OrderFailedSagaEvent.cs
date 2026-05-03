@@ -15,9 +15,11 @@ public sealed record OrderFailedSagaEvent
     public required Guid CorrelationId { get; init; }
 
     /// <summary>
-    /// Ordering aggregate id when known. Null when failure occurs before the order was created
-    /// (e.g. a validation reject in <c>AwaitingOrderCreation</c>); set when failure occurs at
-    /// confirmation time.
+    /// Ordering aggregate id. Always populated by the Avro producer
+    /// (<c>Ordering.Orders.OrderFailedEvent.OrderId</c> is a non-nullable uuid); the field is
+    /// kept nullable here so M4 can null it deliberately during PII / state cleanup if needed.
+    /// Producer convention for pre-creation validation rejects is to emit <c>Guid.Empty</c>,
+    /// which the saga discriminates via the producing-state context, not via null.
     /// </summary>
     public Guid? OrderId { get; init; }
 

@@ -7,13 +7,15 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// reservation) as one of the gating events for transition to terminal <c>Compensated</c> per
 /// docs/bc-design/checkout-saga.md § 4 transition table. M4 will discriminate on
 /// <see cref="ReleaseReason"/> to distinguish compensation-driven releases from TTL expiry.
+/// Correlated by <see cref="OrderId"/> per M3 plan-file § C1 Path B (Inventory's Avro lacks
+/// <c>CorrelationId</c>).
 /// </summary>
 public sealed record ReservationReleasedSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - matches <c>CheckoutSagaState.CorrelationId</c>.
+    /// Ordering aggregate id - the saga correlation key for this event under Path B.
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Product whose stock reservation was released.
@@ -26,7 +28,9 @@ public sealed record ReservationReleasedSagaEvent
     public required Guid ReservationId { get; init; }
 
     /// <summary>
-    /// Reason the reservation was released - typically "Compensation" or "Expiry".
+    /// Reason the reservation was released - "Compensation", "Expiry", or "Cancellation".
+    /// Sourced from <c>Inventory.Reservations.ReleaseReason</c> Avro enum (consumer adapter
+    /// converts to string via <c>.ToString()</c>).
     /// </summary>
     public required string ReleaseReason { get; init; }
 

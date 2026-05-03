@@ -27,6 +27,18 @@ public sealed class SagaTopicsOptions
     [Length(1, MaximumKafkaTopicLength)]
     public required string PaymentsPaymentCommands { get; set; }
 
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string BasketSessions { get; set; }
+
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string OrderingOrders { get; set; }
+
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string InventoryReservations { get; set; }
+
     /// <summary>
     /// Gets all configured topics as an array.
     /// </summary>
@@ -37,7 +49,10 @@ public sealed class SagaTopicsOptions
             WeatherAlertSubscriptions,
             WeatherAlertSubscriptionsCommands,
             PaymentsPayments,
-            PaymentsPaymentCommands
+            PaymentsPaymentCommands,
+            BasketSessions,
+            OrderingOrders,
+            InventoryReservations
         ];
     }
 }
