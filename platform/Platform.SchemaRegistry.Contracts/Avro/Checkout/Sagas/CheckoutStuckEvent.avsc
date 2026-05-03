@@ -1,0 +1,76 @@
+{
+    "type": "record",
+    "name": "CheckoutStuckEvent",
+    "namespace": "Checkout.Sagas",
+    "doc": "Saga-level abnormal-terminal event emitted by the Checkout saga when CompensationTimeout fires while the saga is in any Compensating* state. Drives the ops alert defined in docs/bc-design/saga-stuck-runbook.md - no auto-recovery, manual operator intervention required. Subscribed by Notifications (PagerDuty/Slack integration).",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Saga correlation id - the runbook investigation entry point per ADR-0008."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Ordering aggregate id (always populated - CompensationStuck is reachable only after stock or payment side effects existed, both of which post-date OrderCreated)."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User affected by the stuck saga."
+        },
+        {
+            "name": "LastState",
+            "type": "string",
+            "doc": "Name of the Compensating* state the saga was in when CompensationTimeout fired - either CompensatingStockReservations or CompensatingPayment."
+        },
+        {
+            "name": "ErrorCode",
+            "type": "string",
+            "doc": "Always COMPENSATION_TIMEOUT - included for downstream filtering symmetry with CheckoutFailedEvent."
+        },
+        {
+            "name": "ErrorMessage",
+            "type": "string",
+            "doc": "Human-readable description of which compensation phase did not complete in time."
+        },
+        {
+            "name": "FailureReason",
+            "type": "string",
+            "doc": "Operator-facing reason field per saga-stuck-runbook.md - typically the unfinished compensation step (e.g., 'Refund did not complete in time', 'Stock release did not complete in time')."
+        },
+        {
+            "name": "StuckSinceUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp the saga first entered a Compensating* state - equals CompensationStartedAtUtc."
+        },
+        {
+            "name": "InitiatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga was first initiated."
+        },
+        {
+            "name": "EmittedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the CompensationTimeout fired and this event was emitted."
+        }
+    ]
+}

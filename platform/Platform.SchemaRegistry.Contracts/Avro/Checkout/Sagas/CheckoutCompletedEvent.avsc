@@ -1,0 +1,76 @@
+{
+    "type": "record",
+    "name": "CheckoutCompletedEvent",
+    "namespace": "Checkout.Sagas",
+    "doc": "Saga-level terminal event emitted by the Checkout saga when the workflow reaches the Confirmed state. Distinct from Ordering's OrderConfirmedEvent because it carries saga-level fields (PaymentTransactionId, ReservationIdsJson) per checkout-saga.md § 9.1. Subscribed by Notifications and BFF.",
+    "fields": [
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Ordering aggregate id confirmed by the saga."
+        },
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "User who initiated the checkout."
+        },
+        {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Payment transaction id from the PaymentProcessingSaga capture."
+        },
+        {
+            "name": "ReservationIdsJson",
+            "type": "string",
+            "doc": "Serialized list of {ProductId, ReservationId} for the confirmed reservations - opaque payload for downstream analytics."
+        },
+        {
+            "name": "TotalAmount",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Total amount confirmed for the checkout."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code."
+        },
+        {
+            "name": "InitiatedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga was first initiated."
+        },
+        {
+            "name": "ConfirmedAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the saga reached Confirmed."
+        }
+    ]
+}

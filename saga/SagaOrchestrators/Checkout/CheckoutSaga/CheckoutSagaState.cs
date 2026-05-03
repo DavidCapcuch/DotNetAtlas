@@ -140,6 +140,21 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     // — Compensation state —
 
     /// <summary>
+    /// Number of in-flight reservations awaiting <c>ReservationReleasedSagaEvent</c> during
+    /// compensation. Initialised on entry to <see cref="CheckoutSagaOrchestrator.CompensatingStockReservations"/>
+    /// to the count of <c>Reserved</c> tracking entries; decremented as releases arrive. Zero AND
+    /// <see cref="OrderCancelledReceived"/>=true is the gate for transition to <c>Compensated</c>
+    /// per docs/bc-design/checkout-saga.md § 4 row 13.
+    /// </summary>
+    public int PendingReleases { get; set; }
+
+    /// <summary>
+    /// True once <c>OrderCancelledSagaEvent</c> has been observed during compensation. Together
+    /// with <see cref="PendingReleases"/>=0 gates the transition to terminal <c>Compensated</c>.
+    /// </summary>
+    public bool OrderCancelledReceived { get; set; }
+
+    /// <summary>
     /// UTC timestamp at first transition into any Compensating* state. Drives stuck-saga detection.
     /// </summary>
     public DateTimeOffset? CompensationStartedAtUtc { get; set; }
