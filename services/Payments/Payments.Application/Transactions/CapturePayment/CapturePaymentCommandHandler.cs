@@ -7,6 +7,7 @@ using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
+using Platform.SharedKernel.Exceptions;
 
 namespace Payments.Application.Transactions.CapturePayment;
 
@@ -64,7 +65,8 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
         // GatewayTransactionId was set by Authorize and is non-null in any post-Requested state;
         // the aggregate's FSM guards in Capture / MarkCaptureFailed enforce this further.
         var gatewayTransactionId = tx.GatewayTransactionId
-            ?? throw new InvalidOperationException(
+            ?? throw new DataIntegrityException(
+                "Payments.MissingGatewayTransactionId",
                 $"Payment {tx.Id} has no GatewayTransactionId despite status {tx.Status.Name}; this should be unreachable.");
 
         var gatewayResult = await _gateway.CaptureAsync(gatewayTransactionId, tx.Amount, ct);
