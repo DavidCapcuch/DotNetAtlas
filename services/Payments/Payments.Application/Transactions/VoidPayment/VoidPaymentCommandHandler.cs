@@ -7,6 +7,7 @@ using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
+using Platform.SharedKernel.Exceptions;
 
 namespace Payments.Application.Transactions.VoidPayment;
 
@@ -61,7 +62,8 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
         }
 
         var gatewayTransactionId = tx.GatewayTransactionId
-            ?? throw new InvalidOperationException(
+            ?? throw new DataIntegrityException(
+                "Payments.MissingGatewayTransactionId",
                 $"Payment {tx.Id} has no GatewayTransactionId despite status {tx.Status.Name}; this should be unreachable.");
 
         var gatewayResult = await _gateway.VoidAsync(gatewayTransactionId, ct);
