@@ -13,6 +13,7 @@ using Platform.Test.Framework.Kafka;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 using SagaOrchestrators.Checkout.CheckoutSaga.Schedules;
+using SagaOrchestrators.UnitTests.Checkout;
 
 namespace SagaOrchestrators.UnitTests.Sagas;
 
@@ -21,6 +22,14 @@ namespace SagaOrchestrators.UnitTests.Sagas;
 /// event-driven cell of the § 4 transition table; timeout-driven cells (and their tests) land
 /// in M5 alongside the schedule classes.
 /// </summary>
+/// <remarks>
+/// M7 added <see cref="CheckoutMeterSerialCollection"/> participation: this class drives
+/// the same compensation transitions that <c>CheckoutSagaMetricsEmissionTests</c> asserts
+/// on via <see cref="System.Diagnostics.Metrics.MeterListener"/>; the shared collection
+/// serialises the two so the listener doesn't observe cross-class measurements on the
+/// process-global <c>SagaOrchestrators</c> meter.
+/// </remarks>
+[Collection(nameof(CheckoutMeterSerialCollection))]
 public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
