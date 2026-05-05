@@ -19,4 +19,17 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
         <PackageReference Include="NSubstitute" />
     </ItemGroup>
+
+    <ItemGroup>
+        <!--
+          M7 CheckoutTimeoutInvariantTests reads the production Saga:CheckoutTimeouts:* values
+          straight from saga/SagaOrchestrators/appsettings.json (NOT the Testing overlay) to
+          assert the F4/ADR-0004 cross-BC timeout invariant. Explicit Link guards against
+          transitive-copy fragility - if the SagaOrchestrators csproj ever stops copying its
+          own appsettings.json to bin, the invariant test must still find the file.
+        -->
+        <Content Include="..\SagaOrchestrators\appsettings.json"
+                 Link="appsettings.json"
+                 CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
 </Project>
