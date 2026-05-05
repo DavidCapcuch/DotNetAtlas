@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using OpenFeature;
 using Ordering.Orders;
 using Payments.Transactions;
 using Platform.Test.Framework.Kafka;
@@ -50,6 +51,9 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             .AddSingleton(sagaOptions)
             .AddSingleton(topicsOptions)
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
+            // M8: every Checkout-saga flag-key resolves to OFF in this fixture so the M2 — M7
+            // tests continue to assert the default stock-then-payment topology unchanged.
+            .AddSingleton<IFeatureClient>(CheckoutFeatureClientStub.WithPaymentThenStock(false))
             .AddSagaOutboxTestServices(testDbName, _fakeOutboxWriter)
             .AddMassTransitTestHarness(cfg =>
             {

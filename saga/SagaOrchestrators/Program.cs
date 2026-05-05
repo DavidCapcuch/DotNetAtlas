@@ -1,4 +1,5 @@
 using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.FeatureFlags;
 using SagaOrchestrators.Common;
 using SagaOrchestrators.Common.Observability;
 using SagaOrchestrators.Common.Persistence.Database;
@@ -21,6 +22,7 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.AddInfrastructure();
+    builder.Services.AddFeatureFlags(builder.Configuration);
     builder.Services.AddSagaOrchestration(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();

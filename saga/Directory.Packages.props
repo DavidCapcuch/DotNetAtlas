@@ -50,6 +50,8 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.0" />
+    <!-- Feature flags (ADR-0014) -->
+    <PackageVersion Include="OpenFeature" Version="2.12.0" />
     <!-- Test framework packages -->
     <PackageVersion Include="xunit.v3" Version="3.0.1" />
     <PackageVersion Include="xunit.analyzers" Version="1.24.0" />

@@ -4,6 +4,7 @@ using Checkout.Sagas;
 using Inventory.Reservations;
 using MassTransit;
 using Microsoft.Extensions.Options;
+using OpenFeature;
 using Ordering.Orders;
 using Payments.Transactions;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -30,15 +31,19 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga;
 /// M4 landed the event-driven cells of the § 4 transition table. M5 wires the five
 /// timeout schedules (<c>OrderCreation</c>/<c>StockReservation</c>/<c>Payment</c>/
 /// <c>OrderConfirmation</c>/<c>Compensation</c> per § 7) and the timeout-driven cells of
-/// the § 3 transition table (<c>*Timeout.Received</c> rows). Feature-flag wiring
-/// (ADR-0014, <c>checkout.payment-then-stock</c>) is deferred to M8; this file ships only
-/// the default OFF (stock-then-payment) path.
+/// the § 3 transition table (<c>*Timeout.Received</c> rows). M8 wires the
+/// <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/> flag (ADR-0014): on
+/// <c>OrderCreatedSagaEvent</c> the orchestrator reads the flag via <see cref="IFeatureClient"/>
+/// and branches between the default OFF (stock-then-payment) path and an experimental ON
+/// (payment-then-stock) path. The ON path is intentionally not validated end-to-end in v1
+/// per ADR-0014 line 116 — see the flag's XML doc for the limits.
 /// </remarks>
 public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutSagaState>
 {
     private readonly SagaOptions _sagaOptions;
     private readonly SagaTopicsOptions _topicsOptions;
     private readonly TimeProvider _timeProvider;
+    private readonly IFeatureClient _featureClient;
 
     // Happy path states (Initial is MassTransit-implicit)
     public State AwaitingOrderCreation { get; private set; }
@@ -85,11 +90,13 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     public CheckoutSagaOrchestrator(
         IOptions<SagaOptions> sagaOptions,
         IOptions<SagaTopicsOptions> topicsOptions,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IFeatureClient featureClient)
     {
         _sagaOptions = sagaOptions.Value;
         _topicsOptions = topicsOptions.Value;
         _timeProvider = timeProvider;
+        _featureClient = featureClient;
 
         InstanceState(sagaState => sagaState.CurrentState);
 
@@ -145,7 +152,12 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// AwaitingOrderCreation - § 4 rows 2-3. The OrderCreationTimeout-driven row (4) is M5.
+    /// AwaitingOrderCreation - § 4 rows 2-3 + the OrderCreationTimeout-driven row (4).
+    /// On <c>OrderCreatedSagaEvent</c> the orchestrator reads
+    /// <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/> via <see cref="IFeatureClient"/>
+    /// and branches: OFF (default per ADR-0004) initialises stock-reservation tracking and fans
+    /// out <c>ReserveStockCommand</c>; ON (experimental, ADR-0014 line 116) skips reservation,
+    /// publishes <c>PaymentRequestedEvent</c>, and transitions to <c>AwaitingPayment</c>.
     /// </summary>
     private void ConfigureAwaitingOrderCreationState()
     {
@@ -157,56 +169,96 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     var message = ctx.Message;
                     saga.OrderId = message.OrderId;
                     saga.OrderCreatedAtUtc = message.OrderCreatedAtUtc;
-
-                    // § 5.2 fan-out: initialise tracking with one Pending entry per distinct ProductId.
-                    var items = DeserializeBasketItems(saga.BasketSnapshotJson);
-                    var productGroups = GroupItems(items);
-
-                    var tracking = productGroups.ToDictionary(
-                        g => g.ProductId,
-                        _ => new ReservationTracking(
-                            Status: ReservationStatus.Pending,
-                            ReservationId: Guid.CreateVersion7(),
-                            ReservedAtUtc: null,
-                            ExpiresAtUtc: null));
-
-                    saga.ReservationIdsJson = JsonSerializer.Serialize(tracking);
-                    saga.ExpectedReservations = productGroups.Length;
-                    saga.PendingReservations = productGroups.Length;
-                    saga.StockReservationStartedAtUtc = _timeProvider.GetUtcNow();
                 })
                 .Activity(x => x.OfType<OrderCreatedActivity>())
                 .Unschedule(OrderCreationTimeout)
-                .Then(ctx =>
+                // ADR-0014: read the topology-swap flag once and stash on the [NotMapped]
+                // PaymentThenStockEnabled property. ThenAsync (NOT Then) — Then's only
+                // overload is Action&lt;BehaviorContext&gt;, which binds an async lambda as
+                // async-void and would let the IfElse predicate run before the await
+                // completes under any provider that genuinely awaits I/O (LaunchDarkly /
+                // Split / ConfigCat). The InMemory provider used by Platform.ServiceDefaults
+                // happens to complete synchronously which would mask the bug at test time.
+                .ThenAsync(async ctx =>
                 {
-                    var (dbContext, outboxWriter) = GetOutboxDependencies(ctx);
-                    var saga = ctx.Saga;
-                    var tracking = DeserializeTracking(saga.ReservationIdsJson);
-                    var items = DeserializeBasketItems(saga.BasketSnapshotJson);
-                    var productGroups = GroupItems(items);
-
-                    foreach (var group in productGroups)
-                    {
-                        var reservationId = tracking[group.ProductId].ReservationId!.Value;
-                        var command = new ReserveStockCommand
-                        {
-                            CorrelationId = saga.CorrelationId,
-                            OrderId = saga.OrderId!.Value,
-                            ProductId = group.ProductId,
-                            ReservationId = reservationId,
-                            Quantity = group.TotalQuantity,
-                            RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-                        };
-                        outboxWriter.AddOutboxMessage(
-                            dbContext,
-                            _topicsOptions.InventoryReservationCommands,
-                            group.ProductId.ToString(),
-                            command);
-                    }
+                    ctx.Saga.PaymentThenStockEnabled = await _featureClient.GetBooleanValueAsync(
+                        CheckoutSagaFeatureFlags.PaymentThenStock,
+                        defaultValue: false,
+                        cancellationToken: ctx.CancellationToken);
                 })
-                .Schedule(StockReservationTimeout,
-                    ctx => new StockReservationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
-                .TransitionTo(AwaitingStockReservation),
+                .IfElse(
+                    ctx => ctx.Saga.PaymentThenStockEnabled,
+                    paymentFirst => paymentFirst
+                        // === ON branch (experimental, intentionally not validated end-to-end in v1
+                        // per ADR-0014 line 116; see CheckoutSagaFeatureFlags.PaymentThenStock for
+                        // limits). Skips stock reservation entirely; downstream AwaitingPayment
+                        // handlers still assume stock has been reserved, so a happy-path under this
+                        // branch is unsupported until the alternative topology is wired in a future
+                        // milestone.
+                        .Then(ctx =>
+                        {
+                            ctx.Saga.PaymentRequestedAtUtc = _timeProvider.GetUtcNow();
+                        })
+                        .PublishToOutbox(
+                            _topicsOptions.PaymentsPayments,
+                            ctx => ctx.Saga.CorrelationId.ToString(),
+                            ctx => BuildPaymentRequestedEvent(ctx.Saga))
+                        .Schedule(PaymentTimeout,
+                            ctx => new PaymentTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                        .TransitionTo(AwaitingPayment),
+                    stockFirst => stockFirst
+                        // === OFF branch (default per ADR-0004) — stock-then-payment.
+                        .Then(ctx =>
+                        {
+                            var saga = ctx.Saga;
+
+                            // § 5.2 fan-out: initialise tracking with one Pending entry per distinct ProductId.
+                            var items = DeserializeBasketItems(saga.BasketSnapshotJson);
+                            var productGroups = GroupItems(items);
+
+                            var tracking = productGroups.ToDictionary(
+                                g => g.ProductId,
+                                _ => new ReservationTracking(
+                                    Status: ReservationStatus.Pending,
+                                    ReservationId: Guid.CreateVersion7(),
+                                    ReservedAtUtc: null,
+                                    ExpiresAtUtc: null));
+
+                            saga.ReservationIdsJson = JsonSerializer.Serialize(tracking);
+                            saga.ExpectedReservations = productGroups.Length;
+                            saga.PendingReservations = productGroups.Length;
+                            saga.StockReservationStartedAtUtc = _timeProvider.GetUtcNow();
+                        })
+                        .Then(ctx =>
+                        {
+                            var (dbContext, outboxWriter) = GetOutboxDependencies(ctx);
+                            var saga = ctx.Saga;
+                            var tracking = DeserializeTracking(saga.ReservationIdsJson);
+                            var items = DeserializeBasketItems(saga.BasketSnapshotJson);
+                            var productGroups = GroupItems(items);
+
+                            foreach (var group in productGroups)
+                            {
+                                var reservationId = tracking[group.ProductId].ReservationId!.Value;
+                                var command = new ReserveStockCommand
+                                {
+                                    CorrelationId = saga.CorrelationId,
+                                    OrderId = saga.OrderId!.Value,
+                                    ProductId = group.ProductId,
+                                    ReservationId = reservationId,
+                                    Quantity = group.TotalQuantity,
+                                    RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+                                };
+                                outboxWriter.AddOutboxMessage(
+                                    dbContext,
+                                    _topicsOptions.InventoryReservationCommands,
+                                    group.ProductId.ToString(),
+                                    command);
+                            }
+                        })
+                        .Schedule(StockReservationTimeout,
+                            ctx => new StockReservationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                        .TransitionTo(AwaitingStockReservation)),
             When(OrderFailedEvent)
                 .Then(ctx =>
                 {
@@ -289,17 +341,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPayments,
                             ctx => ctx.Saga.CorrelationId.ToString(),
-                            ctx => new PaymentRequestedEvent
-                            {
-                                CorrelationId = ctx.Saga.CorrelationId,
-                                OrderId = ctx.Saga.OrderId!.Value,
-                                UserId = ctx.Saga.UserId,
-                                PaymentMethodId = ctx.Saga.PaymentMethodId,
-                                Amount = ctx.Saga.TotalAmount.ToAvroDecimal(4),
-                                Currency = ctx.Saga.Currency,
-                                IdempotencyKey = ctx.Saga.CorrelationId.ToString(),
-                                RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-                            })
+                            ctx => BuildPaymentRequestedEvent(ctx.Saga))
                         .Schedule(PaymentTimeout,
                             ctx => new PaymentTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
                         .TransitionTo(AwaitingPayment),
@@ -943,6 +985,25 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         State = snapshot.State!,
         PostalCode = snapshot.PostalCode,
         CountryCode = snapshot.CountryCode
+    };
+
+    /// <summary>
+    /// Builds the <see cref="PaymentRequestedEvent"/> emitted on the AwaitingPayment-bound
+    /// transitions. Shared between the OFF (post-stock-reservation) path and the experimental
+    /// ON (payment-then-stock, ADR-0014) path so both branches stay in lockstep on payload shape.
+    /// Idempotency-key = correlation-id (per ADR-0008 the correlation id is the workflow-stable
+    /// key threaded through every downstream command).
+    /// </summary>
+    private PaymentRequestedEvent BuildPaymentRequestedEvent(CheckoutSagaState saga) => new()
+    {
+        CorrelationId = saga.CorrelationId,
+        OrderId = saga.OrderId!.Value,
+        UserId = saga.UserId,
+        PaymentMethodId = saga.PaymentMethodId,
+        Amount = saga.TotalAmount.ToAvroDecimal(4),
+        Currency = saga.Currency,
+        IdempotencyKey = saga.CorrelationId.ToString(),
+        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
     };
 
     private static CheckoutCompletedEvent BuildCheckoutCompletedEvent(CheckoutSagaState saga) => new()
