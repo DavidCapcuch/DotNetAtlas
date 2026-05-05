@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Platform.SharedKernel.Base;
 using SagaOrchestrators.Common.SagaAbstractions;
 
@@ -184,6 +185,18 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     /// Name of the state when failure first occurred. Aids ops forensics.
     /// </summary>
     public string? FailedAtState { get; set; }
+
+    // — Transient (in-memory only) state —
+
+    /// <summary>
+    /// Captured value of <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/> for the current
+    /// consume of <c>OrderCreatedSagaEvent</c>. <see cref="NotMappedAttribute"/> — EF Core does not
+    /// persist this; it is read once via <c>IFeatureClient</c> and consumed inside the same
+    /// <c>IfElse</c> branch within one MassTransit transition. After <c>TransitionTo</c> we never
+    /// need the value again, so non-persistence is safe.
+    /// </summary>
+    [NotMapped]
+    public bool PaymentThenStockEnabled { get; set; }
 
     // — Timeout tokens (MassTransit scheduler) —
 

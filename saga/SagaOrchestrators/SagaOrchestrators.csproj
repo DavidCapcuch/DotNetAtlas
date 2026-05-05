@@ -33,6 +33,9 @@
         <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
+        <!-- Feature flags (ADR-0014) -->
+        <PackageReference Include="OpenFeature" />
+
         <!-- Analyzers -->
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
