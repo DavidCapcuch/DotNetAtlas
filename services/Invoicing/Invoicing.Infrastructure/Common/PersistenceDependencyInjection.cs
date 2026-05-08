@@ -3,6 +3,7 @@ using Invoicing.Application.Common.Data;
 using Invoicing.Application.Common.Numbering;
 using Invoicing.Infrastructure.Common.Config;
 using Invoicing.Infrastructure.Persistence.Database;
+using Invoicing.Infrastructure.Persistence.Database.Interceptors;
 using Invoicing.Infrastructure.Persistence.Numbering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -37,6 +38,12 @@ internal static class PersistenceDependencyInjection
             .GetRequiredSection(EfCoreOptions.Section)
             .Get<EfCoreOptions>()!;
 
+        // M7 — DispatchDomainEventsInterceptor must run in the same DI scope as the DbContext
+        // so that outbox publishers (which inject ITransactionalOutbox<InvoicingDbContext>)
+        // resolve to the same scoped UoW the aggregate save commits. See the interceptor's
+        // class doc for why this matters for transactional reliability.
+        services.AddScoped<DispatchDomainEventsInterceptor>();
+
         // EnableRetryOnFailure is intentionally NOT applied here. The gap-free
         // allocator pattern (ADR-0018) requires the IssueInvoice / IssueCreditNote
         // handlers to own the transaction via Database.BeginTransactionAsync —
@@ -45,7 +52,7 @@ internal static class PersistenceDependencyInjection
         // the outbox-relay retry loop (the external event re-publishes on retry;
         // a half-issued invoice is impossible because the FOR UPDATE row lock +
         // SaveChangesAsync commit are atomic with the outbox row insert).
-        services.AddDbContext<InvoicingDbContext>((_, options) => options
+        services.AddDbContext<InvoicingDbContext>((sp, options) => options
             .UseNpgsql(
                 configuration.GetConnectionString(nameof(ConnectionStringsOptions.Invoicing)),
                 npgsqlOptions =>
@@ -61,7 +68,8 @@ internal static class PersistenceDependencyInjection
             .UseSnakeCaseNamingConvention()
             .EnableSensitiveDataLogging(!isDeployedEnvironment)
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
-            .UseExceptionProcessor());
+            .UseExceptionProcessor()
+            .AddInterceptors(sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
 
         services.AddScoped<IInvoicingDbContext>(sp => sp.GetRequiredService<InvoicingDbContext>());
         services.AddScoped<IInvoiceNumberAllocator, PostgresInvoiceNumberAllocator>();

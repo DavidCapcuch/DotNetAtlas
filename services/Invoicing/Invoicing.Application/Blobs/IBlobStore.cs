@@ -1,18 +1,20 @@
 using Invoicing.Domain.Common.ValueObjects;
 
-namespace Invoicing.Infrastructure.Blobs;
+namespace Invoicing.Application.Blobs;
 
 /// <summary>
 /// Abstraction over blob storage per ADR-0017. Production targets Azure Blob Storage;
-/// local dev + integration tests run against Azurite. The implementation uses the
-/// <c>Azure.Storage.Blobs</c> SDK directly (one infrastructure consumer so the v1
-/// abstraction lives here; promoted to <c>Platform.BlobStorage.*</c> only when a
-/// second BC needs it per ADR-0017 \u00a7 Implementation Notes).
+/// local dev + integration tests run against Azurite. The implementation in
+/// <c>Invoicing.Infrastructure.Blobs.AzureBlobStore</c> uses the <c>Azure.Storage.Blobs</c>
+/// SDK directly (single infrastructure consumer; promoted to <c>Platform.BlobStorage.*</c>
+/// only when a second BC needs it per ADR-0017 \u00a7 Implementation Notes).
 /// </summary>
 /// <remarks>
 /// Architecture rule (ADR-0017 \u00a7 IBlobStore abstraction): Application and Domain layers
 /// must go through this interface and never reference <c>Azure.Storage.Blobs</c> directly.
-/// Enforced by architecture test in M9.
+/// Enforced by architecture test in M9. The interface lives in the Application layer (M7
+/// move) so command handlers can inject it without depending on Infrastructure-namespace
+/// types.
 /// </remarks>
 public interface IBlobStore
 {

@@ -1,8 +1,10 @@
 using System.Text.Json;
 using Invoicing.Application.Common.Data;
+using Invoicing.Application.Invoices.IssueInvoice;
 using Invoicing.Application.Invoices.Projections;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
+using Platform.CQRS;
 using AvroPaymentCapturedEvent = Payments.Transactions.PaymentCapturedEvent;
 
 namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -11,28 +13,31 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// Inbound consumer for Payments' <c>PaymentCapturedEvent</c> on
 /// <c>payments.transactions</c>. Upserts a <see cref="PendingInvoice"/> row
 /// keyed on <c>CorrelationId</c>, populating the payment half. When the
-/// order half is already present, marks the row converged via
-/// <see cref="PendingInvoice.CompletedAtUtc"/>.
+/// order half is already present, marks the row converged AND dispatches
+/// M7's <see cref="IssueInvoiceCommand"/> in the same inbox transaction.
 /// </summary>
 /// <remarks>
 /// Mirror of <see cref="OrderConfirmedInvoiceProjectionKafkaHandler"/> for
 /// the other half of the convergence pair. Same idempotency guarantees
 /// (inbox dedup on <c>MessageId</c>; payment-half no-op on same-CorrelationId
-/// re-arrival).
+/// re-arrival; M7 command idempotent on <c>IssuedInvoiceId</c>).
 /// </remarks>
 internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
     : IMessageHandler<AvroPaymentCapturedEvent>
 {
     private readonly IInvoicingDbContext _db;
+    private readonly ICommandHandler<IssueInvoiceCommand, Guid> _issueInvoiceHandler;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PaymentCapturedInvoiceProjectionKafkaHandler> _logger;
 
     public PaymentCapturedInvoiceProjectionKafkaHandler(
         IInvoicingDbContext db,
+        ICommandHandler<IssueInvoiceCommand, Guid> issueInvoiceHandler,
         TimeProvider timeProvider,
         ILogger<PaymentCapturedInvoiceProjectionKafkaHandler> logger)
     {
         _db = db;
+        _issueInvoiceHandler = issueInvoiceHandler;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -64,6 +69,7 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             },
             ct);
 
+        var convergedNow = false;
         if (!isNew)
         {
             if (row.PaymentId is not null)
@@ -80,6 +86,7 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             if (row.OrderId is not null && row.CompletedAtUtc is null)
             {
                 row.CompletedAtUtc = now;
+                convergedNow = true;
             }
         }
 
@@ -89,6 +96,21 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             "PaymentCapturedEvent projected (IsNew={IsNew}, Converged={Converged})",
             isNew,
             row.CompletedAtUtc is not null);
+
+        if (convergedNow)
+        {
+            // M7 — see OrderConfirmedInvoiceProjectionKafkaHandler for the convergence
+            // dispatch rationale (inbox-transaction join + idempotent M7 handler).
+            var result = await _issueInvoiceHandler.HandleAsync(
+                new IssueInvoiceCommand { CorrelationId = message.CorrelationId },
+                ct);
+            if (result.IsFailed)
+            {
+                throw new InvalidOperationException(
+                    $"IssueInvoiceCommand failed after convergence on CorrelationId {message.CorrelationId}: "
+                        + string.Join("; ", result.Errors.Select(e => e.Message)));
+            }
+        }
     }
 
     private static string SerializePayload(AvroPaymentCapturedEvent message)

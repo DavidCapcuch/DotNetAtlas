@@ -9,32 +9,70 @@ namespace Invoicing.Domain.Common.ValueObjects;
 /// One line on an invoice / credit note. Immutable; frozen at issuance (I-2 non-empty; I-4 immutable).
 /// </summary>
 /// <remarks>
+/// <para>
 /// For credit notes, quantities remain positive but <see cref="LineTotal"/> and
-/// <see cref="UnitPrice"/> carry the opposite sign (constructed via primary ctor, bypassing
-/// <see cref="Money.Create"/>'s positivity check since the domain intent is known).
+/// <see cref="UnitPrice"/> carry the opposite sign (constructed via primary <see cref="Money"/>
+/// ctor, bypassing <see cref="Money.Create"/>'s positivity check since the domain intent is known).
+/// </para>
+/// <para>
+/// Authored as a non-positional record so EF Core can materialise it through the parameterless
+/// constructor and set the owned <see cref="Money"/> navigations via <c>private init</c>
+/// setters. Positional records emit a primary constructor whose owned-navigation parameters
+/// EF rejects.
+/// </para>
 /// </remarks>
-/// <param name="LineNumber">Position on the document (1-based).</param>
-/// <param name="Sku">Product identifier snapshot from Catalog.</param>
-/// <param name="Description">Human-readable line description.</param>
-/// <param name="Quantity">Units on this line (always &gt; 0).</param>
-/// <param name="UnitPrice">Price per unit; positive on invoice, negative on credit note.</param>
-/// <param name="LineTotal">Line total (<see cref="UnitPrice"/> \u00d7 <see cref="Quantity"/>).</param>
-/// <param name="VatRate">Applicable VAT rate.</param>
-public sealed record InvoiceLine(
-    int LineNumber,
-    Sku Sku,
-    string Description,
-    int Quantity,
-    Money UnitPrice,
-    Money LineTotal,
-    VatRate VatRate) : ValueObject
+public sealed record InvoiceLine : ValueObject
 {
     public const int MaxDescriptionLength = 500;
+
+    /// <summary>Position on the document (1-based).</summary>
+    public int LineNumber { get; private init; }
+
+    /// <summary>Product identifier snapshot from Catalog.</summary>
+    public Sku Sku { get; private init; } = null!;
+
+    /// <summary>Human-readable line description.</summary>
+    public string Description { get; private init; } = null!;
+
+    /// <summary>Units on this line (always &gt; 0).</summary>
+    public int Quantity { get; private init; }
+
+    /// <summary>Price per unit; positive on invoice, negative on credit note.</summary>
+    public Money UnitPrice { get; private init; } = null!;
+
+    /// <summary>Line total (<see cref="UnitPrice"/> × <see cref="Quantity"/>).</summary>
+    public Money LineTotal { get; private init; } = null!;
+
+    /// <summary>Applicable VAT rate.</summary>
+    public VatRate VatRate { get; private init; } = null!;
+
+    // EF Core materialisation ctor.
+    private InvoiceLine()
+    {
+    }
+
+    private InvoiceLine(
+        int lineNumber,
+        Sku sku,
+        string description,
+        int quantity,
+        Money unitPrice,
+        Money lineTotal,
+        VatRate vatRate)
+    {
+        LineNumber = lineNumber;
+        Sku = sku;
+        Description = description;
+        Quantity = quantity;
+        UnitPrice = unitPrice;
+        LineTotal = lineTotal;
+        VatRate = vatRate;
+    }
 
     /// <summary>
     /// Creates a validated <see cref="InvoiceLine"/> for use on an <c>Invoice</c> aggregate
     /// (all amounts strictly positive; <see cref="LineTotal"/> == <see cref="UnitPrice"/>
-    /// \u00d7 <see cref="Quantity"/>).
+    /// × <see cref="Quantity"/>).
     /// </summary>
     public static Result<InvoiceLine> Create(
         int lineNumber,
@@ -58,7 +96,7 @@ public sealed record InvoiceLine(
         {
             return Result.Fail<InvoiceLine>(new ValidationError(
                 nameof(description),
-                $"Description is required and must be \u2264 {MaxDescriptionLength} chars.",
+                $"Description is required and must be ≤ {MaxDescriptionLength} chars.",
                 "Invoicing.InvalidLineDescription"));
         }
 
@@ -75,7 +113,7 @@ public sealed record InvoiceLine(
     /// <summary>
     /// Produces the mirror of this line for a credit note (signs flipped on both
     /// <see cref="UnitPrice"/> and <see cref="LineTotal"/>). Uses the primary <see cref="Money"/>
-    /// constructor to bypass the positivity check \u2014 intent is explicit.
+    /// constructor to bypass the positivity check — intent is explicit.
     /// </summary>
     public InvoiceLine WithFlippedSign()
     {

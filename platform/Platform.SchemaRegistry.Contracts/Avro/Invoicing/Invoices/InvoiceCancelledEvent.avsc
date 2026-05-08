@@ -1,0 +1,53 @@
+{
+    "type": "record",
+    "name": "InvoiceCancelledEvent",
+    "namespace": "Invoicing.Invoices",
+    "doc": "Emitted when an Invoice transitions Issued|Delivered -> Cancelled because the order was cancelled-after-capture and a CreditNote was issued. Carries the reversing CreditNoteId so downstream consumers (Notifications, BFF cache) can correlate the cancellation with the corresponding CreditNoteIssuedEvent.",
+    "fields": [
+        {
+            "name": "InvoiceId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the Invoice aggregate that was cancelled."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Buyer of the cancelled invoice. Used as the Kafka partition key on 'invoicing.invoices'."
+        },
+        {
+            "name": "CancelledAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the invoice transitioned to Cancelled."
+        },
+        {
+            "name": "Reason",
+            "type": "string",
+            "doc": "CreditNoteReason SmartEnum name explaining why the invoice was cancelled (v1: 'OrderCancelled')."
+        },
+        {
+            "name": "CreditNoteId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the reversing CreditNote (Invoice invariant I-6). Cancellation always pairs with a credit note issuance."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id of the cancellation flow."
+        }
+    ]
+}

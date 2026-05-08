@@ -1,3 +1,4 @@
+using Invoicing.Application.Common.Messaging;
 using Invoicing.Infrastructure.Messaging.Kafka.Config;
 using Invoicing.Infrastructure.Messaging.Kafka.Projections;
 using Invoicing.Infrastructure.Persistence.Database;
@@ -13,6 +14,7 @@ using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
 using Platform.ReliableMessaging.Inbox.EFCore.Common;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 using AvroOrderConfirmedEvent = Ordering.Orders.OrderConfirmedEvent;
 using AvroPaymentCapturedEvent = Payments.Transactions.PaymentCapturedEvent;
@@ -50,10 +52,10 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<InvoicingTopicsOptions>()
-            .BindConfiguration(InvoicingTopicsOptions.Section)
-            .ValidateDataAnnotations();
-
+        // InvoicingTopicsOptions registration moved to AddInvoicingApplication (M7) so the
+        // outbox publishers in the Application layer can read it without depending on
+        // Infrastructure-namespace types. Consumer setup below binds it directly from
+        // configuration to extract topic names at startup.
         services.AddOptionsWithValidateOnStart<OrderingOrdersConsumerOptions>()
             .BindConfiguration(OrderingOrdersConsumerOptions.Section)
             .ValidateDataAnnotations();
@@ -140,6 +142,26 @@ internal static class MessagingDependencyInjection
             .AddOpenTelemetryInstrumentation());
 
         services.AddInbox<InvoicingDbContext>();
+
+        // M7 — transactional outbox for InvoiceIssuedEvent / InvoiceCancelledEvent /
+        // CreditNoteIssuedEvent. The outbox-relay-invoicing container reads from
+        // invoicing.OutboxMessages and publishes to invoicing.invoices using the
+        // Avro serializer + schema-registry settings bound from Kafka:* below;
+        // the relay's OUTBOX_MESSAGE_ORIGIN env var must agree with KafkaProducerOrigin.
+        services.AddOutbox(outbox =>
+        {
+            outbox.ConfigureMessageOrigin(KafkaProducerOrigin);
+
+            outbox.ConfigureAvroSerializerConfig(options =>
+            {
+                configuration.Bind(AvroSerializerOptions.Section, options);
+            });
+
+            outbox.ConfigureSchemaRegistryConfig(options =>
+            {
+                configuration.Bind(SchemaRegistryOptions.Section, options);
+            });
+        });
 
         return services;
     }

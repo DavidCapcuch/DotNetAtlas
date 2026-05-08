@@ -129,31 +129,104 @@ public sealed class CreditNote : AggregateRoot<Guid>
     }
 
     /// <summary>
+    /// Stamps the gap-free <see cref="CreditNoteNumber"/> on a credit note that has not
+    /// yet been issued, without raising domain events. Used by the M7 command handler so
+    /// the PDF renderer can include the number on its first pass — the
+    /// <see cref="PdfBlobRef"/> only lands after upload, but the renderer needs the number
+    /// embedded in the document. The number is immutable post-allocation per I-CN-3.
+    /// </summary>
+    public void AssignCreditNoteNumber(CreditNoteNumber creditNoteNumber)
+    {
+        ArgumentNullException.ThrowIfNull(creditNoteNumber);
+
+        if (CreditNoteNumber is not null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteNumberAlreadyAssigned",
+                "CreditNoteNumber is immutable once assigned (I-CN-3).");
+        }
+
+        if (PdfBlobRef is not null)
+        {
+            // PdfBlobRef set without a number is a corrupted construction — the M7 handler
+            // should always assign the number first. Surface as bug-class.
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteAlreadyIssued",
+                "CreditNote already has a PDF stamped; cannot retrofit a number.");
+        }
+
+        CreditNoteNumber = creditNoteNumber;
+    }
+
+    /// <summary>
     /// Stamps the gap-free <see cref="CreditNoteNumber"/> (ADR-0018) and the stored PDF
     /// reference, confirming the <c>Issued</c> state. Raises
     /// <see cref="CreditNoteIssuedDomainEvent"/>.
     /// </summary>
+    /// <remarks>
+    /// Convenience overload that composes <see cref="AssignCreditNoteNumber"/> + the
+    /// no-number <see cref="Issue(PdfBlobRef, DateTimeOffset)"/>. Use the split form in
+    /// M7's command handler when the PDF must render with the number embedded.
+    /// </remarks>
     public Result Issue(CreditNoteNumber creditNoteNumber, PdfBlobRef pdfBlobRef, DateTimeOffset utcNow)
     {
         ArgumentNullException.ThrowIfNull(creditNoteNumber);
         ArgumentNullException.ThrowIfNull(pdfBlobRef);
 
-        // Only permit the stamp when the aggregate has not yet been fully issued.
-        if (CreditNoteNumber is not null || PdfBlobRef is not null)
+        // If the aggregate already has a stamped PDF, the issuance is complete — reject
+        // before any further mutation, preserving I-CN-3 (number immutable) + the
+        // write-once PdfBlobRef contract.
+        if (PdfBlobRef is not null)
         {
             throw new DataIntegrityException(
                 "Invoicing.CreditNoteAlreadyIssued",
                 "CreditNote has already been issued (number + PDF stamped).");
         }
 
-        CreditNoteNumber = creditNoteNumber;
+        if (CreditNoteNumber is null)
+        {
+            AssignCreditNoteNumber(creditNoteNumber);
+        }
+        else if (!CreditNoteNumber.Equals(creditNoteNumber))
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteNumberMismatchOnIssue",
+                "CreditNoteNumber passed to Issue does not match the previously-assigned number (I-CN-3).");
+        }
+
+        return Issue(pdfBlobRef, utcNow);
+    }
+
+    /// <summary>
+    /// Stamps the PDF reference using the previously-assigned
+    /// <see cref="CreditNoteNumber"/>. Raises <see cref="CreditNoteIssuedDomainEvent"/>.
+    /// Requires <see cref="AssignCreditNoteNumber"/> to have been called.
+    /// </summary>
+    public Result Issue(PdfBlobRef pdfBlobRef, DateTimeOffset utcNow)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBlobRef);
+
+        if (CreditNoteNumber is null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.IssueWithoutCreditNoteNumber",
+                "Issue requires a CreditNoteNumber — call AssignCreditNoteNumber first.");
+        }
+
+        if (PdfBlobRef is not null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteAlreadyIssued",
+                "CreditNote has already been issued (PDF stamped).");
+        }
+
         PdfBlobRef = pdfBlobRef;
         IssueDate = utcNow;
 
         AddDomainEvent(new CreditNoteIssuedDomainEvent
         {
             CreditNoteId = Id,
-            CreditNoteNumber = creditNoteNumber,
+            CreditNoteNumber = CreditNoteNumber,
             OriginalInvoiceId = OriginalInvoiceId,
             OriginalInvoiceNumber = OriginalInvoiceNumber,
             BuyerId = BuyerId,

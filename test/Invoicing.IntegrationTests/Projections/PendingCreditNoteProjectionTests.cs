@@ -65,7 +65,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = cancelScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var cancelHandler = new OrderCancelledCreditNoteProjectionKafkaHandler(
-                db, cancelClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                cancelClock,
+                NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
             await cancelHandler.Handle(BuildContext(ct), cancelEvent);
         }
@@ -90,7 +93,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = refundScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var refundHandler = new PaymentRefundedCreditNoteProjectionKafkaHandler(
-                db, refundClock, NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                refundClock,
+                NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await refundHandler.Handle(
                 BuildContext(ct),
@@ -131,7 +137,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = refundScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var refundHandler = new PaymentRefundedCreditNoteProjectionKafkaHandler(
-                db, refundClock, NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                refundClock,
+                NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await refundHandler.Handle(
                 BuildContext(ct),
@@ -160,7 +169,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = cancelScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var cancelHandler = new OrderCancelledCreditNoteProjectionKafkaHandler(
-                db, cancelClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                cancelClock,
+                NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
             await cancelHandler.Handle(BuildContext(ct), cancelEvent);
         }
@@ -179,7 +191,7 @@ public sealed class PendingCreditNoteProjectionTests
             AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
             converged.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
             converged.CompletedAtUtc.Should().Be(cancelClock.GetUtcNow());
-            converged.IssuedCreditNoteId.Should().BeNull();
+            converged.IssuedCreditNoteId.Should().BeNull("M7 stub does not mutate IssuedCreditNoteId");
         }
     }
 
@@ -198,7 +210,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = firstScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new PaymentRefundedCreditNoteProjectionKafkaHandler(
-                db, firstClock, NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                firstClock,
+                NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(
                 BuildContext(ct),
@@ -209,7 +224,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = secondScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new PaymentRefundedCreditNoteProjectionKafkaHandler(
-                db, secondClock, NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                secondClock,
+                NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(
                 BuildContext(ct),
@@ -254,7 +272,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = firstScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new OrderCancelledCreditNoteProjectionKafkaHandler(
-                db, firstClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                firstClock,
+                NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(BuildContext(ct), firstEvent);
         }
@@ -263,7 +284,10 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = secondScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new OrderCancelledCreditNoteProjectionKafkaHandler(
-                db, secondClock, NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueCreditNoteHandler(),
+                secondClock,
+                NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(BuildContext(ct), secondEvent);
         }

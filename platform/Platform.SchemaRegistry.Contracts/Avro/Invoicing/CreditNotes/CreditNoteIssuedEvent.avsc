@@ -1,0 +1,93 @@
+{
+    "type": "record",
+    "name": "CreditNoteIssuedEvent",
+    "namespace": "Invoicing.CreditNotes",
+    "doc": "Emitted when a CreditNote is issued (number allocated, PDF stored). Reverses a prior Invoice's totals with negative line amounts. Consumed by Notifications (email with PDF URL) and BFF (cache warm).",
+    "fields": [
+        {
+            "name": "CreditNoteId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the CreditNote aggregate."
+        },
+        {
+            "name": "CreditNoteNumber",
+            "type": "string",
+            "doc": "Gap-free human-readable credit-note number, format CN-YYYY-NNNNNN. Separate sequence from invoice numbers per ADR-0018."
+        },
+        {
+            "name": "OriginalInvoiceId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Identifier of the Invoice this credit note reverses."
+        },
+        {
+            "name": "OriginalInvoiceNumber",
+            "type": "string",
+            "doc": "Snapshot of the original Invoice's number for PDF rendering and accounting reconciliation."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Buyer of the original invoice (and therefore the credit note). Kafka partition key on 'invoicing.invoices'."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id of the cancellation flow that triggered this credit note."
+        },
+        {
+            "name": "IssueDate",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the credit note was issued (number stamped + PDF uploaded)."
+        },
+        {
+            "name": "Total",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Negated total of the original Invoice (Invariant I-CN-2: strictly negative). Currency is in the Currency field."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code (matches the original Invoice's currency)."
+        },
+        {
+            "name": "Reason",
+            "type": "string",
+            "doc": "CreditNoteReason SmartEnum name (v1: 'OrderCancelled'; v2 adds 'PartialRefund', 'Adjustment')."
+        },
+        {
+            "name": "PdfBlobUri",
+            "type": "string",
+            "doc": "Absolute URI of the rendered credit-note PDF (presigned SAS URL). Same opacity rules as InvoiceIssuedEvent.PdfBlobUri."
+        },
+        {
+            "name": "PdfContentHash",
+            "type": "string",
+            "doc": "SHA-256 of the PDF bytes, lowercase hex (64 chars)."
+        },
+        {
+            "name": "PdfSizeBytes",
+            "type": "long",
+            "doc": "Size of the PDF blob in bytes (>0)."
+        }
+    ]
+}

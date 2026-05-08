@@ -1,8 +1,10 @@
 using System.Text.Json;
 using Invoicing.Application.Common.Data;
+using Invoicing.Application.CreditNotes.IssueCreditNote;
 using Invoicing.Application.CreditNotes.Projections;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
+using Platform.CQRS;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 
 namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -11,8 +13,8 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// Inbound consumer for Ordering's <c>OrderCancelledEvent</c> on
 /// <c>ordering.orders</c>. Upserts a <see cref="PendingCreditNote"/> row
 /// keyed on <c>CorrelationId</c>, populating the order-cancel half. When
-/// the refund half is already present, marks the row converged via
-/// <see cref="PendingCreditNote.CompletedAtUtc"/>.
+/// the refund half is already present, marks the row converged AND dispatches
+/// M7's <see cref="IssueCreditNoteCommand"/> in the same inbox transaction.
 /// </summary>
 /// <remarks>
 /// Same convergence + idempotency contract as
@@ -23,15 +25,18 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
     : IMessageHandler<AvroOrderCancelledEvent>
 {
     private readonly IInvoicingDbContext _db;
+    private readonly ICommandHandler<IssueCreditNoteCommand, Guid> _issueCreditNoteHandler;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<OrderCancelledCreditNoteProjectionKafkaHandler> _logger;
 
     public OrderCancelledCreditNoteProjectionKafkaHandler(
         IInvoicingDbContext db,
+        ICommandHandler<IssueCreditNoteCommand, Guid> issueCreditNoteHandler,
         TimeProvider timeProvider,
         ILogger<OrderCancelledCreditNoteProjectionKafkaHandler> logger)
     {
         _db = db;
+        _issueCreditNoteHandler = issueCreditNoteHandler;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -66,6 +71,7 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             },
             ct);
 
+        var convergedNow = false;
         if (!isNew)
         {
             if (row.OrderId is not null)
@@ -83,6 +89,7 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             if (row.PaymentId is not null && row.CompletedAtUtc is null)
             {
                 row.CompletedAtUtc = now;
+                convergedNow = true;
             }
         }
 
@@ -92,6 +99,24 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             "OrderCancelledEvent projected (IsNew={IsNew}, Converged={Converged})",
             isNew,
             row.CompletedAtUtc is not null);
+
+        if (convergedNow)
+        {
+            // M7 — dispatch the credit-note issuance command inside the inbox transaction.
+            // Validation-style failures (e.g., already-cancelled invoice) come back as
+            // Result.Fail and are logged; the inbox row still commits so we don't loop.
+            // Bug-class failures throw and roll back the whole transaction.
+            var result = await _issueCreditNoteHandler.HandleAsync(
+                new IssueCreditNoteCommand { CorrelationId = message.CorrelationId },
+                ct);
+            if (result.IsFailed)
+            {
+                _logger.LogWarning(
+                    "IssueCreditNoteCommand returned Result.Fail after convergence on CorrelationId {CorrelationId}: {Errors}",
+                    message.CorrelationId,
+                    string.Join("; ", result.Errors.Select(e => e.Message)));
+            }
+        }
     }
 
     private static string SerializePayload(AvroOrderCancelledEvent message)
