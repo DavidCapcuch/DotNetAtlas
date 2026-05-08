@@ -1,10 +1,13 @@
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Payments.Domain.Transactions;
 using Payments.Domain.Transactions.ValueObjects;
 using Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 using Payments.Infrastructure.Persistence.Database;
 using Payments.IntegrationTests.Common;
+using Platform.SharedKernel.Exceptions;
+using Platform.SharedKernel.ValueObjects;
 using AvroAuthorizePaymentCommand = Payments.Transactions.AuthorizePaymentCommand;
 using AvroCapturePaymentCommand = Payments.Transactions.CapturePaymentCommand;
 using AvroPaymentAuthorizationFailedEvent = Payments.Transactions.PaymentAuthorizationFailedEvent;
@@ -33,9 +36,11 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public PaymentsKafkaConsumerIntegrationTests(IntegrationTestFixture fixture)
     {
         _fixture = fixture;
-        // Each test starts with a clean outbox capture; aggregate rows survive between tests
-        // by design — every scenario uses fresh GUIDs so collisions don't occur.
+        // Each test starts with a clean outbox capture and zeroed gateway counters; aggregate
+        // rows survive between tests by design — every scenario uses fresh GUIDs so collisions
+        // don't occur.
         _fixture.GetFakeOutbox().Clear();
+        _fixture.GetGateway().Reset();
     }
 
     [Fact]
@@ -247,6 +252,195 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             aggregate.Should().NotBeNull();
             aggregate!.Status.Should().Be(PaymentStatus.Refunded);
             outbox.HasMessage<AvroPaymentRefundedEvent>().Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public async Task Capture_WithoutPriorAuthorize_AggregateInRequested_ThrowsDataIntegrityException()
+    {
+        // Example 1.2 in docs/bc-design/example-mapping/payments.md: skipping Authorize is a
+        // saga-ordering bug. Seed an aggregate in Requested status (no GatewayTransactionId)
+        // and drive Capture directly — handler hits its
+        // `Payments.MissingGatewayTransactionId` data-integrity guard before any gateway call.
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var paymentId = correlationId;
+
+        using var scope = _fixture.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+
+        var amount = Money.Create(100m, "USD").Value;
+        var tx = PaymentTransaction.Create(
+            paymentId,
+            correlationId,
+            buyerId: Guid.CreateVersion7(),
+            orderId,
+            amount,
+            paymentMethodId: "tok_visa_4242",
+            utcNow: _fixture.FakeTime.GetUtcNow()).Value;
+
+        // Discard PaymentRequestedDomainEvent so the seed save doesn't dispatch it through the
+        // interceptor — there is no outbox publisher for it, but discarding keeps the test
+        // setup invariant explicit.
+        _ = tx.PopDomainEvents();
+        dbContext.Transactions.Add(tx);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        _fixture.GetFakeOutbox().Clear();
+        _fixture.GetGateway().Reset();
+
+        var captureHandler = scope.ServiceProvider.GetRequiredService<CapturePaymentCommandKafkaHandler>();
+
+        var avroCapture = new AvroCapturePaymentCommand
+        {
+            CorrelationId = correlationId,
+            UserId = Guid.CreateVersion7(),
+            AuthorizationId = "stub-auth-ignored",
+            Amount = new Avro.AvroDecimal(100m),
+            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+        };
+
+        var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
+            await captureHandler.Handle(
+                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                avroCapture));
+
+        var aggregateAfter = await dbContext.Transactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            thrown.ErrorCode.Should().Be("Payments.MissingGatewayTransactionId");
+            aggregateAfter.Should().NotBeNull();
+            aggregateAfter!.Status.Should().Be(PaymentStatus.Requested);
+            aggregateAfter.GatewayTransactionId.Should().BeNull();
+            _fixture.GetGateway().CaptureCount.Should().Be(0);
+            _fixture.GetFakeOutbox().GetMessages<AvroPaymentCapturedEvent>().Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task AuthorizeRetry_AggregateInFailedStatus_IsIdempotent_GatewayNotCalled_NoNewOutbox()
+    {
+        // Example 2.2 in docs/bc-design/example-mapping/payments.md: a declined aggregate is
+        // terminal; replaying the same AuthorizePaymentCommand must short-circuit before the
+        // gateway is touched and emit no new domain events / outbox rows.
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var avro = NewAvroAuthorize(correlationId, orderId, amount: 9.99m);
+
+        using var scope = _fixture.CreateScope();
+        var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
+
+        // Phase 1: drive the decline to land the aggregate in Failed and emit
+        // PaymentAuthorizationFailedEvent on the outbox.
+        await authorizeHandler.Handle(
+            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            avro);
+
+        var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var afterFirst = await dbContext.Transactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+
+        afterFirst.Should().NotBeNull();
+        afterFirst!.Status.Should().Be(PaymentStatus.Failed);
+        _fixture.GetFakeOutbox().HasMessage<AvroPaymentAuthorizationFailedEvent>().Should().BeTrue();
+
+        // Phase 2: reset spies and replay the *same* command to assert idempotency.
+        _fixture.GetFakeOutbox().Clear();
+        _fixture.GetGateway().Reset();
+
+        await authorizeHandler.Handle(
+            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            avro);
+
+        var afterRetry = await dbContext.Transactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            afterRetry.Should().NotBeNull();
+            afterRetry!.Status.Should().Be(PaymentStatus.Failed);
+            afterRetry.FailureInfo.Should().NotBeNull();
+            afterRetry.FailureInfo!.GatewayCode.Should().Be(afterFirst.FailureInfo!.GatewayCode);
+
+            _fixture.GetGateway().AuthorizeCount.Should().Be(0);
+            // Spec literal "no new outbox rows" — type-blind so a future regression that
+            // emits some unexpected event type still fails the test (Opus pre-commit reviewer
+            // recommendation).
+            _fixture.GetFakeOutbox().CapturedMessages.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task Void_AfterCapture_AggregateInCompleted_ThrowsDataIntegrityException_NoStateChange()
+    {
+        // Example 3.3 in docs/bc-design/example-mapping/payments.md: void post-capture is a
+        // saga bug-class. The aggregate FSM rejects the Completed → Voided transition with a
+        // DataIntegrityException; aggregate state and emitted events stay clean.
+        //
+        // NB — implementation/spec divergence flagged for the M8 session summary: the example
+        // mapping says "no gateway call", but VoidPaymentCommandHandler currently invokes the
+        // gateway *before* the aggregate FSM guard fires (see
+        // services/Payments/Payments.Application/Transactions/VoidPayment/VoidPaymentCommandHandler.cs:69).
+        // The test asserts the actual implementation (VoidCount == 1); reordering the guard to
+        // make the spec literally true is a candidate M4 cleanup, NOT an M8 deliverable.
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+
+        using var scope = _fixture.CreateScope();
+        var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
+        var captureHandler = scope.ServiceProvider.GetRequiredService<CapturePaymentCommandKafkaHandler>();
+        var voidHandler = scope.ServiceProvider.GetRequiredService<VoidPaymentCommandKafkaHandler>();
+
+        await authorizeHandler.Handle(
+            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            NewAvroAuthorize(correlationId, orderId, amount: 50m));
+
+        await captureHandler.Handle(
+            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            new AvroCapturePaymentCommand
+            {
+                CorrelationId = correlationId,
+                UserId = Guid.CreateVersion7(),
+                AuthorizationId = "stub-auth-ignored",
+                Amount = new Avro.AvroDecimal(50m),
+                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            });
+
+        var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var afterCapture = await dbContext.Transactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+        afterCapture.Should().NotBeNull();
+        afterCapture!.Status.Should().Be(PaymentStatus.Completed);
+
+        _fixture.GetFakeOutbox().Clear();
+        _fixture.GetGateway().Reset();
+
+        var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
+            await voidHandler.Handle(
+                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                new AvroVoidPaymentCommand
+                {
+                    CorrelationId = correlationId,
+                    UserId = Guid.CreateVersion7(),
+                    AuthorizationId = "stub-auth-ignored",
+                    Reason = "saga ordering bug — should have refunded",
+                    RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                }));
+
+        var afterVoidAttempt = await dbContext.Transactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            thrown.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
+            afterVoidAttempt.Should().NotBeNull();
+            afterVoidAttempt!.Status.Should().Be(PaymentStatus.Completed);
+            afterVoidAttempt.VoidedAtUtc.Should().BeNull();
+            _fixture.GetFakeOutbox().GetMessages<AvroPaymentVoidedEvent>().Should().BeEmpty();
+            // Gateway IS called once (handler ordering, see comment above) — surfaced for review.
+            _fixture.GetGateway().VoidCount.Should().Be(1);
         }
     }
 
