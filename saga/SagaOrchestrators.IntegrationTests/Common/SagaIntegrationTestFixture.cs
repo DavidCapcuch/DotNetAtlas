@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -92,6 +93,17 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
         await _busControl.StartAsync();
     }
 
+    /// <summary>
+    /// Cleans the saga-domain schema between [Fact]s. The MassTransit SQL transport scheduler
+    /// tables (separate schema, set up by <c>UsePostgres</c> in <c>SagaDependencyInjection</c>)
+    /// are intentionally NOT included here: armed timeouts that fire after a saga has already
+    /// finalised are silently discarded by MassTransit's default missing-instance behaviour, and
+    /// every M9/M6 test uses a fresh UUID v7 <c>CorrelationId</c> so no cross-test correlation
+    /// is possible. If a future change sets <c>OnMissingInstance(Fault)</c> on any schedule, OR
+    /// if a test ever needs to assert on transport-table state, extend
+    /// <see cref="RespawnerOptions.SchemasToInclude"/> in the constructor to also clean the
+    /// transport schema.
+    /// </summary>
     public Task ResetDatabaseAsync() => _dbContainer.CleanDataAsync();
 
     public new async ValueTask DisposeAsync()
@@ -102,10 +114,39 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
         }
 
         KafkaProducer.Dispose();
-        await base.DisposeAsync();
+
+        // M9: defensive catch of OpenFeature SDK's process-global state cleanup race. After M8
+        // wired AddFeatureFlags into the saga host, the WebApplicationFactory's host stop sequence
+        // calls HostedFeatureLifecycleService.StoppedAsync → Api.Instance.ShutdownAsync(), which
+        // closes the static EventExecutor channel. If anything in the dispose chain re-enters the
+        // shutdown (or if the channel is already closed by a prior in-process WAF instance), the
+        // ChannelWriter.Complete throws ChannelClosedException — surfaces as a Test Collection
+        // Cleanup Failure even though every test passed. Tests have already finalised their
+        // assertions; cleanup is best-effort.
+        try
+        {
+            await base.DisposeAsync();
+        }
+        catch (Exception ex) when (ContainsChannelClosedException(ex))
+        {
+            // Swallow — see comment above. Database + Kafka container cleanup still runs below.
+            // Stay loud about it so a future ChannelClosedException wrapping a different bug
+            // (i.e. one we did NOT expect) is still discoverable from the test output.
+            Console.WriteLine(
+                $"[SagaIntegrationTestFixture] Swallowed expected ChannelClosedException during dispose " +
+                $"(OpenFeature SDK static-singleton shutdown race after M8 wired AddFeatureFlags into the saga host): {ex.GetType().FullName}: {ex.Message}");
+        }
+
         await _dbContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();
     }
+
+    private static bool ContainsChannelClosedException(Exception ex) => ex switch
+    {
+        ChannelClosedException => true,
+        AggregateException agg => agg.InnerExceptions.Any(ContainsChannelClosedException),
+        _ => ex.InnerException is not null && ContainsChannelClosedException(ex.InnerException)
+    };
 
     private static SagaTopicsOptions LoadTopicsFromConfiguration()
     {

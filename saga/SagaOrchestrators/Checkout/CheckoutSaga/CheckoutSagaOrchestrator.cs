@@ -43,7 +43,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     private readonly SagaOptions _sagaOptions;
     private readonly SagaTopicsOptions _topicsOptions;
     private readonly TimeProvider _timeProvider;
-    private readonly IFeatureClient _featureClient;
 
     // Happy path states (Initial is MassTransit-implicit)
     public State AwaitingOrderCreation { get; private set; }
@@ -90,13 +89,11 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     public CheckoutSagaOrchestrator(
         IOptions<SagaOptions> sagaOptions,
         IOptions<SagaTopicsOptions> topicsOptions,
-        TimeProvider timeProvider,
-        IFeatureClient featureClient)
+        TimeProvider timeProvider)
     {
         _sagaOptions = sagaOptions.Value;
         _topicsOptions = topicsOptions.Value;
         _timeProvider = timeProvider;
-        _featureClient = featureClient;
 
         InstanceState(sagaState => sagaState.CurrentState);
 
@@ -179,9 +176,19 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 // completes under any provider that genuinely awaits I/O (LaunchDarkly /
                 // Split / ConfigCat). The InMemory provider used by Platform.ServiceDefaults
                 // happens to complete synchronously which would mask the bug at test time.
+                //
+                // M9: IFeatureClient is registered as Scoped by Platform.ServiceDefaults
+                // .AddFeatureFlags (OpenFeature SDK convention); MassTransit state machines
+                // are Singleton. Constructor-injecting IFeatureClient was a captive-dependency
+                // violation that DI-validation rejected on host startup (caught when M9
+                // integration tests first booted the WebApplicationFactory; M8 unit tests had
+                // masked it by registering a Singleton stub). Resolve per-consume from the
+                // BehaviorContext's IServiceScope payload — same pattern this orchestrator
+                // already uses for SagaDbContext + IOutboxWriter via GetOutboxDependencies.
                 .ThenAsync(async ctx =>
                 {
-                    ctx.Saga.PaymentThenStockEnabled = await _featureClient.GetBooleanValueAsync(
+                    var featureClient = GetScopedFeatureClient(ctx);
+                    ctx.Saga.PaymentThenStockEnabled = await featureClient.GetBooleanValueAsync(
                         CheckoutSagaFeatureFlags.PaymentThenStock,
                         defaultValue: false,
                         cancellationToken: ctx.CancellationToken);
@@ -933,6 +940,32 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         BehaviorContext<CheckoutSagaState, TEvent> context)
         where TEvent : class
     {
+        var scope = GetScope(context);
+        var dbContext = scope.ServiceProvider.GetRequiredService<SagaDbContext>();
+        var outboxWriter = scope.ServiceProvider.GetRequiredService<IOutboxWriter>();
+        return (dbContext, outboxWriter);
+    }
+
+    /// <summary>
+    /// Resolves the scoped <see cref="IFeatureClient"/> (ADR-0014) from the behaviour context's
+    /// service scope. Same rationale as <see cref="GetOutboxDependencies"/>: MassTransit creates
+    /// one DI scope per consume and exposes it via the context payload, so a saga state machine
+    /// (registered as Singleton) can safely read Scoped services for the lifetime of a single
+    /// transition without ever constructor-injecting them. Constructor injection of an
+    /// <see cref="IFeatureClient"/> registered by <c>AddOpenFeature</c> would be a captive
+    /// dependency and fails DI validation at host startup.
+    /// </summary>
+    private static IFeatureClient GetScopedFeatureClient<TEvent>(
+        BehaviorContext<CheckoutSagaState, TEvent> context)
+        where TEvent : class
+    {
+        var scope = GetScope(context);
+        return scope.ServiceProvider.GetRequiredService<IFeatureClient>();
+    }
+
+    private static IServiceScope GetScope<TEvent>(BehaviorContext<CheckoutSagaState, TEvent> context)
+        where TEvent : class
+    {
         if (!context.TryGetPayload<IServiceScope>(out var scope))
         {
             throw new InvalidOperationException(
@@ -940,9 +973,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 + "configured with an Entity Framework repository.");
         }
 
-        var dbContext = scope.ServiceProvider.GetRequiredService<SagaDbContext>();
-        var outboxWriter = scope.ServiceProvider.GetRequiredService<IOutboxWriter>();
-        return (dbContext, outboxWriter);
+        return scope;
     }
 
     // ----- outbox payload builders -----
