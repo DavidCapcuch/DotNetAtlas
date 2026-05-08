@@ -65,7 +65,10 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = orderScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var orderHandler = new OrderConfirmedInvoiceProjectionKafkaHandler(
-                db, orderClock, NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                orderClock,
+                NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
             await orderHandler.Handle(BuildContext(ct), orderEvent);
         }
@@ -94,7 +97,10 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = paymentScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var paymentHandler = new PaymentCapturedInvoiceProjectionKafkaHandler(
-                db, paymentClock, NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                paymentClock,
+                NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
 
             await paymentHandler.Handle(
                 BuildContext(ct),
@@ -136,7 +142,10 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = paymentScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var paymentHandler = new PaymentCapturedInvoiceProjectionKafkaHandler(
-                db, paymentClock, NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                paymentClock,
+                NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
 
             await paymentHandler.Handle(
                 BuildContext(ct),
@@ -167,7 +176,10 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = orderScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var orderHandler = new OrderConfirmedInvoiceProjectionKafkaHandler(
-                db, orderClock, NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                orderClock,
+                NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
             await orderHandler.Handle(BuildContext(ct), orderEvent);
         }
@@ -214,7 +226,10 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = firstScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new OrderConfirmedInvoiceProjectionKafkaHandler(
-                db, firstClock, NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                firstClock,
+                NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
             await handler.Handle(BuildContext(ct), firstEvent);
         }
@@ -224,7 +239,10 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = secondScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new OrderConfirmedInvoiceProjectionKafkaHandler(
-                db, secondClock, NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
+                db,
+                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                secondClock,
+                NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
             await handler.Handle(BuildContext(ct), secondEvent);
         }

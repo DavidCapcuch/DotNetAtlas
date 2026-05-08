@@ -1,12 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Invoicing.Infrastructure.Blobs;
+namespace Invoicing.Application.Blobs;
 
 /// <summary>
 /// Configuration for the Invoicing blob-storage adapter. Binds <c>BlobStorage:*</c> for
 /// container + CDN settings; the connection string itself lives under
 /// <c>ConnectionStrings:AzureStorage</c> (repo convention; see sibling services'
 /// <c>appsettings.json</c>) and is injected by DI, not bound from this section.
+/// Lives in the Application layer (M7 move) so command handlers can read
+/// <see cref="InvoicesContainerName"/> alongside the <see cref="IBlobStore"/> dependency
+/// without crossing into Infrastructure.
 /// </summary>
 public sealed class BlobStorageOptions
 {

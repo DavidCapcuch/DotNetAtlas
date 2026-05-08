@@ -1,8 +1,10 @@
 using System.Text.Json;
 using Invoicing.Application.Common.Data;
+using Invoicing.Application.Invoices.IssueInvoice;
 using Invoicing.Application.Invoices.Projections;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
+using Platform.CQRS;
 using AvroOrderConfirmedEvent = Ordering.Orders.OrderConfirmedEvent;
 
 namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -12,8 +14,9 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <c>ordering.orders</c>. Upserts a <see cref="PendingInvoice"/> row keyed
 /// on <c>CorrelationId</c>, populating the order half. When the payment
 /// half is already present, marks the row converged via
-/// <see cref="PendingInvoice.CompletedAtUtc"/> — M7's
-/// <c>IssueInvoiceCommandHandler</c> picks up converged rows from there.
+/// <see cref="PendingInvoice.CompletedAtUtc"/> AND dispatches M7's
+/// <see cref="IssueInvoiceCommand"/> in the same inbox transaction so the
+/// projection update + invoice insert + outbox row commit atomically.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -24,25 +27,30 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// order half is already populated and treating it as a no-op.
 /// </para>
 /// <para>
-/// The inbox middleware owns the surrounding transaction; the handler just
-/// calls <see cref="IInvoicingDbContext.SaveChangesAsync"/> and the
-/// middleware commits both the inbox row and the projection mutation
-/// atomically.
+/// The inbox middleware owns the surrounding transaction; the handler calls
+/// <see cref="IInvoicingDbContext.SaveChangesAsync"/> + (on convergence)
+/// dispatches the M7 command, and the middleware commits everything together.
+/// The M7 command handler detects the open transaction and joins it rather than
+/// nesting (see <see cref="IssueInvoiceCommandHandler"/>'s <c>ownsTransaction</c>
+/// branch).
 /// </para>
 /// </remarks>
 internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
     : IMessageHandler<AvroOrderConfirmedEvent>
 {
     private readonly IInvoicingDbContext _db;
+    private readonly ICommandHandler<IssueInvoiceCommand, Guid> _issueInvoiceHandler;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<OrderConfirmedInvoiceProjectionKafkaHandler> _logger;
 
     public OrderConfirmedInvoiceProjectionKafkaHandler(
         IInvoicingDbContext db,
+        ICommandHandler<IssueInvoiceCommand, Guid> issueInvoiceHandler,
         TimeProvider timeProvider,
         ILogger<OrderConfirmedInvoiceProjectionKafkaHandler> logger)
     {
         _db = db;
+        _issueInvoiceHandler = issueInvoiceHandler;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -76,6 +84,7 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
             },
             ct);
 
+        var convergedNow = false;
         if (!isNew)
         {
             if (row.OrderId is not null)
@@ -94,6 +103,7 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
             if (row.PaymentId is not null && row.CompletedAtUtc is null)
             {
                 row.CompletedAtUtc = now;
+                convergedNow = true;
             }
         }
 
@@ -103,6 +113,24 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
             "OrderConfirmedEvent projected (IsNew={IsNew}, Converged={Converged})",
             isNew,
             row.CompletedAtUtc is not null);
+
+        if (convergedNow)
+        {
+            // M7 — dispatch the issuance command inside the inbox transaction so the
+            // pending_invoices update, the new Invoice aggregate, and the outbox row
+            // commit atomically. Failures bubble up; the inbox middleware rolls back.
+            // The command handler is idempotent on IssuedInvoiceId so a retry that
+            // re-runs convergence from the OTHER half (PaymentCaptured) is safe.
+            var result = await _issueInvoiceHandler.HandleAsync(
+                new IssueInvoiceCommand { CorrelationId = message.CorrelationId },
+                ct);
+            if (result.IsFailed)
+            {
+                throw new InvalidOperationException(
+                    $"IssueInvoiceCommand failed after convergence on CorrelationId {message.CorrelationId}: "
+                        + string.Join("; ", result.Errors.Select(e => e.Message)));
+            }
+        }
     }
 
     private static string SerializePayload(AvroOrderConfirmedEvent message)

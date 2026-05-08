@@ -1,5 +1,6 @@
 using System.Net.Http;
 using Azure.Storage.Blobs;
+using Invoicing.Application.Blobs;
 using Invoicing.Infrastructure.Blobs;
 using Microsoft.Extensions.Options;
 using Testcontainers.Azurite;

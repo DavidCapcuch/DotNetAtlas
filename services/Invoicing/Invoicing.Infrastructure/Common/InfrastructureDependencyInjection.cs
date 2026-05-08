@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using Invoicing.Application.Blobs;
 using Invoicing.Application.Pdf;
 using Invoicing.Infrastructure.Blobs;
 using Invoicing.Infrastructure.Pdf;

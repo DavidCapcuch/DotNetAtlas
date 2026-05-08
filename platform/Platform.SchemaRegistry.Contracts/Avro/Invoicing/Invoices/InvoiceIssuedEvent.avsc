@@ -1,0 +1,201 @@
+{
+    "type": "record",
+    "name": "InvoiceIssuedEvent",
+    "namespace": "Invoicing.Invoices",
+    "doc": "Emitted when an Invoice transitions Draft -> Issued: number allocated, PDF stored, totals frozen. Carries the full fiscal snapshot so downstream consumers (Notifications, BFF cache) can render or forward without an HTTP round-trip to Invoicing. Topic 'invoicing.invoices' has 10-year retention per EU VAT norms (ADR-0011 PII gap is documented).",
+    "fields": [
+        {
+            "name": "InvoiceId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Unique identifier of the Invoice aggregate."
+        },
+        {
+            "name": "InvoiceNumber",
+            "type": "string",
+            "doc": "Gap-free human-readable invoice number, format INV-YYYY-NNNNNN (ADR-0018)."
+        },
+        {
+            "name": "BuyerId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Buyer the invoice is issued to. Used as the Kafka partition key on 'invoicing.invoices' so a buyer's fiscal stream stays on one partition."
+        },
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Reference to the Ordering Order this invoice settles."
+        },
+        {
+            "name": "PaymentId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Reference to the Payments transaction this invoice settles."
+        },
+        {
+            "name": "CorrelationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Checkout saga correlation id (passed through from Order + Payment)."
+        },
+        {
+            "name": "IssueDate",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp when the invoice transitioned to Issued."
+        },
+        {
+            "name": "BillingAddress",
+            "type": {
+                "type": "record",
+                "name": "InvoiceBillingAddress",
+                "namespace": "Invoicing.Invoices",
+                "doc": "Buyer billing address snapshot at issuance. Field shape mirrors Ordering.Orders.OrderBillingAddress; defined locally because avrogen processes each .avsc file in isolation (per ADR-0020).",
+                "fields": [
+                    {
+                        "name": "Street1",
+                        "type": "string",
+                        "doc": "Primary street line."
+                    },
+                    {
+                        "name": "Street2",
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "default": null,
+                        "doc": "Optional second street line (apartment, suite, etc.)."
+                    },
+                    {
+                        "name": "City",
+                        "type": "string",
+                        "doc": "City name."
+                    },
+                    {
+                        "name": "State",
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "default": null,
+                        "doc": "Optional state/province/region. Null for countries without this concept."
+                    },
+                    {
+                        "name": "PostalCode",
+                        "type": "string",
+                        "doc": "Postal or ZIP code."
+                    },
+                    {
+                        "name": "CountryCode",
+                        "type": "string",
+                        "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')."
+                    }
+                ]
+            },
+            "doc": "Buyer billing address, snapshotted from OrderConfirmedEvent.BillingAddress at issuance time and frozen on the Invoice aggregate (PII per ADR-0011)."
+        },
+        {
+            "name": "Subtotal",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Sum of InvoiceLine.LineTotal pre-VAT. Equal to Total minus the sum of VatLines.Amount (Invariant I-1)."
+        },
+        {
+            "name": "Total",
+            "type": {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 19,
+                "scale": 4
+            },
+            "doc": "Subtotal + sum(VatLines.Amount). Must equal OrderConfirmedEvent.TotalAmount and PaymentCapturedEvent.Amount (cross-aggregate consistency, example-mapping 1.4)."
+        },
+        {
+            "name": "Currency",
+            "type": "string",
+            "doc": "ISO 4217 currency code shared by every line, VatLine, and the Total."
+        },
+        {
+            "name": "VatLines",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "InvoiceVatLine",
+                    "namespace": "Invoicing.Invoices",
+                    "doc": "Per-rate VAT breakdown line (e.g., 21% on a base of 200.00 -> amount 42.00).",
+                    "fields": [
+                        {
+                            "name": "Rate",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 5,
+                                "scale": 2
+                            },
+                            "doc": "VAT rate percentage in [0, 100], at most 2 decimal places (e.g., 21.00, 0.00, 12.50)."
+                        },
+                        {
+                            "name": "BaseAmount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "Base amount the rate applies to (sum of LineTotal of lines taxed at this rate)."
+                        },
+                        {
+                            "name": "Amount",
+                            "type": {
+                                "type": "bytes",
+                                "logicalType": "decimal",
+                                "precision": 19,
+                                "scale": 4
+                            },
+                            "doc": "VAT amount = BaseAmount * (Rate / 100)."
+                        }
+                    ]
+                }
+            },
+            "doc": "Per-rate VAT breakdown. May be empty if every line is at 0% (still emitted as []), but non-null."
+        },
+        {
+            "name": "PdfBlobUri",
+            "type": "string",
+            "doc": "Absolute URI of the rendered invoice PDF in blob storage (Azurite locally, Azure Blob in production). Producers emit a presigned SAS URL; consumers MUST treat this as opaque and re-mint a fresh URL via Invoicing's GET endpoint when serving end-users (the SAS expires)."
+        },
+        {
+            "name": "PdfContentHash",
+            "type": "string",
+            "doc": "SHA-256 of the PDF bytes, lowercase hex (64 chars). Lets consumers verify integrity if they cache the PDF locally."
+        },
+        {
+            "name": "PdfSizeBytes",
+            "type": "long",
+            "doc": "Size of the PDF blob in bytes (>0)."
+        },
+        {
+            "name": "DeliveryChannel",
+            "type": "string",
+            "doc": "DeliveryChannel SmartEnum name: 'None', 'Email', or 'TaxAuthorityWebhook' (v2). Indicates how the issuer intends the invoice to be delivered downstream."
+        }
+    ]
+}

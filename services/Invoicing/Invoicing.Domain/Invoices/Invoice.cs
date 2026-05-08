@@ -155,16 +155,89 @@ public sealed class Invoice : AggregateRoot<Guid>
     }
 
     /// <summary>
+    /// Stamps the gap-free <see cref="InvoiceNumber"/> on a <see cref="InvoiceStatus.Draft"/>
+    /// invoice without raising domain events or transitioning state. Used by the M7
+    /// command handler to assign the number BEFORE PDF rendering \u2014 the renderer reads
+    /// <see cref="InvoiceNumber"/> off the aggregate, so it must be present at render time
+    /// even though <see cref="PdfBlobRef"/> only lands after upload (chicken-and-egg
+    /// resolved by splitting the stamp + the issue transition). Once assigned the value
+    /// is immutable per I-3.
+    /// </summary>
+    public void AssignInvoiceNumber(InvoiceNumber invoiceNumber)
+    {
+        ArgumentNullException.ThrowIfNull(invoiceNumber);
+
+        if (Status != InvoiceStatus.Draft)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.AssignInvoiceNumberOutOfDraft",
+                $"InvoiceNumber can only be assigned while Draft (current: {Status.Name}).");
+        }
+
+        if (InvoiceNumber is not null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvoiceNumberAlreadyAssigned",
+                "InvoiceNumber is immutable once assigned (I-3).");
+        }
+
+        InvoiceNumber = invoiceNumber;
+    }
+
+    /// <summary>
     /// Transitions <c>Draft \u2192 Issued</c>. Stamps the gap-free <see cref="InvoiceNumber"/>
     /// allocated by the transactional allocator and the <see cref="PdfBlobRef"/> of the
     /// uploaded PDF. Raises <see cref="InvoiceIssuedDomainEvent"/> and, when
     /// <see cref="DeliveryChannel"/> is not <see cref="DeliveryChannel.None"/>,
     /// <see cref="InvoiceDeliveryRequestedDomainEvent"/> for delivery attempt 1.
     /// </summary>
+    /// <remarks>
+    /// Convenience overload \u2014 composes <see cref="AssignInvoiceNumber"/> + the no-number
+    /// <see cref="Issue(PdfBlobRef, DateTimeOffset)"/>. Use the split form in M7's command
+    /// handler when the PDF must render with the number embedded.
+    /// </remarks>
     public Result Issue(InvoiceNumber invoiceNumber, PdfBlobRef pdfBlobRef, DateTimeOffset utcNow)
     {
         ArgumentNullException.ThrowIfNull(invoiceNumber);
         ArgumentNullException.ThrowIfNull(pdfBlobRef);
+
+        // If the aggregate has already left Draft (e.g., already Issued), the FSM rejects the
+        // transition. Return Result.Fail without touching state — preserves I-3 (number
+        // immutable) + I-4 (PDF immutable) by short-circuiting before any assignment.
+        if (Status != InvoiceStatus.Draft)
+        {
+            return Status.CanTransitionTo(InvoiceStatus.Issued);
+        }
+
+        if (InvoiceNumber is null)
+        {
+            AssignInvoiceNumber(invoiceNumber);
+        }
+        else if (!InvoiceNumber.Equals(invoiceNumber))
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvoiceNumberMismatchOnIssue",
+                "InvoiceNumber passed to Issue does not match the previously-assigned number (I-3).");
+        }
+
+        return Issue(pdfBlobRef, utcNow);
+    }
+
+    /// <summary>
+    /// Transitions <c>Draft \u2192 Issued</c> using the previously-assigned
+    /// <see cref="InvoiceNumber"/> and the supplied PDF reference. Requires
+    /// <see cref="AssignInvoiceNumber"/> to have been called.
+    /// </summary>
+    public Result Issue(PdfBlobRef pdfBlobRef, DateTimeOffset utcNow)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBlobRef);
+
+        if (InvoiceNumber is null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.IssueWithoutInvoiceNumber",
+                "Issue requires an InvoiceNumber \u2014 call AssignInvoiceNumber first.");
+        }
 
         var transition = Status.CanTransitionTo(InvoiceStatus.Issued);
         if (transition.IsFailed)
@@ -172,7 +245,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             return transition;
         }
 
-        InvoiceNumber = invoiceNumber;
         PdfBlobRef = pdfBlobRef;
         IssueDate = utcNow;
         Status = InvoiceStatus.Issued;
@@ -180,7 +252,7 @@ public sealed class Invoice : AggregateRoot<Guid>
         AddDomainEvent(new InvoiceIssuedDomainEvent
         {
             InvoiceId = Id,
-            InvoiceNumber = invoiceNumber,
+            InvoiceNumber = InvoiceNumber,
             BuyerId = BuyerId,
             OrderId = OrderId,
             PaymentId = PaymentId,

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
+using Invoicing.Application.Blobs;
 using Invoicing.Domain.Common.ValueObjects;
 using Microsoft.Extensions.Options;
 using Platform.SharedKernel.Exceptions;
