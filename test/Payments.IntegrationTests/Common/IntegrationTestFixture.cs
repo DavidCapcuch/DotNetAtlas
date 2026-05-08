@@ -89,8 +89,12 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddScoped<IPaymentsDbContext>(sp => sp.GetRequiredService<PaymentsDbContext>());
         services.AddScoped<IPaymentRepository, PaymentRepository>();
 
-        // Live stub gateway — deterministic ".99" → decline rule per M3.
-        services.AddSingleton<IPaymentGateway, StubPaymentGateway>();
+        // Live stub gateway — deterministic ".99" → decline rule per M3 — wrapped in a
+        // counting decorator so example-mapping § 2.2 / § 3.3 can assert the saga-retry
+        // short-circuit fired before the gateway port was touched.
+        services.AddSingleton<StubPaymentGateway>();
+        services.AddSingleton<IPaymentGateway>(sp =>
+            new CountingPaymentGateway(sp.GetRequiredService<StubPaymentGateway>()));
 
         // Replace the real Avro/SchemaRegistry-backed outbox writer with an in-memory fake.
         // Registered BEFORE AddOutbox so the platform's TryAddSingleton<IOutboxWriter> is a
@@ -149,6 +153,14 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// </summary>
     public FakeOutboxWriter GetFakeOutbox() =>
         (FakeOutboxWriter)_rootServices.GetRequiredService<IOutboxWriter>();
+
+    /// <summary>
+    /// Resolves the singleton spy decorator over <see cref="StubPaymentGateway"/> so individual
+    /// tests can <c>Reset()</c> the call counters between phases or assert that a specific
+    /// gateway method was (or was not) invoked.
+    /// </summary>
+    public CountingPaymentGateway GetGateway() =>
+        (CountingPaymentGateway)_rootServices.GetRequiredService<IPaymentGateway>();
 
     public async ValueTask DisposeAsync()
     {
