@@ -21,6 +21,15 @@ public static class InvoicingErrors
     public static ValidationError InvoiceNotFound(Guid invoiceId) =>
         new("InvoiceId", $"Invoice '{invoiceId}' does not exist.", "Invoicing.InvoiceNotFound");
 
+    /// <summary>
+    /// Variant of <see cref="InvoiceNotFound"/> for the by-order lookup. Same error code
+    /// (so HTTP mapping still routes to 404) but the property name + message correctly
+    /// reflect the OrderId input rather than misleadingly claiming an Invoice with that
+    /// GUID is missing.
+    /// </summary>
+    public static ValidationError InvoiceForOrderNotFound(Guid orderId) =>
+        new("OrderId", $"No invoice exists for order '{orderId}'.", "Invoicing.InvoiceNotFound");
+
     public static ValidationError CreditNoteNotFound(Guid creditNoteId) =>
         new("CreditNoteId", $"Credit note '{creditNoteId}' does not exist.", "Invoicing.CreditNoteNotFound");
 

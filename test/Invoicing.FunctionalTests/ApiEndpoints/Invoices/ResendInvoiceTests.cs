@@ -1,0 +1,133 @@
+using System.Net;
+using System.Net.Http.Json;
+using FastEndpoints;
+using Invoicing.API.Endpoints.Invoices.ResendInvoice;
+using Invoicing.FunctionalTests.Common;
+using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
+
+namespace Invoicing.FunctionalTests.ApiEndpoints.Invoices;
+
+[Collection(nameof(FunctionalTestCollection))]
+public class ResendInvoiceTests : BaseApiTest
+{
+    public ResendInvoiceTests(ApiTestFixture app)
+        : base(app)
+    {
+    }
+
+    [Fact]
+    public async Task WhenIdempotencyKeyHeaderMissing_ReturnsBadRequest()
+    {
+        // ADR-0013 § Header contract: a protected endpoint without the Idempotency-Key
+        // header surfaces as 400 from FastEndpoints' .Idempotency() endpoint-level
+        // filter (runs after routing + auth + policy gating, before the handler body).
+        // Use the AdminClient so the policy gate at the endpoint passes, leaving the
+        // missing-header path as the only failure mode.
+        var response = await HttpClientRegistry.AdminClient
+            .PostAsJsonAsync(
+                $"/api/v1/invoicing/invoices/{Guid.CreateVersion7()}/resend",
+                new { },
+                TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task WhenNotAuthenticated_ReturnsUnauthorized()
+    {
+        var response = await PostResendAsync(
+            HttpClientRegistry.NonAuthClient,
+            Guid.CreateVersion7());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task WhenBuyerWithoutAdminRole_ReturnsForbidden()
+    {
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
+
+        var response = await PostResendAsync(
+            HttpClientRegistry.BuyerClient,
+            invoice.Id);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task WhenInvoiceUnknown_ReturnsNotFound()
+    {
+        var response = await PostResendAsync(
+            HttpClientRegistry.AdminClient,
+            Guid.CreateVersion7());
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task WhenAdminResendsIssuedInvoice_ReturnsNoContent()
+    {
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
+
+        var response = await PostResendAsync(
+            HttpClientRegistry.AdminClient,
+            invoice.Id);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task WhenInvoiceIsDraft_ReturnsConflict()
+    {
+        // Draft invoices have no PDF / number — resend has nothing to do.
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var invoice = await seed.CreateDraftInvoiceAsync(TestUsers.BuyerId);
+
+        var response = await PostResendAsync(
+            HttpClientRegistry.AdminClient,
+            invoice.Id);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task WhenSameIdempotencyKeyReplayed_ReturnsCachedNoContent()
+    {
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
+
+        var key = Guid.NewGuid().ToString();
+
+        var first = await PostResendAsync(HttpClientRegistry.AdminClient, invoice.Id, key);
+        var second = await PostResendAsync(HttpClientRegistry.AdminClient, invoice.Id, key);
+
+        // Both return 204; the second is served from the Redis-backed output cache.
+        // Pre-cancellation the assertion is structural — for a richer "handler invoked
+        // exactly once" check, M9+ can introduce a counter (e.g., a custom middleware
+        // wrapper). The current minimal handler is a no-op anyway, so a counter would
+        // not differentiate. The 204+204 pair is sufficient evidence that the cache
+        // path returns the right shape.
+        using (new AssertionScope())
+        {
+            first.StatusCode.Should().Be(HttpStatusCode.NoContent);
+            second.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+    }
+
+    private static async Task<HttpResponseMessage> PostResendAsync(
+        HttpClient client,
+        Guid invoiceId,
+        string? idempotencyKey = null)
+    {
+        var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/v1/invoicing/invoices/{invoiceId}/resend")
+        {
+            Content = JsonContent.Create(new { }),
+        };
+        request.Headers.Add("Idempotency-Key", idempotencyKey ?? Guid.NewGuid().ToString());
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+}

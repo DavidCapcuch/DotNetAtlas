@@ -20,9 +20,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Invoicing.API"/>
         <InternalsVisibleTo Include="Invoicing.Infrastructure"/>
         <InternalsVisibleTo Include="Invoicing.UnitTests"/>
         <InternalsVisibleTo Include="Invoicing.IntegrationTests"/>
+        <InternalsVisibleTo Include="Invoicing.FunctionalTests"/>
     </ItemGroup>
 
     <ItemGroup>
