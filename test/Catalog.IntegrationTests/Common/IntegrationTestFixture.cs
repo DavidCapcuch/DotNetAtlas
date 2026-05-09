@@ -1,7 +1,9 @@
 using Catalog.Application.Common;
 using Catalog.Application.Common.Data;
+using Catalog.Application.Common.Messaging;
 using Catalog.Infrastructure.Common;
 using Catalog.Infrastructure.Persistence.Database;
+using Catalog.Infrastructure.Persistence.Database.Interceptors;
 using Confluent.SchemaRegistry;
 using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
@@ -56,8 +58,9 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
 
-        // Minimal in-memory IConfiguration satisfies AddOptionsWithValidateOnStart binding
-        // inside Catalog.Application's composition root (CatalogTopicsOptions).
+        // Minimal in-memory IConfiguration backing the explicit
+        // services.Configure<CatalogTopicsOptions>(config.GetSection(...)) call below — outbox
+        // publishers resolve topic names through this options instance.
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -69,23 +72,39 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             .Build();
         services.AddSingleton<IConfiguration>(config);
 
+        services.AddSingleton<TimeProvider>(TimeProvider);
+
+        // Mirror production wiring (PersistenceDependencyInjection.cs) so projection +
+        // outbox-publisher domain-event handlers run inside the same SaveChangesAsync as
+        // the aggregate write — the CQRS-on-Postgres atomicity catalog.md § 9 promises.
+        // Without these the DispatchDomainEventsInterceptor never fires and product_search_view
+        // stays empty regardless of what the command handlers do.
+        services.AddScoped<DispatchDomainEventsInterceptor>();
+        services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
+
         // Real DbContext bypassing Catalog.Infrastructure.AddDatabase (which binds an
         // EfCoreOptions section + production retry knobs not material for tests).
-        services.AddDbContext<CatalogDbContext>(options => options
+        services.AddDbContext<CatalogDbContext>((sp, options) => options
             .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
                 .MigrationsHistoryTable("__EFMigrationsHistory", CatalogDbContext.DefaultSchemaName))
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor()
-            .ConfigureWarnings(w => w.Log(RelationalEventId.PendingModelChangesWarning)));
+            .ConfigureWarnings(w => w.Log(RelationalEventId.PendingModelChangesWarning))
+            .AddInterceptors(
+                sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>(),
+                sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
 
         services.AddScoped<ICatalogDbContext>(sp => sp.GetRequiredService<CatalogDbContext>());
 
-        services.AddSingleton<TimeProvider>(TimeProvider);
-
-        // Application composition root: CatalogTopicsOptions binding, validators, CQRS
-        // handlers, domain-event dispatcher (which wires projection + outbox publishers),
-        // and the M3.5 ICategoryAncestryService + ICategoryPathService.
+        // Application composition root: validators, CQRS handlers, domain-event dispatcher
+        // (which wires projection + outbox publishers), and the M3.5 ICategoryAncestryService +
+        // ICategoryPathService. Note: AddCatalogApplication only does AddOptions<CatalogTopicsOptions>()
+        // without binding — production wires the binding in Catalog.Infrastructure's
+        // MessagingDependencyInjection (which this fixture intentionally skips because it owns the
+        // Kafka consumer wiring as well). Bind separately below so outbox publishers resolve real
+        // topic names instead of nulls.
         services.AddCatalogApplication();
+        services.Configure<CatalogTopicsOptions>(config.GetSection(CatalogTopicsOptions.Section));
 
         // Replace IOutboxWriter with FakeOutboxWriter BEFORE AddOutbox — the platform's
         // TryAddSingleton respects the prior registration so we bypass the Schema Registry
