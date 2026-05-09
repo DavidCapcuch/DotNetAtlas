@@ -1,17 +1,87 @@
-// Invoicing.API — Program.cs
-// Minimal scaffold (milestone M1). Subsequent milestones wire ServiceDefaults,
-// FastEndpoints, correlation-id middleware, JWT bearer auth, idempotency output cache
-// (redis-cache per ADR-0013), blob storage (Azurite/Azure Blob per ADR-0017), PDF
-// generation (QuestPDF per ADR-0019), and the Kafka consumers for the enrichment
-// projection (per docs/bc-design/invoicing.md § 8).
+using Invoicing.API.Common;
+using Invoicing.Application.Common;
+using Invoicing.Infrastructure.Common;
+using KafkaFlow;
+using Microsoft.Extensions.Hosting;
+using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.CorrelationId;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .MinimumLevel.Debug()
+    .CreateBootstrapLogger();
 
-var app = builder.Build();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-app.MapGet("/", () => "Invoicing.API — scaffolded; implementation pending milestones M2\u2013M10.");
+    builder.AddServiceDefaults(options =>
+    {
+        options.ServiceName = "Invoicing.Api";
+    });
 
-await app.RunAsync();
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
+
+    builder.Services
+        .AddInvoicingAuth(builder.Configuration, isDeployedEnvironment)
+        .AddPresentation(builder.Configuration)
+        .AddInvoicingApplication()
+        .AddInvoicingInfrastructure(builder.Configuration, isDeployedEnvironment);
+
+    var app = builder.Build();
+
+    if (app.Environment.IsProduction())
+    {
+        app.UseExceptionHandler();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseStatusCodePages();
+
+    app.UseCorrelationId();
+
+    app.UseRouting();
+
+    // Order matters: OutputCache reads must happen before authn so cached
+    // responses can short-circuit (FastEndpoints' .Idempotency() filter sits
+    // inside the endpoint pipeline, but AddIdempotencyKeyOutputCache wires the
+    // underlying IOutputCacheStore which UseOutputCache attaches).
+    app.UseOutputCache();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.UseInvoicingFastEndpoints();
+
+    app.MapPlatformHealthCheckEndpoints();
+
+    // Skip the Kafka enrichment-projection consumers in the test host. M6's
+    // integration tests exercise the consumer slice against a real broker; M8's
+    // functional tests exercise the HTTP surface only and do not need Kafka up.
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        var kafkaBus = app.Services.CreateKafkaBus();
+        await kafkaBus.StartAsync();
+    }
+
+    await app.RunAsync();
+}
+catch (HostAbortedException)
+{
+    Log.Information("Host aborted, shutting down gracefully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Host terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
 
 /// <summary>
 /// Partial <c>Program</c> marker so integration / functional tests can use

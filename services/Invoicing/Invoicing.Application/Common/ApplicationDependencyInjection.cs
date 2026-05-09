@@ -12,14 +12,16 @@ namespace Invoicing.Application.Common;
 /// layer's <c>AddInvoicingInfrastructure</c> wires the concretions on top.
 /// </summary>
 /// <remarks>
-/// Wired in M7. Registers FluentValidation validators, CQRS command/query handlers,
-/// domain-event handlers + dispatcher (the <c>DispatchDomainEventsInterceptor</c> in
-/// Infrastructure picks up the dispatcher from this composition root), and the
-/// <see cref="InvoicingTopicsOptions"/> binding. The Tracing → Logging → Metrics →
-/// Validation behaviour chain lands in M8 once query + parameterless-command handlers
-/// exist (Platform.CQRS's Decorate calls require all three handler shapes to have at
-/// least one registration each). <c>BlobStorageOptions</c> is registered in Infrastructure
-/// (it injects the connection string) and consumed by the M7 command handlers via DI.
+/// <para>
+/// Registers FluentValidation validators, CQRS command/query handlers, the
+/// Tracing → Logging → Metrics → Validation behaviour chain (M8 — all three handler
+/// shapes are now present so Scrutor's <c>Decorate</c> is satisfied), domain-event
+/// handlers + dispatcher (the <c>DispatchDomainEventsInterceptor</c> in Infrastructure
+/// picks up the dispatcher from this composition root), and the
+/// <see cref="InvoicingTopicsOptions"/> binding. <c>BlobStorageOptions</c> is registered
+/// in Infrastructure (it injects the connection string) and consumed by the M7 command
+/// handlers + M8 query handlers via DI.
+/// </para>
 /// </remarks>
 public static class ApplicationDependencyInjection
 {
@@ -36,16 +38,7 @@ public static class ApplicationDependencyInjection
             .AddDomainEventHandlersFromAssembly(assembly)
             .AddDomainEventDispatcher();
 
-        // The CQRS behaviour chain (Tracing → Logging → Metrics → Validation) is intentionally
-        // NOT registered in M7. Platform.CQRS's helpers decorate three handler shapes —
-        // ICommandHandler<T>, ICommandHandler<T, R>, IQueryHandler<T, R> — and Scrutor's
-        // Decorate throws if any shape has no registered implementation. M7 only has
-        // ICommandHandler<T, R> handlers (IssueInvoice / IssueCreditNote both return Guid).
-        // M8 lands the HTTP query handlers (GetInvoiceById, GetInvoicesByBuyer) and the
-        // ResendInvoiceCommand (parameterless ICommandHandler<T>); at that point all three
-        // shapes are present and the behaviour chain can be enabled. For M7 the OTel /
-        // logging gap is filled by the M6 KafkaFlow consumer middleware (correlation-id +
-        // tracing on the inbound message) and the handler's own ILogger.
+        AddCqrsHandlerBehaviors(services);
 
         services.AddOptionsWithValidateOnStart<InvoicingTopicsOptions>()
             .BindConfiguration(InvoicingTopicsOptions.Section)
@@ -53,7 +46,21 @@ public static class ApplicationDependencyInjection
 
         // BlobStorageOptions registration lives in Infrastructure (it injects the
         // ConnectionStrings:AzureStorage value into the same options object); the
-        // M7 command handlers consume it via IOptions<BlobStorageOptions> from DI.
+        // M7 command handlers + M8 query handlers consume it via IOptions<BlobStorageOptions>.
+
+        return services;
+    }
+
+    private static IServiceCollection AddCqrsHandlerBehaviors(IServiceCollection services)
+    {
+        // Decorator order: last registered = first to execute.
+        // Tracing (outer) → Logging → Metrics → Validation → Handler (inner).
+        services.AddCqrsValidationBehavior();
+        services.AddCqrsMetricsBehavior();
+        services.AddCqrsLoggingBehavior();
+
+        // Always keep before metrics so OTel exemplars work.
+        services.AddCqrsTracingBehavior();
 
         return services;
     }

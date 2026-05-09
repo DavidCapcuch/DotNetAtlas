@@ -32,8 +32,8 @@ public static class InfrastructureDependencyInjection
         services.AddPdfGeneration(configuration);
         services.AddPersistence(configuration, isDeployedEnvironment);
         services.AddKafkaMessaging(configuration);
+        services.AddInvoicingHealthChecks(configuration);
 
-        // M7+: AddOutbox + outbox publishers for InvoiceIssued / CreditNoteIssued, AddHealthChecks.
         return services;
     }
 

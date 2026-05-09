@@ -277,6 +277,11 @@
           "System.CodeDom": "8.0.0"
         }
       },
+      "Ardalis.Specification": {
+        "type": "Transitive",
+        "resolved": "9.3.1",
+        "contentHash": "GWrE6BA0smWFLbN+XPU2l5rDF9Uzelfbb3w35jJ0CGIat+p1ChbtLcbkvYRMEculBHOAo12omwAAOm3VFWkoJQ=="
+      },
       "AspNetCore.HealthChecks.Prometheus.Metrics": {
         "type": "Transitive",
         "resolved": "9.0.0",
@@ -1400,6 +1405,7 @@
         "type": "Project",
         "dependencies": {
           "Ardalis.SmartEnum": "[8.1.0, )",
+          "Ardalis.Specification.EntityFrameworkCore": "[9.3.1, )",
           "Platform.SharedKernel": "[1.0.0, )"
         }
       },
@@ -1534,6 +1540,17 @@
         "requested": "[8.1.0, )",
         "resolved": "8.1.0",
         "contentHash": "+OpcDNwgfwdKEhEwq6U5lrXiBpdA3LxfZR7nTtF6vzbkXc1hKa2Uv/rHduzxwNLYrzOfR/7QUVyjWTliSS7pOA=="
+      },
+      "Ardalis.Specification.EntityFrameworkCore": {
+        "type": "CentralTransitive",
+        "requested": "[9.3.1, )",
+        "resolved": "9.3.1",
+        "contentHash": "QbOo4E6HWdKXZ9QUrqcgiGN4EKtzt0kzGzqr2zc32q5QESzBrceJ3GX1ymWVdCCOzJO1+GPm+/a/5ovSkfrLoQ==",
+        "dependencies": {
+          "Ardalis.Specification": "9.3.1",
+          "Microsoft.EntityFrameworkCore": "9.0.8",
+          "Microsoft.EntityFrameworkCore.Relational": "9.0.8"
+        }
       },
       "Confluent.SchemaRegistry": {
         "type": "CentralTransitive",
