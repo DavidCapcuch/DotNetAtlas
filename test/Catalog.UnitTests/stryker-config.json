@@ -1,0 +1,23 @@
+{
+  "stryker-config": {
+    "project": "Catalog.Domain.csproj",
+    "test-projects": [
+      "Catalog.UnitTests.csproj"
+    ],
+    "thresholds": {
+      "high": 90,
+      "low": 80,
+      "break": 0
+    },
+    "reporters": [
+      "json",
+      "html",
+      "progress"
+    ],
+    "test-runner": "mtp",
+    "mutate": [
+      "Products/**/*.cs",
+      "Categories/**/*.cs"
+    ]
+  }
+}

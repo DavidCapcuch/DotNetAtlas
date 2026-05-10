@@ -37,6 +37,14 @@ internal static class HealthChecksDependencyInjection
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
+        services.AddOptionsWithValidateOnStart<HealthChecksOptions>()
+            .BindConfiguration(HealthChecksOptions.Section)
+            .ValidateDataAnnotations();
+
+        var timeouts = configuration
+            .GetRequiredSection(HealthChecksOptions.Section)
+            .Get<HealthChecksOptions>()!;
+
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
@@ -57,7 +65,8 @@ internal static class HealthChecksDependencyInjection
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
-                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag])
+                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
+                timeout: timeouts.SelfTimeout)
             .AddDbContextCheck<CatalogDbContext>(
                 name: "Catalog DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
@@ -66,12 +75,14 @@ internal static class HealthChecksDependencyInjection
                 redisCacheConnectionString,
                 name: "redis-cache",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy)
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: timeouts.RedisTimeout)
             .AddKafka(
                 producerConfig,
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy)
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: timeouts.KafkaTimeout)
             .AddUrlGroup(
                 schemaRegistryUri,
                 name: "schema-registry",
