@@ -425,7 +425,7 @@ This BC is the reference implementation of the following patterns:
 1. **SmartEnum-guarded status FSM** — `OrderStatus` with `CanTransitionTo` is the most elaborate example in the solution (8 states, 13 transitions). Its pattern — SmartEnum + lookup dictionary + `CanTransitionTo` — is the template other BCs should mirror when they need lifecycle enforcement.
 2. **Factory from external ACL input** — `Order.CreateFromBasket(BasketSnapshot, Address, Address, ...)` is the canonical example of "the aggregate's factory takes a **frozen snapshot** of data that belongs to another BC, deep-copies it, and raises a domain event holding the snapshot." This pattern is key for Basket → Ordering (snapshot of product prices) and for Ordering → the saga (snapshot of items in `OrderCreatedEvent`).
 3. **Multi-event aggregate transitions** — cancellation and failure are single method calls that produce a single domain event, but the cumulative flow across `Create → MarkStockReserved → MarkPaymentCompleted → Confirm → MarkShipped → MarkDelivered` demonstrates an aggregate whose identity persists across many state-changing events, each with its own invariant guard. This is richer than `AlertSubscriber`'s two-terminal-state lifecycle.
-4. **Result pattern for user errors + Throw.If for bugs** — transition methods return `Result` for user-observable errors (e.g., `Cancel` on an already-shipped order is a legit user mistake → `Result.Fail(OrderingErrors.CannotCancelAfterShipped)`), but use `Throw.If(!CanTransitionTo(...))` for cases where the calling saga has a bug.
+4. **Result pattern for user errors + Throw.If for bugs** — transition methods return `Result` for user-observable errors (e.g., `Cancel` on an already-shipped order is a legit user mistake → `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))`), but use `Throw.If(!CanTransitionTo(...))` for cases where the calling saga has a bug.
 5. **Outbox-published enriched external events** — six external events in `ordering.orders`, each enriched at domain-event-handler time with just enough data for downstream consumers to act without re-querying Ordering. Matches the discipline in master-design § 3.
 
 ---
@@ -439,13 +439,13 @@ Full command/query catalog with validators, request/response contracts, and endp
 | Command | Trigger | Handler responsibility |
 |---------|---------|----------------------|
 | `CreateOrderCommand` | HTTP from BFF after basket checkout | Build `BasketSnapshot` and `Address` VOs from the request, call `Order.CreateFromBasket`, persist, `SaveChangesAsync`. The `OrderCreatedDomainEvent` handler enqueues `OrderCreatedEvent` on `ordering.orders`. |
-| `MarkOrderStockReservedCommand` | Kafka (saga) → inbox consumer | Load by `OrderId` (or `CorrelationId` — see §10.2), call `order.MarkStockReserved(reservationId, utcNow)`. |
-| `MarkOrderPaymentCompletedCommand` | Kafka (saga) → inbox consumer | Load order, call `order.MarkPaymentCompleted(paymentTransactionId, utcNow)`. |
+| `MarkOrderStockReservedCommand` | Saga-internal app-command dispatch (in-process from Wave-2 saga; **no** Kafka inbox consumer per [events-catalog.md § 5.5](events-catalog.md) — the four Kafka commands are `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand`) | Load by `OrderId`, call `order.MarkStockReserved(reservationId, utcNow)`. |
+| `MarkOrderPaymentCompletedCommand` | Saga-internal app-command dispatch (same shape as above — application-layer command only, not on `ordering.order-commands`) | Load order, call `order.MarkPaymentCompleted(paymentTransactionId, utcNow)`. |
 | `ConfirmOrderCommand` | Kafka (saga) → inbox consumer | Load order, call `order.Confirm(utcNow)`. |
 | `MarkOrderShippedCommand` | HTTP (Admin) or Dev endpoint | Load order, call `order.MarkShipped(carrier, trackingNumber, utcNow)`. |
 | `MarkOrderDeliveredCommand` | HTTP (Admin) or Dev endpoint, or future carrier-webhook adapter | Load order, call `order.MarkDelivered(utcNow)`. |
 | `CancelOrderCommand` | HTTP (Buyer or Admin) | Load order, call `order.Cancel(reason, utcNow)` — compensation is emergent from the published `OrderCancelledEvent`. |
-| `FailOrderCommand` | Kafka (saga) → inbox consumer | Load order, call `order.Fail(errorCode, errorMessage, utcNow)`. |
+| `MarkOrderFailedCommand` | Kafka (saga) → inbox consumer on `ordering.order-commands` | Load order, call `order.Fail(errorCode, errorMessage, utcNow)`. |
 
 ### 9.2 Queries (Ardalis.Specification)
 
@@ -497,8 +497,8 @@ public Result Fail(string errorCode, string errorMessage, DateTimeOffset utcNow)
 | Counterpart BC | Pattern | Direction | Description |
 |---------------|---------|-----------|-------------|
 | **Basket** | Anti-Corruption Layer (ACL) on the Ordering side | Basket → Ordering | `BasketSnapshot` is an input DTO re-modeled by Ordering into its own `OrderItem` + `ProductSnapshot`. Basket never speaks Ordering's language. |
-| **Inventory** | Customer-Supplier (via the Checkout saga) | Inventory → Ordering | Inventory publishes `StockReservedEvent` / `StockReservationFailedEvent`; the saga correlates and issues `MarkOrderStockReservedCommand` / `FailOrderCommand` to Ordering. Ordering does **not** consume Inventory events directly. |
-| **Payments** | Customer-Supplier (via the Checkout saga) | Payments → Ordering | Payments publishes `PaymentCompletedEvent` / `PaymentFailedEvent`; the saga issues `MarkOrderPaymentCompletedCommand` / `FailOrderCommand`. |
+| **Inventory** | Customer-Supplier (via the Checkout saga) | Inventory → Ordering | Inventory publishes `StockReservedEvent` / `StockReservationFailedEvent`; the saga correlates and issues `MarkOrderStockReservedCommand` (saga-internal app dispatch) on success or `MarkOrderFailedCommand` (Kafka on `ordering.order-commands`) on failure. Ordering does **not** consume Inventory events directly. |
+| **Payments** | Customer-Supplier (via the Checkout saga) | Payments → Ordering | Payments publishes `PaymentCompletedEvent` / `PaymentFailedEvent`; the saga issues `MarkOrderPaymentCompletedCommand` (saga-internal app dispatch) on success or `MarkOrderFailedCommand` (Kafka on `ordering.order-commands`) on failure. |
 | **Checkout saga** | Orchestration | Ordering ↔ saga | Saga is *the* consumer of Ordering's external events and *the* driver of status transitions post-creation. Centralized placement per ADR-0001 / ADR-0004. |
 | **Notifications** | Published-Language (consumer) | Ordering → Notifications | Notifications subscribes to `ordering.orders` topic, filters by event name, renders buyer-facing emails. |
 | **BFF** | Open Host Service (Ordering exposes HTTP query API) + Published-Language (BFF consumes `ordering.orders` for cache invalidation) | BFF ↔ Ordering | BFF calls `GetOrderByIdQuery` / `GetOrdersByBuyerQuery` over HTTP; BFF also listens to `ordering.orders` to invalidate `order-history:{buyerId}` cache entries. |
@@ -517,7 +517,8 @@ The command payload in either case uses **`OrderId`** (not `CorrelationId`) as t
 
 ### 10.3 Subscribes to
 
-- **From the saga** (or saga-equivalent): `MarkOrderStockReservedCommand`, `MarkOrderPaymentCompletedCommand`, `ConfirmOrderCommand`, `FailOrderCommand`.
+- **From the saga over `ordering.order-commands` (Kafka)**: `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` — the four Avro-locked commands per [events-catalog.md § 5.5](events-catalog.md). Consumed via [`Platform.KafkaFlow.Inbox.EFCore`](../../platform) middleware for idempotent dedup.
+- **From the saga over in-process app-command dispatch (no Kafka)**: `MarkOrderStockReservedCommand`, `MarkOrderPaymentCompletedCommand` — application-layer commands the Wave-2 saga calls directly; their state transitions are saga-private and produce only audit-only internal domain events (no external events).
 - **From the frontend (via BFF → HTTP)**: `CreateOrderCommand`, `CancelOrderCommand`.
 - **From admin tooling / Dev**: `MarkOrderShippedCommand`, `MarkOrderDeliveredCommand`.
 
@@ -544,16 +545,16 @@ This BC does **not** produce to any other topic in v1.
 
 ---
 
-## Appendix B — Open Questions
+## Appendix B — Resolved Questions (M9 ratification)
 
-These questions are intentionally left open for later stages. This BC's design does not depend on their resolution:
+These were intentionally left open during Stage-1 design; Wave-1 milestones M1–M8 shipped sensible defaults per the dispatch prompt's `<autonomous_evolution>` block, and M9 ratifies each here with rationale + back-reference to the shipped code. Numbering preserved so existing external links (`ordering.md#appendix-b`) stay valid.
 
-1. **Saga → Ordering transport** (§10.2) — HTTP vs `ordering.order-commands` topic. Stage 2 Agent 6.
-2. **Weather-remnant fate** — RESOLVED: the `services/Order/` project, `AlertSubscription*Saga` sagas, and `order.alert-subscriptions` Kafka topic were fully removed pre-dispatch. Ordering is greenfield. No action required.
-3. **Row-version concurrency token on `Order`** — implicit (`LastModifiedUtc`) vs explicit `RowVersion`. Solution-architect.
-4. **Order history pagination strategy** — offset/limit vs keyset. Solution-architect; acceptable either way at this design stage.
-5. **Cancellation authorization rules** — can a buyer cancel a `Confirmed` order, or only `Created`/`StockReserved`/`PaymentCompleted`? v1 recommendation: buyers may cancel up to `Confirmed`; admins may cancel up to `Confirmed`. No user can cancel after `Shipped` (I-12). Final policy-level decision: Stage 2 Agent 7.
-6. **Delivery confirmation in v1** — simulated via admin-only `MarkOrderDeliveredCommand`, or an automated timer? v1 recommendation: admin-only to keep the reference solution explicit.
+1. **Saga → Ordering transport** (§10.2) — **RESOLVED: Kafka topic `ordering.order-commands`** (Option Y). Locked by [events-catalog.md § 5.5](events-catalog.md) + [ADR-0004](../adr/0004-checkout-saga-topology.md). HTTP would couple the saga to per-service availability; a Kafka-backed inbox absorbs retries cleanly and matches the saga's event-driven orchestration style. *Citation:* four KafkaFlow inbox consumers under [`services/Ordering/Ordering.Infrastructure/Messaging/Kafka/SagaCommands/`](../../services/Ordering/Ordering.Infrastructure/Messaging/Kafka/SagaCommands/) — `CreateOrderCommandKafkaHandler`, `ConfirmOrderCommandKafkaHandler`, `CancelOrderCommandKafkaHandler`, `MarkOrderFailedCommandKafkaHandler`; topic + retention pinned in [`docker-compose.yaml`](../../docker-compose.yaml) (`retention.ms=604800000` = 7 days).
+2. **Weather-remnant fate** — **RESOLVED (pre-dispatch):** the `services/Order/` project, `AlertSubscription*Saga` sagas, and `order.alert-subscriptions` Kafka topic were fully removed before Wave 1 started. Ordering is greenfield under `services/Ordering/`. No action required.
+3. **Row-version concurrency token on `Order`** — **RESOLVED: explicit `RowVersion : uint`** mapped to Postgres's `xmin` system column via Npgsql's `IsRowVersion()` convention (not a stored shadow property). Rationale: explicit row-version makes optimistic-concurrency violations distinguishable from app-level update conflicts in observability, matches the Weather reference mapping, and avoids the implicit-`LastModifiedUtc` interceptor-coupling smell (the audit column would do double duty as a concurrency token, conflating two concerns). *Citation:* [`services/Ordering/Ordering.Infrastructure/Persistence/Database/EntityConfigurations/Orders/OrderConfiguration.cs:37-40`](../../services/Ordering/Ordering.Infrastructure/Persistence/Database/EntityConfigurations/Orders/OrderConfiguration.cs).
+4. **Order history pagination strategy** — **RESOLVED: offset/limit (`Skip`/`Take`)** in v1; keyset is deferred to v2 once order-history volumes per buyer make consistency-under-insert a real concern. Rationale: admin order-history pages and buyer self-service in v1 hit tens-of-rows-per-buyer at most, well below the threshold where offset's `O(skip)` becomes a problem; offset/limit is a simpler API surface and avoids exposing a cursor format that would later need a v2-bump migration. *Citation:* [`GetOrdersByBuyerQuery.cs:15-17`](../../services/Ordering/Ordering.Application/Orders/GetOrdersByBuyer/GetOrdersByBuyerQuery.cs) (`Skip` + `Take` with default `Take = 20`); spec applied via Ardalis.Specification in `GetOrdersByBuyerQueryHandler`.
+5. **Cancellation authorization rules** — **RESOLVED: buyer may cancel up to `Confirmed`; admin may cancel up to `Confirmed`; no one (buyer or admin) after `Shipped`** (invariant I-12). Rationale: this aligns the user-facing policy with the FSM-locked terminal-status rule — once goods are in a carrier's hands, the saga can no longer close the compensation loop unilaterally (Returns/RMA is the v2 mechanism). Admin gets the same window as buyer because admin doesn't override fulfilment-side state; admin's role is operator-override of buyer intent, not parcel reclamation. *Citation:* [`Order.Cancel(...)`](../../services/Ordering/Ordering.Domain/Orders/Order.cs) returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))` from `Shipped`/`Delivered` (mapped to 409 Conflict per [error-taxonomy.md:32, 294](error-taxonomy.md); pre-M9 drafts of this section used a `CannotCancelAfterShipped` variant that never materialised in the locked taxonomy); [`CancelOrderEndpoint.cs:33-89`](../../services/Ordering/Ordering.API/Endpoints/Orders/CancelOrder/CancelOrderEndpoint.cs) dual-modes buyer-vs-admin and surfaces 409 Conflict on FSM rejection; functional tests `WhenBuyerCancelsOwnCreatedOrder_ReturnsNoContent`, `WhenAnotherBuyerTriesToCancel_ReturnsNotFound`, `WhenOrderShipped_ReturnsConflict`, and `WhenSameIdempotencyKeyUsedByDifferentBuyer_HandlerStillRuns` (all in `test/Ordering.FunctionalTests/ApiEndpoints/Orders/CancelOrderTests.cs`) pin the rule.
+6. **Delivery confirmation in v1** — **RESOLVED: admin-only `MarkOrderDeliveredCommand`** (no auto-timer, no carrier-webhook adapter in v1). Rationale: explicit admin trigger keeps the reference solution behavior-predictable; an auto-timer adds scheduler + retry + idempotency machinery without teaching value for v1, and a real carrier-webhook adapter requires an external-carrier sandbox account we deliberately don't depend on. v2 may replace the surface with a webhook adapter that calls the same domain method. *Citation:* [`MarkOrderDeliveredEndpoint.cs:36`](../../services/Ordering/Ordering.API/Endpoints/Orders/MarkOrderDelivered/MarkOrderDeliveredEndpoint.cs) (`AuthPolicies.OrderingAdmin`) + functional tests `WhenAuthenticatedAsBuyer_ReturnsForbidden` (buyers blocked) and `WhenOrderShipped_ReturnsNoContentAndStatusDelivered` (admin happy path) in `test/Ordering.FunctionalTests/ApiEndpoints/Orders/MarkOrderDeliveredTests.cs` pin the admin-only surface.
 
 ---
 
@@ -563,5 +564,5 @@ Ordering's error class set is the authoritative table in **[error-taxonomy.md §
 
 Key Ordering-specific semantics (the rest lives in error-taxonomy.md):
 
-- `CannotCancelAfterShipped` is the only user-visible error produced during the checkout saga flow; all other Ordering errors are bug-class because saga-issued commands should have already satisfied preconditions.
+- `CannotCancelInStatus(status)` is the only user-visible error produced during the checkout saga flow (mapped to 409 Conflict per [error-taxonomy.md:32, 294](error-taxonomy.md)); all other Ordering errors are bug-class because saga-issued commands should have already satisfied preconditions.
 - Ordering's inbox-consumed saga commands route failures to `ordering.order-commands.DLT` per [kafka-dlq-strategy.md](kafka-dlq-strategy.md).
