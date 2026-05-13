@@ -66,7 +66,7 @@ As a **buyer or administrator** I want **the ability to cancel an order up to th
 
 ### 📐 Rules
 - **R1** — `Order.Cancel(reason, utcNow)` is allowed only when `Status ∈ {Created, StockReserved, PaymentCompleted, Confirmed}`.
-- **R2** — Calling `Cancel` from `Shipped` or `Delivered` returns `Result.Fail(OrderingErrors.CannotCancelAfterShipped)` — this is a user-actionable error (409 Conflict at the HTTP surface), not a bug.
+- **R2** — Calling `Cancel` from `Shipped` or `Delivered` returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))` — this is a user-actionable error (409 Conflict at the HTTP surface), not a bug.
 - **R3** — The business justification: once goods are in a carrier's hands the checkout saga cannot unilaterally recall them; compensation through the saga (refund + release reservation) is no longer a closed loop.
 - **R4** — Post-ship issues (damaged parcel, wrong item, refused delivery) must go through the Returns/RMA flow — explicitly out of scope for v1 (Appendix C).
 - **R5** — A successful `Cancel` raises `OrderCancelledDomainEvent(OrderId, CorrelationId, BuyerId, Reason, AtStatus, CancelledAtUtc)` which is transformed into the external `OrderCancelledEvent` on `ordering.orders`; downstream consumers (Inventory, Payments) perform the compensation dictated by `AtStatus`.
@@ -92,14 +92,14 @@ As a **buyer or administrator** I want **the ability to cancel an order up to th
 - **Given** an order `O1` with `Status = Shipped` (parcel handed to `DHL`, tracking `TRK-42`)
 - **When** `order.Cancel(reason="buyer changed mind", utcNow)` is called
 - **Verify** R2, R3, R4
-- **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelAfterShipped)`, `Status` remains `Shipped`, and no domain event is raised — the caller must direct the buyer to the Returns flow (v2).
+- **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))`, `Status` remains `Shipped`, and no domain event is raised — the caller must direct the buyer to the Returns flow (v2).
 
 #### The one where cancellation is attempted after delivery
 
 - **Given** an order `O1` with `Status = Delivered`
 - **When** `order.Cancel(reason="buyer dispute", utcNow)` is called
 - **Verify** R2, R4
-- **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelAfterShipped)` (same error — both post-ship states are rejected), `Status` remains `Delivered`.
+- **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))` (same error — both post-ship states are rejected), `Status` remains `Delivered`.
 
 ### ❓ Questions
 *(None — v1 cancellation policy is explicit: buyers and admins may cancel up to `Confirmed`; everything beyond goes through Returns/RMA in v2.)*
