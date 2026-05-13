@@ -491,6 +491,47 @@ services:
         limits:
           memory: 768M
 
+  ordering.api:
+    build:
+      context: .
+      dockerfile: services/Ordering/Ordering.API/Dockerfile
+    container_name: ordering.api
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    # Same iss/metadata bridge as catalog.api: map host's `localhost` to the gateway
+    # IP inside the container so JwtBearer.Authority=http://localhost:9011/realms/dotnetatlas
+    # (the issuer baked into Keycloak's --hostname per docker-compose.yaml:731) is
+    # reachable via the host's port mapping (9011 → keycloak:8080).
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Ordering=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=Ordering
+    ports:
+      - "8101:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8090-8095 by relays.
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
   outbox-relay-inventory:
     build:
       context: .

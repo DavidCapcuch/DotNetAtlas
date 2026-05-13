@@ -178,7 +178,8 @@ docker compose --profile full up -d
 docker compose exec kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic ordering.orders
 docker compose exec kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic ordering.order-commands
 # Smoke: query order endpoint (after seeding via integration test)
-curl -s "http://localhost:8080/api/v1/ordering/orders/00000000-0000-0000-0000-000000000001" -H "Authorization: Bearer ..."
+# Port 8101 = ordering.api host mapping (docker-compose.yaml). Bypasses nginx-cdn (8080).
+curl -s "http://localhost:8101/api/v1/ordering/orders/00000000-0000-0000-0000-000000000001" -H "Authorization: Bearer ..."
 ```
 
 Paste actual output (pass/fail per command) into your session summary.
