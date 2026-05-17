@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using FastEndpoints;
 using Invoicing.API.Endpoints.Invoices.ResendInvoice;
 using Invoicing.FunctionalTests.Common;
@@ -114,6 +115,37 @@ public class ResendInvoiceTests : BaseApiTest
             first.StatusCode.Should().Be(HttpStatusCode.NoContent);
             second.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
+    }
+
+    [Fact]
+    public async Task OpenApiDescription_DisclosesV1StubBehaviour()
+    {
+        // Wave 1 closeout follow-up H2: the resend endpoint returns 204 + caches
+        // the no-op result under Idempotency-Key for 24 h, while the actual
+        // invoice_delivery_log insert + outbox row are deferred (see
+        // ResendInvoiceCommandHandler xmldoc). Admin tooling reading the OpenAPI
+        // spec must see this disclosure so a future maintainer cannot interpret
+        // 204 as "delivery performed". The v1-stub marker `(v1 stub)` is the
+        // stable contract surface; removing it should fail this test.
+        using var response = await HttpClientRegistry.AdminClient.GetAsync(
+            "/swagger/v1/swagger.json",
+            TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            "swagger document must be served in non-production environments per PresentationDependencyInjection.UseInvoicingFastEndpoints");
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var doc = JsonDocument.Parse(json);
+
+        var resendPath = doc.RootElement
+            .GetProperty("paths")
+            .GetProperty("/api/v1/invoicing/invoices/{InvoiceId}/resend")
+            .GetProperty("post");
+
+        var description = resendPath.TryGetProperty("description", out var d) ? d.GetString() : null;
+        description.Should().NotBeNullOrEmpty(
+            "the resend endpoint must publish a description so admin tooling can read its v1 semantics");
+        description!.Should().Contain("v1 stub",
+            "OpenAPI consumers must see a stable v1-stub disclosure so a 204 acknowledgement is not mistaken for delivery — see ResendInvoiceCommandHandler.cs xmldoc");
     }
 
     private static async Task<HttpResponseMessage> PostResendAsync(

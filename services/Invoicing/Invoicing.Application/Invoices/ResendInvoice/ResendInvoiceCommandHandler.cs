@@ -17,7 +17,7 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// <para>
 /// V1 is deliberately minimal: verify the invoice exists (404 otherwise) and is in a
 /// resendable state (409 otherwise). HTTP idempotency is provided by FastEndpoints'
-/// <c>.Idempotency()</c> filter (ADR-0013) — the cache slot returns the cached 202 on
+/// <c>.Idempotency()</c> filter (ADR-0013) — the cache slot returns the cached 204 on
 /// double-clicks before this handler ever runs again.
 /// </para>
 /// <para>
@@ -25,8 +25,15 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// keyed <c>(InvoiceId, Channel, Attempt)</c> described in <c>invoicing.md § 12</c>.
 /// The delivery-log table requires a user-generated EF migration (CLAUDE.md). When that
 /// table exists the handler will SELECT MAX(Attempt) and INSERT Attempt+1 inside a
-/// transaction; for now the resend is a no-op observability event with the 202
+/// transaction; for now the resend is a no-op observability event with the 204
 /// representing acknowledgement rather than work performed.
+/// </para>
+/// <para>
+/// Wave 1 closeout follow-up H2: the v1-stub disclosure now also flows into the
+/// OpenAPI <c>Description</c> on <c>ResendInvoiceEndpoint</c> so admin tooling
+/// reading the spec cannot misinterpret 204 as completed delivery. See the
+/// followups summary in
+/// <c>docs/implementation-prompts/session-summaries/invoicing-followups.md</c>.
 /// </para>
 /// </remarks>
 internal sealed class ResendInvoiceCommandHandler : ICommandHandler<ResendInvoiceCommand>
