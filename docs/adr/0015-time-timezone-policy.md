@@ -124,6 +124,21 @@ Per-BC `ArchitectureTests` project asserts:
 2. Types in `{BC}.Domain` do not call `DateTimeOffset.UtcNow`, `DateTime.UtcNow`, `DateTime.Now`, `DateTimeOffset.Now` (enforce via a Roslyn analyzer rule or a reflection-based test).
 3. Constructors / methods that need "now" accept `TimeProvider` via DI or receive `DateTimeOffset` from the application layer.
 
+### Platform base — `DomainEvent.OccurredOnUtc` is `required` (Wave 1.5 cross-cutting)
+
+`Platform.SharedKernel.Base.DomainEvents.DomainEvent.OccurredOnUtc` is declared `required` with no default initializer. Callers must supply an explicit value sourced from `TimeProvider.GetUtcNow()`; the prior default of `DateTimeOffset.UtcNow` was an in-base violation of the no-wall-clock rule and silently bypassed `FakeTimeProvider` in tests. Pattern in aggregate methods:
+
+```csharp
+var utcNow = _timeProvider.GetUtcNow();
+AddDomainEvent(new SomethingHappenedDomainEvent
+{
+    OccurredOnUtc = utcNow,
+    // ...payload...
+});
+```
+
+Compile-time guarantee: every event-construction site without `OccurredOnUtc =` fails the build. The reflection-based regression test lives in `platform/Platform.SharedKernel.UnitTests/Base/DomainEvents/DomainEventTests.cs`.
+
 ### EF Core convention
 
 Every DbContext:
