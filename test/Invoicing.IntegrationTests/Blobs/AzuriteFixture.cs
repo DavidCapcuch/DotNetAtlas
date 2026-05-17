@@ -44,7 +44,23 @@ public sealed class AzuriteFixture : IAsyncLifetime
             ConnectionString = _azurite.GetConnectionString(),
             InvoicesContainerName = InvoicesContainerName,
         });
-        BlobStore = new AzureBlobStore(ServiceClient, options);
+        BlobStore = new AzureBlobStore(ServiceClient, options, TimeProvider.System);
+    }
+
+    /// <summary>
+    /// Builds an <see cref="AzureBlobStore"/> bound to the same Azurite container but
+    /// with a caller-supplied <see cref="TimeProvider"/>. Used by tests that pin the
+    /// SAS `se` (signed-expiry) window against <see cref="Microsoft.Extensions.Time.Testing.FakeTimeProvider"/>.
+    /// </summary>
+    public IBlobStore CreateBlobStoreWithClock(TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        var options = Options.Create(new BlobStorageOptions
+        {
+            ConnectionString = _azurite.GetConnectionString(),
+            InvoicesContainerName = InvoicesContainerName,
+        });
+        return new AzureBlobStore(ServiceClient, options, timeProvider);
     }
 
     public async ValueTask DisposeAsync()

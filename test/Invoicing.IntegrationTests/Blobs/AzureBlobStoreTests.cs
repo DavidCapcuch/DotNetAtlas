@@ -1,7 +1,10 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Web;
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace Invoicing.IntegrationTests.Blobs;
@@ -171,6 +174,47 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             ct: ct);
 
         await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task GetSasUrlAsync_DerivesSeFromInjectedTimeProvider_NotWallClock()
+    {
+        // Pin against ADR-0015: SAS expiry is sourced from the injected TimeProvider so
+        // FakeTimeProvider-driven handler-side metadata (`sasExpiresAtUtc`) stays in lock-step
+        // with the signed `se` parameter. Before the H1 fix this asserted against
+        // DateTimeOffset.UtcNow and drifted from the FakeTimeProvider any test could read.
+        var ct = TestContext.Current.CancellationToken;
+        const string blobName = "2026/04/INV-2026-000149.pdf";
+        var fixedNow = new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero);
+        var clock = new FakeTimeProvider(fixedNow);
+        var expiry = TimeSpan.FromMinutes(10);
+        var expectedSe = fixedNow.Add(expiry).UtcDateTime;
+
+        // Upload via the system-clock store so the blob exists, then mint the SAS via the
+        // FakeTimeProvider-bound store. GetSasUrlAsync does not call the storage service, so
+        // running the two against the same Azurite container is safe.
+        await fixture.BlobStore.UploadAsync(
+            fixture.ContainerName,
+            blobName,
+            SamplePdf,
+            ContentType,
+            metadata: null,
+            sasTtl: TimeSpan.FromMinutes(10),
+            ct: ct);
+
+        var fakeClockStore = fixture.CreateBlobStoreWithClock(clock);
+        var sasUri = await fakeClockStore.GetSasUrlAsync(
+            fixture.ContainerName,
+            blobName,
+            expiry,
+            ct);
+
+        var seValue = HttpUtility.ParseQueryString(sasUri.Query)["se"];
+        seValue.Should().NotBeNull(
+            "Azure SAS URIs always carry an `se` (signed-expiry) parameter — its absence indicates the URI is not a SAS-signed URL");
+        var seParsed = DateTimeOffset.Parse(seValue!, CultureInfo.InvariantCulture);
+        seParsed.UtcDateTime.Should().Be(expectedSe,
+            "the BlobSasBuilder must use _timeProvider.GetUtcNow() rather than wall-clock UtcNow");
     }
 
     [Fact]

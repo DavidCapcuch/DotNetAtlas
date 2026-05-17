@@ -21,14 +21,20 @@ internal sealed class AzureBlobStore : IBlobStore
 {
     private readonly BlobServiceClient _serviceClient;
     private readonly BlobStorageOptions _options;
+    private readonly TimeProvider _timeProvider;
 
-    public AzureBlobStore(BlobServiceClient serviceClient, IOptions<BlobStorageOptions> options)
+    public AzureBlobStore(
+        BlobServiceClient serviceClient,
+        IOptions<BlobStorageOptions> options,
+        TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(serviceClient);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _serviceClient = serviceClient;
         _options = options.Value;
+        _timeProvider = timeProvider;
     }
 
     public async Task<PdfBlobRef> UploadAsync(
@@ -137,7 +143,10 @@ internal sealed class AzureBlobStore : IBlobStore
                 + "is constructed with TokenCredential + delegation-key for managed-identity mode.");
         }
 
-        var builder = new BlobSasBuilder(BlobSasPermissions.Read, DateTimeOffset.UtcNow.Add(expiry))
+        // ADR-0015: SAS expiry is derived from the injected TimeProvider so FakeTimeProvider-driven
+        // tests can pin the `se` window deterministically against the handler-side `sasExpiresAtUtc`
+        // metadata (otherwise the two clocks can drift on the same machine).
+        var builder = new BlobSasBuilder(BlobSasPermissions.Read, _timeProvider.GetUtcNow().Add(expiry))
         {
             BlobContainerName = blob.BlobContainerName,
             BlobName = blob.Name,
