@@ -107,6 +107,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 - **Scope enforcement on inbound HTTP (where it does belong):**
   - The HTTP-side `AddJwtBearer` validation above already enforces audience + issuer per service. Scope policies (`RequireClaim("scope", "ordering.commands.cancel")`-style) gate admin endpoints inside each service. This is the only layer where service-to-service tokens need application-level inspection in v1, because admin commands enter via HTTP, not Kafka.
+  - **Platform helper (Wave 1.5 cross-cutting):** `Platform.ServiceDefaults.Auth.ScopePolicyExtensions.RequireScope(string scope)` is the canonical way for a BC `AuthorizationPolicyBuilder` to enforce a scope claim. It composes `RequireAuthenticatedUser()` + `RequireClaim("scope", scope)` and validates input. Existing v1 BCs (Invoicing, Payments, Ordering) currently use `RequireRole(Roles.<Admin|Buyer>)` mapped from Keycloak realm roles — a transitional posture flagged in the Wave 1 closeouts. The v2 hardening pass migrates each admin/buyer policy to `RequireScope("<service>.<verb>")` using this helper; per-BC migration is tracked on the issue tracker under label `platform/wave1-followup`.
 
 - **Observability:**
   - Every validated inbound token adds `auth.client.id = <azp>` to the Activity span.
