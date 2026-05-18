@@ -20,7 +20,7 @@ public sealed record ReservationInfo : ValueObject
     {
     }
 
-    public ReservationId ReservationId { get; init; } = null!;
+    public required ReservationId ReservationId { get; init; }
 
     public Guid ProductId { get; init; }
 
