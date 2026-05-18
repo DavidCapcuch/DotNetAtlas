@@ -112,19 +112,23 @@ internal sealed class ReservationExpiryWorker : BackgroundService
     {
         var nowUtc = _timeProvider.GetUtcNow();
 
-        await using var scope = _scopeFactory.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<IInventoryDbContext>();
-        var handler = scope.ServiceProvider
-            .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
-
-        var expired = await dbContext.ReservationAudit
-            .AsNoTracking()
-            .Where(r => r.Status == ReservationStatus.Active && r.ExpiresAtUtc < nowUtc)
-            .OrderBy(r => r.ExpiresAtUtc)
-            .Take(MaxBatchSize)
-            .Select(r => new ExpiredReservation(r.ReservationId, r.ProductId))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+        // Read-only snapshot scope: only used to query the audit table for
+        // expired rows. Each per-row release runs on its OWN scope below so
+        // a poison row's DbContext state cannot bleed into the next release's
+        // ChangeTracker (issue #161 — fault isolation).
+        List<ExpiredReservation> expired;
+        await using (var queryScope = _scopeFactory.CreateAsyncScope())
+        {
+            var queryDbContext = queryScope.ServiceProvider.GetRequiredService<IInventoryDbContext>();
+            expired = await queryDbContext.ReservationAudit
+                .AsNoTracking()
+                .Where(r => r.Status == ReservationStatus.Active && r.ExpiresAtUtc < nowUtc)
+                .OrderBy(r => r.ExpiresAtUtc)
+                .Take(MaxBatchSize)
+                .Select(r => new ExpiredReservation(r.ReservationId, r.ProductId))
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+        }
 
         if (expired.Count == 0)
         {
@@ -149,6 +153,15 @@ internal sealed class ReservationExpiryWorker : BackgroundService
         {
             try
             {
+                // One scope per release: each iteration gets a fresh
+                // IInventoryDbContext + handler instance, so the EF
+                // ChangeTracker can never leak entity state across rows.
+                // The per-row catch (Exception) below still recovers — but
+                // now from a clean slate, not a possibly-dirty shared scope.
+                await using var perReleaseScope = _scopeFactory.CreateAsyncScope();
+                var handler = perReleaseScope.ServiceProvider
+                    .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
+
                 var command = new ReleaseReservationCommand
                 {
                     ReservationId = row.ReservationId,
