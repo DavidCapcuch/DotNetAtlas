@@ -185,9 +185,12 @@ Append to `docker-compose.yaml` inside the `kafka-create-topic` command block, i
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.order-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.stock-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservations --partitions 6 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservation-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservation-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic invoicing.invoices --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=315360000000 --if-not-exists
       "
 ```
+
+`315360000000` ms = 10 years — EU VAT legal record-keeping retention per § 3 (Czech Republic, Germany, France, Slovakia all require 10-year invoice retention). PII policy per ADR-0011 applies.
 
 The final `"` closes the multi-line bash command. Implementation agents: when inserting, preserve the closing `"` at the right indentation so `kafka-create-topic.command` remains a valid YAML scalar.
 
@@ -1874,6 +1877,21 @@ The following schemas **already exist** in the repository and are **not** re-aut
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` | Multiple services → Notifications (existing pattern; Checkout-related emails use the same template-commanded pattern) |
 
 **Direct-consumption events the Checkout saga subscribes to from this list:** `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`.
+
+---
+
+### 5.7 Invoicing External Events
+
+Wave 1 shipped 3 of 4 LOCKED Invoicing Avro schemas. The 4th (`InvoiceDeliveredEvent.avsc`) is a disclosed carry-forward — see Invoicing-followups [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123); deferral rationale is "no consumer ready" (Notifications email + BFF cache are placeholders for Wave 2). The runtime path is gated: `IssueInvoiceCommandHandler` hard-codes `DeliveryChannel.None` so production never raises `InvoiceDeliveredDomainEvent`.
+
+| File | Producer → Consumers |
+|---|---|
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceIssuedEvent.avsc` | Invoicing → Notifications (email), BFF (invoice cache) |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceCancelledEvent.avsc` | Invoicing → Notifications, BFF (cache invalidate) |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → Notifications, BFF |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | **DEFERRED (Wave 2)** — see [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123) |
+
+All four target the `invoicing.invoices` topic (10-year retention, partition key `BuyerId`) per § 3 + § 4. Compatibility mode at the registry is `FORWARD_TRANSITIVE` (per-subject configured by the `schema-registry-init` companion service — see `cross-cutting-followups.md` H-1).
 
 ---
 
