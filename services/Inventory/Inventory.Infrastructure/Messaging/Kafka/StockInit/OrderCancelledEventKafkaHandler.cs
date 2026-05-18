@@ -90,7 +90,7 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                 .AsNoTracking()
                 .Where(r => r.OrderId == message.OrderId && r.Status == ReservationStatus.Active)
                 .Select(r => new { r.ReservationId, r.ProductId })
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation(
                 "Received OrderCancelledEvent from origin {Origin}: {ActiveCount} active reservations to release",
@@ -116,7 +116,7 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                     CorrelationId = message.CorrelationId,
                 };
 
-                var result = await _appHandler.HandleAsync(releaseCommand, cancellationToken);
+                var result = await _appHandler.HandleAsync(releaseCommand, cancellationToken).ConfigureAwait(false);
 
                 if (result.IsFailed)
                 {
