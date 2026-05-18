@@ -38,6 +38,7 @@ public class CategoryCreatedOutboxPublisherTests
         await publisher.Handle(
             new CategoryCreatedDomainEvent
             {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
                 CategoryId = child.Id,
                 Name = child.Name,
                 ParentCategoryId = child.ParentCategoryId,

@@ -23,6 +23,7 @@ public class CategoryReparentedProjectionHandlerTests
         await handler.Handle(
             new CategoryReparentedDomainEvent
             {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
                 CategoryId = Guid.CreateVersion7(),
                 OldParentId = null,
                 NewParentId = Guid.CreateVersion7(),

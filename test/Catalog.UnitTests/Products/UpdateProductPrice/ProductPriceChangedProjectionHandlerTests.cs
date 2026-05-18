@@ -55,6 +55,7 @@ public class ProductPriceChangedProjectionHandlerTests
         await handler.Handle(
             new ProductPriceChangedDomainEvent
             {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
                 ProductId = Guid.CreateVersion7(),
                 OldPrice = Money.Create(1m, "USD").Value,
                 NewPrice = Money.Create(2m, "USD").Value,

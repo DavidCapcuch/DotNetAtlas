@@ -24,6 +24,7 @@ public class CategoryCreatedProjectionHandlerTests
         await handler.Handle(
             new CategoryCreatedDomainEvent
             {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
                 CategoryId = Guid.CreateVersion7(),
                 Name = "Electronics",
                 ParentCategoryId = null,

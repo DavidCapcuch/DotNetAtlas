@@ -24,6 +24,7 @@ public class ProductCreatedProjectionHandlerTests
 
         var domainEvent = new ProductCreatedDomainEvent
         {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             ProductId = product.Id,
             Sku = product.Sku,
             Name = product.Name,
@@ -58,6 +59,7 @@ public class ProductCreatedProjectionHandlerTests
 
         var domainEvent = new ProductCreatedDomainEvent
         {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             ProductId = Guid.CreateVersion7(),
             Sku = CatalogFactories.DraftProduct().Sku,
             Name = CatalogFactories.DraftProduct().Name,
