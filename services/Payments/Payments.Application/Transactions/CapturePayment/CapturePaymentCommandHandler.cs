@@ -62,6 +62,17 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
             return Result.Ok();
         }
 
+        // H-Cond-2: assert FSM transition is legal BEFORE touching the gateway. Capture against
+        // a Requested aggregate (saga skipped Authorize) or against a Voided/Failed aggregate
+        // (saga ordering bug) would otherwise reach the real PSP before the aggregate's own
+        // FSM guard fires.
+        if (!tx.Status.CanTransitionTo(PaymentStatus.Captured))
+        {
+            throw new DataIntegrityException(
+                "Payments.InvalidStatusTransition",
+                $"Cannot capture payment {tx.Id} from status '{tx.Status.Name}'.");
+        }
+
         // GatewayTransactionId was set by Authorize and is non-null in any post-Requested state;
         // the aggregate's FSM guards in Capture / MarkCaptureFailed enforce this further.
         var gatewayTransactionId = tx.GatewayTransactionId

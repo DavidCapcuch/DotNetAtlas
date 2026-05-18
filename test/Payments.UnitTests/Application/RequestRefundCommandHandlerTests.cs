@@ -12,6 +12,7 @@ using Payments.Domain.Transactions.ValueObjects;
 using Payments.UnitTests.Transactions;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Payments.UnitTests.Application;
@@ -99,5 +100,23 @@ public class RequestRefundCommandHandlerTests
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
         result.Should().BeFailure();
+    }
+
+    [Fact]
+    public async Task Handle_AuthorizedAggregate_FsmRejectsBeforeGatewayCall()
+    {
+        // H-Cond-2: a Refund issued against an Authorized (not-yet-Captured) aggregate must
+        // throw the FSM source-state guard BEFORE the gateway is contacted — a real PSP would
+        // reject the refund or, worse, double-process. The Refund/Void asymmetry is a saga bug.
+        var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
+        var command = BuildCommand(existing.Id);
+        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+
+        var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+        thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
+        await _gateway.DidNotReceive().RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        existing.Status.Should().Be(PaymentStatus.Authorized);
     }
 }

@@ -61,6 +61,16 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
             return Result.Ok();
         }
 
+        // H-Cond-2: assert FSM transition is legal BEFORE touching the gateway. Without this
+        // pre-check, a saga issuing Refund against an Authorized (not-yet-Captured) aggregate
+        // would reach the real PSP before the aggregate's Refund() guard rejects the transition.
+        if (!tx.Status.CanTransitionTo(PaymentStatus.Refunded))
+        {
+            throw new DataIntegrityException(
+                "Payments.InvalidStatusTransition",
+                $"Cannot refund payment {tx.Id} from status '{tx.Status.Name}'.");
+        }
+
         var gatewayTransactionId = tx.GatewayTransactionId
             ?? throw new DataIntegrityException(
                 "Payments.MissingGatewayTransactionId",

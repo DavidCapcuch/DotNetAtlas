@@ -61,6 +61,17 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
             return Result.Ok();
         }
 
+        // H-Cond-2: assert FSM transition is legal BEFORE touching the gateway. The aggregate's
+        // own Void() method also guards this transition, but that guard fires AFTER the gateway
+        // call — too late to prevent a real-world side-effect against a Stripe / Adyen adapter
+        // when the saga sends Void against a post-capture aggregate.
+        if (!tx.Status.CanTransitionTo(PaymentStatus.Voided))
+        {
+            throw new DataIntegrityException(
+                "Payments.InvalidStatusTransition",
+                $"Cannot void payment {tx.Id} from status '{tx.Status.Name}'.");
+        }
+
         var gatewayTransactionId = tx.GatewayTransactionId
             ?? throw new DataIntegrityException(
                 "Payments.MissingGatewayTransactionId",
