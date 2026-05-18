@@ -4,6 +4,9 @@ using Basket.Application.Common.Data;
 using Basket.Domain.Baskets.Errors;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -14,7 +17,7 @@ using BasketAggregate = Basket.Domain.Baskets.Basket;
 
 namespace Basket.UnitTests.Baskets.Application.Checkout;
 
-public class CheckoutBasketCommandHandlerTests
+public class CheckoutBasketCommandHandlerTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 04, 23, 12, 00, 00, TimeSpan.Zero);
 
@@ -23,6 +26,20 @@ public class CheckoutBasketCommandHandlerTests
         Substitute.For<ITransactionalOutbox<IBasketDbContext>>();
     private readonly IDomainEventDispatcher _dispatcher = Substitute.For<IDomainEventDispatcher>();
     private readonly FakeTimeProvider _time = new(Now);
+    private readonly DbContext _fakeDbContext = new InMemoryDbContextStub();
+
+    public CheckoutBasketCommandHandlerTests()
+    {
+        // CheckoutBasketCommandHandler wraps the dispatch + outbox commit in
+        // _outbox.Database.EnsureTransactionAsync(...). Without a Database substitute
+        // every test would NRE on the wrap. Wire an EF InMemory DbContext whose
+        // BeginTransactionAsync is a configured no-op so the wrap simply invokes the
+        // lambda. Real transactional semantics are exercised by
+        // BasketCheckoutOutboxIntegrationTests against a Postgres Testcontainer.
+        _outbox.Database.Returns(_fakeDbContext.Database);
+    }
+
+    public void Dispose() => _fakeDbContext.Dispose();
 
     private CheckoutBasketCommandHandler CreateSut() => new(
         _repo,
@@ -30,6 +47,17 @@ public class CheckoutBasketCommandHandlerTests
         _dispatcher,
         _time,
         NullLogger<CheckoutBasketCommandHandler>.Instance);
+
+    private sealed class InMemoryDbContextStub : DbContext
+    {
+        public InMemoryDbContextStub()
+            : base(new DbContextOptionsBuilder()
+                .UseInMemoryDatabase(Guid.CreateVersion7().ToString())
+                .ConfigureWarnings(b => b.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+                .Options)
+        {
+        }
+    }
 
     private static CheckoutBasketCommand ValidCommand(Guid userId) => new(
         userId,
