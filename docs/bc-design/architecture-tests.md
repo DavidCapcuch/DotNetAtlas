@@ -278,6 +278,36 @@ Types.InAssembly(InventoryAppAssembly)
     .GetResult();
 ```
 
+### 2.5 Invoicing
+
+The shipped Invoicing test project (`test/Invoicing.ArchitectureTests/`) enforces **30 facts** (the 29 originally landed in M9 + the `BlobsNamespace_ShouldNotCall_StaticUtcNow` rule added by closeout commit `196501b`). The per-BC rules below complement § 1 with invariants that are specific to the Invoicing chapter — PDF determinism, blob containment, PII allowlisting, and the strict `TimeProvider` posture inherited from ADR-0015.
+
+- **`Invoicing.Infrastructure.Pdf.*` is the only QuestPDF caller** — `PdfGenerationContainmentTests.PdfGenerator_ShouldOnlyBeIn_PdfNamespace` asserts no type outside the `Invoicing.Infrastructure.Pdf.*` regex references `QuestPDF.*`. Prevents PDF rendering from leaking into Domain / Application / API.
+- **`Invoicing.Infrastructure.Blobs.*` is the only `Azure.Storage.Blobs` caller** — `BlobStorageContainmentTests.AzureStorage_ShouldOnlyBeIn_BlobsNamespace` asserts the SDK is contained. The blob path is also the only namespace allowed to mint SAS URLs.
+- **PII allowlist** — `OtelTagAllowlistTests` asserts that the only span-attribute keys Invoicing emits are on the ADR-0011 allowlist (or `DataIntegrityException`-tagged `error.*` keys). Buyer email / name / address must never appear in a span tag.
+- **`NoStaticUtcNowInDomain`** — `NoStaticUtcNowInDomainTests` asserts `Invoicing.Domain.**` does not call `DateTime[Offset].UtcNow`. Inherits the universal § 1 contract; restated here because the M9 review found the rule worth pinning in test code.
+- **Blobs-namespace UtcNow ban** — `BlobStorageContainmentTests.BlobsNamespace_ShouldNotCall_StaticUtcNow` extends the no-static-UtcNow rule to `Invoicing.Infrastructure.Blobs.*` (added in closeout commit `196501b` to plug the AzureBlobStore SAS-expiry hole — see H4 in the Invoicing closeout).
+- **Clean-Architecture layer rules** — 6 facts in `CleanArchitectureLayerTests` mirror the universal § 1.1 contract at the Invoicing-assembly level (Domain ⟂ Application/Infrastructure/API; Application ⟂ Infrastructure/API; Infrastructure ⟂ API).
+- **Aggregate discipline** — 4 facts in `AggregateRootTests` cover the universal § 1.2 contract for `Invoice` and `CreditNote` (private parameterless ctor, public static factory, no public setters, encapsulated domain-event collection).
+- **Domain-event discipline** — 3 facts in `DomainEventTests` cover the universal § 1.3 internal-event contract (sealed, naming suffix, namespace).
+- **Command/Query discipline** — 4 facts in `CommandHandlerTests` / `QueryHandlerTests` enforce the § 1.4 naming + return-type contract per BC.
+- **No cross-BC reference** — 2 facts in `NoCrossBcReferenceTests` forbid imports from `{Basket,Catalog,Inventory,Ordering,Payments}.{Domain,Application}` in `Invoicing.{Domain,Application}` (cross-BC integration only via Avro contracts under `Platform.SchemaRegistry.Contracts`).
+
+```csharp
+// Example — PDF containment (literal selector inside the BC test project)
+Types.InAssembly(InvoicingInfraAssembly)
+    .That().HaveDependencyOnAny("QuestPDF")
+    .Should()
+    .ResideInNamespaceMatching(@"^Invoicing\.Infrastructure\.Pdf(\..*)?$")
+    .GetResult();
+
+// Example — Blobs namespace no-static-UtcNow (commit 196501b)
+Types.InAssembly(InvoicingInfraAssembly)
+    .That().ResideInNamespaceMatching(@"^Invoicing\.Infrastructure\.Blobs(\..*)?$")
+    .Should().MeetCustomRule(new DoesNotCallStaticUtcNowRule())
+    .GetResult();
+```
+
 ---
 
 ## 3. Test Project Scaffolding
