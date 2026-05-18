@@ -29,7 +29,7 @@ public class AuthorizePaymentCommandHandlerTests
     private AuthorizePaymentCommandHandler BuildHandler() =>
         new(_repository, _gateway, _outbox, _dispatcher, _timeProvider, NullLogger<AuthorizePaymentCommandHandler>.Instance);
 
-    private static AuthorizePaymentCommand BuildCommand(decimal amount = 100m) => new()
+    private static AuthorizePaymentCommand BuildCommand(decimal amount = 100m, string idempotencyKey = "key-1") => new()
     {
         PaymentId = Guid.CreateVersion7(),
         CorrelationId = Guid.CreateVersion7(),
@@ -38,6 +38,7 @@ public class AuthorizePaymentCommandHandlerTests
         Amount = amount,
         Currency = "USD",
         PaymentMethodId = "tok_visa_4242",
+        IdempotencyKey = idempotencyKey,
     };
 
     [Fact]
@@ -46,7 +47,7 @@ public class AuthorizePaymentCommandHandlerTests
         var command = BuildCommand();
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
-        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>())
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -56,7 +57,7 @@ public class AuthorizePaymentCommandHandlerTests
             result.Should().BeSuccess();
             _repository.Received(1).Add(Arg.Is<PaymentTransaction>(t =>
                 t.Id == command.PaymentId && t.Status == PaymentStatus.Authorized));
-            await _gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>());
+            await _gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
             await _dispatcher.Received().DispatchAsync(Arg.Any<PaymentRequestedDomainEvent>(), Arg.Any<CancellationToken>());
             await _dispatcher.Received().DispatchAsync(Arg.Any<PaymentAuthorizedDomainEvent>(), Arg.Any<CancellationToken>());
             await _outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -69,7 +70,7 @@ public class AuthorizePaymentCommandHandlerTests
         var command = BuildCommand();
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
-        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>())
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<AuthorizeResponse>(new GatewayDeclinedError("declined", "insufficient_funds")));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -90,7 +91,7 @@ public class AuthorizePaymentCommandHandlerTests
         var command = BuildCommand();
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
-        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>())
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<AuthorizeResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -115,7 +116,7 @@ public class AuthorizePaymentCommandHandlerTests
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>());
+            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
             await _outbox.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
             _repository.DidNotReceive().Add(Arg.Any<PaymentTransaction>());
         }
@@ -133,8 +134,31 @@ public class AuthorizePaymentCommandHandlerTests
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>());
+            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
             await _outbox.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Fact]
+    public async Task Handle_NewPayment_PropagatesIdempotencyKeyToGateway()
+    {
+        // H-4: the saga-issued idempotency key MUST reach IPaymentGateway.AuthorizeAsync so a
+        // real PSP adapter can forward it as the gateway's Idempotency-Key header. Verifies
+        // the wire field is no longer dropped (was: AuthorizePaymentCommand.IdempotencyKey
+        // documented in schema but ignored).
+        const string Key = "saga-key-123";
+        var command = BuildCommand(idempotencyKey: Key);
+        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+            .Returns((PaymentTransaction?)null);
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
+
+        var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            await _gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Key, Arg.Any<CancellationToken>());
         }
     }
 }

@@ -13,5 +13,6 @@ internal sealed class AuthorizePaymentCommandValidator : AbstractValidator<Autho
         RuleFor(c => c.Amount).GreaterThan(0m);
         RuleFor(c => c.Currency).NotEmpty().Length(3);
         RuleFor(c => c.PaymentMethodId).NotEmpty().MaximumLength(64);
+        RuleFor(c => c.IdempotencyKey).NotEmpty();
     }
 }

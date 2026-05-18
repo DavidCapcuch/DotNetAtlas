@@ -15,6 +15,7 @@ public class AuthorizePaymentCommandValidatorTests
         Amount = 100m,
         Currency = "USD",
         PaymentMethodId = "tok_visa_4242",
+        IdempotencyKey = "saga-key-1",
     };
 
     [Fact]
@@ -53,6 +54,13 @@ public class AuthorizePaymentCommandValidatorTests
     public void Validate_EmptyPaymentId_Fails()
     {
         var cmd = Valid() with { PaymentId = Guid.Empty };
+        _validator.Validate(cmd).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Validate_EmptyIdempotencyKey_Fails()
+    {
+        var cmd = Valid() with { IdempotencyKey = string.Empty };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 }

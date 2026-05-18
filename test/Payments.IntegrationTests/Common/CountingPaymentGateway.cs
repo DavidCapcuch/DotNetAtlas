@@ -23,6 +23,7 @@ public sealed class CountingPaymentGateway : IPaymentGateway
     private int _captureCount;
     private int _voidCount;
     private int _refundCount;
+    private string? _lastIdempotencyKey;
 
     public CountingPaymentGateway(IPaymentGateway inner)
     {
@@ -38,18 +39,27 @@ public sealed class CountingPaymentGateway : IPaymentGateway
 
     public int RefundCount => Volatile.Read(ref _refundCount);
 
+    /// <summary>
+    /// Last <c>idempotencyKey</c> the spy saw on <see cref="AuthorizeAsync"/>. Used by H-4
+    /// integration tests to assert the saga-issued key flowed through the application command
+    /// and into the gateway port.
+    /// </summary>
+    public string? LastAuthorizeIdempotencyKey => Volatile.Read(ref _lastIdempotencyKey);
+
     public void Reset()
     {
         Interlocked.Exchange(ref _authorizeCount, 0);
         Interlocked.Exchange(ref _captureCount, 0);
         Interlocked.Exchange(ref _voidCount, 0);
         Interlocked.Exchange(ref _refundCount, 0);
+        Interlocked.Exchange(ref _lastIdempotencyKey, null);
     }
 
-    public Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, CancellationToken ct)
+    public Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, string idempotencyKey, CancellationToken ct)
     {
         Interlocked.Increment(ref _authorizeCount);
-        return _inner.AuthorizeAsync(tx, ct);
+        Interlocked.Exchange(ref _lastIdempotencyKey, idempotencyKey);
+        return _inner.AuthorizeAsync(tx, idempotencyKey, ct);
     }
 
     public Task<Result<CaptureResponse>> CaptureAsync(string gatewayTransactionId, Money amount, CancellationToken ct)

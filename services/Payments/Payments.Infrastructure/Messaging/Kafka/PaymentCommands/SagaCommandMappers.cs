@@ -34,6 +34,7 @@ internal static class SagaCommandMappers
             Amount = (decimal)avro.Amount,
             Currency = avro.Currency,
             PaymentMethodId = avro.PaymentMethodId.ToString(),
+            IdempotencyKey = avro.IdempotencyKey,
         };
 
     /// <summary>
