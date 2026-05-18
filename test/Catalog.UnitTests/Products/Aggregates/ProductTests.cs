@@ -223,31 +223,41 @@ public class ProductTests
     }
 
     [Fact]
-    public void Activate_FromActive_ThrowsDataIntegrityException()
+    public void Activate_FromActive_ReturnsCannotActivateInStatus()
     {
         // Arrange
         var product = CreateActiveProduct();
 
-        // Act
-        var act = () => product.Activate(UtcNow);
+        // Act — CAT-RV-M03 (Wave-1 closeout): user-actionable transition; surfaces as 409 Result.Fail not 500.
+        var result = product.Activate(UtcNow);
 
         // Assert
-        act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*Cannot activate product in status 'Active'*");
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle()
+                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.ErrorCode.Should().Be("Product.CannotActivateInStatus");
+        }
     }
 
     [Fact]
-    public void Activate_FromDiscontinued_ThrowsDataIntegrityException()
+    public void Activate_FromDiscontinued_ReturnsCannotActivateInStatus()
     {
         // Arrange
         var product = CreateDiscontinuedProduct();
 
         // Act
-        var act = () => product.Activate(UtcNow);
+        var result = product.Activate(UtcNow);
 
         // Assert
-        act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*Cannot activate product in status 'Discontinued'*");
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle()
+                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.ErrorCode.Should().Be("Product.CannotActivateInStatus");
+        }
     }
 
     [Theory]
@@ -298,31 +308,41 @@ public class ProductTests
     }
 
     [Fact]
-    public void Discontinue_FromDraft_ThrowsDataIntegrityException()
+    public void Discontinue_FromDraft_ReturnsCannotDiscontinueInStatus()
     {
         // Arrange
         var product = CreateDraftProduct();
 
         // Act
-        var act = () => product.Discontinue("reason", UtcNow);
+        var result = product.Discontinue("reason", UtcNow);
 
         // Assert
-        act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*Cannot discontinue product in status 'Draft'*");
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle()
+                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.ErrorCode.Should().Be("Product.CannotDiscontinueInStatus");
+        }
     }
 
     [Fact]
-    public void Discontinue_FromDiscontinued_ThrowsDataIntegrityException()
+    public void Discontinue_FromDiscontinued_ReturnsCannotDiscontinueInStatus()
     {
         // Arrange
         var product = CreateDiscontinuedProduct();
 
         // Act
-        var act = () => product.Discontinue("reason", UtcNow);
+        var result = product.Discontinue("reason", UtcNow);
 
         // Assert
-        act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*Cannot discontinue product in status 'Discontinued'*");
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle()
+                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.ErrorCode.Should().Be("Product.CannotDiscontinueInStatus");
+        }
     }
 
     [Fact]
@@ -407,17 +427,22 @@ public class ProductTests
     }
 
     [Fact]
-    public void Reactivate_WithAdminFlagFromActive_ThrowsDataIntegrityException()
+    public void Reactivate_WithAdminFlagFromActive_ReturnsCannotReactivateInStatus()
     {
         // Arrange
         var product = CreateActiveProduct();
 
         // Act
-        var act = () => product.Reactivate(adminReactivation: true, UtcNow);
+        var result = product.Reactivate(adminReactivation: true, UtcNow);
 
         // Assert
-        act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*Cannot reactivate product in status 'Active'*");
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle()
+                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.ErrorCode.Should().Be("Product.CannotReactivateInStatus");
+        }
     }
 
     private static Product CreateDraftProduct(IReadOnlyCollection<ImageReference>? images = null)
