@@ -62,6 +62,13 @@ internal sealed class ProductCreatedEventKafkaHandler
                 new InitializeStockItemCommand
                 {
                     ProductId = message.ProductId,
+                    // Deliberate deviation from ADR-0015's TimeProvider discipline:
+                    // OccurredOnUtc is Catalog's product-creation moment, not the
+                    // moment Inventory observed it. This preserves the original
+                    // t0 of the stream across re-deliveries — using
+                    // TimeProvider.GetUtcNow() here would mean two replays of
+                    // the same ProductCreatedEvent produce different stream
+                    // start times, breaking historical reconstruction.
                     OccurredOnUtc = new DateTimeOffset(
                         DateTime.SpecifyKind(message.CreatedAtUtc, DateTimeKind.Utc),
                         TimeSpan.Zero),
