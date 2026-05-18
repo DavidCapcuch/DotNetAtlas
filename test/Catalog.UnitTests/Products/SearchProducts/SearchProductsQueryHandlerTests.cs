@@ -160,6 +160,55 @@ public class SearchProductsQueryHandlerTests
     }
 
     [Fact]
+    public async Task Given_TextContainsLiteralPercent_When_Searching_Then_PercentIsNotTreatedAsWildcard()
+    {
+        // Per CAT-SEC-001 / CAT-RV-H03: user-supplied "%" must be a literal, not a wildcard.
+        // Three rows differ only by name; query Text="a%b" must match only the row with that
+        // literal substring, not the broader rows that "%a%b%" would otherwise gobble up.
+        await using var db = FakeCatalogDbContext.Create();
+        db.ProductSearchView.AddRange(
+            ProductSearchViewRowBuilder.Active(sku: "PCT-1", name: "a%b"),
+            ProductSearchViewRowBuilder.Active(sku: "PCT-2", name: "aXb"),
+            ProductSearchViewRowBuilder.Active(sku: "PCT-3", name: "abc"));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+
+        var result = await handler.HandleAsync(
+            new SearchProductsQuery { Text = "a%b", PageNumber = 1, PageSize = 10 },
+            TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            result.Value.Items.Should().ContainSingle().Which.Sku.Should().Be("PCT-1");
+        }
+    }
+
+    [Fact]
+    public async Task Given_TextContainsLiteralUnderscore_When_Searching_Then_UnderscoreIsNotTreatedAsWildcard()
+    {
+        // Per CAT-SEC-001 / CAT-RV-H03: user-supplied "_" must be a literal, not a single-char wildcard.
+        await using var db = FakeCatalogDbContext.Create();
+        db.ProductSearchView.AddRange(
+            ProductSearchViewRowBuilder.Active(sku: "UND-1", name: "a_b"),
+            ProductSearchViewRowBuilder.Active(sku: "UND-2", name: "aXb"));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+
+        var result = await handler.HandleAsync(
+            new SearchProductsQuery { Text = "a_b", PageNumber = 1, PageSize = 10 },
+            TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            result.Value.Items.Should().ContainSingle().Which.Sku.Should().Be("UND-1");
+        }
+    }
+
+    [Fact]
     public async Task Given_Paging_When_Searching_Then_ReturnsCorrectSliceAndTotal()
     {
         await using var db = FakeCatalogDbContext.Create();

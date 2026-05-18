@@ -46,10 +46,18 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
 
         if (!string.IsNullOrEmpty(query.Text))
         {
-            var pattern = query.Text;
+            // CAT-SEC-001 / CAT-RV-H03: escape LIKE metacharacters before substitution so a
+            // user-supplied "%" or "_" cannot become a wildcard (or, worse, "%" alone widen the
+            // pattern to a full-table scan). The validator caps Text length; this escape pinned
+            // each surviving char to a literal match.
+            var escaped = query.Text
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("%", "\\%", StringComparison.Ordinal)
+                .Replace("_", "\\_", StringComparison.Ordinal);
+            var pattern = $"%{escaped}%";
             queryable = queryable.Where(r =>
-                EF.Functions.Like(r.Name, $"%{pattern}%") ||
-                EF.Functions.Like(r.Description, $"%{pattern}%"));
+                EF.Functions.Like(r.Name, pattern, "\\") ||
+                EF.Functions.Like(r.Description, pattern, "\\"));
         }
 
         if (!string.IsNullOrEmpty(query.CategoryPathPrefix))

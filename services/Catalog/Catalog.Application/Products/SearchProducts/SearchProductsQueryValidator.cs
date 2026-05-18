@@ -10,6 +10,12 @@ public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuer
         RuleFor(x => x.PageNumber).GreaterThanOrEqualTo(1);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
 
+        // CAT-SEC-001 / CAT-RV-H03: bound user-supplied free-text search to keep LIKE scans
+        // pinned; the handler additionally escapes wildcard metacharacters before substitution.
+        RuleFor(x => x.Text)
+            .MaximumLength(100)
+            .When(x => !string.IsNullOrEmpty(x.Text));
+
         RuleFor(x => x.MinPrice)
             .GreaterThan(0m)
             .When(x => x.MinPrice.HasValue);
