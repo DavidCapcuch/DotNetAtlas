@@ -40,7 +40,7 @@ public static class ObservabilityDependencyInjection
                 .WithTracing(tracing =>
                 {
                     tracing
-                        .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
+                        .AddEntityFrameworkCoreInstrumentation()
                         .AddSource("*");
 
                     tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
