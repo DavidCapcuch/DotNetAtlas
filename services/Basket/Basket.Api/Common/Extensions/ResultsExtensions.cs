@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Basket.Domain.Baskets.Errors;
 using FastEndpoints;
 using FluentResults;
 using FluentValidation.Results;
@@ -49,10 +50,24 @@ internal static class ResultsExtensions
     /// <see cref="ValidationError"/> in the domain layer (M4) while still honouring the
     /// HTTP semantics laid out in <c>use-cases.md § 2.1</c>.
     /// </summary>
-    public static async Task SendErrorResponseAsync<TResult>(
+    public static Task SendErrorResponseAsync<TResult>(
         this IResponseSender ep,
         TResult result,
         CancellationToken ct = default)
+        where TResult : ResultBase
+    {
+        var (failures, statusCode) = ResolveErrorResponse(result);
+        return ep.HttpContext.Response.SendErrorsAsync(failures, statusCode, cancellation: ct);
+    }
+
+    /// <summary>
+    /// Pure mapping seam: translates a failed <see cref="ResultBase"/> into the
+    /// (<see cref="ValidationFailure"/> list, status code) pair sent through
+    /// <c>SendErrorsAsync</c>. Extracted from <see cref="SendErrorResponseAsync{TResult}"/> so
+    /// the error-classification table is unit-testable without an ASP.NET pipeline.
+    /// </summary>
+    internal static (List<ValidationFailure> Failures, int StatusCode) ResolveErrorResponse<TResult>(
+        TResult result)
         where TResult : ResultBase
     {
         var failures = new List<ValidationFailure>();
@@ -89,6 +104,15 @@ internal static class ResultsExtensions
                     hasForbidden = true;
                     failures.Add(new ValidationFailure(ue.ErrorCode, ue.Message));
                     continue;
+                case BasketConcurrencyError bce:
+                    // Pipeline-layer error (IError, not ValidationError) — CAS retry
+                    // exhaustion. error-taxonomy.md § 3.1 + basket.md § 5.4 contract a 409.
+                    hasConflict = true;
+                    failures.Add(new ValidationFailure("Basket.Concurrency", bce.Message)
+                    {
+                        ErrorCode = "Basket.Concurrency",
+                    });
+                    continue;
                 case DomainError de:
                     failures.Add(new ValidationFailure(de.ErrorCode, de.Message));
                     break;
@@ -100,11 +124,7 @@ internal static class ResultsExtensions
         {
             Activity.Current?.SetStatus(ActivityStatusCode.Error);
             failures.Add(new ValidationFailure("internal_error", "An unexpected error occurred"));
-            await ep.HttpContext.Response.SendErrorsAsync(
-                failures,
-                StatusCodes.Status500InternalServerError,
-                cancellation: ct);
-            return;
+            return (failures, StatusCodes.Status500InternalServerError);
         }
 
         var statusCode = StatusCodes.Status400BadRequest;
@@ -125,6 +145,6 @@ internal static class ResultsExtensions
             statusCode = overrideStatus;
         }
 
-        await ep.HttpContext.Response.SendErrorsAsync(failures, statusCode, cancellation: ct);
+        return (failures, statusCode);
     }
 }
