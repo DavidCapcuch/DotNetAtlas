@@ -42,8 +42,18 @@ internal sealed class AdjustStockCommandHandler : ICommandHandler<AdjustStockCom
         }
 
         _logger.LogInformation(
-            "Adjusted stock for Product {ProductId} by {Delta} (by {UserId}, version after append: {Version})",
-            command.ProductId, command.Delta, command.AdjustedByUserId, appendResult.Value.Version);
+            "Adjusted stock for Product {ProductId} by {Delta} (version after append: {Version})",
+            command.ProductId, command.Delta, appendResult.Value.Version);
+
+        // AdjustedByUserId is caller-supplied in the request body (not derived
+        // from the JWT sub claim) so it must not be logged at Information
+        // level as an audit signal — a caller could spoof any Guid. Demoted
+        // to Debug so it stays in dev/diagnostic traces but isn't ingested
+        // into the audit log. JWT-sub-vs-body validation is the alternative;
+        // see #155 for design context.
+        _logger.LogDebug(
+            "AdjustStock for Product {ProductId} attributed to AdjustedByUserId {UserId} (request-body value, not authenticated)",
+            command.ProductId, command.AdjustedByUserId);
 
         var row = await _db.CurrentStockLevels
             .AsNoTracking()
