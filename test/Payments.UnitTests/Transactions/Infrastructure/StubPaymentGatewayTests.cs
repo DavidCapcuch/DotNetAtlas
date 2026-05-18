@@ -8,8 +8,13 @@ namespace Payments.UnitTests.Transactions.Infrastructure;
 
 public class StubPaymentGatewayTests
 {
-    private readonly FakeTimeProvider _fakeTimeProvider = new();
-    private readonly StubPaymentGateway _sut = new();
+    private readonly FakeTimeProvider _fakeTimeProvider = new(new DateTimeOffset(2026, 4, 26, 12, 0, 0, TimeSpan.Zero));
+    private readonly StubPaymentGateway _sut;
+
+    public StubPaymentGatewayTests()
+    {
+        _sut = new StubPaymentGateway(_fakeTimeProvider);
+    }
 
     private DateTimeOffset UtcNow => _fakeTimeProvider.GetUtcNow();
 
@@ -52,6 +57,22 @@ public class StubPaymentGatewayTests
             result.Value.GatewayTransactionId.Should().Be(expectedId);
             result.Value.ResponseCode.Code.Should().Be("ok");
             result.Value.ResponseCode.Message.Should().Be("Approved");
+        }
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_PopulatesExpiresAtUtc_AsNowPlusSevenDays()
+    {
+        // H-6: ExpiresAtUtc lives on the adapter (real PSPs return their own value); the v1
+        // stub reads from TimeProvider so the value is deterministic in tests.
+        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 100m);
+
+        var result = await _sut.AuthorizeAsync(tx, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            result.Value.ExpiresAtUtc.Should().Be(UtcNow.AddDays(7));
         }
     }
 

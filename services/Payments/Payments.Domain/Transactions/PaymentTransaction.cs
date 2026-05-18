@@ -159,10 +159,17 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// </summary>
     /// <param name="gatewayTransactionId">Gateway-issued transaction id (non-empty).</param>
     /// <param name="gatewayResponseCode">Gateway response.</param>
+    /// <param name="expiresAtUtc">Gateway-stated authorization expiry — sourced from the
+    /// <c>AuthorizeResponse</c> and flowed onto <see cref="PaymentAuthorizedDomainEvent.ExpiresAtUtc"/>
+    /// so the outbound Avro event is truthful (H-6 closeout).</param>
     /// <param name="utcNow">Current UTC time.</param>
     /// <exception cref="DataIntegrityException">Invalid FSM transition (I-3/I-5) or mismatched
     /// <c>GatewayTransactionId</c> (I-4).</exception>
-    public Result Authorize(string gatewayTransactionId, GatewayResponseCode gatewayResponseCode, DateTimeOffset utcNow)
+    public Result Authorize(
+        string gatewayTransactionId,
+        GatewayResponseCode gatewayResponseCode,
+        DateTimeOffset expiresAtUtc,
+        DateTimeOffset utcNow)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gatewayTransactionId);
         ArgumentNullException.ThrowIfNull(gatewayResponseCode);
@@ -190,6 +197,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             GatewayTransactionId = gatewayTransactionId,
             Amount = Amount,
             AuthorizedAtUtc = utcNow,
+            ExpiresAtUtc = expiresAtUtc,
             OccurredOnUtc = utcNow,
         });
 
