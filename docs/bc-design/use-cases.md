@@ -1506,4 +1506,79 @@ The saga-to-service command flow can be summarized as follows, aligning the thre
 
 ---
 
+## 6. Invoicing Service Use Cases
+
+Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Application/**`. Each subsection mirrors the § 1 – § 4 shape: handler class, command/query payload, validator rules, error paths (cross-reference [error-taxonomy.md § 3.6](error-taxonomy.md)), and produced domain events (cross-reference [events-catalog.md § 5.7](events-catalog.md)).
+
+### 6.1 IssueInvoiceCommand
+
+- **Trigger:** event-driven via `OrderConfirmedInvoiceProjectionKafkaHandler` after correlation enrichment from `payments.transactions` (`PaymentCaptured`). Not an HTTP command — Invoicing has no public POST `/invoices` surface.
+- **Handler:** `IssueInvoiceCommandHandler` (`services/Invoicing/Invoicing.Application/Invoices/IssueInvoice/`).
+- **Payload:** `{ CorrelationId, OrderId, BuyerId, IssuedAtUtc, BillingAddress, Lines[], Currency, VatLines[] }` — fields drawn from the enriched `PendingInvoice` projection row.
+- **Validator:** `IssueInvoiceCommandValidator` — `CorrelationId NotEmpty`.
+- **Side-effects:** allocates a gap-free invoice number (`InvoiceNumber.From(year, sequence)` via `PostgresInvoiceNumberAllocator` under `SELECT … FOR UPDATE`), renders the PDF (QuestPDF, byte-deterministic), uploads to Azure Blob (`invoices/{YYYY}/01/{number}.pdf`, SHA-256 content-addressed), then persists the `Invoice` aggregate in `Issued` state.
+- **Result paths:**
+  - `Result.Ok(InvoiceId)` — happy path.
+  - `Result.Fail(InvoicingErrors.InvoiceAlreadyIssued(correlationId))` — idempotent re-issue attempt (409 if surfaced as HTTP; consumer just commits the inbox row).
+  - `Result.Fail(InvoicingErrors.BlobUploadFailed())` — after `Azure.Storage.Blobs` SDK retry exhaustion (5xx; DLT).
+  - `Throw DataIntegrityException(Invoicing.TotalMismatch)` — bug-class; DLT.
+- **Domain events:** `InvoiceIssuedDomainEvent` (always); outbox publisher emits Avro `InvoiceIssuedEvent` on `invoicing.invoices`.
+
+### 6.2 IssueCreditNoteCommand
+
+- **Trigger:** event-driven via `OrderCancelledCreditNoteProjectionKafkaHandler` (cancellation path) or `PaymentRefundedCreditNoteProjectionKafkaHandler` (refund path). Both consume the converged `PendingCreditNote` projection.
+- **Handler:** `IssueCreditNoteCommandHandler` (`services/Invoicing/Invoicing.Application/CreditNotes/IssueCreditNote/`).
+- **Payload:** `{ CorrelationId, InvoiceId, Reason (CreditNoteReason SmartEnum), Lines[] (sign-flipped via Invoice.LinesForReversal()) }`.
+- **Validator:** `IssueCreditNoteCommandValidator` — `InvoiceId NotEmpty`, `CorrelationId NotEmpty`.
+- **Side-effects:** allocates credit-note number (`CreditNoteNumber` format `CN-YYYY-NNNNNN`), renders PDF, uploads to blob, persists `CreditNote` aggregate in `Issued` state, links to source `Invoice` (transitions invoice to `Cancelled` on full-amount path).
+- **Result paths:**
+  - `Result.Ok(CreditNoteId)` — happy path.
+  - `Result.Fail(InvoicingErrors.PartialRefundNotSupportedV1())` — payment refund amount < invoice total (501; inbox commits per H3 disposition — see Invoicing-followups [#124](https://github.com/DavidCapcuch/DotNetAtlas/issues/124)).
+  - `Throw DataIntegrityException(Invoicing.CreditNoteRefersToCancelledInvoice)` — bug-class; DLT.
+- **Domain events:** `CreditNoteIssuedDomainEvent` + `InvoiceCancelledDomainEvent` (when the full-amount credit-note flips the invoice to `Cancelled`). Outbox publishers emit Avro `CreditNoteIssuedEvent` + `InvoiceCancelledEvent` on `invoicing.invoices`.
+
+### 6.3 ResendInvoiceCommand
+
+- **Trigger:** admin HTTP — `POST /api/v1/invoicing/invoices/{InvoiceId}/resend` with `Idempotency-Key` header (24 h Redis cache per ADR-0013).
+- **Handler:** `ResendInvoiceCommandHandler` — **v1 STUB** (logging-only no-op; the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` described in `bc-design/invoicing.md § 12` is deferred to Wave 2 — see Invoicing-followups disclosure landed in commit `c4e16fa` and OpenAPI `Description` "v1 stub" marker).
+- **Auth:** `AuthPolicies.InvoicingAdmin` (Keycloak realm role `Admin`; ADR-0010 scope-based gating deferred to v2 — see [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125)).
+- **Payload:** `{ InvoiceId, Channel (DeliveryChannel SmartEnum) }`.
+- **Validator:** `ResendInvoiceCommandValidator` — `InvoiceId NotEmpty`.
+- **Result paths:**
+  - `Result.Ok()` → HTTP 204 (no-op acknowledgement).
+  - `Result.Fail(InvoicingErrors.InvoiceNotFound)` → 404.
+- **Domain events:** none in v1 (Wave 2 will raise `InvoiceDeliveryRequestedDomainEvent`).
+
+### 6.4 GetInvoiceByIdQuery
+
+- **HTTP:** `GET /api/v1/invoicing/invoices/{InvoiceId}` — buyer-scoped + admin override.
+- **Handler:** `GetInvoiceByIdQueryHandler`.
+- **Auth:** authenticated; manual `User.GetBuyerIdOrNull()` short-circuit + IDOR check in the handler (returns `InvoiceNotFound` on cross-buyer reads). Admin (`User.IsInvoicingAdmin()`) bypasses the buyer scope.
+- **Payload:** `{ InvoiceId }`.
+- **Validator:** `GetInvoiceByIdQueryValidator` — `InvoiceId NotEmpty`.
+- **Response:** `{ InvoiceId, InvoiceNumber, IssueDate, Status, Subtotal, VatLines[], Total, PdfSasUrl, SasExpiresAtUtc, … }` — `PdfSasUrl` is re-minted on every read via `IBlobStore.GetSasUrlAsync(...)` with 10-min TTL.
+- **Result paths:** `Result.Ok(response)` / `Result.Fail(InvoicingErrors.InvoiceNotFound)`.
+
+### 6.5 GetInvoiceByOrderIdQuery
+
+- **HTTP:** `GET /api/v1/invoicing/invoices/by-order/{OrderId}` — buyer-scoped + admin override.
+- **Handler:** `GetInvoiceByOrderIdQueryHandler`.
+- **Same auth / response shape as § 6.4**; the underlying read pivots on `Invoice.OrderId` (`PendingInvoice.OrderId` for issuance-projection-staged rows).
+
+### 6.6 GetInvoicesByBuyerQuery
+
+- **HTTP:** `GET /api/v1/invoicing/invoices/by-buyer` — buyer-scoped only (admin override deferred — see Invoicing-followups [#129](https://github.com/DavidCapcuch/DotNetAtlas/issues/129)).
+- **Handler:** `GetInvoicesByBuyerQueryHandler`.
+- **Auth:** requires `User.GetBuyerIdOrNull()` to be non-null; service-to-service admin tokens with no `sub` return 401 in v1.
+- **Payload:** none (buyer derived from JWT).
+- **Response:** paginated list `{ Items[] (InvoiceSummary), Page, PageSize, TotalCount }`.
+
+### 6.7 GetCreditNoteByIdQuery
+
+- **HTTP:** `GET /api/v1/invoicing/credit-notes/{CreditNoteId}` — buyer-scoped + admin override.
+- **Handler:** `GetCreditNoteByIdQueryHandler`.
+- **Same auth / response shape as § 6.4**, swapped for `CreditNote` aggregate fields. `PdfSasUrl` re-minted with 10-min TTL on every read.
+
+---
+
 **End of Use Case Catalog.**
