@@ -1253,7 +1253,7 @@
       "inventory.application": {
         "type": "Project",
         "dependencies": {
-          "FastEndpoints.Attributes": "[7.0.1, )",
+          "FastEndpoints.Attributes": "[8.1.0, )",
           "FluentValidation": "[12.1.1, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
           "Inventory.Domain": "[1.0.0, )",
@@ -1441,11 +1441,11 @@
       },
       "FastEndpoints.Attributes": {
         "type": "CentralTransitive",
-        "requested": "[7.0.1, )",
-        "resolved": "7.0.1",
-        "contentHash": "YPBP+5LuMWnSK/VEJfp1Ui8Jjehvx2LxZlylC9WIdHc/PfUfHTwP7j93haYNZt2RQElxM/fOYSi/MzOFC1d8/g==",
+        "requested": "[8.1.0, )",
+        "resolved": "8.1.0",
+        "contentHash": "jo2pRdwv/Bs0JE7S3bCUBZWuyX7u3fJylOf985/epr/tSQfuaBCIwx9XouuXcU00H1XdukcDKUzVmPQFeRZuRg==",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "8.0.0"
+          "Microsoft.Extensions.Primitives": "10.0.5"
         }
       },
       "FluentResults": {
