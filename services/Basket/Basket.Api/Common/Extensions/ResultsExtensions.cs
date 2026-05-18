@@ -23,6 +23,7 @@ internal static class ResultsExtensions
             ["Basket.InvalidQuantity"] = StatusCodes.Status422UnprocessableEntity,
             ["Basket.CurrencyMismatch"] = StatusCodes.Status422UnprocessableEntity,
             ["Basket.CatalogUnavailable"] = StatusCodes.Status503ServiceUnavailable,
+            ["Basket.Corruption"] = StatusCodes.Status503ServiceUnavailable,
             ["Basket.ProductNotFound"] = StatusCodes.Status404NotFound,
             ["Basket.ItemNotFound"] = StatusCodes.Status404NotFound,
         };
