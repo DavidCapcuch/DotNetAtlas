@@ -1,6 +1,7 @@
 using Basket.Application.Abstractions;
 using Basket.Application.Baskets.Common.Contracts;
 using Basket.Application.Common.Data;
+using Basket.Application.Common.Persistence;
 using Basket.Domain.Baskets.Errors;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -18,17 +19,19 @@ namespace Basket.Application.Baskets.Checkout;
 ///   <item>Loads the basket; 404-equivalent failure if absent or empty.</item>
 ///   <item>Calls <c>basket.Checkout(...)</c>, which raises <c>BasketCheckedOutDomainEvent</c>
 ///     carrying the snapshot plus the three pass-through courier fields.</item>
+///   <item>Persists the (bumped) basket via <see cref="IBasketRepository.SaveAsync"/> under
+///     optimistic concurrency. This is the C-1 fix: two parallel checkouts for the same
+///     user no longer race past one another to both write the outbox row. The loser of
+///     the CAS race retries once (per <c>basket.md § 5.4</c>) and, on a second loss,
+///     surfaces <see cref="BasketConcurrencyError"/> (mapped to HTTP 409 at the API
+///     boundary).</item>
 ///   <item>Dispatches the domain event. The fan-out includes
 ///     <c>BasketCheckoutInitiatedOutboxPublisherDomainEventHandler</c>, which writes the Avro
 ///     integration event to the outbox via <c>ITransactionalOutbox&lt;IBasketDbContext&gt;</c>.</item>
 ///   <item>Issues <see cref="Platform.ReliableMessaging.Outbox.EFCore.ITransactionalOutbox{TContext}.SaveChangesAsync"/>
 ///     to persist the outbox row. M4 writes exactly one row per checkout, so EF's implicit
 ///     single-<c>SaveChanges</c> transaction is sufficient — no explicit
-///     <c>EnsureTransactionAsync</c> wrap is necessary here. <b>M6 must revisit</b>
-///     and wrap in <c>_outbox.Database.EnsureTransactionAsync(...)</c> once the concrete
-///     <c>BasketDbContext</c> (and any additional SQL writes inside the fan-out, such as
-///     future inbox deduplication entries) come online — matching the convention used by
-///     the Payments Kafka handlers.</item>
+///     <c>EnsureTransactionAsync</c> wrap is necessary here.</item>
 ///   <item>After the SQL commit succeeds, deletes the Redis entry via the repository's
 ///     direct-<c>DEL</c> path. A delete failure is logged but NOT propagated — the outbox
 ///     is the source of truth, and a stale Redis entry will be cleaned up on the next
@@ -67,6 +70,16 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
             return Result.Fail<Guid>(addressResults.Errors);
         }
 
+        return await BasketConcurrencyRetry.ExecuteAsync(innerCt =>
+            ExecuteCheckoutAsync(command, shippingResult.Value, billingResult.Value, innerCt), ct);
+    }
+
+    private async Task<Result<Guid>> ExecuteCheckoutAsync(
+        CheckoutBasketCommand command,
+        Address shippingAddress,
+        Address billingAddress,
+        CancellationToken ct)
+    {
         var loadResult = await _repository.GetByUserIdAsync(command.UserId, ct);
         if (loadResult.IsFailed)
         {
@@ -79,16 +92,27 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
             return Result.Fail<Guid>(BasketErrors.EmptyBasket());
         }
 
+        var expectedVersion = basket.Version;
         var utcNow = _timeProvider.GetUtcNow();
         var checkoutResult = basket.Checkout(
             command.CorrelationId,
-            shippingResult.Value,
-            billingResult.Value,
+            shippingAddress,
+            billingAddress,
             command.PaymentMethodId,
             utcNow);
         if (checkoutResult.IsFailed)
         {
             return checkoutResult.ToResult<Guid>();
+        }
+
+        // CAS guard: SaveAsync persists the bumped basket at the version captured BEFORE
+        // Checkout(). A racer that beat us to commit causes SaveAsync to return
+        // BasketConcurrencyError and we retry exactly once via BasketConcurrencyRetry —
+        // preventing two parallel checkouts from each emitting an integration event.
+        var saveResult = await _repository.SaveAsync(basket, expectedVersion, ct);
+        if (saveResult.IsFailed)
+        {
+            return saveResult.ToResult<Guid>();
         }
 
         // Domain-event fan-out writes the outbox row via the publisher handler.

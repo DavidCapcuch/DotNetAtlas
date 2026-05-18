@@ -57,6 +57,9 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests
             .GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(basket));
         _fixture.Repository
+            .SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Ok());
+        _fixture.Repository
             .DeleteAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
 
