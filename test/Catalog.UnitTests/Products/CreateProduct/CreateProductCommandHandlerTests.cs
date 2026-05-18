@@ -3,8 +3,10 @@ using Catalog.Domain.Products;
 using Catalog.Domain.Products.Events;
 using Catalog.Domain.Products.ValueObjects;
 using Catalog.UnitTests.Common;
+using EntityFramework.Exceptions.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Catalog.UnitTests.Products.CreateProduct;
@@ -95,6 +97,40 @@ public class CreateProductCommandHandlerTests
         // Assert
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle(e => e.Message.Contains(unknownCategory.ToString()));
+    }
+
+    /// <summary>
+    /// CAT-RV-H04 (Wave-1 closeout): the AnyAsync precheck is racy. Under concurrency two
+    /// commands can both pass the check before either SaveChanges; the unique index
+    /// (UX_Products_Sku) then surfaces a UniqueConstraintException from the second call.
+    /// Without this fix it propagated as a generic 500; the handler must translate it to
+    /// the contract-documented 409 ProductErrors.SkuAlreadyExists.
+    /// </summary>
+    [Fact]
+    public async Task Given_UniqueConstraintRaceOnSku_When_Handling_Then_FailsWithSkuAlreadyExists()
+    {
+        // Arrange — derived FakeCatalogDbContext that lets the AnyAsync precheck pass
+        // (no row tracked) and then throws UniqueConstraintException on SaveChanges,
+        // mimicking the production interceptor's behaviour when a concurrent commit
+        // races us at the unique index.
+        var category = CatalogFactories.RootCategory();
+        await using var db = ThrowOnSaveCatalogDbContext.CreateThrowing(
+            new UniqueConstraintException(
+                "23505: duplicate key value violates unique constraint UX_Products_Sku",
+                new InvalidOperationException("ux_products_sku")));
+        db.Categories.Add(category);
+        await db.SaveChangesViaBaseAsync(TestContext.Current.CancellationToken);
+
+        var handler = new CreateProductCommandHandler(
+            db, TimeProvider.System, NullLogger<CreateProductCommandHandler>.Instance);
+
+        // Act
+        var result = await handler.HandleAsync(
+            ValidCommand(category.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Should().BeFailure()
+            .And.HaveReason("A product with SKU 'ABC-001' already exists.");
     }
 
     [Fact]

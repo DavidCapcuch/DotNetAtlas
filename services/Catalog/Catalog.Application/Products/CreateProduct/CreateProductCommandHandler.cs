@@ -3,6 +3,7 @@ using Catalog.Domain.Categories.Errors;
 using Catalog.Domain.Products;
 using Catalog.Domain.Products.Errors;
 using Catalog.Domain.Products.ValueObjects;
+using EntityFramework.Exceptions.Common;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -134,7 +135,19 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
 
         var product = productResult.Value;
         _db.Products.Add(product);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (UniqueConstraintException)
+        {
+            // CAT-RV-H04 (Wave-1 closeout): the AnyAsync precheck above is racy under
+            // concurrency. The UX_Products_Sku unique index is the authoritative defence;
+            // translate its violation back to the contract-documented Result.Fail so the
+            // API surface returns 409 Conflict instead of 500. Wired into Application via
+            // the EF.Exceptions interceptor in Catalog.Infrastructure (UseExceptionProcessor).
+            return Result.Fail<Guid>(ProductErrors.SkuAlreadyExists(normalizedSku));
+        }
 
         _logger.LogInformation(
             "Created Product {ProductId} with SKU {Sku} in category {CategoryId}",

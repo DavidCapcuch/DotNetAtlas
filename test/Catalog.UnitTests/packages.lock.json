@@ -149,12 +149,18 @@
           "Newtonsoft.Json": "13.0.1"
         }
       },
-      "FastEndpoints.Attributes": {
+      "DbExceptionClassifier.Common": {
         "type": "Transitive",
-        "resolved": "8.1.0",
-        "contentHash": "jo2pRdwv/Bs0JE7S3bCUBZWuyX7u3fJylOf985/epr/tSQfuaBCIwx9XouuXcU00H1XdukcDKUzVmPQFeRZuRg==",
+        "resolved": "1.0.0",
+        "contentHash": "PTH7CgIdo8FKiosEkBCsMyLgDW0QdvjJ+NBT7oS3Stq1cr3PnviCznKAJ6TeS/QVP3zlYcEHsRNGXA6hrq86bA=="
+      },
+      "EntityFrameworkCore.Exceptions.Common": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "dmT5QLshbz6WJjZs3dlmqwWzS1se+XQ34w5zLlBrafDd32hT+F1KzANTL532Xz3XvG2q9up51HO/PLtIt2t+Rw==",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "10.0.5"
+          "DbExceptionClassifier.Common": "1.0.0",
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.5"
         }
       },
       "FluentAssertions": {
@@ -480,7 +486,7 @@
         "type": "Project",
         "dependencies": {
           "Catalog.Domain": "[1.0.0, )",
-          "FastEndpoints.Attributes": "[8.1.0, )",
+          "EntityFrameworkCore.Exceptions.Common": "[10.0.0, )",
           "FluentValidation": "[12.1.1, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
           "OpenFeature": "[2.13.0, )",
