@@ -60,6 +60,58 @@ public class AuthorizePaymentCommandHandlerTests
             await _gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
             await _dispatcher.Received().DispatchAsync(Arg.Any<PaymentRequestedDomainEvent>(), Arg.Any<CancellationToken>());
             await _dispatcher.Received().DispatchAsync(Arg.Any<PaymentAuthorizedDomainEvent>(), Arg.Any<CancellationToken>());
+            // H-3: two SaveChanges sites — first persists the Requested aggregate before the
+            // gateway call (double-charge anchor), second persists the Authorized transition
+            // + outbox rows.
+            await _outbox.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Fact]
+    public async Task Handle_NewPayment_PersistsRequestedBeforeGatewayCall()
+    {
+        // H-3 ordering pin: the first SaveChangesAsync MUST happen before the gateway is
+        // touched. NSubstitute's Received.InOrder block fails if the call sequence differs.
+        var command = BuildCommand();
+        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+            .Returns((PaymentTransaction?)null);
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
+
+        await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        Received.InOrder(() =>
+        {
+            _ = _outbox.SaveChangesAsync(Arg.Any<CancellationToken>());
+            _ = _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            _ = _outbox.SaveChangesAsync(Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task Handle_SagaRetry_AggregateAlreadyInRequested_CallsGatewayOnceAndSavesOnce()
+    {
+        // H-3 saga-retry scenario: simulates the case where the first attempt's gateway call
+        // succeeded but the post-gateway SaveChanges failed and rolled back. The Requested
+        // aggregate stayed durable (H-3 anchor); saga retry now finds it via GetByIdAsync,
+        // skips the Create branch, and proceeds to a single SaveChanges after the gateway.
+        var existing = PaymentTransactionFactory.Requested(_timeProvider.GetUtcNow());
+        existing.PopDomainEvents();
+        var command = BuildCommand();
+        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+            .Returns(existing);
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
+
+        var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            existing.Status.Should().Be(PaymentStatus.Authorized);
+            _repository.DidNotReceive().Add(Arg.Any<PaymentTransaction>());
+            await _gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            // Single SaveChanges because the Requested aggregate is already durable.
             await _outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }
@@ -81,12 +133,13 @@ public class AuthorizePaymentCommandHandlerTests
             _repository.Received(1).Add(Arg.Is<PaymentTransaction>(t => t.Status == PaymentStatus.Failed));
             await _dispatcher.Received().DispatchAsync(Arg.Any<PaymentAuthorizationFailedDomainEvent>(), Arg.Any<CancellationToken>());
             await _dispatcher.Received().DispatchAsync(Arg.Any<PaymentFailedDomainEvent>(), Arg.Any<CancellationToken>());
-            await _outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+            // H-3: first SaveChanges persists Requested (before gateway), second persists Failed.
+            await _outbox.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }
 
     [Fact]
-    public async Task Handle_GatewayInfrastructureError_ReturnsGatewayUnavailableAndDoesNotSave()
+    public async Task Handle_GatewayInfrastructureError_ReturnsGatewayUnavailable_AndPersistsRequestedState()
     {
         var command = BuildCommand();
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
@@ -99,7 +152,11 @@ public class AuthorizePaymentCommandHandlerTests
         using (new AssertionScope())
         {
             result.Should().BeFailure().And.HaveError("Payment gateway is temporarily unavailable.");
-            await _outbox.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+            // H-3: the Requested aggregate IS persisted before the gateway call, so saga retry
+            // re-enters via the existing-row branch and does not re-create. The Authorized /
+            // Failed transition's second SaveChanges does not happen (handler returns early
+            // on infrastructure error).
+            await _outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }
 

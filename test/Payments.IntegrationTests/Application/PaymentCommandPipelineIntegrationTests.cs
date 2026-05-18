@@ -139,8 +139,9 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
                     && e.AuthorizationId == GatewayTransactionId
                     && e.Currency == "USD"));
 
-            // Outbox.SaveChangesAsync called once per command (exactly two times across both commands).
-            await _outbox.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
+            // H-3: Authorize uses two SaveChanges sites (Requested anchor + Authorized
+            // transition); Capture uses one; total = 3 across both commands.
+            await _outbox.Received(3).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }
 
