@@ -68,7 +68,7 @@
         <PackageVersion Include="SerilogTracing.Expressions" Version="2.4.0"/>
 
         <!-- Test framework-->
-        <PackageVersion Include="FastEndpoints.Testing" Version="7.0.1"/>
+        <PackageVersion Include="FastEndpoints.Testing" Version="8.1.0"/>
         <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0"/>
         <PackageVersion Include="Testcontainers.Redis" Version="4.11.0"/>
         <PackageVersion Include="Testcontainers.Kafka" Version="4.11.0"/>
