@@ -278,6 +278,36 @@ public class ProductCatalogHttpAdapterTests
     }
 
     [Fact]
+    public async Task GetMany_WhenIdsExceedChunkSize_IssuesMultipleRequests()
+    {
+        // sum2.H-6 regression guard. The previous single-batch implementation built
+        // ~38-byte-per-id query strings, so worst-case Basket.MaxItems=50 produced a
+        // ~1900-char URL — uncomfortably close to common 2KB caps and brittle if the
+        // basket-size limit ever rises. Chunking keeps each URL bounded.
+        var ids = Enumerable.Range(0, 50).Select(_ => Guid.CreateVersion7()).ToArray();
+        var handler = new StubHttpMessageHandler((req, _) =>
+        {
+            // Each chunk reply contains an empty product list — the test only
+            // cares about how many HTTP calls were made.
+            var path = req.RequestUri!.PathAndQuery;
+            path.Length.Should().BeLessThanOrEqualTo(1024,
+                "each chunked URL must stay well under common 2KB caps");
+            return Task.FromResult(JsonResponse(
+                HttpStatusCode.OK,
+                new { products = Array.Empty<object>(), missingProductIds = Array.Empty<Guid>() }));
+        });
+
+        var result = await CreateSut(handler).GetManyAsync(ids, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            handler.CallCount.Should().BeGreaterThan(1,
+                "50 ids must be split across multiple chunks rather than a single oversized GET URL");
+        }
+    }
+
+    [Fact]
     public async Task GetMany_DeduplicatesInputIds()
     {
         var id1 = Guid.CreateVersion7();
