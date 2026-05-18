@@ -24,8 +24,11 @@ public sealed record ImageReference : ValueObject
     {
         var trimmedUrl = url?.Trim() ?? string.Empty;
         if (trimmedUrl.Length == 0 ||
-            !Uri.TryCreate(trimmedUrl, UriKind.Absolute, out _))
+            !Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
+            // CAT-SEC-005 (Wave-1 closeout): image URL is stored then rendered downstream.
+            // Restrict to http/https to block javascript:, data:, file:, ftp: scheme XSS/SSRF.
             return Result.Fail(ImageReferenceErrors.InvalidUrl());
         }
 

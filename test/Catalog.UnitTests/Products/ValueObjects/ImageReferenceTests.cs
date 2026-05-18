@@ -91,4 +91,35 @@ public class ImageReferenceTests
                 ((DomainError)e).ErrorCode == "ImageReference.NegativeDisplayOrder");
         }
     }
+
+    [Theory]
+    [InlineData("javascript:alert('xss')")]
+    [InlineData("data:text/html,<script>alert('xss')</script>")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("ftp://example.com/img.png")]
+    public void Create_WhenUrlSchemeNotHttpOrHttps_ReturnsFailureWithInvalidUrl(string url)
+    {
+        // Per CAT-SEC-005 (Wave-1 closeout): an image URL is stored and rendered downstream
+        // (BFF / web UI). Accepting javascript:, data:, file: opens a stored-XSS-via-image-src
+        // path; ftp: is just a misconfigure. Allow-list http and https only.
+        var result = ImageReference.Create(url, "Alt", 0);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e =>
+                ((DomainError)e).ErrorCode == "ImageReference.InvalidUrl");
+        }
+    }
+
+    [Theory]
+    [InlineData("http://example.com/img.png")]
+    [InlineData("https://example.com/img.png")]
+    [InlineData("HTTPS://example.com/img.png")]
+    public void Create_WhenUrlSchemeIsHttpOrHttps_ReturnsSuccess(string url)
+    {
+        var result = ImageReference.Create(url, "Alt", 0);
+
+        result.Should().BeSuccess();
+    }
 }

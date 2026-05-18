@@ -63,9 +63,9 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
         {
             img.RuleFor(i => i.Url).NotEmpty();
             img.RuleFor(i => i.Url)
-                .Must(url => Uri.TryCreate(url, UriKind.Absolute, out _))
+                .Must(IsHttpOrHttpsAbsoluteUri)
                 .When(i => !string.IsNullOrEmpty(i.Url))
-                .WithMessage("Image URL must be an absolute URI.");
+                .WithMessage("Image URL must be an absolute http or https URI.");
             img.RuleFor(i => i.AltText)
                 .NotEmpty()
                 .MaximumLength(200);
@@ -76,6 +76,14 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
             .Must(images => images.Select(i => i.DisplayOrder).Distinct().Count() == images.Count)
             .When(x => x.Images is { Count: > 1 })
             .WithMessage("Image DisplayOrder values must be unique within the product.");
+    }
+
+    // CAT-SEC-005 (Wave-1 closeout): mirror the domain-level scheme allow-list at the API
+    // surface so a hostile URL is rejected before the command reaches Product.Create.
+    private static bool IsHttpOrHttpsAbsoluteUri(string? url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 
     private static bool ContainsHtml(string value)
