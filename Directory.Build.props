@@ -7,10 +7,9 @@
         <AnalysisLevel>latest</AnalysisLevel>
         <AnalysisMode>All</AnalysisMode>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <!-- Temp until MS sorts out vulnerability-->
-        <WarningsNotAsErrors>NU1903</WarningsNotAsErrors>
 
         <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+        <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
