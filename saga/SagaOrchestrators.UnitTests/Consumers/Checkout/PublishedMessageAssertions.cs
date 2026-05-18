@@ -21,6 +21,8 @@ internal static class PublishedMessageAssertions
         }
 
         var captured = Assert.Single(messages);
+        Assert.NotNull(captured.Context);
+        Assert.NotNull(captured.Context.Message);
         return captured.Context.Message;
     }
 }
