@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 using NetArchTest.Rules;
 
 namespace Catalog.ArchitectureTests.CleanArchitecture;
@@ -72,5 +74,35 @@ public class CleanArchitectureLayerTests : BaseTest
             .GetResult();
 
         result.FailingTypes.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Per architecture-tests.md § 1.1 and CAT-ARCH-C01 (Wave-1 closeout), the Application
+    /// layer must not reference presentation-only packages such as <c>FastEndpoints.*</c>.
+    /// NetArchTest's IL-level dependency check cannot see unused <c>PackageReference</c>s,
+    /// so this rule inspects the csproj XML directly.
+    /// </summary>
+    [Fact]
+    public void ApplicationLayer_csproj_ShouldNotReference_FastEndpointsPackages()
+    {
+        var csprojPath = GetApplicationCsprojPath();
+        var doc = XDocument.Load(csprojPath);
+
+        var fastEndpointsPackages = doc
+            .Descendants("PackageReference")
+            .Select(p => p.Attribute("Include")?.Value)
+            .Where(name => !string.IsNullOrEmpty(name) &&
+                           name!.StartsWith("FastEndpoints.", StringComparison.Ordinal))
+            .ToList();
+
+        fastEndpointsPackages.Should().BeEmpty();
+    }
+
+    private static string GetApplicationCsprojPath([CallerFilePath] string thisFile = "")
+    {
+        // thisFile lives at <repo>/test/Catalog.ArchitectureTests/CleanArchitecture/CleanArchitectureLayerTests.cs
+        var thisDir = new FileInfo(thisFile).Directory!;
+        var repoRoot = thisDir.Parent!.Parent!.Parent!;
+        return Path.Combine(repoRoot.FullName, "services", "Catalog", "Catalog.Application", "Catalog.Application.csproj");
     }
 }
