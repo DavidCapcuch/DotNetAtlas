@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
 using Catalog.Application.Products.CreateProduct;
@@ -16,6 +17,12 @@ namespace Catalog.Application.Products.CreateProduct;
 /// </summary>
 public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<ProductCreatedDomainEvent>
 {
+    // Mirrors Platform.ServiceDefaults.CorrelationId.CorrelationIdContextKeys.ActivityTagName.
+    // Inlined to avoid coupling Catalog.Application to Platform.ServiceDefaults. CAT-RV-C01
+    // (Wave-1 closeout): the AddCorrelationId middleware (Catalog.API/Program.cs:27) writes
+    // the request's correlation id onto Activity.Current via this tag.
+    private const string CorrelationIdActivityTag = "correlation.id";
+
     private readonly ICatalogDbContext _db;
     private readonly ILogger<ProductCreatedProjectionHandler> _logger;
 
@@ -75,9 +82,7 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
             CreatedAtUtc = product.CreatedUtc,
             LastUpdatedAtUtc = product.LastModifiedUtc,
 
-            // TODO(M6): populate from HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey]
-            // once Catalog.API wires the correlation-id middleware into the command pipeline.
-            CorrelationId = Guid.Empty,
+            CorrelationId = ResolveCorrelationId(),
         };
 
         _db.ProductSearchView.Add(row);
@@ -85,6 +90,18 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
         _logger.LogDebug(
             "Projected ProductCreatedDomainEvent to product_search_view for Product {ProductId}",
             product.Id);
+    }
+
+    private static Guid ResolveCorrelationId()
+    {
+        // Background / inbox-driven flows have no Activity tag — fall back to Guid.Empty
+        // rather than manufacture a synthetic id.
+        if (Activity.Current?.GetTagItem(CorrelationIdActivityTag) is not string tag)
+        {
+            return Guid.Empty;
+        }
+
+        return Guid.TryParse(tag, out var correlationId) ? correlationId : Guid.Empty;
     }
 
     private static string BuildBreadcrumb(string path)
