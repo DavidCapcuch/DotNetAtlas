@@ -88,6 +88,12 @@ public sealed class ReparentCategoryCommandHandler : ICommandHandler<ReparentCat
                 ct);
 
             await _db.SaveChangesAsync(ct);
+
+            // CAT-RV-H05 (Wave-1 closeout): RewriteDescendantPathsAsync issues a bulk
+            // ExecuteUpdate that bypasses the change tracker, so any descendant Category
+            // entities materialized in this scope hold the pre-update Path. Detach them
+            // all so subsequent reads in the same scope re-fetch from the database.
+            _db.ChangeTracker.Clear();
         }, ct);
 
         _logger.LogInformation(

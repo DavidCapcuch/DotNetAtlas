@@ -1,6 +1,5 @@
 using Catalog.Application.Categories.Common.Services;
 using Catalog.Application.Categories.ReparentCategory;
-using Catalog.Domain.Categories.Events;
 using Catalog.UnitTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -57,12 +56,15 @@ public class ReparentCategoryCommandHandlerTests
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
+            // Re-fetch from the change tracker BEFORE the handler completes the
+            // ChangeTracker.Clear path-cascade fix (CAT-RV-H05) was effectively a
+            // tracked-state check. Now the handler clears tracking, so fetch a fresh
+            // copy and assert on persisted state instead. (Domain-event emission is
+            // unit-tested on the Category aggregate directly.)
             var refreshed = await db.Categories.FirstAsync(
                 c => c.Id == child.Id, TestContext.Current.CancellationToken);
             refreshed.ParentCategoryId.Should().Be(root2.Id);
             refreshed.Path.Value.Should().Be("/books/laptops");
-            refreshed.PopDomainEvents().OfType<CategoryReparentedDomainEvent>()
-                .Should().ContainSingle();
             await pathService.Received(1).RewriteDescendantPathsAsync(
                 "/electronics/laptops",
                 "/books/laptops",
@@ -154,6 +156,45 @@ public class ReparentCategoryCommandHandlerTests
                 Arg.Any<string>(),
                 Arg.Any<Guid>(),
                 Arg.Any<CancellationToken>());
+        }
+    }
+
+    /// <summary>
+    /// CAT-RV-H05 (Wave-1 closeout): RewriteDescendantPathsAsync issues a bulk SQL
+    /// <c>ExecuteUpdate</c> that bypasses the change tracker, so any descendant <c>Category</c>
+    /// entities materialized in the same scope still hold the pre-update <c>Path</c>. A caller
+    /// reading after the reparent in the same scope sees stale entities. The handler must
+    /// detach all tracked entities so subsequent reads re-fetch from the database.
+    /// </summary>
+    [Fact]
+    public async Task Given_SuccessfulReparent_When_Handling_Then_ChangeTrackerIsCleared()
+    {
+        await using var db = FakeCatalogDbContext.Create();
+        var root1 = CatalogFactories.RootCategory("Electronics");
+        var root2 = CatalogFactories.RootCategory("Books");
+        var child = CatalogFactories.ChildCategory(root1, "Laptops");
+        db.Categories.AddRange(root1, root2, child);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        db.ChangeTracker.Clear();
+
+        var (ancestry, pathService) = Services();
+        var handler = new ReparentCategoryCommandHandler(
+            db, ancestry, pathService, TimeProvider.System,
+            NullLogger<ReparentCategoryCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(
+            new ReparentCategoryCommand
+            {
+                CategoryId = child.Id,
+                NewParentCategoryId = root2.Id,
+            },
+            TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            db.ChangeTracker.Entries().Should().BeEmpty(
+                "ExecuteUpdate bypasses tracking so stale descendant entities must be detached");
         }
     }
 
