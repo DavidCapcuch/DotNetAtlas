@@ -86,5 +86,11 @@
     <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.6.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.OpenTelemetry" Version="2.6.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack" Version="2.6.0" />
+    <!-- Transitive pins for NU1903 vulnerabilities (closes #139). Pulled in by
+         EFCore / FastEndpoints.ClientGen.Kiota / KafkaFlow transitive chains
+         at vulnerable versions; resolved here via transitive pinning. -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Kiota.Abstractions" Version="1.22.2" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
   </ItemGroup>
 </Project>
