@@ -51,7 +51,11 @@ public class ProductActivatedProjectionHandlerTests
             db, NullLogger<ProductActivatedProjectionHandler>.Instance);
 
         await handler.Handle(
-            new ProductActivatedDomainEvent { ProductId = Guid.CreateVersion7() },
+            new ProductActivatedDomainEvent
+            {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
+                ProductId = Guid.CreateVersion7(),
+            },
             TestContext.Current.CancellationToken);
 
         (await db.ProductSearchView.CountAsync(TestContext.Current.CancellationToken))

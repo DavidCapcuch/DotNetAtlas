@@ -43,6 +43,7 @@ public class ProductCreatedOutboxPublisherTests
         await publisher.Handle(
             new ProductCreatedDomainEvent
             {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
                 ProductId = product.Id,
                 Sku = product.Sku,
                 Name = product.Name,
@@ -93,6 +94,7 @@ public class ProductCreatedOutboxPublisherTests
         await publisher.Handle(
             new ProductCreatedDomainEvent
             {
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
                 ProductId = product.Id,
                 Sku = product.Sku,
                 Name = product.Name,
