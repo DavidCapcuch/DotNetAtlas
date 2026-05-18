@@ -111,6 +111,7 @@ public class WeatherAlertBroadcastDomainEventHandlerTests
     {
         return new WeatherAlertIssuedDomainEvent
         {
+            OccurredOnUtc = UtcNow,
             MonitoredLocationId = Guid.CreateVersion7(),
             City = City.Create(city).Value,
             CountryCode = countryCode ?? CountryCode.CZ,

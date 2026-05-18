@@ -20,7 +20,7 @@ public class AlertSubscriberTests
         var userId = Guid.CreateVersion7();
 
         // Act
-        var alertSubscriber = AlertSubscriber.CreateFree(userId);
+        var alertSubscriber = AlertSubscriber.CreateFree(userId, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -113,12 +113,12 @@ public class AlertSubscriberTests
     public void SubscribeToMonitoredLocation_WhenUnderLimit_AddsSubscriptionAndRaisesEvent()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         _ = alertSubscriber.PopDomainEvents(); // Clear creation event
         var monitoredLocationId = Guid.CreateVersion7();
 
         // Act
-        var subscribeResult = alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId);
+        var subscribeResult = alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -137,13 +137,13 @@ public class AlertSubscriberTests
     public void SubscribeToMonitoredLocation_WhenAlreadySubscribed_ReturnsOkWithoutDuplicate()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         var monitoredLocationId = Guid.CreateVersion7();
-        alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId);
+        alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId, UtcNow);
         _ = alertSubscriber.PopDomainEvents(); // Clear events
 
         // Act
-        var subscribeResult = alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId);
+        var subscribeResult = alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -158,17 +158,17 @@ public class AlertSubscriberTests
     public void SubscribeToMonitoredLocation_WhenAtMaxSubscriptions_ReturnsMaxReachedError()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         for (var i = 0; i < SubscriptionTier.Free.MaxSubscriptions; i++)
         {
-            alertSubscriber.SubscribeToMonitoredLocation(Guid.CreateVersion7());
+            alertSubscriber.SubscribeToMonitoredLocation(Guid.CreateVersion7(), UtcNow);
         }
 
         _ = alertSubscriber.PopDomainEvents(); // Clear events
         var extraLocationId = Guid.CreateVersion7();
 
         // Act
-        var subscribeResult = alertSubscriber.SubscribeToMonitoredLocation(extraLocationId);
+        var subscribeResult = alertSubscriber.SubscribeToMonitoredLocation(extraLocationId, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -186,13 +186,13 @@ public class AlertSubscriberTests
     public void UnsubscribeFromMonitoredLocation_WhenSubscribed_RemovesAndRaisesEvent()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         var monitoredLocationId = Guid.CreateVersion7();
-        alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId);
+        alertSubscriber.SubscribeToMonitoredLocation(monitoredLocationId, UtcNow);
         _ = alertSubscriber.PopDomainEvents(); // Clear events
 
         // Act
-        var unsubscribeResult = alertSubscriber.UnsubscribeFromMonitoredLocation(monitoredLocationId);
+        var unsubscribeResult = alertSubscriber.UnsubscribeFromMonitoredLocation(monitoredLocationId, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -208,11 +208,11 @@ public class AlertSubscriberTests
     public void UnsubscribeFromMonitoredLocation_WhenNotSubscribed_ReturnsNotSubscribedError()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         var monitoredLocationId = Guid.CreateVersion7();
 
         // Act
-        var unsubscribeResult = alertSubscriber.UnsubscribeFromMonitoredLocation(monitoredLocationId);
+        var unsubscribeResult = alertSubscriber.UnsubscribeFromMonitoredLocation(monitoredLocationId, UtcNow);
 
         // Assert
         unsubscribeResult.Should().BeSuccess();
@@ -222,7 +222,7 @@ public class AlertSubscriberTests
     public void ActivatePaidSubscription_FirstTimeSubscriber_RaisesSubscriberActivatedEvent()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         _ = alertSubscriber.PopDomainEvents(); // Clear creation event
         var correlationId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
@@ -252,7 +252,7 @@ public class AlertSubscriberTests
     public void ActivatePaidSubscription_ReturningSubscriber_RaisesSubscriberReactivatedEvent()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         // Create an expired subscription (negative duration from a past time)
         var pastTime = UtcNow.AddDays(-10);
         var expiredSubscriptionDate = pastTime.AddDays(1); // Will expire 9 days ago
@@ -288,7 +288,7 @@ public class AlertSubscriberTests
     public void ActivatePaidSubscription_ExistingPaidSubscriber_RaisesSubscriptionUpgradedEvent()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         alertSubscriber.ActivatePaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Pro, 30, UtcNow);
         _ = alertSubscriber.PopDomainEvents(); // Clear events
 
@@ -358,7 +358,7 @@ public class AlertSubscriberTests
     public void ActivatePaidSubscription_WhenInvalidDuration_ThrowsDataIntegrityException(int durationDays)
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
 
         // Act
         var activatePaidSubscriptionAction = () =>
@@ -374,7 +374,7 @@ public class AlertSubscriberTests
     public void DowngradeToFree_WhenExpired_RemovesExcessSubscriptionsAndSetsLastPaidSubscriptionEndedAtUtc()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         // Create subscription that expires 1 day ago (activate from 2 days ago with 1 day duration)
         var pastTime = UtcNow.AddDays(-2);
         var expiredSubscriptionDate = pastTime.AddDays(1); // Expired 1 day ago
@@ -383,7 +383,7 @@ public class AlertSubscriberTests
         // Add subscriptions exceeding the free tier limit (10 subscriptions, more than Free tier's 5)
         for (var i = 0; i < 10; i++)
         {
-            alertSubscriber.SubscribeToMonitoredLocation(Guid.CreateVersion7());
+            alertSubscriber.SubscribeToMonitoredLocation(Guid.CreateVersion7(), UtcNow);
         }
 
         // Act
@@ -405,7 +405,7 @@ public class AlertSubscriberTests
     public void DowngradeToFree_WhenActive_ReturnsCannotDowngradeError()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         alertSubscriber.ActivatePaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Pro, 30, UtcNow);
 
         // Act
@@ -425,7 +425,7 @@ public class AlertSubscriberTests
     public void DowngradeToFree_WhenAlreadyFree_ReturnsOk()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
 
         // Act
         var downgradeToFreeResult = alertSubscriber.DowngradeToFree(UtcNow);
@@ -481,7 +481,7 @@ public class AlertSubscriberTests
     public void ExtendSubscription_WhenFreeTier_ThrowsDataIntegrityException()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         var currentUtcNow = UtcNow;
 
         // Act
@@ -546,7 +546,7 @@ public class AlertSubscriberTests
     public void IsSubscriptionExpired_WhenFreeTier_ReturnsFalse()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
 
         // Act
         var isSubscriptionExpired = alertSubscriber.IsSubscriptionExpired(UtcNow);
@@ -594,7 +594,7 @@ public class AlertSubscriberTests
     public void UpdateTemperatureUnitPreference_WhenCalled_UpdatesPreference()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
 
         // Act
         alertSubscriber.UpdateTemperatureUnitPreference(TemperatureUnit.Fahrenheit);
@@ -624,7 +624,7 @@ public class AlertSubscriberTests
         var userId = Guid.CreateVersion7();
 
         // Act
-        var alertSubscriber = AlertSubscriber.CreateFree(userId);
+        var alertSubscriber = AlertSubscriber.CreateFree(userId, UtcNow);
 
         // Assert
         alertSubscriber.WindSpeedUnitPreference.Should().Be(WindSpeedUnit.KilometersPerHour);
@@ -634,7 +634,7 @@ public class AlertSubscriberTests
     public void UpdateWindSpeedUnitPreference_WhenCalled_UpdatesPreference()
     {
         // Arrange
-        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
 
         // Act
         alertSubscriber.UpdateWindSpeedUnitPreference(WindSpeedUnit.MilesPerHour);

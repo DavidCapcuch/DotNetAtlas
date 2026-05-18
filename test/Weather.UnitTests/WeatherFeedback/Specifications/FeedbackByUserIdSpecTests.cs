@@ -1,6 +1,7 @@
 using Ardalis.Specification.EntityFrameworkCore;
 using Weather.Domain.Feedback.Specifications;
 using Weather.Domain.Feedback.ValueObjects;
+using Weather.UnitTests.Common;
 
 namespace Weather.UnitTests.WeatherFeedback.Specifications;
 
@@ -16,11 +17,13 @@ public class FeedbackByUserIdSpecTests
         var targetUserFeedback = Domain.Feedback.Feedback.Create(
             FeedbackText.Create("a").Value,
             FeedbackRating.Create(3).Value,
-            targetUserId).Value;
+            targetUserId,
+            TestInstants.FixedNow).Value;
         var otherUserFeedback = Domain.Feedback.Feedback.Create(
             FeedbackText.Create("b").Value,
             FeedbackRating.Create(4).Value,
-            otherUserId).Value;
+            otherUserId,
+            TestInstants.FixedNow).Value;
 
         var feedbackByUserIdSpec = new FeedbackByUserIdSpec(targetUserId);
         var feedbacks = new List<Domain.Feedback.Feedback>

@@ -22,7 +22,7 @@ public class ExpiredPremiumSubscribersSpecTests
         var expiredUltraAlertSubscriber = AlertSubscriber.CreateWithPaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Ultra, 1, currentUtc.AddDays(-6));
         // Active: expires in 10 days
         var activeProAlertSubscriber = AlertSubscriber.CreateWithPaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Pro, 10, currentUtc);
-        var freeAlertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var freeAlertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), currentUtc);
 
         var alertSubscribers = new List<AlertSubscriber>
         {
@@ -55,7 +55,7 @@ public class ExpiredPremiumSubscribersSpecTests
         // Arrange
         var currentUtc = _fakeTimeProvider.GetUtcNow();
         var activeProAlertSubscriber = AlertSubscriber.CreateWithPaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Pro, 10, currentUtc);
-        var freeAlertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var freeAlertSubscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), currentUtc);
 
         var alertSubscribers = new List<AlertSubscriber>
         {

@@ -45,6 +45,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
 
         var ev = new BasketCheckedOutDomainEvent
         {
+            OccurredOnUtc = capturedAt,
             UserId = userId,
             CorrelationId = correlationId,
             Snapshot = basketSnapshot,

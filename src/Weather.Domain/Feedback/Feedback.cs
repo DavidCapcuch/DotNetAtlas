@@ -35,6 +35,7 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
     /// <param name="feedbackText">The feedback text content.</param>
     /// <param name="rating">The feedback rating.</param>
     /// <param name="createdByUser">The user ID of the feedback creator.</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A result containing the new feedback instance.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -42,7 +43,11 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="FeedbackCreatedDomainEvent"/>: Always raised when new feedback is created.</item>
     /// </list>
     /// </remarks>
-    public static Result<Feedback> Create(FeedbackText feedbackText, FeedbackRating rating, Guid createdByUser)
+    public static Result<Feedback> Create(
+        FeedbackText feedbackText,
+        FeedbackRating rating,
+        Guid createdByUser,
+        DateTimeOffset utcNow)
     {
         var feedback = new Feedback
         {
@@ -55,6 +60,7 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
         feedback.AddDomainEvent(
             new FeedbackCreatedDomainEvent
             {
+                OccurredOnUtc = utcNow,
                 FeedbackId = feedback.Id,
                 UserId = feedback.CreatedByUser,
                 Rating = rating,
@@ -70,6 +76,7 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
     /// <param name="feedback">The new feedback text.</param>
     /// <param name="rating">The new rating.</param>
     /// <param name="byUserId">The user ID attempting the change (must be the creator).</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A result indicating success or failure with forbidden error.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -77,7 +84,11 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="FeedbackChangedDomainEvent"/>: Raised when feedback text or rating is modified (not raised if values are unchanged).</item>
     /// </list>
     /// </remarks>
-    public Result ChangeFeedback(FeedbackText feedback, FeedbackRating rating, Guid byUserId)
+    public Result ChangeFeedback(
+        FeedbackText feedback,
+        FeedbackRating rating,
+        Guid byUserId,
+        DateTimeOffset utcNow)
     {
         if (CreatedByUser != byUserId)
         {
@@ -97,6 +108,7 @@ public sealed class Feedback : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(
             new FeedbackChangedDomainEvent
             {
+                OccurredOnUtc = utcNow,
                 FeedbackId = Id,
                 UserId = CreatedByUser,
                 NewRating = rating,

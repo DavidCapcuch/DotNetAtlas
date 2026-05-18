@@ -35,15 +35,18 @@ public sealed class
     private readonly IWeatherDbContext _weatherDbContext;
     private readonly IWeatherAlertBroadcaster _weatherAlertBroadcaster;
     private readonly ILogger<UnsubscribeFromLocationAlertsCommandHandler> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public UnsubscribeFromLocationAlertsCommandHandler(
         IWeatherDbContext weatherDbContext,
         IWeatherAlertBroadcaster weatherAlertBroadcaster,
-        ILogger<UnsubscribeFromLocationAlertsCommandHandler> logger)
+        ILogger<UnsubscribeFromLocationAlertsCommandHandler> logger,
+        TimeProvider timeProvider)
     {
         _weatherDbContext = weatherDbContext;
         _weatherAlertBroadcaster = weatherAlertBroadcaster;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result> HandleAsync(
@@ -83,7 +86,8 @@ public sealed class
                 return Result.Fail(AlertSubscriberErrors.SubscriberNotFound(userId));
             }
 
-            var unsubscribeResult = alertSubscriber.UnsubscribeFromMonitoredLocation(monitoredLocation.Id);
+            var unsubscribeResult = alertSubscriber.UnsubscribeFromMonitoredLocation(
+                monitoredLocation.Id, _timeProvider.GetUtcNow());
             if (unsubscribeResult.IsFailed)
             {
                 return Result.Fail(unsubscribeResult.Errors);

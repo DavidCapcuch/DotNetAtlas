@@ -102,6 +102,7 @@ public class BasketCheckoutInitiatedMapperTests
         var addr = Address.Create("S", null, "C", null, "P", "US").Value;
         var domainEvent = new BasketCheckedOutDomainEvent
         {
+            OccurredOnUtc = capturedAt,
             UserId = Guid.CreateVersion7(),
             CorrelationId = Guid.CreateVersion7(),
             Snapshot = snap,

@@ -201,7 +201,7 @@ public class ActivateSubscriptionCommandKafkaHandlerTests : BaseIntegrationTest
 
     private async Task SetupPersistedFreeAlertSubscriberAsync(Guid userId)
     {
-        var subscriber = Domain.Alerts.AlertSubscriber.CreateFree(userId);
+        var subscriber = Domain.Alerts.AlertSubscriber.CreateFree(userId, TimeProvider.System.GetUtcNow());
         subscriber.PopDomainEvents(); // Don't dispatch creation events
 
         WeatherDbContext.AlertSubscribers.Add(subscriber);

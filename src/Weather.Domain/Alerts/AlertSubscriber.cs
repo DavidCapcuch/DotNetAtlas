@@ -70,6 +70,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// Creates a new subscriber with the Free tier.
     /// </summary>
     /// <param name="userId">The user identifier.</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A new free tier subscriber.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -77,7 +78,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="SubscriberCreatedDomainEvent"/>: Always raised when a new subscriber is created.</item>
     /// </list>
     /// </remarks>
-    public static AlertSubscriber CreateFree(Guid userId)
+    public static AlertSubscriber CreateFree(Guid userId, DateTimeOffset utcNow)
     {
         var subscriber = new AlertSubscriber
         {
@@ -92,6 +93,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
 
         subscriber.AddDomainEvent(new SubscriberCreatedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             SubscriberId = subscriber.Id,
             UserId = userId
         });
@@ -150,6 +152,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
 
         subscriber.AddDomainEvent(new SubscriberActivatedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             SubscriberId = subscriber.Id,
             UserId = userId,
             CorrelationId = correlationId,
@@ -170,6 +173,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// Validates against subscriber's tier limits.
     /// </summary>
     /// <param name="monitoredLocationId">The ID of the monitored location to subscribe to.</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A result indicating success or failure with max subscriptions reached error.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -177,7 +181,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="MonitoredLocationAlertsSubscriptionCreatedDomainEvent"/>: Raised when a new subscription is added (not raised for duplicate subscriptions).</item>
     /// </list>
     /// </remarks>
-    public Result SubscribeToMonitoredLocation(Guid monitoredLocationId)
+    public Result SubscribeToMonitoredLocation(Guid monitoredLocationId, DateTimeOffset utcNow)
     {
         if (_monitoredLocationSubscriptions.Any(s => s.MonitoredLocationId == monitoredLocationId))
         {
@@ -194,6 +198,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
 
         AddDomainEvent(new MonitoredLocationAlertsSubscriptionCreatedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             SubscriptionId = subscription.Id,
             MonitoredLocationId = monitoredLocationId,
             UserId = UserId,
@@ -207,6 +212,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// Unsubscribes a user from a monitored location's alerts.
     /// </summary>
     /// <param name="monitoredLocationId">The ID of the monitored location to unsubscribe from.</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A result indicating success or failure with not subscribed error.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -214,7 +220,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="MonitoredLocationAlertsSubscriptionRemovedDomainEvent"/>: Raised when a subscription is removed.</item>
     /// </list>
     /// </remarks>
-    public Result UnsubscribeFromMonitoredLocation(Guid monitoredLocationId)
+    public Result UnsubscribeFromMonitoredLocation(Guid monitoredLocationId, DateTimeOffset utcNow)
     {
         var subscription =
             _monitoredLocationSubscriptions.FirstOrDefault(s => s.MonitoredLocationId == monitoredLocationId);
@@ -227,6 +233,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
 
         AddDomainEvent(new MonitoredLocationAlertsSubscriptionRemovedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             SubscriptionId = subscription.Id,
             MonitoredLocationId = monitoredLocationId,
             UserId = UserId,
@@ -283,6 +290,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
         {
             AddDomainEvent(new SubscriptionUpgradedDomainEvent
             {
+                OccurredOnUtc = utcNow,
                 SubscriberId = Id,
                 UserId = UserId,
                 CorrelationId = correlationId,
@@ -297,6 +305,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
         {
             AddDomainEvent(new SubscriberReactivatedDomainEvent
             {
+                OccurredOnUtc = utcNow,
                 SubscriberId = Id,
                 UserId = UserId,
                 CorrelationId = correlationId,
@@ -311,6 +320,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
         {
             AddDomainEvent(new SubscriberActivatedDomainEvent
             {
+                OccurredOnUtc = utcNow,
                 SubscriberId = Id,
                 UserId = UserId,
                 CorrelationId = correlationId,
@@ -365,6 +375,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
 
         AddDomainEvent(new SubscriptionDowngradedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             SubscriberId = Id,
             UserId = UserId,
             PreviousTier = previousTier,
@@ -415,6 +426,7 @@ public sealed class AlertSubscriber : AggregateRoot<Guid>, IAuditableEntity
 
         AddDomainEvent(new SubscriptionExtendedDomainEvent
         {
+            OccurredOnUtc = currentUtc,
             SubscriberId = Id,
             UserId = UserId,
             CorrelationId = correlationId,

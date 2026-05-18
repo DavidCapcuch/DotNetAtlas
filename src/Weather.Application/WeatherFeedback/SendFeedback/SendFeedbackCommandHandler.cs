@@ -16,13 +16,16 @@ public sealed class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCom
 {
     private readonly ILogger<SendFeedbackCommandHandler> _logger;
     private readonly IWeatherDbContext _weatherDbContext;
+    private readonly TimeProvider _timeProvider;
 
     public SendFeedbackCommandHandler(
         ILogger<SendFeedbackCommandHandler> logger,
-        IWeatherDbContext weatherDbContext)
+        IWeatherDbContext weatherDbContext,
+        TimeProvider timeProvider)
     {
         _logger = logger;
         _weatherDbContext = weatherDbContext;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<Guid>> HandleAsync(
@@ -46,7 +49,8 @@ public sealed class SendFeedbackCommandHandler : ICommandHandler<SendFeedbackCom
             return Result.Fail(FeedbackErrors.Conflict(existingFeedback.Id));
         }
 
-        var feedbackCreateResult = Domain.Feedback.Feedback.Create(feedbackResult.Value, ratingResult.Value, command.UserId);
+        var feedbackCreateResult = Domain.Feedback.Feedback.Create(
+            feedbackResult.Value, ratingResult.Value, command.UserId, _timeProvider.GetUtcNow());
         if (feedbackCreateResult.IsFailed)
         {
             return Result.Fail(feedbackCreateResult.Errors);

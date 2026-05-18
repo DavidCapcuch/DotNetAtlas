@@ -218,8 +218,8 @@ public class WeatherAlertEmailNotificationDomainEventHandlerTests : IDisposable
 
     private async Task<AlertSubscriber> CreateSubscriberWithSubscription(Guid monitoredLocationId)
     {
-        var subscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7());
-        subscriber.SubscribeToMonitoredLocation(monitoredLocationId);
+        var subscriber = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
+        subscriber.SubscribeToMonitoredLocation(monitoredLocationId, UtcNow);
         subscriber.PopDomainEvents(); // Clear domain events
 
         _dbContext.AlertSubscribers.Add(subscriber);
@@ -236,6 +236,7 @@ public class WeatherAlertEmailNotificationDomainEventHandlerTests : IDisposable
     {
         return new WeatherAlertIssuedDomainEvent
         {
+            OccurredOnUtc = UtcNow,
             MonitoredLocationId = monitoredLocationId,
             City = City.Create(city).Value,
             CountryCode = countryCode ?? CountryCode.CZ,
