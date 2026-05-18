@@ -42,4 +42,23 @@ public static class GatewayResponseClassifier
         "cancelled_by_user" => FailureReason.Cancelled,
         _ => FailureReason.Unknown,
     };
+
+    /// <summary>
+    /// Classifies a domain <see cref="FailureReason"/> as retryable (transient gateway problem
+    /// that the saga should retry) or non-retryable (business decline, suspected fraud,
+    /// user-cancelled, or unknown — saga must compensate). Co-located with
+    /// <see cref="Classify(string?)"/> so the retry-vs-compensate decision stays in one place
+    /// and the mappers projecting <c>IsRetryable</c> onto the outbound Avro events
+    /// (<c>PaymentAuthorizationFailedEvent</c> / <c>PaymentCaptureFailedEvent</c>) read from a
+    /// single source of truth.
+    /// </summary>
+    /// <param name="reason">The mapped <see cref="FailureReason"/>.</param>
+    /// <returns><see langword="true"/> only for <see cref="FailureReason.GatewayTimeout"/> in
+    /// v1; everything else (including <see cref="FailureReason.Unknown"/>) is non-retryable so
+    /// undefined gateway codes don't accidentally trigger retry storms.</returns>
+    public static bool IsRetryable(FailureReason reason)
+    {
+        ArgumentNullException.ThrowIfNull(reason);
+        return reason == FailureReason.GatewayTimeout;
+    }
 }
