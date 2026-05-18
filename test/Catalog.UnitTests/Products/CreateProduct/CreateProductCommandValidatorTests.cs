@@ -155,6 +155,26 @@ public class CreateProductCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
+    // CAT-SEC-006 (Wave-1 closeout): MaximumLength counts UTF-16 code units, so a surrogate
+    // pair (any non-BMP emoji) is 2 chars. MaximumRuneLength counts Unicode scalars instead,
+    // so 200 emoji = 200 runes = valid even though it's 400 chars.
+    [Fact]
+    public void Name_of_200_emoji_runes_passes_rune_check()
+    {
+        // 𝓪 (U+1D4EA) is a non-BMP code point, so it occupies 2 chars per appearance.
+        var name = string.Concat(Enumerable.Repeat("𝓪", 200));
+        var cmd = Valid() with { Name = name };
+        _validator.Validate(cmd).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Name_of_201_emoji_runes_fails_rune_check()
+    {
+        var name = string.Concat(Enumerable.Repeat("𝓪", 201));
+        var cmd = Valid() with { Name = name };
+        _validator.Validate(cmd).IsValid.Should().BeFalse();
+    }
+
     [Fact]
     public void Dimensions_with_unknown_unit_fails()
     {

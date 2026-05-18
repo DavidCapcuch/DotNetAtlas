@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Validation;
 using Catalog.Domain.Products.ValueObjects;
 using FluentValidation;
 
@@ -12,8 +13,10 @@ public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuer
 
         // CAT-SEC-001 / CAT-RV-H03: bound user-supplied free-text search to keep LIKE scans
         // pinned; the handler additionally escapes wildcard metacharacters before substitution.
+        // CAT-SEC-006 (Wave-1 closeout): count runes rather than UTF-16 code units so emoji
+        // do not get truncated mid-surrogate.
         RuleFor(x => x.Text)
-            .MaximumLength(100)
+            .MaximumRuneLength(100)
             .When(x => !string.IsNullOrEmpty(x.Text));
 
         RuleFor(x => x.MinPrice)
