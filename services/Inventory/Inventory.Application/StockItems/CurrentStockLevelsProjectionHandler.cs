@@ -173,6 +173,19 @@ internal sealed class CurrentStockLevelsProjectionHandler :
         row.Available = row.OnHand - row.Reserved;
         row.LastUpdatedUtc = occurredOnUtc;
         row.LastVersion += 1;
+
+        // Defensive: the aggregate enforces Available >= 0, but a future
+        // projection-rebuild from a corrupted stream (or a yet-unwritten
+        // projection-replay job) could produce a negative Available and
+        // MaybeEmitStockLevelChanged would then misclassify a -1 -> 0
+        // transition as "back in stock". Fail loud rather than silently
+        // emit a wrong threshold event.
+        if (row.Available < 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.ProjectionAvailableNegative",
+                $"current_stock_levels row for Product {row.ProductId} computed Available = {row.Available} (OnHand={row.OnHand}, Reserved={row.Reserved}); aggregate invariant violated.");
+        }
     }
 
     private void MaybeEmitStockLevelChanged(CurrentStockLevelRow row, int previousAvailable, DateTimeOffset occurredOnUtc)
