@@ -132,9 +132,28 @@ end";
 
         // Direct bypass per basket.md § 6.4 — remove the Redis entry and invalidate
         // any FusionCache state so a subsequent GetByUserIdAsync sees "no basket".
-        await database.KeyDeleteAsync(key).ConfigureAwait(false);
-        ct.ThrowIfCancellationRequested();
-        await _cache.RemoveAsync(key, token: ct).ConfigureAwait(false);
+        // Catch transient Redis failures: the handler's checkout flow commits the
+        // outbox BEFORE calling DeleteAsync, so a thrown exception here would surface
+        // as 5xx to the caller while the saga is already running. Per
+        // IBasketRepository.DeleteAsync's contract + CheckoutBasketCommandHandler XML
+        // doc lines 33-35: "delete failure is logged but NOT propagated — the outbox
+        // is the source of truth".
+        try
+        {
+            await database.KeyDeleteAsync(key).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            await _cache.RemoveAsync(key, token: ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException)
+        {
+            // RedisTimeoutException : TimeoutException (NOT RedisException), so the
+            // when-clause covers both StackExchange.Redis exception roots in one catch.
+            _logger.LogWarning(
+                ex,
+                "Redis delete failed for basket key {Key}; outbox is the source of truth, next checkout or TTL will reclaim.",
+                key);
+            return Result.Fail($"Redis delete failed for basket '{userId:D}': {ex.Message}");
+        }
 
         return Result.Ok();
     }
