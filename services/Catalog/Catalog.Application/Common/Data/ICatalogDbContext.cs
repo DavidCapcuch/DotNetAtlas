@@ -2,6 +2,7 @@ using Catalog.Application.Common.ReadModels;
 using Catalog.Domain.Categories;
 using Catalog.Domain.Products;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Platform.ReliableMessaging.Outbox.EFCore;
 
 namespace Catalog.Application.Common.Data;
@@ -25,4 +26,12 @@ public interface ICatalogDbContext : IOutboxDbContext
     /// atomically with the write-model (ProductSearchView pattern).
     /// </summary>
     DbSet<ProductSearchViewRow> ProductSearchView { get; }
+
+    /// <summary>
+    /// Tracking-state facade. Exposed so handlers that issue bulk SQL via
+    /// <c>ExecuteUpdateAsync</c> (which bypasses the change tracker) can detach any
+    /// stale entities materialized in the same scope — see CAT-RV-H05 / the
+    /// ReparentCategoryCommandHandler path cascade.
+    /// </summary>
+    ChangeTracker ChangeTracker { get; }
 }
