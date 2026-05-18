@@ -70,16 +70,22 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
                 r.CategoryPath == prefix || r.CategoryPath.StartsWith(prefixWithSeparator));
         }
 
+        // CAT-RV-M02 (Wave-1 closeout): lift the currency filter above the min/max branches —
+        // when a price filter is present, the validator guarantees Currency is also present.
+        if (query.MinPrice.HasValue || query.MaxPrice.HasValue)
+        {
+            var currency = query.Currency!;
+            queryable = queryable.Where(r => r.PriceCurrency == currency);
+        }
+
         if (query.MinPrice.HasValue)
         {
-            queryable = queryable.Where(r =>
-                r.PriceAmount >= query.MinPrice!.Value && r.PriceCurrency == query.Currency);
+            queryable = queryable.Where(r => r.PriceAmount >= query.MinPrice!.Value);
         }
 
         if (query.MaxPrice.HasValue)
         {
-            queryable = queryable.Where(r =>
-                r.PriceAmount <= query.MaxPrice!.Value && r.PriceCurrency == query.Currency);
+            queryable = queryable.Where(r => r.PriceAmount <= query.MaxPrice!.Value);
         }
 
         var total = await queryable.CountAsync(ct);

@@ -179,9 +179,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     /// </remarks>
     public Result Activate(DateTimeOffset utcNow)
     {
-        Throw.If(!Status.CanTransitionTo(ProductStatus.Active), new DataIntegrityException(
-            "Product.CannotActivateInStatus",
-            $"Cannot activate product in status '{Status.Name}'."));
+        if (!Status.CanTransitionTo(ProductStatus.Active))
+        {
+            return Result.Fail(ProductErrors.CannotActivateInStatus(Status.Name));
+        }
 
         Status = ProductStatus.Active;
 
@@ -211,9 +212,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(ProductErrors.ReasonRequired());
         }
 
-        Throw.If(!Status.CanTransitionTo(ProductStatus.Discontinued), new DataIntegrityException(
-            "Product.CannotDiscontinueInStatus",
-            $"Cannot discontinue product in status '{Status.Name}'."));
+        if (!Status.CanTransitionTo(ProductStatus.Discontinued))
+        {
+            return Result.Fail(ProductErrors.CannotDiscontinueInStatus(Status.Name));
+        }
 
         Status = ProductStatus.Discontinued;
 
@@ -245,9 +247,10 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(ProductErrors.ReactivationRequiresAdminFlag());
         }
 
-        Throw.If(Status != ProductStatus.Discontinued, new DataIntegrityException(
-            "Product.CannotReactivateNonDiscontinued",
-            $"Cannot reactivate product in status '{Status.Name}'. Only discontinued products may be reactivated."));
+        if (Status != ProductStatus.Discontinued)
+        {
+            return Result.Fail(ProductErrors.CannotReactivateInStatus(Status.Name));
+        }
 
         Status = ProductStatus.Active;
 
