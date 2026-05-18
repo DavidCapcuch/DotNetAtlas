@@ -56,8 +56,13 @@ public sealed class BasketCheckoutInitiatedOutboxPublisherDomainEventHandler
             domainEvent.UserId.ToString(),
             integrationEvent);
 
-        _logger.LogInformation(
-            "Added BasketCheckoutInitiatedEvent to outbox. UserId: {UserId}, CorrelationId: {CorrelationId}, Items: {ItemCount}",
+        // Debug-level + "queued" verb: the row is only tracked in the EF change tracker
+        // at this point. CheckoutBasketCommandHandler emits a separate
+        // LogInformation("Published ...") after SaveChangesAsync succeeds so that
+        // Splunk / Grafana dashboards counting "checkouts initiated" via the
+        // information-level line never over-count on a transient SaveChanges failure.
+        _logger.LogDebug(
+            "Queued BasketCheckoutInitiatedEvent to outbox change-tracker. UserId: {UserId}, CorrelationId: {CorrelationId}, Items: {ItemCount}",
             domainEvent.UserId,
             domainEvent.CorrelationId,
             domainEvent.Snapshot.Items.Length);
