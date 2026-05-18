@@ -12,6 +12,7 @@ using Payments.Domain.Transactions.ValueObjects;
 using Payments.UnitTests.Transactions;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
+using Platform.SharedKernel.Exceptions;
 
 namespace Payments.UnitTests.Application;
 
@@ -97,5 +98,23 @@ public class VoidPaymentCommandHandlerTests
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
         result.Should().BeFailure();
+    }
+
+    [Fact]
+    public async Task Handle_CompletedAggregate_FsmRejectsBeforeGatewayCall()
+    {
+        // H-Cond-2: a Void issued against a Completed aggregate (saga ordering bug) must
+        // throw the FSM source-state guard BEFORE the gateway is contacted — a real PSP
+        // would otherwise see a Void on an already-captured authorization (undefined behaviour).
+        var existing = PaymentTransactionFactory.Completed(_timeProvider.GetUtcNow());
+        var command = BuildCommand(existing.Id);
+        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+
+        var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+        thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
+        await _gateway.DidNotReceive().VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        existing.Status.Should().Be(PaymentStatus.Completed);
     }
 }

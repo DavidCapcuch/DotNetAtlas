@@ -260,8 +260,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     {
         // Example 1.2 in docs/bc-design/example-mapping/payments.md: skipping Authorize is a
         // saga-ordering bug. Seed an aggregate in Requested status (no GatewayTransactionId)
-        // and drive Capture directly — handler hits its
-        // `Payments.MissingGatewayTransactionId` data-integrity guard before any gateway call.
+        // and drive Capture directly — handler's FSM CanTransitionTo pre-check (H-Cond-2) fires
+        // BEFORE any gateway call and throws `Payments.InvalidStatusTransition`. The legacy
+        // `Payments.MissingGatewayTransactionId` null-guard is now unreachable for this path
+        // (see M-14 follow-up issue).
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = correlationId;
@@ -310,7 +312,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         using (new AssertionScope())
         {
-            thrown.ErrorCode.Should().Be("Payments.MissingGatewayTransactionId");
+            thrown.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
             aggregateAfter.Should().NotBeNull();
             aggregateAfter!.Status.Should().Be(PaymentStatus.Requested);
             aggregateAfter.GatewayTransactionId.Should().BeNull();
@@ -373,18 +375,13 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
-    public async Task Void_AfterCapture_AggregateInCompleted_ThrowsDataIntegrityException_NoStateChange()
+    public async Task Void_AfterCapture_AggregateInCompleted_ThrowsDataIntegrityException_NoGatewayCall_NoStateChange()
     {
         // Example 3.3 in docs/bc-design/example-mapping/payments.md: void post-capture is a
         // saga bug-class. The aggregate FSM rejects the Completed → Voided transition with a
-        // DataIntegrityException; aggregate state and emitted events stay clean.
-        //
-        // NB — implementation/spec divergence flagged for the M8 session summary: the example
-        // mapping says "no gateway call", but VoidPaymentCommandHandler currently invokes the
-        // gateway *before* the aggregate FSM guard fires (see
-        // services/Payments/Payments.Application/Transactions/VoidPayment/VoidPaymentCommandHandler.cs:69).
-        // The test asserts the actual implementation (VoidCount == 1); reordering the guard to
-        // make the spec literally true is a candidate M4 cleanup, NOT an M8 deliverable.
+        // DataIntegrityException; aggregate state, emitted events, AND the gateway stay clean
+        // — the handler's CanTransitionTo pre-check (H-Cond-2) fires before any gateway call,
+        // so a real PSP never sees the bogus Void.
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
 
@@ -439,8 +436,8 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             afterVoidAttempt!.Status.Should().Be(PaymentStatus.Completed);
             afterVoidAttempt.VoidedAtUtc.Should().BeNull();
             _fixture.GetFakeOutbox().GetMessages<AvroPaymentVoidedEvent>().Should().BeEmpty();
-            // Gateway IS called once (handler ordering, see comment above) — surfaced for review.
-            _fixture.GetGateway().VoidCount.Should().Be(1);
+            // H-Cond-2: FSM pre-check fires before gateway, so the PSP is never touched.
+            _fixture.GetGateway().VoidCount.Should().Be(0);
         }
     }
 
