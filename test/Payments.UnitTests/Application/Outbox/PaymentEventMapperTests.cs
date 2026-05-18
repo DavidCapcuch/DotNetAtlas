@@ -98,6 +98,61 @@ public class PaymentEventMapperTests
         avro.ErrorCode.Should().Be("Unknown");
     }
 
+    public static TheoryData<int, bool> RetryableByReason() => new()
+    {
+        { FailureReason.GatewayTimeout.Value, true },
+        { FailureReason.GatewayDeclined.Value, false },
+        { FailureReason.InsufficientFunds.Value, false },
+        { FailureReason.FraudSuspected.Value, false },
+        { FailureReason.Cancelled.Value, false },
+        { FailureReason.Unknown.Value, false },
+    };
+
+    [Theory]
+    [MemberData(nameof(RetryableByReason))]
+    public void PaymentAuthorizationFailedMapper_ProjectsIsRetryableFromFailureReason(
+        int reasonValue, bool expectedIsRetryable)
+    {
+        var reason = FailureReason.FromValue(reasonValue);
+        var failureInfo = new FailureInfo(reason, GatewayCode: null, Now);
+        var domainEvent = new PaymentAuthorizationFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            FailureInfo = failureInfo,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentAuthorizationFailedEvent();
+
+        avro.IsRetryable.Should().Be(expectedIsRetryable);
+    }
+
+    [Theory]
+    [MemberData(nameof(RetryableByReason))]
+    public void PaymentCaptureFailedMapper_ProjectsIsRetryableFromFailureReason(
+        int reasonValue, bool expectedIsRetryable)
+    {
+        var reason = FailureReason.FromValue(reasonValue);
+        var failureInfo = new FailureInfo(reason, GatewayCode: null, Now);
+        var domainEvent = new PaymentCaptureFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            GatewayTransactionId = GatewayTransactionId,
+            FailureInfo = failureInfo,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentCaptureFailedEvent();
+
+        avro.IsRetryable.Should().Be(expectedIsRetryable);
+    }
+
     [Fact]
     public void PaymentCapturedMapper_MapsAggregateIdToPaymentTransactionId()
     {

@@ -1,3 +1,4 @@
+using Payments.Application.Abstractions;
 using Payments.Domain.Transactions.Events;
 using Payments.Transactions;
 
@@ -8,7 +9,8 @@ namespace Payments.Application.Outbox;
 /// <see cref="PaymentCaptureFailedEvent"/>. <c>AuthorizationId</c> is non-null because the
 /// aggregate guarantees a successful prior <c>Authorize</c> before capture (FSM source-state
 /// guard in <c>PaymentTransaction.MarkCaptureFailed</c>). Same <c>ErrorCode</c> /
-/// <c>ErrorMessage</c> resolution as <see cref="PaymentAuthorizationFailedMapper"/>.
+/// <c>ErrorMessage</c> / <c>IsRetryable</c> resolution as
+/// <see cref="PaymentAuthorizationFailedMapper"/>.
 /// </summary>
 internal static class PaymentCaptureFailedMapper
 {
@@ -24,6 +26,7 @@ internal static class PaymentCaptureFailedMapper
             AuthorizationId = source.GatewayTransactionId,
             ErrorCode = source.FailureInfo.GatewayCode ?? source.FailureInfo.Reason.Name,
             ErrorMessage = source.FailureInfo.Reason.Name,
+            IsRetryable = GatewayResponseClassifier.IsRetryable(source.FailureInfo.Reason),
             FailedAtUtc = source.FailureInfo.RecordedAtUtc.UtcDateTime,
         };
     }

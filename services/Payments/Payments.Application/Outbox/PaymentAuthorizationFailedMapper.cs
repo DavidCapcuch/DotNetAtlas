@@ -1,3 +1,4 @@
+using Payments.Application.Abstractions;
 using Payments.Domain.Transactions.Events;
 using Payments.Transactions;
 
@@ -10,7 +11,9 @@ namespace Payments.Application.Outbox;
 /// <see cref="Payments.Domain.Transactions.ValueObjects.FailureReason"/> name. <c>ErrorMessage</c>
 /// always carries the canonical reason name as a stable, taxonomy-aligned token; downstream
 /// sagas / dashboards bucket failures by <c>ErrorCode</c> first and fall back to
-/// <c>ErrorMessage</c> for unknown codes.
+/// <c>ErrorMessage</c> for unknown codes. <c>IsRetryable</c> is sourced from
+/// <see cref="GatewayResponseClassifier.IsRetryable"/> so the retry-vs-compensate decision
+/// stays consistent across the auth + capture failure surfaces.
 /// </summary>
 internal static class PaymentAuthorizationFailedMapper
 {
@@ -25,6 +28,7 @@ internal static class PaymentAuthorizationFailedMapper
             UserId = source.BuyerId,
             ErrorCode = source.FailureInfo.GatewayCode ?? source.FailureInfo.Reason.Name,
             ErrorMessage = source.FailureInfo.Reason.Name,
+            IsRetryable = GatewayResponseClassifier.IsRetryable(source.FailureInfo.Reason),
             FailedAtUtc = source.FailureInfo.RecordedAtUtc.UtcDateTime,
         };
     }
