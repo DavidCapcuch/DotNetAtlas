@@ -53,7 +53,7 @@
         <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.15.1-beta.1"/>
         <PackageVersion Include="KafkaFlow" Version="4.2.0"/>
         <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0"/>
-        <PackageVersion Include="Scrutor" Version="6.1.0"/>
+        <PackageVersion Include="Scrutor" Version="7.0.0"/>
         <PackageVersion Include="Serilog" Version="4.3.1"/>
         <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0"/>
         <PackageVersion Include="Serilog.Exceptions" Version="8.4.0"/>
