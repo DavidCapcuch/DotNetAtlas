@@ -29,9 +29,9 @@
       },
       "MessagePack.Annotations": {
         "type": "Direct",
-        "requested": "[2.5.187, )",
-        "resolved": "2.5.187",
-        "contentHash": "/IvvMMS8opvlHjEJ/fR2Cal4Co726Kj77Z8KiohFhuHfLHHmb9uUxW5+tSCL4ToKFfkQlrS3HD638mRq83ySqA=="
+        "requested": "[3.1.4, )",
+        "resolved": "3.1.4",
+        "contentHash": "aVWrDAkCdqxwQsz/q0ldPh2EFn48M99YUzE9OvZjMq2RNLKz4o2z88iGFvSvbMqOWRweRvKPHBJZe22PRqzslQ=="
       },
       "Riok.Mapperly": {
         "type": "Direct",

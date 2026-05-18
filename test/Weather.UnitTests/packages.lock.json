@@ -618,8 +618,8 @@
       },
       "MessagePack.Annotations": {
         "type": "Transitive",
-        "resolved": "2.5.187",
-        "contentHash": "/IvvMMS8opvlHjEJ/fR2Cal4Co726Kj77Z8KiohFhuHfLHHmb9uUxW5+tSCL4ToKFfkQlrS3HD638mRq83ySqA=="
+        "resolved": "3.1.4",
+        "contentHash": "aVWrDAkCdqxwQsz/q0ldPh2EFn48M99YUzE9OvZjMq2RNLKz4o2z88iGFvSvbMqOWRweRvKPHBJZe22PRqzslQ=="
       },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
@@ -644,10 +644,10 @@
       },
       "Microsoft.AspNetCore.Connections.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "MPXDzUknemj+sCL/LYOLvU/qIX3o9zCJtKXu9jcwNMQiOvwuv75lV20p3qGENA/ynTH7hOPFqDUEGBT30IvhEA==",
+        "resolved": "10.0.8",
+        "contentHash": "DfmEvnTPOVfkz8s4zDdmjy7z1iiwid3IDnonPD2V48j812njrfgP7CxphDn0b+Iq92+PU0WFH1xpAv09pTUEvg==",
         "dependencies": {
-          "Microsoft.Extensions.Features": "10.0.0"
+          "Microsoft.Extensions.Features": "10.0.8"
         }
       },
       "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": {
@@ -662,20 +662,20 @@
       },
       "Microsoft.AspNetCore.SignalR.Common": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "pyG6FLV4/EeOQeZ30ra4aUYycJQPT/9ddB91aplMKwEGT5KbEs//WMqMObVGvDREP508EB4QUAKzacSVi30nxw==",
+        "resolved": "10.0.8",
+        "contentHash": "k++Zhl06barMW30QwGoOMNhPOjANk/w8m2Kbz4JNZ6qHQm4jC7yckZqbK8oOyGV6uushrGtpbNTlCpsOWfnFug==",
         "dependencies": {
-          "Microsoft.AspNetCore.Connections.Abstractions": "10.0.0",
-          "Microsoft.Extensions.Options": "10.0.0"
+          "Microsoft.AspNetCore.Connections.Abstractions": "10.0.8",
+          "Microsoft.Extensions.Options": "10.0.8"
         }
       },
       "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "eBzox01eCf9bvmOFMfeN6HpgJFDJ+gQDYTLYJBovSjEEI8X+vX93GDMktGFRQkfZ79yJbaZ2dtHn4u2gyxMv5Q==",
+        "resolved": "10.0.8",
+        "contentHash": "DAtwQToTwksnxFy6dxtYzp6t5kJFJSQe0P0B+zjnN/tszqzMS/ezYmIlnJXe5P6htLeXpXg8K6RjK7YH9YU3sA==",
         "dependencies": {
           "MessagePack": "2.5.187",
-          "Microsoft.AspNetCore.SignalR.Common": "10.0.0"
+          "Microsoft.AspNetCore.SignalR.Common": "10.0.8"
         }
       },
       "Microsoft.AspNetCore.SignalR.StackExchangeRedis": {
@@ -923,8 +923,8 @@
       },
       "Microsoft.Extensions.Features": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "kCFjPpfvz0K00xIpe7wJKre1gFJdNIu9+1BYJLklu3GWb+uU4HIjza0uMBQeFGZws9VJos9LeO+PUfvGcre+9g=="
+        "resolved": "10.0.8",
+        "contentHash": "pzn7prqSzxHmXIQw+yomgkEUMU5ZtE+WK/5syc8ob5rWrRaqb+JTt7GkW9AU9y6NMVNTEjV9vrJMfO+lUlcH8A=="
       },
       "Microsoft.Extensions.FileProviders.Abstractions": {
         "type": "Transitive",
@@ -1893,7 +1893,7 @@
           "FastEndpoints.Attributes": "[8.1.0, )",
           "FluentValidation": "[12.1.1, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
-          "MessagePack.Annotations": "[2.5.187, )",
+          "MessagePack.Annotations": "[3.1.4, )",
           "Platform.CQRS": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
@@ -1941,7 +1941,7 @@
           "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.8, )",
-          "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": "[10.0.0, )",
+          "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": "[10.0.8, )",
           "Microsoft.AspNetCore.SignalR.StackExchangeRedis": "[10.0.8, )",
           "Microsoft.Build.Tasks.Core": "[18.6.3, )",
           "Microsoft.EntityFrameworkCore.InMemory": "[10.0.8, )",

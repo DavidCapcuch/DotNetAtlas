@@ -1381,7 +1381,7 @@
           "FastEndpoints.Attributes": "[8.1.0, )",
           "FluentValidation": "[12.1.1, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
-          "MessagePack.Annotations": "[2.5.187, )",
+          "MessagePack.Annotations": "[3.1.4, )",
           "Platform.CQRS": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
@@ -1429,7 +1429,7 @@
           "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.8, )",
-          "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": "[10.0.0, )",
+          "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": "[10.0.8, )",
           "Microsoft.AspNetCore.SignalR.StackExchangeRedis": "[10.0.8, )",
           "Microsoft.Build.Tasks.Core": "[18.6.3, )",
           "Microsoft.EntityFrameworkCore.InMemory": "[10.0.8, )",
@@ -1722,9 +1722,9 @@
       },
       "MessagePack.Annotations": {
         "type": "CentralTransitive",
-        "requested": "[2.5.187, )",
-        "resolved": "2.5.187",
-        "contentHash": "/IvvMMS8opvlHjEJ/fR2Cal4Co726Kj77Z8KiohFhuHfLHHmb9uUxW5+tSCL4ToKFfkQlrS3HD638mRq83ySqA=="
+        "requested": "[3.1.4, )",
+        "resolved": "3.1.4",
+        "contentHash": "aVWrDAkCdqxwQsz/q0ldPh2EFn48M99YUzE9OvZjMq2RNLKz4o2z88iGFvSvbMqOWRweRvKPHBJZe22PRqzslQ=="
       },
       "Microsoft.AspNetCore.Authentication.JwtBearer": {
         "type": "CentralTransitive",
@@ -1746,9 +1746,9 @@
       },
       "Microsoft.AspNetCore.SignalR.Protocols.MessagePack": {
         "type": "CentralTransitive",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "eBzox01eCf9bvmOFMfeN6HpgJFDJ+gQDYTLYJBovSjEEI8X+vX93GDMktGFRQkfZ79yJbaZ2dtHn4u2gyxMv5Q==",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "DAtwQToTwksnxFy6dxtYzp6t5kJFJSQe0P0B+zjnN/tszqzMS/ezYmIlnJXe5P6htLeXpXg8K6RjK7YH9YU3sA==",
         "dependencies": {
           "MessagePack": "2.5.187"
         }
