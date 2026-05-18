@@ -147,10 +147,17 @@ internal sealed class CurrentStockLevelsProjectionHandler :
     private async Task<CurrentStockLevelRow> LoadAsync(Guid productId, CancellationToken ct)
     {
         var row = await _db.CurrentStockLevels.FindAsync([productId], ct).ConfigureAwait(false);
+        if (row is null)
+        {
+            _logger.LogError(
+                "Projection row missing for Product {ProductId} — StockItemInitializedEvent must precede every other ES event for this stream",
+                productId);
+            throw new DataIntegrityException(
+                "Inventory.ProjectionRowMissing",
+                $"current_stock_levels row for Product {productId} is missing; StockItemInitializedEvent must precede every other ES event.");
+        }
 
-        return row ?? throw new DataIntegrityException(
-            "Inventory.ProjectionRowMissing",
-            $"current_stock_levels row for Product {productId} is missing; StockItemInitializedEvent must precede every other ES event.");
+        return row;
     }
 
     private async Task<int> LookupReservationQuantityAsync(Guid reservationId, CancellationToken ct)
@@ -161,10 +168,17 @@ internal sealed class CurrentStockLevelsProjectionHandler :
         // runs on a fresh scoped DbContext that didn't see the earlier insert
         // in its change tracker).
         var audit = await _db.ReservationAudit.FindAsync([reservationId], ct).ConfigureAwait(false);
+        if (audit is null)
+        {
+            _logger.LogError(
+                "Reservation audit row missing for Reservation {ReservationId} — StockReservedEvent must precede confirm/release for the same reservation",
+                reservationId);
+            throw new DataIntegrityException(
+                "Inventory.ReservationAuditRowMissing",
+                $"reservation_audit row for Reservation {reservationId} is missing; StockReservedEvent must precede confirm/release for the same reservation.");
+        }
 
-        return audit?.Quantity ?? throw new DataIntegrityException(
-            "Inventory.ReservationAuditRowMissing",
-            $"reservation_audit row for Reservation {reservationId} is missing; StockReservedEvent must precede confirm/release for the same reservation.");
+        return audit.Quantity;
     }
 
     private static void Apply(CurrentStockLevelRow row, int previousAvailable, DateTimeOffset occurredOnUtc)
