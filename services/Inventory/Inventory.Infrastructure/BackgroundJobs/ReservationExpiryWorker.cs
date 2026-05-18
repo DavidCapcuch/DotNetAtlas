@@ -1,6 +1,7 @@
 using Inventory.Application.Common.Data;
 using Inventory.Application.StockItems.ReleaseReservation;
 using Inventory.Domain.StockItems.ValueObjects;
+using Inventory.Infrastructure.Observability;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -174,6 +175,15 @@ internal sealed class ReservationExpiryWorker : BackgroundService
                 var result = await handler.HandleAsync(command, ct).ConfigureAwait(false);
                 if (result.IsFailed)
                 {
+                    // Tag the metric by the first error code so dashboards can
+                    // split persistent-conflict ("Inventory.Concurrency") from
+                    // one-off blips. Sustained non-zero rate on a given
+                    // (ProductId, reason) pair is the ops-escalation signal —
+                    // see #158.
+                    var reasonTag = result.Errors
+                        .Select(e => e.Metadata.TryGetValue("ErrorCode", out var code) ? code?.ToString() : null)
+                        .FirstOrDefault(c => !string.IsNullOrEmpty(c)) ?? "Unknown";
+                    InventoryMetrics.RecordExpiryFailure(row.ProductId, reasonTag);
                     _logger.LogWarning(
                         "ReleaseReservationCommand(reason=Expiry) failed for reservation {ReservationId} on product {ProductId}: {Errors}",
                         row.ReservationId,
@@ -187,6 +197,7 @@ internal sealed class ReservationExpiryWorker : BackgroundService
             }
             catch (Exception ex)
             {
+                InventoryMetrics.RecordExpiryFailure(row.ProductId, "Unhandled");
                 _logger.LogError(ex,
                     "Unhandled exception releasing expired reservation {ReservationId} on product {ProductId}",
                     row.ReservationId,
