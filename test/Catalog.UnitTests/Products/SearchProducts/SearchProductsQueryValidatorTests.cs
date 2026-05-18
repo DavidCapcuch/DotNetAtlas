@@ -65,4 +65,18 @@ public class SearchProductsQueryValidatorTests
     {
         _validator.Validate(new SearchProductsQuery { Status = "Bogus" }).IsValid.Should().BeFalse();
     }
+
+    [Fact]
+    public void Text_longer_than_100_chars_fails()
+    {
+        var text = new string('a', 101);
+        _validator.Validate(new SearchProductsQuery { Text = text }).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Text_exactly_100_chars_passes()
+    {
+        var text = new string('a', 100);
+        _validator.Validate(new SearchProductsQuery { Text = text }).IsValid.Should().BeTrue();
+    }
 }
