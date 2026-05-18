@@ -67,8 +67,9 @@ public class InventoryApiFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        await _pgContainer.StartAsync();
-        await _redisContainer.StartAsync();
+        var ct = TestContext.Current.CancellationToken;
+        await _pgContainer.StartAsync(ct);
+        await _redisContainer.StartAsync(ct);
 
         var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
         redisOptions.AllowAdmin = true;
@@ -77,6 +78,7 @@ public class InventoryApiFixture : AppFixture<Program>
 
     protected override async ValueTask SetupAsync()
     {
+        var ct = TestContext.Current.CancellationToken;
         HttpClientRegistry = new HttpClientRegistry<Program>(this);
 
         // Apply EF Core migrations after the host starts. Safe because
@@ -88,7 +90,7 @@ public class InventoryApiFixture : AppFixture<Program>
         // config is needed here.
         await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        await dbContext.Database.MigrateAsync();
+        await dbContext.Database.MigrateAsync(ct);
 
         // M9 (M7 follow-up): build a Respawner once after migrations land so
         // ResetFixtureStateAsync can wipe Postgres between tests. The Inventory
@@ -99,7 +101,7 @@ public class InventoryApiFixture : AppFixture<Program>
         // EF __EFMigrationsHistory table by default for tables it didn't create
         // — schema is preserved, only data is wiped.
         await using var respawnConnection = new NpgsqlConnection(_pgContainer.GetConnectionString());
-        await respawnConnection.OpenAsync();
+        await respawnConnection.OpenAsync(ct);
         _databaseCleaner = await Respawner.CreateAsync(
             respawnConnection,
             new RespawnerOptions
