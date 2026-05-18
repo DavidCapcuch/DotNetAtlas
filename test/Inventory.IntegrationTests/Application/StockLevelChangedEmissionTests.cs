@@ -60,7 +60,9 @@ public sealed class StockLevelChangedEmissionTests
 
         var stockEventOutboxRows = await db.OutboxMessages
             .AsNoTracking()
-            .Where(m => m.KafkaKey == productId.ToString() && m.TopicName == "inventory.stock-events")
+            .Where(m => m.KafkaKey == productId.ToString()
+                && m.TopicName == "inventory.stock-events"
+                && m.Type == "Inventory.Stock.StockLevelChanged")
             .ToListAsync(TestContext.Current.CancellationToken);
 
         stockEventOutboxRows.Should().HaveCount(2,
