@@ -30,6 +30,7 @@ dotnet format style --no-restore --verify-no-changes
 - Codebase follows DDD and prefers domain model completeness + performance (sacrificing purity)
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts
+- **Platform.SharedKernel contract changes:** any edit that adds or modifies `required` members, base-class signatures, or other compile-time contracts on shared-kernel types MUST be verified with `dotnet build -m` solution-wide before commit. Slice builds (Domain-only / one-BC-only) do not surface CS9035 violations in downstream BC trees and have historically broken the build (see #138 / commit 8616fe1).
 
 ## Testcontainers + corporate proxy on Windows
 
@@ -42,14 +43,28 @@ DockerUnavailableException : Failed to connect to Docker endpoint at 'npipe://./
 
 — even though `docker info` works in the same shell — the cause is `HTTP_PROXY` / `HTTPS_PROXY` set by the corporate environment: the `npipe://` URI cannot be parsed by `HttpClient`'s env-proxy resolver, and Docker.DotNet routes the named-pipe call through that resolver.
 
-Two equivalent workarounds; pick the one that fits what else you're doing in the same shell:
+Two workarounds, in preferred order:
 
 ```bash
-# A) Per-command bypass — recommended when other commands in the shell still need the proxy
-NO_PROXY='*' dotnet test path/to/IntegrationTests.csproj
-
-# B) Strip the proxy from the invocation entirely — use when the shell is dedicated to tests
+# A) RECOMMENDED — strip the proxy from the invocation entirely. 100% reliable on corporate-proxy hosts where option B (NO_PROXY='*') actually fails: the npipe:// URI is parsed by HttpClient's env-proxy resolver BEFORE NO_PROXY is consulted, so the relative-URI exception still fires.
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy && dotnet test path/to/IntegrationTests.csproj
+
+# B) ALTERNATIVE — per-command bypass; only works on hosts where NO_PROXY is honoured by HttpClient ahead of the env-proxy resolver. Use when other commands in the same shell still need the proxy.
+NO_PROXY='*' dotnet test path/to/IntegrationTests.csproj
 ```
 
 Shell state does not persist between separate `Bash` tool calls (each invocation re-sources the user profile), so the bypass must be chained into every `dotnet test` command — not run as a standalone setup step.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live on GitHub (`DavidCapcuch/DotNetAtlas`); skills use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — default vocabulary, no remapping. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context repo. `CONTEXT-MAP.md` at the root points to per-bounded-context `CONTEXT.md` files (one per service); system-wide ADRs live in `docs/adr/`, context-scoped ADRs in `services/<context>/docs/adr/`. Files are created lazily by `/grill-with-docs` — proceed silently if any are missing. See `docs/agents/domain.md`.
