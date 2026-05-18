@@ -120,12 +120,13 @@ processors:
   # ADR-0011 PII allowlist — centralized collector-side filtering replaces the former
   # Platform.ServiceDefaults/Pii/PiiAllowlistProcessor. Runs once per batch in the Go collector
   # instead of on every span in every .NET process (cheaper, language-agnostic, testable in isolation).
-  # Default allowlist mirrors the decision record; extend in production via additional `include`
-  # patterns or a denylist in `exclude`.
+  #
+  # No `include` block: the processor applies to ALL spans by default (matches the M9 / M10 intent
+  # "extend in production via additional `include` patterns or a denylist in `exclude`"). The previous
+  # `include: { match_type: strict, services: [] }` was rejected by the OTel collector validator
+  # because `match_type: strict` requires at least one non-empty matcher among `services`, `span_names`,
+  # `attributes`, `libraries`, `resources` — producing the restart loop described in #140.
   attributes/pii-allowlist:
-    include:
-      match_type: strict
-      services: []  # empty = apply to all services
     actions:
       # Known high-risk keys that can carry PII. Redaction over deletion preserves span shape
       # and makes forensic review possible if a leak does occur.
