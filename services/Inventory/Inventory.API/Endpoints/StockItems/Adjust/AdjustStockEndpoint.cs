@@ -57,6 +57,23 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
 
     public override async Task HandleAsync(AdjustStockRequest request, CancellationToken ct)
     {
+        // ADR-0013 makes the Idempotency-Key header REQUIRED on this admin
+        // endpoint. FastEndpoints 7.0.1's built-in .Idempotency() filter only
+        // enables response caching when the header is present; in this BC's
+        // wiring it does NOT 400 on absence (verified empirically by
+        // AdjustStockTests.WhenIdempotencyKeyMissing_Returns400). We enforce
+        // the contract explicitly so a retry that omits the header cannot
+        // silently bypass dedup and double-mutate OnHand. Mirrors Basket's
+        // CheckoutBasketEndpoint guard.
+        if (!HttpContext.Request.Headers.ContainsKey("Idempotency-Key"))
+        {
+            AddError(
+                "Idempotency-Key header is required (ADR-0013).",
+                "Inventory.IdempotencyKeyMissing");
+            await Send.ErrorsAsync(StatusCodes.Status400BadRequest, ct);
+            return;
+        }
+
         var command = new AdjustStockCommand
         {
             ProductId = request.ProductId,

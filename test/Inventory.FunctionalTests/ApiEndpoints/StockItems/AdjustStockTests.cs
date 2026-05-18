@@ -41,12 +41,34 @@ public sealed class AdjustStockTests : BaseApiTest
     }
 
     [Fact]
+    public async Task WhenIdempotencyKeyMissing_Returns400()
+    {
+        // ADR-0013 makes the Idempotency-Key header REQUIRED on the AdjustStock
+        // admin endpoint. FastEndpoints 7.0.1's built-in .Idempotency() filter
+        // only enables response caching when the header is present; it does NOT
+        // 400 on absence (a retry that omits the header silently bypasses the
+        // dedup cache and may double-mutate OnHand). The endpoint enforces the
+        // contract explicitly. Mirrors CheckoutBasketTests.WhenIdempotencyKeyMissing_Returns400.
+        var productId = Guid.CreateVersion7();
+
+        // CommandsClient does not add an Idempotency-Key header by default,
+        // so this exercises the missing-header branch directly.
+        var response = await Fixture.HttpClientRegistry.CommandsClient
+            .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/adjust", BuildBody(productId, -1), TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task WhenCommandsScope_AndOnHandPositive_Returns200WithUpdatedSnapshot()
     {
         var productId = Guid.CreateVersion7();
         await SeedStreamAsync(productId, onHand: 10);
 
-        var response = await Fixture.HttpClientRegistry.CommandsClient
+        // ADR-0013 requires the Idempotency-Key header on this endpoint
+        // (enforced explicitly per WhenIdempotencyKeyMissing_Returns400).
+        var client = Fixture.HttpClientRegistry.CommandsClientWithIdempotencyKey(Guid.CreateVersion7().ToString());
+        var response = await client
             .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/adjust", BuildBody(productId, -3), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
