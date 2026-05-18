@@ -102,7 +102,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             }
         }
 
-        var gatewayResult = await _gateway.AuthorizeAsync(tx, ct);
+        var gatewayResult = await _gateway.AuthorizeAsync(tx, command.IdempotencyKey, ct);
         var utcNow = _timeProvider.GetUtcNow();
 
         if (gatewayResult.IsSuccess)

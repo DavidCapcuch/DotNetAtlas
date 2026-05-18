@@ -35,9 +35,13 @@ public interface IPaymentGateway
     /// Authorizes the payment by holding the funds at the gateway.
     /// </summary>
     /// <param name="tx">Aggregate carrying amount + tokenized payment method.</param>
+    /// <param name="idempotencyKey">Saga-issued idempotency key — a v2 real adapter (Stripe,
+    /// Adyen) forwards this as the gateway's <c>Idempotency-Key</c> header so the gateway-side
+    /// dedups duplicate authorize attempts during the "SaveChanges fails post-gateway"
+    /// recovery path. H-4 closeout.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Authorize response with the gateway-issued transaction id.</returns>
-    Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, CancellationToken ct);
+    Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, string idempotencyKey, CancellationToken ct);
 
     /// <summary>
     /// Captures (settles) a previously authorized transaction.

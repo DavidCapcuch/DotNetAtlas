@@ -74,7 +74,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         // Authorize: aggregate doesn't exist yet → handler creates + authorizes.
         _repository.GetByIdAsync(paymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
-        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>())
+        _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse(GatewayTransactionId, new GatewayResponseCode("ok", "Approved"), Now.AddDays(7))));
 
         // Capture the aggregate that the handler will add, so the next step can return it.
@@ -95,6 +95,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
                 Amount = 100m,
                 Currency = "USD",
                 PaymentMethodId = PaymentMethodToken,
+                IdempotencyKey = $"key-{correlationId}",
             },
             TestContext.Current.CancellationToken);
 
@@ -170,13 +171,14 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
                 Amount = 100m,
                 Currency = "USD",
                 PaymentMethodId = "tok_visa_4242",
+                IdempotencyKey = $"key-{correlationId}",
             },
             TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>());
+            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
             _outbox.DidNotReceive().AddOutboxMessage(
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
@@ -201,6 +203,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
                 Amount = 0m,
                 Currency = "USD",
                 PaymentMethodId = "tok_visa_4242",
+                IdempotencyKey = "saga-key-1",
             },
             TestContext.Current.CancellationToken);
 
@@ -208,7 +211,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         {
             result.Should().BeFailure();
             await _repository.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>());
+            await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
     }
 

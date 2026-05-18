@@ -27,7 +27,7 @@ public class StubPaymentGatewayTests
     {
         var tx = PaymentTransactionFactory.Requested(UtcNow, amount: amount);
 
-        var result = await _sut.AuthorizeAsync(tx, TestContext.Current.CancellationToken);
+        var result = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -49,7 +49,7 @@ public class StubPaymentGatewayTests
         var tx = PaymentTransactionFactory.Requested(UtcNow, amount: amount);
         var expectedId = $"stub-{tx.Id:N}";
 
-        var result = await _sut.AuthorizeAsync(tx, TestContext.Current.CancellationToken);
+        var result = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -67,7 +67,7 @@ public class StubPaymentGatewayTests
         // stub reads from TimeProvider so the value is deterministic in tests.
         var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 100m);
 
-        var result = await _sut.AuthorizeAsync(tx, TestContext.Current.CancellationToken);
+        var result = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -81,8 +81,8 @@ public class StubPaymentGatewayTests
     {
         var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 50m);
 
-        var first = await _sut.AuthorizeAsync(tx, TestContext.Current.CancellationToken);
-        var second = await _sut.AuthorizeAsync(tx, TestContext.Current.CancellationToken);
+        var first = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
+        var second = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -95,9 +95,24 @@ public class StubPaymentGatewayTests
     [Fact]
     public async Task AuthorizeAsync_WithNullTransaction_ThrowsArgumentNullException()
     {
-        var act = async () => await _sut.AuthorizeAsync(null!, TestContext.Current.CancellationToken);
+        var act = async () => await _sut.AuthorizeAsync(null!, "stub-key", TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData(null)]
+    public async Task AuthorizeAsync_WithBlankIdempotencyKey_ThrowsArgumentException(string? key)
+    {
+        // H-4: a real PSP adapter would reject a blank Idempotency-Key header; the stub mirrors
+        // that behaviour so the contract is enforced uniformly across implementations.
+        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 50m);
+
+        var act = async () => await _sut.AuthorizeAsync(tx, key!, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]

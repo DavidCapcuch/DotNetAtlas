@@ -57,9 +57,10 @@ internal sealed class StubPaymentGateway : IPaymentGateway
     }
 
     /// <inheritdoc />
-    public Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, CancellationToken ct)
+    public Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, string idempotencyKey, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tx);
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
         ct.ThrowIfCancellationRequested();
 
         if (EndsInNinetyNineCents(tx.Amount.Amount))

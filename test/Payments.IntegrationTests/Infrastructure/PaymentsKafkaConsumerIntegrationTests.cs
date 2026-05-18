@@ -488,6 +488,26 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task Authorize_PropagatesIdempotencyKey_FromWireToGateway()
+    {
+        // H-4: the saga-issued IdempotencyKey on the Avro wire command must flow through the
+        // application command record and reach IPaymentGateway.AuthorizeAsync, where a v2 real
+        // adapter will forward it as the gateway's Idempotency-Key header.
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var avro = NewAvroAuthorize(correlationId, orderId, amount: 50m);
+
+        using var scope = _fixture.CreateScope();
+        var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
+
+        await handler.Handle(
+            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            avro);
+
+        _fixture.GetGateway().LastAuthorizeIdempotencyKey.Should().Be(avro.IdempotencyKey);
+    }
+
     // Stub gateway derives gateway-transaction-id deterministically as $"stub-{tx.Id:N}";
     // tx.Id is set to correlationId in the M5 mapper, so the stored value is exactly this.
     // Saga-side wire commands must echo this value, otherwise the H-8 AuthorizationId validation
