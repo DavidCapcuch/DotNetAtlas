@@ -30,6 +30,11 @@ namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 /// </remarks>
 internal sealed class StockLevelChangedKafkaHandler : IMessageHandler<StockLevelChanged>
 {
+    // CAT-RV-H02 (Wave-1 closeout): combine WorkerStopped with a per-message budget so a
+    // slow Postgres query during a Kafka rebalance can't hold the partition until the
+    // worker stops — misbehaving messages then starve other partitions.
+    internal static readonly TimeSpan PerMessageBudget = TimeSpan.FromSeconds(30);
+
     private readonly ICatalogDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<StockLevelChangedKafkaHandler> _logger;
@@ -49,7 +54,10 @@ internal sealed class StockLevelChangedKafkaHandler : IMessageHandler<StockLevel
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        var ct = context.ConsumerContext.WorkerStopped;
+        using var perMessageCts = CancellationTokenSource.CreateLinkedTokenSource(
+            context.ConsumerContext.WorkerStopped);
+        perMessageCts.CancelAfter(PerMessageBudget);
+        var ct = perMessageCts.Token;
 
         var row = await _db.ProductSearchView
             .FirstOrDefaultAsync(r => r.ProductId == message.ProductId, ct);
