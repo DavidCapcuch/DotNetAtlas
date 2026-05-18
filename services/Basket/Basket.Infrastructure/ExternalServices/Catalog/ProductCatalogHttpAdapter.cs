@@ -127,6 +127,15 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
         }
     }
 
+    /// <summary>
+    /// Per-request id ceiling for the Catalog by-ids batch endpoint. A 36-char GUID
+    /// joined into a comma-separated query yields ~38 bytes per id; 20 ids keeps the
+    /// worst-case URL under ~800 bytes — comfortably below the 2 KB cap most reverse
+    /// proxies enforce. Required when callers fan out Basket.MaxItems = 50 product
+    /// snapshots in one logical operation (e.g. RefreshPricesCommand).
+    /// </summary>
+    internal const int ByIdsChunkSize = 20;
+
     /// <inheritdoc />
     public async Task<Result<IReadOnlyList<(Guid ProductId, ProductSnapshot Snapshot)>>> GetManyAsync(
         IEnumerable<Guid> productIds,
@@ -140,9 +149,28 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
             return Result.Ok<IReadOnlyList<(Guid, ProductSnapshot)>>(Array.Empty<(Guid, ProductSnapshot)>());
         }
 
-        var query = string.Join(
-            ',',
-            distinctIds.Select(id => id.ToString("D", CultureInfo.InvariantCulture)));
+        var pairs = new List<(Guid, ProductSnapshot)>(distinctIds.Length);
+        for (var offset = 0; offset < distinctIds.Length; offset += ByIdsChunkSize)
+        {
+            var chunkLength = Math.Min(ByIdsChunkSize, distinctIds.Length - offset);
+            var chunk = new ArraySegment<Guid>(distinctIds, offset, chunkLength);
+            var chunkResult = await FetchChunkAsync(chunk, ct).ConfigureAwait(false);
+            if (chunkResult.IsFailed)
+            {
+                return chunkResult.ToResult<IReadOnlyList<(Guid, ProductSnapshot)>>();
+            }
+
+            pairs.AddRange(chunkResult.Value);
+        }
+
+        return Result.Ok<IReadOnlyList<(Guid, ProductSnapshot)>>(pairs);
+    }
+
+    private async Task<Result<IReadOnlyList<(Guid ProductId, ProductSnapshot Snapshot)>>> FetchChunkAsync(
+        ArraySegment<Guid> chunk,
+        CancellationToken ct)
+    {
+        var query = string.Join(',', chunk.Select(id => id.ToString("D", CultureInfo.InvariantCulture)));
         var path = $"/api/v1/catalog/products/by-ids?ids={query}";
 
         try
@@ -154,7 +182,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                 _logger.LogError(
                     "Catalog batch returned {StatusCode} for {Count} ids.",
                     (int)response.StatusCode,
-                    distinctIds.Length);
+                    chunk.Count);
                 return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
             }
 
@@ -164,7 +192,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                 _logger.LogError(
                     "Catalog batch returned unexpected 4xx {StatusCode} for {Count} ids.",
                     (int)response.StatusCode,
-                    distinctIds.Length);
+                    chunk.Count);
                 return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
             }
 
@@ -203,12 +231,12 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogWarning(ex, "Catalog batch request timed out for {Count} ids.", distinctIds.Length);
+            _logger.LogWarning(ex, "Catalog batch request timed out for {Count} ids.", chunk.Count);
             return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "Catalog batch network failure for {Count} ids.", distinctIds.Length);
+            _logger.LogWarning(ex, "Catalog batch network failure for {Count} ids.", chunk.Count);
             return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
         }
         catch (JsonException ex)
