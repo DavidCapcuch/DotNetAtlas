@@ -140,6 +140,29 @@ end";
         }
     }
 
+    /// <summary>
+    /// Permanently removes the basket entry for <paramref name="userId"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two writes hit Redis in sequence: a direct <c>DEL</c> on the
+    /// <c>basket:{userId}</c> key (bypassing FusionCache because checkout's
+    /// intent is unambiguous), and a <c>FusionCache.RemoveAsync</c> that
+    /// publishes a backplane invalidation so other Basket.Api instances drop
+    /// any cached read of the same key. The second call is NOT redundant for
+    /// data removal — it's the backplane signal — and must not be "simplified
+    /// away" by a future refactor that sees a duplicate DEL.
+    /// </para>
+    /// <para>
+    /// <see cref="SaveAsync"/>'s per-user CAS lock is deliberately NOT acquired
+    /// here. By design (checkout is terminal — the basket is being torn down),
+    /// the cost of acquiring the lock outweighs the rare race window: a
+    /// concurrent in-flight <see cref="SaveAsync"/> whose write lands AFTER
+    /// this delete will leave a phantom basket key at the old version+1.
+    /// Documented as a known race in basket.md § 6.4. The 30-day TTL reclaims
+    /// the phantom; the next user mutation discovers the inconsistency.
+    /// </para>
+    /// </remarks>
     public async Task<Result> DeleteAsync(Guid userId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -147,8 +170,6 @@ end";
         var key = BasketKey(userId);
         var database = _multiplexer.GetDatabase();
 
-        // Direct bypass per basket.md § 6.4 — remove the Redis entry and invalidate
-        // any FusionCache state so a subsequent GetByUserIdAsync sees "no basket".
         // Catch transient Redis failures: the handler's checkout flow commits the
         // outbox BEFORE calling DeleteAsync, so a thrown exception here would surface
         // as 5xx to the caller while the saga is already running. Per
@@ -212,6 +233,10 @@ end";
         try
         {
             var database = _multiplexer.GetDatabase();
+            // ScriptEvaluateAsync intentionally drops the caller's CancellationToken: this
+            // runs from a `finally` block and a cancelled release would leave the lock
+            // held until its TTL expires, blocking OTHER users' writes for up to 5 s.
+            // Best-effort fire-and-respect-Redis-side-timeout is the right trade-off here.
             await database.ScriptEvaluateAsync(
                 ReleaseLockScript,
                 keys: [lockKey],

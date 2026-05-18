@@ -21,7 +21,7 @@ namespace Basket.Infrastructure.Persistence;
 /// </summary>
 public static class PersistenceDependencyInjection
 {
-    public static IServiceCollection AddBasketPersistence(
+    public static IServiceCollection AddBasketRedisPersistence(
         this IServiceCollection services,
         IConfiguration configuration)
     {
