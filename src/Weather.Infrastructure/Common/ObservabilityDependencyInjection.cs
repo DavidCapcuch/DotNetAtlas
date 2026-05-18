@@ -56,7 +56,7 @@ public static class ObservabilityDependencyInjection
                                     StringComparison.OrdinalIgnoreCase);
                         })
                         .AddHttpClientInstrumentation()
-                        .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
+                        .AddEntityFrameworkCoreInstrumentation()
                         .AddSignalRInstrumentation()
                         .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
                         .AddFusionCacheInstrumentation()

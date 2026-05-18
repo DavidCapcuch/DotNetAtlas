@@ -43,7 +43,7 @@ public static class ObservabilityDependencyInjection
                     tracing.AddSource("*")
                         .AddSource(SagaActivitySource.ActivitySourceName)
                         .AddSource(DiagnosticHeaders.DefaultListenerName) // MassTransit ActivitySource
-                        .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
+                        .AddEntityFrameworkCoreInstrumentation()
                         .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 })
                 .WithMetrics(metrics =>

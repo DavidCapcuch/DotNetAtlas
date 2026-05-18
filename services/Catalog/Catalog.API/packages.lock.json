@@ -33,9 +33,9 @@
       },
       "NetEscapades.AspNetCore.SecurityHeaders": {
         "type": "Direct",
-        "requested": "[1.1.0, )",
-        "resolved": "1.1.0",
-        "contentHash": "Dahf4QPaYL50lunJnA7js6tZ6gfY630SH6Xx8wBXSP9k5OcOR1Q+KcOpG4P0U7KvBVruVQv1iS1Rrqt4kDw4sQ=="
+        "requested": "[1.3.1, )",
+        "resolved": "1.3.1",
+        "contentHash": "wccVMVSGq9nQ43SjJl1s/VaAo+iWauJYWiZy/Hkvszk2vCQdq7aRn7GL3LTBMsnHuI13JRMfCi9Lk8747+njUg=="
       },
       "StyleCop.Analyzers": {
         "type": "Direct",
@@ -83,10 +83,10 @@
       },
       "Confluent.Kafka": {
         "type": "Transitive",
-        "resolved": "2.13.0",
-        "contentHash": "QoQ0UT/XQXMjGYd337ungOq5XYITGh+S8Hjkj2tEiMsWrn1w0DvyXZgfFQyBPzlBWICBMiaBfnedIuSvss4oLQ==",
+        "resolved": "2.14.0",
+        "contentHash": "NnG0UXR9Wnup3Nvik6SBVaHRzCu0Iit8BE7ayaWsLt+yRWrI0ZY6o8pxPB6B/jyu+fbUllZ9efsbyFwrowDcpg==",
         "dependencies": {
-          "librdkafka.redist": "2.13.0"
+          "librdkafka.redist": "2.14.0"
         }
       },
       "Dawn.Guard": {
@@ -184,28 +184,28 @@
       },
       "KafkaFlow": {
         "type": "Transitive",
-        "resolved": "4.0.1",
-        "contentHash": "mAeoKJBy8/cQpjk7wa7QGNka4j9tL8lB+KGM6Je2HwQrvUvGOq+eHYPl5okJlF0nIQyOdLlld/TNsgJauKHydw==",
+        "resolved": "4.2.0",
+        "contentHash": "4LxAIwKwCqIthofZpf0x/CtWqpfDQDYphC+Ug+HDozfgaedb6+LZKNzNaH8dUJLBEUTQKPrsWY5xnq0ZcJmmqA==",
         "dependencies": {
           "Confluent.Kafka": "2.8.0",
-          "KafkaFlow.Abstractions": "4.0.1",
+          "KafkaFlow.Abstractions": "4.2.0",
           "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
           "Microsoft.IO.RecyclableMemoryStream": "3.0.1"
         }
       },
       "KafkaFlow.Abstractions": {
         "type": "Transitive",
-        "resolved": "4.0.1",
-        "contentHash": "MuK5Kv7JzfICJ8bp+jBdo0MPzKLpgRKGQgtBZm61XrS1vkaG/6Zh2M0rpjcg0yL8RYCDnhfo715bKzl4ZuPbFg=="
+        "resolved": "4.2.0",
+        "contentHash": "NIuC/kO0dZPz2DPbnU1hrmPufi8oCOE+YNdEoUc+2rqcgFr8BDBpBkxkZ3dHp0TLeyVoHUL0PDMBXfxamugwbg=="
       },
       "KafkaFlow.SchemaRegistry": {
         "type": "Transitive",
-        "resolved": "4.0.1",
-        "contentHash": "W62QhymXDx6IFlT0v0IJW3i8z/qcIwpNW37zZfO13jCO4276u3YD/ddTZsyDg188mS0NNArmihr6gpBRAhcoNg==",
+        "resolved": "4.2.0",
+        "contentHash": "so+iJG4xs9kWmoMb7m4dJPjqNklYDhlFlGtN6YlNFL4/rAshZqeBv3Sfy41y5GIUr6DzxsCCuuDpzlUP+rnf8Q==",
         "dependencies": {
           "Confluent.SchemaRegistry": "2.8.0",
-          "KafkaFlow": "4.0.1",
-          "KafkaFlow.Abstractions": "4.0.1"
+          "KafkaFlow": "4.2.0",
+          "KafkaFlow.Abstractions": "4.2.0"
         }
       },
       "KafkaFlow.Serializer": {
@@ -227,13 +227,13 @@
       },
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.13.0",
-        "contentHash": "PCtGYOJvqDo+dqxRsBidc6OJGGSCIqmh0wIWgTQljuzaxeAM8uAheNwZ/6o60hueObJj1vPczNLLeoLEu1+Q3g=="
+        "resolved": "2.14.0",
+        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
       },
       "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": {
         "type": "Transitive",
-        "resolved": "10.0.6",
-        "contentHash": "92Y6+hxR8nTOQ7Gqic4I3U+6PTSRW2/e4YvsN3g62P43jLp4jD2d9yfJ1648WeasYr4Q996ZtIheOVVTJMMUTg==",
+        "resolved": "10.0.8",
+        "contentHash": "+7a3KjrMIBvHpf/KlG1F9tjQzw7EL2MO9prFYi4nfHKeVT+JPdhuRUMIL2wS95cV0meB06BI4WCwoWXVSokkwQ==",
         "dependencies": {
           "StackExchange.Redis": "2.7.27"
         }
@@ -245,29 +245,29 @@
       },
       "Microsoft.EntityFrameworkCore": {
         "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "9tNBmK3EpYVGRQLiqP+bqK2m+TD0Gv//4vCzR7ZOgl4FWzCFyOpYdIVka13M4kcBdPdSJcs3wbHr3rmzOqbIMA==",
+        "resolved": "10.0.8",
+        "contentHash": "EJx+fIBMgBlgD+ublKCn+GTOJkw3UqV7xOjYWBRVdUYyIm8UfvAsmSOPFiIInsWTHyMEYUJ9gCJY1jwX+6UB7w==",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore.Abstractions": "10.0.5",
-          "Microsoft.EntityFrameworkCore.Analyzers": "10.0.5"
+          "Microsoft.EntityFrameworkCore.Abstractions": "10.0.8",
+          "Microsoft.EntityFrameworkCore.Analyzers": "10.0.8"
         }
       },
       "Microsoft.EntityFrameworkCore.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "32c58Rnm47Qvhimawf67KO9PytgPz3QoWye7Abapt0Yocw/JnzMiSNj/pRoIKyn8Jxypkv86zxKD4Q/zNTc0Ag=="
+        "resolved": "10.0.8",
+        "contentHash": "jbKDXWPZQhuPHygMnwzNOqxBADVcpRVytcKYZsA++QqhPkpF93Ta8o5mbJQGrARSjlkr9WtOaADV97EDMOZ7DA=="
       },
       "Microsoft.EntityFrameworkCore.Analyzers": {
         "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "ipC4u1VojgEfoIZhtbS2Sx5IluJTP/Jf1hz3yGsxGBgSukYY/CquI6rAjxn5H58CZgVn36qcuPPtNMwZ0AUzMg=="
+        "resolved": "10.0.8",
+        "contentHash": "M3BZ8JH8rB6BE7dO2g9iVbrHLnEz9wMXT6q+tDR6Nq3gyP3KmBj5OTiZGxyF3vesjOQNKanYoPGSNBR4kR2llg=="
       },
       "Microsoft.EntityFrameworkCore.Relational": {
         "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "uxmFjZEAB/KbsgWFSS4lLqkEHCfXxB2x0UcbiO4e5fCRpFFeTMSx/me6009nYJLu5IKlDwO1POh++P6RilFTDw==",
+        "resolved": "10.0.8",
+        "contentHash": "UU3diAD2wwZveye2rnrwaF/wvJ9tm5iL2fuY9TTap6/iGQK1OO29M1BzXZRlRPVH/dByt5w/pISBSFtyR7hTqw==",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore": "10.0.5"
+          "Microsoft.EntityFrameworkCore": "10.0.8"
         }
       },
       "Microsoft.Extensions.AmbientMetadata.Application": {
@@ -510,10 +510,10 @@
       },
       "OpenFeature.Hosting": {
         "type": "Transitive",
-        "resolved": "2.12.0",
-        "contentHash": "OV3vHzw+lo6+aDSB5MCfOrhI1dM33sEAR7TSIhioergJ/DmI1VxBh1LeUXKughA7hYS6LMhTmPwc+tidf7Db9g==",
+        "resolved": "2.13.0",
+        "contentHash": "mB4LZBcV+4ge1ciwREsO1xAx9GDWAvU4B5f3iRP7Gsbz+0hRaB7EQ1Px8nVHxLwjd7Zg7hPqwf0CZonACvAxjg==",
         "dependencies": {
-          "OpenFeature": "2.12.0"
+          "OpenFeature": "2.13.0"
         }
       },
       "OpenTelemetry": {
@@ -594,8 +594,8 @@
       },
       "Serilog": {
         "type": "Transitive",
-        "resolved": "4.3.0",
-        "contentHash": "+cDryFR0GRhsGOnZSKwaDzRRl4MupvJ42FhCE4zhQRVanX0Jpg6WuCBk59OVhVDPmab1bB+nRykAnykYELA9qQ=="
+        "resolved": "4.3.1",
+        "contentHash": "savYe7h5yRlkqBVOwP8cIRDOdqKiPmYCU4W87JH38sBmcKD5EBoXvQIw6bNEvZ/pTe1gsiye3VFCzBsoppGkXQ=="
       },
       "Serilog.AspNetCore": {
         "type": "Transitive",
@@ -631,10 +631,10 @@
       },
       "Serilog.Expressions": {
         "type": "Transitive",
-        "resolved": "4.0.0",
-        "contentHash": "dsC8GtalMDXMzywA60fHeBvqAjQ1EM75zSrdA7j7TxJfmrfss6BOxzgoT5thqjY+icLNbovUsC5KTYRlXzCpXg==",
+        "resolved": "5.0.0",
+        "contentHash": "QhZjXtUcA2QfQRA60m+DfyIfidKsQV7HBstbYEDqzJKMbJH/KnKthkkjciRuYrmFE+scWv1JibC5LlXrdtOUmw==",
         "dependencies": {
-          "Serilog": "3.1.0"
+          "Serilog": "4.0.0"
         }
       },
       "Serilog.Extensions.Hosting": {
@@ -673,8 +673,8 @@
       },
       "Serilog.Sinks.Console": {
         "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "fQGWqVMClCP2yEyTXPIinSr5c+CBGUvBybPxjAGcf7ctDhadFhrQw03Mv8rJ07/wR5PDfFjewf2LimvXCDzpbA==",
+        "resolved": "6.1.1",
+        "contentHash": "8jbqgjUyZlfCuSTaJk6lOca465OndqOz3KZP6Cryt/IqZYybyBu7GP0fE/AXBzrrQB3EBmQntBFAvMVz1COvAA==",
         "dependencies": {
           "Serilog": "4.0.0"
         }
@@ -689,10 +689,10 @@
       },
       "Serilog.Sinks.File": {
         "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "lxjg89Y8gJMmFxVkbZ+qDgjl+T4yC5F7WSLTvA+5q0R04tfKVLRL/EHpYoJ/MEQd2EeCKDuylBIVnAYMotmh2A==",
+        "resolved": "7.0.0",
+        "contentHash": "fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
         "dependencies": {
-          "Serilog": "4.0.0"
+          "Serilog": "4.2.0"
         }
       },
       "Serilog.Sinks.OpenTelemetry": {
@@ -707,28 +707,28 @@
       },
       "Serilog.Sinks.Seq": {
         "type": "Transitive",
-        "resolved": "9.0.0",
-        "contentHash": "aNU8A0K322q7+voPNmp1/qNPH+9QK8xvM1p72sMmCG0wGlshFzmtDW9QnVSoSYCj0MgQKcMOlgooovtBhRlNHw==",
+        "resolved": "9.1.0",
+        "contentHash": "4Dam+H9AlYigRgvPmbEJmw7jgz2y2He1qmuopAWt/EnZJ2vlrcG5Nmh934LHq4lfKgF6cAau8NIFMCZrq1u2Hw==",
         "dependencies": {
-          "Serilog": "4.2.0",
-          "Serilog.Sinks.File": "6.0.0"
+          "Serilog": "4.3.1",
+          "Serilog.Sinks.File": "7.0.0"
         }
       },
       "SerilogTracing": {
         "type": "Transitive",
-        "resolved": "2.3.1",
-        "contentHash": "tkl/Rm3kzdOAQ2uwMARw2vE7QftYij9Tjbplg1SuaB+h+YfkX0RQDAxKwnMEVBZbsbnst4JGfk3J66V1EDovPA==",
+        "resolved": "2.4.0",
+        "contentHash": "njmMFYn3afTQ/Y1qa5C7VE/URUk3U+rDs1zG58c/kBHtB/Is03dJG14MqR7gK1/7+drZLKIgi5LE82d++C7ung==",
         "dependencies": {
-          "Serilog": "4.0.0"
+          "Serilog": "4.3.1"
         }
       },
       "SerilogTracing.Expressions": {
         "type": "Transitive",
-        "resolved": "2.3.1",
-        "contentHash": "OLvZcUvSb72MsN6NXHIDe39RTfdu8HV+EwxiNHSdo1h9S2eBLoYhjmabxsXyIi7P6Xf9Ejo4YZwp0VZu4hlBjA==",
+        "resolved": "2.4.0",
+        "contentHash": "0Yzy+9fA3tVqBZKgHLmgVaFDe0WAj9Sk5JlTdRPzPKR19iWQh74svQPWj+Mr6vQb8W4QoI8mKGEY41Hg5ajtRA==",
         "dependencies": {
-          "Serilog.Expressions": "4.0.0",
-          "SerilogTracing": "2.3.1"
+          "Serilog.Expressions": "5.0.0",
+          "SerilogTracing": "2.4.0"
         }
       },
       "StyleCop.Analyzers.Unstable": {
@@ -803,19 +803,19 @@
         "dependencies": {
           "Catalog.Domain": "[1.0.0, )",
           "FastEndpoints.Attributes": "[7.0.1, )",
-          "FluentValidation": "[12.0.0, )",
-          "FluentValidation.DependencyInjectionExtensions": "[12.0.0, )",
-          "OpenFeature": "[2.12.0, )",
+          "FluentValidation": "[12.1.1, )",
+          "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
+          "OpenFeature": "[2.13.0, )",
           "Platform.CQRS": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
-          "Riok.Mapperly": "[4.2.1, )"
+          "Riok.Mapperly": "[4.3.1, )"
         }
       },
       "catalog.domain": {
         "type": "Project",
         "dependencies": {
-          "Ardalis.SmartEnum": "[8.1.0, )",
+          "Ardalis.SmartEnum": "[8.2.0, )",
           "Ardalis.Specification.EntityFrameworkCore": "[9.3.1, )",
           "Platform.SharedKernel": "[1.0.0, )"
         }
@@ -823,7 +823,7 @@
       "catalog.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "Ardalis.SmartEnum.EFCore": "[8.1.0, )",
+          "Ardalis.SmartEnum.EFCore": "[8.2.0, )",
           "AspNetCore.HealthChecks.ApplicationStatus": "[9.0.0, )",
           "AspNetCore.HealthChecks.Kafka": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
@@ -831,21 +831,21 @@
           "Catalog.Application": "[1.0.0, )",
           "EFCore.NamingConventions": "[10.0.1, )",
           "EntityFrameworkCore.Exceptions.PostgreSQL": "[10.0.0, )",
-          "KafkaFlow.LogHandler.Microsoft": "[4.0.1, )",
-          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
-          "KafkaFlow.OpenTelemetry": "[4.0.1, )",
+          "KafkaFlow.LogHandler.Microsoft": "[4.2.0, )",
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.2.0, )",
+          "KafkaFlow.OpenTelemetry": "[4.2.0, )",
           "KafkaFlow.Retry": "[3.1.0, )",
           "KafkaFlow.Serializer.ApacheAvro": "[1.5.8, )",
-          "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.0.1, )",
-          "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.0, )",
+          "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
+          "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.8, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.1, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.15.3, )",
-          "OpenTelemetry.Extensions.Hosting": "[1.12.0, )",
-          "OpenTelemetry.Instrumentation.EntityFrameworkCore": "[1.12.0-beta.2, )",
-          "OpenTelemetry.Instrumentation.Process": "[1.12.0-beta.1, )",
-          "OpenTelemetry.Instrumentation.Runtime": "[1.12.0, )",
-          "OpenTelemetry.Resources.Container": "[1.12.0-beta.1, )",
-          "OpenTelemetry.Resources.Host": "[1.12.0-beta.1, )",
+          "OpenTelemetry.Extensions.Hosting": "[1.15.3, )",
+          "OpenTelemetry.Instrumentation.EntityFrameworkCore": "[1.15.1-beta.1, )",
+          "OpenTelemetry.Instrumentation.Process": "[1.15.1-beta.1, )",
+          "OpenTelemetry.Instrumentation.Runtime": "[1.15.1, )",
+          "OpenTelemetry.Resources.Container": "[1.15.1-beta.1, )",
+          "OpenTelemetry.Resources.Host": "[1.15.1-beta.1, )",
           "Platform.KafkaFlow.DeadLetter": "[1.0.0, )",
           "Platform.KafkaFlow.Inbox.EFCore": "[1.0.0, )",
           "Platform.KafkaFlow.ProducerHeaders": "[1.0.0, )",
@@ -860,33 +860,33 @@
       "platform.avro.universalserdes": {
         "type": "Project",
         "dependencies": {
-          "Confluent.SchemaRegistry": "[2.13.0, )",
-          "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )"
+          "Confluent.SchemaRegistry": "[2.14.0, )",
+          "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )"
         }
       },
       "platform.cqrs": {
         "type": "Project",
         "dependencies": {
           "FluentResults": "[4.0.0, )",
-          "FluentValidation": "[12.0.0, )",
+          "FluentValidation": "[12.1.1, )",
           "Platform.SharedKernel": "[1.0.0, )",
           "Scrutor": "[6.1.0, )",
-          "Serilog": "[4.2.0, )"
+          "Serilog": "[4.3.1, )"
         }
       },
       "platform.kafkaflow.deadletter": {
         "type": "Project",
         "dependencies": {
-          "KafkaFlow": "[4.0.1, )",
-          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )"
+          "KafkaFlow": "[4.2.0, )",
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.2.0, )"
         }
       },
       "platform.kafkaflow.inbox.efcore": {
         "type": "Project",
         "dependencies": {
           "EntityFrameworkCore.Exceptions.Common": "[10.0.0, )",
-          "KafkaFlow": "[4.0.1, )",
-          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
+          "KafkaFlow": "[4.2.0, )",
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.2.0, )",
           "Platform.Messaging.Abstractions": "[1.0.0, )",
           "Platform.ReliableMessaging.Inbox.Core": "[1.0.0, )",
           "Platform.ReliableMessaging.Inbox.EFCore": "[1.0.0, )"
@@ -895,10 +895,10 @@
       "platform.kafkaflow.producerheaders": {
         "type": "Project",
         "dependencies": {
-          "KafkaFlow": "[4.0.1, )",
-          "KafkaFlow.Microsoft.DependencyInjection": "[4.0.1, )",
+          "KafkaFlow": "[4.2.0, )",
+          "KafkaFlow.Microsoft.DependencyInjection": "[4.2.0, )",
           "Platform.Messaging.Abstractions": "[1.0.0, )",
-          "Serilog": "[4.2.0, )"
+          "Serilog": "[4.3.1, )"
         }
       },
       "platform.messaging.abstractions": {
@@ -911,8 +911,8 @@
         "type": "Project",
         "dependencies": {
           "EntityFrameworkCore.Exceptions.Common": "[10.0.0, )",
-          "Microsoft.EntityFrameworkCore": "[10.0.5, )",
-          "Microsoft.EntityFrameworkCore.Relational": "[10.0.5, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.8, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.8, )",
           "Platform.ReliableMessaging.Inbox.Core": "[1.0.0, )"
         }
       },
@@ -926,10 +926,10 @@
         "type": "Project",
         "dependencies": {
           "Apache.Avro": "[1.12.1, )",
-          "Confluent.Kafka": "[2.13.0, )",
-          "Confluent.SchemaRegistry.Serdes.Avro": "[2.13.0, )",
-          "Microsoft.EntityFrameworkCore": "[10.0.5, )",
-          "Microsoft.EntityFrameworkCore.Relational": "[10.0.5, )",
+          "Confluent.Kafka": "[2.14.0, )",
+          "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.8, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.8, )",
           "Platform.Avro.UniversalSerDes": "[1.0.0, )",
           "Platform.Messaging.Abstractions": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.Core": "[1.0.0, )"
@@ -947,44 +947,44 @@
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
           "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
-          "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.6, )",
-          "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": "[10.0.6, )",
+          "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
+          "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": "[10.0.8, )",
           "Microsoft.Extensions.Http.Resilience": "[9.9.0, )",
-          "OpenFeature": "[2.12.0, )",
-          "OpenFeature.Hosting": "[2.12.0, )",
+          "OpenFeature": "[2.13.0, )",
+          "OpenFeature.Hosting": "[2.13.0, )",
           "OpenTelemetry": "[1.15.3, )",
           "Platform.SharedKernel": "[1.0.0, )",
           "Serilog.AspNetCore": "[9.0.0, )",
           "Serilog.Exceptions": "[8.4.0, )",
           "Serilog.Exceptions.EntityFrameworkCore": "[8.4.0, )",
           "Serilog.Settings.Configuration": "[9.0.0, )",
-          "Serilog.Sinks.Console": "[6.0.0, )",
+          "Serilog.Sinks.Console": "[6.1.1, )",
           "Serilog.Sinks.OpenTelemetry": "[4.2.0, )",
-          "Serilog.Sinks.Seq": "[9.0.0, )",
-          "SerilogTracing.Expressions": "[2.3.1, )"
+          "Serilog.Sinks.Seq": "[9.1.0, )",
+          "SerilogTracing.Expressions": "[2.4.0, )"
         }
       },
       "platform.sharedkernel": {
         "type": "Project",
         "dependencies": {
-          "Ardalis.SmartEnum": "[8.1.0, )",
+          "Ardalis.SmartEnum": "[8.2.0, )",
           "FluentResults": "[4.0.0, )",
           "Scrutor": "[6.1.0, )"
         }
       },
       "Ardalis.SmartEnum": {
         "type": "CentralTransitive",
-        "requested": "[8.1.0, )",
-        "resolved": "8.1.0",
-        "contentHash": "+OpcDNwgfwdKEhEwq6U5lrXiBpdA3LxfZR7nTtF6vzbkXc1hKa2Uv/rHduzxwNLYrzOfR/7QUVyjWTliSS7pOA=="
+        "requested": "[8.2.0, )",
+        "resolved": "8.2.0",
+        "contentHash": "P1CLI2okpzHjOJnZMYLnzcyu1/fUJEYK1X4JSnal2TPmovrUTtXK6Sn78D2JgKUdwjSeWddnRveMj+BEZoksvg=="
       },
       "Ardalis.SmartEnum.EFCore": {
         "type": "CentralTransitive",
-        "requested": "[8.1.0, )",
-        "resolved": "8.1.0",
-        "contentHash": "IM3lFaJbPAWkTToEpNZbHG920Rt2vIT9yhcwQyekZrCH9A7EAAmI9SAIpr4yM3fjiTBmx7/qPEmL04o540xXxg==",
+        "requested": "[8.2.0, )",
+        "resolved": "8.2.0",
+        "contentHash": "6SDTHNZ7EMA8Jbuoy6qNdcvT6VQ2kO68WBgPZWvJshNCYUMab8+Li+SwHrn1HqUDYP1vWFK+2mS60+XXO6hmwg==",
         "dependencies": {
-          "Ardalis.SmartEnum": "8.1.0",
+          "Ardalis.SmartEnum": "8.2.0",
           "Microsoft.EntityFrameworkCore": "7.0.13"
         }
       },
@@ -1031,23 +1031,23 @@
       },
       "Confluent.SchemaRegistry": {
         "type": "CentralTransitive",
-        "requested": "[2.13.0, )",
-        "resolved": "2.13.0",
-        "contentHash": "ct+z8XRGsXMeMYXW+ZRk4POGSiRKc5sdlMxasgfnsrV+44ZD4VNC4bgjhTWhvvlWOpAVFQVtqGVD+xmyn2dmmQ==",
+        "requested": "[2.14.0, )",
+        "resolved": "2.14.0",
+        "contentHash": "axnbdId+V1oOKDkUK92KTzrLFLTKVJaywg+tgs3yoRImQnf+zgct4U6Y/jssNYEP0gCObgZyJgk4hWatZV00gw==",
         "dependencies": {
-          "Confluent.Kafka": "2.13.0",
+          "Confluent.Kafka": "2.14.0",
           "Newtonsoft.Json": "13.0.1"
         }
       },
       "Confluent.SchemaRegistry.Serdes.Avro": {
         "type": "CentralTransitive",
-        "requested": "[2.13.0, )",
-        "resolved": "2.13.0",
-        "contentHash": "ODK5aLMHjjJ8H/rEHBenbs57UTXYFXIoAekrln80227y6sU5Iw+6vmdCq28CgyAinoCSZO2HKfJ+LorW+uFnoA==",
+        "requested": "[2.14.0, )",
+        "resolved": "2.14.0",
+        "contentHash": "gRvhDEETEXFLvGBsMRKdODO4VI00S4zAJEs+HZg9fWKdNdm90MlScoUADYJd0F8fSl0O0Va2Iyz5KkdrKm3Oxw==",
         "dependencies": {
           "Apache.Avro": "1.12.1",
-          "Confluent.Kafka": "2.13.0",
-          "Confluent.SchemaRegistry": "2.13.0"
+          "Confluent.Kafka": "2.14.0",
+          "Confluent.SchemaRegistry": "2.14.0"
         }
       },
       "EFCore.NamingConventions": {
@@ -1084,45 +1084,45 @@
       },
       "FluentValidation": {
         "type": "CentralTransitive",
-        "requested": "[12.0.0, )",
-        "resolved": "12.0.0",
-        "contentHash": "8NVLxtMUXynRHJIX3Hn1ACovaqZIJASufXIIFkD0EUbcd5PmMsL1xUD5h548gCezJ5BzlITaR9CAMrGe29aWpA=="
+        "requested": "[12.1.1, )",
+        "resolved": "12.1.1",
+        "contentHash": "EPpkIe1yh1a0OXyC100oOA8WMbZvqUu5plwhvYcb7oSELfyUZzfxV48BLhvs3kKo4NwG7MGLNgy1RJiYtT8Dpw=="
       },
       "FluentValidation.DependencyInjectionExtensions": {
         "type": "CentralTransitive",
-        "requested": "[12.0.0, )",
-        "resolved": "12.0.0",
-        "contentHash": "B28fBRL1UjhGsBC8fwV6YBZosh+SiU1FxdD7l7p5dGPgRlVI7UnM+Lgzmg+unZtV1Zxzpaw96UY2MYfMaAd8cg==",
+        "requested": "[12.1.1, )",
+        "resolved": "12.1.1",
+        "contentHash": "D0VXh4dtjjX2aQizuaa0g6R8X3U1JaVqJPfGCvLwZX9t/O2h7tkpbitbadQMfwcgSPdDbI2vDxuwRMv/Uf9dHA==",
         "dependencies": {
-          "FluentValidation": "12.0.0"
+          "FluentValidation": "12.1.1"
         }
       },
       "KafkaFlow.LogHandler.Microsoft": {
         "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "6gyP3A6WsvyAb7iiRwcivNPHZ8X6G44pfFG+JGAd/BKCb70YFlcH4FtYwjDyA+9xjHotYct5wunN0Zcd+5ci5w==",
+        "requested": "[4.2.0, )",
+        "resolved": "4.2.0",
+        "contentHash": "hxUrYKoaVh+LNFQBZdwxxY3UF3naqUJ928Qq2+8gtRQECE7vIK6XcBqnF7rrwFAtCItEMoUAz7h7zBpSGQgEIQ==",
         "dependencies": {
-          "KafkaFlow.Abstractions": "4.0.1"
+          "KafkaFlow.Abstractions": "4.2.0"
         }
       },
       "KafkaFlow.Microsoft.DependencyInjection": {
         "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "3HvXMDEXYfYh4f76s4pBToptJW7NG9lf/KL3LepTh2GQxmZKexzGQZVuPTs+20Y8uoZsqiZ6w6BpP8VzlF+c5A==",
+        "requested": "[4.2.0, )",
+        "resolved": "4.2.0",
+        "contentHash": "fZZld1xnEzu8E9OaZ2CDNhfOq3Hd3cs8ZvXjOkApRThyFTfzqYDeiN09fOOuWWEZr07THEc9ey7plgUhqmex7A==",
         "dependencies": {
-          "KafkaFlow": "4.0.1",
-          "KafkaFlow.Abstractions": "4.0.1"
+          "KafkaFlow": "4.2.0",
+          "KafkaFlow.Abstractions": "4.2.0"
         }
       },
       "KafkaFlow.OpenTelemetry": {
         "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "DNQKiyNngy924D+lESxidffzQBcoRwQHX4qdol6FjxgOWZpiKgHPndoAAMNCwQoRMaY8/AH0Lx/snOHHFMuNzg==",
+        "requested": "[4.2.0, )",
+        "resolved": "4.2.0",
+        "contentHash": "N6UVhuhE4mNdUsJZuMJwbK8QZPNB2HgrpvVQyK1OO/jJ8Ui42JTmKs1SrGtHrdwf43shXqLJ5RRXzdiz9SM+LQ==",
         "dependencies": {
-          "KafkaFlow.Abstractions": "4.0.1",
+          "KafkaFlow.Abstractions": "4.2.0",
           "OpenTelemetry.Api": "1.11.2"
         }
       },
@@ -1156,34 +1156,34 @@
       },
       "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": {
         "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "3v/C9KI87Bvj4UJYjesnhpp69yRDYLtds+P5nUQvsLTXZbJ38QrMY/CFPSw5dzh2X2T/9FlZ/waarxQsrf+7MA==",
+        "requested": "[4.2.0, )",
+        "resolved": "4.2.0",
+        "contentHash": "TeYFVh30O0VYTYmZba1V+OSqokVasmlPoFXqk/jADPF9UPTa2NI9Bv5f3oHjHv0CgQM0eTD9/ezhGLCoUgC8DA==",
         "dependencies": {
           "Apache.Avro": "1.12.0",
           "Confluent.Kafka": "2.8.0",
           "Confluent.SchemaRegistry": "2.8.0",
           "Confluent.SchemaRegistry.Serdes.Avro": "2.8.0",
-          "KafkaFlow.Abstractions": "4.0.1",
-          "KafkaFlow.SchemaRegistry": "4.0.1"
+          "KafkaFlow.Abstractions": "4.2.0",
+          "KafkaFlow.SchemaRegistry": "4.2.0"
         }
       },
       "Microsoft.AspNetCore.Authentication.JwtBearer": {
         "type": "CentralTransitive",
-        "requested": "[10.0.6, )",
-        "resolved": "10.0.6",
-        "contentHash": "JVPyTTr5J/Z5PikptDP2g8qwNJBJ09GZ7yHpaPDAMZ0qKeA2ZKqpZhUNJk1clBqZJeMj2T7gZ5o6oOrmLxuBdw==",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "oGnE+X/SN6jdqao9WOkOIfyZ5+a0AtluJWy1Mxndq+kcWG6sx5k6l6tucu8/wJ7o9fHfLgVCzm/c4v/KVgVk6w==",
         "dependencies": {
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.0.1"
         }
       },
       "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": {
         "type": "CentralTransitive",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "ND74bTLuvcrhpEPQU8QZwOrq08zPPj76Ev/60SX1juVKLSSnbknXNoOzNYMPJn3xvhyDHmqU3Hvb/aYV3uvvhQ==",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "VyjlpOHGpT9xoNFKNd/27FBF4eBimMcCCIfMxkeju/8uUnugwsxHfzZX2iP+ilYeoYB4HeT5gAoswTIKD6SYJw==",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore.Relational": "10.0.0"
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.8"
         }
       },
       "Npgsql.EntityFrameworkCore.PostgreSQL": {
@@ -1199,9 +1199,9 @@
       },
       "OpenFeature": {
         "type": "CentralTransitive",
-        "requested": "[2.12.0, )",
-        "resolved": "2.12.0",
-        "contentHash": "Z0D/uQ4kAQ89oRT60Ze26fgL4pYAnLHGANbQ+gHUtaBEmWBfGdhEhgswHsterVYJ/+M4u6GtQDnepL3vJgj93A=="
+        "requested": "[2.13.0, )",
+        "resolved": "2.13.0",
+        "contentHash": "/zW7+kByBV1ue7LoG/mnuSz0XJaSEE8/+DtM4cGaSMYi5IozkLlRPkis1mvMMVPbjBCGFMjeWSs11A9evlUw2g=="
       },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
         "type": "CentralTransitive",
@@ -1214,67 +1214,67 @@
       },
       "OpenTelemetry.Extensions.Hosting": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "6/8O6rsJRwslg5/Fm3bscBelw4Yh9T9CN24p7cAsuEFkrmmeSO9gkYUCK02Qi+CmPM2KHYTLjKi0lJaCsDMWQA==",
+        "requested": "[1.15.3, )",
+        "resolved": "1.15.3",
+        "contentHash": "u8n/W8yIlqv0BXZmvId1iVaeWXG42tGKdTkuLYg5g57Y/r9CeUNzqtrSHNdG5IoO8iPX79w3v+WsbAHgUQbfeg==",
         "dependencies": {
-          "OpenTelemetry": "1.12.0"
+          "OpenTelemetry": "1.15.3"
         }
       },
       "OpenTelemetry.Instrumentation.EntityFrameworkCore": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.2, )",
-        "resolved": "1.12.0-beta.2",
-        "contentHash": "4D2PLiJWbBbQbauojkIflT11WGVXoRU+xgox1mvOkpfm7YXIfwTtROOlcdscS51sMh5fgwjGKJtLWpLKppe7dw==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "NmtYLk3HJUUkV0g2VnFLs67/PGIVbI8JXtu0g4f9bk2ZaInp211/AL2+Qcbgkb9ih/uOi8loN6E1Aw2o0YIWag==",
         "dependencies": {
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.12.0, 2.0.0)"
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Instrumentation.Process": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "GrjqeNzH94WOpUpKO7xO13NjBujk0wxvxzGBFuvU+kIAzMB22a4PzOGPrvQivx27RIKaFH+psQP6dTPUmv/8sA==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "u9o2+eOow9Aua1NWyvW5ovsnWXmjW/0qzUUdIvrJTd4lIV9WAydtoDg5X34/9gYWoYU+VYjr/Yc5rlHX5geP4w==",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, 2.0.0)"
+          "OpenTelemetry.Api": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Instrumentation.Runtime": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "xmd0TAm2x+T3ztdf5BolIwLPh+Uy6osaBeIQtCXv611PN7h/Pnhsjg5lU2hkAWj7M7ns74U5wtVpS8DXmJ+94w==",
+        "requested": "[1.15.1, )",
+        "resolved": "1.15.1",
+        "contentHash": "cpPwlUT5HXcLGPaIgsbSy0W9eFYAPGVbTP1p8/uyQ4Osvf5BJuPpEXE7crL09SmEd44r0DGNKDtsqxaAz0HxQw==",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.12.0, 2.0.0)"
+          "OpenTelemetry.Api": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Resources.Container": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "a/R9ru7FWV9UhlySwX8CfTCroYNSDint0ZaIGNFnXhTBgXbbWEm31/YCGjFtqXQxqB+K11vt1d9rumdqK5klYA==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "CYHfth1cotlOhwH2S2EKZXDYqpLK+j9OYAb+JE05Y9dq4T9Zk0fbnrZODVsL7skuTicHeeMWmfjDOqR19HpBsA==",
         "dependencies": {
-          "OpenTelemetry": "[1.12.0, 2.0.0)"
+          "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
       },
       "OpenTelemetry.Resources.Host": {
         "type": "CentralTransitive",
-        "requested": "[1.12.0-beta.1, )",
-        "resolved": "1.12.0-beta.1",
-        "contentHash": "CXuz9kyuy8VIAkMy/vQHIXFFDsGXnOiBrfBLbDJSOa6XeIEKn+LEZ+lAu8QSN1CT7t0CS8VIswzS5OEpj4fKEg==",
+        "requested": "[1.15.1-beta.1, )",
+        "resolved": "1.15.1-beta.1",
+        "contentHash": "fSj9NTFIr1HNGI+12XMpkvhFDOAgvphizWHxCScESMneOR3HXQUzHrxydZbZ5PPkXahYuXj4p+wJunGaaKCxXQ==",
         "dependencies": {
-          "OpenTelemetry": "[1.12.0, 2.0.0)"
+          "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
       },
       "Riok.Mapperly": {
         "type": "CentralTransitive",
-        "requested": "[4.2.1, )",
-        "resolved": "4.2.1",
-        "contentHash": "UZeQSieVlHr48t64J4k2s/lvbMeCXvzsXqV2A/0wyNdPpW8Cyn47+9mfWFJjouPxoSFfEhDbxg+WRbFIHvq4Zw=="
+        "requested": "[4.3.1, )",
+        "resolved": "4.3.1",
+        "contentHash": "oSE+OVLHyiojrws0QVbQaAT2YKsYbyHqJXPdV7EhGseR/dYgeWS2x1T5qY5I4E+RJkJqMSG+FyZOq4SljWgJWQ=="
       },
       "StackExchange.Redis": {
         "type": "CentralTransitive",
-        "requested": "[2.8.31, )",
+        "requested": "[2.13.1, )",
         "resolved": "2.7.27",
         "contentHash": "Uqc2OQHglqj9/FfGQ6RkKFkZfHySfZlfmbCl+hc+u2I/IqunfelQ7QJi7ZhvAJxUtu80pildVX6NPLdDaUffOw==",
         "dependencies": {
@@ -1285,8 +1285,8 @@
     "net10.0/linux-x64": {
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.13.0",
-        "contentHash": "PCtGYOJvqDo+dqxRsBidc6OJGGSCIqmh0wIWgTQljuzaxeAM8uAheNwZ/6o60hueObJj1vPczNLLeoLEu1+Q3g=="
+        "resolved": "2.14.0",
+        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
       },
       "Microsoft.Win32.SystemEvents": {
         "type": "Transitive",
@@ -1318,8 +1318,8 @@
     "net10.0/win-x64": {
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.13.0",
-        "contentHash": "PCtGYOJvqDo+dqxRsBidc6OJGGSCIqmh0wIWgTQljuzaxeAM8uAheNwZ/6o60hueObJj1vPczNLLeoLEu1+Q3g=="
+        "resolved": "2.14.0",
+        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
       },
       "Microsoft.Win32.SystemEvents": {
         "type": "Transitive",
