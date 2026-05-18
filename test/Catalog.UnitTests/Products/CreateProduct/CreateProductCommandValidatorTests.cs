@@ -62,6 +62,35 @@ public class CreateProductCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
+    // CAT-SEC-004 (Wave-1 closeout): existing heuristic only matched "<letter", letting these
+    // shapes through. Any downstream renderer that decodes entities or honours processing
+    // instructions / CDATA would then re-expose the markup. Reject up front.
+    [Theory]
+    [InlineData("<!-- xss -->")]
+    [InlineData("<!DOCTYPE html>")]
+    [InlineData("<?xml version=\"1.0\"?>")]
+    [InlineData("<![CDATA[bad]]>")]
+    [InlineData("</p>trailing text")]
+    [InlineData("encoded &#60;script&#62;alert(1)&#60;/script&#62;")]
+    [InlineData("hex &#x3c;script&#x3e;")]
+    [InlineData("named &lt;script&gt;alert(1)&lt;/script&gt;")]
+    public void Description_with_html_bypass_fails(string description)
+    {
+        var cmd = Valid();
+        cmd.Description = description;
+        _validator.Validate(cmd).IsValid.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Tom & Jerry buy widgets")]
+    [InlineData("price < 10 and quantity > 0")]
+    public void Description_with_innocuous_lt_or_amp_passes(string description)
+    {
+        var cmd = Valid();
+        cmd.Description = description;
+        _validator.Validate(cmd).IsValid.Should().BeTrue();
+    }
+
     [Fact]
     public void Empty_category_fails()
     {

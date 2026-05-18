@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Validation;
 using FluentValidation;
 
 namespace Catalog.Application.Products.CreateProduct;
@@ -24,7 +25,7 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
         RuleFor(x => x.Description)
             .NotNull()
             .MaximumLength(4000)
-            .Must(value => !ContainsHtml(value))
+            .Must(value => !HtmlHeuristic.ContainsMarkup(value))
             .WithMessage("Description must not contain HTML markup.");
 
         RuleFor(x => x.CategoryId).NotEmpty();
@@ -84,23 +85,5 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
     {
         return Uri.TryCreate(url, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-    }
-
-    private static bool ContainsHtml(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return false;
-        }
-
-        for (var i = 0; i < value.Length - 1; i++)
-        {
-            if (value[i] == '<' && char.IsLetter(value[i + 1]))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
