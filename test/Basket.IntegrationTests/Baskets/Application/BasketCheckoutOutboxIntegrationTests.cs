@@ -4,6 +4,7 @@ using Basket.Application.Baskets.Common.Contracts;
 using Basket.Application.Common;
 using Basket.Application.Common.Data;
 using Basket.Application.Common.Messaging;
+using Basket.Domain.Baskets.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
@@ -87,6 +88,8 @@ public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
         _ = basket.PopDomainEvents();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(basket));
+        _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Ok());
         _repo.DeleteAsync(userId, Arg.Any<CancellationToken>()).Returns(Result.Ok());
 
         using var scope = _provider.CreateScope();
@@ -140,6 +143,84 @@ public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
             await _repo.Received(1).DeleteAsync(userId, Arg.Any<CancellationToken>());
         }
     }
+
+    [Fact]
+    public async Task WhenTwoConcurrentCheckoutsForSameUser_ExactlyOneOutboxRowWritten()
+    {
+        // C-1 regression guard. Two parallel POSTs to /checkout for the same user with
+        // different Idempotency-Keys both load the same basket. Without the CAS-save
+        // wrap in CheckoutBasketCommandHandler, each handler invocation would dispatch
+        // its domain event AND write an outbox row — producing two
+        // BasketCheckoutInitiatedEvent records on basket.sessions for one user
+        // (potential double charge in the Checkout saga). With the fix, the loser of
+        // the CAS race gets BasketConcurrencyError (after one retry) and never reaches
+        // the outbox.
+        var userId = Guid.CreateVersion7();
+        var productId = Guid.CreateVersion7();
+        var basket = BasketAggregate.Create(userId, Now);
+        basket.AddItem(productId, BasketTestData.Snapshot(amount: 19.9900m), 3, Now);
+        _ = basket.PopDomainEvents();
+
+        _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(Result.Ok<BasketAggregate?>(basket));
+        _repo.DeleteAsync(userId, Arg.Any<CancellationToken>()).Returns(Result.Ok());
+
+        // Simulate Redis CAS: exactly one SaveAsync wins; every subsequent attempt
+        // sees the bumped version and fails BasketConcurrencyError. Thread-safe
+        // because Interlocked.Increment serialises across the two parallel handlers.
+        var saveCount = 0;
+        _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(_ => System.Threading.Interlocked.Increment(ref saveCount) == 1
+                ? Result.Ok()
+                : Result.Fail(new BasketConcurrencyError(userId, Expected: 1, Actual: 2)));
+
+        using var scope1 = _provider.CreateScope();
+        using var scope2 = _provider.CreateScope();
+        var handler1 = scope1.ServiceProvider
+            .GetRequiredService<ICommandHandler<CheckoutBasketCommand, Guid>>();
+        var handler2 = scope2.ServiceProvider
+            .GetRequiredService<ICommandHandler<CheckoutBasketCommand, Guid>>();
+
+        var cmd1 = MakeCommand(userId);
+        var cmd2 = MakeCommand(userId);
+
+        var task1 = handler1.HandleAsync(cmd1, TestContext.Current.CancellationToken);
+        var task2 = handler2.HandleAsync(cmd2, TestContext.Current.CancellationToken);
+        var results = await Task.WhenAll(task1, task2);
+
+        using (new AssertionScope())
+        {
+            var successes = results.Count(r => r.IsSuccess);
+            var failures = results.Count(r => r.IsFailed);
+            successes.Should().Be(1, "exactly one checkout wins the CAS race");
+            failures.Should().Be(1, "the loser surfaces BasketConcurrencyError after one retry");
+
+            _outbox.Received(1).AddOutboxMessage(
+                Arg.Is<string>(t => t == "basket.sessions"),
+                Arg.Is<string>(k => k == userId.ToString()),
+                Arg.Any<Basket.Sessions.BasketCheckoutInitiatedEvent>());
+            await _outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        }
+    }
+
+    private static CheckoutBasketCommand MakeCommand(Guid userId) => new(
+        userId,
+        Guid.CreateVersion7(),
+        new CheckoutAddressDto
+        {
+            Street1 = "1 Main St",
+            City = "Springfield",
+            PostalCode = "62704",
+            CountryCode = "US",
+        },
+        new CheckoutAddressDto
+        {
+            Street1 = "Hlavní 10",
+            City = "Praha",
+            PostalCode = "11000",
+            CountryCode = "CZ",
+        },
+        Guid.CreateVersion7());
 
     [Fact]
     public async Task CheckoutCommand_WhenValidatorFails_ShortCircuitsBeforeOutbox()
