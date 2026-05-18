@@ -3,13 +3,13 @@ using Platform.CQRS;
 
 namespace Catalog.Application.Categories.GetProductsByCategory;
 
-public class GetProductsByCategoryQuery : IQuery<SearchProductsResponse>
+public sealed record GetProductsByCategoryQuery : IQuery<SearchProductsResponse>
 {
-    public required Guid CategoryId { get; set; }
+    public required Guid CategoryId { get; init; }
 
-    public bool IncludeDescendants { get; set; }
+    public bool IncludeDescendants { get; init; }
 
-    public int PageNumber { get; set; } = 1;
+    public int PageNumber { get; init; } = 1;
 
-    public int PageSize { get; set; } = 20;
+    public int PageSize { get; init; } = 20;
 }

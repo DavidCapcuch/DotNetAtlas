@@ -8,48 +8,48 @@ namespace Catalog.Application.Products.CreateProduct;
 /// <see cref="Catalog.Domain.Products.ValueObjects.ProductStatus.Draft"/> status.
 /// Returns the new product's identity on success.
 /// </summary>
-public class CreateProductCommand : ICommand<Guid>
+public sealed record CreateProductCommand : ICommand<Guid>
 {
-    public required string Sku { get; set; }
+    public required string Sku { get; init; }
 
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
-    public required string Description { get; set; }
+    public required string Description { get; init; }
 
-    public required Guid CategoryId { get; set; }
+    public required Guid CategoryId { get; init; }
 
-    public required string Brand { get; set; }
+    public required string Brand { get; init; }
 
-    public required MoneyDto Price { get; set; }
+    public required MoneyDto Price { get; init; }
 
-    public DimensionsDto? Dimensions { get; set; }
+    public DimensionsDto? Dimensions { get; init; }
 
-    public required IReadOnlyList<ImageReferenceDto> Images { get; set; }
+    public required IReadOnlyList<ImageReferenceDto> Images { get; init; }
 }
 
-public sealed class MoneyDto
+public sealed record MoneyDto
 {
-    public required decimal Amount { get; set; }
+    public required decimal Amount { get; init; }
 
-    public required string Currency { get; set; }
+    public required string Currency { get; init; }
 }
 
-public sealed class DimensionsDto
+public sealed record DimensionsDto
 {
-    public required decimal Length { get; set; }
+    public required decimal Length { get; init; }
 
-    public required decimal Width { get; set; }
+    public required decimal Width { get; init; }
 
-    public required decimal Height { get; set; }
+    public required decimal Height { get; init; }
 
-    public required string Unit { get; set; }
+    public required string Unit { get; init; }
 }
 
-public sealed class ImageReferenceDto
+public sealed record ImageReferenceDto
 {
-    public required string Url { get; set; }
+    public required string Url { get; init; }
 
-    public required string AltText { get; set; }
+    public required string AltText { get; init; }
 
-    public required int DisplayOrder { get; set; }
+    public required int DisplayOrder { get; init; }
 }

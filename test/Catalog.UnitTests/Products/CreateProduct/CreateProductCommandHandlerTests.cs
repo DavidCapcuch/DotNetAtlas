@@ -144,8 +144,7 @@ public class CreateProductCommandHandlerTests
 
         var handler = new CreateProductCommandHandler(
             db, TimeProvider.System, NullLogger<CreateProductCommandHandler>.Instance);
-        var cmd = ValidCommand(category.Id);
-        cmd.Sku = "abc-002";
+        var cmd = ValidCommand(category.Id) with { Sku = "abc-002" };
 
         // Act
         var result = await handler.HandleAsync(cmd, TestContext.Current.CancellationToken);

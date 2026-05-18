@@ -7,7 +7,7 @@ namespace Catalog.Application.Products.GetProductsByIds;
 /// are returned in <see cref="GetProductsByIdsResponse.MissingProductIds"/> rather than failing
 /// the whole call.
 /// </summary>
-public class GetProductsByIdsQuery : IQuery<GetProductsByIdsResponse>
+public sealed record GetProductsByIdsQuery : IQuery<GetProductsByIdsResponse>
 {
-    public required IReadOnlyList<Guid> Ids { get; set; }
+    public required IReadOnlyList<Guid> Ids { get; init; }
 }

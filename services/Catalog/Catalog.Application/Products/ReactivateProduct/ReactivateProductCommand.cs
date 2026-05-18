@@ -7,9 +7,9 @@ namespace Catalog.Application.Products.ReactivateProduct;
 /// <see cref="AdminReactivation"/> == <c>true</c> (policy check); 409 if the product is not
 /// currently <c>Discontinued</c>.
 /// </summary>
-public class ReactivateProductCommand : ICommand
+public sealed record ReactivateProductCommand : ICommand
 {
-    public required Guid ProductId { get; set; }
+    public required Guid ProductId { get; init; }
 
-    public required bool AdminReactivation { get; set; }
+    public required bool AdminReactivation { get; init; }
 }

@@ -6,7 +6,7 @@ namespace Catalog.Application.Categories.GetCategoryTree;
 /// Public query returning the taxonomy tree (whole tree or a subtree rooted at
 /// <see cref="RootCategoryId"/>) with per-node counts of Active products.
 /// </summary>
-public class GetCategoryTreeQuery : IQuery<GetCategoryTreeResponse>
+public sealed record GetCategoryTreeQuery : IQuery<GetCategoryTreeResponse>
 {
-    public Guid? RootCategoryId { get; set; }
+    public Guid? RootCategoryId { get; init; }
 }
