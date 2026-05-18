@@ -198,6 +198,13 @@ public sealed class EventStoreRepository : IEventStore
             }
         }
 
+        // Defensive: after the second UniqueConstraintException the loop exits
+        // with projection/outbox entities still tracked from attempt 2. The
+        // surrounding EnsureTransactionAsync rolls back the tx on failure and
+        // the scoped DbContext is disposed shortly after, so this is currently
+        // a no-op — but a future caller that invokes AppendAsync again on the
+        // same scoped context would flush the orphans. One-line safety net.
+        _ctx.ChangeTracker.Clear();
         return Result.Fail<StockItem>(InventoryErrors.Concurrency(streamId, originalExpectedVersion));
     }
 }
