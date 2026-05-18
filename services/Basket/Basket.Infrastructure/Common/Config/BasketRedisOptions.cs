@@ -6,7 +6,7 @@ namespace Basket.Infrastructure.Common.Config;
 /// Strongly-typed configuration for the Basket aggregate's <c>redis-basket</c>
 /// persistence path. Bound from the <c>Basket:Redis</c> configuration section.
 /// </summary>
-public sealed class BasketRedisOptions
+public sealed class BasketRedisOptions : IValidatableObject
 {
     public const string Section = "Basket:Redis";
 
@@ -30,12 +30,33 @@ public sealed class BasketRedisOptions
     /// concurrency error.
     /// </summary>
     [Range(1, 500)]
-    public int LockRetryDelayMs { get; set; } = 50;
+    public int LockRetryDelayMs { get; set; } = 250;
 
     /// <summary>
     /// Maximum lock-acquisition attempts before surfacing a concurrency error.
-    /// Default 20 * 50&#xa0;ms = 1&#xa0;s worst-case wait.
+    /// Defaults are aligned so <c>LockMaxRetries * LockRetryDelayMs ≈ LockTimeoutSeconds</c>
+    /// (20 * 250 ms = 5 s) — otherwise a contender gives up while the holder still
+    /// has valid TTL, producing spurious <c>BasketConcurrencyError</c>s under load.
     /// </summary>
     [Range(1, 100)]
     public int LockMaxRetries { get; set; } = 20;
+
+    /// <summary>
+    /// Custom rule enforcing <c>LockRetryDelayMs * LockMaxRetries &gt;= LockTimeoutSeconds * 1000</c>.
+    /// Without this, the retry budget can be shorter than the lock TTL — a contender
+    /// gives up before the holder's lock expires (sum2.H-7).
+    /// </summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        var retryBudgetMs = (long)LockRetryDelayMs * LockMaxRetries;
+        var lockTtlMs = (long)LockTimeoutSeconds * 1000;
+        if (retryBudgetMs < lockTtlMs)
+        {
+            yield return new ValidationResult(
+                $"{nameof(LockRetryDelayMs)} ({LockRetryDelayMs} ms) * {nameof(LockMaxRetries)} " +
+                $"({LockMaxRetries}) = {retryBudgetMs} ms must be >= {nameof(LockTimeoutSeconds)} " +
+                $"({LockTimeoutSeconds} s = {lockTtlMs} ms) to avoid spurious concurrency errors.",
+                new[] { nameof(LockRetryDelayMs), nameof(LockMaxRetries), nameof(LockTimeoutSeconds) });
+        }
+    }
 }
