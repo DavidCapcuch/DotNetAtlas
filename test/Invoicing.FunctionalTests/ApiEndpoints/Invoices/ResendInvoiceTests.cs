@@ -136,12 +136,43 @@ public class ResendInvoiceTests : BaseApiTest
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         using var doc = JsonDocument.Parse(json);
 
-        var resendPath = doc.RootElement
-            .GetProperty("paths")
-            .GetProperty("/api/v1/invoicing/invoices/{InvoiceId}/resend")
-            .GetProperty("post");
+        // Match by suffix rather than by exact path string. FastEndpoints normalises
+        // route-template parameter casing in its OpenAPI emission (lower-camel-cases
+        // `{InvoiceId}` to `{invoiceId}` in v8+), and the spec is unstable across major
+        // bumps. The stable contract surface is the operation description ("v1 stub"),
+        // not the URL casing.
+        doc.RootElement.TryGetProperty("paths", out var paths).Should().BeTrue(
+            "swagger document must include a 'paths' object; without it, no versioned " +
+            "endpoint is being published — check SwaggerDocument's MaxEndpointVersion " +
+            "in PresentationDependencyInjection.");
 
-        var description = resendPath.TryGetProperty("description", out var d) ? d.GetString() : null;
+        JsonElement? resendOperation = null;
+        foreach (var path in paths.EnumerateObject())
+        {
+            if (!path.Name.EndsWith("/resend", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var verb in path.Value.EnumerateObject())
+            {
+                if (string.Equals(verb.Name, "post", StringComparison.OrdinalIgnoreCase))
+                {
+                    resendOperation = verb.Value;
+                    break;
+                }
+            }
+
+            if (resendOperation is not null)
+            {
+                break;
+            }
+        }
+
+        resendOperation.Should().NotBeNull(
+            "the swagger document must include a POST .../resend operation");
+
+        var description = resendOperation.Value.TryGetProperty("description", out var d) ? d.GetString() : null;
         description.Should().NotBeNullOrEmpty(
             "the resend endpoint must publish a description so admin tooling can read its v1 semantics");
         description!.Should().Contain("v1 stub",

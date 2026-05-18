@@ -20,6 +20,10 @@ internal static class PresentationDependencyInjection
         services.AddFastEndpoints()
             .SwaggerDocument(o =>
             {
+                // ADR-0012: every endpoint declares Version(1); without an explicit cap,
+                // FastEndpoints excludes all versioned endpoints from the OpenAPI doc
+                // (default MaxEndpointVersion = 0), leaving `paths` empty.
+                o.MaxEndpointVersion = 1;
                 o.DocumentSettings = s =>
                 {
                     s.Title = "Payments API";
