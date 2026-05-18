@@ -18,14 +18,11 @@ namespace Basket.Infrastructure.Common;
 /// </para>
 /// <list type="bullet">
 /// <item><description>
-/// <c>AddBasketPersistence</c> (M3) — the Redis primary store: keyed
+/// <c>AddBasketRedisPersistence</c> (M3) — the Redis primary store: keyed
 /// <c>IConnectionMultiplexer</c> for <c>redis-basket</c>, FusionCache
-/// <c>"basket"</c>, and <c>IBasketRepository</c>. Note the cosmetic duplication
-/// with <see cref="PersistenceDependencyInjection.AddDatabase"/>: the method
-/// names are distinct (<c>AddBasketPersistence</c> vs <c>AddDatabase</c>) and
-/// the classes live in sibling namespaces, so they do not collide. A future
-/// cleanup milestone may rename the M3 method to <c>AddBasketRedisPersistence</c>
-/// for clarity; deferred here to keep M6 within its boundary.
+/// <c>"basket"</c>, and <c>IBasketRepository</c>. Distinct from
+/// <see cref="PersistenceDependencyInjection.AddDatabase"/> below (the SQL
+/// side-car) so the two persistence paths are unambiguous at the call site.
 /// </description></item>
 /// <item><description>
 /// <c>AddDatabase</c> (M6) — the SQL side-car: <see cref="Persistence.Database.BasketDbContext"/>
@@ -60,7 +57,7 @@ public static class InfrastructureDependencyInjection
         bool isDeployedEnvironment)
     {
         services
-            .AddBasketPersistence(configuration)
+            .AddBasketRedisPersistence(configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
             .AddMessaging(configuration)
             .AddBasketCatalogClient(configuration)

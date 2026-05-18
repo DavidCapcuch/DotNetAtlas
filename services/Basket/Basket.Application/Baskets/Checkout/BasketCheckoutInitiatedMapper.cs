@@ -21,8 +21,9 @@ internal static class BasketCheckoutInitiatedMapper
 {
     /// <summary>
     /// Projects a <see cref="BasketCheckedOutDomainEvent"/> onto the Avro integration event.
-    /// The first item's currency is used for the basket-wide <see cref="Basket.Sessions.BasketCheckoutInitiatedEvent.Currency"/>
-    /// (the aggregate invariant enforces a single currency; checkout is rejected on empty).
+    /// The basket-wide currency is read from <see cref="BasketTotal.Amount"/> — that's the
+    /// authoritative single-currency value computed by the aggregate (uniformity invariant 5
+    /// is already enforced upstream).
     /// </summary>
     public static Basket.Sessions.BasketCheckoutInitiatedEvent ToBasketCheckoutInitiatedEvent(
         this BasketCheckedOutDomainEvent src)
@@ -30,7 +31,6 @@ internal static class BasketCheckoutInitiatedMapper
         ArgumentNullException.ThrowIfNull(src);
 
         var snapshot = src.Snapshot;
-        var currency = snapshot.Items[0].Snapshot.Price.Currency.Name;
 
         return new Basket.Sessions.BasketCheckoutInitiatedEvent
         {
@@ -38,7 +38,7 @@ internal static class BasketCheckoutInitiatedMapper
             UserId = src.UserId,
             Items = snapshot.Items.Select(MapItem).ToList(),
             TotalAmount = new AvroDecimal(snapshot.Total.Amount.Amount),
-            Currency = currency,
+            Currency = snapshot.Total.Amount.Currency.Name,
             ShippingAddress = MapAddress(src.ShippingAddress),
             BillingAddress = MapAddress(src.BillingAddress),
             PaymentMethodId = src.PaymentMethodId,

@@ -1,4 +1,5 @@
 using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.Domain.Baskets.ValueObjects;
@@ -22,7 +23,18 @@ public sealed record BasketTotal : ValueObject
     }
 
     /// <summary>
-    /// Creates a basket total wrapping the given monetary amount.
+    /// Creates a basket total wrapping the given monetary amount. Throws
+    /// <see cref="DataIntegrityException"/> if <paramref name="amount"/> is null or
+    /// has a non-strictly-positive value — both indicate a caller bug, since the
+    /// aggregate constructs <see cref="BasketTotal"/> only from already-validated
+    /// line items.
     /// </summary>
-    public static BasketTotal From(Money amount) => new() { Amount = amount };
+    public static BasketTotal From(Money amount)
+    {
+        ArgumentNullException.ThrowIfNull(amount);
+        Throw.If(amount.Amount <= 0m, new DataIntegrityException(
+            "Basket.NonPositiveTotal",
+            $"BasketTotal must wrap a strictly-positive amount; got {amount.Amount}."));
+        return new() { Amount = amount };
+    }
 }

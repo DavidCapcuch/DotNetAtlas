@@ -18,7 +18,7 @@ namespace Basket.Domain.Baskets.ValueObjects;
 public sealed record BasketSnapshot : ValueObject
 {
     /// <summary>All line items at the moment of checkout. Never empty (empty-basket checkout is rejected).</summary>
-    public ImmutableArray<BasketItem> Items { get; private init; }
+    public ImmutableArray<BasketItem> Items { get; private init; } = ImmutableArray<BasketItem>.Empty;
 
     /// <summary>Sum of all line values.</summary>
     public BasketTotal Total { get; private init; } = null!;
