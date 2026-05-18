@@ -8,6 +8,8 @@ using Basket.Domain.Baskets.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -43,6 +45,7 @@ public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
     private readonly IBasketRepository _repo;
     private readonly IProductCatalogQueryPort _catalog;
     private readonly ITransactionalOutbox<IBasketDbContext> _outbox;
+    private readonly DbContext _fakeDbContext;
 
     public BasketCheckoutOutboxIntegrationTests()
     {
@@ -50,6 +53,14 @@ public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
         _catalog = Substitute.For<IProductCatalogQueryPort>();
         _outbox = Substitute.For<ITransactionalOutbox<IBasketDbContext>>();
         _outbox.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+
+        // CheckoutBasketCommandHandler wraps the dispatch + outbox commit in
+        // _outbox.Database.EnsureTransactionAsync(...). Provide a real (in-memory)
+        // DbContext's Database facade so the wrap can no-op cleanly. SQL-level
+        // transactional semantics are exercised by BasketCheckoutOutboxDbIntegrationTests
+        // against a Postgres Testcontainer.
+        _fakeDbContext = new InMemoryDbContextStub();
+        _outbox.Database.Returns(_fakeDbContext.Database);
 
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -248,7 +259,22 @@ public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
         }
     }
 
-    public void Dispose() => _provider.Dispose();
+    public void Dispose()
+    {
+        _provider.Dispose();
+        _fakeDbContext.Dispose();
+    }
+
+    private sealed class InMemoryDbContextStub : DbContext
+    {
+        public InMemoryDbContextStub()
+            : base(new DbContextOptionsBuilder()
+                .UseInMemoryDatabase(Guid.CreateVersion7().ToString())
+                .ConfigureWarnings(b => b.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+                .Options)
+        {
+        }
+    }
 }
 
 /// <summary>Minimal DTO builder for integration tests (mirrors the unit-test helper).</summary>

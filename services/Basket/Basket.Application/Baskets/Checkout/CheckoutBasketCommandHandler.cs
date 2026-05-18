@@ -7,6 +7,7 @@ using FluentResults;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.ValueObjects;
 
@@ -29,9 +30,11 @@ namespace Basket.Application.Baskets.Checkout;
 ///     <c>BasketCheckoutInitiatedOutboxPublisherDomainEventHandler</c>, which writes the Avro
 ///     integration event to the outbox via <c>ITransactionalOutbox&lt;IBasketDbContext&gt;</c>.</item>
 ///   <item>Issues <see cref="Platform.ReliableMessaging.Outbox.EFCore.ITransactionalOutbox{TContext}.SaveChangesAsync"/>
-///     to persist the outbox row. M4 writes exactly one row per checkout, so EF's implicit
-///     single-<c>SaveChanges</c> transaction is sufficient — no explicit
-///     <c>EnsureTransactionAsync</c> wrap is necessary here.</item>
+///     to persist the outbox row, wrapped in
+///     <see cref="DatabaseFacadeExtensions.EnsureTransactionAsync"/> so any future fan-out
+///     handler that issues additional SQL writes commits (or rolls back) atomically with the
+///     outbox row. Matches the convention used by the Payments / Ordering / Inventory saga
+///     command handlers (<c>SagaCommandHandlerBase</c>).</item>
 ///   <item>After the SQL commit succeeds, deletes the Redis entry via the repository's
 ///     direct-<c>DEL</c> path. A delete failure is logged but NOT propagated — the outbox
 ///     is the source of truth, and a stale Redis entry will be cleaned up on the next
@@ -116,13 +119,24 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
         }
 
         // Domain-event fan-out writes the outbox row via the publisher handler.
-        // SaveChangesAsync commits everything in EF's implicit transaction.
-        foreach (var domainEvent in basket.PopDomainEvents())
-        {
-            await _dispatcher.DispatchAsync(domainEvent, ct);
-        }
+        // EnsureTransactionAsync joins an ambient transaction if one exists (e.g.
+        // when checkout is invoked from inside a saga-command handler that already
+        // opened one), otherwise creates a fresh one with the database's execution
+        // strategy. Today the fan-out writes exactly one row so a single implicit
+        // SaveChanges would have been atomic too — the wrap is preventative against a
+        // future fan-out handler that issues its own SQL writes (e.g. inbox dedup or
+        // audit row) and would silently break outbox-state atomicity without it.
+        await _outbox.Database.EnsureTransactionAsync(
+            async () =>
+            {
+                foreach (var domainEvent in basket.PopDomainEvents())
+                {
+                    await _dispatcher.DispatchAsync(domainEvent, ct);
+                }
 
-        await _outbox.SaveChangesAsync(ct);
+                await _outbox.SaveChangesAsync(ct);
+            },
+            ct);
 
         // After SQL commit — delete the Redis entry (bypasses FusionCache inside
         // the repository). Failure here is recoverable: the outbox is the source
