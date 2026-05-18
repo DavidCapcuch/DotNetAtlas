@@ -50,15 +50,22 @@ public sealed class GetCategoryTreeQueryHandler
             .OrderBy(c => c.Path.Value)
             .ToListAsync(ct);
 
+        // CAT-RV-H06 (Wave-1 closeout): without this filter the GROUP BY scanned every
+        // product_search_view row on every call (O(catalog), full-table scan at scale).
+        // Constrain the count query to the categories we just loaded — EF Core translates
+        // HashSet<Guid>.Contains into a parameterised IN (...) clause.
+        var loadedCategoryIds = categories.Select(c => c.Id).ToHashSet();
         var activeName = ProductStatus.Active.Name;
-        var counts = await _db.ProductSearchView
-            .AsNoTracking()
-            .Where(r => r.Status == activeName)
-            .GroupBy(r => r.CategoryId)
-            .Select(g => new { CategoryId = g.Key, Count = g.Count() })
-            .ToListAsync(ct);
+        var counts = loadedCategoryIds.Count == 0
+            ? new List<KeyValuePair<Guid, int>>()
+            : await _db.ProductSearchView
+                .AsNoTracking()
+                .Where(r => r.Status == activeName && loadedCategoryIds.Contains(r.CategoryId))
+                .GroupBy(r => r.CategoryId)
+                .Select(g => KeyValuePair.Create(g.Key, g.Count()))
+                .ToListAsync(ct);
 
-        var countByCategoryId = counts.ToDictionary(x => x.CategoryId, x => x.Count);
+        var countByCategoryId = counts.ToDictionary(x => x.Key, x => x.Value);
 
         var nodes = categories.Select(c => new CategoryTreeNode
         {
