@@ -138,6 +138,15 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
             },
             ct);
 
+        // Information-level "published" line runs only after the transaction commits
+        // so dashboards / alerts counting "checkouts initiated" never over-count on a
+        // SaveChanges failure. The publisher handler logs at Debug ("queued") before
+        // this point — see BasketCheckoutInitiatedOutboxPublisherDomainEventHandler.
+        _logger.LogInformation(
+            "Published BasketCheckoutInitiatedEvent to outbox. UserId: {UserId}, CorrelationId: {CorrelationId}",
+            command.UserId,
+            command.CorrelationId);
+
         // After SQL commit — delete the Redis entry (bypasses FusionCache inside
         // the repository). Failure here is recoverable: the outbox is the source
         // of truth; a stale key will be cleaned on the next checkout or at TTL.
