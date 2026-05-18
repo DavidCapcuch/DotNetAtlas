@@ -131,8 +131,21 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                     // next attempt re-queries Active reservations
                     // (already-released ones drop out) and retries the still-
                     // pending ones. Idempotent by construction.
-                    throw new DbUpdateException(
-                        $"Release of reservation {reservation.ReservationId} for order {message.OrderId} failed: {errorSummary}");
+                    //
+                    // Use a dedicated DbUpdateException subclass so a DLT
+                    // post-mortem can identify the failure point by type and
+                    // read structured ReservationId/OrderId/ErrorCodes off
+                    // the .Data dictionary — mirrors SagaCommandDispatchException's
+                    // role for the saga-command consumers.
+                    throw new ReservationReleaseFailedException(
+                        reservationId: reservation.ReservationId,
+                        orderId: message.OrderId,
+                        errorSummary: errorSummary,
+                        errorCodes: result.Errors
+                            .Select(e => e.Metadata.TryGetValue("ErrorCode", out var code) ? code?.ToString() : null)
+                            .Where(c => c is not null)
+                            .Cast<string>()
+                            .ToArray());
                 }
             }
 
@@ -142,5 +155,44 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                 "OrderCancelledEvent handled successfully: released {Count} reservations for order {OrderId}",
                 activeReservations.Count, message.OrderId);
         }, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Thrown by <see cref="OrderCancelledEventKafkaHandler"/> when a
+/// per-reservation <c>ReleaseReservationCommand</c> dispatch returns
+/// <c>Result.Fail</c>. Subclasses <see cref="DbUpdateException"/> so KafkaFlow's
+/// <c>RetryForever</c> middleware (which retries on <c>DbUpdateException</c>)
+/// re-runs the message; the dedicated type plus the structured
+/// <see cref="Exception.Data"/> entries (<c>ReservationId</c>, <c>OrderId</c>,
+/// <c>ErrorCodes</c>) give operators a faster path through a DLT post-mortem
+/// than a bare <c>DbUpdateException</c> would.
+/// </summary>
+public sealed class ReservationReleaseFailedException : DbUpdateException
+{
+    public ReservationReleaseFailedException(
+        Guid reservationId,
+        Guid orderId,
+        string errorSummary,
+        string[] errorCodes)
+        : base($"Release of reservation {reservationId} for order {orderId} failed: {errorSummary}")
+    {
+        Data["ReservationId"] = reservationId;
+        Data["OrderId"] = orderId;
+        Data["ErrorCodes"] = errorCodes;
+    }
+
+    public ReservationReleaseFailedException()
+    {
+    }
+
+    public ReservationReleaseFailedException(string message)
+        : base(message)
+    {
+    }
+
+    public ReservationReleaseFailedException(string message, Exception innerException)
+        : base(message, innerException)
+    {
     }
 }
