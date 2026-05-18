@@ -328,10 +328,12 @@ public sealed class Basket : AggregateRoot<Guid>
 
             if (existing.Snapshot.Price == newSnapshot.Price)
             {
-                // Price did not change — still refresh Sku/Name/CapturedAt to reflect the
-                // latest catalog state, but do not list it as a price change.
-                var index = _items.IndexOf(existing);
-                _items[index] = BasketItem.BuildUnchecked(productId, newSnapshot, existing.Quantity);
+                // Price did not change — preserve the frozen snapshot unchanged
+                // (invariant 6). Mutating Sku/Name/CapturedAtUtc here without bumping
+                // Version would silently diverge in-memory state from Redis on the next
+                // load: the handler short-circuits SaveAsync when no events were raised,
+                // so any metadata swap would be lost. Cleaner contract: equal price →
+                // strict no-op for this line.
                 continue;
             }
 

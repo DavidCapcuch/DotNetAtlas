@@ -443,6 +443,44 @@ public class BasketTests
     }
 
     [Fact]
+    public void RefreshPrices_WhenAllPricesEqualButMetadataChanged_DoesNotMutateInMemoryItems()
+    {
+        // sum1.HIGH-1 regression guard. Previously the aggregate swapped Sku/Name/
+        // CapturedAt in place on the equal-price branch but did NOT call Touch() —
+        // the handler then short-circuited on events.Count == 0 and skipped SaveAsync.
+        // Net effect: in-memory state diverged from Redis (silent metadata loss on
+        // next load). The fix preserves the frozen snapshot strictly when prices are
+        // unchanged.
+        var basket = NewEmptyBasket();
+        var p1 = Guid.CreateVersion7();
+        var original = BasketTestData.Snapshot(amount: 10m, sku: "SKU-OLD", name: "Old Name");
+        basket.AddItem(p1, original, 1, UtcNow);
+        _ = basket.PopDomainEvents();
+        var versionBefore = basket.Version;
+
+        // Same price, different Sku/Name/CapturedAt.
+        var freshSameMetaSwap = BasketTestData.Snapshot(
+            amount: 10m,
+            sku: "SKU-NEW",
+            name: "New Name",
+            capturedAtUtc: UtcNow.AddDays(1));
+
+        var result = basket.RefreshPrices([(p1, freshSameMetaSwap)], UtcNow);
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            basket.Version.Should().Be(versionBefore);
+            basket.PopDomainEvents().Should().BeEmpty();
+            var line = basket.Items.Single();
+            line.Snapshot.Sku.Should().Be("SKU-OLD",
+                "equal-price branch must preserve the frozen snapshot (invariant 6) — no silent metadata swap.");
+            line.Snapshot.Name.Should().Be("Old Name");
+            line.Snapshot.CapturedAtUtc.Should().Be(original.CapturedAtUtc);
+        }
+    }
+
+    [Fact]
     public void RefreshPrices_WithUnknownProductIds_DoesNotAddThem()
     {
         var basket = NewEmptyBasket();
