@@ -135,6 +135,16 @@ internal sealed class ReservationExpiryWorker : BackgroundService
             "Reservation-expiry tick at {NowUtc:O}: {ExpiredCount} expired reservation(s) to release",
             nowUtc, expired.Count);
 
+        if (expired.Count == MaxBatchSize)
+        {
+            // We hit the per-tick ceiling — there may be more expired rows
+            // waiting in the queue. Surface so the saga-stuck-runbook has a
+            // backlog indicator before the gap turns into TTL violations.
+            _logger.LogWarning(
+                "Reservation-expiry batch ceiling reached ({MaxBatchSize}); additional expired reservations may be queued for the next tick.",
+                MaxBatchSize);
+        }
+
         foreach (var row in expired)
         {
             try
