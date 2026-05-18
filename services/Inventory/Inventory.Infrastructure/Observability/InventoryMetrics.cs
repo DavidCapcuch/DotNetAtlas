@@ -58,6 +58,11 @@ internal static class InventoryMetrics
         unit: "{events}",
         description: "Event count folded per RehydrateAsync call tagged by product_id (ADR-0006 § Observability).");
 
+    private static readonly Counter<long> ReservationExpiryFailures = Meter.CreateCounter<long>(
+        name: "inventory.reservation.expiry.failure_count",
+        unit: "{failures}",
+        description: "ReservationExpiryWorker per-row release failures, tagged by product_id + reason. A row that consistently fails (e.g. permanent ConcurrencyError) increments on every 60s tick — sustained non-zero rate is an ops-escalation signal that a reservation is leaking.");
+
     /// <summary>
     /// Records one rehydration measurement against both histograms. Tag is
     /// <c>product_id</c> — matches the stream id since Inventory uses one stream per
@@ -70,5 +75,18 @@ internal static class InventoryMetrics
         var tag = new KeyValuePair<string, object?>("product_id", productId);
         RehydrationDurationMs.Record(durationMs, tag);
         RehydrationEventCount.Record(eventCount, tag);
+    }
+
+    /// <summary>
+    /// Increments the reservation-expiry failure counter for one row. <paramref name="reason"/>
+    /// is a low-cardinality classifier ("ConcurrencyError", "Unhandled", etc.) so dashboards
+    /// can split persistent-conflict from one-off blips.
+    /// </summary>
+    public static void RecordExpiryFailure(Guid productId, string reason)
+    {
+        ReservationExpiryFailures.Add(
+            1,
+            new KeyValuePair<string, object?>("product_id", productId),
+            new KeyValuePair<string, object?>("reason", reason));
     }
 }
