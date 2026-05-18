@@ -13,12 +13,13 @@ namespace Catalog.Application.Common;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Messaging.CatalogTopicsOptions"/> is registered via
-/// <see cref="OptionsServiceCollectionExtensions.AddOptions{TOptions}(IServiceCollection)"/> only;
-/// the API host (M6) is responsible for binding it to configuration (e.g.
-/// <c>services.Configure&lt;CatalogTopicsOptions&gt;(config.GetSection(CatalogTopicsOptions.Section))</c>)
-/// and for calling <c>ValidateOnStart()</c>. Keeping <c>IConfiguration</c> out of the Application
-/// layer avoids a transitive dependency on <c>Microsoft.Extensions.Configuration</c>.
+/// <see cref="Messaging.CatalogTopicsOptions"/> is bound to configuration by the API host
+/// (Catalog.Infrastructure's <c>MessagingDependencyInjection</c> in production; the
+/// <c>IntegrationTestFixture</c> in tests). Keeping <c>IConfiguration</c> out of the Application
+/// layer avoids a transitive dependency on <c>Microsoft.Extensions.Configuration</c>; the
+/// stand-alone <c>AddOptions&lt;CatalogTopicsOptions&gt;()</c> previously here was redundant
+/// because <c>Configure&lt;T&gt;</c> internally calls <c>AddOptions&lt;T&gt;</c> as well
+/// (CAT-ARCH-C06, Wave-1 closeout).
 /// </para>
 /// </remarks>
 public static class ApplicationDependencyInjection
@@ -35,8 +36,6 @@ public static class ApplicationDependencyInjection
             services
                 .AddDomainEventHandlersFromAssembly(assembly)
                 .AddDomainEventDispatcher();
-
-            services.AddOptions<Messaging.CatalogTopicsOptions>();
 
             services.AddScoped<ICategoryAncestryService, CategoryAncestryService>();
             services.AddScoped<ICategoryPathService, CategoryPathService>();
