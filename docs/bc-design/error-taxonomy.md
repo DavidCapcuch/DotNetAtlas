@@ -46,7 +46,7 @@
 | `InvoicingErrors.InvoiceAlreadyIssued` | Invoicing | User | 409 | N/A (idempotent re-issue attempt) | No | No | [invoicing.md § Issuance projection](invoicing.md) — `pending_invoices.IssuedInvoiceId` already set |
 | `InvoicingErrors.CreditNoteRefersToCancelledInvoice` | Invoicing | Bug | 5xx | DLT | No | **Yes** | [invoicing.md § I-CN-1](invoicing.md) — credit note against already-cancelled invoice |
 | `InvoicingErrors.PdfGenerationFailed(detail)` | Invoicing | Bug | 5xx | DLT; QuestPDF error bubbles | No | **Yes** | [invoicing.md § PDF generation](invoicing.md) |
-| `InvoicingErrors.BlobUploadFailed` | Invoicing | Upstream | 5xx | Retried via Polly (3 attempts); DLT after exhaustion | Yes (client) | **After retries** | [invoicing.md § Blob storage](invoicing.md) — Azurite/Azure Blob upload failure |
+| `InvoicingErrors.BlobUploadFailed` | Invoicing | Upstream | 5xx | Azure.Storage.Blobs SDK retries (exponential backoff per ADR-0017 `<design_open>`); DLT after exhaustion | Yes (client) | **After retries** | [invoicing.md § Blob storage](invoicing.md) — Azurite/Azure Blob upload failure |
 | `InvoicingErrors.TotalMismatch(orderTotal, paymentAmount)` | Invoicing | Bug | 5xx | DLT; ops alert (data integrity) | No | **Yes** | [invoicing.md § Example 1.4](invoicing.md) — Order.Total ≠ Payment.Amount for same CorrelationId |
 | `InvoicingErrors.PartialRefundNotSupportedV1` | Invoicing | Feature-gate | 501 | Credit-note request with partial amount — rejected | No | No | [invoicing.md § Out of scope v1](invoicing.md) |
 | `SagaErrors.PaymentRefundFailed` | CheckoutSaga | Ops | — | Terminal `CompensationStuck` — PagerDuty | Manual | **Yes** | [checkout-saga.md § Compensation matrix](checkout-saga.md) |
