@@ -27,4 +27,13 @@ public sealed record PaymentAuthorizedDomainEvent : DomainEvent
     public required Money Amount { get; init; }
 
     public required DateTimeOffset AuthorizedAtUtc { get; init; }
+
+    /// <summary>
+    /// UTC instant at which the gateway-issued authorization expires. Sourced from the gateway
+    /// response (carried through <c>AuthorizeResponse.ExpiresAtUtc</c>); v1 stub returns
+    /// <c>AuthorizedAtUtc + 7 days</c>. Surfaced on the wire <c>PaymentAuthorizedEvent</c> so
+    /// downstream consumers (capture-deadline alerting) see a truthful value rather than a
+    /// synthesized placeholder (H-6 closeout).
+    /// </summary>
+    public required DateTimeOffset ExpiresAtUtc { get; init; }
 }

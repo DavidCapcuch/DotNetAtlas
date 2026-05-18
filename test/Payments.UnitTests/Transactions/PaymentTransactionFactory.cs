@@ -46,7 +46,7 @@ internal static class PaymentTransactionFactory
     {
         var tx = Requested(utcNow);
         tx.PopDomainEvents();
-        tx.Authorize(DefaultGatewayTransactionId, SuccessResponse, utcNow);
+        tx.Authorize(DefaultGatewayTransactionId, SuccessResponse, utcNow.AddDays(7), utcNow);
         tx.PopDomainEvents();
         return tx;
     }

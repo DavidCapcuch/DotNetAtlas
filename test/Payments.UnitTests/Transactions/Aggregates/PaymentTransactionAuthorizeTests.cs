@@ -12,13 +12,15 @@ public class PaymentTransactionAuthorizeTests
 
     private DateTimeOffset UtcNow => _fakeTimeProvider.GetUtcNow();
 
+    private DateTimeOffset ExpiresAt => UtcNow.AddDays(7);
+
     [Fact]
     public void Authorize_FromRequested_TransitionsToAuthorizedAndRaisesEvent()
     {
         var tx = PaymentTransactionFactory.Requested(UtcNow);
         tx.PopDomainEvents();
 
-        var result = tx.Authorize("gw-tx-abc", PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var result = tx.Authorize("gw-tx-abc", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
         using (new AssertionScope())
         {
@@ -31,6 +33,7 @@ public class PaymentTransactionAuthorizeTests
                 .Which.Should().BeOfType<PaymentAuthorizedDomainEvent>().Subject;
             evt.GatewayTransactionId.Should().Be("gw-tx-abc");
             evt.AuthorizedAtUtc.Should().Be(UtcNow);
+            evt.ExpiresAtUtc.Should().Be(ExpiresAt);
             evt.Amount.Should().Be(tx.Amount);
         }
     }
@@ -45,6 +48,7 @@ public class PaymentTransactionAuthorizeTests
         var result = tx.Authorize(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
+            ExpiresAt,
             UtcNow);
 
         using (new AssertionScope())
@@ -61,7 +65,7 @@ public class PaymentTransactionAuthorizeTests
     {
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
-        var action = () => tx.Authorize("gw-tx-OTHER", PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var action = () => tx.Authorize("gw-tx-OTHER", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*GatewayTransactionId is append-only*");
@@ -84,7 +88,7 @@ public class PaymentTransactionAuthorizeTests
         // Use the stored gateway-transaction-id (if any) so the append-only guard (I-4) does not
         // shadow the FSM check. Failed state has no stored id, so we send a fresh one.
         var gatewayId = tx.GatewayTransactionId ?? "gw-tx-new";
-        var action = () => tx.Authorize(gatewayId, PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var action = () => tx.Authorize(gatewayId, PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*Invalid payment status transition*");
@@ -98,6 +102,7 @@ public class PaymentTransactionAuthorizeTests
         var action = () => tx.Authorize(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
+            ExpiresAt,
             UtcNow);
 
         action.Should().Throw<DataIntegrityException>()
@@ -109,7 +114,7 @@ public class PaymentTransactionAuthorizeTests
     {
         var tx = PaymentTransactionFactory.Requested(UtcNow);
 
-        var action = () => tx.Authorize("", PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var action = () => tx.Authorize("", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
         action.Should().Throw<ArgumentException>();
     }

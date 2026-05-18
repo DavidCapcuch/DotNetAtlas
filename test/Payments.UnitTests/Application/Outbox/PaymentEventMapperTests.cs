@@ -25,8 +25,12 @@ public class PaymentEventMapperTests
     private static Money UsdAmount(decimal amount = 100m) => Money.Create(amount, "USD").Value;
 
     [Fact]
-    public void PaymentAuthorizedMapper_MapsAllFieldsAndProjectsExpiresAtUtcSentinel()
+    public void PaymentAuthorizedMapper_ProjectsExpiresAtUtcFromDomainEvent_NotSynthesized()
     {
+        // H-6: the mapper must source ExpiresAtUtc from the gateway response (carried through the
+        // domain event) — not synthesize AuthorizedAtUtc + 7 days inline. Test passes a deliberately
+        // out-of-band ExpiresAtUtc so a regression that re-introduces inline synthesis fails loudly.
+        var gatewayExpiry = Now.AddDays(14);
         var domainEvent = new PaymentAuthorizedDomainEvent
         {
             PaymentId = PaymentId,
@@ -36,6 +40,7 @@ public class PaymentEventMapperTests
             GatewayTransactionId = GatewayTransactionId,
             Amount = UsdAmount(99.99m),
             AuthorizedAtUtc = Now,
+            ExpiresAtUtc = gatewayExpiry,
             OccurredOnUtc = Now,
         };
 
@@ -49,7 +54,7 @@ public class PaymentEventMapperTests
             avro.Amount.Should().Be(new AvroDecimal(99.9900m));
             avro.Currency.Should().Be("USD");
             avro.AuthorizedAtUtc.Should().Be(Now.UtcDateTime);
-            avro.ExpiresAtUtc.Should().Be(Now.AddDays(7).UtcDateTime);
+            avro.ExpiresAtUtc.Should().Be(gatewayExpiry.UtcDateTime);
         }
     }
 

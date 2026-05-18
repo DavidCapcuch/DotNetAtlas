@@ -47,7 +47,7 @@ public class AuthorizePaymentCommandHandlerTests
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"))));
+            .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

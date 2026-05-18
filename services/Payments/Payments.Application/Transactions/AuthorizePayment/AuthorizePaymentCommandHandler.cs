@@ -110,6 +110,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             var authorizeResult = tx.Authorize(
                 gatewayResult.Value.GatewayTransactionId,
                 gatewayResult.Value.ResponseCode,
+                gatewayResult.Value.ExpiresAtUtc,
                 utcNow);
             if (authorizeResult.IsFailed)
             {
