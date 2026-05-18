@@ -33,32 +33,28 @@ public class CreateProductCommandValidatorTests
     [InlineData("-leading-dash")]
     public void Invalid_sku_fails(string sku)
     {
-        var cmd = Valid();
-        cmd.Sku = sku;
+        var cmd = Valid() with { Sku = sku };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Empty_name_fails()
     {
-        var cmd = Valid();
-        cmd.Name = string.Empty;
+        var cmd = Valid() with { Name = string.Empty };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Description_with_html_fails()
     {
-        var cmd = Valid();
-        cmd.Description = "<p>html</p>";
+        var cmd = Valid() with { Description = "<p>html</p>" };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Description_with_lt_but_no_tag_passes()
     {
-        var cmd = Valid();
-        cmd.Description = "price < 10";
+        var cmd = Valid() with { Description = "price < 10" };
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
@@ -76,8 +72,7 @@ public class CreateProductCommandValidatorTests
     [InlineData("named &lt;script&gt;alert(1)&lt;/script&gt;")]
     public void Description_with_html_bypass_fails(string description)
     {
-        var cmd = Valid();
-        cmd.Description = description;
+        var cmd = Valid() with { Description = description };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
@@ -86,24 +81,21 @@ public class CreateProductCommandValidatorTests
     [InlineData("price < 10 and quantity > 0")]
     public void Description_with_innocuous_lt_or_amp_passes(string description)
     {
-        var cmd = Valid();
-        cmd.Description = description;
+        var cmd = Valid() with { Description = description };
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Empty_category_fails()
     {
-        var cmd = Valid();
-        cmd.CategoryId = Guid.Empty;
+        var cmd = Valid() with { CategoryId = Guid.Empty };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Non_positive_price_fails()
     {
-        var cmd = Valid();
-        cmd.Price = new MoneyDto { Amount = 0m, Currency = "USD" };
+        var cmd = Valid() with { Price = new MoneyDto { Amount = 0m, Currency = "USD" } };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
@@ -113,19 +105,20 @@ public class CreateProductCommandValidatorTests
     [InlineData("USDX")]
     public void Malformed_currency_fails(string currency)
     {
-        var cmd = Valid();
-        cmd.Price = new MoneyDto { Amount = 1m, Currency = currency };
+        var cmd = Valid() with { Price = new MoneyDto { Amount = 1m, Currency = currency } };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Duplicate_image_display_order_fails()
     {
-        var cmd = Valid();
-        cmd.Images = new List<ImageReferenceDto>
+        var cmd = Valid() with
         {
-            new() { Url = "https://example.com/a.jpg", AltText = "a", DisplayOrder = 0 },
-            new() { Url = "https://example.com/b.jpg", AltText = "b", DisplayOrder = 0 },
+            Images = new List<ImageReferenceDto>
+            {
+                new() { Url = "https://example.com/a.jpg", AltText = "a", DisplayOrder = 0 },
+                new() { Url = "https://example.com/b.jpg", AltText = "b", DisplayOrder = 0 },
+            },
         };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
@@ -133,10 +126,12 @@ public class CreateProductCommandValidatorTests
     [Fact]
     public void Non_absolute_image_url_fails()
     {
-        var cmd = Valid();
-        cmd.Images = new List<ImageReferenceDto>
+        var cmd = Valid() with
         {
-            new() { Url = "/relative.jpg", AltText = "a", DisplayOrder = 0 },
+            Images = new List<ImageReferenceDto>
+            {
+                new() { Url = "/relative.jpg", AltText = "a", DisplayOrder = 0 },
+            },
         };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
@@ -150,10 +145,12 @@ public class CreateProductCommandValidatorTests
     [InlineData("ftp://example.com/a.jpg")]
     public void Non_http_image_url_scheme_fails(string url)
     {
-        var cmd = Valid();
-        cmd.Images = new List<ImageReferenceDto>
+        var cmd = Valid() with
         {
-            new() { Url = url, AltText = "a", DisplayOrder = 0 },
+            Images = new List<ImageReferenceDto>
+            {
+                new() { Url = url, AltText = "a", DisplayOrder = 0 },
+            },
         };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
@@ -161,8 +158,10 @@ public class CreateProductCommandValidatorTests
     [Fact]
     public void Dimensions_with_unknown_unit_fails()
     {
-        var cmd = Valid();
-        cmd.Dimensions = new DimensionsDto { Length = 1, Width = 1, Height = 1, Unit = "yards" };
+        var cmd = Valid() with
+        {
+            Dimensions = new DimensionsDto { Length = 1, Width = 1, Height = 1, Unit = "yards" },
+        };
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 }

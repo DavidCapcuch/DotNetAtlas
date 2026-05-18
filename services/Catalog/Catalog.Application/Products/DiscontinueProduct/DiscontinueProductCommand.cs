@@ -6,9 +6,9 @@ namespace Catalog.Application.Products.DiscontinueProduct;
 /// Admin command to discontinue a product. Requires a non-empty reason; succeeds only when the
 /// product is <c>Active</c>.
 /// </summary>
-public class DiscontinueProductCommand : ICommand
+public sealed record DiscontinueProductCommand : ICommand
 {
-    public required Guid ProductId { get; set; }
+    public required Guid ProductId { get; init; }
 
-    public required string Reason { get; set; }
+    public required string Reason { get; init; }
 }

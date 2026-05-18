@@ -7,9 +7,9 @@ namespace Catalog.Application.Categories.ReparentCategory;
 /// (via <c>CategoryAncestryService</c>) and the descendant-path cascade (via
 /// <c>CategoryPathService</c>) are deferred to a follow-up milestone.
 /// </summary>
-public class ReparentCategoryCommand : ICommand
+public sealed record ReparentCategoryCommand : ICommand
 {
-    public required Guid CategoryId { get; set; }
+    public required Guid CategoryId { get; init; }
 
-    public Guid? NewParentCategoryId { get; set; }
+    public Guid? NewParentCategoryId { get; init; }
 }

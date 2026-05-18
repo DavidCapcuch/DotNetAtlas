@@ -7,21 +7,21 @@ namespace Catalog.Application.Products.SearchProducts;
 /// status filters are all optional; discontinued products are hidden by default unless the
 /// <c>catalog.show-discontinued-in-search</c> feature flag is enabled (ADR-0014).
 /// </summary>
-public class SearchProductsQuery : IQuery<SearchProductsResponse>
+public sealed record SearchProductsQuery : IQuery<SearchProductsResponse>
 {
-    public string? Text { get; set; }
+    public string? Text { get; init; }
 
-    public string? CategoryPathPrefix { get; set; }
+    public string? CategoryPathPrefix { get; init; }
 
-    public decimal? MinPrice { get; set; }
+    public decimal? MinPrice { get; init; }
 
-    public decimal? MaxPrice { get; set; }
+    public decimal? MaxPrice { get; init; }
 
-    public string? Currency { get; set; }
+    public string? Currency { get; init; }
 
-    public string? Status { get; set; }
+    public string? Status { get; init; }
 
-    public int PageNumber { get; set; } = 1;
+    public int PageNumber { get; init; } = 1;
 
-    public int PageSize { get; set; } = 20;
+    public int PageSize { get; init; } = 20;
 }

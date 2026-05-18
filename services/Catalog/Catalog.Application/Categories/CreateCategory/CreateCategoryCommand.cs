@@ -7,9 +7,9 @@ namespace Catalog.Application.Categories.CreateCategory;
 /// categories pass <see cref="ParentCategoryId"/> == <c>null</c>; children supply the parent's id.
 /// Returns the new category's identity on success.
 /// </summary>
-public class CreateCategoryCommand : ICommand<Guid>
+public sealed record CreateCategoryCommand : ICommand<Guid>
 {
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
-    public Guid? ParentCategoryId { get; set; }
+    public Guid? ParentCategoryId { get; init; }
 }

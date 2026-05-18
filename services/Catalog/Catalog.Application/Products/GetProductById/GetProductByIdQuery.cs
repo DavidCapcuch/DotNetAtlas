@@ -5,7 +5,7 @@ namespace Catalog.Application.Products.GetProductById;
 /// <summary>
 /// Public query returning the denormalized product detail view.
 /// </summary>
-public class GetProductByIdQuery : IQuery<GetProductByIdResponse>
+public sealed record GetProductByIdQuery : IQuery<GetProductByIdResponse>
 {
-    public required Guid ProductId { get; set; }
+    public required Guid ProductId { get; init; }
 }
