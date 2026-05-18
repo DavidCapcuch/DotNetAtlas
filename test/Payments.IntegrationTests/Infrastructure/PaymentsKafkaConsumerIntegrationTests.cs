@@ -136,7 +136,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             {
                 CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
-                AuthorizationId = "stub-auth-ignored",
+                AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(100m),
                 RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
             });
@@ -179,7 +179,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             {
                 CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
-                AuthorizationId = "stub-auth-ignored",
+                AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Reason = "saga compensation",
                 RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
             });
@@ -224,7 +224,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             {
                 CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
-                AuthorizationId = "stub-auth-ignored",
+                AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(75m),
                 RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
             });
@@ -400,7 +400,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             {
                 CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
-                AuthorizationId = "stub-auth-ignored",
+                AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(50m),
                 RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
             });
@@ -421,7 +421,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 {
                     CorrelationId = correlationId,
                     UserId = Guid.CreateVersion7(),
-                    AuthorizationId = "stub-auth-ignored",
+                    AuthorizationId = StoredGatewayTransactionId(correlationId),
                     Reason = "saga ordering bug — should have refunded",
                     RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
                 }));
@@ -440,6 +440,59 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             _fixture.GetGateway().VoidCount.Should().Be(0);
         }
     }
+
+    [Fact]
+    public async Task Void_AuthorizationIdMismatch_ThrowsDataIntegrityException_NoGatewayCall()
+    {
+        // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
+        // (saga bug, stale-token replay) must throw before the gateway is touched. The
+        // KafkaFlow retry middleware classifies DataIntegrityException as poison and routes
+        // the message to the `payments.commands` DLT for operator inspection.
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+
+        using var scope = _fixture.CreateScope();
+        var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
+        var voidHandler = scope.ServiceProvider.GetRequiredService<VoidPaymentCommandKafkaHandler>();
+
+        await authorizeHandler.Handle(
+            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            NewAvroAuthorize(correlationId, orderId, amount: 50m));
+
+        _fixture.GetFakeOutbox().Clear();
+        _fixture.GetGateway().Reset();
+
+        var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
+            await voidHandler.Handle(
+                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                new AvroVoidPaymentCommand
+                {
+                    CorrelationId = correlationId,
+                    UserId = Guid.CreateVersion7(),
+                    AuthorizationId = "wire-token-stale",
+                    Reason = "saga compensation",
+                    RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                }));
+
+        var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var aggregateAfter = await dbContext.Transactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            thrown.ErrorCode.Should().Be("Payments.AuthorizationIdMismatch");
+            aggregateAfter.Should().NotBeNull();
+            aggregateAfter!.Status.Should().Be(PaymentStatus.Authorized);
+            _fixture.GetGateway().VoidCount.Should().Be(0);
+            _fixture.GetFakeOutbox().GetMessages<AvroPaymentVoidedEvent>().Should().BeEmpty();
+        }
+    }
+
+    // Stub gateway derives gateway-transaction-id deterministically as $"stub-{tx.Id:N}";
+    // tx.Id is set to correlationId in the M5 mapper, so the stored value is exactly this.
+    // Saga-side wire commands must echo this value, otherwise the H-8 AuthorizationId validation
+    // in the handlers rejects them as stale-token / saga-bug replays.
+    private static string StoredGatewayTransactionId(Guid correlationId) => $"stub-{correlationId:N}";
 
     private AvroAuthorizePaymentCommand NewAvroAuthorize(Guid correlationId, Guid orderId, decimal amount) =>
         new()

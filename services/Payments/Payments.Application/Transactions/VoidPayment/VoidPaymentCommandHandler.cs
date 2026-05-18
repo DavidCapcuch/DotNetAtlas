@@ -53,6 +53,18 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));
         }
 
+        // H-8: when an authorization token is on file, the wire AuthorizationId MUST match it.
+        // Stale-token replays / saga bugs that pass the wrong id would otherwise contact the PSP
+        // with the wrong token. If no token is yet stored (aggregate is Requested or pre-Authorize
+        // Failed) the FSM pre-check below rejects the wrong-status case loudly.
+        if (tx.GatewayTransactionId is not null
+            && !string.Equals(tx.GatewayTransactionId, command.AuthorizationId, StringComparison.Ordinal))
+        {
+            throw new DataIntegrityException(
+                "Payments.AuthorizationIdMismatch",
+                $"Payment {tx.Id} stored GatewayTransactionId differs from wire AuthorizationId; saga bug or stale-token replay.");
+        }
+
         if (tx.Status == PaymentStatus.Voided)
         {
             _logger.LogInformation(

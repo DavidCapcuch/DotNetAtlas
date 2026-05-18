@@ -38,24 +38,29 @@ internal static class SagaCommandMappers
 
     /// <summary>
     /// Maps <see cref="AvroCapturePaymentCommand"/> to the application-layer
-    /// <see cref="AppCapturePaymentCommand"/>. PaymentId derived from <c>CorrelationId</c>.
+    /// <see cref="AppCapturePaymentCommand"/>. PaymentId derived from <c>CorrelationId</c>;
+    /// <c>AuthorizationId</c> propagated for handler-side validation against the stored
+    /// <c>GatewayTransactionId</c> (H-8 closeout).
     /// </summary>
     internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro) =>
         new()
         {
             PaymentId = avro.CorrelationId,
             CorrelationId = avro.CorrelationId,
+            AuthorizationId = avro.AuthorizationId,
         };
 
     /// <summary>
     /// Maps <see cref="AvroVoidPaymentCommand"/> to the application-layer
-    /// <see cref="AppVoidPaymentCommand"/>. PaymentId derived from <c>CorrelationId</c>.
+    /// <see cref="AppVoidPaymentCommand"/>. PaymentId derived from <c>CorrelationId</c>;
+    /// <c>AuthorizationId</c> propagated for handler-side validation (H-8 closeout).
     /// </summary>
     internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro) =>
         new()
         {
             PaymentId = avro.CorrelationId,
             CorrelationId = avro.CorrelationId,
+            AuthorizationId = avro.AuthorizationId,
         };
 
     /// <summary>
