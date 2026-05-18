@@ -16,13 +16,16 @@ public sealed class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbac
 {
     private readonly ILogger<ChangeFeedbackCommandHandler> _logger;
     private readonly IWeatherDbContext _weatherDbContext;
+    private readonly TimeProvider _timeProvider;
 
     public ChangeFeedbackCommandHandler(
         ILogger<ChangeFeedbackCommandHandler> logger,
-        IWeatherDbContext weatherDbContext)
+        IWeatherDbContext weatherDbContext,
+        TimeProvider timeProvider)
     {
         _logger = logger;
         _weatherDbContext = weatherDbContext;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result> HandleAsync(
@@ -48,7 +51,8 @@ public sealed class ChangeFeedbackCommandHandler : ICommandHandler<ChangeFeedbac
             return Result.Fail(FeedbackErrors.NotFound(command.Id));
         }
 
-        var changeResult = existingFeedback.ChangeFeedback(feedbackResult.Value, ratingResult.Value, command.UserId);
+        var changeResult = existingFeedback.ChangeFeedback(
+            feedbackResult.Value, ratingResult.Value, command.UserId, _timeProvider.GetUtcNow());
         if (changeResult.IsFailed)
         {
             return Result.Fail(changeResult.Errors);

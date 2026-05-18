@@ -19,7 +19,7 @@ public class MonitoredLocationTests
         var location = CreateLocation("Prague", CountryCode.CZ);
 
         // Act
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -43,7 +43,7 @@ public class MonitoredLocationTests
         var customThresholds = CreateCustomThresholds(40.0, -20.0, 100.0, 95.0, 15.0);
 
         // Act
-        var monitoredLocation = MonitoredLocation.Create(location, customThresholds);
+        var monitoredLocation = MonitoredLocation.Create(location, customThresholds, UtcNow);
 
         // Assert
         using (new AssertionScope())
@@ -61,7 +61,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Vienna", CountryCode.AT);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         var weatherReading = CreateWeatherReading(25.0, 50.0, 15.0);
@@ -82,7 +82,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Madrid", CountryCode.ES);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         // 40°C is above default threshold of 35°C but less than 5°C above = Warning
@@ -108,7 +108,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Seville", CountryCode.ES);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         // 42°C is more than 5°C above default threshold of 35°C = Critical
@@ -131,7 +131,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Oslo", CountryCode.NO);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         var weatherReading = CreateWeatherReading(-15.0, 50.0, 15.0);
@@ -155,7 +155,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Dublin", CountryCode.IE);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         var weatherReading = CreateWeatherReading(20.0, 50.0, 100.0);
@@ -179,7 +179,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Rome", CountryCode.IT);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         var weatherReading = CreateWeatherReading(40.0, 50.0, 100.0);
@@ -202,7 +202,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Paris", CountryCode.FR);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
         monitoredLocation.DeactivateMonitoring();
 
@@ -224,7 +224,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("London", CountryCode.GB);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         monitoredLocation.DeactivateMonitoring();
 
         // Act
@@ -239,7 +239,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Amsterdam", CountryCode.NL);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
 
         // Act
         monitoredLocation.DeactivateMonitoring();
@@ -253,7 +253,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Brussels", CountryCode.BE);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         var newThresholds = CreateCustomThresholds(45.0, -25.0, 120.0, 95.0, 10.0);
 
         // Act
@@ -275,7 +275,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Singapore", CountryCode.SG);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         // 95% is above default threshold of 90%
@@ -301,7 +301,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Phoenix", CountryCode.US);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         // 15% is below default threshold of 20%
@@ -326,7 +326,7 @@ public class MonitoredLocationTests
     {
         // Arrange
         var location = CreateLocation("Mumbai", CountryCode.IN);
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, UtcNow);
         _ = monitoredLocation.PopDomainEvents(); // Clear creation event
 
         // 98% is more than 5% above default threshold of 90% = Critical

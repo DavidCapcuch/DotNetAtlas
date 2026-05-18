@@ -181,7 +181,7 @@ public class PurchaseSubscriptionCommandHandlerTests : BaseIntegrationTest
 
     private async Task<AlertSubscriber> SetupPersistedFreeAlertSubscriberAsync(Guid userId)
     {
-        var subscriber = AlertSubscriber.CreateFree(userId);
+        var subscriber = AlertSubscriber.CreateFree(userId, TimeProvider.System.GetUtcNow());
         subscriber.PopDomainEvents(); // Don't dispatch creation events
 
         WeatherDbContext.AlertSubscribers.Add(subscriber);

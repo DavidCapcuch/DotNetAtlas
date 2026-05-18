@@ -613,7 +613,7 @@ public class SubscribeForLocationAlertsHubTests : BaseApiTest
     private async Task<MonitoredLocation> SetupPersistedMonitoredLocationAsync(string city, CountryCode countryCode)
     {
         var location = Location.Create(city, countryCode).Value;
-        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location);
+        var monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(location, TimeProvider.System.GetUtcNow());
         monitoredLocation.PopDomainEvents(); // Don't dispatch creation event
 
         WeatherDbContext.MonitoredLocations.Add(monitoredLocation);

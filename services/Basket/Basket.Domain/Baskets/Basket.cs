@@ -113,7 +113,7 @@ public sealed class Basket : AggregateRoot<Guid>
             LastModifiedAtUtc = utcNow,
         };
 
-        basket.AddDomainEvent(new BasketCreatedDomainEvent { UserId = userId });
+        basket.AddDomainEvent(new BasketCreatedDomainEvent { OccurredOnUtc = utcNow, UserId = userId });
         return basket;
     }
 
@@ -214,6 +214,7 @@ public sealed class Basket : AggregateRoot<Guid>
         Touch(utcNow);
         AddDomainEvent(new ItemAddedToBasketDomainEvent
         {
+            OccurredOnUtc = utcNow,
             UserId = Id,
             ProductId = productId,
             Quantity = quantity,
@@ -240,6 +241,7 @@ public sealed class Basket : AggregateRoot<Guid>
         Touch(utcNow);
         AddDomainEvent(new ItemRemovedFromBasketDomainEvent
         {
+            OccurredOnUtc = utcNow,
             UserId = Id,
             ProductId = productId,
         });
@@ -275,6 +277,7 @@ public sealed class Basket : AggregateRoot<Guid>
         Touch(utcNow);
         AddDomainEvent(new ItemQuantityChangedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             UserId = Id,
             ProductId = productId,
             OldQuantity = existing.Quantity,
@@ -345,6 +348,7 @@ public sealed class Basket : AggregateRoot<Guid>
         Touch(utcNow);
         AddDomainEvent(new BasketPricesRefreshedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             UserId = Id,
             Changes = changes,
         });
@@ -365,7 +369,7 @@ public sealed class Basket : AggregateRoot<Guid>
 
         _items.Clear();
         Touch(utcNow);
-        AddDomainEvent(new BasketClearedDomainEvent { UserId = Id });
+        AddDomainEvent(new BasketClearedDomainEvent { OccurredOnUtc = utcNow, UserId = Id });
     }
 
     /// <summary>
@@ -413,6 +417,7 @@ public sealed class Basket : AggregateRoot<Guid>
         Touch(utcNow);
         AddDomainEvent(new BasketCheckedOutDomainEvent
         {
+            OccurredOnUtc = utcNow,
             UserId = Id,
             CorrelationId = correlationId,
             Snapshot = snapshot,

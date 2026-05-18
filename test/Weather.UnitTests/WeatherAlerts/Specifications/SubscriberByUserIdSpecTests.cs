@@ -14,7 +14,7 @@ public class SubscriberByUserIdSpecTests
     {
         // Arrange
         var targetUserId = Guid.CreateVersion7();
-        var targetAlertSubscriber = AlertSubscriber.CreateFree(targetUserId);
+        var targetAlertSubscriber = AlertSubscriber.CreateFree(targetUserId, UtcNow);
         var otherAlertSubscriber1 = AlertSubscriber.CreateWithPaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Pro, 30, UtcNow);
         var otherAlertSubscriber2 = AlertSubscriber.CreateWithPaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Ultra, 30, UtcNow);
 
@@ -45,7 +45,7 @@ public class SubscriberByUserIdSpecTests
     public void WhenNoMatchingUserId_ShouldReturnEmpty()
     {
         // Arrange
-        var alertSubscriber1 = AlertSubscriber.CreateFree(Guid.CreateVersion7());
+        var alertSubscriber1 = AlertSubscriber.CreateFree(Guid.CreateVersion7(), UtcNow);
         var alertSubscriber2 = AlertSubscriber.CreateWithPaidSubscription(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), SubscriptionTier.Pro, 30, UtcNow);
 
         var alertSubscribers = new List<AlertSubscriber>

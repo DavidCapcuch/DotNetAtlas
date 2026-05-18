@@ -269,7 +269,7 @@ public class ProcessExpiredSubscriptionsCommandHandlerTests : BaseIntegrationTes
         // Add location subscriptions
         for (var i = 0; i < subscriptionCount; i++)
         {
-            subscriber.SubscribeToMonitoredLocation(Guid.CreateVersion7());
+            subscriber.SubscribeToMonitoredLocation(Guid.CreateVersion7(), createdAtUtc);
         }
 
         subscriber.PopDomainEvents(); // Don't dispatch creation events
@@ -282,7 +282,7 @@ public class ProcessExpiredSubscriptionsCommandHandlerTests : BaseIntegrationTes
 
     private async Task<AlertSubscriber> SetupPersistedFreeAlertSubscriberAsync(Guid userId)
     {
-        var subscriber = AlertSubscriber.CreateFree(userId);
+        var subscriber = AlertSubscriber.CreateFree(userId, TimeProvider.System.GetUtcNow());
         subscriber.PopDomainEvents(); // Don't dispatch creation events
 
         WeatherDbContext.AlertSubscribers.Add(subscriber);

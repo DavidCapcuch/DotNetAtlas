@@ -59,24 +59,29 @@ public sealed class
     private readonly IWeatherAlertBroadcaster _weatherAlertBroadcaster;
     private readonly LocationFactory _locationFactory;
     private readonly ILogger<SubscribeForLocationAlertsCommandHandler> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public SubscribeForLocationAlertsCommandHandler(
         IFakeWeatherDataGenerationJobScheduler fakeWeatherDataGenerationJobScheduler,
         IWeatherDbContext weatherDbContext,
         IWeatherAlertBroadcaster weatherAlertBroadcaster,
         LocationFactory locationFactory,
-        ILogger<SubscribeForLocationAlertsCommandHandler> logger)
+        ILogger<SubscribeForLocationAlertsCommandHandler> logger,
+        TimeProvider timeProvider)
     {
         _fakeWeatherDataGenerationJobScheduler = fakeWeatherDataGenerationJobScheduler;
         _weatherDbContext = weatherDbContext;
         _weatherAlertBroadcaster = weatherAlertBroadcaster;
         _locationFactory = locationFactory;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result> HandleAsync(SubscribeForLocationAlertsCommand command, CancellationToken ct)
     {
         SetTraceTags(command);
+
+        var utcNow = _timeProvider.GetUtcNow();
 
         var monitoredLocation = await _weatherDbContext.MonitoredLocations
             .Include(ml => ml.Location)
@@ -92,7 +97,7 @@ public sealed class
                 return Result.Fail(locationResult.Errors);
             }
 
-            monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(locationResult.Value);
+            monitoredLocation = MonitoredLocation.CreateWithDefaultThresholds(locationResult.Value, utcNow);
             _weatherDbContext.MonitoredLocations.Add(monitoredLocation);
         }
 
@@ -112,11 +117,11 @@ public sealed class
 
             if (subscriber is null)
             {
-                subscriber = AlertSubscriber.CreateFree(userId);
+                subscriber = AlertSubscriber.CreateFree(userId, utcNow);
                 _weatherDbContext.AlertSubscribers.Add(subscriber);
             }
 
-            var subscribeResult = subscriber.SubscribeToMonitoredLocation(monitoredLocation.Id);
+            var subscribeResult = subscriber.SubscribeToMonitoredLocation(monitoredLocation.Id, utcNow);
             if (subscribeResult.IsFailed)
             {
                 return Result.Fail(subscribeResult.Errors);

@@ -52,6 +52,7 @@ public sealed class MonitoredLocation : AggregateRoot<Guid>, IAuditableEntity
     /// Creates a new monitored location with default thresholds.
     /// </summary>
     /// <param name="location">The geographic location to monitor.</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A new monitored location with default alert thresholds.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -59,9 +60,9 @@ public sealed class MonitoredLocation : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="MonitoredLocationCreatedDomainEvent"/>: Always raised when created.</item>
     /// </list>
     /// </remarks>
-    public static MonitoredLocation CreateWithDefaultThresholds(Location location)
+    public static MonitoredLocation CreateWithDefaultThresholds(Location location, DateTimeOffset utcNow)
     {
-        return Create(location, AlertThresholds.CreateDefault());
+        return Create(location, AlertThresholds.CreateDefault(), utcNow);
     }
 
     /// <summary>
@@ -69,6 +70,7 @@ public sealed class MonitoredLocation : AggregateRoot<Guid>, IAuditableEntity
     /// </summary>
     /// <param name="location">The geographic location to monitor.</param>
     /// <param name="thresholds">Custom alert thresholds for this location.</param>
+    /// <param name="utcNow">Current UTC time stamped on the raised domain event (ADR-0015).</param>
     /// <returns>A new monitored location.</returns>
     /// <remarks>
     /// Possible raised events:
@@ -76,7 +78,7 @@ public sealed class MonitoredLocation : AggregateRoot<Guid>, IAuditableEntity
     /// <item><see cref="MonitoredLocationCreatedDomainEvent"/>: Always raised when created.</item>
     /// </list>
     /// </remarks>
-    public static MonitoredLocation Create(Location location, AlertThresholds thresholds)
+    public static MonitoredLocation Create(Location location, AlertThresholds thresholds, DateTimeOffset utcNow)
     {
         var monitoredLocation = new MonitoredLocation
         {
@@ -88,6 +90,7 @@ public sealed class MonitoredLocation : AggregateRoot<Guid>, IAuditableEntity
 
         monitoredLocation.AddDomainEvent(new MonitoredLocationCreatedDomainEvent
         {
+            OccurredOnUtc = utcNow,
             MonitoredLocationId = monitoredLocation.Id,
             City = location.City,
             CountryCode = location.CountryCode
@@ -124,6 +127,7 @@ public sealed class MonitoredLocation : AggregateRoot<Guid>, IAuditableEntity
         {
             AddDomainEvent(new WeatherAlertIssuedDomainEvent
             {
+                OccurredOnUtc = utcNow,
                 MonitoredLocationId = Id,
                 City = Location.City,
                 CountryCode = Location.CountryCode,

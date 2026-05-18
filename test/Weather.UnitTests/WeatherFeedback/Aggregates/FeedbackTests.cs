@@ -2,6 +2,7 @@ using FluentResults.Extensions.FluentAssertions;
 using Platform.SharedKernel.Errors;
 using Weather.Domain.Feedback.Events;
 using Weather.Domain.Feedback.ValueObjects;
+using Weather.UnitTests.Common;
 
 namespace Weather.UnitTests.WeatherFeedback.Aggregates;
 
@@ -16,7 +17,7 @@ public class FeedbackTests
         var userId = Guid.CreateVersion7();
 
         // Act
-        var feedbackResult = Domain.Feedback.Feedback.Create(feedbackText, rating, userId);
+        var feedbackResult = Domain.Feedback.Feedback.Create(feedbackText, rating, userId, TestInstants.FixedNow);
 
         // Assert
         using (new AssertionScope())
@@ -38,7 +39,7 @@ public class FeedbackTests
         var userId = Guid.CreateVersion7();
 
         // Act
-        var feedbackResult = Domain.Feedback.Feedback.Create(feedbackText, rating, userId);
+        var feedbackResult = Domain.Feedback.Feedback.Create(feedbackText, rating, userId, TestInstants.FixedNow);
 
         // Assert
         var domainEvents = feedbackResult.Value.PopDomainEvents();
@@ -63,14 +64,14 @@ public class FeedbackTests
         var originalText = FeedbackText.Create("Original feedback").Value;
         var originalRating = FeedbackRating.Create(3).Value;
         var userId = Guid.CreateVersion7();
-        var feedback = Domain.Feedback.Feedback.Create(originalText, originalRating, userId).Value;
+        var feedback = Domain.Feedback.Feedback.Create(originalText, originalRating, userId, TestInstants.FixedNow).Value;
         _ = feedback.PopDomainEvents();
 
         var newText = FeedbackText.Create("Updated feedback").Value;
         var newRating = FeedbackRating.Create(5).Value;
 
         // Act
-        var changeResult = feedback.ChangeFeedback(newText, newRating, userId);
+        var changeResult = feedback.ChangeFeedback(newText, newRating, userId, TestInstants.FixedNow);
 
         // Assert
         using (new AssertionScope())
@@ -89,13 +90,13 @@ public class FeedbackTests
         var rating = FeedbackRating.Create(4).Value;
         var creatorUserId = Guid.CreateVersion7();
         var differentUserId = Guid.CreateVersion7();
-        var feedback = Domain.Feedback.Feedback.Create(feedbackText, rating, creatorUserId).Value;
+        var feedback = Domain.Feedback.Feedback.Create(feedbackText, rating, creatorUserId, TestInstants.FixedNow).Value;
 
         var newText = FeedbackText.Create("Hacked feedback").Value;
         var newRating = FeedbackRating.Create(1).Value;
 
         // Act
-        var changeResult = feedback.ChangeFeedback(newText, newRating, differentUserId);
+        var changeResult = feedback.ChangeFeedback(newText, newRating, differentUserId, TestInstants.FixedNow);
 
         // Assert
         using (new AssertionScope())
@@ -114,14 +115,14 @@ public class FeedbackTests
         var originalText = FeedbackText.Create("Original").Value;
         var originalRating = FeedbackRating.Create(2).Value;
         var userId = Guid.CreateVersion7();
-        var feedback = Domain.Feedback.Feedback.Create(originalText, originalRating, userId).Value;
+        var feedback = Domain.Feedback.Feedback.Create(originalText, originalRating, userId, TestInstants.FixedNow).Value;
         _ = feedback.PopDomainEvents(); // Clear the created event
 
         var newText = FeedbackText.Create("New feedback").Value;
         var newRating = FeedbackRating.Create(4).Value;
 
         // Act
-        var changeResult = feedback.ChangeFeedback(newText, newRating, userId);
+        var changeResult = feedback.ChangeFeedback(newText, newRating, userId, TestInstants.FixedNow);
 
         // Assert
         using (new AssertionScope())
@@ -147,11 +148,11 @@ public class FeedbackTests
         var feedbackText = FeedbackText.Create("Same feedback").Value;
         var rating = FeedbackRating.Create(3).Value;
         var userId = Guid.CreateVersion7();
-        var feedback = Domain.Feedback.Feedback.Create(feedbackText, rating, userId).Value;
+        var feedback = Domain.Feedback.Feedback.Create(feedbackText, rating, userId, TestInstants.FixedNow).Value;
         _ = feedback.PopDomainEvents(); // Clear the created event
 
         // Act
-        var changeResult = feedback.ChangeFeedback(feedbackText, rating, userId);
+        var changeResult = feedback.ChangeFeedback(feedbackText, rating, userId, TestInstants.FixedNow);
 
         // Assert
         using (new AssertionScope())

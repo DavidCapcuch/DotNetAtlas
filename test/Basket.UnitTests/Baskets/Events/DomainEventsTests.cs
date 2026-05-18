@@ -16,13 +16,16 @@ public class DomainEventsTests
     [Fact]
     public void BasketCreated_IsSealedRecordAndInheritsDomainEvent()
     {
-        var e = new BasketCreatedDomainEvent { UserId = Guid.CreateVersion7() };
+        var e = new BasketCreatedDomainEvent
+        {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
+            UserId = Guid.CreateVersion7(),
+        };
 
         using (new AssertionScope())
         {
             e.Should().BeAssignableTo<DomainEvent>();
             typeof(BasketCreatedDomainEvent).IsSealed.Should().BeTrue();
-            e.OccurredOnUtc.Should().NotBe(default);
         }
     }
 
@@ -33,6 +36,7 @@ public class DomainEventsTests
 
         var e = new ItemAddedToBasketDomainEvent
         {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             UserId = Guid.CreateVersion7(),
             ProductId = Guid.CreateVersion7(),
             Quantity = 2,
@@ -53,7 +57,12 @@ public class DomainEventsTests
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
 
-        var e = new ItemRemovedFromBasketDomainEvent { UserId = userId, ProductId = productId };
+        var e = new ItemRemovedFromBasketDomainEvent
+        {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
+            UserId = userId,
+            ProductId = productId,
+        };
 
         using (new AssertionScope())
         {
@@ -68,6 +77,7 @@ public class DomainEventsTests
     {
         var e = new ItemQuantityChangedDomainEvent
         {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             UserId = Guid.CreateVersion7(),
             ProductId = Guid.CreateVersion7(),
             OldQuantity = 1,
@@ -93,6 +103,7 @@ public class DomainEventsTests
 
         var e = new BasketPricesRefreshedDomainEvent
         {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             UserId = Guid.CreateVersion7(),
             Changes = [change],
         };
@@ -107,7 +118,11 @@ public class DomainEventsTests
     [Fact]
     public void BasketCleared_IsSealedRecord()
     {
-        var e = new BasketClearedDomainEvent { UserId = Guid.CreateVersion7() };
+        var e = new BasketClearedDomainEvent
+        {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
+            UserId = Guid.CreateVersion7(),
+        };
 
         using (new AssertionScope())
         {
@@ -128,6 +143,7 @@ public class DomainEventsTests
 
         var e = new BasketCheckedOutDomainEvent
         {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             UserId = Guid.CreateVersion7(),
             CorrelationId = correlationId,
             Snapshot = snapshot,
