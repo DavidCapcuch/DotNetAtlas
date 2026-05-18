@@ -20,11 +20,11 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
 
         RuleFor(x => x.Name)
             .NotEmpty()
-            .MaximumLength(200);
+            .MaximumRuneLength(200);
 
         RuleFor(x => x.Description)
             .NotNull()
-            .MaximumLength(4000)
+            .MaximumRuneLength(4000)
             .Must(value => !HtmlHeuristic.ContainsMarkup(value))
             .WithMessage("Description must not contain HTML markup.");
 
@@ -32,7 +32,7 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
 
         RuleFor(x => x.Brand)
             .NotEmpty()
-            .MaximumLength(100);
+            .MaximumRuneLength(100);
 
         RuleFor(x => x.Price)
             .NotNull()
@@ -69,7 +69,7 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
                 .WithMessage("Image URL must be an absolute http or https URI.");
             img.RuleFor(i => i.AltText)
                 .NotEmpty()
-                .MaximumLength(200);
+                .MaximumRuneLength(200);
             img.RuleFor(i => i.DisplayOrder).GreaterThanOrEqualTo(0);
         });
 

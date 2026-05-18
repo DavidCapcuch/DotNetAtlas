@@ -11,7 +11,7 @@ public class DescribeProductCommandValidator : AbstractValidator<DescribeProduct
 
         RuleFor(x => x.NewDescription)
             .NotNull()
-            .MaximumLength(4000)
+            .MaximumRuneLength(4000)
             .Must(value => !HtmlHeuristic.ContainsMarkup(value))
             .WithMessage("Description must not contain HTML markup.");
     }
