@@ -14,10 +14,21 @@ namespace Payments.Application.Transactions.AuthorizePayment;
 
 /// <summary>
 /// Handles <see cref="AuthorizePaymentCommand"/> — the saga's entry point into the Payments
-/// BC. Loads (or creates) the aggregate, calls the gateway, transitions the aggregate, and
-/// flushes outbox rows + aggregate state in a single transaction.
+/// BC. Loads (or creates) the aggregate, persists it in <c>Requested</c>, calls the gateway,
+/// transitions the aggregate to <c>Authorized</c>/<c>Failed</c>, then flushes outbox rows in a
+/// second SaveChanges (H-3 closeout).
 /// </summary>
 /// <remarks>
+/// <para>
+/// <b>H-3 — double-charge protection.</b> A naive single-SaveChanges flow has a window where
+/// the gateway succeeds but SaveChanges fails (DB blip, deadlock, concurrency violation); the
+/// inbox-dedup row is rolled back, saga retries re-enter the handler via the
+/// <c>existing is null</c> branch, and the gateway gets called again. Splitting into two
+/// SaveChanges sites — first the aggregate-created Requested state (durable inbox-dedup
+/// anchor), then the post-gateway transition — closes that window. Combined with
+/// <c>IPaymentGateway.AuthorizeAsync(tx, idempotencyKey, ct)</c> (H-4) the gateway-side has
+/// an independent dedup safety net for the rare cases where the first-save fails mid-flight.
+/// </para>
 /// <para>
 /// Failure semantics:
 /// <list type="bullet">
@@ -88,6 +99,19 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
 
             tx = createResult.Value;
             _repository.Add(tx);
+
+            // H-3: persist the Requested aggregate + inbox-dedup row BEFORE the gateway call.
+            // PaymentRequestedDomainEvent has no Payments-side outbox publisher by design (the
+            // saga emits the wire event from its own outbox), so this commit only writes the
+            // aggregate row and the inbox-dedup row. If SaveChanges below fails, saga retry
+            // re-enters via the `existing is null` branch and re-creates — but the gateway has
+            // not been touched yet, so no double-authorize is possible.
+            foreach (var domainEvent in tx.PopDomainEvents())
+            {
+                await _dispatcher.DispatchAsync(domainEvent, ct);
+            }
+
+            await _outbox.SaveChangesAsync(ct);
         }
         else
         {
