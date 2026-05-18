@@ -72,7 +72,24 @@ end";
             return Result.Ok<BasketAggregate?>(null);
         }
 
-        return Result.Ok<BasketAggregate?>(BasketStateMapper.ToDomain(maybe.Value));
+        try
+        {
+            return Result.Ok<BasketAggregate?>(BasketStateMapper.ToDomain(maybe.Value));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The mapper calls CurrencyCode.FromName(..., ignoreCase: false) which
+            // throws SmartEnumNotFoundException if the persisted currency code is no
+            // longer recognised (e.g. the SmartEnum entry was removed after a user's
+            // basket was persisted). Per IBasketRepository.GetByUserIdAsync's contract,
+            // transport / serialization failures surface as Result.Fail — not as an
+            // unhandled exception bubbling 5xx out of every read for that user.
+            _logger.LogError(
+                ex,
+                "Failed to rehydrate basket for user {UserId} from Redis payload; treating as corruption.",
+                userId);
+            return Result.Fail<BasketAggregate?>(BasketErrors.Corruption(userId));
+        }
     }
 
     public async Task<Result> SaveAsync(BasketAggregate basket, int expectedVersion, CancellationToken ct)

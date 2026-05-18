@@ -51,4 +51,16 @@ public static class BasketErrors
             propertyName: "ProductId",
             errorMessage: $"Product '{productId}' is not in the basket.",
             errorCode: "Basket.ItemNotFound");
+
+    /// <summary>
+    /// Raised when a persisted basket state cannot be rehydrated — e.g. its stored
+    /// currency code is no longer present in the <c>CurrencyCode</c> SmartEnum.
+    /// Treated as a transient infrastructure-class failure (503 at the API
+    /// boundary) so callers can retry or fall back rather than surface a 5xx.
+    /// </summary>
+    public static ValidationError Corruption(Guid userId)
+        => new ValidationError(
+            propertyName: "Basket",
+            errorMessage: $"Stored basket state for user '{userId}' could not be rehydrated.",
+            errorCode: "Basket.Corruption");
 }
