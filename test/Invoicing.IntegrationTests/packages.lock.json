@@ -2079,8 +2079,8 @@
       },
       "QuestPDF": {
         "type": "Transitive",
-        "resolved": "2025.1.0",
-        "contentHash": "9dXmOqAV6HhECwneUpG9k11K0JueOmhkv6jWe1cZPVtICeb9uK2bZK4MMPo827FlHN2Tg6ieusAAennetru0aQ=="
+        "resolved": "2026.5.0",
+        "contentHash": "QddELSgpJ7YFrNaqlqUik/OOhK2/yVDqdqGjtdH+V3nxml2cvjUorFp2yiK8xnTLLvR139SXpVt3G/0oVCynig=="
       },
       "RamlToOpenApiConverter.SourceOnly": {
         "type": "Transitive",
@@ -2675,7 +2675,7 @@
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
           "Platform.ServiceDefaults": "[1.0.0, )",
-          "QuestPDF": "[2025.1.0, )"
+          "QuestPDF": "[2026.5.0, )"
         }
       },
       "platform.avro.universalserdes": {
@@ -2869,8 +2869,8 @@
       },
       "QuestPDF": {
         "type": "Transitive",
-        "resolved": "2025.1.0",
-        "contentHash": "9dXmOqAV6HhECwneUpG9k11K0JueOmhkv6jWe1cZPVtICeb9uK2bZK4MMPo827FlHN2Tg6ieusAAennetru0aQ=="
+        "resolved": "2026.5.0",
+        "contentHash": "QddELSgpJ7YFrNaqlqUik/OOhK2/yVDqdqGjtdH+V3nxml2cvjUorFp2yiK8xnTLLvR139SXpVt3G/0oVCynig=="
       },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
@@ -2917,8 +2917,8 @@
       },
       "QuestPDF": {
         "type": "Transitive",
-        "resolved": "2025.1.0",
-        "contentHash": "9dXmOqAV6HhECwneUpG9k11K0JueOmhkv6jWe1cZPVtICeb9uK2bZK4MMPo827FlHN2Tg6ieusAAennetru0aQ=="
+        "resolved": "2026.5.0",
+        "contentHash": "QddELSgpJ7YFrNaqlqUik/OOhK2/yVDqdqGjtdH+V3nxml2cvjUorFp2yiK8xnTLLvR139SXpVt3G/0oVCynig=="
       },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",

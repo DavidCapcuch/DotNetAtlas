@@ -254,9 +254,9 @@
       },
       "QuestPDF": {
         "type": "Direct",
-        "requested": "[2025.1.0, )",
-        "resolved": "2025.1.0",
-        "contentHash": "9dXmOqAV6HhECwneUpG9k11K0JueOmhkv6jWe1cZPVtICeb9uK2bZK4MMPo827FlHN2Tg6ieusAAennetru0aQ=="
+        "requested": "[2026.5.0, )",
+        "resolved": "2026.5.0",
+        "contentHash": "QddELSgpJ7YFrNaqlqUik/OOhK2/yVDqdqGjtdH+V3nxml2cvjUorFp2yiK8xnTLLvR139SXpVt3G/0oVCynig=="
       },
       "StyleCop.Analyzers": {
         "type": "Direct",
@@ -1589,9 +1589,9 @@
     "net10.0/linux-x64": {
       "QuestPDF": {
         "type": "Direct",
-        "requested": "[2025.1.0, )",
-        "resolved": "2025.1.0",
-        "contentHash": "9dXmOqAV6HhECwneUpG9k11K0JueOmhkv6jWe1cZPVtICeb9uK2bZK4MMPo827FlHN2Tg6ieusAAennetru0aQ=="
+        "requested": "[2026.5.0, )",
+        "resolved": "2026.5.0",
+        "contentHash": "QddELSgpJ7YFrNaqlqUik/OOhK2/yVDqdqGjtdH+V3nxml2cvjUorFp2yiK8xnTLLvR139SXpVt3G/0oVCynig=="
       },
       "librdkafka.redist": {
         "type": "Transitive",
@@ -1628,9 +1628,9 @@
     "net10.0/win-x64": {
       "QuestPDF": {
         "type": "Direct",
-        "requested": "[2025.1.0, )",
-        "resolved": "2025.1.0",
-        "contentHash": "9dXmOqAV6HhECwneUpG9k11K0JueOmhkv6jWe1cZPVtICeb9uK2bZK4MMPo827FlHN2Tg6ieusAAennetru0aQ=="
+        "requested": "[2026.5.0, )",
+        "resolved": "2026.5.0",
+        "contentHash": "QddELSgpJ7YFrNaqlqUik/OOhK2/yVDqdqGjtdH+V3nxml2cvjUorFp2yiK8xnTLLvR139SXpVt3G/0oVCynig=="
       },
       "librdkafka.redist": {
         "type": "Transitive",
