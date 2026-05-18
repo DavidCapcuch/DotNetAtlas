@@ -18,7 +18,7 @@ namespace Catalog.UnitTests.Common;
 /// Transactional semantics, raw SQL, and JSON columns are NOT emulated — that's M4 integration
 /// territory with a real Postgres Testcontainers fixture.
 /// </summary>
-public sealed class FakeCatalogDbContext : DbContext, ICatalogDbContext
+public class FakeCatalogDbContext : DbContext, ICatalogDbContext
 {
     public FakeCatalogDbContext(DbContextOptions<FakeCatalogDbContext> options)
         : base(options)
