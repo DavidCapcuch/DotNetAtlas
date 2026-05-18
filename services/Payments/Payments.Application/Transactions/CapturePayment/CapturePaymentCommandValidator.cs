@@ -8,5 +8,6 @@ internal sealed class CapturePaymentCommandValidator : AbstractValidator<Capture
     {
         RuleFor(c => c.PaymentId).NotEmpty();
         RuleFor(c => c.CorrelationId).NotEmpty();
+        RuleFor(c => c.AuthorizationId).NotEmpty();
     }
 }

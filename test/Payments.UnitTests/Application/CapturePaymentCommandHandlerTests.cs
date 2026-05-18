@@ -30,17 +30,18 @@ public class CapturePaymentCommandHandlerTests
     private CapturePaymentCommandHandler BuildHandler() =>
         new(_repository, _gateway, _outbox, _dispatcher, _timeProvider, NullLogger<CapturePaymentCommandHandler>.Instance);
 
-    private static CapturePaymentCommand BuildCommand(Guid? paymentId = null) => new()
+    private static CapturePaymentCommand BuildCommand(Guid? paymentId = null, string? authorizationId = null) => new()
     {
         PaymentId = paymentId ?? Guid.CreateVersion7(),
         CorrelationId = Guid.CreateVersion7(),
+        AuthorizationId = authorizationId ?? PaymentTransactionFactory.DefaultGatewayTransactionId,
     };
 
     [Fact]
     public async Task Handle_AuthorizedAggregate_HappyPath_CapturesAndCompletes()
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
-        var command = BuildCommand(existing.Id);
+        var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new CaptureResponse(PaymentTransactionFactory.DefaultGatewayTransactionId, new GatewayResponseCode("ok", "Captured"))));
@@ -61,7 +62,7 @@ public class CapturePaymentCommandHandlerTests
     public async Task Handle_GatewayDeclineOnCapture_TransitionsToFailedAndReturnsOk()
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
-        var command = BuildCommand(existing.Id);
+        var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new GatewayDeclinedError("declined", "fraud_suspected")));
@@ -82,7 +83,7 @@ public class CapturePaymentCommandHandlerTests
     public async Task Handle_GatewayInfrastructureError_ReturnsGatewayUnavailable()
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
-        var command = BuildCommand(existing.Id);
+        var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
@@ -117,7 +118,7 @@ public class CapturePaymentCommandHandlerTests
     public async Task Handle_AlreadyCompleted_IsIdempotentNoOp()
     {
         var existing = PaymentTransactionFactory.Completed(_timeProvider.GetUtcNow());
-        var command = BuildCommand(existing.Id);
+        var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -137,7 +138,7 @@ public class CapturePaymentCommandHandlerTests
         // the FSM source-state guard BEFORE the gateway is contacted — a real PSP would error
         // (or worse, silently re-process) on a Capture against a voided authorization.
         var existing = PaymentTransactionFactory.Voided(_timeProvider.GetUtcNow());
-        var command = BuildCommand(existing.Id);
+        var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -146,5 +147,22 @@ public class CapturePaymentCommandHandlerTests
         thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
         await _gateway.DidNotReceive().CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>());
         existing.Status.Should().Be(PaymentStatus.Voided);
+    }
+
+    [Fact]
+    public async Task Handle_AuthorizationIdMismatch_ThrowsAndDoesNotCallGateway()
+    {
+        // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
+        // is bug-class — must throw before the gateway is touched.
+        var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
+        var command = BuildCommand(existing.Id, authorizationId: "wrong-token");
+        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+
+        var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+        thrown.Which.ErrorCode.Should().Be("Payments.AuthorizationIdMismatch");
+        await _gateway.DidNotReceive().CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>());
+        existing.Status.Should().Be(PaymentStatus.Authorized);
     }
 }

@@ -109,7 +109,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         var captureHandler = scope.ServiceProvider.GetRequiredService<ICommandHandler<CapturePaymentCommand>>();
 
         var captureResult = await captureHandler.HandleAsync(
-            new CapturePaymentCommand { PaymentId = paymentId, CorrelationId = correlationId },
+            new CapturePaymentCommand { PaymentId = paymentId, CorrelationId = correlationId, AuthorizationId = GatewayTransactionId },
             TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
