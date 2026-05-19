@@ -16,17 +16,19 @@ namespace Catalog.Application.Products.UpdateProductPrice;
 public sealed class UpdateProductPriceCommandHandler : ICommandHandler<UpdateProductPriceCommand>
 {
     private readonly ICatalogDbContext _db;
-    private readonly ILogger<UpdateProductPriceCommandHandler> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<UpdateProductPriceCommandHandler> _logger;
 
+    // CAT-RV-L01 / #208 (Wave-1 closeout): ctor parameter order realigned to the M4.3
+    // convention `(db, TimeProvider, ILogger<T>)` used by every other Catalog command handler.
     public UpdateProductPriceCommandHandler(
         ICatalogDbContext db,
-        ILogger<UpdateProductPriceCommandHandler> logger,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<UpdateProductPriceCommandHandler> logger)
     {
         _db = db;
-        _logger = logger;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public async Task<Result> HandleAsync(UpdateProductPriceCommand command, CancellationToken ct)

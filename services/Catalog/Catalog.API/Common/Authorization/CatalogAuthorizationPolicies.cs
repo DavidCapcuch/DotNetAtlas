@@ -27,7 +27,10 @@ internal static class CatalogAuthorizationPolicies
     public const string ReadScope = "catalog.read";
     public const string WriteScope = "catalog.write";
 
-    private const string ScopeClaimType = "scope";
+    // CAT-SEC-016 / #212 (Wave-1 closeout): Keycloak emits the claim as "scope" (RFC 6749);
+    // Auth0 and some other IdPs emit it as "scp". Accept either claim name so the policies
+    // work uniformly when the upstream IdP swaps.
+    private static readonly string[] ScopeClaimTypes = ["scope", "scp"];
 
     public static AuthorizationOptions AddCatalogScopePolicies(this AuthorizationOptions options)
     {
@@ -44,7 +47,7 @@ internal static class CatalogAuthorizationPolicies
 
     private static bool HasAnyScope(AuthorizationHandlerContext ctx, params string[] required)
     {
-        var scopeClaims = ctx.User.FindAll(ScopeClaimType);
+        var scopeClaims = ScopeClaimTypes.SelectMany(ctx.User.FindAll);
         foreach (var claim in scopeClaims)
         {
             foreach (var scope in claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))

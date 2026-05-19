@@ -51,6 +51,39 @@ public class ProductCreatedProjectionHandlerTests
         }
     }
 
+    // CAT-RV-L01 (Wave-1 closeout): category slug segments containing hyphens between words
+    // ("electronics-toys") must title-case each space-delimited token, producing
+    // "Electronics Toys" rather than the broken "Electronics-toys".
+    [Fact]
+    public async Task Given_HyphenatedCategorySlug_When_Handling_Then_BreadcrumbSplitsAndTitleCasesTokens()
+    {
+        await using var db = FakeCatalogDbContext.Create();
+        var category = CatalogFactories.RootCategory("Electronics Toys");
+        db.Categories.Add(category);
+        var product = CatalogFactories.DraftProduct(category);
+        db.Products.Add(product);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var handler = new ProductCreatedProjectionHandler(
+            db, NullLogger<ProductCreatedProjectionHandler>.Instance);
+        var domainEvent = new ProductCreatedDomainEvent
+        {
+            OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
+            ProductId = product.Id,
+            Sku = product.Sku,
+            Name = product.Name,
+            CategoryId = product.CategoryId,
+            Price = product.Price,
+        };
+
+        await handler.Handle(domainEvent, TestContext.Current.CancellationToken);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var row = await db.ProductSearchView.FirstAsync(
+            r => r.ProductId == product.Id, TestContext.Current.CancellationToken);
+        row.CategoryBreadcrumb.Should().Be("Electronics Toys");
+    }
+
     [Fact]
     public async Task Given_MissingProduct_When_Handling_Then_ThrowsDataIntegrityException()
     {
