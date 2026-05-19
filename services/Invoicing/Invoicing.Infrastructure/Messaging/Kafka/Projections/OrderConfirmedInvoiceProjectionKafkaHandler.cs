@@ -64,9 +64,12 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         var now = _timeProvider.GetUtcNow();
         var orderJson = SerializePayload(message);
 
-        using var correlationScope = _logger.BeginScope(new Dictionary<string, object?>
+        // ADR-0008 — log/trace correlation flows from the Kafka header via
+        // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
+        // "CorrelationId" into this BeginScope; the inner-most scope would
+        // shadow the middleware-pushed (header-authoritative) value.
+        using var localScope = _logger.BeginScope(new Dictionary<string, object?>
         {
-            ["CorrelationId"] = message.CorrelationId,
             ["OrderId"] = message.OrderId,
             ["BuyerId"] = message.BuyerId,
         });
