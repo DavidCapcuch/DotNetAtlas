@@ -112,16 +112,31 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
         }
 
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return string.Join(" > ", segments.Select(ToTitleCase));
+        return string.Join(" > ", segments.Select(ToHumanReadableSegment));
     }
 
-    private static string ToTitleCase(string segment)
+    // CAT-RV-L01 (Wave-1 closeout): category slug segments contain hyphens between words
+    // ("electronics-toys"). Title-case each space-delimited token, not just the first
+    // character of the whole segment, so "electronics-toys" -> "Electronics Toys" rather
+    // than "Electronics-toys".
+    private static string ToHumanReadableSegment(string segment)
     {
         if (segment.Length == 0)
         {
             return segment;
         }
 
-        return char.ToUpperInvariant(segment[0]) + segment[1..];
+        var tokens = segment.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", tokens.Select(TitleCaseToken));
+    }
+
+    private static string TitleCaseToken(string token)
+    {
+        if (token.Length == 0)
+        {
+            return token;
+        }
+
+        return char.ToUpperInvariant(token[0]) + token[1..];
     }
 }

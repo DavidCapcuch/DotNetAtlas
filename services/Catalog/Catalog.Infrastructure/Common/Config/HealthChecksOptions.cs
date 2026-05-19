@@ -6,13 +6,6 @@ namespace Catalog.Infrastructure.Common.Config;
 /// Configuration options for Catalog readiness-probe timeouts. Mirrors the platform
 /// reference at
 /// <c>platform/Platform.OutboxRelay.WorkerService/Common/Config/HealthChecksOptions.cs</c>.
-/// Only the timeouts whose underlying <c>.AddXxx</c> registrations accept a
-/// <c>timeout</c> parameter are exposed: <see cref="SelfTimeout"/> for
-/// <c>AddApplicationStatus</c>, <see cref="KafkaTimeout"/> for <c>AddKafka</c>, and
-/// <see cref="RedisTimeout"/> for <c>AddRedis</c>. <c>AddDbContextCheck</c> does not
-/// take a timeout (the EF command timeout governs it instead), and <c>AddUrlGroup</c>
-/// for the Schema Registry uses its own internal HTTP-client timeout — neither is bound
-/// here to avoid silently-ignored config keys.
 /// </summary>
 public sealed class HealthChecksOptions
 {
@@ -29,4 +22,13 @@ public sealed class HealthChecksOptions
     [Required]
     [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
     public required TimeSpan RedisTimeout { get; set; }
+
+    /// <summary>
+    /// HTTP timeout for the Schema-Registry <c>AddUrlGroup</c> probe (Wave-1 closeout I1 /
+    /// #210). Default-cap the per-probe time so a slow SR cannot stall <c>/api/readiness</c>
+    /// past the other probes' combined budget.
+    /// </summary>
+    [Required]
+    [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
+    public required TimeSpan SchemaRegistryTimeout { get; set; }
 }

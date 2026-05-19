@@ -11,6 +11,12 @@ using AvroProductDiscontinuedEvent = Catalog.Products.ProductDiscontinuedEvent;
 
 namespace Catalog.Application.Products.DiscontinueProduct;
 
+/// <summary>
+/// Domain-event handler that translates <see cref="ProductDiscontinuedDomainEvent"/> into
+/// the external <see cref="AvroProductDiscontinuedEvent"/> shape and enqueues it via the
+/// transactional outbox. Runs inside the command's UoW so the outbox row commits with the
+/// aggregate write (CQRS-on-Postgres atomicity per catalog.md § 9).
+/// </summary>
 public sealed class ProductDiscontinuedOutboxPublisher
     : IDomainEventHandler<ProductDiscontinuedDomainEvent>
 {

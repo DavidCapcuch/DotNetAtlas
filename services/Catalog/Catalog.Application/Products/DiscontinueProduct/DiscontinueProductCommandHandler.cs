@@ -39,9 +39,12 @@ public sealed class DiscontinueProductCommandHandler : ICommandHandler<Discontin
 
         await _db.SaveChangesAsync(ct);
 
+        // CAT-RV-L01 / #207 (Wave-1 closeout): the operator-supplied reason is free text and
+        // unlikely-but-possibly contains PII. Keep it out of structured logs; downstream
+        // consumers can read the reason from the outbox-published Avro event if they need it.
         _logger.LogInformation(
-            "Discontinued Product {ProductId} with reason: {Reason}",
-            product.Id, command.Reason);
+            "Discontinued Product {ProductId}",
+            product.Id);
 
         return Result.Ok();
     }

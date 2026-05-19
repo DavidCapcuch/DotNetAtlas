@@ -27,7 +27,7 @@ public class UpdateProductPriceCommandHandlerTests
 
         var clock = new FakeTimeProvider(FixedUtc);
         var handler = new UpdateProductPriceCommandHandler(
-            db, NullLogger<UpdateProductPriceCommandHandler>.Instance, clock);
+            db, clock, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
         // Act
         var result = await handler.HandleAsync(
@@ -56,7 +56,7 @@ public class UpdateProductPriceCommandHandlerTests
     {
         await using var db = FakeCatalogDbContext.Create();
         var handler = new UpdateProductPriceCommandHandler(
-            db, NullLogger<UpdateProductPriceCommandHandler>.Instance, TimeProvider.System);
+            db, TimeProvider.System, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new UpdateProductPriceCommand
@@ -81,7 +81,7 @@ public class UpdateProductPriceCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new UpdateProductPriceCommandHandler(
-            db, NullLogger<UpdateProductPriceCommandHandler>.Instance, TimeProvider.System);
+            db, TimeProvider.System, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new UpdateProductPriceCommand
@@ -107,7 +107,7 @@ public class UpdateProductPriceCommandHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new UpdateProductPriceCommandHandler(
-            db, NullLogger<UpdateProductPriceCommandHandler>.Instance, TimeProvider.System);
+            db, TimeProvider.System, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new UpdateProductPriceCommand

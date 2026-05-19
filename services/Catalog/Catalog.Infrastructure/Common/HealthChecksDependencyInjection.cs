@@ -87,7 +87,8 @@ internal static class HealthChecksDependencyInjection
                 schemaRegistryUri,
                 name: "schema-registry",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy);
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: timeouts.SchemaRegistryTimeout);
 
         return services;
     }
