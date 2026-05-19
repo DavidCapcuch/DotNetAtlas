@@ -64,4 +64,61 @@ public class GetInvoicesByBuyerTests : BaseApiTest
 
         ((int)response.StatusCode).Should().BeOneOf(400, 422);
     }
+
+    [Fact]
+    public async Task WhenAdminPassesBuyerIdQuery_ReturnsThatBuyersInvoices()
+    {
+        // M6 / closeout1: admin override. Admin tooling can list a specific buyer's
+        // invoices by passing ?buyerId={guid}. Mirrors the IsAdmin relaxation that
+        // GetInvoiceById / GetInvoiceByOrderId / GetCreditNoteById already honour.
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var targetInvoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
+        await seed.CreateIssuedInvoiceAsync(TestUsers.OtherBuyerId);
+
+        var (response, payload) = await HttpClientRegistry.AdminClient
+            .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, GetInvoicesByBuyerResponse>(
+                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.BuyerId, Skip = 0, Take = 20 });
+
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            payload.Invoices.Should().OnlyContain(i => i.BuyerId == TestUsers.BuyerId);
+            payload.Invoices.Select(i => i.InvoiceId).Should().Contain(targetInvoice.Id);
+        }
+    }
+
+    [Fact]
+    public async Task WhenNonAdminPassesOtherBuyerIdQuery_ReturnsForbidden()
+    {
+        // Non-admin callers that try to scope to a buyer other than themselves get an
+        // explicit 403 — not a silent fall-through to caller-scope — so misuse by admin
+        // tooling without an admin token surfaces loudly.
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        await seed.CreateIssuedInvoiceAsync(TestUsers.OtherBuyerId);
+
+        var (response, _) = await HttpClientRegistry.BuyerClient
+            .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, ProblemDetails>(
+                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.OtherBuyerId, Skip = 0, Take = 20 });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task WhenNonAdminPassesOwnBuyerIdQuery_ReturnsTheirInvoices()
+    {
+        // A buyer redundantly passing their own buyerId must work — there's no
+        // boundary crossed.
+        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var own = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
+
+        var (response, payload) = await HttpClientRegistry.BuyerClient
+            .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, GetInvoicesByBuyerResponse>(
+                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.BuyerId, Skip = 0, Take = 20 });
+
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            payload.Invoices.Select(i => i.InvoiceId).Should().Contain(own.Id);
+        }
+    }
 }
