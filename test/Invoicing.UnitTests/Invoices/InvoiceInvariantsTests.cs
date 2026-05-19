@@ -197,6 +197,37 @@ public class InvoiceInvariantsTests
     }
 
     [Fact]
+    public void I4_Issue2Arg_RejectsWhenPdfBlobRefAlreadySet()
+    {
+        // Symmetry with CreditNote.Issue(PdfBlobRef, …) — the 2-arg overload must
+        // declare I-4 explicitly so a rehydrated Draft row carrying a stale pdf_blob_uri
+        // cannot silently overwrite the existing blob ref. The FSM gate alone passes
+        // when Status == Draft regardless of PdfBlobRef state.
+        var invoice = TestDataFactory.BuildDraftInvoice();
+        invoice.AssignInvoiceNumber(InvoiceNumber.Create(2026, 1).Value);
+
+        var prePersistedPdf = PdfBlobRef.Create(
+            new Uri("https://example.com/invoices/INV-2026-000001.pdf?sv=prepersisted"),
+            new string('e', 64),
+            sizeBytes: 512).Value;
+        typeof(Invoice)
+            .GetProperty(nameof(Invoice.PdfBlobRef))!
+            .SetValue(invoice, prePersistedPdf);
+
+        var freshPdf = PdfBlobRef.Create(
+            new Uri("https://example.com/invoices/INV-2026-000001.pdf?sv=fresh"),
+            new string('f', 64),
+            sizeBytes: 1024).Value;
+
+        var act = () => invoice.Issue(freshPdf, TestDataFactory.FixedUtcNow);
+
+        act.Should().Throw<DataIntegrityException>()
+            .Which.ErrorCode.Should().Be("Invoicing.InvoiceAlreadyIssued");
+        invoice.PdfBlobRef.Should().Be(prePersistedPdf);
+        invoice.Status.Should().Be(InvoiceStatus.Draft);
+    }
+
+    [Fact]
     public void HappyPath_Draft_Issued_Delivered_Archived()
     {
         var invoice = TestDataFactory.BuildDraftInvoice();
