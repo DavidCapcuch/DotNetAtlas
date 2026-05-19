@@ -23,14 +23,14 @@ public static class InfrastructureDependencyInjection
     public static IServiceCollection AddInvoicingInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration,
-        bool isDeployedEnvironment)
+        bool enableSensitiveDataLogging)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddBlobStorage(configuration);
         services.AddPdfGeneration(configuration);
-        services.AddPersistence(configuration, isDeployedEnvironment);
+        services.AddPersistence(configuration, enableSensitiveDataLogging);
         services.AddKafkaMessaging(configuration);
         services.AddInvoicingHealthChecks(configuration);
 

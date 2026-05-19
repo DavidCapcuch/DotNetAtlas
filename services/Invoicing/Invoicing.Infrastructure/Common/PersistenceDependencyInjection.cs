@@ -24,7 +24,7 @@ internal static class PersistenceDependencyInjection
     internal static IServiceCollection AddPersistence(
         this IServiceCollection services,
         IConfiguration configuration,
-        bool isDeployedEnvironment)
+        bool enableSensitiveDataLogging)
     {
         services.AddOptionsWithValidateOnStart<EfCoreOptions>()
             .BindConfiguration(EfCoreOptions.Section)
@@ -66,7 +66,10 @@ internal static class PersistenceDependencyInjection
                             : QuerySplittingBehavior.SingleQuery);
                 })
             .UseSnakeCaseNamingConvention()
-            .EnableSensitiveDataLogging(!isDeployedEnvironment)
+            // EF Core sensitive-data logging dumps query parameters (including PII-bearing
+            // _enc columns per ADR-0011). Caller (Program.cs) gates this to Development
+            // only — Test, Staging, Testing must NOT enable it (closeout1 M7).
+            .EnableSensitiveDataLogging(enableSensitiveDataLogging)
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
             .UseExceptionProcessor()
             .AddInterceptors(sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
