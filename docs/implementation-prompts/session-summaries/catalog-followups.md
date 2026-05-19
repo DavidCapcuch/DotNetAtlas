@@ -156,3 +156,46 @@ Two of the cross-cutting issues are platform-wide blockers that affect every BC:
 ---
 
 **Session signed off with green Catalog gates; all 53 follow-up issues live at https://github.com/DavidCapcuch/DotNetAtlas/issues/172 onward.**
+
+---
+
+## 8. Wave-1 follow-up second pass (2026-05-19)
+
+After the initial triage + fix sweep, a second pass tackled the C-bucket follow-ups (#178–#212). All 35 issues are now resolved — either by code change (24) or by close-with-rationale (11). Seven new commits land on `aaqwdqwd`:
+
+### Commits
+
+| # | SHA | Title | Issues |
+|---|---|---|---|
+| 1 | `1b369ac` | `refactor(catalog): enforce architecture-tests § 1.1 forbids + drop unbound AddOptions` | #178, #179, #181 |
+| 2 | `c047bd5` | `refactor(catalog): convert all commands, queries, and input DTOs to sealed records` | #180 |
+| 3 | `6a14932` | `refactor(catalog): Result.Fail for state-transition rejections + lift duplicate currency check` | #182, #184 |
+| 4 | `c9575bc` | `fix(catalog): Unicode-rune length validation + force EnableDetailedErrors off in Production` | #188, #191 |
+| 5 | `c46eb28` | `test(catalog): integration tests for reparent path-cascade + discontinue time-threading` | #193, #194 |
+| 6 | `afa9fe9` | `test(catalog): strengthen test quality + mutation-testing baseline` | #185, #186, #197, #198, #200, #201 |
+| 7 | `bb2ab0d` | `chore(catalog): low-priority polish bundle from Wave-1 closeout` | #202, #205, #207, #208, #210, #212 |
+
+### Issues closed without code change
+
+Status-only closures, each with a `gh issue close -c "..."` explanatory comment:
+
+- **Wontfix** (3): #189 placeholders (non-secret per ADR-0010), #190 enumeration oracle (BFF contract; gateway rate-limiting is the right mitigation), #209 OutputCache redis namespace (over-engineering for v1).
+- **Subsumed** (1): #187 (integration test coverage was the umbrella for #193, #194, #196).
+- **Defer-with-rationale** (7): #183 ProductCreatedDomainEvent enrichment (event-shape refactor without current pain), #195 Kafka inbox roundtrip (needs Testcontainers Kafka), #196 feature-flag SearchProducts integration (fixture refactor needed for OpenFeature), #199 Stryker on Application (long-running pass), #203 CategoryRenamedDomainEvent (current sentinel pattern fine), #204 80% kill-rate target (depends on #199 + #200/#201 results), #206 breadcrumb rebuild on cascade (depends on B4 / #175 decision).
+
+### Verification gates (post-second-pass)
+
+| Gate | Result |
+|---|---|
+| `dotnet restore --locked-mode` | PASS |
+| `dotnet format whitespace --verify-no-changes` (all 8 Catalog projects) | PASS |
+| Catalog.UnitTests | **304 passed**, 0 failed (was 294 — +10 new test methods across record migration, sealed-record arch test, state-transition Result.Fail, runes, breadcrumb-hyphen, Product.Create assertions, ProductStatus theory) |
+| Catalog.ArchitectureTests | **46 passed**, 0 failed (was 42 — +4 new: tech-forbids for Domain + Application, ISpecificRecord ban, sealed-record convention) |
+| Catalog.IntegrationTests (Testcontainers Postgres) | **3 passed**, 0 failed (was 1 — +2 new: reparent path-cascade, discontinue time-threading) |
+| Catalog.FunctionalTests | **29 passed**, 0 failed, **6 skipped** (unchanged carry-forward — all blocked on B6 / #177 `ActivateProductCommand` contract extension and the platform Activity-bridge for `CorrelationIdRoundtripTests`) |
+
+### Carry-forward into Wave 2
+
+All B-bucket architectural-decision issues (#172–#177) and all D-bucket cross-cutting issues (#213–#224) remain open as intended. They're outside the C-bucket scope and either need product-owner sign-off (#177 ActivateProductCommand contract extension) or sit outside the Catalog scope boundary (cross-cutting platform work).
+
+The seven deferred C-bucket issues listed above are also closed with deferral rationale; reopen if/when the dependency unblocks.
