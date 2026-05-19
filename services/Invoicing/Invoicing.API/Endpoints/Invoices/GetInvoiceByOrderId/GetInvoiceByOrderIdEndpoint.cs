@@ -3,6 +3,7 @@ using FastEndpoints;
 using Invoicing.API.Common.Extensions;
 using Invoicing.Application.Invoices.GetInvoiceById;
 using Invoicing.Application.Invoices.GetInvoiceByOrderId;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog.Context;
 
 namespace Invoicing.API.Endpoints.Invoices.GetInvoiceByOrderId;
@@ -28,6 +29,10 @@ internal sealed class GetInvoiceByOrderIdEndpoint
         Get("by-order/{OrderId}");
         Version(1);
         Group<InvoicesGroup>();
+        // Declarative auth — pin the JWT bearer scheme so a future global-middleware
+        // refactor cannot silently un-gate this endpoint. Identity checks (buyer
+        // ownership / admin override) are enforced inside the handler below.
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
         Summary(s =>
         {
             s.Summary = "Find the invoice settling a given order (own for buyer; any for admin).";
