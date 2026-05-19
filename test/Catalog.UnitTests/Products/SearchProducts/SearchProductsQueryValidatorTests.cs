@@ -6,11 +6,11 @@ public class SearchProductsQueryValidatorTests
 {
     private readonly SearchProductsQueryValidator _validator = new();
 
-    [Fact]
-    public void Defaults_are_valid()
-    {
-        _validator.Validate(new SearchProductsQuery()).IsValid.Should().BeTrue();
-    }
+    // CAT-TST-M01 (Wave-1 closeout): the previous "Defaults_are_valid" test was misleading —
+    // a default-constructed SearchProductsQuery has PageNumber=0 and PageSize=0 (record
+    // defaults), which the validator (correctly) rejects. The test only passed by hitting
+    // the .When(...) guards on every rule; it tested nothing meaningful. The endpoint binding
+    // layer is the one that supplies `?? 1` / `?? 20` defaults, not the validator.
 
     [Fact]
     public void Page_number_under_1_fails()

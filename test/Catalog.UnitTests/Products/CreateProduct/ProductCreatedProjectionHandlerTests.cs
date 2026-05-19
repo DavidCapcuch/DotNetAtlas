@@ -54,18 +54,22 @@ public class ProductCreatedProjectionHandlerTests
     [Fact]
     public async Task Given_MissingProduct_When_Handling_Then_ThrowsDataIntegrityException()
     {
+        // CAT-TST-M02 (Wave-1 closeout): build the event from a single product instance so
+        // Sku / Name / Price come from the same aggregate — the previous version called
+        // CatalogFactories.DraftProduct() three times, returning three diverging instances.
         await using var db = FakeCatalogDbContext.Create();
         var handler = new ProductCreatedProjectionHandler(
             db, NullLogger<ProductCreatedProjectionHandler>.Instance);
 
+        var template = CatalogFactories.DraftProduct();
         var domainEvent = new ProductCreatedDomainEvent
         {
             OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             ProductId = Guid.CreateVersion7(),
-            Sku = CatalogFactories.DraftProduct().Sku,
-            Name = CatalogFactories.DraftProduct().Name,
+            Sku = template.Sku,
+            Name = template.Name,
             CategoryId = Guid.CreateVersion7(),
-            Price = CatalogFactories.DraftProduct().Price,
+            Price = template.Price,
         };
 
         var action = async () => await handler.Handle(domainEvent, TestContext.Current.CancellationToken);

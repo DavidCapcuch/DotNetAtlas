@@ -17,34 +17,52 @@ public class ProductTests
     {
         // Arrange
         var categoryId = Guid.CreateVersion7();
+        var sku = Sku.Create("TEST-001").Value;
+        var name = ProductName.Create("Test Product").Value;
+        var description = ProductDescription.Create("desc").Value;
+        var brand = BrandName.Create("TestBrand").Value;
+        var price = Money.Create(10m, CurrencyCode.Usd).Value;
 
         // Act
         var result = Product.Create(
-            Sku.Create("TEST-001").Value,
-            ProductName.Create("Test Product").Value,
-            ProductDescription.Create("desc").Value,
+            sku,
+            name,
+            description,
             categoryId,
-            BrandName.Create("TestBrand").Value,
-            Money.Create(10m, CurrencyCode.Usd).Value,
+            brand,
+            price,
             dimensions: null,
             images: [],
             UtcNow);
 
-        // Assert
+        // Assert — CAT-TST / Wave-1 closeout #201: pin the full factory-side-effect surface so
+        // mutation testing can't leave constructor-body assignments unchecked. Every assignment
+        // in the Product.Create body (lines 68-76) must be observable here.
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             var product = result.Value;
-            product.Status.Should().Be(ProductStatus.Draft);
             product.Id.Should().NotBe(Guid.Empty);
+            product.Sku.Should().BeSameAs(sku);
+            product.Name.Should().BeSameAs(name);
+            product.Description.Should().BeSameAs(description);
             product.CategoryId.Should().Be(categoryId);
+            product.Brand.Should().BeSameAs(brand);
+            product.Price.Should().BeSameAs(price);
+            product.Dimensions.Should().BeNull();
             product.Images.Should().BeEmpty();
-            var created = product.PopDomainEvents().Should()
-                .ContainSingle()
-                .Which.Should().BeOfType<ProductCreatedDomainEvent>()
-                .Subject;
+            product.Status.Should().Be(ProductStatus.Draft);
+
+            // Exactly one domain event raised, with every payload field threaded through.
+            var domainEvents = product.PopDomainEvents();
+            domainEvents.Should().ContainSingle();
+            var created = domainEvents.Single().Should()
+                .BeOfType<ProductCreatedDomainEvent>().Subject;
             created.ProductId.Should().Be(product.Id);
+            created.Sku.Should().BeSameAs(sku);
+            created.Name.Should().BeSameAs(name);
             created.CategoryId.Should().Be(categoryId);
+            created.Price.Should().BeSameAs(price);
             created.OccurredOnUtc.Should().Be(UtcNow);
         }
     }

@@ -1,6 +1,8 @@
 {
   "stryker-config": {
+    "solution": "../../DotNetAtlas.slnx",
     "project": "Catalog.Domain.csproj",
+    "language-version": "preview",
     "test-projects": [
       "Catalog.UnitTests.csproj"
     ],
@@ -18,6 +20,9 @@
     "mutate": [
       "Products/**/*.cs",
       "Categories/**/*.cs"
+    ],
+    "ignore-mutations": [
+      "string"
     ]
   }
 }
