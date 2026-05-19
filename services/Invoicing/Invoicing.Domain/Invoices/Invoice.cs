@@ -239,6 +239,16 @@ public sealed class Invoice : AggregateRoot<Guid>
                 "Issue requires an InvoiceNumber \u2014 call AssignInvoiceNumber first.");
         }
 
+        // I-4 explicit write-once guard, mirroring CreditNote.Issue. The FSM gate below
+        // catches the common case (already-Issued status), but a rehydrated Draft row
+        // carrying a stale pdf_blob_uri must not be silently overwritten.
+        if (PdfBlobRef is not null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvoiceAlreadyIssued",
+                "Invoice has already been issued (PDF stamped) (I-4).");
+        }
+
         var transition = Status.CanTransitionTo(InvoiceStatus.Issued);
         if (transition.IsFailed)
         {
