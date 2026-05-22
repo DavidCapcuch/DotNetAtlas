@@ -84,7 +84,7 @@ public sealed class IssueInvoiceCommandHandlerTests
         invoice.Total.Currency.Name.Should().Be("EUR");
         invoice.Lines.Should().HaveCount(1);
         invoice.PdfBlobRef.Should().NotBeNull();
-        invoice.PdfBlobRef!.BlobUri.AbsoluteUri.Should().StartWith("https://test.blob.local/invoices-test/");
+        invoice.PdfBlobRef!.BlobName.Should().MatchRegex(@"^\d{4}/\d{2}/INV-\d{4}-\d{6}\.pdf$");
         invoice.IssueDate.Should().Be(IntegrationTestFixture.FixedFakeNow);
 
         // Projection row updated with the issued invoice id.

@@ -223,8 +223,7 @@ public class ApiTestFixture : AppFixture<Program>
             {
                 var blobName = call.ArgAt<string>(1);
                 var size = call.ArgAt<ReadOnlyMemory<byte>>(2).Length;
-                var blobUri = new Uri($"https://test.blob.local/invoices/{blobName}?sv=stub-upload-sas");
-                return PdfBlobRef.Create(blobUri, DummyHash, Math.Max(1, size)).Value;
+                return PdfBlobRef.Create(blobName, DummyHash, Math.Max(1, size)).Value;
             });
 
         return stub;

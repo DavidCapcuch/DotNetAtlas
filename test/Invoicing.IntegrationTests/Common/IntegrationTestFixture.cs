@@ -185,8 +185,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             {
                 var blobName = call.ArgAt<string>(1);
                 var size = call.ArgAt<ReadOnlyMemory<byte>>(2).Length;
-                var blobUri = new Uri($"https://test.blob.local/invoices-test/{blobName}?sv=stub-sas");
-                var refResult = PdfBlobRef.Create(blobUri, DummyHash, Math.Max(1, size));
+                var refResult = PdfBlobRef.Create(blobName, DummyHash, Math.Max(1, size));
                 if (refResult.IsFailed)
                 {
                     throw new InvalidOperationException(

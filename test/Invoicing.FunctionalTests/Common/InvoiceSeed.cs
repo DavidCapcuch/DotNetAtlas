@@ -40,7 +40,7 @@ internal sealed class InvoiceSeed
         // attaching the same VO instance to two parents fails with
         // "property is part of a key and so cannot be modified".
         PdfBlobRef.Create(
-            new Uri($"https://test.blob.local/invoices/2026/01/{documentNumber}.pdf?sv=stub"),
+            $"2026/01/{documentNumber}.pdf",
             contentHash: SampleContentHash,
             sizeBytes: 1024).Value;
 

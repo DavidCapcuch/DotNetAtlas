@@ -67,11 +67,11 @@ namespace Invoicing.Invoices
 				"o (sum of LineTotal of lines taxed at this rate).\",\"type\":{\"type\":\"bytes\",\"logic" +
 				"alType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Amount\",\"doc\":\"VAT amount " +
 				"= BaseAmount * (Rate / 100).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"pr" +
-				"ecision\":19,\"scale\":4}}]}}},{\"name\":\"PdfBlobUri\",\"doc\":\"Absolute URI of the rend" +
-				"ered invoice PDF in blob storage (Azurite locally, Azure Blob in production). Pr" +
-				"oducers emit a presigned SAS URL; consumers MUST treat this as opaque and re-min" +
-				"t a fresh URL via Invoicing\'s GET endpoint when serving end-users (the SAS expir" +
-				"es).\",\"type\":\"string\"},{\"name\":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes," +
+				"ecision\":19,\"scale\":4}}]}}},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blob" +
+				" name (e.g., \'2026/05/INV-2026-000142.pdf\'). Consumers must call Invoicing\'s GE" +
+				"T endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get " +
+				"a fresh SAS URL — never embed long-lived URLs in this stream (issue #131).\",\"type" +
+				"\":\"string\"},{\"name\":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes," +
 				" lowercase hex (64 chars). Lets consumers verify integrity if they cache the PDF" +
 				" locally.\",\"type\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PDF blob i" +
 				"n bytes (>0).\",\"type\":\"long\"},{\"name\":\"DeliveryChannel\",\"doc\":\"DeliveryChannel S" +
@@ -126,9 +126,9 @@ namespace Invoicing.Invoices
 		/// </summary>
 		private IList<Invoicing.Invoices.InvoiceVatLine> _VatLines;
 		/// <summary>
-		/// Absolute URI of the rendered invoice PDF in blob storage (Azurite locally, Azure Blob in production). Producers emit a presigned SAS URL; consumers MUST treat this as opaque and re-mint a fresh URL via Invoicing's GET endpoint when serving end-users (the SAS expires).
+		/// Canonical immutable blob name (e.g., '2026/05/INV-2026-000142.pdf'). Consumers must call Invoicing's GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue #131).
 		/// </summary>
-		private string _PdfBlobUri;
+		private string _PdfBlobName;
 		/// <summary>
 		/// SHA-256 of the PDF bytes, lowercase hex (64 chars). Lets consumers verify integrity if they cache the PDF locally.
 		/// </summary>
@@ -317,17 +317,17 @@ namespace Invoicing.Invoices
 			}
 		}
 		/// <summary>
-		/// Absolute URI of the rendered invoice PDF in blob storage (Azurite locally, Azure Blob in production). Producers emit a presigned SAS URL; consumers MUST treat this as opaque and re-mint a fresh URL via Invoicing's GET endpoint when serving end-users (the SAS expires).
+		/// Canonical immutable blob name (e.g., '2026/05/INV-2026-000142.pdf'). Consumers must call Invoicing's GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue #131).
 		/// </summary>
-		public string PdfBlobUri
+		public string PdfBlobName
 		{
 			get
 			{
-				return this._PdfBlobUri;
+				return this._PdfBlobName;
 			}
 			set
 			{
-				this._PdfBlobUri = value;
+				this._PdfBlobName = value;
 			}
 		}
 		/// <summary>
@@ -388,7 +388,7 @@ namespace Invoicing.Invoices
 			case 9: return this.Total;
 			case 10: return this.Currency;
 			case 11: return this.VatLines;
-			case 12: return this.PdfBlobUri;
+			case 12: return this.PdfBlobName;
 			case 13: return this.PdfContentHash;
 			case 14: return this.PdfSizeBytes;
 			case 15: return this.DeliveryChannel;
@@ -411,7 +411,7 @@ namespace Invoicing.Invoices
 			case 9: this.Total = (Avro.AvroDecimal)fieldValue; break;
 			case 10: this.Currency = (System.String)fieldValue; break;
 			case 11: this.VatLines = (IList<Invoicing.Invoices.InvoiceVatLine>)fieldValue; break;
-			case 12: this.PdfBlobUri = (System.String)fieldValue; break;
+			case 12: this.PdfBlobName = (System.String)fieldValue; break;
 			case 13: this.PdfContentHash = (System.String)fieldValue; break;
 			case 14: this.PdfSizeBytes = (System.Int64)fieldValue; break;
 			case 15: this.DeliveryChannel = (System.String)fieldValue; break;
