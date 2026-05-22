@@ -1,5 +1,6 @@
 using Invoicing.Application.Common.Messaging;
 using Invoicing.Infrastructure.Messaging.Kafka.Config;
+using Invoicing.Infrastructure.Messaging.Kafka.Notifications;
 using Invoicing.Infrastructure.Messaging.Kafka.Projections;
 using Invoicing.Infrastructure.Persistence.Database;
 using KafkaFlow;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Notifications.Email;
 using Npgsql;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
@@ -64,6 +66,10 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(PaymentsTransactionsConsumerOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<NotificationsEmailEventsConsumerOptions>()
+            .BindConfiguration(NotificationsEmailEventsConsumerOptions.Section)
+            .ValidateDataAnnotations();
+
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
@@ -79,6 +85,10 @@ internal static class MessagingDependencyInjection
         var paymentsConsumerOptions = configuration
             .GetRequiredSection(PaymentsTransactionsConsumerOptions.Section)
             .Get<PaymentsTransactionsConsumerOptions>()!;
+
+        var notificationsEmailEventsConsumerOptions = configuration
+            .GetRequiredSection(NotificationsEmailEventsConsumerOptions.Section)
+            .Get<NotificationsEmailEventsConsumerOptions>()!;
 
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster
@@ -137,6 +147,28 @@ internal static class MessagingDependencyInjection
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
                             .AddHandler<PaymentCapturedInvoiceProjectionKafkaHandler>()
                             .AddHandler<PaymentRefundedCreditNoteProjectionKafkaHandler>())))
+                .AddConsumer(consumer => consumer
+                    .Topic(notificationsEmailEventsConsumerOptions.Topic)
+                    .WithConsumerConfig(notificationsEmailEventsConsumerOptions)
+                    .WithBufferSize(notificationsEmailEventsConsumerOptions.BufferSize)
+                    .WithWorkersCount(notificationsEmailEventsConsumerOptions.WorkersCount)
+                    .AddMiddlewares(middlewares => middlewares
+                        .AddSchemaRegistryAvroDeserializer()
+                        .AddCorrelationIdConsumerMiddleware()
+                        .AddDeadLetter()
+                        .RetryForever(config => config
+                            .Handle<DbUpdateException>()
+                            .Handle<NpgsqlException>()
+                            .Handle<TimeoutException>()
+                            .WithTimeBetweenTriesPlan(
+                                TimeSpan.FromMilliseconds(500),
+                                TimeSpan.FromSeconds(1),
+                                TimeSpan.FromSeconds(2),
+                                TimeSpan.FromSeconds(5)))
+                        .AddInbox(typeof(EmailNotificationSentEvent))
+                        .AddTypedHandlers(handlers => handlers
+                            .WithHandlerLifetime(InstanceLifetime.Scoped)
+                            .AddHandler<EmailNotificationSentEventKafkaHandler>())))
             )
             .UseMicrosoftLog()
             .AddOpenTelemetryInstrumentation());
