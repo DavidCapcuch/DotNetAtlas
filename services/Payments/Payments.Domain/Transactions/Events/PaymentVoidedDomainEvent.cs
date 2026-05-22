@@ -19,4 +19,9 @@ public sealed record PaymentVoidedDomainEvent : DomainEvent
     public required string GatewayTransactionId { get; init; }
 
     public required DateTimeOffset VoidedAtUtc { get; init; }
+
+    /// <summary>
+    /// Saga-supplied reason for the void (H-5 closeout).
+    /// </summary>
+    public required string Reason { get; init; }
 }

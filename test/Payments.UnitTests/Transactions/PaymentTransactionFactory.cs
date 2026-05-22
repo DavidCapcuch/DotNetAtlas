@@ -14,6 +14,7 @@ internal static class PaymentTransactionFactory
 {
     public const string DefaultPaymentMethodId = "tok_visa_4242";
     public const string DefaultGatewayTransactionId = "gw-tx-abc123";
+    public const string DefaultVoidReason = "saga_compensation";
 
     public static readonly GatewayResponseCode SuccessResponse = new("ok", "Approved");
     public static readonly GatewayResponseCode DeclineResponse = new("insufficient_funds", "Declined");
@@ -71,7 +72,7 @@ internal static class PaymentTransactionFactory
     public static PaymentTransaction Voided(DateTimeOffset utcNow)
     {
         var tx = Authorized(utcNow);
-        tx.Void(SuccessResponse, utcNow);
+        tx.Void(DefaultVoidReason, SuccessResponse, utcNow);
         tx.PopDomainEvents();
         return tx;
     }

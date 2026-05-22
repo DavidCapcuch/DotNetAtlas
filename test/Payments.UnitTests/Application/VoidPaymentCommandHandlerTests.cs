@@ -32,6 +32,7 @@ public class VoidPaymentCommandHandlerTests
         PaymentId = paymentId ?? Guid.CreateVersion7(),
         CorrelationId = Guid.CreateVersion7(),
         AuthorizationId = authorizationId ?? PaymentTransactionFactory.DefaultGatewayTransactionId,
+        Reason = "saga_compensation",
     };
 
     [Fact]

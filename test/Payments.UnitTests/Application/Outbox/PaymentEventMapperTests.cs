@@ -245,7 +245,7 @@ public class PaymentEventMapperTests
     }
 
     [Fact]
-    public void PaymentVoidedMapper_MapsAllFields()
+    public void PaymentVoidedMapper_MapsAllFieldsIncludingReason()
     {
         var domainEvent = new PaymentVoidedDomainEvent
         {
@@ -255,6 +255,7 @@ public class PaymentEventMapperTests
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,
             VoidedAtUtc = Now,
+            Reason = "saga_compensation_pre_capture",
             OccurredOnUtc = Now,
         };
 
@@ -266,6 +267,7 @@ public class PaymentEventMapperTests
             avro.UserId.Should().Be(BuyerId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);
             avro.VoidedAtUtc.Should().Be(Now.UtcDateTime);
+            avro.Reason.Should().Be("saga_compensation_pre_capture");
         }
     }
 }

@@ -89,6 +89,12 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
         builder.Property(t => t.RefundedAtUtc).HasComment("UTC timestamp when refund completed (nullable).");
         builder.Property(t => t.VoidedAtUtc).HasComment("UTC timestamp when authorization was voided (nullable).");
 
+        // H-5: saga-supplied void reason — captured in plain text for audit; null until Void succeeds.
+        builder.Property(t => t.VoidReason)
+            .HasColumnName("void_reason")
+            .HasMaxLength(256)
+            .HasComment("Saga-supplied reason for the void (H-5 closeout; nullable until Void succeeds).");
+
         // Owned Money — flat amount + currency.
         builder.OwnsOne(t => t.Amount, amount =>
         {

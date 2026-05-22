@@ -20,4 +20,11 @@ public sealed record VoidPaymentCommand : ICommand
     /// (H-8 closeout follow-up).
     /// </summary>
     public required string AuthorizationId { get; init; }
+
+    /// <summary>
+    /// Saga-supplied reason for the void. Persisted on the aggregate (<c>void_reason</c>
+    /// column) and surfaced on <c>PaymentVoidedEvent.Reason</c> for downstream audit
+    /// (H-5 closeout follow-up).
+    /// </summary>
+    public required string Reason { get; init; }
 }

@@ -84,6 +84,11 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     public DateTimeOffset? VoidedAtUtc { get; private set; }
 
     /// <summary>
+    /// Saga-supplied reason for the void. Null until <see cref="Void"/> succeeds (H-5 closeout).
+    /// </summary>
+    public string? VoidReason { get; private set; }
+
+    /// <summary>
     /// Terminal-failure details. Populated when <see cref="Status"/> becomes <see cref="PaymentStatus.Failed"/>.
     /// </summary>
     public FailureInfo? FailureInfo { get; private set; }
@@ -383,11 +388,14 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <see cref="PaymentStatus.Voided"/> as saga pre-capture compensation. Raises
     /// <see cref="PaymentVoidedDomainEvent"/>. Idempotent when already <see cref="PaymentStatus.Voided"/>.
     /// </summary>
+    /// <param name="reason">Saga-supplied reason for the void (audit trail; persisted on the
+    /// aggregate and surfaced on <c>PaymentVoidedEvent.Reason</c>). H-5 closeout follow-up.</param>
     /// <param name="gatewayResponseCode">Gateway response from the void call.</param>
     /// <param name="utcNow">Current UTC time.</param>
     /// <exception cref="DataIntegrityException">Invalid FSM transition.</exception>
-    public Result Void(GatewayResponseCode gatewayResponseCode, DateTimeOffset utcNow)
+    public Result Void(string reason, GatewayResponseCode gatewayResponseCode, DateTimeOffset utcNow)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
         ArgumentNullException.ThrowIfNull(gatewayResponseCode);
 
         if (Status == PaymentStatus.Voided)
@@ -403,6 +411,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
 
         GatewayResponseCode = gatewayResponseCode;
         VoidedAtUtc = utcNow;
+        VoidReason = reason;
         Status = PaymentStatus.Voided;
 
         AddDomainEvent(new PaymentVoidedDomainEvent
@@ -413,6 +422,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId!,
             VoidedAtUtc = utcNow,
+            Reason = reason,
             OccurredOnUtc = utcNow,
         });
 

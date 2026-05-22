@@ -32,7 +32,12 @@
                 "logicalType": "timestamp-millis"
             },
             "doc": "UTC timestamp when the void was completed."
+        },
+        {
+            "name": "Reason",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Optional saga-supplied reason for the void (audit trail; null for forward-compatibility with consumers reading older writes). H-5 closeout follow-up."
         }
     ]
 }
-
