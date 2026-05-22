@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using FluentResults;
 using Invoicing.Application.Blobs;
+using Invoicing.Application.Common.Blobs;
 using Invoicing.Application.Common.Data;
 using Invoicing.Application.Common.Numbering;
 using Invoicing.Application.Pdf;
@@ -170,7 +171,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
 
         var pdfResult = await _pdfGenerator.GenerateCreditNoteAsync(creditNote, ct);
 
-        var blobName = BuildBlobName(creditNoteNumber);
+        var blobName = InvoicePdfBlobName.For(creditNoteNumber);
         var pdfBlobRef = await _blobStore.UploadAsync(
             _blobOptions.InvoicesContainerName,
             blobName,
@@ -220,13 +221,6 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
 
         return Result.Ok(creditNote.Id);
     }
-
-    private static string BuildBlobName(CreditNoteNumber number) =>
-        // credit-notes/YYYY/MM/<CreditNoteNumber>.pdf — credit notes share the invoices
-        // container with the matching 10-year immutable retention policy; a key prefix
-        // separates them. A single container means a single CreateIfNotExistsAsync at
-        // startup time (M10) covers both — no second container to provision and forget.
-        FormattableString.Invariant($"credit-notes/{number.Year:D4}/01/{number.Value}.pdf");
 
     private static OrderPayload DeserializeOrderPayload(string json, Guid correlationId)
     {

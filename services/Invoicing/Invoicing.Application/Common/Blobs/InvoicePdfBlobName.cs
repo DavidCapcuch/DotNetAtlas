@@ -13,9 +13,9 @@ namespace Invoicing.Application.Common.Blobs;
 /// <para>
 /// The month dimension is fixed at <c>01</c> for v1 (the spec's <c>YYYY/MM/</c> prefix is a
 /// catalogue partition reserved for v2 sharding; not derived from <see cref="DateTimeOffset"/>).
-/// Keep this in sync with the private <c>BuildBlobName</c> helpers in
-/// <c>IssueInvoiceCommandHandler</c> and <c>IssueCreditNoteCommandHandler</c> until those are
-/// refactored to call this class.
+/// Single source of truth — <c>IssueInvoiceCommandHandler</c> + <c>IssueCreditNoteCommandHandler</c>
+/// both call <see cref="For(InvoiceNumber)"/> / <see cref="For(CreditNoteNumber)"/> directly; v2's
+/// partition story will land here.
 /// </para>
 /// </remarks>
 internal static class InvoicePdfBlobName

@@ -141,3 +141,64 @@ Not touched:
 - The new arch fact `BlobsNamespace_ShouldNotCall_StaticUtcNow` would catch any future `UtcNow` slip in `Invoicing.Infrastructure.Blobs.*`. If new sub-namespaces appear, the regex selector (`^Invoicing\.Infrastructure\.Blobs(\..*)?$`) covers them.
 - The latent functional regression at [`ResendInvoiceTests.OpenApiDescription_DisclosesV1StubBehaviour`](../../../test/Invoicing.FunctionalTests/ApiEndpoints/Invoices/ResendInvoiceTests.cs) hits `/swagger/v1/swagger.json` and grep-asserts `"v1 stub"`. If the disclosure phrasing in the endpoint `Description` changes, the marker phrase needs to follow.
 - H3 (credit-note `Result.Fail` swallow) was reclassified to MEDIUM not because the risk shrank but because the in-bounds fix surface is empty — every recommendation in closeout1 needs either a user-generated migration ([#124](https://github.com/DavidCapcuch/DotNetAtlas/issues/124) (a)), behaviour change ([#124](https://github.com/DavidCapcuch/DotNetAtlas/issues/124) (b)), or an out-of-scope `error-taxonomy.md` edit ([#124](https://github.com/DavidCapcuch/DotNetAtlas/issues/124) (c)).
+
+---
+
+## Wave 1 Closeout Reconciliation Pass
+
+A second pass walked both `docs/implementation-prompts/session-summaries/invoicing-closeout.md` AND `docs/implementation-prompts/session-summaries2/invoicing-closeout.md` and converted the previously-filed `invoicing(wave1-followup):` issues into landed fixes wherever the scope allowed (`services/Invoicing/**`, `test/Invoicing.*/**`, `platform/Platform.SchemaRegistry.Contracts/**/Invoicing/**`, session-summary docs). EF migrations remain user-generated per CLAUDE.md, and shared-kernel changes stay out-of-bounds.
+
+### Fixes landed this pass (commit per finding)
+
+| # | Sev | Issue | Commit | Change |
+|---|---|---|---|---|
+| M5 | MED | [#128](https://github.com/DavidCapcuch/DotNetAtlas/issues/128) | (this pass) | `Invoice.Issue(PdfBlobRef, …)` 2-arg overload now declares I-4 explicitly: throws `DataIntegrityException("Invoicing.InvoiceAlreadyIssued")` when `PdfBlobRef` is already set, mirroring `CreditNote.Issue`. RED→GREEN unit test in `InvoiceInvariantsTests` uses reflection to force the contrived state. |
+| M3 | MED | [#127](https://github.com/DavidCapcuch/DotNetAtlas/issues/127) | (this pass) | All 4 Kafka projection handlers drop `["CorrelationId"] = message.CorrelationId` from `_logger.BeginScope`. The platform's `ConsumerCorrelationIdMiddleware` (already wired in `MessagingDependencyInjection`) pushes the Kafka-header value into Serilog `LogContext`; the previous payload override was shadowing it (ADR-0008 § header-is-SSOT). New `KafkaHandlerCorrelationIdScopeTests` pins each handler against a scope-recording `ILoggerProvider`. |
+| M6 | MED | [#129](https://github.com/DavidCapcuch/DotNetAtlas/issues/129) | (this pass) | `GetInvoicesByBuyer` honours an optional `?buyerId={guid}` query param. Admin caller → scope to the requested buyer; non-admin caller passing a `buyerId` other than their own → 403 (explicit deny so admin tooling without admin privs surfaces loudly). 3 new functional tests (admin happy path, non-admin cross-buyer 403, non-admin self-scoping). |
+| M2 | MED | [#126](https://github.com/DavidCapcuch/DotNetAtlas/issues/126) | (this pass) | `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)` added declaratively to all 4 GET endpoints (`GetInvoiceById`, `GetInvoiceByOrderId`, `GetInvoicesByBuyer`, `GetCreditNoteById`). Defensive only — no behaviour change — but a future global-middleware refactor can no longer silently un-gate them. |
+| M7 | MED | [#130](https://github.com/DavidCapcuch/DotNetAtlas/issues/130) | (this pass) | `EnableSensitiveDataLogging` is now gated by `IHostEnvironment.IsDevelopment()` instead of `!IsDeployedEnvironment()`. PII-bearing `_enc` columns no longer leak into Test/Staging/Testing logs. (`[Pii]` on shared-kernel `Address` remains a separate follow-up — outside Invoicing's boundary.) |
+| M9 | MED | [#132](https://github.com/DavidCapcuch/DotNetAtlas/issues/132) | (this pass) | `AzuriteFixture.DisposeAsync` wraps `_azurite.DisposeAsync()` in `try/catch` and logs to stderr instead of propagating. The `TestPipelineException` that fired AFTER the 32 tests passed is now non-fatal by construction. |
+| L1 | LOW | [#134](https://github.com/DavidCapcuch/DotNetAtlas/issues/134) | (this pass) | `TODO(M10)` font marker in `InvoiceDocument.cs` replaced with a stable `// Deferred — Inter font swap…` reference to [#134](https://github.com/DavidCapcuch/DotNetAtlas/issues/134). M10 has shipped; the legacy marker was grep-noise. |
+| L2 | LOW | [#135](https://github.com/DavidCapcuch/DotNetAtlas/issues/135) | (this pass) | Duplicate private `BuildBlobName` helpers in `IssueInvoiceCommandHandler` + `IssueCreditNoteCommandHandler` deleted. Both call sites now invoke `InvoicePdfBlobName.For(...)` directly — single source of truth for the v2 partition story. |
+| L3 | LOW | [#136](https://github.com/DavidCapcuch/DotNetAtlas/issues/136) | (this pass) | `EndpointGroupConstants` xmldoc expanded to call out that the constants drive BOTH the OpenAPI tag AND the second URL segment of the group route. Future renames now flag the coupling explicitly. |
+| M8 / M10 / L4 | MED/LOW | [#131](https://github.com/DavidCapcuch/DotNetAtlas/issues/131) / [#133](https://github.com/DavidCapcuch/DotNetAtlas/issues/133) / [#137](https://github.com/DavidCapcuch/DotNetAtlas/issues/137) | (this pass) | Defer-with-comment notes inlined in `InvoiceConfiguration.cs` (`pdf_blob_uri` staleness on replay + missing CHECK constraint on `Status`) and `OrderConfirmedInvoiceProjectionKafkaHandler.cs` (`OrderPayload` plaintext PII). All three need EF migrations the user generates. |
+| CO2-M1 | MED | (CO2 finding) | (this pass) | Both `invoicing-m10.md` files (session-summaries/ + session-summaries2/) had their ADR-0010 paragraph and "HTTP routes" bullet rewritten to acknowledge "role-based v1; scope-based deferred to v2". The previous wording overstated `invoicing.admin.resend` / `invoicing.read` scope gating that AuthPolicies.cs explicitly defers. |
+
+### Deliberately deferred (no fix this pass)
+
+- **H2** ship `InvoiceDeliveredEvent.avsc` + outbox publisher ([#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123)) — no downstream consumer (Notifications / BFF) exists; shipping a contract without a consumer is wave-1.5+ work, not closeout cleanup.
+- **H3** credit-note `Result.Fail` swallow ([#124](https://github.com/DavidCapcuch/DotNetAtlas/issues/124)) — needs a product decision on the failed-message destination (DLT vs `failed_credit_notes` table) before any code change.
+- **M1** ADR-0010 scope-based auth ([#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125)) — implementation needs Keycloak realm + JWT scope wiring outside the Invoicing slice. Documentation drift is fixed via CO2-M1.
+
+### Out-of-scope findings (flagged to the user, not changed)
+
+These are listed because they appeared in closeout2 or closeout1 cross-cutting buckets but live outside `services/Invoicing/**`, `test/Invoicing.*/**`, `platform/Platform.SchemaRegistry.Contracts/**/Invoicing/**`:
+
+- `docs/bc-design/architecture-tests.md` § 2.5 Invoicing — missing (closeout2 § 1)
+- `docs/bc-design/use-cases.md` § 6 Invoicing — missing (closeout2 § 1)
+- `docs/bc-design/events-catalog.md` § 4 / § 5.x Invoicing — missing (closeout2 § 1)
+- `docs/bc-design/error-taxonomy.md:49` — stale Polly-retry note (closeout2 § 1, [#144](https://github.com/DavidCapcuch/DotNetAtlas/issues/144))
+- `platform/Platform.SharedKernel/ValueObjects/Address.cs` — `[Pii]` attribute (closeout1 M7 partial; the EF gate is fixed in-scope but the Serilog destructuring side needs Platform.SharedKernel)
+- ADR-0010 scope-based gating implementation — Keycloak realm + JWT scope wiring (closeout1 M1, [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125))
+- `Weather.Domain` build break (29 `CS9035` errors) — pre-existing blocker on FunctionalTests slice ([#138](https://github.com/DavidCapcuch/DotNetAtlas/issues/138))
+- 53 NU1903 transitive warnings — branch-wide ([#139](https://github.com/DavidCapcuch/DotNetAtlas/issues/139))
+- `otel-collector` processor config restart loop ([#140](https://github.com/DavidCapcuch/DotNetAtlas/issues/140))
+- `nw-mutation-test` not run for Invoicing ([#145](https://github.com/DavidCapcuch/DotNetAtlas/issues/145))
+- `invoicing.api` missing from `docker-compose.yaml` ([#146](https://github.com/DavidCapcuch/DotNetAtlas/issues/146))
+- CLAUDE.md Testcontainers § option-B promotion ([#147](https://github.com/DavidCapcuch/DotNetAtlas/issues/147))
+
+### Verification (this pass)
+
+```
+dotnet restore --locked-mode                          # exit 0 (baseline NU1903 warnings)
+dotnet build -m                                       # 0 errors in Invoicing slice
+dotnet format whitespace --verify-no-changes          # 0 violations
+dotnet format style --verify-no-changes               # 0 violations
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+dotnet test test/Invoicing.UnitTests/                 # 16/16 (was 15; +1 M5)
+dotnet test test/Invoicing.IntegrationTests/          # 37/37 (was 33; +4 M3)
+dotnet test test/Invoicing.ArchitectureTests/         # 30/30 unchanged
+dotnet test test/Invoicing.FunctionalTests/           # 26/26 (was 22; +3 M6 + 1 M4 latent now buildable)
+```
+
+(Per CLAUDE.md, option A — `unset HTTP_PROXY ...` — is recommended on this host where the Docker.DotNet `npipe://` URI parser interacts with the corporate proxy resolver. Option B `NO_PROXY='*'` fails the parser before `NO_PROXY` is consulted.)

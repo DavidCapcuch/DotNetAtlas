@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using FluentResults;
 using Invoicing.Application.Blobs;
+using Invoicing.Application.Common.Blobs;
 using Invoicing.Application.Common.Data;
 using Invoicing.Application.Common.Numbering;
 using Invoicing.Application.Pdf;
@@ -212,7 +213,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
 
         var pdfResult = await _pdfGenerator.GenerateInvoiceAsync(invoice, ct);
 
-        var blobName = BuildBlobName(invoiceNumber);
+        var blobName = InvoicePdfBlobName.For(invoiceNumber);
         var pdfBlobRef = await _blobStore.UploadAsync(
             _blobOptions.InvoicesContainerName,
             blobName,
@@ -332,13 +333,6 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
 
         return currency;
     }
-
-    private static string BuildBlobName(InvoiceNumber number) =>
-        // YYYY/MM/<InvoiceNumber>.pdf per docs/bc-design/invoicing.md § 10.
-        // Use the issue year — same as InvoiceNumber.Year by construction. Month is fixed
-        // at 01 for the v1 layout (the month dimension is reserved for a v2 catalogue
-        // partition; the spec just needs the YYYY/MM/ prefix to exist).
-        FormattableString.Invariant($"{number.Year:D4}/01/{number.Value}.pdf");
 
     private static OrderPayload DeserializeOrderPayload(string json, Guid correlationId)
     {

@@ -118,6 +118,17 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Navigation(i => i.Total).IsRequired();
 
         // PdfBlobRef — owned, nullable until Issue().
+        //
+        // Wave-1 deferral (closeout1 M8, issue #131): pdf_blob_uri persists the
+        // 10-minute SAS URL that was minted at Issue() time, so an outbox replay
+        // beyond ~10 minutes after issuance ships an expired URL on the external
+        // event. The fix is to store the immutable blob NAME and let downstream
+        // consumers mint a fresh SAS — that requires renaming the column, which
+        // is a schema migration the user generates (CLAUDE.md). Until then, the
+        // GET handlers compute on-demand SAS URLs via InvoicePdfBlobName.For + the
+        // blob store, so the persisted URL is never read by the API itself.
+        // L4 (issue #137): no DB CHECK constraint pins Status to the SmartEnum
+        // value-set; defence-in-depth that also needs a migration to land.
         builder.OwnsOne(i => i.PdfBlobRef, pdf =>
         {
             pdf.Property(p => p.BlobUri)
@@ -126,7 +137,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
                 .HasConversion(
                     uri => uri.AbsoluteUri,
                     s => new Uri(s, UriKind.Absolute))
-                .HasComment("Presigned SAS URL to the rendered PDF in blob storage.");
+                .HasComment("Presigned SAS URL at issuance — stale on replay beyond TTL; see issue #131.");
             pdf.Property(p => p.ContentHash)
                 .HasColumnName("pdf_content_hash")
                 .HasMaxLength(ContentHashLength)
