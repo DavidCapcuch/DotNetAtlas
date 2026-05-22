@@ -401,6 +401,10 @@ public sealed class Basket : AggregateRoot<Guid>
         Guid paymentMethodId,
         DateTimeOffset utcNow)
     {
+        // Last-resort programmer-bug guards: the command validator at the API boundary
+        // already rejects Guid.Empty for these fields, so reaching here implies a
+        // direct domain caller bypassing validation — treated as exceptional, not a
+        // user-facing Result.Fail (mirrors the Create/Rehydrate identity guards).
         Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
             "Basket.InvalidCorrelationId",
             "CorrelationId must not be empty."));
