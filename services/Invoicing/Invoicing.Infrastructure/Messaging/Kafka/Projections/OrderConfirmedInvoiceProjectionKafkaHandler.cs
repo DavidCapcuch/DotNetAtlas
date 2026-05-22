@@ -148,6 +148,12 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         // Currency and BillingAddress travel with it. Persisting them into OrderPayload
         // jsonb means M7's IssueInvoiceCommandHandler can construct Invoice.Create(...)
         // from the converged pending_invoices row without an HTTP round-trip.
+        //
+        // Wave-1 deferral (closeout1 M10, issue #133): BillingAddress lands here as
+        // plaintext while the Invoice aggregate's _enc columns reserve the contract
+        // for v2 DEK encryption. Dropping the address would break M7's hydration; the
+        // proper fix is v2 parity (encrypted jsonb or a separate _enc projection table)
+        // which requires a migration the user generates.
         return JsonSerializer.Serialize(new
         {
             message.OrderId,
