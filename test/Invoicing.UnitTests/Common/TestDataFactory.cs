@@ -90,4 +90,53 @@ internal static class TestDataFactory
         invoice.Issue(number, pdf, now);
         return invoice;
     }
+
+    /// <summary>
+    /// Builds an issued <see cref="Invoice"/> with explicit <paramref name="buyerId"/>,
+    /// invoice number, and monetary total. Used by outbox publisher unit tests that need
+    /// to assert on template-data fields derived from these values.
+    /// </summary>
+    public static Invoice BuildIssuedInvoice(
+        Guid buyerId,
+        int year,
+        long sequence,
+        decimal totalAmount,
+        string currency,
+        DateTimeOffset? utcNow = null)
+    {
+        var curr = Platform.SharedKernel.ValueObjects.CurrencyCode.FromName(currency);
+        var unitPrice = Money.Create(totalAmount, currency).Value;
+        var line = InvoiceLine.Create(
+            lineNumber: 1,
+            DefaultSku(),
+            "Service",
+            quantity: 1,
+            unitPrice: unitPrice,
+            DefaultVatRate(0m)).Value;
+        var vatLine = new VatLine(
+            DefaultVatRate(0m),
+            new Money(totalAmount, curr),
+            new Money(0m, curr));
+
+        var now = utcNow ?? FixedUtcNow;
+        var invoice = Invoice.Create(
+            buyerId: buyerId,
+            orderId: Guid.CreateVersion7(),
+            paymentId: Guid.CreateVersion7(),
+            correlationId: Guid.CreateVersion7(),
+            billingAddress: DefaultBillingAddress(),
+            lines: [line],
+            vatLines: [vatLine],
+            deliveryChannel: DeliveryChannel.Email,
+            utcNow: now).Value;
+
+        var number = InvoiceNumber.Create(year, sequence).Value;
+        var pdfName = $"{year:D4}/{now.Month:D2}/INV-{year:D4}-{sequence:D6}.pdf";
+        var pdf = PdfBlobRef.Create(
+            pdfName,
+            new string('a', 64),
+            sizeBytes: 1024).Value;
+        invoice.Issue(number, pdf, now);
+        return invoice;
+    }
 }
