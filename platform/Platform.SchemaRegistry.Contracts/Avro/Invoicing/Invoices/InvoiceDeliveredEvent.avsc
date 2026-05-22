@@ -1,0 +1,14 @@
+{
+    "type": "record",
+    "name": "InvoiceDeliveredEvent",
+    "namespace": "Invoicing.Invoices",
+    "doc": "Emitted when an Invoice transitions Issued -> Delivered (a downstream delivery channel reported success). Topic 'invoicing.invoices' has 10-year retention; consumers may need this to advance their own state machines (BFF cache, audit reports). FORWARD_TRANSITIVE compat.",
+    "fields": [
+        { "name": "InvoiceId",      "type": { "type": "string", "logicalType": "uuid" },             "doc": "Aggregate id." },
+        { "name": "BuyerId",        "type": { "type": "string", "logicalType": "uuid" },             "doc": "Partition key; matches InvoiceIssuedEvent.BuyerId." },
+        { "name": "DeliveredAtUtc", "type": { "type": "long",   "logicalType": "timestamp-millis" }, "doc": "UTC instant the channel reported success." },
+        { "name": "Channel",        "type": "string",                                                "doc": "DeliveryChannel SmartEnum name: 'Email' (v1) or 'TaxAuthorityWebhook' (v2)." },
+        { "name": "CorrelationId",  "type": { "type": "string", "logicalType": "uuid" },             "doc": "Checkout saga correlation id (passed through from Issuance)." },
+        { "name": "OccurredOnUtc",  "type": { "type": "long",   "logicalType": "timestamp-millis" }, "doc": "Domain event occurrence time." }
+    ]
+}
