@@ -167,7 +167,7 @@ public class CreditNoteInvariantsTests
 
     private static PdfBlobRef MakePdf() =>
         PdfBlobRef.Create(
-            new Uri("https://example.com/credit-notes/CN-2026-000008.pdf?sv=sas"),
+            "2026/05/CN-2026-000008.pdf",
             new string('c', 64),
             sizeBytes: 2048).Value;
 }

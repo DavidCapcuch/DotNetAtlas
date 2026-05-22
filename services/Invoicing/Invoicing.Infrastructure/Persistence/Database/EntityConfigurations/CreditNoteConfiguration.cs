@@ -27,7 +27,6 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
 {
     private const int CreditNoteNumberMaxLength = 14; // CN-YYYY-NNNNNN
     private const int InvoiceNumberMaxLength = 15;
-    private const int BlobUriMaxLength = 2048;
     private const int ContentHashLength = 64;
 
     public void Configure(EntityTypeBuilder<CreditNote> builder)
@@ -107,15 +106,15 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
         builder.OwnsOne(cn => cn.Total, money => InvoiceConfiguration.ConfigureMoney(money, "total"));
         builder.Navigation(cn => cn.Total).IsRequired();
 
+        // PdfBlobRef — owned, nullable until Issue(). BlobName is the canonical immutable
+        // identifier; the URI is computed on demand by callers via IBlobStore.GetSasUrlAsync.
         builder.OwnsOne(cn => cn.PdfBlobRef, pdf =>
         {
-            pdf.Property(p => p.BlobUri)
-                .HasColumnName("pdf_blob_uri")
-                .HasMaxLength(BlobUriMaxLength)
-                .HasConversion(
-                    uri => uri.AbsoluteUri,
-                    s => new Uri(s, UriKind.Absolute))
-                .HasComment("Presigned SAS URL to the rendered credit-note PDF.");
+            pdf.Property(p => p.BlobName)
+                .HasColumnName("pdf_blob_name")
+                .HasMaxLength(PdfBlobRef.BlobNameMaxLength)
+                .IsRequired();
+
             pdf.Property(p => p.ContentHash)
                 .HasColumnName("pdf_content_hash")
                 .HasMaxLength(ContentHashLength)

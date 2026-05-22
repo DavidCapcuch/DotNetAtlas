@@ -29,7 +29,7 @@ internal static class CreditNoteIssuedMapper
             Total = source.Total.Amount.ToAvroDecimal(MoneyScale),
             Currency = source.Total.Currency.Name,
             Reason = source.Reason.Name,
-            PdfBlobUri = source.PdfBlobRef.BlobUri.AbsoluteUri,
+            PdfBlobUri = source.PdfBlobRef.BlobName,
             PdfContentHash = source.PdfBlobRef.ContentHash,
             PdfSizeBytes = source.PdfBlobRef.SizeBytes,
         };

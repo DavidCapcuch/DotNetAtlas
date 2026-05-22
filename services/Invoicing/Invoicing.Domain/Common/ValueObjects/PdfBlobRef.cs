@@ -8,25 +8,38 @@ namespace Invoicing.Domain.Common.ValueObjects;
 /// Content-addressed reference to a stored PDF artifact per ADR-0017.
 /// <para>
 /// Immutable once set on the aggregate (I-4) — PDFs are write-once.
-/// <see cref="BlobUri"/> is the presigned (SAS) GET URL the aggregate hands back to consumers;
-/// <see cref="ContentHash"/> is the SHA-256 hex digest used for integrity verification.
+/// <see cref="BlobName"/> is the canonical immutable identifier of the blob
+/// (e.g., <c>"2026/05/INV-2026-000142.pdf"</c>). Callers compute fresh SAS URLs
+/// on demand via <c>IBlobStore.GetSasUrlAsync</c>; the aggregate never persists
+/// a bearer credential (issue #131).
 /// </para>
 /// </summary>
-/// <param name="BlobUri">Presigned SAS URL with limited TTL.</param>
-/// <param name="ContentHash">SHA-256 hex digest (64 lowercase hex chars).</param>
-/// <param name="SizeBytes">Total PDF size in bytes (strictly positive).</param>
-public sealed record PdfBlobRef(Uri BlobUri, string ContentHash, long SizeBytes) : ValueObject
+public sealed record PdfBlobRef(string BlobName, string ContentHash, long SizeBytes) : ValueObject
 {
     public const int ContentHashLength = 64;
+    public const int BlobNameMaxLength = 1024;
+    private const string PdfExtension = ".pdf";
 
-    public static Result<PdfBlobRef> Create(Uri blobUri, string contentHash, long sizeBytes)
+    public static Result<PdfBlobRef> Create(string blobName, string contentHash, long sizeBytes)
     {
-        ArgumentNullException.ThrowIfNull(blobUri);
-
-        if (!blobUri.IsAbsoluteUri)
+        if (string.IsNullOrWhiteSpace(blobName) || blobName.Length > BlobNameMaxLength)
         {
             return Result.Fail<PdfBlobRef>(new ValidationError(
-                nameof(BlobUri), "Blob URI must be absolute.", "Invoicing.InvalidBlobUri"));
+                nameof(BlobName),
+                $"BlobName must be a non-empty path (max {BlobNameMaxLength} chars).",
+                "Invoicing.InvalidBlobName"));
+        }
+
+        if (blobName.StartsWith('/') || blobName.StartsWith('\\'))
+        {
+            return Result.Fail<PdfBlobRef>(new ValidationError(
+                nameof(BlobName), "BlobName must be a relative path (no leading slash).", "Invoicing.InvalidBlobName"));
+        }
+
+        if (!blobName.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Fail<PdfBlobRef>(new ValidationError(
+                nameof(BlobName), "BlobName must end with '.pdf'.", "Invoicing.InvalidBlobName"));
         }
 
         if (string.IsNullOrWhiteSpace(contentHash) || contentHash.Length != ContentHashLength)
@@ -42,9 +55,7 @@ public sealed record PdfBlobRef(Uri BlobUri, string ContentHash, long SizeBytes)
             if (!IsLowerHex(ch))
             {
                 return Result.Fail<PdfBlobRef>(new ValidationError(
-                    nameof(ContentHash),
-                    "ContentHash must be lowercase hex.",
-                    "Invoicing.InvalidContentHash"));
+                    nameof(ContentHash), "ContentHash must be lowercase hex.", "Invoicing.InvalidContentHash"));
             }
         }
 
@@ -54,7 +65,7 @@ public sealed record PdfBlobRef(Uri BlobUri, string ContentHash, long SizeBytes)
                 nameof(SizeBytes), "SizeBytes must be strictly positive.", "Invoicing.InvalidBlobSize"));
         }
 
-        return Result.Ok(new PdfBlobRef(blobUri, contentHash, sizeBytes));
+        return Result.Ok(new PdfBlobRef(blobName, contentHash, sizeBytes));
     }
 
     private static bool IsLowerHex(char ch) =>

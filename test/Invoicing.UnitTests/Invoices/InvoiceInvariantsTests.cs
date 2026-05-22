@@ -185,7 +185,7 @@ public class InvoiceInvariantsTests
 
         var replacementNumber = InvoiceNumber.Create(2026, 999).Value;
         var replacementPdf = PdfBlobRef.Create(
-            new Uri("https://example.com/invoices/INV-2026-000999.pdf?sv=sas2"),
+            "2026/05/INV-2026-000999.pdf",
             new string('d', 64),
             sizeBytes: 4096).Value;
 
@@ -207,7 +207,7 @@ public class InvoiceInvariantsTests
         invoice.AssignInvoiceNumber(InvoiceNumber.Create(2026, 1).Value);
 
         var prePersistedPdf = PdfBlobRef.Create(
-            new Uri("https://example.com/invoices/INV-2026-000001.pdf?sv=prepersisted"),
+            "2026/05/INV-2026-000001.pdf",
             new string('e', 64),
             sizeBytes: 512).Value;
         typeof(Invoice)
@@ -215,7 +215,7 @@ public class InvoiceInvariantsTests
             .SetValue(invoice, prePersistedPdf);
 
         var freshPdf = PdfBlobRef.Create(
-            new Uri("https://example.com/invoices/INV-2026-000001.pdf?sv=fresh"),
+            "2026/05/INV-2026-000001-fresh.pdf",
             new string('f', 64),
             sizeBytes: 1024).Value;
 
@@ -242,7 +242,7 @@ public class InvoiceInvariantsTests
 
     private static PdfBlobRef MakePdf() =>
         PdfBlobRef.Create(
-            new Uri("https://example.com/invoices/INV-2026-000142.pdf?sv=sas"),
+            "2026/05/INV-2026-000142.pdf",
             new string('b', 64),
             sizeBytes: 2048).Value;
 }
