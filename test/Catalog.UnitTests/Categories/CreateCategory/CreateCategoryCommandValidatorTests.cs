@@ -38,6 +38,24 @@ public class CreateCategoryCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
+    // CAT-SEC-006 / #188 followup: counts Unicode scalars, not UTF-16 code units, so a
+    // non-BMP rune (𝓪 / U+1D4EA, 2 chars per appearance) is treated as a single rune.
+    [Fact]
+    public void Name_of_100_emoji_runes_passes_rune_check()
+    {
+        var name = string.Concat(Enumerable.Repeat("𝓪", 100));
+        var cmd = new CreateCategoryCommand { Name = name };
+        _validator.Validate(cmd).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Name_of_101_emoji_runes_fails_rune_check()
+    {
+        var name = string.Concat(Enumerable.Repeat("𝓪", 101));
+        var cmd = new CreateCategoryCommand { Name = name };
+        _validator.Validate(cmd).IsValid.Should().BeFalse();
+    }
+
     [Fact]
     public void Empty_guid_parent_fails()
     {

@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Validation;
 using FluentValidation;
 
 namespace Catalog.Application.Products.DiscontinueProduct;
@@ -10,6 +11,6 @@ public class DiscontinueProductCommandValidator : AbstractValidator<DiscontinueP
 
         RuleFor(x => x.Reason)
             .NotEmpty()
-            .MaximumLength(500);
+            .MaximumRuneLength(500);
     }
 }
