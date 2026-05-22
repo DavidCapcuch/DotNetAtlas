@@ -55,16 +55,14 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// </para>
 /// </remarks>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class Session2CannotOversellTests
+public sealed class Session2CannotOversellTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 5, 1, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public Session2CannotOversellTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     /// <summary>
@@ -101,7 +99,7 @@ public sealed class Session2CannotOversellTests
         var losingOrderId = Guid.NewGuid();
 
         // Arrange: stream at V=2 with OnHand=7, Reserved=0, Available=7.
-        using (var setupScope = _fixture.CreateScope())
+        using (var setupScope = Fixture.CreateScope())
         {
             var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
             var init = await setupRepo.AppendAsync(
@@ -160,7 +158,7 @@ public sealed class Session2CannotOversellTests
 
         // Verify: the stream contains exactly Init + Receive + Winning Reserve
         // — no losing reserve row, no extra event from the failed attempt.
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var verifyCtx = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var rows = await verifyCtx.StockEvents
             .AsNoTracking()
@@ -202,7 +200,7 @@ public sealed class Session2CannotOversellTests
         var orderId = Guid.NewGuid();
 
         // Empty stream at V=1.
-        using (var initScope = _fixture.CreateScope())
+        using (var initScope = Fixture.CreateScope())
         {
             var initHandler = initScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
@@ -216,7 +214,7 @@ public sealed class Session2CannotOversellTests
         }
 
         // Admin receive: stream at V=2 with OnHand=10.
-        using (var receiveScope = _fixture.CreateScope())
+        using (var receiveScope = Fixture.CreateScope())
         {
             var receiveHandler = receiveScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
@@ -236,7 +234,7 @@ public sealed class Session2CannotOversellTests
         // EventStoreRepository which calls RehydrateAsync — the Receive event
         // at V=2 must be visible there for Available=10 evaluation to allow
         // the reserve.
-        using var reserveScope = _fixture.CreateScope();
+        using var reserveScope = Fixture.CreateScope();
         var reserveHandler = reserveScope.ServiceProvider
             .GetRequiredService<ICommandHandler<ReserveStockCommand>>();
         var reserveResult = await reserveHandler.HandleAsync(
@@ -253,7 +251,7 @@ public sealed class Session2CannotOversellTests
 
         reserveResult.Should().BeSuccess();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         // Stream now has Init + Receive + Reserve at V=3.
@@ -280,7 +278,7 @@ public sealed class Session2CannotOversellTests
     private InventoryDbContext CreateInterceptedDbContext(OneShotConflictInterceptor interceptor)
     {
         var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(_fixture.ConnectionString, npg => npg
+            .UseNpgsql(Fixture.ConnectionString, npg => npg
                 .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor()
@@ -296,7 +294,7 @@ public sealed class Session2CannotOversellTests
         DomainEvent @event,
         CancellationToken ct)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var (eventType, payload) = StockEventSerializer.Serialize(@event);

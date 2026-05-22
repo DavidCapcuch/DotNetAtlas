@@ -25,16 +25,14 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// also DLT-routed but via KafkaFlow's unhandled-exception path).
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class SagaCommandHandlerBaseTests
+public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =
         new(2026, 4, 25, 15, 0, 0, DateTimeKind.Utc);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public SagaCommandHandlerBaseTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     /// <summary>
@@ -62,7 +60,7 @@ public sealed class SagaCommandHandlerBaseTests
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -95,7 +93,7 @@ public sealed class SagaCommandHandlerBaseTests
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ConfirmReservationCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -130,7 +128,7 @@ public sealed class SagaCommandHandlerBaseTests
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ConfirmReservationCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -143,7 +141,7 @@ public sealed class SagaCommandHandlerBaseTests
     {
         var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
 
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
 
@@ -170,7 +168,7 @@ public sealed class SagaCommandHandlerBaseTests
     {
         var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
 
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();

@@ -13,16 +13,14 @@ using Platform.SharedKernel.Errors;
 namespace Inventory.IntegrationTests.Application;
 
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class GetReservationByIdQueryHandlerTests
+public sealed class GetReservationByIdQueryHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 26, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public GetReservationByIdQueryHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -32,7 +30,7 @@ public sealed class GetReservationByIdQueryHandlerTests
         var reservationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
 
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var init = seedScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
@@ -67,7 +65,7 @@ public sealed class GetReservationByIdQueryHandlerTests
                 TestContext.Current.CancellationToken)).Should().BeSuccess();
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetReservationByIdQuery, ReservationAuditResponse>>();
 
@@ -91,7 +89,7 @@ public sealed class GetReservationByIdQueryHandlerTests
     [Fact]
     public async Task UnknownReservation_ReturnsNotFoundError()
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetReservationByIdQuery, ReservationAuditResponse>>();
 

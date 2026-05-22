@@ -16,16 +16,14 @@ namespace Inventory.IntegrationTests.Application;
 /// <see cref="NotFoundError"/> when absent.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class GetStockLevelByProductIdQueryHandlerTests
+public sealed class GetStockLevelByProductIdQueryHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 26, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public GetStockLevelByProductIdQueryHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -33,7 +31,7 @@ public sealed class GetStockLevelByProductIdQueryHandlerTests
     {
         var productId = Guid.CreateVersion7();
 
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var init = seedScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
@@ -54,7 +52,7 @@ public sealed class GetStockLevelByProductIdQueryHandlerTests
                 TestContext.Current.CancellationToken)).Should().BeSuccess();
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetStockLevelByProductIdQuery, StockLevelResponse>>();
 
@@ -71,7 +69,7 @@ public sealed class GetStockLevelByProductIdQueryHandlerTests
     [Fact]
     public async Task UnknownProduct_ReturnsNotFoundError()
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetStockLevelByProductIdQuery, StockLevelResponse>>();
 

@@ -19,16 +19,14 @@ namespace Inventory.IntegrationTests.Application;
 /// atomic transaction.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ConfirmReservationCommandHandlerTests
+public sealed class ConfirmReservationCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 24, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ConfirmReservationCommandHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -38,7 +36,7 @@ public sealed class ConfirmReservationCommandHandlerTests
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        using (var seed = _fixture.CreateScope())
+        using (var seed = Fixture.CreateScope())
         {
             var init = seed.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
             var receive = seed.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
@@ -49,7 +47,7 @@ public sealed class ConfirmReservationCommandHandlerTests
             (await reserve.HandleAsync(new ReserveStockCommand { ProductId = productId, ReservationId = reservationId, OrderId = orderId, Quantity = 4, TimeToLive = TimeSpan.FromMinutes(15), OccurredOnUtc = UtcNow.AddMinutes(-1) }, TestContext.Current.CancellationToken)).Should().BeSuccess();
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ConfirmReservationCommand>>();
 
         var result = await handler.HandleAsync(
@@ -63,7 +61,7 @@ public sealed class ConfirmReservationCommandHandlerTests
 
         result.Should().BeSuccess();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var audit = await db.ReservationAudit

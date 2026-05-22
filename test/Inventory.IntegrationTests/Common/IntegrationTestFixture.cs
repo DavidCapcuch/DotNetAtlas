@@ -10,8 +10,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Respawn;
 using Testcontainers.PostgreSql;
 
 namespace Inventory.IntegrationTests.Common;
@@ -41,6 +43,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         .Build();
 
     private ServiceProvider _rootServices = null!;
+    private Respawner _databaseCleaner = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -119,10 +122,41 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         await using var migrationScope = _rootServices.CreateAsyncScope();
         var dbContext = migrationScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
+
+        // M9 (#153): build a Respawner once after migrations land so
+        // ResetFixtureStateAsync can wipe Postgres between tests, matching
+        // the functional fixture's discipline. The Inventory schema houses
+        // every table we own (stock_events, current_stock_levels,
+        // reservation_audit, plus the platform outbox/inbox tables bound to
+        // DefaultSchemaName="inventory"). Respawn excludes EF's
+        // __EFMigrationsHistory table by default, so the schema is preserved
+        // and only data is wiped.
+        await using var respawnConnection = new NpgsqlConnection(_pgContainer.GetConnectionString());
+        await respawnConnection.OpenAsync(TestContext.Current.CancellationToken);
+        _databaseCleaner = await Respawner.CreateAsync(
+            respawnConnection,
+            new RespawnerOptions
+            {
+                DbAdapter = DbAdapter.Postgres,
+                SchemasToInclude = [InventoryDbContext.DefaultSchemaName],
+            });
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
     public IServiceScope CreateScope() => _rootServices.CreateScope();
+
+    /// <summary>
+    /// Wipes every table in the Inventory schema (preserving schema + EF
+    /// migrations history). Invoked from <see cref="BaseIntegrationTest.DisposeAsync"/>
+    /// after each test so per-test isolation no longer relies solely on
+    /// <see cref="Guid.NewGuid"/> discipline.
+    /// </summary>
+    public async Task ResetFixtureStateAsync()
+    {
+        await using var connection = new NpgsqlConnection(_pgContainer.GetConnectionString());
+        await connection.OpenAsync();
+        await _databaseCleaner.ResetAsync(connection);
+    }
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _pgContainer.GetConnectionString();
