@@ -31,11 +31,8 @@
         },
         {
             "name": "PaymentMethodId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "ID of the saved payment method to use."
+            "type": "string",
+            "doc": "Gateway-issued opaque payment-method token (e.g. Stripe 'pm_*', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 closeout C-2 fix: previously typed as logicalType:uuid which blocked any real-PSP adapter swap because no real gateway issues UUID-shaped payment-method ids."
         },
         {
             "name": "Amount",

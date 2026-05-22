@@ -44,7 +44,7 @@ public sealed class CheckoutSagaStateMap :
             .IsRequired();
 
         entity.Property(x => x.PaymentMethodId)
-            .HasComment("Saved payment method id - passed through to PaymentProcessingSaga.");
+            .HasComment("Saved payment method id (Guid). Stored as uuid because Basket + Ordering wire shapes still use Guid; CheckoutSaga string-encodes it only at the Payments-emit boundary (C-2 closeout — Payments-side schema changed, upstream BC wire shapes deferred).");
 
         entity.Property(x => x.BasketSnapshotJson)
             .HasComment("Serialized basket line snapshot (immutable for the saga's lifetime).")

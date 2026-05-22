@@ -520,7 +520,9 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             CorrelationId = correlationId,
             OrderId = orderId,
             UserId = Guid.CreateVersion7(),
-            PaymentMethodId = Guid.CreateVersion7(),
+            // Real-PSP-shaped token (Stripe-style 'pm_*' string) per C-2 closeout — the Avro
+            // contract is now plain string, not logicalType:uuid.
+            PaymentMethodId = $"pm_{Guid.CreateVersion7():N}",
             Amount = new Avro.AvroDecimal(amount),
             Currency = "USD",
             IdempotencyKey = $"key-{correlationId}",

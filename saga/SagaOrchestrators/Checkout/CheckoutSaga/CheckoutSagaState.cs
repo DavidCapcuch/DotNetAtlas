@@ -42,7 +42,11 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     public string Currency { get; set; } = "";
 
     /// <summary>
-    /// Saved payment method id - passed through to PaymentProcessingSaga.
+    /// Saved payment method id — passed through to PaymentProcessingSaga and CreateOrderCommand
+    /// (both of which still consume it as <c>Guid</c> in Wave-1). The boundary conversion to the
+    /// gateway-token-shaped string happens at <c>BuildPaymentRequestedEvent</c> when emitting the
+    /// Payments-side wire event (C-2 closeout — Payments-side schema changed; Basket + Ordering
+    /// wire shapes deferred).
     /// </summary>
     public Guid PaymentMethodId { get; set; }
 

@@ -127,7 +127,8 @@ public class CheckoutSagaOrchestratorFlagTests
             paymentRequested[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             paymentRequested[0].IntegrationEvent.OrderId.Should().Be(orderId);
             paymentRequested[0].IntegrationEvent.UserId.Should().Be(userId);
-            paymentRequested[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);
+            // C-2 closeout: Payments wire shape is string. CheckoutSaga stringifies at the boundary.
+            paymentRequested[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId.ToString());
             paymentRequested[0].IntegrationEvent.IdempotencyKey.Should().Be(correlationId.ToString());
         }
     }

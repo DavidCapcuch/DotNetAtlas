@@ -77,7 +77,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             CorrelationId = correlationId,
             OrderId = Guid.CreateVersion7(),
             UserId = userId,
-            PaymentMethodId = Guid.CreateVersion7(),
+            PaymentMethodId = $"pm_{Guid.CreateVersion7():N}",
             Amount = 9.99m,
             Currency = "USD",
             IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
@@ -476,7 +476,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentMethodId = Guid.CreateVersion7();
+        var paymentMethodId = $"pm_{Guid.CreateVersion7():N}";
         var orderId = Guid.CreateVersion7();
 
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent
@@ -521,7 +521,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             CorrelationId = correlationId,
             OrderId = Guid.CreateVersion7(),
             UserId = userId,
-            PaymentMethodId = Guid.CreateVersion7(),
+            PaymentMethodId = $"pm_{Guid.CreateVersion7():N}",
             Amount = amount,
             Currency = currency,
             IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",

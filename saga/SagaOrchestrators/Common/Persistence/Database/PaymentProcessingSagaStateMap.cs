@@ -44,7 +44,9 @@ public sealed class PaymentProcessingSagaStateMap :
             .HasDatabaseName("IX_PaymentSagaState_UserId");
 
         entity.Property(x => x.PaymentMethodId)
-            .HasComment("ID of the saved payment method");
+            .HasComment("Gateway-issued opaque payment-method token (Stripe 'pm_*', Adyen alphanumeric, …); 1-64 chars. Changed from uuid in the Wave-1 closeout C-2 fix.")
+            .HasMaxLength(64)
+            .IsRequired();
 
         // Payment details
         entity.Property(x => x.Amount)

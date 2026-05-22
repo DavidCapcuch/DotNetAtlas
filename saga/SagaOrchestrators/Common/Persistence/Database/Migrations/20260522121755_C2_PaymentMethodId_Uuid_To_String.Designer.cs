@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SagaOrchestrators.Common.Persistence.Database;
@@ -11,9 +12,11 @@ using SagaOrchestrators.Common.Persistence.Database;
 namespace SagaOrchestrators.Common.Persistence.Database.Migrations
 {
     [DbContext(typeof(SagaDbContext))]
-    partial class SagaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260522121755_C2_PaymentMethodId_Uuid_To_String")]
+    partial class C2_PaymentMethodId_Uuid_To_String
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -12,7 +12,7 @@ namespace Payments.Transactions
 	using System.Text;
 	using global::Avro;
 	using global::Avro.Specific;
-	
+
 	/// <summary>
 	/// Event emitted when a payment is requested for an Order. Triggers the Payment Saga to process authorization and capture. The eShop's Checkout saga always creates the Order before requesting payment, so OrderId is always present at request time.
 	/// </summary>
@@ -31,8 +31,11 @@ namespace Payments.Transactions
 				"oss-BC linkage stays CorrelationId).\",\"default\":\"00000000-0000-0000-0000-0000000" +
 				"00000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"Us" +
 				"er initiating the payment.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"nam" +
-				"e\":\"PaymentMethodId\",\"doc\":\"ID of the saved payment method to use for this trans" +
-				"action.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Amount\",\"doc\":\"" +
+				"e\":\"PaymentMethodId\",\"doc\":\"Gateway-issued opaque payment-method token (e.g. Str" +
+				"ipe 'pm_*', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 close" +
+				"out C-2 fix: previously typed as logicalType:uuid which blocked any real-PSP ada" +
+				"pter swap because no real gateway issues UUID-shaped payment-method ids.\",\"type\"" +
+				":\"string\"},{\"name\":\"Amount\",\"doc\":\"" +
 				"Payment amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"" +
 				"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code (e.g., \'USD\', \'EUR\')" +
 				".\",\"type\":\"string\"},{\"name\":\"IdempotencyKey\",\"doc\":\"Idempotency key for preventi" +
@@ -52,9 +55,9 @@ namespace Payments.Transactions
 		/// </summary>
 		private System.Guid _UserId;
 		/// <summary>
-		/// ID of the saved payment method to use for this transaction.
+		/// Gateway-issued opaque payment-method token (e.g. Stripe 'pm_*', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 closeout C-2 fix: previously typed as logicalType:uuid which blocked any real-PSP adapter swap because no real gateway issues UUID-shaped payment-method ids.
 		/// </summary>
-		private System.Guid _PaymentMethodId;
+		private string _PaymentMethodId;
 		/// <summary>
 		/// Payment amount.
 		/// </summary>
@@ -121,9 +124,9 @@ namespace Payments.Transactions
 			}
 		}
 		/// <summary>
-		/// ID of the saved payment method to use for this transaction.
+		/// Gateway-issued opaque payment-method token (e.g. Stripe 'pm_*', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 closeout C-2 fix: previously typed as logicalType:uuid which blocked any real-PSP adapter swap because no real gateway issues UUID-shaped payment-method ids.
 		/// </summary>
-		public System.Guid PaymentMethodId
+		public string PaymentMethodId
 		{
 			get
 			{
@@ -212,7 +215,7 @@ namespace Payments.Transactions
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
 			case 1: this.OrderId = (System.Guid)fieldValue; break;
 			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.PaymentMethodId = (System.Guid)fieldValue; break;
+			case 3: this.PaymentMethodId = (System.String)fieldValue; break;
 			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
 			case 5: this.Currency = (System.String)fieldValue; break;
 			case 6: this.IdempotencyKey = (System.String)fieldValue; break;

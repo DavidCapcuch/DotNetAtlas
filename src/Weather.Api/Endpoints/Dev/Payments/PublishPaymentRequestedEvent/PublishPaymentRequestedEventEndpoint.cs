@@ -41,7 +41,7 @@ internal class PublishPaymentRequestedEventEndpoint : Endpoint<PublishPaymentReq
                 CorrelationId = Guid.CreateVersion7(),
                 OrderId = Guid.CreateVersion7(),
                 UserId = Guid.Parse("00000000-0000-0000-0000-111111111111"), // dev@dotnetatlas.com
-                PaymentMethodId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                PaymentMethodId = "pm_dev_4242",
                 Amount = 99.99m,
                 Currency = "USD",
                 IdempotencyKey = Guid.NewGuid().ToString()
