@@ -332,15 +332,6 @@
           "Serilog": "4.3.0"
         }
       },
-      "EntityFrameworkCore.Exceptions.Common": {
-        "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "dmT5QLshbz6WJjZs3dlmqwWzS1se+XQ34w5zLlBrafDd32hT+F1KzANTL532Xz3XvG2q9up51HO/PLtIt2t+Rw==",
-        "dependencies": {
-          "DbExceptionClassifier.Common": "1.0.0",
-          "Microsoft.EntityFrameworkCore.Relational": "10.0.5"
-        }
-      },
       "Google.Protobuf": {
         "type": "Transitive",
         "resolved": "3.30.1",
@@ -1430,6 +1421,16 @@
           "Apache.Avro": "1.12.1",
           "Confluent.Kafka": "2.14.0",
           "Confluent.SchemaRegistry": "2.14.0"
+        }
+      },
+      "EntityFrameworkCore.Exceptions.Common": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "dmT5QLshbz6WJjZs3dlmqwWzS1se+XQ34w5zLlBrafDd32hT+F1KzANTL532Xz3XvG2q9up51HO/PLtIt2t+Rw==",
+        "dependencies": {
+          "DbExceptionClassifier.Common": "1.0.0",
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.5"
         }
       },
       "FastEndpoints.Attributes": {
