@@ -1,20 +1,26 @@
+using System.Text.Json;
 using EntityFramework.Exceptions.PostgreSQL;
 using FluentResults;
 using Invoicing.Application.Blobs;
 using Invoicing.Application.Common;
 using Invoicing.Application.Common.Data;
 using Invoicing.Application.Common.Numbering;
+using Invoicing.Application.Invoices.IssueInvoice;
+using Invoicing.Application.Invoices.Projections;
 using Invoicing.Application.Pdf;
 using Invoicing.Domain.Common.ValueObjects;
+using Invoicing.Infrastructure.Messaging.Kafka.Notifications;
 using Invoicing.Infrastructure.Persistence.Database;
 using Invoicing.Infrastructure.Persistence.Database.Interceptors;
 using Invoicing.Infrastructure.Persistence.Numbering;
+using KafkaFlow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Testcontainers.PostgreSql;
 
@@ -132,6 +138,10 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // handlers + dispatcher, behavior chain (Tracing→Logging→Metrics→Validation).
         services.AddInvoicingApplication();
 
+        // Kafka typed handlers — registered Scoped to match production KafkaFlow wiring.
+        // Tests resolve these directly and invoke Handle(...) without a middleware stack.
+        services.AddScoped<EmailNotificationSentEventKafkaHandler>();
+
         _rootServices = services.BuildServiceProvider();
 
         await using var setupScope = _rootServices.CreateAsyncScope();
@@ -147,6 +157,148 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
+
+    /// <summary>
+    /// Seeds a fully-issued invoice by seeding a <see cref="PendingInvoice"/> projection row
+    /// and running the real <c>IssueInvoiceCommandHandler</c>.
+    /// Returns <c>(invoiceId, buyerId)</c> suitable for handler-under-test scenarios.
+    /// </summary>
+    public async Task<(Guid InvoiceId, Guid BuyerId)> SeedIssuedInvoiceAsync(CancellationToken ct)
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var paymentId = Guid.CreateVersion7();
+        var buyerId = Guid.CreateVersion7();
+        const decimal totalAmount = 100.00m;
+        const string currency = "EUR";
+
+        await SeedConvergedPendingInvoiceAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+
+        await using var scope = _rootServices.CreateAsyncScope();
+        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
+
+        var result = await handler.HandleAsync(new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+
+        if (result.IsFailed)
+        {
+            throw new InvalidOperationException(
+                $"SeedIssuedInvoiceAsync: IssueInvoiceCommandHandler failed — {string.Join("; ", result.Errors.Select(e => e.Message))}");
+        }
+
+        return (result.Value, buyerId);
+    }
+
+    /// <summary>
+    /// Seeds a fully-delivered invoice. Issues first via <see cref="SeedIssuedInvoiceAsync"/>,
+    /// then simulates the Notifications ack by invoking <see cref="EmailNotificationSentEventKafkaHandler"/>
+    /// directly against the real Postgres container. Resets the outbox call-recorder
+    /// before returning so test assertions start from a clean baseline.
+    /// </summary>
+    public async Task<(Guid InvoiceId, Guid BuyerId)> SeedDeliveredInvoiceAsync(CancellationToken ct)
+    {
+        var (invoiceId, buyerId) = await SeedIssuedInvoiceAsync(ct);
+
+        await using var scope = _rootServices.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+
+        // Wire the outbox stub's Database so EnsureTransactionAsync can open a real transaction.
+        OutboxSubstitute.Database.Returns(dbContext.Database);
+
+        var handler = scope.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
+
+        var ctx = Substitute.For<IMessageContext>();
+        var consumerCtx = Substitute.For<IConsumerContext>();
+        consumerCtx.WorkerStopped.Returns(ct);
+        ctx.ConsumerContext.Returns(consumerCtx);
+
+        await handler.Handle(ctx, new Notifications.Email.EmailNotificationSentEvent
+        {
+            UserId = buyerId,
+            TemplateId = "invoicing.invoice-delivered",
+            IdempotencyKey = $"invoice-delivered-{invoiceId}-1",
+            SentAtUtc = DateTime.UtcNow,
+            OccurredOnUtc = DateTime.UtcNow,
+        });
+
+        // Reset recorder so the test under construction starts with a clean call history.
+        ResetOutboxSubstitute();
+
+        return (invoiceId, buyerId);
+    }
+
+    /// <summary>
+    /// Seeds a <see cref="PendingInvoice"/> projection row representing a converged
+    /// (Order + Payment) state — the precondition for running <c>IssueInvoiceCommandHandler</c>.
+    /// </summary>
+    private async Task SeedConvergedPendingInvoiceAsync(
+        Guid correlationId,
+        Guid orderId,
+        Guid paymentId,
+        Guid buyerId,
+        decimal totalAmount,
+        string currency,
+        CancellationToken ct)
+    {
+        await using var scope = _rootServices.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
+
+        var orderPayload = JsonSerializer.Serialize(new
+        {
+            OrderId = orderId,
+            CorrelationId = correlationId,
+            BuyerId = buyerId,
+            ConfirmedAtUtc = FixedFakeNow.UtcDateTime,
+            Items = new[]
+            {
+                new
+                {
+                    ProductId = Guid.CreateVersion7(),
+                    Sku = "SKU-SEED-1",
+                    Name = "Seed Product",
+                    Quantity = 1,
+                    UnitPriceAmount = totalAmount,
+                    LineTotalAmount = totalAmount,
+                },
+            },
+            TotalAmount = (decimal?)totalAmount,
+            Currency = (string?)currency,
+            BillingAddress = new
+            {
+                Street1 = "Seed Street 1",
+                Street2 = (string?)null,
+                City = "Prague",
+                State = (string?)null,
+                PostalCode = "11000",
+                CountryCode = "CZ",
+            },
+        });
+
+        var paymentPayload = JsonSerializer.Serialize(new
+        {
+            CorrelationId = correlationId,
+            UserId = buyerId,
+            PaymentTransactionId = paymentId,
+            AuthorizationId = "auth-seed",
+            Amount = totalAmount,
+            Currency = currency,
+            CapturedAtUtc = FixedFakeNow.UtcDateTime,
+        });
+
+        db.PendingInvoices.Add(new PendingInvoice
+        {
+            CorrelationId = correlationId,
+            OrderId = orderId,
+            PaymentId = paymentId,
+            BuyerId = buyerId,
+            OrderPayload = orderPayload,
+            PaymentPayload = paymentPayload,
+            FirstSeenAtUtc = FixedFakeNow,
+            CompletedAtUtc = FixedFakeNow,
+            IssuedInvoiceId = null,
+        });
+
+        await db.SaveChangesAsync(ct);
+    }
 
     public async ValueTask DisposeAsync()
     {
