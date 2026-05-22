@@ -1,5 +1,6 @@
 using FluentValidation;
 using Invoicing.Application.Common.Messaging;
+using Invoicing.Application.Common.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS.Common;
 using Platform.SharedKernel.Common;
@@ -42,6 +43,10 @@ public static class ApplicationDependencyInjection
 
         services.AddOptionsWithValidateOnStart<InvoicingTopicsOptions>()
             .BindConfiguration(InvoicingTopicsOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<BuyerPortalOptions>()
+            .BindConfiguration(BuyerPortalOptions.Section)
             .ValidateDataAnnotations();
 
         // BlobStorageOptions registration lives in Infrastructure (it injects the
