@@ -43,7 +43,6 @@ internal sealed class AzureBlobStore : IBlobStore
         ReadOnlyMemory<byte> content,
         string contentType,
         IReadOnlyDictionary<string, string>? metadata,
-        TimeSpan sasTtl,
         CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(containerName);
@@ -53,11 +52,6 @@ internal sealed class AzureBlobStore : IBlobStore
         if (content.IsEmpty)
         {
             throw new ArgumentException("Blob content must not be empty.", nameof(content));
-        }
-
-        if (sasTtl <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(sasTtl), "SAS TTL must be strictly positive.");
         }
 
         var container = _serviceClient.GetBlobContainerClient(containerName);

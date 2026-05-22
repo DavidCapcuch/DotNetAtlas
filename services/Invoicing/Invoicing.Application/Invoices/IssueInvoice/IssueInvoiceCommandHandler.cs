@@ -73,7 +73,6 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceCommand, Guid>
 {
     private const string PdfContentType = "application/pdf";
-    private const int SasTtlMinutes = 10;
 
     private readonly IInvoicingDbContext _db;
     private readonly IInvoiceNumberAllocator _numberAllocator;
@@ -220,7 +219,6 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
             pdfResult.Content,
             PdfContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(SasTtlMinutes),
             ct);
 
         var issueResult = invoice.Issue(pdfBlobRef, utcNow);

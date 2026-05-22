@@ -334,7 +334,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
                 Arg.Any<ReadOnlyMemory<byte>>(),
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyDictionary<string, string>?>(),
-                Arg.Any<TimeSpan>(),
                 Arg.Any<CancellationToken>())
             .Returns(call =>
             {

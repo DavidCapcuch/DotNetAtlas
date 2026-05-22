@@ -49,7 +49,6 @@ namespace Invoicing.Application.CreditNotes.IssueCreditNote;
 internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCreditNoteCommand, Guid>
 {
     private const string PdfContentType = "application/pdf";
-    private const int SasTtlMinutes = 10;
 
     private readonly IInvoicingDbContext _db;
     private readonly ICreditNoteNumberAllocator _numberAllocator;
@@ -178,7 +177,6 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
             pdfResult.Content,
             PdfContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(SasTtlMinutes),
             ct);
 
         var issueResult = creditNote.Issue(pdfBlobRef, utcNow);
