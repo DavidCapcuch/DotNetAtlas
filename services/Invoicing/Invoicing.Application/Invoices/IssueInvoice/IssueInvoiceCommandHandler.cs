@@ -156,7 +156,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         var billingAddress = ToAddress(orderPayload.BillingAddress!);
         var currency = ResolveCurrency(orderPayload.Currency!);
         var lines = BuildInvoiceLines(orderPayload.Items!, currency);
-        var deliveryChannel = DeliveryChannel.None; // M8 wires Email + SendEmailNotificationCommand fan-out.
+        var deliveryChannel = DeliveryChannel.Email; // M8 ships SendEmailNotificationCommand fan-out via InvoiceDeliveryRequestedOutboxPublisher.
 
         // ADR-0018 — the allocator demands an enclosing transaction. When dispatched from
         // the M6 consumer, the inbox middleware already owns a transaction (it wraps the

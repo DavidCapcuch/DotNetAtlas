@@ -286,6 +286,8 @@ public sealed class Invoice : AggregateRoot<Guid>
                 Channel = DeliveryChannel,
                 Attempt = 1,
                 CorrelationId = CorrelationId,
+                InvoiceNumber = InvoiceNumber,
+                Total = Total,
                 OccurredOnUtc = utcNow,
             });
         }
