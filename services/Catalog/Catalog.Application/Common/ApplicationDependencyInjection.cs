@@ -1,4 +1,5 @@
 using Catalog.Application.Categories.Common.Services;
+using Catalog.Application.Products.UpdateProductSellability;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS.Common;
@@ -39,6 +40,7 @@ public static class ApplicationDependencyInjection
 
             services.AddScoped<ICategoryAncestryService, CategoryAncestryService>();
             services.AddScoped<ICategoryPathService, CategoryPathService>();
+            services.AddScoped<IStockLevelChangedProjector, StockLevelChangedProjectionHandler>();
 
             services.AddCqrsHandlerBehaviors();
 

@@ -39,8 +39,8 @@ internal static class MessagingDependencyInjection
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
-        // Make the StockLevelChangedKafkaHandler's TimeProvider dependency explicit;
-        // AddInbox<>() also registers it as a side-effect, but that's an implicit coupling.
+        // The Application-layer StockLevelChangedProjectionHandler takes TimeProvider; pin the
+        // singleton registration here so it doesn't depend on AddInbox<>()'s side-effect.
         services.TryAddSingleton(TimeProvider.System);
 
         services.AddOptionsWithValidateOnStart<KafkaOptions>()
