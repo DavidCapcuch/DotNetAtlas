@@ -46,6 +46,16 @@ public sealed class InvoicingTopicsOptions
     [Length(1, MaximumKafkaTopicLength)]
     public required string PaymentsTransactions { get; set; }
 
+    /// <summary>Outbound topic for SendEmailNotificationCommand to Notifications BC.</summary>
+    [Required(AllowEmptyStrings = false)]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string NotificationsEmailCommands { get; set; }
+
+    /// <summary>Inbound topic carrying EmailNotificationSentEvent from Notifications BC.</summary>
+    [Required(AllowEmptyStrings = false)]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string NotificationsEmailEvents { get; set; }
+
     /// <summary>Suffix appended to each consumer's DLT (e.g. <c>.Invoicing.DLT</c>).</summary>
     [Required(AllowEmptyStrings = false)]
     [Length(1, 64)]
