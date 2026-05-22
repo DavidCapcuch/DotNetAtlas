@@ -34,7 +34,7 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
         builder.HasKey(t => t.Id);
         builder.Property(t => t.Id)
             .ValueGeneratedNever()
-            .HasComment("Primary key (Guid v7 — time-ordered).");
+            .HasComment("Primary key. v1 collapse: PaymentId == saga CorrelationId (Guid v4, random). Index locality is therefore random, not time-ordered. See docs/bc-design/payments.md § 2.1 + Wave-1 closeout H-7.");
 
         // Optimistic concurrency via Postgres xmin system column. `Entity.RowVersion` is
         // inherited from Platform.SharedKernel; Npgsql's RowVersion convention maps it to

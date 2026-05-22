@@ -32,7 +32,8 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 
 | Property | Type | Notes |
 |---|---|---|
-| `Id` | `Guid` | Aggregate root identity, UUID v7 for time-sortable storage |
+| `Id` | `Guid` | Aggregate root identity. **v1 design intent:** UUID v7 (time-sortable). **v1 reality (carry-forward):** `PaymentId` is silently set equal to the saga `CorrelationId` (UUID v4, random) — see § 2.1.1 below + Wave-1 closeout H-7. |
+| `CompletedAtUtc` | `DateTimeOffset?` | Set on auto-advance from `Captured`. |
 | `CorrelationId` | `Guid` | The originating saga CorrelationId (links to checkout, order, invoice) |
 | `BuyerId` | `Guid` | JWT `sub` at checkout time; frozen |
 | `OrderId` | `Guid` | The Ordering aggregate this payment belongs to |
@@ -46,7 +47,23 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 | `RefundedAtUtc` | `DateTimeOffset?` | Set on `Refunded` |
 | `VoidedAtUtc` | `DateTimeOffset?` | Set on `Voided` |
 | `FailureInfo` | `FailureInfo?` | Populated on any terminal failure — reason + gateway code |
+| `VoidReason` | `string?` | Saga-supplied reason on `Voided` (Wave-1 closeout H-5; nullable until `Void` succeeds). |
 | `RowVersion` | `uint` | Optimistic concurrency token |
+
+### 2.1.1 v1 carry-forward — `PaymentId == CorrelationId` collapse
+
+**Status:** known divergence between the design above (`PaymentId` is UUID v7, distinct from `CorrelationId`) and the v1 implementation (Wave-1 closeout H-7).
+
+**Reality:** The saga emits an `AuthorizePaymentCommand` with only `CorrelationId` on the wire — there is no `PaymentTransactionId` field. The Payments-side `SagaCommandMappers.ToAppCommand(AvroAuthorizePaymentCommand)` sets `PaymentId = avro.CorrelationId`, so the persisted aggregate row's primary key equals the saga's correlation id (UUID v4, random — *not* time-ordered v7). The migration's `id` column comment was originally `"Primary key (Guid v7 — time-ordered)."` which is **false on the v1 wire shape**; it was corrected in the same closeout to reflect the collapse.
+
+**Why this matters now:**
+- The `UX_PaymentTransactions_CorrelationId` unique index and the implicit `PaymentId == CorrelationId` equation together enforce one-payment-per-saga.
+- B-tree index locality benefits intended by v7 ordering are not realised — inserts scatter across the index.
+- Downstream BCs reading `PaymentTransactionId` from `PaymentCapturedEvent` / `PaymentCompletedEvent` get a value that *happens to equal* `CorrelationId`; they should not rely on this equation.
+
+**Future fix (cross-cutting wave):** the saga emits a fresh `Guid.CreateVersion7()` `PaymentTransactionId` on `AuthorizePaymentCommand`; Payments-side mapper uses it as the aggregate id; the v7 PK comment becomes true; "one-payment-per-saga" stays enforced via the existing unique index on `correlation_id`. Saga-side change is **out of scope** for the Wave-1 Payments-followups branch (saga code is in `saga/SagaOrchestrators/`).
+
+**Tracking issue:** filed as a `cross-cutting(wave1-followup)` GitHub issue.
 
 ### 2.2 Invariants
 
