@@ -25,7 +25,7 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
             CorrelationId = correlationId,
             PaymentMethodId = paymentMethodId,
             Items = [new OrderCreatedDomainEventItem(
-                Guid.CreateVersion7(), "SKU", "Prod", 2, 10m, 20m, "USD")],
+                Guid.CreateVersion7(), "SKU", "Prod", 2, 10m, 20m)],
             ShippingAddress = TestAggregate.ShippingAddress(),
             BillingAddress = TestAggregate.BillingAddress(),
             Total = new Money(20m, CurrencyCode.Usd),

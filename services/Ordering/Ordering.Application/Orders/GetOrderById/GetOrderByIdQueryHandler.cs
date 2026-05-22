@@ -38,9 +38,12 @@ public sealed class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, 
 
         // Ownership enforcement: buyer may read only their own order. Return NotFound
         // (not Forbidden) for a cross-buyer lookup so existence is not leaked.
+        // Logged at Warning so SecOps can probe for credential-stuffing
+        // patterns; ordering.authz.cross_buyer_attempt counter is a
+        // follow-up (see ordering-followups summary).
         if (!query.IsAdmin && order.BuyerId != query.BuyerId)
         {
-            _logger.LogInformation(
+            _logger.LogWarning(
                 "Buyer {BuyerId} requested order {OrderId} owned by a different buyer — returning NotFound",
                 query.BuyerId, query.OrderId);
             return Result.Fail<GetOrderByIdResponse>(OrderingErrors.OrderNotFound(query.OrderId));

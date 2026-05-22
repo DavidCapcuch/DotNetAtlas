@@ -26,7 +26,7 @@ public static partial class OrderConfirmedMapper
             OrderId = source.OrderId,
             CorrelationId = source.CorrelationId,
             BuyerId = source.BuyerId,
-            ConfirmedAtUtc = source.OccurredOnUtc.UtcDateTime,
+            ConfirmedAtUtc = source.ConfirmedAtUtc.UtcDateTime,
             Items = source.Items.Select(MapItem).ToList(),
             TotalAmount = source.Total.Amount.ToAvroDecimal(Scale),
             Currency = source.Total.Currency.Name,

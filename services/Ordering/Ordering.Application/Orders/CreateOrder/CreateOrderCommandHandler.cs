@@ -27,16 +27,13 @@ namespace Ordering.Application.Orders.CreateOrder;
 public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, Guid>
 {
     private readonly IOrderingDbContext _dbContext;
-    private readonly TimeProvider _timeProvider;
     private readonly ILogger<CreateOrderCommandHandler> _logger;
 
     public CreateOrderCommandHandler(
         IOrderingDbContext dbContext,
-        TimeProvider timeProvider,
         ILogger<CreateOrderCommandHandler> logger)
     {
         _dbContext = dbContext;
-        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -56,13 +53,13 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
 
         // Translate to domain types. DataIntegrityException on any shared-kernel
         // VO failure — all user-shape issues were caught by the validator before us.
-        var currencyResult = CreateCurrency(command.Currency);
-        var shippingAddressResult = ToAddress(command.ShippingAddress, nameof(command.ShippingAddress));
-        var billingAddressResult = ToAddress(command.BillingAddress, nameof(command.BillingAddress));
+        var currency = CreateCurrency(command.Currency);
+        var shippingAddress = ToAddress(command.ShippingAddress, nameof(command.ShippingAddress));
+        var billingAddress = ToAddress(command.BillingAddress, nameof(command.BillingAddress));
 
         var basket = new BasketSnapshot(
             command.BuyerId,
-            currencyResult,
+            currency,
             [.. command.Items.Select(i => new BasketSnapshotItem(
                 i.ProductId,
                 i.Sku,
@@ -70,16 +67,18 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
                 i.Quantity,
                 i.UnitPriceAmount))]);
 
-        var utcNow = _timeProvider.GetUtcNow();
-
+        // ADR-0015 trace fidelity: the saga's RequestedAtUtc becomes the
+        // order's CreatedAtUtc so timestamps align across the saga timeline
+        // and the downstream OrderCreatedEvent. Clock drift between the
+        // saga and Ordering pods does not silently rewrite history.
         var order = Order.CreateFromBasket(
             command.CorrelationId,
             command.BuyerId,
             basket,
-            shippingAddressResult,
-            billingAddressResult,
+            shippingAddress,
+            billingAddress,
             command.PaymentMethodId,
-            utcNow);
+            command.RequestedAtUtc);
 
         _dbContext.Orders.Add(order);
         await _dbContext.SaveChangesAsync(ct);

@@ -20,10 +20,13 @@ namespace Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 /// <item>Wraps handler execution in <see cref="ITransactionalOutbox{TContext}"/>'s
 /// <c>EnsureTransactionAsync</c> so domain-event outbox writes are atomic
 /// with aggregate mutation.</item>
-/// <item>Pushes <c>CorrelationId</c> and optional <c>OrderId</c> into the
-/// Serilog <c>LogContext</c> so every log line the handler emits — and
-/// every nested Application-layer log — is queryable by those ids in Seq
-/// (ADR-0008 runbook-first operability).</item>
+/// <item>Pushes <c>OrderId</c> into the logger scope so every log line
+/// the handler emits — and every nested Application-layer log — is
+/// queryable by it in Seq. The <c>CorrelationId</c> Serilog property
+/// is pushed by <c>ConsumerCorrelationIdMiddleware</c> at the consumer
+/// pipeline edge from the Kafka header (ADR-0008 runbook-first
+/// operability); duplicating it here would risk drift between the
+/// header value and the Avro-payload value.</item>
 /// <item>On <see cref="Result.IsFailed"/>, throws a
 /// <see cref="SagaCommandDispatchException"/> so the KafkaFlow retry +
 /// DLT middleware can handle transient vs poison-pill classification.</item>
@@ -60,9 +63,11 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
         var origin = context.ExtractOrigin();
         var cancellationToken = context.ConsumerContext.WorkerStopped;
 
-        using var correlationScope = _logger.BeginScope(new Dictionary<string, object?>
+        // CorrelationId is already in the Serilog LogContext via
+        // ConsumerCorrelationIdMiddleware (Kafka header is the source of truth);
+        // we only push OrderId here so per-order log queries work.
+        using var orderScope = _logger.BeginScope(new Dictionary<string, object?>
         {
-            ["CorrelationId"] = correlationId,
             ["OrderId"] = orderId,
         });
 
@@ -72,6 +77,11 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
 
         await _transactionalOutbox.Database.EnsureTransactionAsync(async () =>
         {
+            // Inner application handler owns SaveChangesAsync — its single commit
+            // covers the aggregate mutation plus the domain-event-driven outbox
+            // rows inserted in the same change-tracker. EnsureTransactionAsync
+            // wraps both calls in the same DbContext transaction, so reliable
+            // messaging stays atomic without a second base-level save.
             var result = await dispatchAsync(cancellationToken);
 
             if (result.IsFailed)
@@ -84,8 +94,6 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
                 throw new SagaCommandDispatchException(
                     $"Dispatch of {typeof(TAvroCommand).Name} failed: {errorSummary}");
             }
-
-            await _transactionalOutbox.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
                 "{CommandType} handled successfully (CorrelationId={CorrelationId}, OrderId={OrderId})",

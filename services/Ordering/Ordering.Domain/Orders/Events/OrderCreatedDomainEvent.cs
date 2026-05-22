@@ -26,6 +26,9 @@ public sealed record OrderCreatedDomainEvent : DomainEvent
 /// Flat line-level snapshot inside <see cref="OrderCreatedDomainEvent"/> —
 /// kept primitive so the event serializes cleanly via the outbox publisher
 /// without re-projecting strongly-typed <see cref="Money"/> per-item.
+/// Per invariant I-9 the order is single-currency; the currency travels on
+/// the parent event's <see cref="OrderCreatedDomainEvent.Total"/> rather
+/// than on each item.
 /// </summary>
 public sealed record OrderCreatedDomainEventItem(
     Guid ProductId,
@@ -33,5 +36,4 @@ public sealed record OrderCreatedDomainEventItem(
     string Name,
     int Quantity,
     decimal UnitPriceAmount,
-    decimal LineTotalAmount,
-    string Currency);
+    decimal LineTotalAmount);

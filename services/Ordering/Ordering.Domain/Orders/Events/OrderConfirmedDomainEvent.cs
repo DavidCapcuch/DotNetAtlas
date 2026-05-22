@@ -39,7 +39,17 @@ public sealed record OrderConfirmedDomainEvent : DomainEvent
     /// Buyer's billing address snapshot. Required on the domain event because
     /// confirmed orders always have a billing address (set at
     /// <see cref="Order.CreateFromBasket"/>); the wire schema makes it nullable
-    /// only for BACKWARD compatibility per ADR-0020.
+    /// only for FORWARD_TRANSITIVE compatibility per ADR-0007 + ADR-0020.
     /// </summary>
     public required Address BillingAddress { get; init; }
+
+    /// <summary>
+    /// UTC timestamp of the Confirm transition. Carried explicitly (rather
+    /// than reusing <see cref="OccurredOnUtc"/>) so the outbox publisher
+    /// mapper can read a single saga-time field for the Avro
+    /// <c>ConfirmedAtUtc</c> payload — symmetric with
+    /// <see cref="OrderCreatedDomainEvent.CreatedAtUtc"/> and
+    /// <see cref="OrderCancelledDomainEvent.CancelledAtUtc"/>.
+    /// </summary>
+    public required DateTimeOffset ConfirmedAtUtc { get; init; }
 }
