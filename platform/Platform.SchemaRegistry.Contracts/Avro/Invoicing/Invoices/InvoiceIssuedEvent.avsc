@@ -178,9 +178,9 @@
             "doc": "Per-rate VAT breakdown. May be empty if every line is at 0% (still emitted as []), but non-null."
         },
         {
-            "name": "PdfBlobUri",
+            "name": "PdfBlobName",
             "type": "string",
-            "doc": "Absolute URI of the rendered invoice PDF in blob storage (Azurite locally, Azure Blob in production). Producers emit a presigned SAS URL; consumers MUST treat this as opaque and re-mint a fresh URL via Invoicing's GET endpoint when serving end-users (the SAS expires)."
+            "doc": "Canonical immutable blob name (e.g., '2026/05/INV-2026-000142.pdf'). Consumers must call Invoicing's GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue #131)."
         },
         {
             "name": "PdfContentHash",

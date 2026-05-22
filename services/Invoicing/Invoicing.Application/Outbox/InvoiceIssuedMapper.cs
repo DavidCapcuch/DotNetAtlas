@@ -40,7 +40,7 @@ public static partial class InvoiceIssuedMapper
             Total = source.Total.Amount.ToAvroDecimal(MoneyScale),
             Currency = source.Total.Currency.Name,
             VatLines = source.VatLines.Select(MapVatLine).ToList(),
-            PdfBlobUri = source.PdfBlobRef.BlobName,
+            PdfBlobName = source.PdfBlobRef.BlobName,
             PdfContentHash = source.PdfBlobRef.ContentHash,
             PdfSizeBytes = source.PdfBlobRef.SizeBytes,
             DeliveryChannel = source.DeliveryChannel.Name,

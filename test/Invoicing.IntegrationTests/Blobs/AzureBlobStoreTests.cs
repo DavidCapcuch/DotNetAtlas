@@ -39,8 +39,9 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
 
         pdfRef.ContentHash.Should().Be(ComputeSha256Hex(SamplePdf));
         pdfRef.SizeBytes.Should().Be(SamplePdf.Length);
-        pdfRef.BlobUri.IsAbsoluteUri.Should().BeTrue();
-        pdfRef.BlobUri.Query.Should().Contain("sig=");
+        var sasUri = await fixture.BlobStore.GetSasUrlAsync(fixture.ContainerName, pdfRef.BlobName, TimeSpan.FromMinutes(5), ct);
+        sasUri.IsAbsoluteUri.Should().BeTrue();
+        sasUri.Query.Should().Contain("sig=");
     }
 
     [Fact]
@@ -57,7 +58,8 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
-        using var response = await fixture.Http.GetAsync(pdfRef.BlobUri, ct);
+        var sasUri = await fixture.BlobStore.GetSasUrlAsync(fixture.ContainerName, pdfRef.BlobName, TimeSpan.FromMinutes(5), ct);
+        using var response = await fixture.Http.GetAsync(sasUri, ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var returned = await response.Content.ReadAsByteArrayAsync(ct);
@@ -79,7 +81,8 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
-        using var response = await fixture.Http.GetAsync(pdfRef.BlobUri, ct);
+        var sasUri = await fixture.BlobStore.GetSasUrlAsync(fixture.ContainerName, pdfRef.BlobName, TimeSpan.FromMinutes(5), ct);
+        using var response = await fixture.Http.GetAsync(sasUri, ct);
         response.Content.Headers.ContentDisposition.Should().NotBeNull();
         response.Content.Headers.ContentDisposition!.DispositionType.Should().Be("attachment");
         // HttpHeaders parses quoted-string and exposes the inner value (RFC 6266).

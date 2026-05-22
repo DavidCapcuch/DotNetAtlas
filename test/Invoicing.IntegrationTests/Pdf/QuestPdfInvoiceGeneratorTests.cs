@@ -135,7 +135,7 @@ public sealed class QuestPdfInvoiceGeneratorTests
 
         var number = InvoiceNumber.Create(year: 2026, sequence: 142).Value;
         var pdfRef = PdfBlobRef.Create(
-            new Uri("https://example.com/invoices/2026/04/INV-2026-000142.pdf?sv=sas"),
+            "2026/04/INV-2026-000142.pdf",
             new string('a', 64),
             sizeBytes: 1024).Value;
         invoice.Issue(number, pdfRef, utcNow);
@@ -153,7 +153,7 @@ public sealed class QuestPdfInvoiceGeneratorTests
 
         var number = CreditNoteNumber.Create(year: 2026, sequence: 8).Value;
         var pdfRef = PdfBlobRef.Create(
-            new Uri("https://example.com/credit-notes/2026/04/CN-2026-000008.pdf?sv=sas"),
+            "2026/04/CN-2026-000008.pdf",
             new string('b', 64),
             sizeBytes: 1024).Value;
         creditNote.Issue(number, pdfRef, utcNow);
