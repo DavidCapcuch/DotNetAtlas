@@ -22,16 +22,14 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// driven through the Avro→app-command translation path.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ReserveStockCommandKafkaHandlerTests
+public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =
         new(2026, 4, 25, 10, 0, 0, DateTimeKind.Utc);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ReserveStockCommandKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -54,14 +52,14 @@ public sealed class ReserveStockCommandKafkaHandlerTests
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
 
         await handler.Handle(context, avroCommand);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var audit = await db.ReservationAudit
@@ -105,7 +103,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -117,7 +115,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests
         var act = async () => await handler.Handle(context, avroCommand);
         await act.Should().NotThrowAsync();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var auditRow = await db.ReservationAudit
@@ -136,7 +134,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests
     {
         var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-2);
 
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
 

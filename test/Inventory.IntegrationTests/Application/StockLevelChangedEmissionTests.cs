@@ -17,16 +17,14 @@ namespace Inventory.IntegrationTests.Application;
 /// transitions, never on every stock movement.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class StockLevelChangedEmissionTests
+public sealed class StockLevelChangedEmissionTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 24, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public StockLevelChangedEmissionTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -35,7 +33,7 @@ public sealed class StockLevelChangedEmissionTests
         var productId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var init = scope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receive = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserve = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
@@ -55,7 +53,7 @@ public sealed class StockLevelChangedEmissionTests
         // Reserve 4 — Available 4 -> 0; EMIT.
         (await reserve.HandleAsync(new ReserveStockCommand { ProductId = productId, ReservationId = Guid.NewGuid(), OrderId = orderId, Quantity = 4, TimeToLive = TimeSpan.FromMinutes(15), OccurredOnUtc = UtcNow.AddSeconds(4) }, TestContext.Current.CancellationToken)).Should().BeSuccess();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var stockEventOutboxRows = await db.OutboxMessages

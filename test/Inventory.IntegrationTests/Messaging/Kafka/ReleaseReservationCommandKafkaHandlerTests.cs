@@ -23,16 +23,14 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// <c>ReservationReleasedEvent</c> lands in the outbox.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ReleaseReservationCommandKafkaHandlerTests
+public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =
         new(2026, 4, 25, 12, 0, 0, DateTimeKind.Utc);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ReleaseReservationCommandKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -54,14 +52,14 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReleaseReservationCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
 
         await handler.Handle(context, avroCommand);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var audit = await db.ReservationAudit
@@ -92,7 +90,7 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests
     {
         var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
 
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();

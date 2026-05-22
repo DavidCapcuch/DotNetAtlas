@@ -29,17 +29,15 @@ namespace Inventory.IntegrationTests.BackgroundJobs;
 /// between TTL expiry and confirm).
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ReservationExpiryWorkerTests
+public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset SeedUtc =
         new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan ReservationTtl = TimeSpan.FromMinutes(15);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ReservationExpiryWorkerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -56,7 +54,7 @@ public sealed class ReservationExpiryWorkerTests
 
         await RunOneTickAsync(fakeTime);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var audit = await db.ReservationAudit
@@ -94,7 +92,7 @@ public sealed class ReservationExpiryWorkerTests
 
         await RunOneTickAsync(fakeTime);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var reservationIds = reservations.Select(r => r.ReservationId).ToArray();
@@ -143,7 +141,7 @@ public sealed class ReservationExpiryWorkerTests
 
         await RunOneTickAsync(fakeTime);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var oldAudit = await db.ReservationAudit
@@ -178,7 +176,7 @@ public sealed class ReservationExpiryWorkerTests
 
         // Pre-release via the saga compensation path so the audit row goes
         // Released/Compensation BEFORE the worker scans.
-        using (var releaseScope = _fixture.CreateScope())
+        using (var releaseScope = Fixture.CreateScope())
         {
             var releaseHandler = releaseScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
@@ -199,7 +197,7 @@ public sealed class ReservationExpiryWorkerTests
 
         await RunOneTickAsync(fakeTime);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var audit = await db.ReservationAudit
@@ -228,7 +226,7 @@ public sealed class ReservationExpiryWorkerTests
 
         await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 2, reservedAtUtc: SeedUtc);
 
-        using (var confirmScope = _fixture.CreateScope())
+        using (var confirmScope = Fixture.CreateScope())
         {
             var confirmHandler = confirmScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ConfirmReservationCommand>>();
@@ -247,7 +245,7 @@ public sealed class ReservationExpiryWorkerTests
 
         await RunOneTickAsync(fakeTime);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var audit = await db.ReservationAudit
@@ -266,7 +264,7 @@ public sealed class ReservationExpiryWorkerTests
 
     private async Task RunOneTickAsync(FakeTimeProvider fakeTime)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var scopeFactory = scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>();
 
         var worker = new ReservationExpiryWorker(
@@ -280,7 +278,7 @@ public sealed class ReservationExpiryWorkerTests
     private async Task SeedActiveReservationAsync(
         Guid productId, Guid reservationId, Guid orderId, int quantity, DateTimeOffset reservedAtUtc)
     {
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();

@@ -24,16 +24,14 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// <c>ReservationReleasedEvent</c> outbox rows land — one per product.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class OrderCancelledEventKafkaHandlerTests
+public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =
         new(2026, 4, 25, 14, 0, 0, DateTimeKind.Utc);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public OrderCancelledEventKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -59,7 +57,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests
             CancelledAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<OrderCancelledEventKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             origin: "Ordering",
@@ -67,7 +65,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests
 
         await handler.Handle(context, avroEvent);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var auditRows = await db.ReservationAudit
@@ -121,7 +119,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests
             CancelledAtUtc = UtcNow,
         };
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<OrderCancelledEventKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             origin: "Ordering",
@@ -130,7 +128,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests
         var act = async () => await handler.Handle(context, avroEvent);
         await act.Should().NotThrowAsync();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var outboxRowsForOrder = await db.OutboxMessages
@@ -144,7 +142,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests
     {
         var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
 
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();

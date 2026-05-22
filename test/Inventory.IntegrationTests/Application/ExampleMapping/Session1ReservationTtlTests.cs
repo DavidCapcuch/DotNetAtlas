@@ -45,17 +45,15 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// </para>
 /// </remarks>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class Session1ReservationTtlTests
+public sealed class Session1ReservationTtlTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset SeedUtc =
         new(2026, 5, 1, 12, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan ReservationTtl = TimeSpan.FromMinutes(15);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public Session1ReservationTtlTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     /// <summary>
@@ -78,7 +76,7 @@ public sealed class Session1ReservationTtlTests
         // Simulate the worker's release: write a real ReservationReleasedEvent
         // with reason=Expiry to the stream via the production handler. After
         // this, the aggregate's Reservations[R3].Status == Released.
-        using (var releaseScope = _fixture.CreateScope())
+        using (var releaseScope = Fixture.CreateScope())
         {
             var releaseHandler = releaseScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
@@ -95,7 +93,7 @@ public sealed class Session1ReservationTtlTests
         }
 
         // Now the saga's delayed Confirm arrives.
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var confirmHandler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<ConfirmReservationCommand>>();
 
@@ -113,7 +111,7 @@ public sealed class Session1ReservationTtlTests
             .Which.Should().BeOfType<ReservationNotActiveError>()
             .Which.Metadata["ErrorCode"].Should().Be("Inventory.ReservationNotActive");
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         // Stream contains exactly the four expected events: Initialize +
@@ -177,7 +175,7 @@ public sealed class Session1ReservationTtlTests
         await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 1);
 
         // First release: fires the real ReservationReleasedEvent + outbox row.
-        using (var firstScope = _fixture.CreateScope())
+        using (var firstScope = Fixture.CreateScope())
         {
             var releaseHandler = firstScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
@@ -205,7 +203,7 @@ public sealed class Session1ReservationTtlTests
         // and returns Result.Ok with no event raised; the EventStoreRepository
         // sees zero domain events to persist and returns Ok without touching
         // the DB (EventStoreRepository.cs:153-159).
-        using (var secondScope = _fixture.CreateScope())
+        using (var secondScope = Fixture.CreateScope())
         {
             var releaseHandler = secondScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
@@ -233,7 +231,7 @@ public sealed class Session1ReservationTtlTests
 
     private async Task SeedActiveReservationAsync(Guid productId, Guid reservationId, Guid orderId, int quantity)
     {
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
@@ -268,7 +266,7 @@ public sealed class Session1ReservationTtlTests
 
     private async Task<int> CountReleasedEventsAsync(Guid productId)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         return await db.StockEvents
             .AsNoTracking()
@@ -279,7 +277,7 @@ public sealed class Session1ReservationTtlTests
 
     private async Task<int> CountReleasedOutboxRowsAsync(Guid orderId)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         return await db.OutboxMessages
             .AsNoTracking()

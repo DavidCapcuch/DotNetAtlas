@@ -52,17 +52,15 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// </para>
 /// </remarks>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class Session3ConfirmIdempotencyTests
+public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 5, 1, 11, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan ReservationTtl = TimeSpan.FromMinutes(15);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public Session3ConfirmIdempotencyTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     /// <summary>
@@ -83,7 +81,7 @@ public sealed class Session3ConfirmIdempotencyTests
         await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 3, onHand: 10);
 
         // First confirm: real ReservationConfirmedEvent + outbox row.
-        using (var firstScope = _fixture.CreateScope())
+        using (var firstScope = Fixture.CreateScope())
         {
             var confirmHandler = firstScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ConfirmReservationCommand>>();
@@ -113,7 +111,7 @@ public sealed class Session3ConfirmIdempotencyTests
         // (StockItem.cs:199-201) and returns Result.Ok with no event raised;
         // the EventStoreRepository sees zero events to persist and short-
         // circuits without touching the DB (EventStoreRepository.cs:153-159).
-        using (var secondScope = _fixture.CreateScope())
+        using (var secondScope = Fixture.CreateScope())
         {
             var confirmHandler = secondScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ConfirmReservationCommand>>();
@@ -159,7 +157,7 @@ public sealed class Session3ConfirmIdempotencyTests
         await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 2, onHand: 5);
 
         // Release with reason=Compensation (saga compensation, not TTL).
-        using (var releaseScope = _fixture.CreateScope())
+        using (var releaseScope = Fixture.CreateScope())
         {
             var releaseHandler = releaseScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReleaseReservationCommand>>();
@@ -175,7 +173,7 @@ public sealed class Session3ConfirmIdempotencyTests
         }
 
         // Stray confirm.
-        using var confirmScope = _fixture.CreateScope();
+        using var confirmScope = Fixture.CreateScope();
         var confirmHandler = confirmScope.ServiceProvider
             .GetRequiredService<ICommandHandler<ConfirmReservationCommand>>();
 
@@ -193,7 +191,7 @@ public sealed class Session3ConfirmIdempotencyTests
             .Which.Should().BeOfType<ReservationNotActiveError>()
             .Which.Metadata["ErrorCode"].Should().Be("Inventory.ReservationNotActive");
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         // No ReservationConfirmedEvent on the stream.
@@ -246,7 +244,7 @@ public sealed class Session3ConfirmIdempotencyTests
         var orderId = Guid.NewGuid();
 
         // Arrange: stream at V=3 with an Active reservation.
-        using (var setupScope = _fixture.CreateScope())
+        using (var setupScope = Fixture.CreateScope())
         {
             var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
             (await setupRepo.AppendAsync(
@@ -310,7 +308,7 @@ public sealed class Session3ConfirmIdempotencyTests
 
         // Verify: exactly four rows on the stream — Init, Receive, Reserve,
         // ReservationReleased. NO ReservationConfirmedEvent at any version.
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var verifyCtx = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var rows = await verifyCtx.StockEvents
             .AsNoTracking()
@@ -330,7 +328,7 @@ public sealed class Session3ConfirmIdempotencyTests
 
     private async Task SeedActiveReservationAsync(Guid productId, Guid reservationId, Guid orderId, int quantity, int onHand)
     {
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
         var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
@@ -365,7 +363,7 @@ public sealed class Session3ConfirmIdempotencyTests
 
     private async Task<int> CountConfirmedEventsAsync(Guid productId)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         return await db.StockEvents
             .AsNoTracking()
@@ -376,7 +374,7 @@ public sealed class Session3ConfirmIdempotencyTests
 
     private async Task<int> CountConfirmedOutboxRowsAsync(Guid orderId)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         return await db.OutboxMessages
             .AsNoTracking()
@@ -388,7 +386,7 @@ public sealed class Session3ConfirmIdempotencyTests
 
     private async Task<(int OnHand, int Reserved, int Available)> ReadProjectionAsync(Guid productId)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var row = await db.CurrentStockLevels
             .AsNoTracking()
@@ -401,7 +399,7 @@ public sealed class Session3ConfirmIdempotencyTests
     private InventoryDbContext CreateInterceptedDbContext(OneShotConflictInterceptor interceptor)
     {
         var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(_fixture.ConnectionString, npg => npg
+            .UseNpgsql(Fixture.ConnectionString, npg => npg
                 .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor()
@@ -417,7 +415,7 @@ public sealed class Session3ConfirmIdempotencyTests
         DomainEvent @event,
         CancellationToken ct)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var (eventType, payload) = StockEventSerializer.Serialize(@event);

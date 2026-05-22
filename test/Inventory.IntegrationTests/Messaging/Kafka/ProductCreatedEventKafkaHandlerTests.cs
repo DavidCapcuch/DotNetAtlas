@@ -17,16 +17,14 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// <c>Result.Ok</c> without appending).
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ProductCreatedEventKafkaHandlerTests
+public sealed class ProductCreatedEventKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =
         new(2026, 4, 25, 13, 0, 0, DateTimeKind.Utc);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ProductCreatedEventKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -35,7 +33,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests
         var productId = Guid.NewGuid();
         var avroEvent = BuildAvroProductCreated(productId);
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ProductCreatedEventKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
             origin: "Catalog",
@@ -43,7 +41,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests
 
         await handler.Handle(context, avroEvent);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var streamRows = await db.StockEvents
@@ -69,7 +67,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests
         var avroEvent = BuildAvroProductCreated(productId);
 
         // First delivery -> stream initialized.
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider.GetRequiredService<ProductCreatedEventKafkaHandler>();
             await handler.Handle(
@@ -79,7 +77,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests
 
         // Second delivery -> aggregate's Version > 0 guard kicks in;
         // application handler returns Result.Ok with no event appended.
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider.GetRequiredService<ProductCreatedEventKafkaHandler>();
             await handler.Handle(
@@ -87,7 +85,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests
                 avroEvent);
         }
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var rowCount = await db.StockEvents

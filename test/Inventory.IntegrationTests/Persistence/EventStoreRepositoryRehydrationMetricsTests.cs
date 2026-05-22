@@ -17,7 +17,7 @@ namespace Inventory.IntegrationTests.Persistence;
 /// fires, ES rehydration on per-product streams is fast enough for v1 traffic.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class EventStoreRepositoryRehydrationMetricsTests
+public sealed class EventStoreRepositoryRehydrationMetricsTests : BaseIntegrationTest
 {
     private const int StreamLength = 1000;
     private const int RehydrationCount = 100;
@@ -26,11 +26,9 @@ public sealed class EventStoreRepositoryRehydrationMetricsTests
     private static readonly DateTimeOffset SeedUtc =
         new(2026, 4, 27, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public EventStoreRepositoryRehydrationMetricsTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -78,7 +76,7 @@ public sealed class EventStoreRepositoryRehydrationMetricsTests
         listener.Start();
 
         // Act: 100 rehydrations of the same 1000-event stream.
-        using (var actScope = _fixture.CreateScope())
+        using (var actScope = Fixture.CreateScope())
         {
             var repo = actScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
@@ -137,7 +135,7 @@ public sealed class EventStoreRepositoryRehydrationMetricsTests
         // The single SaveChangesAsync writes 1000 stock_events rows + the projection
         // upserts in one transaction — significantly faster than 1000 separate appends
         // (each of which would re-rehydrate + dispatch handlers + SaveChanges).
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
         var result = await repo.AppendAsync(

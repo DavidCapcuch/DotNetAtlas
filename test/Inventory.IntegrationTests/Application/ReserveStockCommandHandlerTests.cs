@@ -23,16 +23,14 @@ namespace Inventory.IntegrationTests.Application;
 /// correlation-id roundtrip from command → <c>stock_events.correlation_id</c>.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ReserveStockCommandHandlerTests
+public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 24, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ReserveStockCommandHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -44,7 +42,7 @@ public sealed class ReserveStockCommandHandlerTests
 
         await SeedStreamAsync(productId, onHand: 10);
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
 
         var result = await handler.HandleAsync(
@@ -61,7 +59,7 @@ public sealed class ReserveStockCommandHandlerTests
 
         result.Should().BeSuccess();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         // Event-store: 3 events (Init, Receive, Reserve).
@@ -106,7 +104,7 @@ public sealed class ReserveStockCommandHandlerTests
 
         var eventCountBefore = await CountStockEventsAsync(productId);
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
 
         var result = await handler.HandleAsync(
@@ -126,7 +124,7 @@ public sealed class ReserveStockCommandHandlerTests
             .Which.Should().BeOfType<InsufficientStockError>()
             .Which.Metadata["ErrorCode"].Should().Be("Inventory.InsufficientStock");
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         // Stock-events unchanged — the reserve was rejected before append.
@@ -159,7 +157,7 @@ public sealed class ReserveStockCommandHandlerTests
 
         await SeedStreamAsync(productId, onHand: 10);
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
 
         var result = await handler.HandleAsync(
@@ -177,7 +175,7 @@ public sealed class ReserveStockCommandHandlerTests
 
         result.Should().BeSuccess();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var reserveRow = await db.StockEvents
@@ -191,7 +189,7 @@ public sealed class ReserveStockCommandHandlerTests
 
     private async Task SeedStreamAsync(Guid productId, int onHand)
     {
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
 
@@ -220,7 +218,7 @@ public sealed class ReserveStockCommandHandlerTests
 
     private async Task<int> CountStockEventsAsync(Guid productId)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         return await db.StockEvents
             .AsNoTracking()

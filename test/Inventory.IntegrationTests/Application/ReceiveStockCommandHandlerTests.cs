@@ -17,16 +17,14 @@ namespace Inventory.IntegrationTests.Application;
 /// <see cref="StockLevelResponse"/> matching the projection row.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class ReceiveStockCommandHandlerTests
+public sealed class ReceiveStockCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 26, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public ReceiveStockCommandHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -34,7 +32,7 @@ public sealed class ReceiveStockCommandHandlerTests
     {
         var productId = Guid.CreateVersion7();
 
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var init = seedScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
@@ -47,7 +45,7 @@ public sealed class ReceiveStockCommandHandlerTests
                 TestContext.Current.CancellationToken)).Should().BeSuccess();
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
 
@@ -75,7 +73,7 @@ public sealed class ReceiveStockCommandHandlerTests
             response.LastVersion.Should().BeGreaterThan(0);
         }
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var row = await db.CurrentStockLevels
             .AsNoTracking()

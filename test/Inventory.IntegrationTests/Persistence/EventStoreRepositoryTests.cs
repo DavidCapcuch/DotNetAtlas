@@ -20,17 +20,15 @@ namespace Inventory.IntegrationTests.Persistence;
 /// <see cref="ConcurrencyError"/>, and command-delegate fast-fail semantics.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class EventStoreRepositoryTests
+public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
     // Pinned so the jsonb payload assertions are bit-exact (ISO 8601).
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 24, 10, 0, 0, TimeSpan.Zero);
 
     public EventStoreRepositoryTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -38,7 +36,7 @@ public sealed class EventStoreRepositoryTests
     {
         var productId = Guid.NewGuid();
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
         var aggregate = await repo.RehydrateAsync(productId, TestContext.Current.CancellationToken);
@@ -54,7 +52,7 @@ public sealed class EventStoreRepositoryTests
     {
         var productId = Guid.NewGuid();
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
         var result = await repo.AppendAsync(
@@ -76,7 +74,7 @@ public sealed class EventStoreRepositoryTests
         result.Value.Version.Should().Be(2);
         result.Value.OnHand.Should().Be(100);
 
-        using var readScope = _fixture.CreateScope();
+        using var readScope = Fixture.CreateScope();
         var readCtx = readScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var rows = await readCtx.StockEvents
@@ -100,7 +98,7 @@ public sealed class EventStoreRepositoryTests
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
         var result = await repo.AppendAsync(
@@ -133,7 +131,7 @@ public sealed class EventStoreRepositoryTests
 
         result.Should().BeSuccess();
 
-        using var rehydrateScope = _fixture.CreateScope();
+        using var rehydrateScope = Fixture.CreateScope();
         var rehydrateRepo = rehydrateScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
         var rehydrated = await rehydrateRepo.RehydrateAsync(
@@ -154,7 +152,7 @@ public sealed class EventStoreRepositoryTests
         var productId = Guid.NewGuid();
 
         // Arrange: stream at V=1 (initialized).
-        using (var setupScope = _fixture.CreateScope())
+        using (var setupScope = Fixture.CreateScope())
         {
             var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
             var init = await setupRepo.AppendAsync(
@@ -195,7 +193,7 @@ public sealed class EventStoreRepositoryTests
         result.Value.Version.Should().Be(3);
         result.Value.OnHand.Should().Be(105); // 5 (competing) + 100 (our retry)
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var verifyCtx = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var rows = await verifyCtx.StockEvents
             .AsNoTracking()
@@ -215,7 +213,7 @@ public sealed class EventStoreRepositoryTests
     {
         var productId = Guid.NewGuid();
 
-        using (var setupScope = _fixture.CreateScope())
+        using (var setupScope = Fixture.CreateScope())
         {
             var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
             var init = await setupRepo.AppendAsync(
@@ -268,7 +266,7 @@ public sealed class EventStoreRepositoryTests
         var reservationId = ReservationId.Create(Guid.NewGuid()).Value;
         var orderId = Guid.NewGuid();
 
-        using (var setupScope = _fixture.CreateScope())
+        using (var setupScope = Fixture.CreateScope())
         {
             var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
             var setup = await setupRepo.AppendAsync(
@@ -288,7 +286,7 @@ public sealed class EventStoreRepositoryTests
             setup.Should().BeSuccess();
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<EventStoreRepository>();
 
         // Reserve 10 against Available=5 — returns InsufficientStockError,
@@ -303,7 +301,7 @@ public sealed class EventStoreRepositoryTests
         result.Errors.Should().ContainSingle()
             .Which.Should().BeOfType<InsufficientStockError>();
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var verifyCtx = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var rowCount = await verifyCtx.StockEvents
             .AsNoTracking()
@@ -318,7 +316,7 @@ public sealed class EventStoreRepositoryTests
     private InventoryDbContext CreateInterceptedDbContext(OneShotConflictInterceptor interceptor)
     {
         var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(_fixture.ConnectionString, npg => npg
+            .UseNpgsql(Fixture.ConnectionString, npg => npg
                 .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor()
@@ -334,7 +332,7 @@ public sealed class EventStoreRepositoryTests
         DomainEvent @event,
         CancellationToken ct)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
         var (eventType, payload) = StockEventSerializer.Serialize(@event);

@@ -16,16 +16,14 @@ namespace Inventory.IntegrationTests.Application;
 /// HTTP admin endpoint will return matches the post-mutation state.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
-public sealed class AdjustStockCommandHandlerTests
+public sealed class AdjustStockCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
         new(2026, 4, 26, 10, 0, 0, TimeSpan.Zero);
 
-    private readonly IntegrationTestFixture _fixture;
-
     public AdjustStockCommandHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -34,7 +32,7 @@ public sealed class AdjustStockCommandHandlerTests
         var productId = Guid.CreateVersion7();
         await SeedStreamAsync(productId, onHand: 4);
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AdjustStockCommand, StockLevelResponse>>();
 
@@ -60,7 +58,7 @@ public sealed class AdjustStockCommandHandlerTests
         var productId = Guid.CreateVersion7();
         await SeedStreamAsync(productId, onHand: 10);
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AdjustStockCommand, StockLevelResponse>>();
 
@@ -82,7 +80,7 @@ public sealed class AdjustStockCommandHandlerTests
 
     private async Task SeedStreamAsync(Guid productId, int onHand)
     {
-        using var seedScope = _fixture.CreateScope();
+        using var seedScope = Fixture.CreateScope();
         var init = seedScope.ServiceProvider
             .GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
         var receive = seedScope.ServiceProvider
