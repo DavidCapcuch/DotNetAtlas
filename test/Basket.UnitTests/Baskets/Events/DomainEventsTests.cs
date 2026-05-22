@@ -135,7 +135,7 @@ public class DomainEventsTests
     public void BasketCheckedOut_CarriesCorrelationIdAndSnapshot()
     {
         var correlationId = Guid.CreateVersion7();
-        var item = BasketItem.Create(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1).Value;
+        var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
         var snapshot = BasketSnapshot.Create([item], BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
         var shipping = BasketTestData.Address("US");
         var billing = BasketTestData.Address("US");

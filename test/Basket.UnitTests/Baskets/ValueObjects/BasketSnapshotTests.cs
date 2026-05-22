@@ -9,7 +9,7 @@ public class BasketSnapshotTests
     [Fact]
     public void Create_ExposesItemsAndTotal()
     {
-        var item = BasketItem.Create(Guid.CreateVersion7(), BasketTestData.Snapshot(), 2).Value;
+        var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 2);
         var total = BasketTotal.From(new Money(20m, CurrencyCode.Usd));
 
         var snapshot = BasketSnapshot.Create([item], total);
@@ -24,7 +24,7 @@ public class BasketSnapshotTests
     [Fact]
     public void StructuralEquality_SameItemsAndTotal_AreEqual()
     {
-        var item = BasketItem.Create(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1).Value;
+        var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
         var total = BasketTotal.From(new Money(10m, CurrencyCode.Usd));
 
         var a = BasketSnapshot.Create([item], total);
@@ -40,7 +40,7 @@ public class BasketSnapshotTests
     [Fact]
     public void StructuralEquality_DifferentTotal_AreNotEqual()
     {
-        var item = BasketItem.Create(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1).Value;
+        var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
 
         BasketSnapshot.Create([item], BasketTotal.From(new Money(10m, CurrencyCode.Usd)))
             .Should().NotBe(BasketSnapshot.Create([item], BasketTotal.From(new Money(11m, CurrencyCode.Usd))));
@@ -53,10 +53,10 @@ public class BasketSnapshotTests
         var total = BasketTotal.From(new Money(10m, CurrencyCode.Usd));
 
         var a = BasketSnapshot.Create(
-            [BasketItem.Create(productId, BasketTestData.Snapshot(), 1).Value],
+            [BasketItem.BuildUnchecked(productId, BasketTestData.Snapshot(), 1)],
             total);
         var b = BasketSnapshot.Create(
-            [BasketItem.Create(productId, BasketTestData.Snapshot(), 2).Value],
+            [BasketItem.BuildUnchecked(productId, BasketTestData.Snapshot(), 2)],
             total);
 
         a.Should().NotBe(b);
@@ -65,7 +65,7 @@ public class BasketSnapshotTests
     [Fact]
     public void Items_IsImmutableArray_CannotBeMutatedViaDowncast()
     {
-        var item = BasketItem.Create(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1).Value;
+        var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
         var snapshot = BasketSnapshot.Create([item], BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
 
         // ImmutableArray is a value type struct that implements IReadOnlyList but exposes no
