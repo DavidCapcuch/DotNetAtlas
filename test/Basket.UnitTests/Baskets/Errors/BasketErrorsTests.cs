@@ -95,16 +95,4 @@ public class BasketErrorsTests
             err.Message.Should().Contain(productId.ToString());
         }
     }
-
-    [Fact]
-    public void BasketItemErrors_InvalidQuantity_HasExpectedShape()
-    {
-        var err = BasketItemErrors.InvalidQuantity();
-
-        using (new AssertionScope())
-        {
-            err.PropertyName.Should().Be("Quantity");
-            err.ErrorCode.Should().Be("BasketItem.InvalidQuantity");
-        }
-    }
 }

@@ -117,7 +117,7 @@ record BasketItem(
 )
 ```
 
-Constructed via `BasketItem.Create(productId, snapshot, quantity)` which returns `Result<BasketItem>` with `BasketItemErrors.InvalidQuantity` for `quantity < 1`. Equality: structural (record). No mutable state.
+Constructed only by the `Basket` aggregate via `AddItem` / `ChangeQuantity`, each of which enforces `quantity >= 1` and returns `BasketErrors.InvalidQuantity` on failure. The internal `BasketItem.BuildUnchecked` is the trusted constructor used by the aggregate and by the persistence rehydration seam (`BasketStateMapper`); no public validating factory is exposed. Equality: structural (record). No mutable state.
 
 ### 3.2 `ProductSnapshot`
 
@@ -551,7 +551,7 @@ Location: `Basket.Infrastructure.ExternalServices`.
 | # | Invariant | Enforcement point |
 |---|-----------|-------------------|
 | 1 | `UserId != Guid.Empty` and immutable | `Basket.Create` factory (`Throw.If`) |
-| 2 | `1 ≤ Quantity` per line | `BasketItem.Create` + `AddItem` / `ChangeQuantity` (Result.Fail) |
+| 2 | `1 ≤ Quantity` per line | `AddItem` / `ChangeQuantity` (Result.Fail with `BasketErrors.InvalidQuantity`) |
 | 3 | Items.Count ≤ 50 (distinct products) | `AddItem` (Result.Fail) |
 | 4 | No duplicate ProductId in Items | `AddItem` (collapses into quantity increase) |
 | 5 | Uniform currency across all items | `AddItem` (Result.Fail with CurrencyMismatch) |

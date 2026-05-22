@@ -38,7 +38,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         var productId = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
         var snapshot = ProductSnapshot.Create("SKU", "N", new Money(10m, CurrencyCode.Usd), capturedAt);
-        var item = BasketItem.Create(productId, snapshot, 1).Value;
+        var item = BasketItem.BuildUnchecked(productId, snapshot, 1);
         var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
             BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
@@ -95,7 +95,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
 
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
         var snapshot = ProductSnapshot.Create("SKU", "N", new Money(10m, CurrencyCode.Usd), capturedAt);
-        var item = BasketItem.Create(Guid.CreateVersion7(), snapshot, 1).Value;
+        var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), snapshot, 1);
         var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
             BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
