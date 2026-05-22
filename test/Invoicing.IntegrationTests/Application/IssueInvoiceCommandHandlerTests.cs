@@ -9,6 +9,7 @@ using Invoicing.Infrastructure.Persistence.Database;
 using Invoicing.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Notifications.Email;
 using NSubstitute;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -107,6 +108,22 @@ public sealed class IssueInvoiceCommandHandlerTests
                 && e.PaymentId == paymentId
                 && e.BuyerId == buyerId
                 && e.CorrelationId == correlationId));
+
+        // New: SendEmailNotificationCommand row also written in the same EF transaction.
+        // Topic: notifications.email-commands, partition key: buyerId.ToString(),
+        // IdempotencyKey format: "invoice-delivered-{invoiceId}-1" (attempt 1).
+        var invoiceNumber = invoice.InvoiceNumber!.Value;
+        _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
+            "notifications.email-commands",
+            buyerId.ToString(),
+            Arg.Is<SendEmailNotificationCommand>(c =>
+                c.UserId == buyerId
+                && c.TemplateId == "invoicing.invoice-delivered"
+                && c.IdempotencyKey == $"invoice-delivered-{invoiceId}-1"
+                && c.TemplateData["InvoiceNumber"] == invoiceNumber
+                && c.TemplateData["TotalAmount"] == "152.00"
+                && c.TemplateData["Currency"] == "EUR"
+                && c.TemplateData["ViewInvoiceUrl"] == $"https://invoicing.test/invoices/{invoiceId}"));
 
         // No InvoiceCancelledEvent — credit-note flow didn't run.
         _fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
