@@ -1,0 +1,42 @@
+{
+    "type": "record",
+    "name": "EmailNotificationSentEvent",
+    "namespace": "Notifications.Email",
+    "doc": "Emitted after IEmailGateway reports successful send for a SendEmailNotificationCommand. Generic — consumers route by TemplateId prefix.",
+    "fields": [
+        {
+            "name": "UserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Recipient user id, copied from the originating command."
+        },
+        {
+            "name": "TemplateId",
+            "type": "string",
+            "doc": "Template id from the originating command; consumers filter by prefix (e.g., 'invoicing.*')."
+        },
+        {
+            "name": "IdempotencyKey",
+            "type": "string",
+            "doc": "Copied from originating command. Carries the BC-specific correlation hint (e.g., 'invoice-delivered-{InvoiceId}-{Attempt}')."
+        },
+        {
+            "name": "SentAtUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "When IEmailGateway returned success."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "Domain event occurrence time."
+        }
+    ]
+}
