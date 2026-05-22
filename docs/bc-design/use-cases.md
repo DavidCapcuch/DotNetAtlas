@@ -554,7 +554,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
   - `ProductId` — NotEmpty.
   - `Quantity` — GreaterThanOrEqualTo(1); LessThanOrEqualTo(1000) (sanity cap on single-line qty).
 - **Flow:**
-  1. Call ACL: `_catalogPort.GetProductSnapshotAsync(productId, ct)` — returns `Result<ProductSnapshot>`. On `Result.Fail(BasketErrors.CatalogUnavailable)` or `ProductNotFound`, propagate.
+  1. Call ACL: `_catalogPort.GetProductSnapshotAsync(productId, ct)` — returns `Result<ProductSnapshot>`. On `Result.Fail(BasketAclErrors.CatalogUnavailable)` or `ProductNotFound`, propagate.
   2. Load basket: `_basketRepository.GetByUserIdAsync(userId, ct)`. If null, create new via `Basket.Create(userId)`.
   3. Call `basket.AddItem(snapshot, command.Quantity)`; propagate `Result.Fail` (invalid quantity, max items, currency mismatch).
   4. Persist: `_basketRepository.SaveAsync(basket, expectedVersion, ct)`. On `BasketConcurrencyError`, retry exactly once (reload + re-apply); if still fails, return `Result.Fail`.
@@ -629,7 +629,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 - **Flow:**
   1. Load basket. If absent or `Items.Count == 0`, return `Result.Ok()` → 204 (idempotent no-op; ACL is not consulted).
   2. Extract distinct `ProductId` list.
-  3. Call `_catalogPort.GetManyAsync(productIds, ct)` — partial-tolerant per `basket.md` § 9.2. If full network failure, return `Result.Fail(BasketErrors.CatalogUnavailable)` (no partial refresh).
+  3. Call `_catalogPort.GetManyAsync(productIds, ct)` — partial-tolerant per `basket.md` § 9.2. If full network failure, return `Result.Fail(BasketAclErrors.CatalogUnavailable)` (no partial refresh).
   4. Call `basket.RefreshPrices(snapshots)` — missing product ids are left untouched (existing snapshots retained).
   5. `SaveAsync` (one retry) — only when at least one snapshot price actually changed.
 - **Emits internal event(s):** `BasketPricesRefreshedDomainEvent` (payload lists only items whose price actually changed; empty list → no event).

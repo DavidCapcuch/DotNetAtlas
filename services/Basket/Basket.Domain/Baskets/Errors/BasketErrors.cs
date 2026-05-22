@@ -3,10 +3,12 @@ using Platform.SharedKernel.Errors;
 namespace Basket.Domain.Baskets.Errors;
 
 /// <summary>
-/// User-actionable validation errors raised by the Basket aggregate and its
-/// Anti-Corruption Layer. Each factory returns a <see cref="ValidationError"/>
-/// whose error code is the single source of truth consumed by callers, tests,
-/// and the HTTP problem-details pipeline.
+/// User-actionable validation errors raised by the Basket aggregate. Each
+/// factory returns a <see cref="ValidationError"/> whose error code is the
+/// single source of truth consumed by callers, tests, and the HTTP
+/// problem-details pipeline. ACL adapter failures (catalog availability,
+/// product existence) live in
+/// <c>Basket.Application.Baskets.Common.Errors.BasketAclErrors</c>.
 /// </summary>
 public static class BasketErrors
 {
@@ -33,18 +35,6 @@ public static class BasketErrors
             propertyName: "Currency",
             errorMessage: "All basket items must share the same currency.",
             errorCode: "Basket.CurrencyMismatch");
-
-    public static ValidationError CatalogUnavailable()
-        => new ValidationError(
-            propertyName: "Catalog",
-            errorMessage: "Product catalog is temporarily unavailable.",
-            errorCode: "Basket.CatalogUnavailable");
-
-    public static ValidationError ProductNotFound(Guid productId)
-        => new ValidationError(
-            propertyName: "ProductId",
-            errorMessage: $"Product '{productId}' does not exist.",
-            errorCode: "Basket.ProductNotFound");
 
     public static ValidationError ItemNotFound(Guid productId)
         => new ValidationError(

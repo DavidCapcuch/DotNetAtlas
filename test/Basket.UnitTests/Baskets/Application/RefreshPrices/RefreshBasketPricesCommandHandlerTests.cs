@@ -1,6 +1,6 @@
 using Basket.Application.Abstractions;
+using Basket.Application.Baskets.Common.Errors;
 using Basket.Application.Baskets.RefreshPrices;
-using Basket.Domain.Baskets.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
@@ -88,7 +88,7 @@ public class RefreshBasketPricesCommandHandlerTests
             .Returns(Result.Ok<BasketAggregate?>(basket));
         _catalog.GetManyAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(
-                BasketErrors.CatalogUnavailable()));
+                BasketAclErrors.CatalogUnavailable()));
 
         var result = await CreateSut().HandleAsync(
             new RefreshBasketPricesCommand(userId),

@@ -24,7 +24,7 @@ public sealed class CatalogServiceOptions
     /// Per-request timeout on the typed <see cref="HttpClient"/>. Default 2&#xa0;s
     /// (basket.md &#xa7; 9.3) — YARP handles cross-service retries at the edge, so
     /// this timeout is the single source of truth for how long Basket waits on
-    /// Catalog before surfacing <c>BasketErrors.CatalogUnavailable</c>.
+    /// Catalog before surfacing <c>BasketAclErrors.CatalogUnavailable</c>.
     /// </summary>
     [Range(1, 30)]
     public int TimeoutSeconds { get; set; } = 2;

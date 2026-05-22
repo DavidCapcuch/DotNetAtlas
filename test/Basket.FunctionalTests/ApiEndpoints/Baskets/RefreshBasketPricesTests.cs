@@ -1,6 +1,6 @@
 using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
-using Basket.Domain.Baskets.Errors;
+using Basket.Application.Baskets.Common.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using Basket.FunctionalTests.Common;
 using FastEndpoints;
@@ -82,7 +82,7 @@ public class RefreshBasketPricesTests : BaseApiTest
 
         Catalog.GetManyAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(
-                BasketErrors.CatalogUnavailable()));
+                BasketAclErrors.CatalogUnavailable()));
 
         // Act
         var response = await client.PostAsync(

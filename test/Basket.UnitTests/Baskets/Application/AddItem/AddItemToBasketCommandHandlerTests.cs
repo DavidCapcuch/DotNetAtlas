@@ -1,5 +1,6 @@
 using Basket.Application.Abstractions;
 using Basket.Application.Baskets.AddItem;
+using Basket.Application.Baskets.Common.Errors;
 using Basket.Domain.Baskets.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults;
@@ -59,7 +60,7 @@ public class AddItemToBasketCommandHandlerTests
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         _catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Fail<ProductSnapshot>(BasketErrors.ProductNotFound(productId)));
+            .Returns(Result.Fail<ProductSnapshot>(BasketAclErrors.ProductNotFound(productId)));
 
         var result = await CreateSut().HandleAsync(
             new AddItemToBasketCommand(userId, productId, 1),

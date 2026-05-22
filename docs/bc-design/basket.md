@@ -265,7 +265,7 @@ The basket lifecycle from birth to death:
 
 - `RefreshBasketPricesCommand` → handler loads basket.
 - Calls `IProductCatalogQueryPort.GetManyAsync(distinct productIds)` — one round-trip, not N.
-- If the ACL fails → whole command fails with `BasketErrors.CatalogUnavailable`.
+- If the ACL fails → whole command fails with `BasketAclErrors.CatalogUnavailable`.
 - On success: `basket.RefreshPrices(snapshots)` → `BasketPricesRefreshedDomainEvent` with only the items whose price actually changed.
 - Save as a normal mutation.
 - Auto-refresh is **not** implemented. Stale prices are the user's responsibility to resolve before checkout, and checkout itself **does not silently re-check prices** — it commits to what is in the basket at the instant of checkout. This is a deliberate correctness-over-freshness trade-off.
@@ -511,8 +511,8 @@ interface IProductCatalogQueryPort
 
 **Contract rules:**
 
-- Returns `Result.Fail(BasketErrors.CatalogUnavailable)` on any of: HTTP 5xx, network error, timeout, cancellation-by-timeout.
-- Returns `Result.Fail(BasketErrors.ProductNotFound(productId))` on HTTP 404.
+- Returns `Result.Fail(BasketAclErrors.CatalogUnavailable)` on any of: HTTP 5xx, network error, timeout, cancellation-by-timeout.
+- Returns `Result.Fail(BasketAclErrors.ProductNotFound(productId))` on HTTP 404.
 - `GetManyAsync` is **partial-tolerant**: if the Catalog response includes 9 of 10 requested products, the result is `Result.Ok(IReadOnlyList with 9 items)`. The missing `productId`s are silently dropped — the caller (e.g., `RefreshPricesCommandHandler`) decides what to do (here: leave the existing snapshot untouched).
 - Both methods are read-only and idempotent.
 - No retries or circuit-breaking at this layer. Cross-service HTTP resilience is handled by YARP at the edge, not by per-service Polly pipelines. The adapter configures only `BaseAddress`, request `Timeout`, `AddCorrelationId()`, and `AddServiceAuth("catalog.read")`.
@@ -526,10 +526,10 @@ Location: `Basket.Infrastructure.ExternalServices`.
 - Deserializes into **private internal DTOs** (e.g., `CatalogProductResponse`) that **never** escape this assembly. The DTOs match Catalog's wire shape.
 - Maps `CatalogProductResponse → ProductSnapshot` using a small, explicit `Map(CatalogProductResponse r) → ProductSnapshot` method. Fields not needed by Basket (categories, images, availability flags, translations) are dropped on the floor.
 - **Failure behavior, in priority order:**
-  1. `TaskCanceledException` or `HttpRequestException` → log at warning, return `Result.Fail(BasketErrors.CatalogUnavailable)`.
-  2. HTTP 404 → return `Result.Fail(BasketErrors.ProductNotFound(productId))`.
-  3. HTTP 5xx → return `Result.Fail(BasketErrors.CatalogUnavailable)` (bucketed as "unreachable" from Basket's perspective; Catalog's own availability story is not Basket's concern).
-  4. HTTP 4xx other than 404 (e.g., 400 malformed) → log at error, return `Result.Fail(BasketErrors.CatalogUnavailable)` — treat as a programming bug on our own call.
+  1. `TaskCanceledException` or `HttpRequestException` → log at warning, return `Result.Fail(BasketAclErrors.CatalogUnavailable)`.
+  2. HTTP 404 → return `Result.Fail(BasketAclErrors.ProductNotFound(productId))`.
+  3. HTTP 5xx → return `Result.Fail(BasketAclErrors.CatalogUnavailable)` (bucketed as "unreachable" from Basket's perspective; Catalog's own availability story is not Basket's concern).
+  4. HTTP 4xx other than 404 (e.g., 400 malformed) → log at error, return `Result.Fail(BasketAclErrors.CatalogUnavailable)` — treat as a programming bug on our own call.
 
 ### 9.4 Command-side behavior under Catalog outage
 
@@ -609,7 +609,7 @@ All commands/queries route through `Platform.CQRS` mediator. Handlers sit in `Ba
 
 - **Port-Adapter pattern.** Port (`IProductCatalogQueryPort`) in Application, adapter (`ProductCatalogHttpAdapter`) in Infrastructure. Zero Catalog types in `Basket.Domain` or `Basket.Application`.
 - **Translation layer.** Explicit mapping from Catalog's `CatalogProductResponse` DTO to internal `ProductSnapshot`. The adapter intentionally drops everything Basket does not need.
-- **Explicit failure classification.** Network-layer errors collapse to `BasketErrors.CatalogUnavailable`; 404s become `BasketErrors.ProductNotFound`. The domain never sees HTTP status codes.
+- **Explicit failure classification.** Network-layer errors collapse to `BasketAclErrors.CatalogUnavailable`; 404s become `BasketAclErrors.ProductNotFound`. The domain never sees HTTP status codes.
 - **Partial-success tolerance** on batch reads (§ 9.2) — a behavioral choice the caller decides how to react to.
 - **Snapshot-freeze discipline.** The ACL is called on add and on explicit refresh only. Checkout does *not* re-call. This is a conscious architectural commitment and is testable end-to-end.
 

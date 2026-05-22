@@ -38,7 +38,7 @@ An `int` on the Basket aggregate, starting at 0 on creation and incremented on e
 The silent purge of a basket after 30 days of no mutation, implemented via Redis TTL. No event is emitted. No cart-abandonment ping is triggered in v1 — the feature is deferred. Expiry is the answer to "what if the user just walks away?" — do nothing; let Redis handle it.
 
 ### Catalog Unavailable (error)
-The `BasketErrors.CatalogUnavailable` result-error returned by the ACL when the Catalog service cannot be reached or responds with a 5xx. Commands that depend on the ACL (`AddItem`, `RefreshPrices`) fail the user's request on this error. Checkout does **not** depend on the ACL and is therefore immune to Catalog outages.
+The `BasketAclErrors.CatalogUnavailable` result-error returned by the ACL when the Catalog service cannot be reached or responds with a 5xx. Commands that depend on the ACL (`AddItem`, `RefreshPrices`) fail the user's request on this error. Checkout does **not** depend on the ACL and is therefore immune to Catalog outages.
 
 ### ACL (Anti-Corruption Layer) — for Basket
 The `IProductCatalogQueryPort` port in `Basket.Application.Abstractions` and its `ProductCatalogHttpAdapter` implementation in `Basket.Infrastructure.ExternalServices`. Together they translate Catalog's transport DTO (`CatalogProductResponse`) into Basket's internal value object (`ProductSnapshot`) and classify HTTP failures into Basket-meaningful `Result` errors. The ACL is the only place in the solution where Catalog's shape meets Basket's shape.
