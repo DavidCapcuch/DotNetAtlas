@@ -20,7 +20,7 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
     };
 
     private CreateOrderCommandHandler CreateHandler() =>
-        new(DbContext, TimeProvider, Logger<CreateOrderCommandHandler>());
+        new(DbContext, Logger<CreateOrderCommandHandler>());
 
     [Fact]
     public async Task Handle_HappyPath_CreatesOrderAndReturnsId()
@@ -57,5 +57,31 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
         var act = async () => await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<DataIntegrityException>();
+    }
+
+    /// <summary>
+    /// Pins ADR-0015 trace-fidelity: the saga-issued <c>RequestedAtUtc</c>
+    /// becomes the order's <c>CreatedAtUtc</c>, not the handler-call wall
+    /// clock. This keeps the saga's timeline coherent across Ordering's
+    /// CreatedAt and the downstream OrderCreatedEvent.CreatedAtUtc payload.
+    /// </summary>
+    [Fact]
+    public async Task Handle_UsesCommandRequestedAtUtc_AsOrderCreatedAtUtc_NotHandlerWallClock()
+    {
+        var requestedAt = new DateTimeOffset(2026, 5, 1, 12, 30, 0, TimeSpan.Zero);
+        var command = ValidCommand() with { RequestedAtUtc = requestedAt };
+
+        // Drift the handler's TimeProvider so we'd see the wrong value
+        // if the handler still read TimeProvider.GetUtcNow().
+        TimeProvider.SetUtcNow(requestedAt.AddHours(2));
+
+        var result = await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        result.Should().BeSuccess();
+        var saved = await DbContext.Orders.FindAsync(
+            [result.Value],
+            TestContext.Current.CancellationToken);
+        saved.Should().NotBeNull();
+        saved!.CreatedAtUtc.Should().Be(requestedAt);
     }
 }

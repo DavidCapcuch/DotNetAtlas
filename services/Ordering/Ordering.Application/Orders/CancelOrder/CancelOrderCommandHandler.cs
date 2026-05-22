@@ -37,9 +37,12 @@ public sealed class CancelOrderCommandHandler : ICommandHandler<CancelOrderComma
 
         // Authorization: buyers cannot see / cancel other buyers' orders.
         // Return NotFound (not Forbidden) to avoid leaking existence.
+        // Logged at Warning so SecOps can probe for credential-stuffing
+        // patterns; ordering.authz.cross_buyer_attempt counter is a
+        // follow-up (see ordering-followups summary).
         if (!command.IsAdmin && order.BuyerId != command.BuyerId)
         {
-            _logger.LogInformation(
+            _logger.LogWarning(
                 "Buyer {BuyerId} attempted to cancel order {OrderId} owned by a different buyer — returning NotFound",
                 command.BuyerId, command.OrderId);
             return Result.Fail(OrderingErrors.OrderNotFound(command.OrderId));

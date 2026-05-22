@@ -1,6 +1,7 @@
 using FluentResults;
 using Platform.SharedKernel.Base;
 using Platform.SharedKernel.Errors;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Ordering.Domain.Orders.ValueObjects;
@@ -57,7 +58,14 @@ public sealed record OrderItem : ValueObject
                 nameof(UnitPrice), "Unit price must be strictly positive.", "OrderItem.UnitPriceNotPositive"));
         }
 
-        var lineTotal = new Money(unitPrice.Amount * quantity, unitPrice.Currency);
+        // Inputs are pre-validated above (quantity > 0, unitPrice.Amount > 0)
+        // so Money.Create cannot legitimately fail here. Routing through the
+        // factory keeps the construction defensive against future Money
+        // invariants without bypassing them.
+        var lineTotalResult = Money.Create(unitPrice.Amount * quantity, unitPrice.Currency);
+        Throw.If(lineTotalResult.IsFailed, new DataIntegrityException(
+            "OrderItem.InvalidLineTotal",
+            $"Computed LineTotal failed Money.Create: {string.Join("; ", lineTotalResult.Errors.Select(e => e.Message))}."));
 
         return new OrderItem
         {
@@ -65,7 +73,7 @@ public sealed record OrderItem : ValueObject
             ProductSnapshot = productSnapshot,
             Quantity = quantity,
             UnitPrice = unitPrice,
-            LineTotal = lineTotal,
+            LineTotal = lineTotalResult.Value,
         };
     }
 }

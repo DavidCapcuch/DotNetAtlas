@@ -158,7 +158,6 @@ public sealed class OrderPersistenceTests
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<CreateOrderCommandHandler>>();
         var handler = new CreateOrderCommandHandler(
             (IOrderingDbContext)dbContext,
-            _fixture.FakeTime,
             logger);
 
         var correlationId = Guid.CreateVersion7();

@@ -156,7 +156,14 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         }
 
         // I-9 is naturally enforced — every item is constructed with currency.
-        var total = new Money(totalAmount, currency);
+        // Routing through Money.Create keeps construction defensive against
+        // future Money invariants; failure is bug-class because totalAmount
+        // is a sum of strictly-positive line totals (guarded above).
+        var totalResult = Money.Create(totalAmount, currency);
+        Throw.If(totalResult.IsFailed, new DataIntegrityException(
+            "Order.InvalidTotal",
+            $"Computed Total failed Money.Create: {FormatErrors(totalResult)}."));
+        var total = totalResult.Value;
 
         var order = new Order
         {
@@ -184,8 +191,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
                 i.ProductSnapshot.Name,
                 i.Quantity,
                 i.UnitPrice.Amount,
-                i.LineTotal.Amount,
-                i.UnitPrice.Currency.Name)).ToList(),
+                i.LineTotal.Amount)).ToList(),
             ShippingAddress = shippingAddress,
             BillingAddress = billingAddress,
             Total = total,
@@ -266,6 +272,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             Items = _items.ToList(),
             Total = Total,
             BillingAddress = BillingAddress,
+            ConfirmedAtUtc = utcNow,
             OccurredOnUtc = utcNow,
         });
 

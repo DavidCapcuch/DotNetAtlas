@@ -26,14 +26,17 @@ internal static class OrderFailedMapper
             FailedAtUtc = source.FailedAtUtc.UtcDateTime,
         };
 
+    // The FSM at OrderStatus.cs forbids Confirmed -> Failed (Confirmed's allowed
+    // set is {Shipped, Cancelled}); Order.Fail's GuardTransition throws before
+    // the mapper sees a Confirmed source. Only the three pre-confirmation
+    // statuses can legitimately appear on an OrderFailedEvent.
     internal static OrderStatusAtTransition MapStatus(string name) => name switch
     {
         "Created" => OrderStatusAtTransition.Created,
         "StockReserved" => OrderStatusAtTransition.StockReserved,
         "PaymentCompleted" => OrderStatusAtTransition.PaymentCompleted,
-        "Confirmed" => OrderStatusAtTransition.Confirmed,
         _ => throw new DataIntegrityException(
             "Order.InvalidAtStatusForFailure",
-            $"OrderStatus '{name}' is not a valid AtStatus for OrderFailedEvent (allowed: Created, StockReserved, PaymentCompleted, Confirmed)."),
+            $"OrderStatus '{name}' is not a valid AtStatus for OrderFailedEvent (allowed: Created, StockReserved, PaymentCompleted)."),
     };
 }

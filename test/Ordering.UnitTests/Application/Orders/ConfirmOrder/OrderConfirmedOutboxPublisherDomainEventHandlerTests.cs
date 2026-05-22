@@ -29,6 +29,7 @@ public class OrderConfirmedOutboxPublisherDomainEventHandlerTests : HandlerTestB
             Items = [.. order.Items],
             Total = order.Total,
             BillingAddress = order.BillingAddress,
+            ConfirmedAtUtc = TestAggregate.UtcNow,
             OccurredOnUtc = TestAggregate.UtcNow,
         };
 
