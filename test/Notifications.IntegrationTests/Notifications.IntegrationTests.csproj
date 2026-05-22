@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+        <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+        <PackageReference Include="Testcontainers.PostgreSql" />
+        <PackageReference Include="WireMock.Net" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
+        <ProjectReference Include="..\..\services\Notifications\Notifications\Notifications.csproj" />
+    </ItemGroup>
+</Project>
