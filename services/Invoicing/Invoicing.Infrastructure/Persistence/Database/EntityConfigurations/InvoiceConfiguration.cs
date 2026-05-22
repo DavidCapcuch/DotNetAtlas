@@ -30,7 +30,6 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
     private const int VatRateScale = 2;
     private const int MoneyPrecision = 19;
     private const int MoneyScale = 4;
-    private const int BlobUriMaxLength = 2048;
     private const int ContentHashLength = 64;
 
     public void Configure(EntityTypeBuilder<Invoice> builder)
@@ -134,15 +133,15 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         // unchanged here — any drift from the migrations snapshot would trigger
         // PendingModelChangesWarning at startup. The deferral lives in comments
         // only until the matching user-generated migration ships.
+        // PdfBlobRef — owned, nullable until Issue(). BlobName is the canonical immutable
+        // identifier; the URI is computed on demand by callers via IBlobStore.GetSasUrlAsync.
         builder.OwnsOne(i => i.PdfBlobRef, pdf =>
         {
-            pdf.Property(p => p.BlobUri)
-                .HasColumnName("pdf_blob_uri")
-                .HasMaxLength(BlobUriMaxLength)
-                .HasConversion(
-                    uri => uri.AbsoluteUri,
-                    s => new Uri(s, UriKind.Absolute))
-                .HasComment("Presigned SAS URL to the rendered PDF in blob storage.");
+            pdf.Property(p => p.BlobName)
+                .HasColumnName("pdf_blob_name")
+                .HasMaxLength(PdfBlobRef.BlobNameMaxLength)
+                .IsRequired();
+
             pdf.Property(p => p.ContentHash)
                 .HasColumnName("pdf_content_hash")
                 .HasMaxLength(ContentHashLength)

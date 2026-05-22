@@ -91,11 +91,10 @@ internal sealed class AzureBlobStore : IBlobStore
                 ex);
         }
 
-        var sasUri = BuildSasUri(blob, sasTtl, blobName);
-        var refResult = PdfBlobRef.Create(sasUri, contentHash, content.Length);
+        var refResult = PdfBlobRef.Create(blobName, contentHash, content.Length);
 
-        // PdfBlobRef.Create validates URI shape + hash + size \u2014 a failure here would indicate
-        // a bug in this adapter (e.g. a non-absolute SAS URI slipped through). Bug-class.
+        // PdfBlobRef.Create validates blob name + hash + size \u2014 a failure here would indicate
+        // a bug in this adapter (e.g. malformed blobName passed in). Bug-class.
         if (refResult.IsFailed)
         {
             throw new DataIntegrityException(

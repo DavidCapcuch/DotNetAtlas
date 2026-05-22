@@ -84,7 +84,7 @@ internal static class TestDataFactory
         var now = utcNow ?? FixedUtcNow;
         var number = InvoiceNumber.Create(year, sequence).Value;
         var pdf = PdfBlobRef.Create(
-            new Uri("https://example.com/invoices/2026/04/INV-2026-000142.pdf?sv=sas"),
+            "2026/04/INV-2026-000142.pdf",
             new string('a', 64),
             sizeBytes: 1024).Value;
         invoice.Issue(number, pdf, now);
