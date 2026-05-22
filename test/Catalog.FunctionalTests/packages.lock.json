@@ -2260,7 +2260,7 @@
         "type": "Project",
         "dependencies": {
           "Catalog.Domain": "[1.0.0, )",
-          "FastEndpoints.Attributes": "[8.1.0, )",
+          "EntityFrameworkCore.Exceptions.Common": "[10.0.0, )",
           "FluentValidation": "[12.1.1, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
           "OpenFeature": "[2.13.0, )",
