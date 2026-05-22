@@ -41,6 +41,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Notifications.UnitTests"/>
+        <InternalsVisibleTo Include="Notifications.IntegrationTests"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.ReliableMessaging.Inbox.Core\Platform.ReliableMessaging.Inbox.Core.csproj" />
