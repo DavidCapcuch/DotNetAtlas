@@ -31,4 +31,14 @@ public sealed class TopicsOptions
     [Required]
     [Length(1, 64)]
     public required string DltTopicSuffix { get; set; }
+
+    /// <summary>Topic carrying SendEmailNotificationCommand (consumed by this BC).</summary>
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string EmailCommands { get; set; }
+
+    /// <summary>Topic carrying EmailNotificationSentEvent (produced by this BC).</summary>
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string EmailEvents { get; set; }
 }
