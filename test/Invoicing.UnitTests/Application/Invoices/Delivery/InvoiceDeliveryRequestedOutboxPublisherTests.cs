@@ -5,39 +5,27 @@ using Invoicing.Application.Common.Notifications;
 using Invoicing.Application.Outbox;
 using Invoicing.Domain.Invoices.Events;
 using Invoicing.Domain.Invoices.ValueObjects;
-using Invoicing.UnitTests.Common;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Notifications.Email;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.SharedKernel.ValueObjects;
 using Xunit;
 
 namespace Invoicing.UnitTests.Application.Invoices.Delivery;
 
-public sealed class InvoiceDeliveryRequestedOutboxPublisherTests : IDisposable
+public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
 {
-    private readonly TestInvoicingDbContext _db = TestInvoicingDbContext.Create();
-
-    public void Dispose() => _db.Dispose();
-
     [Fact]
     public async Task Handle_QueuesSendEmailNotificationCommand_WithCorrectTopicKeyAndTemplateData()
     {
         // Arrange
         var buyerId = Guid.CreateVersion7();
-        var invoice = TestDataFactory.BuildIssuedInvoice(
-            buyerId: buyerId,
-            year: 2026,
-            sequence: 42,
-            totalAmount: 152.00m,
-            currency: "EUR");
-
-        _db.Invoices.Add(invoice);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        var invoiceId = invoice.Id;
+        var invoiceId = Guid.CreateVersion7();
+        var invoiceNumber = InvoiceNumber.Create(2026, 42).Value;
+        var total = new Money(152.00m, CurrencyCode.Eur);
 
         var outbox = Substitute.For<ITransactionalOutbox<Invoicing.Application.Common.Data.IInvoicingDbContext>>();
         var topics = Options.Create(new InvoicingTopicsOptions
@@ -54,7 +42,6 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests : IDisposable
 
         var handler = new InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler(
             outbox,
-            _db,
             topics,
             portal,
             clock,
@@ -67,6 +54,8 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests : IDisposable
             Channel = DeliveryChannel.Email,
             Attempt = 1,
             CorrelationId = Guid.CreateVersion7(),
+            InvoiceNumber = invoiceNumber,
+            Total = total,
             OccurredOnUtc = clock.GetUtcNow(),
         };
 
