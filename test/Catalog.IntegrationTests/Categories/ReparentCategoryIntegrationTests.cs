@@ -114,6 +114,15 @@ public sealed class ReparentCategoryIntegrationTests
             laptops.Path.Value.Should().Be($"{betaPath}/computers/laptops");
             projection.CategoryPath.Should().Be($"{betaPath}/computers/laptops");
 
+            // CAT-RV-H07 / #175: CategoryBreadcrumb must cascade alongside CategoryPath.
+            // The slug "alpha-{run}" / "beta-{run}" humanises into "Alpha {Run} > Computers
+            // > Laptops" via CategoryBreadcrumbBuilder (split on '-', title-case each token,
+            // join with space; then segments joined with " > ").
+            projection.CategoryBreadcrumb.Should()
+                .StartWith($"Beta {run.ToUpperInvariant()[0]}{run[1..]}")
+                .And.EndWith("> Computers > Laptops")
+                .And.NotContain("Alpha", "the old taxonomy prefix must not survive on descendants");
+
             // Old subtree must not survive anywhere.
             var stale = await db.Categories.AsNoTracking()
                 .Where(c => c.Path.Value.StartsWith($"{alphaPath}/computers"))

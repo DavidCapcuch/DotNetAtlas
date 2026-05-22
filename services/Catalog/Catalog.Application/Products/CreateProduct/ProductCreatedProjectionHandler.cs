@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Catalog.Application.Categories.Common.Services;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
 using Catalog.Application.Products.CreateProduct;
@@ -71,7 +72,7 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
             Description = product.Description.Value,
             CategoryId = product.CategoryId,
             CategoryPath = category.Path.Value,
-            CategoryBreadcrumb = BuildBreadcrumb(category.Path.Value),
+            CategoryBreadcrumb = CategoryBreadcrumbBuilder.Build(category.Path.Value),
             BrandName = product.Brand.Value,
             PriceAmount = product.Price.Amount,
             PriceCurrency = product.Price.Currency.Name,
@@ -102,41 +103,5 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
         }
 
         return Guid.TryParse(tag, out var correlationId) ? correlationId : Guid.Empty;
-    }
-
-    private static string BuildBreadcrumb(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            return string.Empty;
-        }
-
-        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return string.Join(" > ", segments.Select(ToHumanReadableSegment));
-    }
-
-    // CAT-RV-L01 (Wave-1 closeout): category slug segments contain hyphens between words
-    // ("electronics-toys"). Title-case each space-delimited token, not just the first
-    // character of the whole segment, so "electronics-toys" -> "Electronics Toys" rather
-    // than "Electronics-toys".
-    private static string ToHumanReadableSegment(string segment)
-    {
-        if (segment.Length == 0)
-        {
-            return segment;
-        }
-
-        var tokens = segment.Split('-', StringSplitOptions.RemoveEmptyEntries);
-        return string.Join(" ", tokens.Select(TitleCaseToken));
-    }
-
-    private static string TitleCaseToken(string token)
-    {
-        if (token.Length == 0)
-        {
-            return token;
-        }
-
-        return char.ToUpperInvariant(token[0]) + token[1..];
     }
 }

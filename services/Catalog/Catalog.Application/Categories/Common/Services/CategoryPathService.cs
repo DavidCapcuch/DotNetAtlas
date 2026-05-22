@@ -10,10 +10,17 @@ namespace Catalog.Application.Categories.Common.Services;
 /// <remarks>
 /// <para>
 /// EF Core's <c>ExecuteUpdateAsync</c> bypasses the change tracker and emits a single
-/// <c>UPDATE</c> per call. Two calls fire here — one rewrites <c>catalog.categories.path</c>
-/// for descendants, the other rewrites <c>catalog.product_search_view.category_path</c> for
-/// rows whose category sits beneath the reparented one. Both run within the ambient
-/// EF transaction opened by the surrounding command handler / outbox UoW.
+/// <c>UPDATE</c> per call. Three calls fire here — one rewrites <c>catalog.categories.path</c>
+/// for descendants, one rewrites <c>catalog.product_search_view.category_path</c>, and one
+/// rewrites <c>catalog.product_search_view.category_breadcrumb</c> (CAT-RV-H07 / #175) so the
+/// human-readable taxonomy stays consistent with the path after reparent. All three run within
+/// the ambient EF transaction opened by the surrounding command handler / outbox UoW.
+/// </para>
+/// <para>
+/// Breadcrumb rewrite uses the OLD breadcrumb prefix length to splice the descendant suffix
+/// onto the new breadcrumb prefix, mirroring the existing path-rewrite math. Filter clause
+/// also uses the OLD path because the path rewrite runs LAST in the sequence — until then the
+/// projection rows still carry their old <c>CategoryPath</c>.
 /// </para>
 /// <para>
 /// Translation expectations on Postgres: <c>string.Substring(int)</c> →
@@ -24,7 +31,7 @@ namespace Catalog.Application.Categories.Common.Services;
 /// Not unit-testable against the EF Core <c>InMemory</c> provider — that provider does not
 /// implement <c>ExecuteUpdateAsync</c>. Unit tests for the calling handler substitute
 /// <see cref="ICategoryPathService"/> via NSubstitute and assert the call shape; the actual
-/// SQL behaviour is covered by <c>ReparentCategoryCommandHandlerTests</c> in
+/// SQL behaviour is covered by <c>ReparentCategoryIntegrationTests</c> in
 /// <c>Catalog.IntegrationTests</c>.
 /// </para>
 /// </remarks>
@@ -51,10 +58,25 @@ public sealed class CategoryPathService : ICategoryPathService
         var oldPathLength = oldPath.Length;
         var descendantPrefix = oldPath + "/";
 
+        var oldBreadcrumbPrefix = CategoryBreadcrumbBuilder.Build(oldPath);
+        var newBreadcrumbPrefix = CategoryBreadcrumbBuilder.Build(newPath);
+        var oldBreadcrumbPrefixLength = oldBreadcrumbPrefix.Length;
+
+        // Rewrite descendant CategoryBreadcrumb FIRST — still using the OLD path as filter
+        // because the path rewrite hasn't run yet. CAT-RV-H07 / #175: the projection's
+        // human-readable taxonomy must stay consistent with the materialized path post-reparent.
+#pragma warning disable CA1845
+        await _db.ProductSearchView
+            .Where(r => r.CategoryPath == oldPath || r.CategoryPath.StartsWith(descendantPrefix))
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    r => r.CategoryBreadcrumb,
+                    r => newBreadcrumbPrefix + r.CategoryBreadcrumb.Substring(oldBreadcrumbPrefixLength)),
+                cancellationToken);
+
         // CA1845 (use AsSpan + string.Concat) doesn't apply inside EF Core expression trees —
         // Span<char> can't appear in an expression tree, and EF translates string.Substring(int)
         // to SUBSTRING(col FROM N+1) on Postgres. Keep the LINQ form.
-#pragma warning disable CA1845
         await _db.Categories
             .Where(c => c.Id != excludedCategoryId
                 && (c.Path.Value == oldPath || c.Path.Value.StartsWith(descendantPrefix)))
