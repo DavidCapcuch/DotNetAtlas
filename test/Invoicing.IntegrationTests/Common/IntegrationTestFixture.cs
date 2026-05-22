@@ -230,7 +230,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// Seeds a <see cref="PendingInvoice"/> projection row representing a converged
     /// (Order + Payment) state — the precondition for running <c>IssueInvoiceCommandHandler</c>.
     /// </summary>
-    private async Task SeedConvergedPendingInvoiceAsync(
+    public async Task SeedConvergedPendingInvoiceAsync(
         Guid correlationId,
         Guid orderId,
         Guid paymentId,
