@@ -129,6 +129,11 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         // blob store, so the persisted URL is never read by the API itself.
         // L4 (issue #137): no DB CHECK constraint pins Status to the SmartEnum
         // value-set; defence-in-depth that also needs a migration to land.
+        //
+        // NOTE: model-shaping (HasComment / HasCheckConstraint) is deliberately
+        // unchanged here — any drift from the migrations snapshot would trigger
+        // PendingModelChangesWarning at startup. The deferral lives in comments
+        // only until the matching user-generated migration ships.
         builder.OwnsOne(i => i.PdfBlobRef, pdf =>
         {
             pdf.Property(p => p.BlobUri)
@@ -137,7 +142,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
                 .HasConversion(
                     uri => uri.AbsoluteUri,
                     s => new Uri(s, UriKind.Absolute))
-                .HasComment("Presigned SAS URL at issuance — stale on replay beyond TTL; see issue #131.");
+                .HasComment("Presigned SAS URL to the rendered PDF in blob storage.");
             pdf.Property(p => p.ContentHash)
                 .HasColumnName("pdf_content_hash")
                 .HasMaxLength(ContentHashLength)
