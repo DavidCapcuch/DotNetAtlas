@@ -75,9 +75,9 @@
             "doc": "CreditNoteReason SmartEnum name (v1: 'OrderCancelled'; v2 adds 'PartialRefund', 'Adjustment')."
         },
         {
-            "name": "PdfBlobUri",
+            "name": "PdfBlobName",
             "type": "string",
-            "doc": "Absolute URI of the rendered credit-note PDF (presigned SAS URL). Same opacity rules as InvoiceIssuedEvent.PdfBlobUri."
+            "doc": "Canonical immutable blob name (e.g., '2026/05/CN-2026-000007.pdf'). Consumers must call Invoicing's GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue #131)."
         },
         {
             "name": "PdfContentHash",

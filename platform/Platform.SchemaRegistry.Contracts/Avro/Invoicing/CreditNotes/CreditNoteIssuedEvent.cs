@@ -42,9 +42,11 @@ namespace Invoicing.CreditNotes
 				"},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code (matches the original Invoice" +
 				"\'s currency).\",\"type\":\"string\"},{\"name\":\"Reason\",\"doc\":\"CreditNoteReason SmartEn" +
 				"um name (v1: \'OrderCancelled\'; v2 adds \'PartialRefund\', \'Adjustment\').\",\"type\":\"" +
-				"string\"},{\"name\":\"PdfBlobUri\",\"doc\":\"Absolute URI of the rendered credit-note PD" +
-				"F (presigned SAS URL). Same opacity rules as InvoiceIssuedEvent.PdfBlobUri.\",\"ty" +
-				"pe\":\"string\"},{\"name\":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercas" +
+				"string\"},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blob name (e.g., '2026" +
+				"/05/CN-2026-000007.pdf'). Consumers must call Invoicing's GET endpoint (or re-min" +
+				"t via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — neve" +
+				"r embed long-lived URLs in this stream (issue #131).\",\"type\":\"string\"},{\"name\":\"" +
+				"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercas" +
 				"e hex (64 chars).\",\"type\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PD" +
 				"F blob in bytes (>0).\",\"type\":\"long\"}]}");
 		/// <summary>
@@ -88,9 +90,9 @@ namespace Invoicing.CreditNotes
 		/// </summary>
 		private string _Reason;
 		/// <summary>
-		/// Absolute URI of the rendered credit-note PDF (presigned SAS URL). Same opacity rules as InvoiceIssuedEvent.PdfBlobUri.
+		/// Canonical immutable blob name (e.g., '2026/05/CN-2026-000007.pdf'). Consumers must call Invoicing's GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue #131).
 		/// </summary>
-		private string _PdfBlobUri;
+		private string _PdfBlobName;
 		/// <summary>
 		/// SHA-256 of the PDF bytes, lowercase hex (64 chars).
 		/// </summary>
@@ -247,17 +249,17 @@ namespace Invoicing.CreditNotes
 			}
 		}
 		/// <summary>
-		/// Absolute URI of the rendered credit-note PDF (presigned SAS URL). Same opacity rules as InvoiceIssuedEvent.PdfBlobUri.
+		/// Canonical immutable blob name (e.g., '2026/05/CN-2026-000007.pdf'). Consumers must call Invoicing's GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue #131).
 		/// </summary>
-		public string PdfBlobUri
+		public string PdfBlobName
 		{
 			get
 			{
-				return this._PdfBlobUri;
+				return this._PdfBlobName;
 			}
 			set
 			{
-				this._PdfBlobUri = value;
+				this._PdfBlobName = value;
 			}
 		}
 		/// <summary>
@@ -302,7 +304,7 @@ namespace Invoicing.CreditNotes
 			case 7: return this.Total;
 			case 8: return this.Currency;
 			case 9: return this.Reason;
-			case 10: return this.PdfBlobUri;
+			case 10: return this.PdfBlobName;
 			case 11: return this.PdfContentHash;
 			case 12: return this.PdfSizeBytes;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
@@ -322,7 +324,7 @@ namespace Invoicing.CreditNotes
 			case 7: this.Total = (Avro.AvroDecimal)fieldValue; break;
 			case 8: this.Currency = (System.String)fieldValue; break;
 			case 9: this.Reason = (System.String)fieldValue; break;
-			case 10: this.PdfBlobUri = (System.String)fieldValue; break;
+			case 10: this.PdfBlobName = (System.String)fieldValue; break;
 			case 11: this.PdfContentHash = (System.String)fieldValue; break;
 			case 12: this.PdfSizeBytes = (System.Int64)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
