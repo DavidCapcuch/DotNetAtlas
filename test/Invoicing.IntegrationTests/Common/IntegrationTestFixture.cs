@@ -81,7 +81,10 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
                 ["InvoicingTopics:Invoices"] = "invoicing.invoices",
                 ["InvoicingTopics:OrderingOrders"] = "ordering.orders",
                 ["InvoicingTopics:PaymentsTransactions"] = "payments.transactions",
+                ["InvoicingTopics:NotificationsEmailCommands"] = "notifications.email-commands",
+                ["InvoicingTopics:NotificationsEmailEvents"] = "notifications.email-events",
                 ["InvoicingTopics:DltTopicSuffix"] = ".Invoicing.DLT",
+                ["BuyerPortal:BaseUrl"] = "https://invoicing.test",
                 ["BlobStorage:InvoicesContainerName"] = "invoices-test",
                 ["BlobStorage:ConnectionString"] = "UseDevelopmentStorage=true",
             })
