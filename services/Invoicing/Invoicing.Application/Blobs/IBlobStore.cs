@@ -21,15 +21,15 @@ public interface IBlobStore
     /// <summary>
     /// Uploads <paramref name="content"/> to the given container under
     /// <paramref name="blobName"/>. Computes SHA-256 of the content as the integrity
-    /// digest, uploads the bytes, and returns a presigned GET URL with
-    /// <paramref name="sasTtl"/>-long expiry.
+    /// digest, uploads the bytes, and returns a <see cref="PdfBlobRef"/> keyed on the
+    /// canonical immutable <c>BlobName</c>. SAS URLs are minted on demand via
+    /// <see cref="GetSasUrlAsync"/>; no presigned URL is returned from upload (issue #131).
     /// </summary>
     /// <param name="containerName">Azure Blob container (e.g., <c>invoices</c>).</param>
     /// <param name="blobName">Relative blob path within the container (e.g., <c>2026/04/INV-2026-000142.pdf</c>).</param>
     /// <param name="content">PDF bytes (or any binary payload).</param>
     /// <param name="contentType">MIME type (e.g., <c>application/pdf</c>).</param>
     /// <param name="metadata">Optional custom blob metadata key/value pairs.</param>
-    /// <param name="sasTtl">How long the returned SAS URL remains valid. 10 minutes per ADR-0017 for invoices.</param>
     /// <param name="ct">Cancellation token.</param>
     Task<PdfBlobRef> UploadAsync(
         string containerName,
@@ -37,7 +37,6 @@ public interface IBlobStore
         ReadOnlyMemory<byte> content,
         string contentType,
         IReadOnlyDictionary<string, string>? metadata,
-        TimeSpan sasTtl,
         CancellationToken ct);
 
     /// <summary>

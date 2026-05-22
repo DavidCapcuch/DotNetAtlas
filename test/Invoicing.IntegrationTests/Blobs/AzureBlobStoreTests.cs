@@ -34,7 +34,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             content: SamplePdf,
             contentType: ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         pdfRef.ContentHash.Should().Be(ComputeSha256Hex(SamplePdf));
@@ -55,7 +54,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         var sasUri = await fixture.BlobStore.GetSasUrlAsync(fixture.ContainerName, pdfRef.BlobName, TimeSpan.FromMinutes(5), ct);
@@ -78,7 +76,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         var sasUri = await fixture.BlobStore.GetSasUrlAsync(fixture.ContainerName, pdfRef.BlobName, TimeSpan.FromMinutes(5), ct);
@@ -101,7 +98,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         var freshUri = await fixture.BlobStore.GetSasUrlAsync(
@@ -126,7 +122,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         await using var stream = await fixture.BlobStore.DownloadAsync(fixture.ContainerName, blobName, ct);
@@ -147,7 +142,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         var second = await fixture.BlobStore.UploadAsync(
@@ -156,7 +150,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         second.ContentHash.Should().Be(first.ContentHash);
@@ -173,7 +166,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             ReadOnlyMemory<byte>.Empty,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         await act.Should().ThrowAsync<ArgumentException>();
@@ -202,7 +194,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
             SamplePdf,
             ContentType,
             metadata: null,
-            sasTtl: TimeSpan.FromMinutes(10),
             ct: ct);
 
         var fakeClockStore = fixture.CreateBlobStoreWithClock(clock);
@@ -218,23 +209,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
         var seParsed = DateTimeOffset.Parse(seValue!, CultureInfo.InvariantCulture);
         seParsed.UtcDateTime.Should().Be(expectedSe,
             "the BlobSasBuilder must use _timeProvider.GetUtcNow() rather than wall-clock UtcNow");
-    }
-
-    [Fact]
-    public async Task UploadAsync_NonPositiveSasTtl_ThrowsArgumentOutOfRange()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var act = async () => await fixture.BlobStore.UploadAsync(
-            fixture.ContainerName,
-            "zero-ttl.pdf",
-            SamplePdf,
-            ContentType,
-            metadata: null,
-            sasTtl: TimeSpan.Zero,
-            ct: ct);
-
-        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
     }
 
     private static string ComputeSha256Hex(byte[] data) =>
