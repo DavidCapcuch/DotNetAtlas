@@ -20,7 +20,7 @@ internal static class ApiDependencyInjection
     {
         services.AddBasketFastEndpoints();
 
-        services.AddBasketCors(configuration);
+        services.AddBasketCors(configuration, environment);
 
         services.AddProblemDetails();
 
