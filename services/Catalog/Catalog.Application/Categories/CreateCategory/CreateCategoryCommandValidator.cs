@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Validation;
 using FluentValidation;
 
 namespace Catalog.Application.Categories.CreateCategory;
@@ -8,7 +9,7 @@ public class CreateCategoryCommandValidator : AbstractValidator<CreateCategoryCo
     {
         RuleFor(x => x.Name)
             .NotEmpty()
-            .MaximumLength(100);
+            .MaximumRuneLength(100);
 
         RuleFor(x => x.ParentCategoryId)
             .NotEqual(Guid.Empty)
