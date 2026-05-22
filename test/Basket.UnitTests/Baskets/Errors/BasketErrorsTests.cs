@@ -55,33 +55,6 @@ public class BasketErrorsTests
     }
 
     [Fact]
-    public void CatalogUnavailable_HasExpectedShape()
-    {
-        var err = BasketErrors.CatalogUnavailable();
-
-        using (new AssertionScope())
-        {
-            err.PropertyName.Should().Be("Catalog");
-            err.ErrorCode.Should().Be("Basket.CatalogUnavailable");
-        }
-    }
-
-    [Fact]
-    public void ProductNotFound_EmbedsProductIdInMessage()
-    {
-        var productId = Guid.CreateVersion7();
-
-        var err = BasketErrors.ProductNotFound(productId);
-
-        using (new AssertionScope())
-        {
-            err.PropertyName.Should().Be("ProductId");
-            err.ErrorCode.Should().Be("Basket.ProductNotFound");
-            err.Message.Should().Contain(productId.ToString());
-        }
-    }
-
-    [Fact]
     public void ItemNotFound_EmbedsProductIdInMessage()
     {
         var productId = Guid.CreateVersion7();

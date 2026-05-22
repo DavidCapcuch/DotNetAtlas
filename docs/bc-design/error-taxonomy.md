@@ -5,7 +5,7 @@
 > **Conventions (reiterating [master design § 12.2](../eshop-master-design.md) "Result pattern"):**
 > - Handlers return `Result.Fail(new SomeError(...))` for **user-actionable** errors. Error types implement FluentResults `IError` (existing codebase convention — see `Weather.Domain.Alerts.Errors.WeatherAlertErrors` for the canonical shape using `Platform.SharedKernel.Errors.ValidationError`).
 > - Aggregate methods throw [`DataIntegrityException`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) for **corrupted-state / bug-class** errors. These propagate up the pipeline and hit the global exception middleware → HTTP 5xx, or the KafkaFlow [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) → `.DLT` topic when consumed from Kafka.
-> - Errors from external services (Catalog HTTP down, Kafka produce fail) use adapter-specific errors (e.g., `BasketErrors.CatalogUnavailable`) and are categorised as infrastructure/upstream failures.
+> - Errors from external services (Catalog HTTP down, Kafka produce fail) use adapter-specific errors (e.g., `BasketAclErrors.CatalogUnavailable`) and are categorised as infrastructure/upstream failures.
 > - "Retry-ability" in this document refers to **caller/client** retry semantics; Kafka consumer retry is governed by [kafka-dlq-strategy.md](kafka-dlq-strategy.md).
 
 ---
@@ -19,8 +19,8 @@
 | `BasketErrors.InvalidQuantity` | Basket | User | 422 | N/A | No | No | [basket.md § BasketItem](basket.md) (`quantity >= 1`) |
 | `BasketErrors.CurrencyMismatch` | Basket | User | 422 | N/A | No | No | [basket.md](basket.md) — all items share basket currency |
 | `BasketConcurrencyError` | Basket | Conflict | 409 | N/A | **Yes — handler retries once** (documented in [basket.md § Optimistic concurrency](basket.md)) | No | Redis CAS failure on `Basket.Version` |
-| `BasketErrors.CatalogUnavailable` | Basket (ACL) | Upstream | 503 | N/A | Yes (client) | No | [basket.md § ProductCatalogHttpAdapter](basket.md) — network/5xx/timeout from Catalog |
-| `BasketErrors.ProductNotFound(productId)` | Basket (ACL) | User | 404 | N/A | No | No | [basket.md § ProductCatalogHttpAdapter](basket.md) — 404 from Catalog |
+| `BasketAclErrors.CatalogUnavailable` | Basket (ACL) | Upstream | 503 | N/A | Yes (client) | No | [basket.md § ProductCatalogHttpAdapter](basket.md) — network/5xx/timeout from Catalog |
+| `BasketAclErrors.ProductNotFound(productId)` | Basket (ACL) | User | 404 | N/A | No | No | [basket.md § ProductCatalogHttpAdapter](basket.md) — 404 from Catalog |
 | `CatalogErrors.SkuAlreadyExists` | Catalog | User | 409 | N/A | No | No | [catalog.md § Product invariants](catalog.md) (SKU uniqueness) |
 | `CatalogErrors.ProductNotFound` | Catalog | User | 404 | N/A | No | No | Query/command target missing |
 | `ProductErrors.CannotRepriceDiscontinued` | Catalog | User | 409 | N/A | No | No | [catalog.md § ChangePrice](catalog.md) (`Status != Discontinued`) |
@@ -84,7 +84,7 @@ A distinct subset of "user errors" whose outcome is **expected in the saga flow*
 
 ### 2.4 Infrastructure / upstream
 
-Temporary failures outside the BC's control — upstream service returning 5xx, Kafka produce failing, DB connection timing out. Example: `BasketErrors.CatalogUnavailable` surfaces when Basket's `ProductCatalogHttpAdapter` hits a network error or Catalog returns 5xx. These errors:
+Temporary failures outside the BC's control — upstream service returning 5xx, Kafka produce failing, DB connection timing out. Example: `BasketAclErrors.CatalogUnavailable` surfaces when Basket's `ProductCatalogHttpAdapter` hits a network error or Catalog returns 5xx. These errors:
 
 - Use **client retry** (the HTTP caller or outbox relay retries).
 - Do NOT dead-letter on first failure — only after the configured retry policy is exhausted (see [kafka-dlq-strategy.md § 2](kafka-dlq-strategy.md) for Kafka side; Polly policy in [HttpClientsDependencyInjection](../../src/Weather.Infrastructure/Common/HttpClientsDependencyInjection.cs) for HTTP side).

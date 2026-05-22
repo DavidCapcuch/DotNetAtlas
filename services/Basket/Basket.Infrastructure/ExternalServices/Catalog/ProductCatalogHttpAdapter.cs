@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Basket.Application.Abstractions;
-using Basket.Domain.Baskets.Errors;
+using Basket.Application.Baskets.Common.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -18,7 +18,7 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// HTTP outcomes into the <see cref="BasketErrors"/> error taxonomy, and
 /// propagates caller cancellation unchanged while mapping
 /// <see cref="HttpClient"/>-internal timeouts to
-/// <see cref="BasketErrors.CatalogUnavailable"/>.
+/// <see cref="BasketAclErrors.CatalogUnavailable"/>.
 /// </summary>
 /// <remarks>
 /// Configuration (<c>BaseAddress</c>, <c>Timeout</c>, service-auth, correlation-id
@@ -60,7 +60,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                return Result.Fail<ProductSnapshot>(BasketErrors.ProductNotFound(productId));
+                return Result.Fail<ProductSnapshot>(BasketAclErrors.ProductNotFound(productId));
             }
 
             if ((int)response.StatusCode >= 500)
@@ -69,7 +69,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                     "Catalog returned {StatusCode} for product {ProductId}.",
                     (int)response.StatusCode,
                     productId);
-                return Result.Fail<ProductSnapshot>(BasketErrors.CatalogUnavailable());
+                return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
             }
 
             if (!response.IsSuccessStatusCode)
@@ -80,7 +80,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                     "Catalog returned unexpected 4xx {StatusCode} for product {ProductId}.",
                     (int)response.StatusCode,
                     productId);
-                return Result.Fail<ProductSnapshot>(BasketErrors.CatalogUnavailable());
+                return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
             }
 
             var dto = await response.Content
@@ -95,7 +95,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                 _logger.LogError(
                     "Catalog returned 200 with null or incomplete body for product {ProductId}.",
                     productId);
-                return Result.Fail<ProductSnapshot>(BasketErrors.CatalogUnavailable());
+                return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
             }
 
             return MapToSnapshot(dto);
@@ -113,17 +113,17 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
             // TaskCanceledException with inner TimeoutException). Caller did NOT
             // cancel — map to CatalogUnavailable per basket.md § 9.3.
             _logger.LogWarning(ex, "Catalog request timed out for product {ProductId}.", productId);
-            return Result.Fail<ProductSnapshot>(BasketErrors.CatalogUnavailable());
+            return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Catalog network failure for product {ProductId}.", productId);
-            return Result.Fail<ProductSnapshot>(BasketErrors.CatalogUnavailable());
+            return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Catalog returned malformed JSON for product {ProductId}.", productId);
-            return Result.Fail<ProductSnapshot>(BasketErrors.CatalogUnavailable());
+            return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
         }
     }
 
@@ -183,7 +183,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                     "Catalog batch returned {StatusCode} for {Count} ids.",
                     (int)response.StatusCode,
                     chunk.Count);
-                return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+                return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
             }
 
             if (!response.IsSuccessStatusCode)
@@ -193,7 +193,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                     "Catalog batch returned unexpected 4xx {StatusCode} for {Count} ids.",
                     (int)response.StatusCode,
                     chunk.Count);
-                return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+                return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
             }
 
             var dto = await response.Content
@@ -205,7 +205,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                 // Null body or null Products array — same protocol-drift
                 // defence as the single-product path.
                 _logger.LogError("Catalog batch returned 200 with null or incomplete body.");
-                return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+                return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
             }
 
             var pairs = new List<(Guid, ProductSnapshot)>(dto.Products.Count);
@@ -217,7 +217,7 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                     _logger.LogError(
                         "Failed to map Catalog product {ProductId} to snapshot — treating as upstream breakage.",
                         p.ProductId);
-                    return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+                    return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
                 }
 
                 pairs.Add((p.ProductId, mapResult.Value));
@@ -232,17 +232,17 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
         catch (TaskCanceledException ex)
         {
             _logger.LogWarning(ex, "Catalog batch request timed out for {Count} ids.", chunk.Count);
-            return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+            return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Catalog batch network failure for {Count} ids.", chunk.Count);
-            return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+            return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Catalog batch returned malformed JSON.");
-            return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketErrors.CatalogUnavailable());
+            return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
         }
     }
 

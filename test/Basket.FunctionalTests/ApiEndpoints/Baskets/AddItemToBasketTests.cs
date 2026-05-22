@@ -1,6 +1,6 @@
 using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
-using Basket.Domain.Baskets.Errors;
+using Basket.Application.Baskets.Common.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using Basket.FunctionalTests.Common;
 using FastEndpoints;
@@ -68,7 +68,7 @@ public class AddItemToBasketTests : BaseApiTest
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Fail<ProductSnapshot>(BasketErrors.ProductNotFound(productId)));
+            .Returns(Result.Fail<ProductSnapshot>(BasketAclErrors.ProductNotFound(productId)));
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         var request = new AddItemToBasketRequest { ProductId = productId, Quantity = 1 };

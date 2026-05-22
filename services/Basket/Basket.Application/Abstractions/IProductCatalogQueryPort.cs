@@ -1,4 +1,4 @@
-using Basket.Domain.Baskets.Errors;
+using Basket.Application.Baskets.Common.Errors;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults;
 
@@ -17,16 +17,16 @@ namespace Basket.Application.Abstractions;
 /// <para>
 /// <b>Error contract</b> (basket.md § 9.1):
 /// <list type="bullet">
-///   <item><see cref="BasketErrors.CatalogUnavailable"/> on HTTP 5xx, network error, timeout, cancellation.</item>
-///   <item><see cref="BasketErrors.ProductNotFound"/> on HTTP 404 (single-id call only).</item>
+///   <item><see cref="BasketAclErrors.CatalogUnavailable"/> on HTTP 5xx, network error, timeout, cancellation.</item>
+///   <item><see cref="BasketAclErrors.ProductNotFound"/> on HTTP 404 (single-id call only).</item>
 /// </list>
 /// </para>
 /// </remarks>
 public interface IProductCatalogQueryPort
 {
     /// <summary>
-    /// Fetches a single product snapshot. Returns <see cref="BasketErrors.ProductNotFound"/>
-    /// when the product does not exist, and <see cref="BasketErrors.CatalogUnavailable"/>
+    /// Fetches a single product snapshot. Returns <see cref="BasketAclErrors.ProductNotFound"/>
+    /// when the product does not exist, and <see cref="BasketAclErrors.CatalogUnavailable"/>
     /// on transport failures.
     /// </summary>
     Task<Result<ProductSnapshot>> GetProductSnapshotAsync(Guid productId, CancellationToken ct);
@@ -38,7 +38,7 @@ public interface IProductCatalogQueryPort
     /// Partial-tolerant — ids that are not present in the Catalog response are silently
     /// dropped; the caller decides what to do with the missing ones (typically
     /// <c>RefreshPrices</c> leaves them untouched). Returns
-    /// <see cref="BasketErrors.CatalogUnavailable"/> only on a full transport failure.
+    /// <see cref="BasketAclErrors.CatalogUnavailable"/> only on a full transport failure.
     /// </summary>
     Task<Result<IReadOnlyList<(Guid ProductId, ProductSnapshot Snapshot)>>> GetManyAsync(
         IEnumerable<Guid> productIds,
