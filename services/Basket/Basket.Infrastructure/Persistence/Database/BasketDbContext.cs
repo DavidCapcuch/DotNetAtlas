@@ -21,7 +21,7 @@ namespace Basket.Infrastructure.Persistence.Database;
 /// is a technical bounded context whose aggregate lives in <c>redis-basket</c>,
 /// not Postgres. The sole purpose of this DbContext is the transactional
 /// outbox + inbox; it carries the <c>OutboxMessages</c> and <c>InboxMessages</c>
-/// tables and nothing else. An architecture test in M7 asserts that the type
+/// tables and nothing else. An architecture test asserts that the type
 /// never exposes a <c>DbSet&lt;Basket&gt;</c>.
 /// </para>
 /// <para>

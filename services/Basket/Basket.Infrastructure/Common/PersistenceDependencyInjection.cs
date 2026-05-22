@@ -17,7 +17,7 @@ namespace Basket.Infrastructure.Common;
 /// conventions, and exposes the <see cref="IBasketDbContext"/> application
 /// port. Redis wiring lives separately in
 /// <see cref="Basket.Infrastructure.Persistence.PersistenceDependencyInjection"/>
-/// (M3) — the two are composed by
+/// — the two are composed by
 /// <see cref="InfrastructureDependencyInjection"/>.
 /// </summary>
 internal static class PersistenceDependencyInjection

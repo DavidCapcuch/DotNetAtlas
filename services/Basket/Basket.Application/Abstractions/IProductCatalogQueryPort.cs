@@ -9,8 +9,8 @@ namespace Basket.Application.Abstractions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Concrete implementation: <c>ProductCatalogHttpAdapter</c> in <c>Basket.Infrastructure</c>
-/// (milestone M5). The adapter converts Catalog's <c>CatalogProductResponse</c> DTO into the
+/// Concrete implementation: <c>ProductCatalogHttpAdapter</c> in <c>Basket.Infrastructure</c>.
+/// The adapter converts Catalog's <c>CatalogProductResponse</c> DTO into the
 /// Basket-owned <see cref="ProductSnapshot"/> VO (see <c>basket.md § 9</c>). Nothing below
 /// this port references Catalog types — keeping the coupling pointed at a single seam.
 /// </para>

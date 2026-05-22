@@ -14,7 +14,7 @@ namespace Basket.Application.Common;
 /// so the two services share the same assembly-scan + behavior chain convention. Concrete
 /// persistence (<c>IBasketRepository</c>, <c>IBasketDbContext</c>) and the ACL adapter
 /// (<c>IProductCatalogQueryPort</c>) are wired separately by <c>Basket.Infrastructure</c>
-/// in milestones M5/M6.
+/// in the Application and Infrastructure layers.
 /// </remarks>
 public static class ApplicationDependencyInjection
 {

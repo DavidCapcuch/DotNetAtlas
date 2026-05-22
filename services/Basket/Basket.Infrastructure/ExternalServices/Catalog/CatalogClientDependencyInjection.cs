@@ -22,8 +22,8 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// register the delegating handlers that
 /// <c>IHttpClientBuilder.AddServiceAuth(scope)</c> and
 /// <c>IHttpClientBuilder.AddCorrelationIdPropagation()</c> attach. Those
-/// service-collection-level registrations land in <c>Program.cs</c> at
-/// milestone M6; this extension is intentionally not yet wired from the host.
+/// service-collection-level registrations live in <c>Program.cs</c>;
+/// this extension is intentionally not yet wired from the host.
 /// </remarks>
 public static class CatalogClientDependencyInjection
 {

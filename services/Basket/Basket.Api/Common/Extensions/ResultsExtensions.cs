@@ -48,7 +48,7 @@ internal static class ResultsExtensions
     /// Sends an RFC 9457 problem-details response based on the failed <paramref name="result"/>.
     /// HTTP status precedence: forbidden &gt; conflict &gt; not-found &gt; basket-specific
     /// error-code map &gt; default 400. The Basket-specific map keeps all errors typed as
-    /// <see cref="ValidationError"/> in the domain layer (M4) while still honouring the
+    /// <see cref="ValidationError"/> at the domain layer while still honouring the
     /// HTTP semantics laid out in <c>use-cases.md § 2.1</c>.
     /// </summary>
     public static Task SendErrorResponseAsync<TResult>(
