@@ -129,15 +129,6 @@
           "Serilog": "4.3.0"
         }
       },
-      "EntityFrameworkCore.Exceptions.Common": {
-        "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "dmT5QLshbz6WJjZs3dlmqwWzS1se+XQ34w5zLlBrafDd32hT+F1KzANTL532Xz3XvG2q9up51HO/PLtIt2t+Rw==",
-        "dependencies": {
-          "DbExceptionClassifier.Common": "1.0.0",
-          "Microsoft.EntityFrameworkCore.Relational": "10.0.5"
-        }
-      },
       "FastEndpoints": {
         "type": "Transitive",
         "resolved": "8.1.0",
@@ -1069,6 +1060,16 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "[10.0.1, 11.0.0)",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.1, 11.0.0)"
+        }
+      },
+      "EntityFrameworkCore.Exceptions.Common": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "dmT5QLshbz6WJjZs3dlmqwWzS1se+XQ34w5zLlBrafDd32hT+F1KzANTL532Xz3XvG2q9up51HO/PLtIt2t+Rw==",
+        "dependencies": {
+          "DbExceptionClassifier.Common": "1.0.0",
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.5"
         }
       },
       "EntityFrameworkCore.Exceptions.PostgreSQL": {
