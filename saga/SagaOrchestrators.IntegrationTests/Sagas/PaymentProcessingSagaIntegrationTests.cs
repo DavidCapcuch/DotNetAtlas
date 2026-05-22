@@ -150,7 +150,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentMethodId = Guid.CreateVersion7();
+        var paymentMethodId = $"pm_{Guid.CreateVersion7():N}";
         var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
@@ -251,7 +251,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         Guid userId,
         decimal amount = 9.99m,
         string currency = "USD",
-        Guid? paymentMethodId = null,
+        string? paymentMethodId = null,
         Guid? orderId = null)
     {
         return new PaymentRequestedEvent
@@ -259,7 +259,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             CorrelationId = correlationId,
             OrderId = orderId ?? Guid.CreateVersion7(),
             UserId = userId,
-            PaymentMethodId = paymentMethodId ?? Guid.CreateVersion7(),
+            // C-2 closeout: Payments wire shape is string. Default to a Stripe-style token.
+            PaymentMethodId = paymentMethodId ?? $"pm_{Guid.CreateVersion7():N}",
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
             IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",

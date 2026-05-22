@@ -33,7 +33,9 @@ internal static class SagaCommandMappers
             BuyerId = avro.UserId,
             Amount = (decimal)avro.Amount,
             Currency = avro.Currency,
-            PaymentMethodId = avro.PaymentMethodId.ToString(),
+            // C-2 closeout: AvroAuthorizePaymentCommand.PaymentMethodId is now `string` (was
+            // `Guid` via logicalType:uuid). No `.ToString()` needed.
+            PaymentMethodId = avro.PaymentMethodId,
             IdempotencyKey = avro.IdempotencyKey,
         };
 

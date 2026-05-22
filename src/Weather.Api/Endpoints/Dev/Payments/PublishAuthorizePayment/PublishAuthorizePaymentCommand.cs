@@ -27,10 +27,12 @@ public class PublishAuthorizePaymentCommand
     public required Guid UserId { get; set; }
 
     /// <summary>
-    /// ID of the saved payment method to use.
+    /// Gateway-issued opaque payment-method token (Stripe 'pm_*', Adyen alphanumeric, …);
+    /// 1-64 chars. Changed from <c>Guid</c> in the Wave-1 closeout C-2 fix.
     /// </summary>
     [Required]
-    public required Guid PaymentMethodId { get; set; }
+    [MaxLength(64)]
+    public required string PaymentMethodId { get; set; }
 
     /// <summary>
     /// Amount to authorize.

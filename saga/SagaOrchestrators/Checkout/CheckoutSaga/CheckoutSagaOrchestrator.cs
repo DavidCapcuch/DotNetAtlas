@@ -1030,7 +1030,10 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         CorrelationId = saga.CorrelationId,
         OrderId = saga.OrderId!.Value,
         UserId = saga.UserId,
-        PaymentMethodId = saga.PaymentMethodId,
+        // C-2 closeout: Payments-side PaymentMethodId is now a plain string token (was uuid).
+        // CheckoutSaga still tracks it as Guid (Basket + Ordering wire shapes unchanged), so
+        // stringify here at the BC boundary. Future cross-cutting wave can swap upstream BCs.
+        PaymentMethodId = saga.PaymentMethodId.ToString(),
         Amount = saga.TotalAmount.ToAvroDecimal(4),
         Currency = saga.Currency,
         IdempotencyKey = saga.CorrelationId.ToString(),

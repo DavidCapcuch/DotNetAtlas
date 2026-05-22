@@ -42,7 +42,7 @@ internal class PublishAuthorizePaymentEndpoint : Endpoint<PublishAuthorizePaymen
                 CorrelationId = Guid.CreateVersion7(),
                 OrderId = Guid.CreateVersion7(),
                 UserId = Guid.Parse("00000000-0000-0000-0000-111111111111"), // dev@dotnetatlas.com
-                PaymentMethodId = Guid.CreateVersion7(),
+                PaymentMethodId = "pm_dev_4242",
                 Amount = 9.99m,
                 Currency = "USD",
                 IdempotencyKey = Guid.CreateVersion7().ToString()

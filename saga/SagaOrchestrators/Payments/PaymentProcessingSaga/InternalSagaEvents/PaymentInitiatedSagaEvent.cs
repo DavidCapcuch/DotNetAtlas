@@ -26,9 +26,10 @@ public sealed record PaymentInitiatedSagaEvent
     public required Guid UserId { get; init; }
 
     /// <summary>
-    /// ID of the saved payment method to use.
+    /// Gateway-issued opaque payment-method token (1-64 chars). Changed from <c>Guid</c> in
+    /// the Wave-1 closeout C-2 fix.
     /// </summary>
-    public required Guid PaymentMethodId { get; init; }
+    public required string PaymentMethodId { get; init; }
 
     /// <summary>
     /// Payment amount.
