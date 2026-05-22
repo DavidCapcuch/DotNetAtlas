@@ -9,5 +9,6 @@ internal sealed class VoidPaymentCommandValidator : AbstractValidator<VoidPaymen
         RuleFor(c => c.PaymentId).NotEmpty();
         RuleFor(c => c.CorrelationId).NotEmpty();
         RuleFor(c => c.AuthorizationId).NotEmpty();
+        RuleFor(c => c.Reason).NotEmpty().MaximumLength(256);
     }
 }

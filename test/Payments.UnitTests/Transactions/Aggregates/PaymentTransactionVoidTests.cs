@@ -17,7 +17,7 @@ public class PaymentTransactionVoidTests
     {
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
-        var result = tx.Void(PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var result = tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
         using (new AssertionScope())
         {
@@ -25,10 +25,13 @@ public class PaymentTransactionVoidTests
             tx.Status.Should().Be(PaymentStatus.Voided);
             tx.VoidedAtUtc.Should().Be(UtcNow);
 
+            tx.VoidReason.Should().Be(PaymentTransactionFactory.DefaultVoidReason);
+
             var evt = tx.PopDomainEvents().Should().ContainSingle()
                 .Which.Should().BeOfType<PaymentVoidedDomainEvent>().Subject;
             evt.GatewayTransactionId.Should().Be(PaymentTransactionFactory.DefaultGatewayTransactionId);
             evt.VoidedAtUtc.Should().Be(UtcNow);
+            evt.Reason.Should().Be(PaymentTransactionFactory.DefaultVoidReason);
         }
     }
 
@@ -39,7 +42,7 @@ public class PaymentTransactionVoidTests
         var tx = PaymentTransactionFactory.Voided(t0);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
-        var result = tx.Void(PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var result = tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
         using (new AssertionScope())
         {
@@ -54,7 +57,7 @@ public class PaymentTransactionVoidTests
     {
         var tx = PaymentTransactionFactory.Requested(UtcNow);
 
-        var action = () => tx.Void(PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
         action.Should().Throw<DataIntegrityException>();
     }
@@ -71,7 +74,7 @@ public class PaymentTransactionVoidTests
             _ => throw new InvalidOperationException(statusName),
         };
 
-        var action = () => tx.Void(PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
         action.Should().Throw<DataIntegrityException>();
     }
@@ -81,7 +84,7 @@ public class PaymentTransactionVoidTests
     {
         var tx = PaymentTransactionFactory.Completed(UtcNow);
 
-        var action = () => tx.Void(PaymentTransactionFactory.SuccessResponse, UtcNow);
+        var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
         action.Should().Throw<DataIntegrityException>();
     }

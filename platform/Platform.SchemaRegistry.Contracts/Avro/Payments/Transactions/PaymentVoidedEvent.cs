@@ -12,14 +12,14 @@ namespace Payments.Transactions
 	using System.Text;
 	using global::Avro;
 	using global::Avro.Specific;
-	
+
 	/// <summary>
 	/// Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentVoidedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentVoidedEvent"",""doc"":""Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was voided."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was voided."",""type"":""string""},{""name"":""VoidedAtUtc"",""doc"":""UTC timestamp when the void was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentVoidedEvent"",""doc"":""Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was voided."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was voided."",""type"":""string""},{""name"":""VoidedAtUtc"",""doc"":""UTC timestamp when the void was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""Reason"",""doc"":""Optional saga-supplied reason for the void (audit trail; null for forward-compatibility with consumers reading older writes). H-5 closeout follow-up."",""default"":null,""type"":[""null"",""string""]}]}");
 		/// <summary>
 		/// Correlation ID for tracking the payment workflow.
 		/// </summary>
@@ -36,6 +36,10 @@ namespace Payments.Transactions
 		/// UTC timestamp when the void was completed.
 		/// </summary>
 		private System.DateTime _VoidedAtUtc;
+		/// <summary>
+		/// Optional saga-supplied reason for the void (audit trail; null for forward-compatibility with consumers reading older writes). H-5 closeout follow-up.
+		/// </summary>
+		private string _Reason;
 		public virtual global::Avro.Schema Schema
 		{
 			get
@@ -99,6 +103,20 @@ namespace Payments.Transactions
 				this._VoidedAtUtc = value;
 			}
 		}
+		/// <summary>
+		/// Optional saga-supplied reason for the void (audit trail; null for forward-compatibility with consumers reading older writes). H-5 closeout follow-up.
+		/// </summary>
+		public string Reason
+		{
+			get
+			{
+				return this._Reason;
+			}
+			set
+			{
+				this._Reason = value;
+			}
+		}
 		public virtual object Get(int fieldPos)
 		{
 			switch (fieldPos)
@@ -107,6 +125,7 @@ namespace Payments.Transactions
 			case 1: return this.UserId;
 			case 2: return this.AuthorizationId;
 			case 3: return this.VoidedAtUtc;
+			case 4: return this.Reason;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -118,6 +137,7 @@ namespace Payments.Transactions
 			case 1: this.UserId = (System.Guid)fieldValue; break;
 			case 2: this.AuthorizationId = (System.String)fieldValue; break;
 			case 3: this.VoidedAtUtc = (System.DateTime)fieldValue; break;
+			case 4: this.Reason = (System.String)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

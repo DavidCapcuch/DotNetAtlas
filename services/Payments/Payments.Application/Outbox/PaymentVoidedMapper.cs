@@ -20,6 +20,7 @@ internal static class PaymentVoidedMapper
             UserId = source.BuyerId,
             AuthorizationId = source.GatewayTransactionId,
             VoidedAtUtc = source.VoidedAtUtc.UtcDateTime,
+            Reason = source.Reason,
         };
     }
 }

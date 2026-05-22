@@ -100,7 +100,7 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
             return Result.Fail(PaymentsErrors.GatewayUnavailable());
         }
 
-        var voidResult = tx.Void(gatewayResult.Value.ResponseCode, utcNow);
+        var voidResult = tx.Void(command.Reason, gatewayResult.Value.ResponseCode, utcNow);
         if (voidResult.IsFailed)
         {
             return voidResult;
