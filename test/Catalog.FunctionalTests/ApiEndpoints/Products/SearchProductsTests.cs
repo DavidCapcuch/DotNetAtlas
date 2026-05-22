@@ -19,20 +19,19 @@ public class SearchProductsTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenStatusFilteredToDraft_NewlyCreatedProductAppears()
+    public async Task WhenStatusFilteredToActive_NewlyCreatedProductAppears()
     {
-        // The default search hides everything except Active. The ActivateProductCommand is
-        // deferred (Domain.Product.Activate has no command exposing it), so we filter
-        // explicitly by Status="Draft" so the assertion exercises the projection lookup.
-        // Use raw HttpClient — FastEndpoints' GETAsync<TEndpoint,TRequest,TResponse> emits a
-        // double-slash URL ("/api/v1/catalog/products//?…") for endpoints with Get("").
+        // Post-#177: products are Active on create, so the default Active filter surfaces
+        // them directly. Use raw HttpClient — FastEndpoints' GETAsync<TEndpoint,TRequest,
+        // TResponse> emits a double-slash URL ("/api/v1/catalog/products//?…") for
+        // endpoints with Get("").
         var categoryId = await SeedCategoryAsync();
-        var (_, draftProduct) = await HttpClientRegistry.WriteClient
+        var (_, activeProduct) = await HttpClientRegistry.WriteClient
             .POSTAsync<CreateProductEndpoint, CreateProductRequest, CreateProductResponse>(
-                CatalogTestData.ValidCreateProductRequest(categoryId, name: "DraftOne"));
+                CatalogTestData.ValidCreateProductRequest(categoryId, name: "ActiveOne"));
 
         var response = await HttpClientRegistry.ReadClient.GetAsync(
-            "/api/v1/catalog/products?Status=Draft&Page=1&Limit=50",
+            "/api/v1/catalog/products?Status=Active&Page=1&Limit=50",
             TestContext.Current.CancellationToken);
         var body = await response.Content.ReadFromJsonAsync<SearchProductsResponse>(
             TestContext.Current.CancellationToken);
@@ -40,7 +39,7 @@ public class SearchProductsTests : BaseApiTest
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            body!.Items.Should().Contain(i => i.ProductId == draftProduct.ProductId);
+            body!.Items.Should().Contain(i => i.ProductId == activeProduct.ProductId);
         }
     }
 
@@ -91,7 +90,7 @@ public class SearchProductsTests : BaseApiTest
                 CatalogTestData.ValidCreateProductRequest(categoryId, name: "Beta-Whatever"));
 
         var response = await HttpClientRegistry.ReadClient.GetAsync(
-            "/api/v1/catalog/products?Status=Draft&Text=Alpha-Specific",
+            "/api/v1/catalog/products?Status=Active&Text=Alpha-Specific",
             TestContext.Current.CancellationToken);
         var body = await response.Content.ReadFromJsonAsync<SearchProductsResponse>(
             TestContext.Current.CancellationToken);

@@ -13,7 +13,7 @@ public class FakeCatalogDbContextSmokeTests
         db.Categories.Add(category);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var product = CatalogFactories.DraftProduct(category);
+        var product = CatalogFactories.ActiveProduct(category);
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -28,7 +28,7 @@ public class FakeCatalogDbContextSmokeTests
             roundTrippedProduct.Sku.Value.Should().Be("TEST-001");
             roundTrippedProduct.Price.Amount.Should().Be(9.99m);
             roundTrippedProduct.Price.Currency.Name.Should().Be("USD");
-            roundTrippedProduct.Status.Name.Should().Be("Draft");
+            roundTrippedProduct.Status.Name.Should().Be("Active");
         }
     }
 }

@@ -62,20 +62,9 @@ public sealed class DiscontinueProductIntegrationTests
                 TestContext.Current.CancellationToken)).Value;
         }
 
-        // Manually flip Draft -> Active via the domain method (commits with the same
-        // FakeTimeProvider value — that's not what we're testing here; the test asserts the
-        // LATER advance for the discontinue step).
-        using (var scope = _fixture.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-            var product = await db.Products
-                .FirstAsync(p => p.Id == productId, TestContext.Current.CancellationToken);
-            product.Activate(_fixture.TimeProvider.GetUtcNow());
-            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        }
-
-        // Move the clock forward by 1 hour so the Discontinue write has a distinguishable
-        // LastModifiedUtc from both the Create and the Activate writes.
+        // Post-#177: products are Active on create — no separate Activate step. Move the
+        // clock forward by 1 hour so the Discontinue write has a distinguishable
+        // LastModifiedUtc from the Create write.
         _fixture.TimeProvider.Advance(TimeSpan.FromHours(1));
         var expectedLastModifiedUtc = _fixture.TimeProvider.GetUtcNow();
 

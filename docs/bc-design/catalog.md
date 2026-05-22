@@ -17,7 +17,7 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 
 #### Product (aggregate root)
 
-**Purpose:** The Product aggregate represents a sellable item in the catalog. It owns its identity (`ProductId`), business key (`Sku`), descriptive content (name, description, images, dimensions, brand), classification (category reference), commercial terms (`Price`), and its lifecycle status (`Draft` → `Active` → `Discontinued` → optionally reactivated). All write operations flow through factory methods or state-transition methods, which are the sole legal path to mutate state; EF Core uses the private parameterless constructor for rehydration.
+**Purpose:** The Product aggregate represents a sellable item in the catalog. It owns its identity (`ProductId`), business key (`Sku`), descriptive content (name, description, images, dimensions, brand), classification (category reference), commercial terms (`Price`), and its lifecycle status (`Active` → `Discontinued` → optionally reactivated). All write operations flow through factory methods or state-transition methods, which are the sole legal path to mutate state; EF Core uses the private parameterless constructor for rehydration.
 
 **Properties**
 
@@ -26,13 +26,13 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 | `Id` | `Guid` | Aggregate identity. `Guid.CreateVersion7()` at creation. PK. |
 | `Sku` | `Sku` (VO) | Non-empty, length 1–32, alphanumeric + dashes. Unique across all products (enforced by DB unique constraint + pre-create application check). |
 | `Name` | `ProductName` (VO) | Non-empty, max 200 chars. |
-| `Description` | `ProductDescription` (VO) | Max 4000 chars. Empty string allowed for Draft products. |
+| `Description` | `ProductDescription` (VO) | Max 4000 chars. Empty string allowed. |
 | `CategoryId` | `Guid` | Non-empty. Must reference an existing `Category.Id` (application-level referential check on write, DB FK on `product_search_view`). |
 | `Brand` | `BrandName` (VO) | Non-empty, max 100 chars. |
 | `Price` | `Money` (VO) | `Amount > 0`, ISO 4217 `Currency`. Pattern mirrors `Money` (planned: `Platform.SharedKernel.ValueObjects.Money`). |
-| `Status` | `ProductStatus` (SmartEnum) | `Draft` (0), `Active` (1), `Discontinued` (2). See transition matrix below. |
+| `Status` | `ProductStatus` (SmartEnum) | `Active` (1), `Discontinued` (2). See transition matrix below. |
 | `Dimensions` | `Dimensions?` (VO, nullable) | Optional. Present for physical goods; null for digital/service products. |
-| `Images` | `IReadOnlyCollection<ImageReference>` | Ordered by `DisplayOrder`. May be empty for Draft. At most one image with `DisplayOrder == 0` (the "primary"). |
+| `Images` | `IReadOnlyCollection<ImageReference>` | Ordered by `DisplayOrder`. May be empty. At most one image with `DisplayOrder == 0` (the "primary"). |
 | `CreatedUtc` | `DateTimeOffset` | `IAuditableEntity`, set by infrastructure. |
 | `LastModifiedUtc` | `DateTimeOffset` | `IAuditableEntity`, updated on every persisted change. |
 
@@ -41,15 +41,15 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 - SKU is unique across all products (DB unique index + application-level `Product.SkuExistsAsync(sku)` check before `Create`).
 - `Price.Amount > 0` and `Currency` is a defined ISO 4217 code (enforced by `Money.Create` returning `Result.Fail` on invalid input — same contract as `Money` (shared-kernel VO)).
 - `CategoryId` is required; a product cannot be created without a category reference.
-- A product in `Draft` status cannot be referenced by Basket. This is a **query-time validator** (not a domain invariant) — Basket's product-snapshot fetch layer rejects non-`Active` products.
-- Status transitions are gated by [`ProductStatus.CanTransitionTo(...)`](#productstatus). Transitions that fail `CanTransitionTo` throw `DataIntegrityException` (they represent system bugs, not user input).
+- A `Discontinued` product cannot be referenced by Basket. This is a **query-time validator** (not a domain invariant) — Basket's product-snapshot fetch layer rejects non-`Active` products.
+- Status transitions are gated by [`ProductStatus.CanTransitionTo(...)`](#productstatus). User-actionable transition failures return `Result.Fail(ProductErrors.CannotDiscontinueInStatus / CannotReactivateInStatus)`; `DataIntegrityException` remains for genuinely impossible states.
 - `Discontinued → Active` requires an explicit `adminReactivation: true` flag on `Reactivate(...)`. Without it, the method returns `Result.Fail` (user-actionable error).
 - Changing the price must move through `UpdatePrice(...)`; the VO's immutability and positivity check together guarantee `Amount > 0`.
 - At most one image per `DisplayOrder` value; the collection is treated as ordered by `DisplayOrder`.
 
 **Factory methods**
 
-- `public static Result<Product> Create(Sku sku, ProductName name, ProductDescription description, Guid categoryId, BrandName brand, Money price, Dimensions? dimensions, IReadOnlyCollection<ImageReference> images)` — Creates a product in `Draft` status with `Id = Guid.CreateVersion7()`. Validates `categoryId != Guid.Empty` (returns `Result.Fail` if empty) and that the caller has already verified SKU uniqueness via an application service. Raises `ProductCreatedDomainEvent`. Because value-object construction returns `Result<T>` (standard shared-kernel VO factory pattern), callers assemble VOs first and pass them in; `Product.Create` only composes them. Returns `Result<Product>`.
+- `public static Result<Product> Create(Sku sku, ProductName name, ProductDescription description, Guid categoryId, BrandName brand, Money price, Dimensions? dimensions, IReadOnlyCollection<ImageReference> images)` — Creates a product in `Active` status with `Id = Guid.CreateVersion7()`. Validates `categoryId != Guid.Empty` (returns `Result.Fail` if empty) and that the caller has already verified SKU uniqueness via an application service. Raises `ProductCreatedDomainEvent`. Because value-object construction returns `Result<T>` (standard shared-kernel VO factory pattern), callers assemble VOs first and pass them in; `Product.Create` only composes them. Returns `Result<Product>`.
 
 **State-transition methods**
 
@@ -61,9 +61,6 @@ Each method returns `Result`/`Result<T>` for user-actionable domain errors (foll
 - `Describe(ProductDescription newDescription) : Result`
   - **Precondition:** `Status != Discontinued`.
   - **Effect:** Overwrites `Description`. Raises `ProductDescribedDomainEvent { ProductId, NewDescription, OccurredOnUtc }`.
-- `Activate() : Result`
-  - **Precondition:** `Status.CanTransitionTo(Active)` returns `true` (i.e., current status is `Draft`). Throws `DataIntegrityException` if called from a non-Draft state because callers should first check status.
-  - **Effect:** Sets `Status = Active`. Raises `ProductActivatedDomainEvent { ProductId, OccurredOnUtc }`. Returns `Result.Ok()`.
 - `Discontinue(string reason) : Result`
   - **Precondition:** `!string.IsNullOrWhiteSpace(reason)` (user-actionable — `Result.Fail(ProductErrors.ReasonRequired())` if empty), and `Status.CanTransitionTo(Discontinued)` (i.e., currently `Active`; otherwise `DataIntegrityException`).
   - **Effect:** Sets `Status = Discontinued`. Raises `ProductDiscontinuedDomainEvent { ProductId, Reason, OccurredOnUtc }`.
@@ -137,7 +134,7 @@ All value objects are `sealed record` types deriving from [`ValueObject`](../../
 
 #### ProductDescription
 - **Fields:** `Value : string`
-- **Validation rules:** Max 4000 chars. Empty string allowed (Draft products need not be fully described). HTML is rejected by the API layer, not by the VO.
+- **Validation rules:** Max 4000 chars. Empty string allowed. HTML is rejected by the API layer, not by the VO.
 - **Errors:** `ProductDescriptionErrors.TooLong(max: 4000)`.
 
 #### Dimensions
@@ -175,7 +172,6 @@ Built on `Ardalis.SmartEnum<T>`, following the template in [`SubscriptionTier`](
 
 | Name | Value | IsSellable | IsTerminal |
 |------|-------|------------|------------|
-| `Draft` | 0 | `false` | `false` |
 | `Active` | 1 | `true` | `false` |
 | `Discontinued` | 2 | `false` | `false` (not terminal — reactivatable with admin flag) |
 
@@ -190,16 +186,14 @@ public bool CanTransitionTo(ProductStatus target, bool adminReactivation = false
 
 **Transition table (rows = current, columns = target):**
 
-| From \ To | Draft | Active | Discontinued |
-|-----------|-------|--------|--------------|
-| **Draft** | — (no-op) | true | false |
-| **Active** | false | — (no-op) | true |
-| **Discontinued** | false | `adminReactivation == true` | — (no-op) |
+| From \ To | Active | Discontinued |
+|-----------|--------|--------------|
+| **Active** | — (no-op) | true |
+| **Discontinued** | `adminReactivation == true` | — (no-op) |
 
-- `Draft → Active` allowed (product launch).
 - `Active → Discontinued` allowed (product end-of-life).
 - `Discontinued → Active` only with `adminReactivation: true` (operator override).
-- All other transitions return `false` → callers must surface a user-actionable error (for `Reactivate`) or a `DataIntegrityException` (for `Activate`/`Discontinue`) as described above.
+- All other transitions return `false` → callers must surface a user-actionable error (`Result.Fail(CannotDiscontinueInStatus / CannotReactivateInStatus)`) as described above.
 
 ### Internal Domain Events
 
@@ -216,10 +210,6 @@ All internal events are `sealed record` types deriving from [`DomainEvent`](../.
 #### ProductDescribedDomainEvent
 - **Fields:** `ProductId : Guid`, `NewDescription : ProductDescription`, `OccurredOnUtc : DateTimeOffset`.
 - **Raised when:** `Product.Describe(...)` succeeds.
-
-#### ProductActivatedDomainEvent
-- **Fields:** `ProductId : Guid`, `OccurredOnUtc : DateTimeOffset`.
-- **Raised when:** `Product.Activate()` succeeds (transition `Draft → Active`).
 
 #### ProductDiscontinuedDomainEvent
 - **Fields:** `ProductId : Guid`, `Reason : string`, `OccurredOnUtc : DateTimeOffset`.
@@ -324,7 +314,6 @@ Per [master design § 3.3](../eshop-master-design.md), every external event is p
                 "type": "enum",
                 "name": "ProductStatus",
                 "symbols": [
-                    "Draft",
                     "Active",
                     "Discontinued"
                 ]
@@ -511,7 +500,7 @@ Per [master design § 3.3](../eshop-master-design.md), every external event is p
 }
 ```
 
-> **Deliberately NOT emitted externally (v1):** `ProductDescribedDomainEvent`, `ProductActivatedDomainEvent`, `ProductReactivatedDomainEvent`, `CategoryReparentedDomainEvent`. These are either informational to internal projections only (description changes; reactivation is rare and covered by a subsequent `ProductPriceChanged` or manual publish) or — in the case of reparenting — a heavier event that Stage 2 may introduce once cross-BC consumers actually need it. Adding them later is non-breaking.
+> **Deliberately NOT emitted externally (v1):** `ProductDescribedDomainEvent`, `ProductReactivatedDomainEvent`, `CategoryReparentedDomainEvent`. These are either informational to internal projections only (description changes; reactivation is rare and covered by a subsequent `ProductPriceChanged` or manual publish) or — in the case of reparenting — a heavier event that Stage 2 may introduce once cross-BC consumers actually need it. Adding them later is non-breaking.
 
 ### Pattern Showcase: CQRS Read Projection
 
@@ -543,7 +532,6 @@ Catalog's flagship pattern is a **denormalized read model built by an in-process
 - `IDomainEventHandler<ProductCreatedDomainEvent>` — INSERT row.
 - `IDomainEventHandler<ProductPriceChangedDomainEvent>` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
 - `IDomainEventHandler<ProductDescribedDomainEvent>` — UPDATE `Description`, `LastUpdatedAtUtc`.
-- `IDomainEventHandler<ProductActivatedDomainEvent>` — UPDATE `Status`, `LastUpdatedAtUtc`.
 - `IDomainEventHandler<ProductDiscontinuedDomainEvent>` — UPDATE `Status`, `LastUpdatedAtUtc`.
 - `IDomainEventHandler<ProductReactivatedDomainEvent>` — UPDATE `Status`, `LastUpdatedAtUtc`.
 - `IDomainEventHandler<CategoryCreatedDomainEvent>` — no-op on `product_search_view` (future: seed breadcrumb lookup). Retained as placeholder for completeness.

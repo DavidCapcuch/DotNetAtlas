@@ -88,11 +88,6 @@ public sealed class ProductCreatedOutboxPublisher : IDomainEventHandler<ProductC
 
     private static AvroProductStatus ToAvroStatus(DomainProductStatus status)
     {
-        if (status == DomainProductStatus.Draft)
-        {
-            return AvroProductStatus.Draft;
-        }
-
         if (status == DomainProductStatus.Active)
         {
             return AvroProductStatus.Active;

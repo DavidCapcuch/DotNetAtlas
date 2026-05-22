@@ -50,12 +50,6 @@ public static class ProductErrors
     // 409 Result.Fail rather than 500 DataIntegrityException. The exception path remains for
     // genuinely impossible states (UI-bug paths), but client-driven retries against a product
     // whose status has changed concurrently should not produce an internal error.
-    public static ValidationError CannotActivateInStatus(string currentStatus)
-        => new ValidationError(
-            propertyName: "Status",
-            errorMessage: $"Cannot activate product in status '{currentStatus}'.",
-            errorCode: "Product.CannotActivateInStatus");
-
     public static ValidationError CannotDiscontinueInStatus(string currentStatus)
         => new ValidationError(
             propertyName: "Status",

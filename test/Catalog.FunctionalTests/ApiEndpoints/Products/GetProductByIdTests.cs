@@ -37,10 +37,9 @@ public class GetProductByIdTests : BaseApiTest
             body.Name.Should().Be("Acme Pro");
             body.Sku.Should().Be(createReq.Sku);
             body.Price.Currency.Should().Be(createReq.Price.Currency);
-            // CreateProduct lands the aggregate in Draft. There is no Activate application
-            // command yet (deferred — Domain has Product.Activate but no command exposes it),
-            // so newly-created products remain Draft.
-            body.Status.Should().Be("Draft");
+            // Post-#177: CreateProduct lands the aggregate directly in Active (Draft removed
+            // from the Catalog lifecycle — the only transition is Active ↔ Discontinued).
+            body.Status.Should().Be("Active");
         }
     }
 

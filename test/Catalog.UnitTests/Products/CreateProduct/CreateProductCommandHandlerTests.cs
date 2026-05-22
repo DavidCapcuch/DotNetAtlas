@@ -29,7 +29,7 @@ public class CreateProductCommandHandlerTests
     };
 
     [Fact]
-    public async Task Given_ValidCommand_When_Handling_Then_PersistsProductInDraftAndReturnsId()
+    public async Task Given_ValidCommand_When_Handling_Then_PersistsProductInActiveAndReturnsId()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -52,7 +52,7 @@ public class CreateProductCommandHandlerTests
             var persisted = await db.Products.FirstAsync(
                 p => p.Id == result.Value, TestContext.Current.CancellationToken);
             persisted.Sku.Value.Should().Be("ABC-001");
-            persisted.Status.Should().Be(ProductStatus.Draft);
+            persisted.Status.Should().Be(ProductStatus.Active);
             persisted.PopDomainEvents().Should()
                 .ContainSingle()
                 .Which.Should().BeOfType<ProductCreatedDomainEvent>();
@@ -66,7 +66,7 @@ public class CreateProductCommandHandlerTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        db.Products.Add(CatalogFactories.DraftProduct(category, sku: "ABC-001"));
+        db.Products.Add(CatalogFactories.ActiveProduct(category, sku: "ABC-001"));
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var handler = new CreateProductCommandHandler(

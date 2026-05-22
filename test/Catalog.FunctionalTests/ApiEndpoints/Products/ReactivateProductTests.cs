@@ -17,10 +17,9 @@ public class ReactivateProductTests : BaseApiTest
     {
     }
 
-    // Both Reactivate scenarios need a Discontinued product to act on. Discontinue itself
-    // requires Active, and the ActivateProductCommand isn't wired (Domain has the method but
-    // no command exposes it). Both paths therefore start from an unreachable state today.
-    [Fact(Skip = "Blocked on deferred ActivateProductCommand — needs Active → Discontinued setup.")]
+    // Both Reactivate scenarios need a Discontinued product to act on. Post-#177 products are
+    // Active on create, so Discontinue (Active → Discontinued) sets up the precondition directly.
+    [Fact]
     public async Task WhenAdminFlagTrue_Returns204_AndStatusActive()
     {
         var productId = await SeedDiscontinuedProductAsync();
@@ -42,7 +41,7 @@ public class ReactivateProductTests : BaseApiTest
         }
     }
 
-    [Fact(Skip = "Blocked on deferred ActivateProductCommand — needs Active → Discontinued setup.")]
+    [Fact]
     public async Task WhenAdminFlagFalse_Returns403()
     {
         var productId = await SeedDiscontinuedProductAsync();

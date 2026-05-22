@@ -29,7 +29,7 @@ public class ProductCreatedOutboxPublisherTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        var product = CatalogFactories.DraftProduct(category);
+        var product = CatalogFactories.ActiveProduct(category);
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -69,7 +69,7 @@ public class ProductCreatedOutboxPublisherTests
             avro.BrandName.Should().Be(product.Brand.Value);
             ((decimal)avro.PriceAmount).Should().Be(product.Price.Amount);
             avro.PriceCurrency.Should().Be(product.Price.Currency.Name);
-            avro.Status.Should().Be(AvroProductStatus.Draft);
+            avro.Status.Should().Be(AvroProductStatus.Active);
             ((ISpecificRecord)avro).Should().NotBeNull();
         }
     }
@@ -80,7 +80,7 @@ public class ProductCreatedOutboxPublisherTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        var product = CatalogFactories.DraftProduct(category, description: new string('x', 2_500));
+        var product = CatalogFactories.ActiveProduct(category, description: new string('x', 2_500));
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
