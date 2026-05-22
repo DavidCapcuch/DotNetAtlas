@@ -24,9 +24,12 @@ namespace Catalog.Application.Categories.Common.Services;
 public interface ICategoryPathService
 {
     /// <summary>
-    /// Rewrites <c>Categories.Path</c> and <c>ProductSearchView.CategoryPath</c> for every row
-    /// whose path equals <paramref name="oldPath"/> or starts with <c>oldPath + "/"</c>, replacing
-    /// the leading <paramref name="oldPath"/> segment with <paramref name="newPath"/>.
+    /// Rewrites <c>Categories.Path</c>, <c>ProductSearchView.CategoryPath</c>, and
+    /// <c>ProductSearchView.CategoryBreadcrumb</c> for every row whose path equals
+    /// <paramref name="oldPath"/> or starts with <c>oldPath + "/"</c>, replacing the leading
+    /// <paramref name="oldPath"/> segment with <paramref name="newPath"/>. The breadcrumb cascade
+    /// (CAT-RV-H07 / #175) keeps the projection's human-readable taxonomy consistent with the
+    /// path inside the same transaction as the reparent itself.
     /// </summary>
     /// <param name="oldPath">The reparented category's path before <c>Category.Reparent</c> ran.</param>
     /// <param name="newPath">The reparented category's path after <c>Category.Reparent</c> ran.</param>

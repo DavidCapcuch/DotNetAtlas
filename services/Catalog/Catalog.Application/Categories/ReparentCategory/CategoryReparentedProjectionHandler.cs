@@ -9,18 +9,18 @@ namespace Catalog.Application.Categories.ReparentCategory;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The materialized <c>CategoryPath</c> column on every affected <c>product_search_view</c>
-/// row is rewritten by <c>CategoryPathService.RewriteDescendantPathsAsync</c> inside the
-/// reparent command handler — that bulk SQL update runs inside the
-/// <c>Database.EnsureTransactionAsync</c> wrap so it commits (or rolls back) atomically with
-/// the aggregate save, and is far cheaper than mutating each projection row individually.
+/// Both the materialized <c>CategoryPath</c> and <c>CategoryBreadcrumb</c> columns on every
+/// affected <c>product_search_view</c> row are rewritten by
+/// <c>CategoryPathService.RewriteDescendantPathsAsync</c> inside the reparent command handler.
+/// Those bulk SQL updates run inside the <c>Database.EnsureTransactionAsync</c> wrap so they
+/// commit (or roll back) atomically with the aggregate save, and are far cheaper than mutating
+/// each projection row individually.
 /// </para>
 /// <para>
 /// This handler stays in the dispatcher so the seam remains visible to logs / traces
-/// (a reparent fired through the projection pipeline). Recomputing
-/// <c>CategoryBreadcrumb</c> across descendants is intentionally deferred — the column is
-/// denormalized and rebuilding it requires walking the new path; not pedagogically central
-/// to the CQRS-projection-on-Postgres story.
+/// (a reparent fired through the projection pipeline). Recomputing the breadcrumb across
+/// descendants used to be deferred (CAT-RV-H07); #175 moved it inside the same UoW so the
+/// breadcrumb never lags the path.
 /// </para>
 /// </remarks>
 public sealed class CategoryReparentedProjectionHandler
@@ -37,8 +37,8 @@ public sealed class CategoryReparentedProjectionHandler
     public Task Handle(CategoryReparentedDomainEvent domainEvent, CancellationToken ct)
     {
         _logger.LogDebug(
-            "CategoryReparentedDomainEvent for {CategoryId}: path cascade applied by CategoryPathService; " +
-            "CategoryBreadcrumb on descendants may temporarily reflect the prior taxonomy.",
+            "CategoryReparentedDomainEvent for {CategoryId}: path + breadcrumb cascade applied " +
+            "by CategoryPathService.",
             domainEvent.CategoryId);
         return Task.CompletedTask;
     }
