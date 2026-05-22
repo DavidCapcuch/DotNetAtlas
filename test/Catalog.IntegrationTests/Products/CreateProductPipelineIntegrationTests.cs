@@ -116,7 +116,7 @@ public sealed class CreateProductPipelineIntegrationTests
             product.Brand.Value.Should().Be(command.Brand);
             product.Price.Amount.Should().Be(command.Price.Amount);
             product.Price.Currency.Name.Should().Be(command.Price.Currency);
-            product.Status.Should().Be(ProductStatus.Draft);
+            product.Status.Should().Be(ProductStatus.Active);
             product.Dimensions.Should().NotBeNull();
             product.Dimensions!.Length.Should().Be(command.Dimensions!.Length);
             product.Images.Should().HaveCount(1);
@@ -128,9 +128,9 @@ public sealed class CreateProductPipelineIntegrationTests
             projection.CategoryId.Should().Be(categoryId);
             projection.PriceAmount.Should().Be(command.Price.Amount);
             projection.PriceCurrency.Should().Be(command.Price.Currency);
-            projection.Status.Should().Be(ProductStatus.Draft.Name);
-            projection.IsSellable.Should().BeFalse(
-                "Draft products are not sellable until activated AND in stock");
+            projection.Status.Should().Be(ProductStatus.Active.Name);
+            projection.IsSellable.Should().BeTrue(
+                "post-#177 products are Active on create and therefore sellable");
 
             // Outbox — exactly one row, on the products topic, with the Avro CLR type name.
             outboxRows.Should().ContainSingle()

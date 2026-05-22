@@ -16,7 +16,6 @@ namespace Catalog.Products
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public enum ProductStatus
 	{
-		Draft,
 		Active,
 		Discontinued,
 	}

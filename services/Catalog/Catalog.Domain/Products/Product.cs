@@ -20,7 +20,6 @@ namespace Catalog.Domain.Products;
 /// <item><see cref="ProductCreatedDomainEvent"/>: When a new product is created.</item>
 /// <item><see cref="ProductPriceChangedDomainEvent"/>: When price changes (non-no-op).</item>
 /// <item><see cref="ProductDescribedDomainEvent"/>: When description is updated.</item>
-/// <item><see cref="ProductActivatedDomainEvent"/>: When transitioning Draft → Active.</item>
 /// <item><see cref="ProductDiscontinuedDomainEvent"/>: When transitioning Active → Discontinued.</item>
 /// <item><see cref="ProductReactivatedDomainEvent"/>: When transitioning Discontinued → Active (admin only).</item>
 /// </list>
@@ -47,7 +46,7 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     }
 
     /// <summary>
-    /// Creates a new product in <see cref="ProductStatus.Draft"/> status.
+    /// Creates a new product in <see cref="ProductStatus.Active"/> status.
     /// SKU uniqueness is an application-layer concern (pre-checked against the read side);
     /// this factory validates only value-composition rules.
     /// </summary>
@@ -86,7 +85,7 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             CategoryId = categoryId,
             Brand = brand,
             Price = price,
-            Status = ProductStatus.Draft,
+            Status = ProductStatus.Active,
             Dimensions = dimensions
         };
 
@@ -162,33 +161,6 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
         {
             ProductId = Id,
             NewDescription = newDescription,
-            OccurredOnUtc = utcNow
-        });
-
-        return Result.Ok();
-    }
-
-    /// <summary>
-    /// Transitions the product from <see cref="ProductStatus.Draft"/> to
-    /// <see cref="ProductStatus.Active"/>. Throws <see cref="DataIntegrityException"/>
-    /// when called on a non-Draft product (the UI must gate the button).
-    /// </summary>
-    /// <remarks>
-    /// Raises <see cref="ProductActivatedDomainEvent"/> with <c>OccurredOnUtc = utcNow</c>
-    /// on success.
-    /// </remarks>
-    public Result Activate(DateTimeOffset utcNow)
-    {
-        if (!Status.CanTransitionTo(ProductStatus.Active))
-        {
-            return Result.Fail(ProductErrors.CannotActivateInStatus(Status.Name));
-        }
-
-        Status = ProductStatus.Active;
-
-        AddDomainEvent(new ProductActivatedDomainEvent
-        {
-            ProductId = Id,
             OccurredOnUtc = utcNow
         });
 

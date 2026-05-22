@@ -33,11 +33,12 @@ public static class CatalogFactories
     }
 
     /// <summary>
-    /// Creates a <see cref="Product"/> in the <c>Draft</c> status with sensible defaults.
-    /// Tests that want a specific status should chain a state-transition call
-    /// (<c>product.Activate(utcNow); product.Discontinue("reason", utcNow);</c>).
+    /// Creates a <see cref="Product"/> in the <c>Active</c> status with sensible defaults.
+    /// Post-#177 the Catalog lifecycle is <c>Active ↔ Discontinued</c>; <see cref="Product.Create"/>
+    /// returns Active products directly. Tests that need Discontinued chain to
+    /// <see cref="DiscontinuedProduct"/>.
     /// </summary>
-    public static Product DraftProduct(
+    public static Product ActiveProduct(
         Category? category = null,
         string sku = "TEST-001",
         string name = "Test Product",
@@ -61,17 +62,9 @@ public static class CatalogFactories
             utcNow ?? DefaultUtcNow).Value;
     }
 
-    public static Product ActiveProduct(Category? category = null, string sku = "TEST-001", DateTimeOffset? utcNow = null)
-    {
-        var product = DraftProduct(category, sku, utcNow: utcNow);
-        product.Activate(utcNow ?? DefaultUtcNow);
-        product.PopDomainEvents();
-        return product;
-    }
-
     public static Product DiscontinuedProduct(Category? category = null, string sku = "TEST-001", DateTimeOffset? utcNow = null)
     {
-        var product = ActiveProduct(category, sku, utcNow);
+        var product = ActiveProduct(category, sku, utcNow: utcNow);
         product.Discontinue("Discontinued for test", utcNow ?? DefaultUtcNow);
         product.PopDomainEvents();
         return product;

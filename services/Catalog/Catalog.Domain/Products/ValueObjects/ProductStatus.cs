@@ -8,7 +8,6 @@ namespace Catalog.Domain.Products.ValueObjects;
 /// </summary>
 public sealed class ProductStatus : SmartEnum<ProductStatus>
 {
-    public static readonly ProductStatus Draft = new(nameof(Draft), 0, isSellable: false, isTerminal: false);
     public static readonly ProductStatus Active = new(nameof(Active), 1, isSellable: true, isTerminal: false);
     public static readonly ProductStatus Discontinued = new(nameof(Discontinued), 2, isSellable: false, isTerminal: false);
 
@@ -47,11 +46,6 @@ public sealed class ProductStatus : SmartEnum<ProductStatus>
         if (this == target)
         {
             return false;
-        }
-
-        if (this == Draft && target == Active)
-        {
-            return true;
         }
 
         if (this == Active && target == Discontinued)

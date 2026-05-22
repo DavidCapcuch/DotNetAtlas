@@ -16,7 +16,7 @@ public class ProductCreatedProjectionHandlerTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        var product = CatalogFactories.DraftProduct(category);
+        var product = CatalogFactories.ActiveProduct(category);
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -46,8 +46,8 @@ public class ProductCreatedProjectionHandlerTests
             row.CategoryBreadcrumb.Should().Be("Electronics");
             row.PriceAmount.Should().Be(9.99m);
             row.PriceCurrency.Should().Be("USD");
-            row.Status.Should().Be("Draft");
-            row.IsSellable.Should().BeFalse();
+            row.Status.Should().Be("Active");
+            row.IsSellable.Should().BeTrue();
         }
     }
 
@@ -60,7 +60,7 @@ public class ProductCreatedProjectionHandlerTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory("Electronics Toys");
         db.Categories.Add(category);
-        var product = CatalogFactories.DraftProduct(category);
+        var product = CatalogFactories.ActiveProduct(category);
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -89,12 +89,12 @@ public class ProductCreatedProjectionHandlerTests
     {
         // CAT-TST-M02 (Wave-1 closeout): build the event from a single product instance so
         // Sku / Name / Price come from the same aggregate — the previous version called
-        // CatalogFactories.DraftProduct() three times, returning three diverging instances.
+        // CatalogFactories.ActiveProduct() three times, returning three diverging instances.
         await using var db = FakeCatalogDbContext.Create();
         var handler = new ProductCreatedProjectionHandler(
             db, NullLogger<ProductCreatedProjectionHandler>.Instance);
 
-        var template = CatalogFactories.DraftProduct();
+        var template = CatalogFactories.ActiveProduct();
         var domainEvent = new ProductCreatedDomainEvent
         {
             OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
@@ -122,7 +122,7 @@ public class ProductCreatedProjectionHandlerTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        var product = CatalogFactories.DraftProduct(category);
+        var product = CatalogFactories.ActiveProduct(category);
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -166,7 +166,7 @@ public class ProductCreatedProjectionHandlerTests
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        var product = CatalogFactories.DraftProduct(category);
+        var product = CatalogFactories.ActiveProduct(category);
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 

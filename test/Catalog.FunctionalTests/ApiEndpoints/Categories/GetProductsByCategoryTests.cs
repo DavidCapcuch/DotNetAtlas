@@ -16,10 +16,9 @@ public class GetProductsByCategoryTests : BaseApiTest
     {
     }
 
-    // GetProductsByCategoryQueryHandler hard-codes a "Status == Active" filter (M3 design),
-    // and the ActivateProductCommand isn't wired today. Re-enable once Active products can
-    // be created (Active products will then surface in the by-category projection).
-    [Fact(Skip = "Blocked on deferred ActivateProductCommand — handler filters to Active-only products.")]
+    // Post-#177: products are Active on create, so the Status == Active filter in
+    // GetProductsByCategoryQueryHandler surfaces them directly without an Activate step.
+    [Fact]
     public async Task WhenCategoryHasProducts_Returns200_WithItems()
     {
         var (_, cat) = await HttpClientRegistry.WriteClient
@@ -46,7 +45,7 @@ public class GetProductsByCategoryTests : BaseApiTest
         }
     }
 
-    [Fact(Skip = "Blocked on deferred ActivateProductCommand — handler filters to Active-only products.")]
+    [Fact]
     public async Task WhenIncludeDescendantsTrue_ReturnsProductsFromChildCategories()
     {
         var (_, electronics) = await HttpClientRegistry.WriteClient

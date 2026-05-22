@@ -3,7 +3,6 @@ using Catalog.Domain.Products.Events;
 using Catalog.Domain.Products.ValueObjects;
 using FluentResults.Extensions.FluentAssertions;
 using Platform.SharedKernel.Errors;
-using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Catalog.UnitTests.Products.Aggregates;
@@ -13,7 +12,7 @@ public class ProductTests
     private static readonly DateTimeOffset UtcNow = new(2026, 4, 22, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void Create_WhenValid_ReturnsDraftProductAndRaisesProductCreated()
+    public void Create_WhenValid_ReturnsActiveProductAndRaisesProductCreated()
     {
         // Arrange
         var categoryId = Guid.CreateVersion7();
@@ -37,7 +36,8 @@ public class ProductTests
 
         // Assert — CAT-TST / Wave-1 closeout #201: pin the full factory-side-effect surface so
         // mutation testing can't leave constructor-body assignments unchecked. Every assignment
-        // in the Product.Create body (lines 68-76) must be observable here.
+        // in the Product.Create body must be observable here. Post-#177: Status is set to Active
+        // on create (Draft removed entirely).
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -51,7 +51,7 @@ public class ProductTests
             product.Price.Should().BeSameAs(price);
             product.Dimensions.Should().BeNull();
             product.Images.Should().BeEmpty();
-            product.Status.Should().Be(ProductStatus.Draft);
+            product.Status.Should().Be(ProductStatus.Active);
 
             // Exactly one domain event raised, with every payload field threaded through.
             var domainEvents = product.PopDomainEvents();
@@ -99,7 +99,7 @@ public class ProductTests
         var first = ImageReference.Create("https://e.com/0.png", "alt0", 0).Value;
 
         // Act
-        var product = CreateDraftProduct(images: [second, first]);
+        var product = CreateActiveProduct(images: [second, first]);
 
         // Assert
         product.Images.Select(i => i.DisplayOrder).Should().Equal(0, 1);
@@ -129,7 +129,7 @@ public class ProductTests
     public void UpdatePrice_WhenIdentical_IsNoOpNoEvent()
     {
         // Arrange
-        var product = CreateDraftProduct();
+        var product = CreateActiveProduct();
         _ = product.PopDomainEvents();
         var samePrice = Money.Create(10m, CurrencyCode.Usd).Value;
 
@@ -148,7 +148,7 @@ public class ProductTests
     public void UpdatePrice_WhenDifferent_RaisesProductPriceChangedAndUpdatesPrice()
     {
         // Arrange
-        var product = CreateDraftProduct();
+        var product = CreateActiveProduct();
         _ = product.PopDomainEvents();
         var oldPrice = product.Price;
         var newPrice = Money.Create(25m, CurrencyCode.Usd).Value;
@@ -218,66 +218,6 @@ public class ProductTests
         }
     }
 
-    [Fact]
-    public void Activate_FromDraft_RaisesProductActivated()
-    {
-        // Arrange
-        var product = CreateDraftProduct();
-        _ = product.PopDomainEvents();
-
-        // Act
-        var result = product.Activate(UtcNow);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            result.Should().BeSuccess();
-            product.Status.Should().Be(ProductStatus.Active);
-            var activated = product.PopDomainEvents().Should()
-                .ContainSingle()
-                .Which.Should().BeOfType<ProductActivatedDomainEvent>().Subject;
-            activated.OccurredOnUtc.Should().Be(UtcNow);
-        }
-    }
-
-    [Fact]
-    public void Activate_FromActive_ReturnsCannotActivateInStatus()
-    {
-        // Arrange
-        var product = CreateActiveProduct();
-
-        // Act — CAT-RV-M03 (Wave-1 closeout): user-actionable transition; surfaces as 409 Result.Fail not 500.
-        var result = product.Activate(UtcNow);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            result.Should().BeFailure();
-            result.Errors.Should().ContainSingle()
-                .Which.Should().BeAssignableTo<ValidationError>()
-                .Which.ErrorCode.Should().Be("Product.CannotActivateInStatus");
-        }
-    }
-
-    [Fact]
-    public void Activate_FromDiscontinued_ReturnsCannotActivateInStatus()
-    {
-        // Arrange
-        var product = CreateDiscontinuedProduct();
-
-        // Act
-        var result = product.Activate(UtcNow);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            result.Should().BeFailure();
-            result.Errors.Should().ContainSingle()
-                .Which.Should().BeAssignableTo<ValidationError>()
-                .Which.ErrorCode.Should().Be("Product.CannotActivateInStatus");
-        }
-    }
-
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -322,25 +262,6 @@ public class ProductTests
                 .Subject;
             evt.Reason.Should().Be("End of life");
             evt.OccurredOnUtc.Should().Be(UtcNow);
-        }
-    }
-
-    [Fact]
-    public void Discontinue_FromDraft_ReturnsCannotDiscontinueInStatus()
-    {
-        // Arrange
-        var product = CreateDraftProduct();
-
-        // Act
-        var result = product.Discontinue("reason", UtcNow);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            result.Should().BeFailure();
-            result.Errors.Should().ContainSingle()
-                .Which.Should().BeAssignableTo<ValidationError>()
-                .Which.ErrorCode.Should().Be("Product.CannotDiscontinueInStatus");
         }
     }
 
@@ -404,25 +325,6 @@ public class ProductTests
     }
 
     [Fact]
-    public void Reactivate_WithoutAdminFlagFromDraft_ReturnsReactivationRequiresAdminFlag()
-    {
-        // Arrange — flag check happens BEFORE status check (spec: catalog.md:71).
-        var product = CreateDraftProduct();
-
-        // Act
-        var result = product.Reactivate(adminReactivation: false, UtcNow);
-
-        // Assert
-        using (new AssertionScope())
-        {
-            result.Should().BeFailure();
-            result.Errors.Should().ContainSingle(e =>
-                ((DomainError)e).ErrorCode == "Product.ReactivationRequiresAdminFlag");
-            product.Status.Should().Be(ProductStatus.Draft);
-        }
-    }
-
-    [Fact]
     public void Reactivate_WithAdminFlagFromDiscontinued_RaisesProductReactivated()
     {
         // Arrange
@@ -463,7 +365,7 @@ public class ProductTests
         }
     }
 
-    private static Product CreateDraftProduct(IReadOnlyCollection<ImageReference>? images = null)
+    private static Product CreateActiveProduct(IReadOnlyCollection<ImageReference>? images = null)
     {
         var result = Product.Create(
             Sku.Create("TEST-001").Value,
@@ -478,18 +380,9 @@ public class ProductTests
         return result.Value;
     }
 
-    private static Product CreateActiveProduct()
-    {
-        var product = CreateDraftProduct();
-        product.Activate(UtcNow);
-        _ = product.PopDomainEvents();
-        return product;
-    }
-
     private static Product CreateDiscontinuedProduct()
     {
-        var product = CreateDraftProduct();
-        product.Activate(UtcNow);
+        var product = CreateActiveProduct();
         product.Discontinue("End of life", UtcNow);
         _ = product.PopDomainEvents();
         return product;

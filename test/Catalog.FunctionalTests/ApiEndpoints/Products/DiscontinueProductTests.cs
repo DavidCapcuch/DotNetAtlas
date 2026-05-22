@@ -17,10 +17,8 @@ public class DiscontinueProductTests : BaseApiTest
     {
     }
 
-    // Domain has Product.Activate but no ActivateProductCommand exposes it. Newly-created
-    // products are Draft; Discontinue requires Active, so the happy-path scenario is blocked
-    // until that deferred command lands. Re-enable this test once it does.
-    [Fact(Skip = "Blocked on deferred ActivateProductCommand — products start Draft, Discontinue requires Active.")]
+    // Post-#177: products are Active on create, so Discontinue can run directly off the seed.
+    [Fact]
     public async Task WhenValidRequest_Returns204_AndStatusDiscontinued_AndOutboxRow()
     {
         var productId = await SeedProductAsync();

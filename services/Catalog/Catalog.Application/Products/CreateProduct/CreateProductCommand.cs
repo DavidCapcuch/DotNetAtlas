@@ -5,7 +5,7 @@ namespace Catalog.Application.Products.CreateProduct;
 
 /// <summary>
 /// Admin command to create a new <see cref="Catalog.Domain.Products.Product"/> in
-/// <see cref="Catalog.Domain.Products.ValueObjects.ProductStatus.Draft"/> status.
+/// <see cref="Catalog.Domain.Products.ValueObjects.ProductStatus.Active"/> status.
 /// Returns the new product's identity on success.
 /// </summary>
 public sealed record CreateProductCommand : ICommand<Guid>
