@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Notifications.Common.Config;
 using Notifications.Common.Observability;
 using Notifications.Common.Persistence.Database;
+using Notifications.Email;
 using Notifications.Notifications.AuthorizePayment;
+using Notifications.Notifications.SendEmailNotification;
 using Npgsql;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
@@ -61,6 +63,9 @@ internal static class MessagingDependencyInjection
             .GetRequiredSection(TopicsOptions.Section)
             .Get<TopicsOptions>()!;
 
+        services.AddScoped<IEmailGateway, MockEmailGateway>();
+        services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
+
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster
                 .WithBrokers(kafkaOptions.Brokers)
@@ -91,6 +96,28 @@ internal static class MessagingDependencyInjection
                         .AddTypedHandlers(handlers => handlers
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
                             .AddHandler<AuthorizePaymentCommandKafkaHandler>())
+                    )
+                )
+                .AddConsumer(consumer => consumer
+                    .Topic(topicsOptions.EmailCommands)
+                    .WithConsumerConfig(consumerOptions)
+                    .WithBufferSize(consumerOptions.BufferSize)
+                    .WithWorkersCount(consumerOptions.WorkersCount)
+                    .AddMiddlewares(middlewares => middlewares
+                        .AddSchemaRegistryAvroDeserializer()
+                        // Middleware order -> outermost to innermost
+                        .AddDeadLetter()
+                        .RetryForever(config => config
+                            .Handle<DbUpdateException>()
+                            .Handle<NpgsqlException>()
+                            .Handle<TimeoutException>()
+                            .WithTimeBetweenTriesPlan(
+                                TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
+                                TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
+                        .AddInbox(typeof(SendEmailNotificationCommand))
+                        .AddTypedHandlers(handlers => handlers
+                            .WithHandlerLifetime(InstanceLifetime.Scoped)
+                            .AddHandler<SendEmailNotificationCommandKafkaHandler>())
                     )
                 ))
             .UseMicrosoftLog()
