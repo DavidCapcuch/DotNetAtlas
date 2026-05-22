@@ -6,7 +6,7 @@ namespace Basket.Domain.Baskets.Events;
 
 /// <summary>
 /// In-process event — raised by <c>Basket.Checkout</c>. Carries the full basket
-/// snapshot so the in-process outbox-publisher handler (milestone M4) can map
+/// snapshot so the in-process outbox-publisher handler can map
 /// to the external <c>BasketCheckoutInitiatedEvent</c> Avro record without
 /// re-reading the aggregate.
 /// </summary>

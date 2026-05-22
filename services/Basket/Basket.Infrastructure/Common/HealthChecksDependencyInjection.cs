@@ -11,11 +11,11 @@ using Platform.ServiceDefaults.Config;
 namespace Basket.Infrastructure.Common;
 
 /// <summary>
-/// Minimum M6 health-check surface — self, <see cref="BasketDbContext"/>
+/// Health-check surface — self, <see cref="BasketDbContext"/>
 /// (the SQL outbox/inbox side-car), <c>redis-basket</c> (the aggregate primary
 /// store, per ADR-0016), and Kafka. The redis-cache instance used by
-/// FastEndpoints idempotency lands in the host-wiring milestone alongside the
-/// idempotency middleware itself; only <c>redis-basket</c> is in M6's DI scope.
+/// FastEndpoints idempotency is wired at the host level alongside the
+/// idempotency middleware itself; only <c>redis-basket</c> is registered here.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {

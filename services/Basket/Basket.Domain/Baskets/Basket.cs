@@ -377,7 +377,7 @@ public sealed class Basket : AggregateRoot<Guid>
     /// <summary>
     /// Terminal transition — captures a full <see cref="BasketSnapshot"/>, raises
     /// <see cref="BasketCheckedOutDomainEvent"/>, and relies on an in-process handler
-    /// (milestone M4) to transform it into the external Avro event and write the
+    /// to transform it into the external Avro event and write the
     /// outbox. Fails with <see cref="BasketErrors.EmptyBasket"/> on an empty basket.
     /// </summary>
     /// <param name="correlationId">

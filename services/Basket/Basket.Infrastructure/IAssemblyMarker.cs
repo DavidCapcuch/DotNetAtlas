@@ -1,7 +1,6 @@
 namespace Basket.Infrastructure;
 
 /// <summary>
-/// Marker for assembly discovery (reflection-based DI wiring).
-/// Real infrastructure types arrive in milestone M3/M6.
+/// Marker for assembly discovery (reflection-based DI wiring of Basket infrastructure implementations).
 /// </summary>
 public interface IAssemblyMarker;

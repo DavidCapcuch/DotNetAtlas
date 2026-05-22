@@ -8,13 +8,13 @@ using Platform.ReliableMessaging.Outbox.EFCore.Common;
 namespace Basket.Infrastructure.Common;
 
 /// <summary>
-/// Messaging DI for the Basket bounded context. M6 wires the producer-side
+/// Messaging DI for the Basket bounded context. Wires the producer-side
 /// outbox (so the transactional outbox + <c>outbox-relay-basket</c> can publish
 /// <c>BasketCheckoutInitiatedEvent</c> on <c>basket.sessions</c>) and the
 /// inbox adapter against <see cref="BasketDbContext"/> so a future
 /// Catalog price-invalidation consumer can dedupe without further wiring.
-/// Basket has no Kafka consumers in this milestone — publish path is 100%
-/// through the outbox, consumer wiring lands in a later milestone if adopted.
+/// Basket has no Kafka consumers today — the publish path is 100% through the
+/// outbox; consumer wiring can be added later if a use case warrants it.
 /// </summary>
 internal static class MessagingDependencyInjection
 {
