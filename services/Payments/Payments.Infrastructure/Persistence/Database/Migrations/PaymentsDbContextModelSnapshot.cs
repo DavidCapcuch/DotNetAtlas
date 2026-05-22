@@ -28,7 +28,7 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id")
-                        .HasComment("Primary key (Guid v7 — time-ordered).");
+                        .HasComment("Primary key. v1 collapse: PaymentId == saga CorrelationId (Guid v4, random). Index locality is therefore random, not time-ordered. See docs/bc-design/payments.md § 2.1 + Wave-1 closeout H-7.");
 
                     b.Property<DateTimeOffset?>("AuthorizedAtUtc")
                         .HasColumnType("timestamp with time zone")
