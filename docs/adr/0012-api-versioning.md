@@ -101,7 +101,7 @@ Option 1 does have aesthetic critics ("not properly RESTful") — REST purists p
   2. Write v2 integration tests; v1 tests continue to pass.
   3. Land the PR with docs noting the deprecation date (minimum 90 days from release; adjusted per reader feedback).
   4. After the deprecation window, remove `/v1/` routes in a follow-up PR.
-- Health, metrics, liveness, readiness endpoints are NOT versioned (`/healthz`, `/metrics`). These are platform concerns, not API.
+- Health, metrics, liveness, readiness endpoints are NOT versioned (`/api/healthz`, `/api/readiness`, `/metrics` — see [`Platform.ServiceDefaults.WebApplicationExtensions`](../../platform/Platform.ServiceDefaults/WebApplicationExtensions.cs)). These are platform concerns, not API.
 - Docs convention: every HTTP route in `bc-design/*.md`, `implementation-prompts/*.md`, `use-cases.md` uses the versioned form.
 
 ## Related Decisions
