@@ -51,6 +51,20 @@ public static class AuthDependencyInjection
                 }
             });
 
+        // #223: re-pin security-critical TokenValidationParameters AFTER the
+        // configuration bind above. PostConfigure runs after every Configure
+        // callback (including binders), so a misconfigured appsettings cannot
+        // silently disable signed-token / signing-key / issuer / audience /
+        // lifetime validation.
+        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+        {
+            options.TokenValidationParameters.ValidateIssuer = true;
+            options.TokenValidationParameters.ValidateAudience = true;
+            options.TokenValidationParameters.ValidateLifetime = true;
+            options.TokenValidationParameters.ValidateIssuerSigningKey = true;
+            options.TokenValidationParameters.RequireSignedTokens = true;
+        });
+
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.InvoicingAdmin, policy =>
             {

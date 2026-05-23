@@ -49,6 +49,7 @@ public static class JwtBearerConfigurator
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
+                    RequireSignedTokens = true,
                     ClockSkew = TimeSpan.FromMinutes(5),
                     ValidAudience = opts.ServiceName,
                     ValidIssuer = opts.Authority,
@@ -56,6 +57,23 @@ public static class JwtBearerConfigurator
 
                 configure?.Invoke(jwt);
             });
+
+        // #223: re-pin security-critical TokenValidationParameters AFTER the BC's
+        // configure callback runs. The callback typically does
+        // `configuration.Bind("Authentication:JwtBearer", options)`, which mutates
+        // fields on the TokenValidationParameters instance the Configure step above
+        // installed — so a misconfigured appsettings could silently disable
+        // signed-token / signing-key / issuer / audience / lifetime validation.
+        // PostConfigure runs AFTER all Configure callbacks (including the binder),
+        // so it's the last word on these flags.
+        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+        {
+            options.TokenValidationParameters.ValidateIssuer = true;
+            options.TokenValidationParameters.ValidateAudience = true;
+            options.TokenValidationParameters.ValidateLifetime = true;
+            options.TokenValidationParameters.ValidateIssuerSigningKey = true;
+            options.TokenValidationParameters.RequireSignedTokens = true;
+        });
 
         return builder;
     }
