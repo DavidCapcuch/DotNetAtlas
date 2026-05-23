@@ -40,7 +40,7 @@ public static class PersistenceDependencyInjection
             sp,
             options) => options
             .UseNpgsql(
-                configuration.GetConnectionString(nameof(ConnectionStringsOptions.Payment)),
+                configuration.GetConnectionString(nameof(ConnectionStringsOptions.Notifications)),
                 npgsqlOptions =>
                 {
                     npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,

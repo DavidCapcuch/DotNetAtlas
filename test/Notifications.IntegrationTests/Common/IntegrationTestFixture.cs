@@ -67,7 +67,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Topics:PaymentCommands"] = "notifications.payment-commands",
+                ["Topics:NotificationsCommands"] = "notifications.payment-commands",
                 ["Topics:Payments"] = "notifications.payments",
                 ["Topics:DltTopicSuffix"] = ".Notifications.DLT",
                 ["Topics:EmailCommands"] = "notifications.email-commands",

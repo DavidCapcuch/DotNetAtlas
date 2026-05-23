@@ -6,6 +6,6 @@ public class ConnectionStringsOptions
 {
     public const string Section = "ConnectionStrings";
 
-    [Required(ErrorMessage = $"{nameof(Payment)} connection string is missing", AllowEmptyStrings = false)]
-    public required string Payment { get; set; }
+    [Required(ErrorMessage = $"{nameof(Notifications)} connection string is missing", AllowEmptyStrings = false)]
+    public required string Notifications { get; set; }
 }

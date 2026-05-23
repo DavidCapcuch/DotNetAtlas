@@ -1,3 +1,15 @@
+# Shared healthcheck for BC API services. Probes the /api/readiness endpoint via
+# busybox wget (built into mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine, which
+# each *.api service pins via build.args.BASE_IMAGE). Readiness exercises the
+# downstream dependencies (DB / Redis / Kafka / Schema Registry) registered with
+# the `ready` tag in Platform.ServiceDefaults, giving (healthy) a real signal.
+x-readiness-healthcheck: &readiness-healthcheck
+  test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/readiness"]
+  interval: 15s
+  timeout: 5s
+  retries: 3
+  start_period: 45s
+
 services:
   postgresdb:
     image: postgres:18.3@sha256:52e6ffd11fddd081ae63880b635b2a61c14008c17fc98cdc7ce5472265516dd0
@@ -488,6 +500,13 @@ services:
     build:
       context: .
       dockerfile: services/Catalog/Catalog.API/Dockerfile
+      args:
+        # Override the chiseled prod default (no shell, no wget) so the compose-level
+        # HEALTHCHECK can shell out to wget. The alpine variant ships busybox (incl.
+        # wget) and a shell. Production CI builds without this arg and gets the
+        # chiseled image bit-for-bit identical to today.
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: catalog.api
     restart: unless-stopped
     profiles:
@@ -530,6 +549,9 @@ services:
     build:
       context: .
       dockerfile: services/Ordering/Ordering.API/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: ordering.api
     restart: unless-stopped
     profiles:
@@ -571,6 +593,9 @@ services:
     build:
       context: .
       dockerfile: services/Invoicing/Invoicing.API/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: invoicing.api
     restart: unless-stopped
     profiles:
@@ -606,8 +631,43 @@ services:
       - OTEL_SERVICE_NAME=Invoicing
     ports:
       - "8102:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8101 by ordering.api; 8090-8095 by relays.
-    # Healthcheck directive deferred to #214 (chiseled image has no shell — needs the
-    # Platform.HealthcheckProbe binary that #214 introduces).
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # Notifications has no HTTP API surface (no auth, no Redis, no Azurite) — it's a
+  # KafkaFlow consumer service that processes EmailCommands / payment.payment-commands
+  # and writes to Postgres. /api/healthz + /api/readiness come from Platform.ServiceDefaults
+  # and the readiness check exercises DbContext + Kafka (see HealthChecksDependencyInjection).
+  notifications:
+    build:
+      context: .
+      dockerfile: services/Notifications/Notifications.Api/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
+    container_name: notifications
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Notifications=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=Notifications
+    ports:
+      - "8103:8080"   # 8100 catalog.api, 8101 ordering.api, 8102 invoicing.api; 8090-8095 relays.
     deploy:
       resources:
         limits:
