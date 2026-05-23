@@ -1,0 +1,28 @@
+{
+  "stryker-config": {
+    "solution": "../../DotNetAtlas.slnx",
+    "project": "Invoicing.Domain.csproj",
+    "language-version": "preview",
+    "test-projects": [
+      "Invoicing.UnitTests.csproj"
+    ],
+    "thresholds": {
+      "high": 90,
+      "low": 80,
+      "break": 0
+    },
+    "reporters": [
+      "json",
+      "html",
+      "progress"
+    ],
+    "test-runner": "mtp",
+    "mutate": [
+      "Invoices/**/*.cs",
+      "CreditNotes/**/*.cs"
+    ],
+    "ignore-mutations": [
+      "string"
+    ]
+  }
+}
