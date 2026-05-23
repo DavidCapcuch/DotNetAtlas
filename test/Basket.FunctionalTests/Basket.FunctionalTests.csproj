@@ -4,17 +4,16 @@
         <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="NSubstitute" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers.Redis" />
         <PackageReference Include="Testcontainers.Kafka" />
         <PackageReference Include="Confluent.Kafka" />
         <PackageReference Include="StackExchange.Redis" />
         <PackageReference Include="WireMock.Net" />
-        <PackageReference Include="Respawn" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\services\Basket\Basket.Api\Basket.Api.csproj" />
         <ProjectReference Include="..\Basket.IntegrationTests\Basket.IntegrationTests.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 </Project>

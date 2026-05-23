@@ -9,5 +9,6 @@
         <ProjectReference Include="..\..\services\Basket\Basket.Domain\Basket.Domain.csproj" />
         <ProjectReference Include="..\..\services\Basket\Basket.Application\Basket.Application.csproj" />
         <ProjectReference Include="..\..\services\Basket\Basket.Infrastructure\Basket.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 </Project>

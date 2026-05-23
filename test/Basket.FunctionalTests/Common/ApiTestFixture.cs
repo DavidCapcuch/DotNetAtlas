@@ -7,7 +7,6 @@ using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -15,13 +14,15 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using StackExchange.Redis;
 using Testcontainers.Kafka;
-using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
 
 namespace Basket.FunctionalTests.Common;
@@ -31,12 +32,13 @@ public class ApiTestFixture : AppFixture<Program>
 {
     private const string BasketTopic = "basket.sessions";
 
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Basket")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Basket",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Basket/Basket.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [BasketDbContext.DefaultSchemaName]
+        });
 
     private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7.4.6")
         .WithCleanUp(true)
@@ -65,7 +67,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        await _pgContainer.StartAsync();
+        await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
 
@@ -76,15 +78,10 @@ public class ApiTestFixture : AppFixture<Program>
         await CreateBasketTopicAsync();
     }
 
-    protected override async ValueTask SetupAsync()
+    protected override ValueTask SetupAsync()
     {
         HttpClientRegistry = new HttpClientRegistry<Program>(this);
-
-        // Apply EF Core migrations exactly once per fixture lifetime — same approach as
-        // Basket.IntegrationTests/Common/IntegrationTestFixture (M6).
-        await using var scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<BasketDbContext>();
-        await dbContext.Database.MigrateAsync();
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -93,7 +90,7 @@ public class ApiTestFixture : AppFixture<Program>
         {
             var redisConnectionString = _redisContainer.GetConnectionString();
             webBuilder
-                .UseSetting("ConnectionStrings:Basket", _pgContainer.GetConnectionString())
+                .UseSetting("ConnectionStrings:Basket", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Basket", redisConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConnectionString)
                 .UseSetting("Kafka:Brokers:0", _kafkaContainer.GetBootstrapAddress())
@@ -178,7 +175,7 @@ public class ApiTestFixture : AppFixture<Program>
     protected override async ValueTask TearDownAsync()
     {
         await _redisMultiplexer.DisposeAsync();
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();
     }
