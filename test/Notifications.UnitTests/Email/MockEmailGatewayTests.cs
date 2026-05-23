@@ -1,7 +1,8 @@
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using Notifications.Email;
+using Notifications.Application.Email;
+using Notifications.Infrastructure.Email;
 using Xunit;
 
 namespace Notifications.UnitTests.Email;

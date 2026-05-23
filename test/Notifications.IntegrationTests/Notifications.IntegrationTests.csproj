@@ -15,6 +15,6 @@
     <ItemGroup>
         <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
         <ProjectReference Include="..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
-        <ProjectReference Include="..\..\services\Notifications\Notifications\Notifications.csproj" />
+        <ProjectReference Include="..\..\services\Notifications\Notifications.Api\Notifications.Api.csproj" />
     </ItemGroup>
 </Project>

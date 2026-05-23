@@ -98,7 +98,10 @@
   </Folder>
   <Folder Name="/services/Notifications/">
     <File Path="services/Notifications/README.md" />
-    <Project Path="services/Notifications/Notifications/Notifications.csproj" />
+    <Project Path="services/Notifications/Notifications.Api/Notifications.Api.csproj" />
+    <Project Path="services/Notifications/Notifications.Application/Notifications.Application.csproj" />
+    <Project Path="services/Notifications/Notifications.Domain/Notifications.Domain.csproj" />
+    <Project Path="services/Notifications/Notifications.Infrastructure/Notifications.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/services/Payments/">
     <File Path="services/Payments/README.md" />

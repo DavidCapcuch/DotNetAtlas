@@ -2881,7 +2881,36 @@
           "ZiggyCreatures.FusionCache": "2.6.0"
         }
       },
-      "notifications": {
+      "notifications.api": {
+        "type": "Project",
+        "dependencies": {
+          "Notifications.Application": "[1.0.0, )",
+          "Notifications.Infrastructure": "[1.0.0, )",
+          "Platform.ServiceDefaults": "[1.0.0, )"
+        }
+      },
+      "notifications.application": {
+        "type": "Project",
+        "dependencies": {
+          "EntityFrameworkCore.Exceptions.Common": "[10.0.0, )",
+          "FluentValidation": "[12.1.1, )",
+          "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
+          "Notifications.Domain": "[1.0.0, )",
+          "Platform.CQRS": "[1.0.0, )",
+          "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
+          "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
+          "Riok.Mapperly": "[4.3.1, )"
+        }
+      },
+      "notifications.domain": {
+        "type": "Project",
+        "dependencies": {
+          "Ardalis.SmartEnum": "[8.2.0, )",
+          "Ardalis.Specification.EntityFrameworkCore": "[9.3.1, )",
+          "Platform.SharedKernel": "[1.0.0, )"
+        }
+      },
+      "notifications.infrastructure": {
         "type": "Project",
         "dependencies": {
           "AspNetCore.HealthChecks.ApplicationStatus": "[9.0.0, )",
@@ -2897,6 +2926,7 @@
           "KafkaFlow.Serializer.ApacheAvro": "[1.5.8, )",
           "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.8, )",
+          "Notifications.Application": "[1.0.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.1, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.15.3, )",
           "OpenTelemetry.Extensions.Hosting": "[1.15.3, )",
@@ -3018,6 +3048,8 @@
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": "[10.0.8, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.8, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.8, )",
           "Microsoft.Extensions.Http.Resilience": "[10.6.0, )",
           "OpenFeature": "[2.13.0, )",
           "OpenFeature.Hosting": "[2.13.0, )",
