@@ -1,6 +1,4 @@
-﻿START TRANSACTION;
-
-DO $EF$
+﻿DO $EF$
 BEGIN
     IF NOT EXISTS(SELECT 1 FROM saga."__EFMigrationsHistory" WHERE "migration_id" = '20260522121755_C2_PaymentMethodId_Uuid_To_String') THEN
     ALTER TABLE saga."PaymentProcessingSagaState" ALTER COLUMN payment_method_id TYPE character varying(64);
@@ -22,5 +20,4 @@ BEGIN
     VALUES ('20260522121755_C2_PaymentMethodId_Uuid_To_String', '10.0.8');
     END IF;
 END $EF$;
-COMMIT;
 
