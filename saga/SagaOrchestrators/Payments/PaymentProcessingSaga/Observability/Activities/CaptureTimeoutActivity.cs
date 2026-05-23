@@ -12,10 +12,14 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability.Activit
 public sealed class CaptureTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, CaptureTimeoutExpired>
 {
     private readonly ILogger<CaptureTimeoutActivity> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public CaptureTimeoutActivity(ILogger<CaptureTimeoutActivity> logger)
+    public CaptureTimeoutActivity(
+        ILogger<CaptureTimeoutActivity> logger,
+        TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public void Probe(ProbeContext context)
@@ -33,7 +37,7 @@ public sealed class CaptureTimeoutActivity : IStateMachineActivity<PaymentProces
         IBehavior<PaymentProcessingSagaState, CaptureTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
+        var duration = _timeProvider.GetUtcNow().UtcDateTime - saga.InitiatedAtUtc;
 
         using var activity =
             PaymentProcessingSagaMetrics.StartActivity(nameof(CaptureTimeoutActivity), saga.CorrelationId);

@@ -12,10 +12,14 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability.Activit
 public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, VoidTimeoutExpired>
 {
     private readonly ILogger<VoidTimeoutActivity> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public VoidTimeoutActivity(ILogger<VoidTimeoutActivity> logger)
+    public VoidTimeoutActivity(
+        ILogger<VoidTimeoutActivity> logger,
+        TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public void Probe(ProbeContext context)
@@ -33,7 +37,7 @@ public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessin
         IBehavior<PaymentProcessingSagaState, VoidTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
+        var duration = _timeProvider.GetUtcNow().UtcDateTime - saga.InitiatedAtUtc;
 
         using var activity = PaymentProcessingSagaMetrics.StartActivity(nameof(VoidTimeoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)

@@ -13,10 +13,14 @@ public sealed class
     AuthorizationTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, AuthorizationTimeoutExpired>
 {
     private readonly ILogger<AuthorizationTimeoutActivity> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public AuthorizationTimeoutActivity(ILogger<AuthorizationTimeoutActivity> logger)
+    public AuthorizationTimeoutActivity(
+        ILogger<AuthorizationTimeoutActivity> logger,
+        TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public void Probe(ProbeContext context)
@@ -34,7 +38,7 @@ public sealed class
         IBehavior<PaymentProcessingSagaState, AuthorizationTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
+        var duration = _timeProvider.GetUtcNow().UtcDateTime - saga.InitiatedAtUtc;
 
         using var activity =
             PaymentProcessingSagaMetrics.StartActivity(nameof(AuthorizationTimeoutActivity), saga.CorrelationId);
