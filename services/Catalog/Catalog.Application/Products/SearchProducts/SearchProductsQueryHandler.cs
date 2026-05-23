@@ -28,20 +28,27 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
 
     public async Task<Result<SearchProductsResponse>> HandleAsync(SearchProductsQuery query, CancellationToken ct)
     {
-        var includeDiscontinued = await _featureClient.GetBooleanValueAsync(
-            CatalogFeatureFlags.ShowDiscontinuedInSearch,
-            defaultValue: false,
-            cancellationToken: ct);
-
         IQueryable<ProductSearchViewRow> queryable = _db.ProductSearchView.AsNoTracking();
 
         if (!string.IsNullOrEmpty(query.Status))
         {
             queryable = queryable.Where(r => r.Status == query.Status);
         }
-        else if (!includeDiscontinued)
+        else if (!query.IncludeAllStatuses)
         {
-            queryable = queryable.Where(r => r.Status == ProductStatus.Active.Name);
+            // #172: the admin endpoint sets IncludeAllStatuses = true and bypasses both this
+            // default and the ADR-0014 feature flag, exposing Discontinued products without a
+            // global toggle. Public callers stay at the default Active-only view, with the
+            // feature flag still able to relax it for non-admin scenarios.
+            var includeDiscontinued = await _featureClient.GetBooleanValueAsync(
+                CatalogFeatureFlags.ShowDiscontinuedInSearch,
+                defaultValue: false,
+                cancellationToken: ct);
+
+            if (!includeDiscontinued)
+            {
+                queryable = queryable.Where(r => r.Status == ProductStatus.Active.Name);
+            }
         }
 
         if (!string.IsNullOrEmpty(query.Text))
