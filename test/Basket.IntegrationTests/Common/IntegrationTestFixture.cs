@@ -13,7 +13,9 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
-using Testcontainers.PostgreSql;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Respawn;
 
 namespace Basket.IntegrationTests.Common;
 
@@ -35,12 +37,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     public static readonly DateTimeOffset Now =
         new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
 
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Basket")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Basket",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Basket/Basket.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [BasketDbContext.DefaultSchemaName]
+        });
 
     private ServiceProvider _rootServices = null!;
 
@@ -60,7 +63,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await _pgContainer.StartAsync(TestContext.Current.CancellationToken);
+        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
@@ -80,9 +83,10 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // Real DbContext bypassing AddDatabase (which expects ConfigurationManager
         // + an EfCoreOptions section). M6 tests assert on the outbox table
         // directly, so the production EF retry/splitting knobs are not material.
+        // Schema lives in V*.sql applied by PostgreSqlTestContainer; EF doesn't
+        // own the __EFMigrationsHistory table here.
         services.AddDbContext<BasketDbContext>(options => options
-            .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", BasketDbContext.DefaultSchemaName))
+            .UseNpgsql(_dbContainer.ConnectionString)
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor());
 
@@ -121,18 +125,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         });
 
         _rootServices = services.BuildServiceProvider(validateScopes: true);
-
-        // Apply EF migrations once per fixture lifetime.
-        await using var migrationScope = _rootServices.CreateAsyncScope();
-        var dbContext = migrationScope.ServiceProvider.GetRequiredService<BasketDbContext>();
-        await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
     public IServiceScope CreateScope() => _rootServices.CreateScope();
 
     /// <summary>Connection string for tests that bypass the DbContext.</summary>
-    public string ConnectionString => _pgContainer.GetConnectionString();
+    public string ConnectionString => _dbContainer.ConnectionString;
 
     public async ValueTask DisposeAsync()
     {
@@ -141,6 +140,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await _rootServices.DisposeAsync();
         }
 
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 }
