@@ -1,4 +1,6 @@
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra AS base
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
+
+FROM ${BASE_IMAGE} AS base
 USER $APP_UID
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \

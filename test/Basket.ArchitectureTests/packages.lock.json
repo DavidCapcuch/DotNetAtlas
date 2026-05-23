@@ -1785,6 +1785,8 @@
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": "[10.0.8, )",
+          "Microsoft.EntityFrameworkCore": "[10.0.8, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.8, )",
           "Microsoft.Extensions.Http.Resilience": "[10.6.0, )",
           "OpenFeature": "[2.13.0, )",
           "OpenFeature.Hosting": "[2.13.0, )",
