@@ -12,11 +12,11 @@ public sealed class TopicsOptions
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>
-    /// Topic for Payment commands.
+    /// Topic for Notification commands (consumed by this BC).
     /// </summary>
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
-    public required string PaymentCommands { get; set; }
+    public required string NotificationsCommands { get; set; }
 
     /// <summary>
     /// Topic for Payment events.

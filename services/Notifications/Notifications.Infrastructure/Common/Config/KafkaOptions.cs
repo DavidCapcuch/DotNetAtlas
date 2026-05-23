@@ -29,10 +29,4 @@ public sealed class KafkaOptions
     /// </summary>
     [Required]
     public required AvroSerializerOptions AvroSerializer { get; set; }
-
-    /// <summary>
-    /// Kafka consumer configuration.
-    /// </summary>
-    [Required]
-    public required KafkaConsumerOptions KafkaConsumer { get; set; }
 }

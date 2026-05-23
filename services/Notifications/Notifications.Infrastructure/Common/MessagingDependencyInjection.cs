@@ -81,7 +81,7 @@ internal static class MessagingDependencyInjection
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
-                    .Topic(topicsOptions.PaymentCommands)
+                    .Topic(topicsOptions.NotificationsCommands)
                     .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
