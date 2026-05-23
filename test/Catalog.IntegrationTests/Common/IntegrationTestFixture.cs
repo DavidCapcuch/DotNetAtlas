@@ -104,7 +104,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // Kafka consumer wiring as well). Bind separately below so outbox publishers resolve real
         // topic names instead of nulls.
         services.AddCatalogApplication();
-        services.Configure<CatalogTopicsOptions>(config.GetSection(CatalogTopicsOptions.Section));
+        // Fail-fast topic-config binding (#220): swap services.Configure<> for
+        // AddOptionsWithValidateOnStart + ValidateDataAnnotations so a missing topic
+        // key or [Required] violation surfaces at container build time instead of on
+        // first publish.
+        services.AddOptionsWithValidateOnStart<CatalogTopicsOptions>()
+            .BindConfiguration(CatalogTopicsOptions.Section)
+            .ValidateDataAnnotations();
 
         // Replace IOutboxWriter with FakeOutboxWriter BEFORE AddOutbox — the platform's
         // TryAddSingleton respects the prior registration so we bypass the Schema Registry
