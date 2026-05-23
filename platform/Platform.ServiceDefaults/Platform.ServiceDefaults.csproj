@@ -39,6 +39,11 @@
 
         <!-- OTel PII allowlist processor (ADR-0011) -->
         <PackageReference Include="OpenTelemetry" />
+
+        <!-- EF Core — MigrateOnStartupIfLocalAsync<TContext> (#213 part 2).
+             .Relational supplies the MigrateAsync extension on DatabaseFacade. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     </ItemGroup>
 
     <ItemGroup>
