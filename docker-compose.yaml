@@ -275,6 +275,24 @@ services:
         reservations:
           memory: 512M
 
+  # Topic taxonomy (full reference: docs/kafka-topology.md):
+  #   * Event-log    — retention.ms=-1 (infinite). Downstream BCs replay-rebuild
+  #                    from these (catalog.*, ordering.orders, inventory.*-events,
+  #                    inventory.reservations, payments.transactions). BACKWARD
+  #                    compat per ADR-0007.
+  #   * Saga state   — retention.ms=2592000000 (30d). Run-history of in-flight
+  #                    sagas (basket.sessions, checkout.sagas). 30d forensic
+  #                    window per ADR-0004.
+  #   * Command      — retention.ms=604800000 (7d). Transient intent
+  #                    (*.*-commands). Unconsumed-after-7d is a runbook event,
+  #                    not a replay candidate.
+  #   * Audit        — retention.ms=315360000000 (10y). Regulatory retention
+  #                    (invoicing.invoices).
+  #   * Health probe — defaults, partitions=1 (healthchecks).
+  # Topics WITHOUT explicit retention.ms (weather.*, notification.commands,
+  # payments.commands) fall back to the Kafka broker default (~7d) and are
+  # treated as command-class. Replication factor is 1 because this is a
+  # single-broker dev compose; production raises to 3 with min.insync.replicas=2.
   kafka-create-topic:
     container_name: kafka-create-topic
     image: confluentinc/cp-kafka:7.5.9
