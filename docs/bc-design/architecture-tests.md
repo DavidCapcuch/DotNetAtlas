@@ -207,8 +207,8 @@ These complement § 1 with rules that encode chapter-specific invariants the rev
 ### 2.1 Catalog
 
 - **`Product.CategoryId` only** — `Product` aggregate references `Category` solely by `CategoryId` (a strongly-typed ID value object), never by `Category` type. Prevents accidental navigation-property-induced joins.
-- **`ProductSearchView` location** — `ProductSearchView` lives in `Catalog.Application.ProductSearchView` and is marked `[NotMapped]` on the write-model side (or uses a separate read-model context). Projection writes happen only in `ProductSearchViewProjectionHandler`.
-- **No projection writes outside the handler** — the `DbSet<ProductSearchView>` (or its equivalent) is only assigned/updated from within `ProductSearchViewProjectionHandler`. Custom rule scans method bodies for writes.
+- **`ProductSearchViewRow` location** — the projection row type lives in `Catalog.Application.Common.ReadModels.ProductSearchViewRow`. Projection writes happen only in per-event `*ProjectionHandler` classes co-located with their feature folder under `Catalog.Application.{Products,Categories}.<UseCase>.` (e.g., `ProductCreatedProjectionHandler`, `ProductPriceChangedProjectionHandler`, `ProductDiscontinuedProjectionHandler`, `CategoryCreatedProjectionHandler`, `CategoryReparentedProjectionHandler`, `StockLevelChangedProjectionHandler`).
+- **No projection writes outside the handlers** — the `DbSet<ProductSearchViewRow>` is only assigned/updated from classes whose name ends with `ProjectionHandler`, plus `CategoryPathService` (the shared helper used by category-rename/reparent rebuilds — see [catalog.md](catalog.md)). Custom rule scans method bodies for writes.
 
 ```csharp
 // Example pseudocode
@@ -259,7 +259,7 @@ Types.InAssembly(OrderingInfraAssembly)
 
 - **`StockItem` is NOT directly persisted** — `StockItem` has no EF Core mapping; the repository rehydrates it from events. Any `DbSet<StockItem>` is forbidden.
 - **`stock_events` is append-only** — `InventoryDbContext.StockEvents.Update(...)` / `.Remove(...)` must not be called from any repository method. Only `.Add(...)` is permitted.
-- **Projection-handler location** — `IDomainEventHandler<StockItemInitializedEvent>` / `StockReceivedEvent` / etc. implementations live in `Inventory.Application.Projections` and upsert into `current_stock_levels` / `reservation_audit` within the same DbContext transaction as the event append (`SaveChangesAsync` commits both). No projection runs on a separate DbContext or outside the event-handler chain.
+- **Projection-handler location** — Inventory uses **multiplexed handlers** (one class implements `IDomainEventHandler<T>` for several stock-event types), so projection handlers live in `Inventory.Application.StockItems` (e.g., `CurrentStockLevelsProjectionHandler`, `ReservationLifecycleHandler`) — *not* in a separate `Inventory.Application.Projections` folder. They upsert into `current_stock_levels` / `reservation_audit` within the same DbContext transaction as the event append (`SaveChangesAsync` commits both). No projection runs on a separate DbContext or outside the event-handler chain.
 
 ```csharp
 Types.InAssembly(InventoryInfraAssembly)
@@ -274,7 +274,7 @@ Types.InAssembly(InventoryInfraAssembly)
 Types.InAssembly(InventoryAppAssembly)
     .That().ImplementInterface(typeof(IDomainEventHandler<>))
     .And().HaveNameEndingWith("ProjectionHandler")
-    .Should().ResideInNamespace("Inventory.Application.Projections")
+    .Should().ResideInNamespace("Inventory.Application.StockItems")
     .GetResult();
 ```
 
