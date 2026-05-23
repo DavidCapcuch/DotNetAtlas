@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
-using Weather.Infrastructure.Messaging.Kafka.Config;
+using Platform.Test.Framework.Kafka.Config;
 
 namespace Platform.Test.Framework.Kafka;
 
