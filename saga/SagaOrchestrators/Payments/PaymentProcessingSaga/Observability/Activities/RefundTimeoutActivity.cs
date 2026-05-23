@@ -12,10 +12,14 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability.Activit
 public sealed class RefundTimeoutActivity : IStateMachineActivity<PaymentProcessingSagaState, RefundTimeoutExpired>
 {
     private readonly ILogger<RefundTimeoutActivity> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public RefundTimeoutActivity(ILogger<RefundTimeoutActivity> logger)
+    public RefundTimeoutActivity(
+        ILogger<RefundTimeoutActivity> logger,
+        TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public void Probe(ProbeContext context)
@@ -33,7 +37,7 @@ public sealed class RefundTimeoutActivity : IStateMachineActivity<PaymentProcess
         IBehavior<PaymentProcessingSagaState, RefundTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
+        var duration = _timeProvider.GetUtcNow().UtcDateTime - saga.InitiatedAtUtc;
 
         using var activity =
             PaymentProcessingSagaMetrics.StartActivity(nameof(RefundTimeoutActivity), saga.CorrelationId);

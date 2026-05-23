@@ -14,10 +14,14 @@ public sealed class
     SuccessFinalizationActivity : IStateMachineActivity<PaymentProcessingSagaState, SuccessFinalizationTimeoutExpired>
 {
     private readonly ILogger<SuccessFinalizationActivity> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public SuccessFinalizationActivity(ILogger<SuccessFinalizationActivity> logger)
+    public SuccessFinalizationActivity(
+        ILogger<SuccessFinalizationActivity> logger,
+        TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public void Probe(ProbeContext context)
@@ -35,7 +39,7 @@ public sealed class
         IBehavior<PaymentProcessingSagaState, SuccessFinalizationTimeoutExpired> next)
     {
         var saga = context.Saga;
-        var duration = DateTime.UtcNow - saga.InitiatedAtUtc;
+        var duration = _timeProvider.GetUtcNow().UtcDateTime - saga.InitiatedAtUtc;
 
         using var activity =
             PaymentProcessingSagaMetrics.StartActivity(nameof(SuccessFinalizationActivity), saga.CorrelationId);
