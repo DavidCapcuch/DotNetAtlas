@@ -221,7 +221,7 @@ Panel set (lives on the eShop ops dashboard):
 ## 8. Bypasses (controlled exceptions)
 
 - **Internal traffic** (BFF → Catalog/Basket/etc.) bypasses YARP entirely — services are on a private Docker network; YARP only fronts external traffic. Service-to-service calls are authorized via service JWTs, not rate-limited.
-- **Health-check endpoints** (`/healthz/*`, `/health/live`, `/health/ready`) are not rate-limited.
+- **Health-check endpoints** (`/api/healthz`, `/api/readiness` — see [`Platform.ServiceDefaults.WebApplicationExtensions`](../../platform/Platform.ServiceDefaults/WebApplicationExtensions.cs)) are not rate-limited.
 - **Metrics scrape endpoints** (`/metrics`) are not rate-limited when called from the Prometheus CIDR range; rate-limited from anywhere else.
 - **Admin "break glass" flag** — an operator can temporarily disable a policy via Aspire dashboard or a config-reload hot-patch (emergency-only; audited via a dedicated audit log entry that captures operator identity, timestamp, and reason).
 

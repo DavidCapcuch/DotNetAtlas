@@ -528,7 +528,7 @@ Reused unchanged from existing services (`Platform.ServiceDefaults`):
 - **Logs**: structured logging → Seq (dev) or centralized store.
 - **Kafka instrumentation**: `KafkaFlow.OpenTelemetry` auto-instruments consumers; outbox relay emits span for publish.
 - **Saga spans**: each state transition emits an activity `SagaOrchestrators.Checkout.StateTransition.{From}.{To}`. Counters: `saga.checkout.initiated/confirmed/failed/compensated/stuck`.
-- **Health checks**: `AspNetCore.HealthChecks.Kafka`, `.EntityFrameworkCore`, `.ApplicationStatus` per service. Standardized `/healthz/liveness`, `/healthz/readiness`.
+- **Health checks**: `AspNetCore.HealthChecks.Kafka`, `.EntityFrameworkCore`, `.ApplicationStatus` per service. Standardized `/api/healthz` (liveness) and `/api/readiness` (readiness) — see [`Platform.ServiceDefaults.WebApplicationExtensions.MapPlatformHealthCheckEndpoints`](../platform/Platform.ServiceDefaults/WebApplicationExtensions.cs).
 
 ### 11.4 Testing Layers (per service)
 
