@@ -7,6 +7,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\services\Notifications\Notifications\Notifications.csproj" />
+        <ProjectReference Include="..\..\services\Notifications\Notifications.Domain\Notifications.Domain.csproj" />
+        <ProjectReference Include="..\..\services\Notifications\Notifications.Application\Notifications.Application.csproj" />
+        <ProjectReference Include="..\..\services\Notifications\Notifications.Infrastructure\Notifications.Infrastructure.csproj" />
     </ItemGroup>
 </Project>

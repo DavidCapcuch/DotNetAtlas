@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using FluentResults.Extensions.FluentAssertions;
-using Notifications.Email;
+using Notifications.Application.Email;
+using Notifications.Infrastructure.Email;
 using Xunit;
 
 namespace Notifications.UnitTests.Email;
