@@ -2,6 +2,7 @@ using Inventory.API.Common;
 using Inventory.API.Common.Config;
 using Inventory.Application.Common;
 using Inventory.Infrastructure.Common;
+using Inventory.Infrastructure.Persistence.Database;
 using KafkaFlow;
 using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.CorrelationId;
@@ -66,6 +67,8 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
+
+    await app.MigrateOnStartupIfLocalAsync<InventoryDbContext>();
 
     // Skip the Kafka cluster boot in the test host. Functional / integration
     // tests register the typed Kafka handlers directly and invoke them with

@@ -1,8 +1,6 @@
 using Bogus;
 using HealthChecks.UI.Data;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry;
 using Serilog;
 
@@ -37,24 +35,6 @@ public static class DatabaseSeedExtensions
         });
 
         return builder;
-    }
-
-    public static async Task InitialiseDatabaseAsync(this WebApplication app)
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        await using var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
-
-        try
-        {
-            Log.Logger.Information("Starting database migrations...");
-            await dbContext.Database.MigrateAsync();
-            Log.Logger.Information("Database migrations completed");
-        }
-        catch (Exception ex)
-        {
-            Log.Logger.Error(ex, "An error occurred while applying database migrations");
-            throw;
-        }
     }
 
     /// <summary>

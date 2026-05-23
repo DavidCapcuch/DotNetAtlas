@@ -1,6 +1,7 @@
 using Basket.Api.Common;
 using Basket.Application.Common;
 using Basket.Infrastructure.Common;
+using Basket.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
@@ -53,6 +54,8 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
+
+    await app.MigrateOnStartupIfLocalAsync<BasketDbContext>();
 
     await app.RunAsync();
 }

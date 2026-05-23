@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Ordering.API.Common;
 using Ordering.Application.Common;
 using Ordering.Infrastructure.Common;
+using Ordering.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
@@ -57,6 +58,8 @@ try
     app.UseOrderingFastEndpoints();
 
     app.MapPlatformHealthCheckEndpoints();
+
+    await app.MigrateOnStartupIfLocalAsync<OrderingDbContext>();
 
     // Skip the Kafka saga-command consumer in the test host. M5's
     // functional-test slice exercises the HTTP surface only; the consumer

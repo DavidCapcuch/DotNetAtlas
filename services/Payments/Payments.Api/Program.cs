@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Payments.Api.Common;
 using Payments.Application.Common;
 using Payments.Infrastructure.Common;
+using Payments.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
@@ -52,6 +53,8 @@ try
     app.UsePaymentsFastEndpoints();
 
     app.MapPlatformHealthCheckEndpoints();
+
+    await app.MigrateOnStartupIfLocalAsync<PaymentsDbContext>();
 
     // Skip the Kafka saga-command consumer in the test host. The consumer is
     // integration-tested in M5 against a real broker; functional tests
