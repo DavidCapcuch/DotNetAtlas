@@ -137,15 +137,35 @@ public class ApiTestFixture : AppFixture<Program>
                 // Confluent Schema Registry Testcontainer.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
-                // Relax JWT validation for the in-process test host. Use Configure
-                // (IConfigureNamedOptions) — not PostConfigure — so RequireHttpsMetadata=false
-                // is observed before JwtBearerPostConfigureOptions throws on the http://
-                // authority (mirrors Weather's ApiTestFixture rationale).
+                // Relax JWT validation for the in-process test host. Split across two
+                // option-pipeline phases because each half has a different ordering constraint:
+                //
+                //   * Configure phase  — RequireHttpsMetadata = false must land here so the
+                //     built-in JwtBearerPostConfigureOptions (which runs in PostConfigure phase)
+                //     skips its HTTPS-authority guard. SignatureValidator is also fine here:
+                //     it's a per-options field that any later callback could overwrite, but
+                //     nothing downstream re-sets it.
+                //
+                //   * PostConfigure phase — the five TokenValidationParameters flags must land
+                //     here, NOT in Configure, because AddPlatformJwtBearer (#223,
+                //     platform/Platform.ServiceDefaults/Auth/JwtBearerConfigurator.cs) installs
+                //     its own PostConfigure that re-pins these five flags to true. PostConfigure
+                //     callbacks run in registration order; ConfigureTestServices runs after
+                //     Program.cs, so the test's PostConfigure registers later and gets the
+                //     actual last word.
                 services.Configure<JwtBearerOptions>(
                     JwtBearerDefaults.AuthenticationScheme,
                     options =>
                     {
                         options.RequireHttpsMetadata = false;
+                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
+                            new JsonWebToken(token);
+                    });
+
+                services.PostConfigure<JwtBearerOptions>(
+                    JwtBearerDefaults.AuthenticationScheme,
+                    options =>
+                    {
 #pragma warning disable CA5404
                         options.TokenValidationParameters.ValidateIssuer = false;
                         options.TokenValidationParameters.ValidateAudience = false;
@@ -153,8 +173,6 @@ public class ApiTestFixture : AppFixture<Program>
 #pragma warning restore CA5404
                         options.TokenValidationParameters.ValidateIssuerSigningKey = false;
                         options.TokenValidationParameters.RequireSignedTokens = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new JsonWebToken(token);
                     });
             });
     }
