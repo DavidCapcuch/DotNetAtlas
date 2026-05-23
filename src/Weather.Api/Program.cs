@@ -9,7 +9,7 @@ using Weather.Application.Common;
 using Weather.Application.Common.Observability;
 using Weather.Infrastructure.Common;
 using Weather.Infrastructure.Common.Authorization;
-using Weather.Infrastructure.Persistence.Database.Seed;
+using Weather.Infrastructure.Persistence.Database;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -80,13 +80,10 @@ try
     app.MapRazorPages()
         .WithStaticAssets();
 
-    // In production, SQL scripts generated from EF core migrations should be used,
-    // therefore also during integration tests to ensure the SQL scripts are applied correctly,
-    // see https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying?tabs=dotnet-core-cli
-    if (app.Environment.IsLocal())
-    {
-        await app.InitialiseDatabaseAsync();
-    }
+    // Local: apply pending EF migrations. UseAsyncSeeding is wired into the
+    // DbContextOptions, so the seed runs as part of MigrateAsync. Non-Local
+    // environments apply SQL scripts out-of-band — see #213.
+    await app.MigrateOnStartupIfLocalAsync<WeatherDbContext>();
 
     var kafkaBus = app.Services.CreateKafkaBus();
     await kafkaBus.StartAsync();

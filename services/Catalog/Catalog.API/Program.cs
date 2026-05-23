@@ -2,6 +2,7 @@ using Catalog.API.Common;
 using Catalog.API.Common.Config;
 using Catalog.Application.Common;
 using Catalog.Infrastructure.Common;
+using Catalog.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.CorrelationId;
 using Platform.ServiceDefaults.FeatureFlags;
@@ -61,6 +62,8 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
+
+    await app.MigrateOnStartupIfLocalAsync<CatalogDbContext>();
 
     await app.RunAsync();
 }

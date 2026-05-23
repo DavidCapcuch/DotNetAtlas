@@ -1,6 +1,7 @@
 using Invoicing.API.Common;
 using Invoicing.Application.Common;
 using Invoicing.Infrastructure.Common;
+using Invoicing.Infrastructure.Persistence.Database;
 using KafkaFlow;
 using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults;
@@ -63,6 +64,8 @@ try
     app.UseInvoicingFastEndpoints();
 
     app.MapPlatformHealthCheckEndpoints();
+
+    await app.MigrateOnStartupIfLocalAsync<InvoicingDbContext>();
 
     // Skip the Kafka enrichment-projection consumers in the test host. M6's
     // integration tests exercise the consumer slice against a real broker; M8's
