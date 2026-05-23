@@ -34,7 +34,8 @@
 | **Invalid order-status transition from saga command** | Ordering | Bug | 5xx | Saga → `Failed` (command fell through; DLT alert raised) | No | **Yes** | [use-cases.md § 3.3 Ordering saga consumers](use-cases.md) — aggregate throws `DataIntegrityException` |
 | `InsufficientStockError` | Inventory | Business (expected) | 409 | Saga transitions to `CompensatingStockReservations` path | No | No | [inventory.md § Reserve](inventory.md) — `Available < qty` |
 | `InventoryErrors.StockItemNotFound` | Inventory | Bug | 5xx | Saga → `Failed`; DLT | No | **Yes** | [use-cases.md § 4.3 Inventory saga consumers](use-cases.md) — should never occur when Catalog has published `ProductCreatedEvent` |
-| **Reservation not Active** on confirm/release | Inventory | Bug | 5xx | DLT; ops investigates | No | **Yes** | [inventory.md § ConfirmReservation / ReleaseReservation](inventory.md) — `DataIntegrityException` from aggregate |
+| **Unknown `ReservationId`** on confirm/release | Inventory | Bug | 5xx | DLT; ops investigates | No | **Yes** | [inventory.md § ConfirmReservation / ReleaseReservation](inventory.md) — aggregate has no record of this `ReservationId` (invariant 6 violation); throws `DataIntegrityException` |
+| `ReservationNotActiveError(productId, reservationId, currentStatus)` | Inventory | Business (expected) | 409 | Saga: caller's compensation path (no DLT) | No | No | [inventory.md § ConfirmReservation / ReleaseReservation](inventory.md) — known reservation but its status is terminal (`Confirmed`/`Released`); `Result.Fail` per [example-mapping/inventory.md](example-mapping/inventory.md) Sessions 1 & 3 |
 | `ConcurrencyError` | Inventory | Conflict | 5xx | Saga retries the step once; if still failing → compensation | Yes (1x) | No | [inventory.md § Event store optimistic concurrency](inventory.md) — stream version conflict |
 | `PaymentsErrors.PaymentNotFound(paymentId)` | Payments | User | 404 | N/A (admin HTTP) | No | No | Query target missing |
 | `PaymentsErrors.GatewayDeclined(reason)` | Payments | Business (expected) | 409 | Saga converts to `PaymentFailedEvent` → `CompensatingStockReservations` | No | No | [payments.md § Gateway integration](payments.md) — gateway returned a non-success code |
@@ -114,12 +115,20 @@ public static class BasketErrors
     public static ValidationError CurrencyMismatch() =>
         new("Currency", "All basket items must share the same currency.", "Basket.CurrencyMismatch");
 
-    public static ValidationError CatalogUnavailable() =>
-        new("Catalog", "Product catalog is temporarily unavailable.", "Basket.CatalogUnavailable");
+    // Canonical name (NOT `ItemNotInBasket`) — mirrors `Basket.Domain.Baskets.Errors.BasketErrors.ItemNotFound`.
+    public static ValidationError ItemNotFound(Guid productId) =>
+        new("ProductId", $"Product '{productId}' is not in the basket.", "Basket.ItemNotFound");
 
-    public static ValidationError ProductNotFound(Guid productId) =>
-        new("ProductId", $"Product '{productId}' does not exist.", "Basket.ProductNotFound");
+    // Persisted-state rehydration failure (e.g. stored currency code no longer present in SmartEnum).
+    // 503 at the API boundary so clients can retry/fall back rather than surface a 5xx.
+    public static ValidationError Corruption(Guid userId) =>
+        new("Basket", $"Stored basket state for user '{userId}' could not be rehydrated.", "Basket.Corruption");
 }
+
+// ACL adapter failures (catalog availability, product existence) live in
+// `Basket.Application.Baskets.Common.Errors.BasketAclErrors`, not BasketErrors:
+//   BasketAclErrors.CatalogUnavailable()        -> 503, Basket.CatalogUnavailable
+//   BasketAclErrors.ProductNotFound(productId)  -> 404, Basket.ProductNotFound
 
 public static class BasketItemErrors
 {
