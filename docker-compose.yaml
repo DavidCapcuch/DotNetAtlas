@@ -15,6 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./src/keycloak/init-db.sql:/docker-entrypoint-initdb.d/10-keycloak.sql:ro
+      - ./src/postgres/init-bcs.sql:/docker-entrypoint-initdb.d/15-bcs.sql:ro
     deploy:
       resources:
         limits:
