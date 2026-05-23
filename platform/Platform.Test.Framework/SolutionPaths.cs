@@ -5,13 +5,43 @@ namespace Platform.Test.Framework;
 public static class SolutionPaths
 {
     private const string SolutionFileName = "DotNetAtlas.slnx";
+    private const string WeatherInfrastructureRelativePath = "src/Weather.Infrastructure";
 
-    public static string DatabaseRootDirectory =>
-        Path.Combine(GetSolutionRootDirectory(), "src", "Weather.Infrastructure", "Persistence", "Database");
+    public static string DatabaseRootDirectory => DatabaseRootDirectoryFor(WeatherInfrastructureRelativePath);
 
-    public static string EfMigrationsDirectory => Path.Combine(DatabaseRootDirectory, "Migrations");
+    public static string EfMigrationsDirectory => EfMigrationsDirectoryFor(WeatherInfrastructureRelativePath);
 
-    public static string SqlScriptMigrationsDirectory => Path.Combine(EfMigrationsDirectory, "SqlScripts");
+    public static string SqlScriptMigrationsDirectory => SqlScriptMigrationsDirectoryFor(WeatherInfrastructureRelativePath);
+
+    /// <summary>
+    /// Resolves <c>&lt;solutionRoot&gt;/&lt;infrastructureProjectRelativePath&gt;/Persistence/Database</c>
+    /// for the given bounded context's Infrastructure project.
+    /// </summary>
+    /// <param name="infrastructureProjectRelativePath">Repo-relative path to the Infrastructure project (forward slashes), e.g. <c>"services/Basket/Basket.Infrastructure"</c>.</param>
+    public static string DatabaseRootDirectoryFor(string infrastructureProjectRelativePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(infrastructureProjectRelativePath);
+
+        var segments = infrastructureProjectRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var combined = new List<string> { GetSolutionRootDirectory() };
+        combined.AddRange(segments);
+        combined.Add("Persistence");
+        combined.Add("Database");
+        return Path.Combine([.. combined]);
+    }
+
+    /// <summary>
+    /// Resolves the EF Core migrations directory (<c>&lt;DatabaseRoot&gt;/Migrations</c>) for the given BC.
+    /// </summary>
+    public static string EfMigrationsDirectoryFor(string infrastructureProjectRelativePath) =>
+        Path.Combine(DatabaseRootDirectoryFor(infrastructureProjectRelativePath), "Migrations");
+
+    /// <summary>
+    /// Resolves the SQL script migrations directory (<c>&lt;DatabaseRoot&gt;/Migrations/SqlScripts</c>) for the given BC.
+    /// Use this as the <c>sqlScriptsMigrationsPath</c> argument to <see cref="Database.PostgreSqlTestContainer"/>.
+    /// </summary>
+    public static string SqlScriptMigrationsDirectoryFor(string infrastructureProjectRelativePath) =>
+        Path.Combine(EfMigrationsDirectoryFor(infrastructureProjectRelativePath), "SqlScripts");
 
     public static string GetSolutionRootDirectory()
     {
