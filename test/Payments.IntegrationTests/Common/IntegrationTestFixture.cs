@@ -109,11 +109,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // the test fixture we configure the section explicitly so outbox publishers receive
         // a non-null Transactions topic.
         services.AddPaymentsApplication();
-        services.Configure<PaymentsTopicsOptions>(opts =>
-        {
-            opts.Transactions = "payments.transactions";
-            opts.DltTopicSuffix = ".Payments.DLT";
-        });
+        // Fail-fast topic-config binding (#220): bind from the in-memory IConfiguration
+        // added above (lines 67-74) via AddOptionsWithValidateOnStart + ValidateDataAnnotations
+        // so a missing topic key or [Required] violation surfaces at container build time
+        // instead of on first publish.
+        services.AddOptionsWithValidateOnStart<PaymentsTopicsOptions>()
+            .BindConfiguration(PaymentsTopicsOptions.Section)
+            .ValidateDataAnnotations();
 
         services.AddOutbox(outbox =>
         {
