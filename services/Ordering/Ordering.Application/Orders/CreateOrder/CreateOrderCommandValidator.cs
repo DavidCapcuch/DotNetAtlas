@@ -1,4 +1,5 @@
 using FluentValidation;
+using Platform.SharedKernel.ValueObjects;
 
 namespace Ordering.Application.Orders.CreateOrder;
 
@@ -48,13 +49,17 @@ internal sealed class AddressInputValidator : AbstractValidator<AddressInput>
 {
     public AddressInputValidator()
     {
-        RuleFor(a => a.Street1).NotEmpty().MaximumLength(200);
-        RuleFor(a => a.Street2).MaximumLength(200).When(a => a.Street2 is not null);
-        RuleFor(a => a.City).NotEmpty().MaximumLength(100);
-        RuleFor(a => a.State).MaximumLength(100).When(a => a.State is not null);
-        RuleFor(a => a.PostalCode).NotEmpty().MaximumLength(20);
+        // Length ceilings come from Platform.SharedKernel.ValueObjects.Address — the
+        // Order aggregate's Address.Create call is the second enforcement point and
+        // must never reject something the validator accepted.
+        RuleFor(a => a.Street1).NotEmpty().MaximumLength(Address.Street1MaxLength);
+        RuleFor(a => a.Street2).MaximumLength(Address.Street2MaxLength).When(a => a.Street2 is not null);
+        RuleFor(a => a.City).NotEmpty().MaximumLength(Address.CityMaxLength);
+        RuleFor(a => a.State).MaximumLength(Address.StateMaxLength).When(a => a.State is not null);
+        RuleFor(a => a.PostalCode).NotEmpty().MaximumLength(Address.PostalCodeMaxLength);
         RuleFor(a => a.CountryCode)
             .NotEmpty()
+            .Length(Address.CountryCodeLength)
             .Matches("^[A-Z]{2}$")
             .WithMessage("CountryCode must be ISO 3166-1 alpha-2 (2 uppercase letters).");
     }

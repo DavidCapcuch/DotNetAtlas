@@ -22,6 +22,13 @@ public sealed record Address(
     string PostalCode,
     string CountryCode) : ValueObject
 {
+    public const int Street1MaxLength = 200;
+    public const int Street2MaxLength = 200;
+    public const int CityMaxLength = 100;
+    public const int StateMaxLength = 100;
+    public const int PostalCodeMaxLength = 20;
+    public const int CountryCodeLength = 2;
+
     /// <summary>
     /// Creates an <see cref="Address"/> with validation.
     /// </summary>
@@ -40,41 +47,41 @@ public sealed record Address(
         string postalCode,
         string countryCode)
     {
-        if (string.IsNullOrWhiteSpace(street1) || street1.Length > 200)
+        if (string.IsNullOrWhiteSpace(street1) || street1.Length > Street1MaxLength)
         {
             return Result.Fail<Address>(new ValidationError(
-                nameof(Street1), "Street1 is required and must be ≤ 200 chars.", "Address.InvalidStreet1"));
+                nameof(Street1), $"Street1 is required and must be ≤ {Street1MaxLength} chars.", "Address.InvalidStreet1"));
         }
 
-        if (street2 is { Length: > 200 })
+        if (street2 is not null && street2.Length > Street2MaxLength)
         {
             return Result.Fail<Address>(new ValidationError(
-                nameof(Street2), "Street2 must be ≤ 200 chars.", "Address.InvalidStreet2"));
+                nameof(Street2), $"Street2 must be ≤ {Street2MaxLength} chars.", "Address.InvalidStreet2"));
         }
 
-        if (string.IsNullOrWhiteSpace(city) || city.Length > 100)
+        if (string.IsNullOrWhiteSpace(city) || city.Length > CityMaxLength)
         {
             return Result.Fail<Address>(new ValidationError(
-                nameof(City), "City is required and must be ≤ 100 chars.", "Address.InvalidCity"));
+                nameof(City), $"City is required and must be ≤ {CityMaxLength} chars.", "Address.InvalidCity"));
         }
 
-        if (state is { Length: > 100 })
+        if (state is not null && state.Length > StateMaxLength)
         {
             return Result.Fail<Address>(new ValidationError(
-                nameof(State), "State must be ≤ 100 chars.", "Address.InvalidState"));
+                nameof(State), $"State must be ≤ {StateMaxLength} chars.", "Address.InvalidState"));
         }
 
-        if (string.IsNullOrWhiteSpace(postalCode) || postalCode.Length > 20)
+        if (string.IsNullOrWhiteSpace(postalCode) || postalCode.Length > PostalCodeMaxLength)
         {
             return Result.Fail<Address>(new ValidationError(
-                nameof(PostalCode), "PostalCode is required and must be ≤ 20 chars.", "Address.InvalidPostalCode"));
+                nameof(PostalCode), $"PostalCode is required and must be ≤ {PostalCodeMaxLength} chars.", "Address.InvalidPostalCode"));
         }
 
-        if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != 2)
+        if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != CountryCodeLength)
         {
             return Result.Fail<Address>(new ValidationError(
                 nameof(CountryCode),
-                "CountryCode must be ISO 3166-1 alpha-2 (2 uppercase letters).",
+                $"CountryCode must be ISO 3166-1 alpha-2 ({CountryCodeLength} uppercase letters).",
                 "Address.InvalidCountryCode"));
         }
 

@@ -1,5 +1,6 @@
 using Basket.Application.Baskets.Common.Contracts;
 using FluentValidation;
+using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.Application.Baskets.Common.Validators;
 
@@ -13,17 +14,17 @@ internal sealed class CheckoutAddressValidator : AbstractValidator<CheckoutAddre
 {
     public CheckoutAddressValidator()
     {
-        // Length ceilings mirror Platform.SharedKernel.ValueObjects.Address.Create — the
+        // Length ceilings come from Platform.SharedKernel.ValueObjects.Address — the
         // handler's Address.Create call is the second enforcement point and must never
-        // reject something the validator accepted. See M4 pre-commit review H1.
-        RuleFor(x => x.Street1).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Street2).MaximumLength(200);
-        RuleFor(x => x.City).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.State).MaximumLength(100);
-        RuleFor(x => x.PostalCode).NotEmpty().MaximumLength(20);
+        // reject something the validator accepted.
+        RuleFor(x => x.Street1).NotEmpty().MaximumLength(Address.Street1MaxLength);
+        RuleFor(x => x.Street2).MaximumLength(Address.Street2MaxLength);
+        RuleFor(x => x.City).NotEmpty().MaximumLength(Address.CityMaxLength);
+        RuleFor(x => x.State).MaximumLength(Address.StateMaxLength);
+        RuleFor(x => x.PostalCode).NotEmpty().MaximumLength(Address.PostalCodeMaxLength);
         RuleFor(x => x.CountryCode)
             .NotEmpty()
-            .Length(2)
+            .Length(Address.CountryCodeLength)
             .Matches("^[A-Z]{2}$")
             .WithMessage("CountryCode must be ISO 3166-1 alpha-2 (2 uppercase letters).");
     }
