@@ -6,11 +6,17 @@
   <ItemGroup>
     <!-- MassTransit -->
     <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
-    <PackageVersion Include="MassTransit" Version="9.1.1" />
-    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="9.1.1" />
-    <PackageVersion Include="MassTransit.SqlTransport.PostgreSQL" Version="9.1.1" />
-    <PackageVersion Include="MassTransit.Kafka" Version="9.1.1" />
-    <PackageVersion Include="MassTransit.TestFramework" Version="9.1.1" />
+    <!--
+      Pinned to 8.5.7 OSS. MassTransit v9 (Sep 2025) requires a commercial license
+      key for all transports — bus startup throws ConfigurationException without
+      one (https://masstransit.massient.com/configuration/license). The c123c78
+      bump to 9.1.1 was reverted because no license is available.
+    -->
+    <PackageVersion Include="MassTransit" Version="8.5.7" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.7" />
+    <PackageVersion Include="MassTransit.SqlTransport.PostgreSQL" Version="8.5.7" />
+    <PackageVersion Include="MassTransit.Kafka" Version="8.5.7" />
+    <PackageVersion Include="MassTransit.TestFramework" Version="8.5.7" />
     <!-- Confluent Schema Registry -->
     <PackageVersion Include="Confluent.SchemaRegistry" Version="2.14.0" />
     <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.14.0" />
