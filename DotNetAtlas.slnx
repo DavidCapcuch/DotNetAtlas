@@ -148,6 +148,7 @@
     <Project Path="test/Invoicing.FunctionalTests/Invoicing.FunctionalTests.csproj" />
     <Project Path="test/Invoicing.IntegrationTests/Invoicing.IntegrationTests.csproj" />
     <Project Path="test/Invoicing.UnitTests/Invoicing.UnitTests.csproj" />
+    <Project Path="test/Notifications.ArchitectureTests/Notifications.ArchitectureTests.csproj" />
     <Project Path="test/Notifications.IntegrationTests/Notifications.IntegrationTests.csproj" />
     <Project Path="test/Notifications.UnitTests/Notifications.UnitTests.csproj" />
     <Project Path="test/Ordering.ArchitectureTests/Ordering.ArchitectureTests.csproj" />
