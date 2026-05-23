@@ -566,6 +566,52 @@ services:
         limits:
           memory: 768M
 
+  invoicing.api:
+    build:
+      context: .
+      dockerfile: services/Invoicing/Invoicing.API/Dockerfile
+    container_name: invoicing.api
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      azurite:
+        condition: service_healthy
+    # Same iss/metadata bridge as catalog.api: map host's `localhost` to the gateway
+    # IP inside the container so JwtBearer.Authority=http://localhost:9011/realms/dotnetatlas
+    # (the issuer baked into Keycloak's --hostname per docker-compose.yaml:731) is
+    # reachable via the host's port mapping (9011 → keycloak:8080).
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Invoicing=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - ConnectionStrings__AzureStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=Invoicing
+    ports:
+      - "8102:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8101 by ordering.api; 8090-8095 by relays.
+    # Healthcheck directive deferred to #214 (chiseled image has no shell — needs the
+    # Platform.HealthcheckProbe binary that #214 introduces).
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
   outbox-relay-inventory:
     build:
       context: .
