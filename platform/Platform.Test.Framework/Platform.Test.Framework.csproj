@@ -5,11 +5,12 @@
 
     <ItemGroup>
         <PackageReference Include="FastEndpoints.Testing"/>
-        
+
         <!-- Database -->
         <PackageReference Include="Testcontainers.PostgreSql"/>
         <PackageReference Include="Evolve"/>
         <PackageReference Include="Respawn"/>
+        <PackageReference Include="Npgsql"/>
 
         <!-- Redis -->
         <PackageReference Include="Testcontainers.Redis"/>
@@ -25,6 +26,11 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Weather.Infrastructure\Weather.Infrastructure.csproj" />
+        <!-- Platform projects previously brought in transitively via Weather.Infrastructure -->
+        <ProjectReference Include="..\Platform.Avro.UniversalSerDes\Platform.Avro.UniversalSerDes.csproj" />
+        <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj" />
+        <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
+        <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
     </ItemGroup>
+
 </Project>

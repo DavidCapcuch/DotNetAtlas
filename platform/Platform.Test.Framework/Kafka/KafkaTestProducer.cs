@@ -6,7 +6,7 @@ using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using Platform.Avro.UniversalSerDes;
 using Platform.Messaging.Abstractions;
-using Weather.Infrastructure.Messaging.Kafka.Config;
+using Platform.Test.Framework.Kafka.Config;
 
 namespace Platform.Test.Framework.Kafka;
 

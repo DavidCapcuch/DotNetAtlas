@@ -4,8 +4,8 @@ using Confluent.SchemaRegistry;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
 using Platform.Test.Framework.Common;
+using Platform.Test.Framework.Kafka.Config;
 using Testcontainers.Kafka;
-using Weather.Infrastructure.Messaging.Kafka.Config;
 
 namespace Platform.Test.Framework.Kafka;
 

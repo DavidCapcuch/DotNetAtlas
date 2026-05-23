@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using Weather.Application.Common.Observability.Tracing;
 
 namespace Platform.Test.Framework.Tracing;
 
@@ -32,7 +31,7 @@ public sealed class TestCaseTracer : IDisposable
         string testType)
     {
         _logger = serviceProvider.GetRequiredService<ILogger<TestCaseTracer>>();
-        _testActivity = WeatherActivitySource.StartActivity(testMethodName);
+        _testActivity = TestActivitySource.StartActivity(testMethodName);
         _testActivity?.SetTag("is.test.trace", true);
         _testActivity?.SetTag("test.case.id", testCaseId);
         _testActivity?.SetTag("test.type", testType);
