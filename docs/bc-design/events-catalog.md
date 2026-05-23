@@ -1961,14 +1961,15 @@ Each service registers the message types it will dedupe in `services.AddInbox(..
 
 ### 7.1 Catalog Service
 
-**Topics consumed:** *(none in v1)*
+**Topics consumed:** `inventory.stock-level-changed`
 
-Catalog is pure publisher-in-v1. It does not consume any cross-service events. No inbox registration needed. The inbox infrastructure is still provisioned (empty table) so future subscribers can be added without a schema migration.
+**Message types to dedupe:**
+- `Inventory.StockEvents.StockLevelChangedEvent` — handled by [`StockLevelChangedKafkaHandler`](../../services/Catalog/Catalog.Infrastructure/Messaging/Kafka/StockEvents/StockLevelChangedKafkaHandler.cs), which dispatches to `Catalog.Application.Products.UpdateProductSellability.StockLevelChangedProjectionHandler` to flip `ProductSearchViewRow.IsSellable` based on `Available > 0`. See [catalog.md § Sellability projection](catalog.md).
 
 **Registration:**
 ```csharp
 services.AddInbox<CatalogDbContext>();
-// no .AddInbox(typeof(...)) since zero consumed message types
+services.AddInbox(typeof(StockLevelChangedEvent));
 ```
 
 ### 7.2 Basket Service
