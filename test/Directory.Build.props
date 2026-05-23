@@ -11,6 +11,18 @@
         <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/</CoverletOutput>
     </PropertyGroup>
 
+    <!--
+      Disable CentralPackageTransitivePinningEnabled (root #139) for test/ projects.
+      Test code doesn't ship to production so NU1903 transitive-vuln pinning is not
+      load-bearing. Disabling lets BC project references' unversioned PackageReferences
+      resolve from their own (root) CPM tier — without this, the test tier needs to
+      mirror every transitive in the BC chain (~50+ pins), which is undue maintenance
+      burden for non-shipping code.
+    -->
+    <PropertyGroup>
+        <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+    </PropertyGroup>
+
     <!-- Shared test configuration files -->
     <ItemGroup>
         <Content Include="$(MSBuildThisFileDirectory)xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest"/>

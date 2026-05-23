@@ -453,11 +453,6 @@
         "resolved": "13.0.3",
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
-      "Npgsql": {
-        "type": "Transitive",
-        "resolved": "10.0.2",
-        "contentHash": "q5RfBI+wywJSFUNDE1L4ZbHEHCFTblo8Uf6A6oe4feOUFYiUQXyAf9GBh5qEZpvJaHiEbpBPkQumjEhXCJxdrg=="
-      },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
         "resolved": "1.15.3",
@@ -817,6 +812,12 @@
           "Microsoft.Extensions.Http.Diagnostics": "10.6.0",
           "Microsoft.Extensions.Resilience": "10.6.0"
         }
+      },
+      "Npgsql": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "q5RfBI+wywJSFUNDE1L4ZbHEHCFTblo8Uf6A6oe4feOUFYiUQXyAf9GBh5qEZpvJaHiEbpBPkQumjEhXCJxdrg=="
       },
       "OpenFeature": {
         "type": "CentralTransitive",
