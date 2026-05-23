@@ -607,7 +607,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
   - `NewQuantity` — InclusiveBetween(1, 1000).
 - **Flow:**
   1. Load basket; 404 if absent.
-  2. Call `basket.ChangeQuantity(productId, newQuantity)`; `Result.Fail(BasketErrors.ItemNotInBasket(productId))` if item missing.
+  2. Call `basket.ChangeQuantity(productId, newQuantity)`; `Result.Fail(BasketErrors.ItemNotFound(productId))` if item missing.
   3. `SaveAsync` (one retry on concurrency conflict).
 - **Emits internal event(s):** `ItemQuantityChangedDomainEvent`.
 
