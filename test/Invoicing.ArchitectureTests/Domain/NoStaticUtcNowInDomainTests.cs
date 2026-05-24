@@ -1,4 +1,3 @@
-using Invoicing.ArchitectureTests.Rules;
 using NetArchTest.Rules;
 
 namespace Invoicing.ArchitectureTests.Domain;
@@ -10,7 +9,7 @@ public sealed class NoStaticUtcNowInDomainTests : BaseTest
     {
         var result = Types.InAssembly(DomainAssembly)
             .Should()
-            .MeetCustomRule(new DoesNotCallStaticUtcNowRule())
+            .MeetCustomRule(new NoStaticUtcNowRule())
             .GetResult();
         result.FailingTypes.Should().BeEmpty(
             "Per ADR-0015, domain code receives DateTimeOffset via parameters or " +
