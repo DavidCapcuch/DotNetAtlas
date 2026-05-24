@@ -37,7 +37,7 @@ public class ValueObjectTests : BaseTest
             "This ensures thread safety, safe sharing, and consistent equality semantics");
     }
 
-    [Fact(Skip = "Pre-existing arch-test debt — Invoicing has VOs with public primary record ctors (e.g. CancellationInfo); see #275.")]
+    [Fact]
     public void ValueObjects_Should_NotHavePublicConstructor()
     {
         var result = Types.InAssembly(DomainAssembly)

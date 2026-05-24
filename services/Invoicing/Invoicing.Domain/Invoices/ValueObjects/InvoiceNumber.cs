@@ -14,17 +14,22 @@ namespace Invoicing.Domain.Invoices.ValueObjects;
 /// The sequence part is a <see cref="long"/> internally but rendered as zero-padded 6 digits
 /// for the canonical representation. Year is 4-digit AD (1900-9999 accepted by format).
 /// </remarks>
-/// <param name="Value">Canonical string representation.</param>
-public sealed partial record InvoiceNumber(string Value) : ValueObject
+public sealed partial record InvoiceNumber : ValueObject
 {
     private const string Pattern = @"^INV-\d{4}-\d{6}$";
 
     [GeneratedRegex(Pattern, RegexOptions.CultureInvariant)]
     private static partial Regex FormatRegex();
 
+    public string Value { get; private init; } = null!;
+
+    private InvoiceNumber()
+    {
+    }
+
     /// <summary>
     /// Builds an <see cref="InvoiceNumber"/> from the year + sequence allocated by the
-    /// transactional allocator (ADR-0018). Invariant: sequence &gt; 0 and \u2264 999999.
+    /// transactional allocator (ADR-0018). Invariant: sequence &gt; 0 and ≤ 999999.
     /// </summary>
     public static Result<InvoiceNumber> Create(int year, long sequence)
     {
@@ -43,7 +48,7 @@ public sealed partial record InvoiceNumber(string Value) : ValueObject
         var formatted = string.Create(
             CultureInfo.InvariantCulture,
             $"INV-{year:D4}-{sequence:D6}");
-        return Result.Ok(new InvoiceNumber(formatted));
+        return Result.Ok(new InvoiceNumber { Value = formatted });
     }
 
     /// <summary>
@@ -58,7 +63,7 @@ public sealed partial record InvoiceNumber(string Value) : ValueObject
                 nameof(raw), "InvoiceNumber must match format INV-YYYY-NNNNNN.", "Invoicing.InvalidInvoiceNumberFormat"));
         }
 
-        return Result.Ok(new InvoiceNumber(raw));
+        return Result.Ok(new InvoiceNumber { Value = raw });
     }
 
     /// <summary>Extracts the year segment.</summary>

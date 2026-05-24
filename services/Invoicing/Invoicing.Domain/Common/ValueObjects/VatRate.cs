@@ -10,12 +10,17 @@ namespace Invoicing.Domain.Common.ValueObjects;
 /// accommodates that without permitting absurd input).
 /// </summary>
 /// <remarks>
-/// Not a SmartEnum \u2014 rates vary by jurisdiction and change over time. Invoicing records the
-/// rate supplied by Ordering at checkout; it does not compute tax (<c>invoicing.md</c> \u00a7 17).
+/// Not a SmartEnum — rates vary by jurisdiction and change over time. Invoicing records the
+/// rate supplied by Ordering at checkout; it does not compute tax (<c>invoicing.md</c> § 17).
 /// </remarks>
-/// <param name="Percentage">Rate percentage in [0, 100], max 2 decimals.</param>
-public sealed record VatRate(decimal Percentage) : ValueObject
+public sealed record VatRate : ValueObject
 {
+    public decimal Percentage { get; private init; }
+
+    private VatRate()
+    {
+    }
+
     public static Result<VatRate> Create(decimal percentage)
     {
         if (percentage < 0m || percentage > 100m)
@@ -32,7 +37,7 @@ public sealed record VatRate(decimal Percentage) : ValueObject
                 nameof(Percentage), "VAT rate must have at most 2 decimals.", "Invoicing.InvalidVatRatePrecision"));
         }
 
-        return Result.Ok(new VatRate(percentage));
+        return Result.Ok(new VatRate { Percentage = percentage });
     }
 
     public override string ToString() => $"{Percentage}%";

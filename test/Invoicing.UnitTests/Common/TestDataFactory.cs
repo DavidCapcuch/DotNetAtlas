@@ -47,7 +47,7 @@ internal static class TestDataFactory
         string currency = "EUR")
     {
         var curr = Platform.SharedKernel.ValueObjects.CurrencyCode.FromName(currency);
-        return new VatLine(
+        return VatLine.Create(
             DefaultVatRate(rate),
             new Money(baseAmount, curr),
             new Money(taxAmount, curr));
@@ -113,7 +113,7 @@ internal static class TestDataFactory
             quantity: 1,
             unitPrice: unitPrice,
             DefaultVatRate(0m)).Value;
-        var vatLine = new VatLine(
+        var vatLine = VatLine.Create(
             DefaultVatRate(0m),
             new Money(totalAmount, curr),
             new Money(0m, curr));
