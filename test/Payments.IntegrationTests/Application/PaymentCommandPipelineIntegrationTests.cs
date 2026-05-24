@@ -101,8 +101,9 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
 
         authorizedAggregate.Should().NotBeNull();
 
-        // Configure repo to return the (now Authorized) aggregate for the capture step.
-        _repository.GetByIdForUpdateAsync(paymentId, Arg.Any<CancellationToken>())
+        // Configure repo to return the (now Authorized) aggregate for the capture step. Post-#255
+        // Capture/Void/Refund handlers resolve via CorrelationId, not PaymentId.
+        _repository.GetByCorrelationIdForUpdateAsync(correlationId, Arg.Any<CancellationToken>())
             .Returns(authorizedAggregate);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new CaptureResponse(GatewayTransactionId, new GatewayResponseCode("ok", "Captured"))));
