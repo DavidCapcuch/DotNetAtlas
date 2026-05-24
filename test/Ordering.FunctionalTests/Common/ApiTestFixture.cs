@@ -46,6 +46,13 @@ public class ApiTestFixture : AppFixture<Program>
     private readonly FakeTokenSigner _signer = new(audience: "ordering-service-tests");
 
     /// <summary>
+    /// Exposes the fixture's RSA signer so tests can mint tokens with a
+    /// custom claim shape (e.g. pinning the production "roles" array claim
+    /// instead of the FakeTokenCreator default).
+    /// </summary>
+    public FakeTokenSigner Signer => _signer;
+
+    /// <summary>
     /// Pinned to 2026-04-23 10:00 UTC so cancellation/ship/deliver
     /// timestamps in functional-test assertions stay deterministic.
     /// </summary>
