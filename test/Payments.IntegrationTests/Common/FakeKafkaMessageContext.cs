@@ -32,8 +32,10 @@ internal static class FakeKafkaMessageContext
     /// </param>
     /// <param name="origin">Producer origin string (Kafka <c>origin</c> header).</param>
     /// <param name="correlationId">
-    /// Optional correlation id (Kafka <c>correlation-id</c> header). Most Payments tests source
-    /// correlation off the Avro payload, not the header.
+    /// Correlation id (Kafka <c>correlation-id</c> header). Per ADR-0008 the header is the
+    /// authoritative source for handlers; if the test asserts on a specific correlation id
+    /// flowing through, callers MUST pass the same value here as the Avro payload sets.
+    /// When <c>null</c>, a fresh UUID v7 is generated and pushed onto the header.
     /// </param>
     /// <param name="cancellationToken">
     /// Token returned by <c>ConsumerContext.WorkerStopped</c>. Tests pass
@@ -49,14 +51,12 @@ internal static class FakeKafkaMessageContext
         {
             { MessageHeaderKeys.MessageId, Encoding.UTF8.GetBytes((messageId ?? Guid.CreateVersion7()).ToString()) },
             { MessageHeaderKeys.Origin, Encoding.UTF8.GetBytes(origin) },
-        };
-
-        if (correlationId is not null)
-        {
-            headers.Add(
+            // ADR-0008 — always set the correlation-id header.
+            {
                 MessageHeaderKeys.CorrelationId,
-                Encoding.UTF8.GetBytes(correlationId.Value.ToString()));
-        }
+                Encoding.UTF8.GetBytes((correlationId ?? Guid.CreateVersion7()).ToString())
+            },
+        };
 
         var consumerContext = Substitute.For<IConsumerContext>();
         consumerContext.WorkerStopped.Returns(cancellationToken);

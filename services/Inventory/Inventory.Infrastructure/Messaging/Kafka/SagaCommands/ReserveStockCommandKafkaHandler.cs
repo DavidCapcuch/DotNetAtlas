@@ -2,6 +2,7 @@ using Inventory.Application.Common.Data;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using AppReserveStockCommand = Inventory.Application.StockItems.ReserveStock.ReserveStockCommand;
 using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
@@ -33,15 +34,23 @@ internal sealed class ReserveStockCommandKafkaHandler
         _appHandler = appHandler;
     }
 
-    public Task Handle(IMessageContext context, AvroReserveStockCommand message) =>
-        ExecuteAsync(
+    public Task Handle(IMessageContext context, AvroReserveStockCommand message)
+    {
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source; Avro payload field
+        // is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
+        return ExecuteAsync(
             context,
-            message.CorrelationId,
+            correlationId,
             new Dictionary<string, object?>
             {
                 ["OrderId"] = message.OrderId,
                 ["ProductId"] = message.ProductId,
                 ["ReservationId"] = message.ReservationId,
             },
-            ct => _appHandler.HandleAsync(message.ToAppCommand(), ct));
+            ct => _appHandler.HandleAsync(message.ToAppCommand(correlationId), ct));
+    }
 }

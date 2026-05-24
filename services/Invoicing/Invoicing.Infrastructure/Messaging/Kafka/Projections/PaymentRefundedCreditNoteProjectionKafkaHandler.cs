@@ -5,6 +5,7 @@ using Invoicing.Application.CreditNotes.Projections;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using AvroPaymentRefundedEvent = Payments.Transactions.PaymentRefundedEvent;
 
 namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -47,9 +48,15 @@ internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source. Avro payload
+        // field is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
-        var paymentJson = SerializePayload(message);
+        var paymentJson = SerializePayload(message, correlationId);
 
         // ADR-0008 — log/trace correlation flows from the Kafka header via
         // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
@@ -63,10 +70,10 @@ internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
 
         var (row, isNew) = await PendingProjectionUpsertHelper.GetOrAddAsync(
             _db.PendingCreditNotes,
-            message.CorrelationId,
+            correlationId,
             () => new PendingCreditNote
             {
-                CorrelationId = message.CorrelationId,
+                CorrelationId = correlationId,
                 PaymentId = message.PaymentTransactionId,
                 PaymentPayload = paymentJson,
                 FirstSeenAtUtc = now,
@@ -80,7 +87,7 @@ internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
             {
                 _logger.LogInformation(
                     "PaymentRefundedEvent already projected for CorrelationId {CorrelationId}; no-op.",
-                    message.CorrelationId);
+                    correlationId);
                 return;
             }
 
@@ -106,23 +113,23 @@ internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
             // M7 — see OrderCancelledCreditNoteProjectionKafkaHandler for the convergence
             // dispatch rationale. Same Result.Fail-vs-throw split.
             var result = await _issueCreditNoteHandler.HandleAsync(
-                new IssueCreditNoteCommand { CorrelationId = message.CorrelationId },
+                new IssueCreditNoteCommand { CorrelationId = correlationId },
                 ct);
             if (result.IsFailed)
             {
                 _logger.LogWarning(
                     "IssueCreditNoteCommand returned Result.Fail after convergence on CorrelationId {CorrelationId}: {Errors}",
-                    message.CorrelationId,
+                    correlationId,
                     string.Join("; ", result.Errors.Select(e => e.Message)));
             }
         }
     }
 
-    private static string SerializePayload(AvroPaymentRefundedEvent message)
+    private static string SerializePayload(AvroPaymentRefundedEvent message, Guid correlationId)
     {
         return JsonSerializer.Serialize(new
         {
-            message.CorrelationId,
+            CorrelationId = correlationId,
             message.UserId,
             message.PaymentTransactionId,
             message.RefundTransactionId,

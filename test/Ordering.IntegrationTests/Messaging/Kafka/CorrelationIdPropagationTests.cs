@@ -15,13 +15,12 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// Pins the ADR-0008 / DoD line 121 chain: a saga-issued
 /// <c>CreateOrderCommand</c> with a specific <c>CorrelationId</c> must
 /// land in the <c>ordering.orders.correlation_id</c> column AND in the
-/// emitted external <c>OrderCreatedEvent.CorrelationId</c>. Tests
-/// invoke <see cref="CreateOrderCommandKafkaHandler"/> directly (no
-/// KafkaFlow middleware pipeline), so the canonical source asserted
-/// here is the Avro payload's <c>CorrelationId</c> per
-/// <c>SagaCommandHandlerBase</c>; the Kafka <c>correlation-id</c>
-/// header is set on the synthetic context for parity with production
-/// but not asserted on.
+/// emitted external <c>OrderCreatedEvent.CorrelationId</c>. Tests invoke
+/// <see cref="CreateOrderCommandKafkaHandler"/> directly (no KafkaFlow
+/// middleware pipeline); per ADR-0008 the canonical source is the Kafka
+/// <c>correlation-id</c> header, which the synthetic context populates
+/// with the same value as the Avro payload so the propagation chain is
+/// observable end-to-end.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
 public sealed class CorrelationIdPropagationTests

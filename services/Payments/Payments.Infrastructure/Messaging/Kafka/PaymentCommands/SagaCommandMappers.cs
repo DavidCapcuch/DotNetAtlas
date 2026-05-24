@@ -16,19 +16,23 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 /// Avro <c>UserId</c> → App <c>BuyerId</c> rename, PaymentId derivation from
 /// <c>CorrelationId</c> per the one-payment-per-saga rule) are all explicit.
 /// </summary>
+/// <remarks>
+/// ADR-0008: <c>correlationId</c> is passed in explicitly from the Kafka header rather than
+/// read from the Avro payload field — the header is the authoritative source.
+/// </remarks>
 internal static class SagaCommandMappers
 {
     /// <summary>
     /// Maps <see cref="AvroAuthorizePaymentCommand"/> to the application-layer
     /// <see cref="AppAuthorizePaymentCommand"/>. Field renames: <c>UserId</c> → <c>BuyerId</c>;
-    /// PaymentId derived from <c>CorrelationId</c> (one-payment-per-saga assumption — see
+    /// PaymentId derived from <c>correlationId</c> (one-payment-per-saga assumption — see
     /// <c>docs/bc-design/payments.md § 4</c>).
     /// </summary>
-    internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro) =>
+    internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro, Guid correlationId) =>
         new()
         {
-            PaymentId = avro.CorrelationId,
-            CorrelationId = avro.CorrelationId,
+            PaymentId = correlationId,
+            CorrelationId = correlationId,
             OrderId = avro.OrderId,
             BuyerId = avro.UserId,
             Amount = (decimal)avro.Amount,
@@ -41,29 +45,29 @@ internal static class SagaCommandMappers
 
     /// <summary>
     /// Maps <see cref="AvroCapturePaymentCommand"/> to the application-layer
-    /// <see cref="AppCapturePaymentCommand"/>. PaymentId derived from <c>CorrelationId</c>;
+    /// <see cref="AppCapturePaymentCommand"/>. PaymentId derived from <c>correlationId</c>;
     /// <c>AuthorizationId</c> propagated for handler-side validation against the stored
     /// <c>GatewayTransactionId</c> (H-8 closeout).
     /// </summary>
-    internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro) =>
+    internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro, Guid correlationId) =>
         new()
         {
-            PaymentId = avro.CorrelationId,
-            CorrelationId = avro.CorrelationId,
+            PaymentId = correlationId,
+            CorrelationId = correlationId,
             AuthorizationId = avro.AuthorizationId,
         };
 
     /// <summary>
     /// Maps <see cref="AvroVoidPaymentCommand"/> to the application-layer
-    /// <see cref="AppVoidPaymentCommand"/>. PaymentId derived from <c>CorrelationId</c>;
+    /// <see cref="AppVoidPaymentCommand"/>. PaymentId derived from <c>correlationId</c>;
     /// <c>AuthorizationId</c> propagated for handler-side validation (H-8 closeout);
     /// <c>Reason</c> propagated for aggregate persistence + outbound audit (H-5 closeout).
     /// </summary>
-    internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro) =>
+    internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro, Guid correlationId) =>
         new()
         {
-            PaymentId = avro.CorrelationId,
-            CorrelationId = avro.CorrelationId,
+            PaymentId = correlationId,
+            CorrelationId = correlationId,
             AuthorizationId = avro.AuthorizationId,
             Reason = avro.Reason,
         };
@@ -71,13 +75,14 @@ internal static class SagaCommandMappers
     /// <summary>
     /// Maps <see cref="AvroRequestRefundCommand"/> to the application-layer
     /// <see cref="AppRequestRefundCommand"/>. PaymentId comes directly from the wire
-    /// <c>PaymentTransactionId</c> field (refund explicitly references an existing transaction).
+    /// <c>PaymentTransactionId</c> field (refund explicitly references an existing transaction);
+    /// <c>CorrelationId</c> comes from the Kafka header (ADR-0008).
     /// </summary>
-    internal static AppRequestRefundCommand ToAppCommand(this AvroRequestRefundCommand avro) =>
+    internal static AppRequestRefundCommand ToAppCommand(this AvroRequestRefundCommand avro, Guid correlationId) =>
         new()
         {
             PaymentId = avro.PaymentTransactionId,
-            CorrelationId = avro.CorrelationId,
+            CorrelationId = correlationId,
             Reason = avro.Reason,
         };
 }

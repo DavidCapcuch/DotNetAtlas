@@ -1,3 +1,4 @@
+using System.Text;
 using Invoicing.Infrastructure.Messaging.Kafka.Projections;
 using Invoicing.Infrastructure.Persistence.Database;
 using Invoicing.IntegrationTests.Common;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using Platform.Messaging.Abstractions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 using AvroOrderConfirmedEvent = Ordering.Orders.OrderConfirmedEvent;
@@ -120,7 +122,16 @@ public sealed class KafkaHandlerCorrelationIdScopeTests
     private static IMessageContext BuildContext(CancellationToken ct)
     {
         var context = Substitute.For<IMessageContext>();
-        context.Headers.Returns(new MessageHeaders());
+        // ADR-0008 — projection handlers now read CorrelationId from this header; the test
+        // pin is about LogContext scope shadowing, but a real header must be present or the
+        // handler short-circuits with InvalidOperationException before reaching the scope.
+        context.Headers.Returns(new MessageHeaders
+        {
+            {
+                MessageHeaderKeys.CorrelationId,
+                Encoding.UTF8.GetBytes(Guid.CreateVersion7().ToString())
+            },
+        });
         var consumerContext = Substitute.For<IConsumerContext>();
         consumerContext.WorkerStopped.Returns(ct);
         context.ConsumerContext.Returns(consumerContext);

@@ -28,7 +28,9 @@ internal static class SagaCommandMappers
     /// the saga schema doesn't carry it; the application handler falls back to
     /// the service-default TTL (15 min per <c>inventory.md § 11</c>).
     /// </summary>
-    internal static AppReserveStockCommand ToAppCommand(this AvroReserveStockCommand avro) =>
+    // ADR-0008 — CorrelationId is passed in explicitly from the Kafka header rather than read
+    // from the Avro payload field; the header is the authoritative source.
+    internal static AppReserveStockCommand ToAppCommand(this AvroReserveStockCommand avro, Guid correlationId) =>
         new()
         {
             ReservationId = avro.ReservationId,
@@ -37,26 +39,26 @@ internal static class SagaCommandMappers
             OrderId = avro.OrderId,
             TimeToLive = null,
             OccurredOnUtc = ToOffset(avro.RequestedAtUtc),
-            CorrelationId = avro.CorrelationId,
+            CorrelationId = correlationId,
         };
 
-    internal static AppConfirmReservationCommand ToAppCommand(this AvroConfirmReservationCommand avro) =>
+    internal static AppConfirmReservationCommand ToAppCommand(this AvroConfirmReservationCommand avro, Guid correlationId) =>
         new()
         {
             ReservationId = avro.ReservationId,
             ProductId = avro.ProductId,
             OccurredOnUtc = ToOffset(avro.RequestedAtUtc),
-            CorrelationId = avro.CorrelationId,
+            CorrelationId = correlationId,
         };
 
-    internal static AppReleaseReservationCommand ToAppCommand(this AvroReleaseReservationCommand avro) =>
+    internal static AppReleaseReservationCommand ToAppCommand(this AvroReleaseReservationCommand avro, Guid correlationId) =>
         new()
         {
             ReservationId = avro.ReservationId,
             ProductId = avro.ProductId,
             Reason = MapReleaseReason(avro.ReleaseReason),
             OccurredOnUtc = ToOffset(avro.RequestedAtUtc),
-            CorrelationId = avro.CorrelationId,
+            CorrelationId = correlationId,
         };
 
     /// <summary>

@@ -2,6 +2,7 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Ordering.Application.Common.Data;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using AppCancelOrderCommand = Ordering.Application.Orders.CancelOrder.CancelOrderCommand;
 using AvroCancelOrderCommand = Ordering.Orders.CancelOrderCommand;
@@ -27,7 +28,14 @@ internal sealed class CancelOrderCommandKafkaHandler
         _appHandler = appHandler;
     }
 
-    public Task Handle(IMessageContext context, AvroCancelOrderCommand message) =>
-        ExecuteAsync(context, message.CorrelationId, message.OrderId,
+    public Task Handle(IMessageContext context, AvroCancelOrderCommand message)
+    {
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
+        return ExecuteAsync(context, correlationId, message.OrderId,
             ct => _appHandler.HandleAsync(message.ToAppCommand(), ct));
+    }
 }

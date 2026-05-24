@@ -47,7 +47,9 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     }
 
     /// <param name="context">Inbound Kafka message context.</param>
-    /// <param name="correlationId">Saga correlation id from the Avro payload.</param>
+    /// <param name="correlationId">Saga correlation id from the Kafka header (ADR-0008 — the Avro
+    /// payload field is convenience metadata only; callers extract the header value via
+    /// <c>context.ExtractCorrelationId()</c>).</param>
     /// <param name="orderId">Target order id, or <c>null</c> for <c>CreateOrderCommand</c>.</param>
     /// <param name="dispatchAsync">
     /// Dispatches the translated application command and returns the

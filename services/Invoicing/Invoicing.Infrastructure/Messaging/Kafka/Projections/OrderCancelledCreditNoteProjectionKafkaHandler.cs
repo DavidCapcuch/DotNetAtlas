@@ -5,6 +5,7 @@ using Invoicing.Application.CreditNotes.Projections;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 
 namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -46,9 +47,15 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source. Avro payload
+        // field is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
-        var orderJson = SerializePayload(message);
+        var orderJson = SerializePayload(message, correlationId);
 
         // ADR-0008 — log/trace correlation flows from the Kafka header via
         // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
@@ -63,10 +70,10 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
 
         var (row, isNew) = await PendingProjectionUpsertHelper.GetOrAddAsync(
             _db.PendingCreditNotes,
-            message.CorrelationId,
+            correlationId,
             () => new PendingCreditNote
             {
-                CorrelationId = message.CorrelationId,
+                CorrelationId = correlationId,
                 OrderId = message.OrderId,
                 BuyerId = message.BuyerId,
                 OrderPayload = orderJson,
@@ -81,7 +88,7 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             {
                 _logger.LogInformation(
                     "OrderCancelledEvent already projected for CorrelationId {CorrelationId}; no-op.",
-                    message.CorrelationId);
+                    correlationId);
                 return;
             }
 
@@ -110,19 +117,19 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             // Result.Fail and are logged; the inbox row still commits so we don't loop.
             // Bug-class failures throw and roll back the whole transaction.
             var result = await _issueCreditNoteHandler.HandleAsync(
-                new IssueCreditNoteCommand { CorrelationId = message.CorrelationId },
+                new IssueCreditNoteCommand { CorrelationId = correlationId },
                 ct);
             if (result.IsFailed)
             {
                 _logger.LogWarning(
                     "IssueCreditNoteCommand returned Result.Fail after convergence on CorrelationId {CorrelationId}: {Errors}",
-                    message.CorrelationId,
+                    correlationId,
                     string.Join("; ", result.Errors.Select(e => e.Message)));
             }
         }
     }
 
-    private static string SerializePayload(AvroOrderCancelledEvent message)
+    private static string SerializePayload(AvroOrderCancelledEvent message, Guid correlationId)
     {
         // See OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload for the rationale
         // on the hand-rolled DTO. The AtStatus enum is explicitly stringified for jsonb readability.
@@ -134,7 +141,7 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
         return JsonSerializer.Serialize(new
         {
             message.OrderId,
-            message.CorrelationId,
+            CorrelationId = correlationId,
             message.BuyerId,
             message.Reason,
             AtStatus = message.AtStatus.ToString(),
