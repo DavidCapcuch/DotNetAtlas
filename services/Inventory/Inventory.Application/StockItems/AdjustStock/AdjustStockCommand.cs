@@ -9,7 +9,7 @@ namespace Inventory.Application.StockItems.AdjustStock;
 /// <see cref="StockLevelResponse"/> so the admin caller (HTTP endpoint backed
 /// by <c>.Idempotency()</c> per ADR-0013) can render the updated figures.
 /// </summary>
-public sealed class AdjustStockCommand : ICommand<StockLevelResponse>
+public sealed record AdjustStockCommand : ICommand<StockLevelResponse>
 {
     public required Guid ProductId { get; init; }
 

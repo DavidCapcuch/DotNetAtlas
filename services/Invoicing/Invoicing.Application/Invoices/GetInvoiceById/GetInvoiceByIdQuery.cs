@@ -7,7 +7,7 @@ namespace Invoicing.Application.Invoices.GetInvoiceById;
 /// Buyer-asks-for-another's-invoice resolves to NotFound (existence not leaked) per the
 /// Ordering precedent (<c>GetOrderByIdQuery</c>).
 /// </summary>
-public sealed class GetInvoiceByIdQuery : IQuery<GetInvoiceByIdResponse>
+public sealed record GetInvoiceByIdQuery : IQuery<GetInvoiceByIdResponse>
 {
     public required Guid InvoiceId { get; init; }
 

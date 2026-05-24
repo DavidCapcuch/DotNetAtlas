@@ -7,7 +7,7 @@ namespace Ordering.Application.Orders.MarkOrderFailed;
 /// <c>Order</c> to terminal <c>OrderStatus.Failed</c> and emits the
 /// external <c>OrderFailedEvent</c>.
 /// </summary>
-public sealed class MarkOrderFailedCommand : ICommand
+public sealed record MarkOrderFailedCommand : ICommand
 {
     public required Guid OrderId { get; init; }
 

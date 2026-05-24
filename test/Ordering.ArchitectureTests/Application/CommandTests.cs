@@ -29,7 +29,7 @@ public class CommandTests : BaseTest
     /// allow consumers to mutate the input after the validation pipeline has run; sealed records
     /// with init-only setters lock it down.
     /// </summary>
-    [Fact(Skip = "Pre-existing arch-test debt — Ordering has commands that are not sealed records (e.g. MarkOrderStockReservedCommand); see #276.")]
+    [Fact]
     public void Commands_And_Queries_Should_BeSealedRecords()
     {
         var offenders = Types.InAssembly(ApplicationAssembly)

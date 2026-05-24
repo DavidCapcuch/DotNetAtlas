@@ -11,7 +11,7 @@ namespace Inventory.Application.StockItems.ReserveStock;
 /// emitted to the outbox via the handler — never a throw
 /// (inventory.md § 10.3 + DoD "InsufficientStock never throws").
 /// </summary>
-public sealed class ReserveStockCommand : ICommand
+public sealed record ReserveStockCommand : ICommand
 {
     /// <summary>Saga-supplied (GUIDv7). Unique per reservation.</summary>
     public required Guid ReservationId { get; init; }

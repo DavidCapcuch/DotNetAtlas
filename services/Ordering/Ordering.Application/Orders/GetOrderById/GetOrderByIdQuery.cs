@@ -7,7 +7,7 @@ namespace Ordering.Application.Orders.GetOrderById;
 /// sees any. Buyer-asks-for-another's-order resolves to NotFound (do NOT
 /// leak existence).
 /// </summary>
-public sealed class GetOrderByIdQuery : IQuery<GetOrderByIdResponse>
+public sealed record GetOrderByIdQuery : IQuery<GetOrderByIdResponse>
 {
     public required Guid OrderId { get; init; }
 

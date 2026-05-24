@@ -8,7 +8,7 @@ namespace Inventory.Application.StockItems.ConfirmReservation;
 /// <see cref="ReservationId"/>: a second confirm on an already-<c>Confirmed</c>
 /// reservation is <c>Result.Ok</c> with no event.
 /// </summary>
-public sealed class ConfirmReservationCommand : ICommand
+public sealed record ConfirmReservationCommand : ICommand
 {
     public required Guid ReservationId { get; init; }
 

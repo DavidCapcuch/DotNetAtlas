@@ -29,7 +29,7 @@ namespace Ordering.Application.Orders.CancelOrder;
 /// <c>OrderingErrors.CannotCancelInStatus</c> (user error, 409). Missing
 /// order surfaces as <c>OrderingErrors.OrderNotFound</c>.
 /// </remarks>
-public sealed class CancelOrderCommand : ICommand
+public sealed record CancelOrderCommand : ICommand
 {
     public required Guid OrderId { get; init; }
 
