@@ -73,7 +73,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var existing = await _repository.GetByIdAsync(command.PaymentId, ct);
+        var existing = await _repository.GetByIdForUpdateAsync(command.PaymentId, ct);
 
         PaymentTransaction tx;
         if (existing is null)

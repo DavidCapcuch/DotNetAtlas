@@ -45,7 +45,7 @@ public class AuthorizePaymentCommandHandlerTests
     public async Task Handle_NewPayment_HappyPath_CreatesAuthorizesAndSaves()
     {
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
@@ -73,7 +73,7 @@ public class AuthorizePaymentCommandHandlerTests
         // H-3 ordering pin: the first SaveChangesAsync MUST happen before the gateway is
         // touched. NSubstitute's Received.InOrder block fails if the call sequence differs.
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
@@ -93,12 +93,12 @@ public class AuthorizePaymentCommandHandlerTests
     {
         // H-3 saga-retry scenario: simulates the case where the first attempt's gateway call
         // succeeded but the post-gateway SaveChanges failed and rolled back. The Requested
-        // aggregate stayed durable (H-3 anchor); saga retry now finds it via GetByIdAsync,
+        // aggregate stayed durable (H-3 anchor); saga retry now finds it via GetByIdForUpdateAsync,
         // skips the Create branch, and proceeds to a single SaveChanges after the gateway.
         var existing = PaymentTransactionFactory.Requested(_timeProvider.GetUtcNow());
         existing.PopDomainEvents();
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns(existing);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));
@@ -120,7 +120,7 @@ public class AuthorizePaymentCommandHandlerTests
     public async Task Handle_GatewayDecline_TransitionsAggregateToFailedAndReturnsOk()
     {
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<AuthorizeResponse>(new GatewayDeclinedError("declined", "insufficient_funds")));
@@ -142,7 +142,7 @@ public class AuthorizePaymentCommandHandlerTests
     public async Task Handle_GatewayInfrastructureError_ReturnsGatewayUnavailable_AndPersistsRequestedState()
     {
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<AuthorizeResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
@@ -165,7 +165,7 @@ public class AuthorizePaymentCommandHandlerTests
     {
         var command = BuildCommand();
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns(existing);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -183,7 +183,7 @@ public class AuthorizePaymentCommandHandlerTests
     public async Task Handle_InvalidAmount_ReturnsValidationFailureBeforeGateway()
     {
         var command = BuildCommand(amount: 0m);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
@@ -205,7 +205,7 @@ public class AuthorizePaymentCommandHandlerTests
         // documented in schema but ignored).
         const string Key = "saga-key-123";
         var command = BuildCommand(idempotencyKey: Key);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", new GatewayResponseCode("ok", "Approved"), _timeProvider.GetUtcNow().AddDays(7))));

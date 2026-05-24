@@ -13,16 +13,29 @@ namespace Payments.Application.Common.Data;
 public interface IPaymentRepository
 {
     /// <summary>
-    /// Returns the aggregate with the given <paramref name="paymentId"/>, or <c>null</c> if no
-    /// such row exists. Tracking is enabled — the caller mutates the aggregate, and the eventual
-    /// <c>SaveChangesAsync</c> on the outbox / DbContext flushes the changes.
+    /// Returns the aggregate with the given <paramref name="paymentId"/> for mutation, or
+    /// <c>null</c> if no such row exists. Tracking is enabled — the caller mutates the aggregate
+    /// and the eventual <c>SaveChangesAsync</c> on the outbox / DbContext flushes the changes.
+    /// Use this from the four command handlers (Authorize / Capture / Void / RequestRefund);
+    /// the read-side <c>GetPaymentByIdQueryHandler</c> must use
+    /// <see cref="GetByIdAsNoTrackingAsync"/> instead.
     /// </summary>
-    Task<PaymentTransaction?> GetByIdAsync(Guid paymentId, CancellationToken ct);
+    Task<PaymentTransaction?> GetByIdForUpdateAsync(Guid paymentId, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the aggregate with the given <paramref name="paymentId"/> as a detached read-only
+    /// projection, or <c>null</c> if no such row exists (#251). Tracking is disabled — the change
+    /// tracker carries no overhead for the request and a future mapper that accidentally mutates
+    /// the entity cannot leak that mutation into a downstream <c>SaveChangesAsync</c>. Use this
+    /// from <c>GetPaymentByIdQueryHandler</c>; command handlers must use
+    /// <see cref="GetByIdForUpdateAsync"/> instead.
+    /// </summary>
+    Task<PaymentTransaction?> GetByIdAsNoTrackingAsync(Guid paymentId, CancellationToken ct);
 
     /// <summary>
     /// Returns all payment transactions for a given order, in deterministic order. Read-only
-    /// — used by the admin <c>GET /api/v1/payments?orderId=…</c> endpoint (M6) so its tracking
-    /// behavior is irrelevant; the M5 implementation may use <c>AsNoTracking</c>.
+    /// — used by the admin <c>GET /api/v1/payments?orderId=…</c> endpoint (M6); the
+    /// implementation uses <c>AsNoTracking</c>.
     /// </summary>
     Task<IReadOnlyList<PaymentTransaction>> GetByOrderIdAsync(Guid orderId, CancellationToken ct);
 

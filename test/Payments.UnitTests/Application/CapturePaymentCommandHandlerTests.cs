@@ -42,7 +42,7 @@ public class CapturePaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new CaptureResponse(PaymentTransactionFactory.DefaultGatewayTransactionId, new GatewayResponseCode("ok", "Captured"))));
 
@@ -63,7 +63,7 @@ public class CapturePaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new GatewayDeclinedError("declined", "fraud_suspected")));
 
@@ -84,7 +84,7 @@ public class CapturePaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
 
@@ -102,7 +102,7 @@ public class CapturePaymentCommandHandlerTests
     public async Task Handle_PaymentNotFound_ReturnsNotFoundError()
     {
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -119,7 +119,7 @@ public class CapturePaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Completed(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -139,7 +139,7 @@ public class CapturePaymentCommandHandlerTests
         // (or worse, silently re-process) on a Capture against a voided authorization.
         var existing = PaymentTransactionFactory.Voided(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -156,7 +156,7 @@ public class CapturePaymentCommandHandlerTests
         // is bug-class — must throw before the gateway is touched.
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, authorizationId: "wrong-token");
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

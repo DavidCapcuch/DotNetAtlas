@@ -18,7 +18,7 @@ internal sealed class GetPaymentByIdQueryHandler : IQueryHandler<GetPaymentByIdQ
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var tx = await _repository.GetByIdAsync(query.PaymentId, ct);
+        var tx = await _repository.GetByIdAsNoTrackingAsync(query.PaymentId, ct);
         if (tx is null)
         {
             return Result.Fail<GetPaymentByIdResponse>(PaymentsErrors.PaymentNotFound(query.PaymentId));

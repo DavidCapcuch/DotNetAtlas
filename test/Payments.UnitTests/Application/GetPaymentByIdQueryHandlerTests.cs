@@ -17,7 +17,7 @@ public class GetPaymentByIdQueryHandlerTests
     public async Task Handle_ExistingPayment_ReturnsResponse()
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
-        _repository.GetByIdAsync(existing.Id, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdAsNoTrackingAsync(existing.Id, Arg.Any<CancellationToken>()).Returns(existing);
         var handler = new GetPaymentByIdQueryHandler(_repository);
 
         var result = await handler.HandleAsync(new GetPaymentByIdQuery(existing.Id), TestContext.Current.CancellationToken);
@@ -38,7 +38,7 @@ public class GetPaymentByIdQueryHandlerTests
     public async Task Handle_MissingPayment_ReturnsNotFound()
     {
         var paymentId = Guid.CreateVersion7();
-        _repository.GetByIdAsync(paymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
+        _repository.GetByIdAsNoTrackingAsync(paymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
         var handler = new GetPaymentByIdQueryHandler(_repository);
 
         var result = await handler.HandleAsync(new GetPaymentByIdQuery(paymentId), TestContext.Current.CancellationToken);
@@ -50,7 +50,7 @@ public class GetPaymentByIdQueryHandlerTests
     public async Task Handle_FailedPayment_IncludesFailureInfo()
     {
         var existing = PaymentTransactionFactory.Failed(_timeProvider.GetUtcNow());
-        _repository.GetByIdAsync(existing.Id, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdAsNoTrackingAsync(existing.Id, Arg.Any<CancellationToken>()).Returns(existing);
         var handler = new GetPaymentByIdQueryHandler(_repository);
 
         var result = await handler.HandleAsync(new GetPaymentByIdQuery(existing.Id), TestContext.Current.CancellationToken);
