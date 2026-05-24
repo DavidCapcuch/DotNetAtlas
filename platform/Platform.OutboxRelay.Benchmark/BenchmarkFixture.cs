@@ -34,7 +34,7 @@ internal sealed class BenchmarkFixture : AppFixture<Platform.OutboxRelay.WorkerS
 
     private readonly KafkaTestContainer _kafkaContainer = new();
 
-    public KafkaOptions KafkaOptions { get; private set; } = null!;
+    public Platform.Test.Framework.Kafka.Config.KafkaOptions KafkaOptions { get; private set; } = null!;
 
     protected override async ValueTask PreSetupAsync()
     {
