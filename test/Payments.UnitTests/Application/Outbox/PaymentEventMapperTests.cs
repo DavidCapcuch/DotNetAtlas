@@ -215,8 +215,12 @@ public class PaymentEventMapperTests
     }
 
     [Fact]
-    public void PaymentRefundedMapper_ReusesPaymentIdAsRefundTransactionId()
+    public void PaymentRefundedMapper_GeneratesFreshRefundTransactionIdDistinctFromPaymentTransactionId()
     {
+        // #246: RefundTransactionId is a fresh UUID v7 — downstream consumers (Notifications
+        // refund email, Invoicing credit-note pairing) key off it as a distinct identifier and
+        // would alias-collide if it equalled PaymentTransactionId. Two calls also produce
+        // different RefundTransactionId values (v7 monotonicity sanity).
         var domainEvent = new PaymentRefundedDomainEvent
         {
             PaymentId = PaymentId,
@@ -231,13 +235,16 @@ public class PaymentEventMapperTests
         };
 
         var avro = domainEvent.ToPaymentRefundedEvent();
+        var second = domainEvent.ToPaymentRefundedEvent();
 
         using (new AssertionScope())
         {
             avro.CorrelationId.Should().Be(CorrelationId);
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
-            avro.RefundTransactionId.Should().Be(PaymentId);
+            avro.RefundTransactionId.Should().NotBe(PaymentId);
+            avro.RefundTransactionId.Should().NotBe(avro.PaymentTransactionId);
+            second.RefundTransactionId.Should().NotBe(avro.RefundTransactionId);
             avro.RefundedAmount.Should().Be(new AvroDecimal(50.0000m));
             avro.Currency.Should().Be("USD");
             avro.RefundedAtUtc.Should().Be(Now.UtcDateTime);

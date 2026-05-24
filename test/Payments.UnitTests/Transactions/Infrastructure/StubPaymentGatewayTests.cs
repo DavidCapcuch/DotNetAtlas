@@ -21,6 +21,7 @@ public class StubPaymentGatewayTests
     [Theory]
     [InlineData(9.99)]
     [InlineData(0.99)]
+    [InlineData(99.99)]
     [InlineData(100.99)]
     [InlineData(1.99)]
     public async Task AuthorizeAsync_WhenAmountEndsIn99Cents_ReturnsGatewayDeclinedError(decimal amount)
@@ -42,6 +43,8 @@ public class StubPaymentGatewayTests
     [InlineData(1.00)]
     [InlineData(10.00)]
     [InlineData(99.00)]
+    [InlineData(99.50)]
+    [InlineData(100.00)]
     [InlineData(100.50)]
     [InlineData(0.01)]
     public async Task AuthorizeAsync_WhenAmountIsNormal_ReturnsSuccessWithDeterministicTransactionId(decimal amount)
