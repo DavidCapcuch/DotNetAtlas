@@ -71,7 +71,7 @@ internal sealed class StubPaymentGateway : IPaymentGateway
 
         var response = new AuthorizeResponse(
             $"stub-{tx.Id:N}",
-            new GatewayResponseCode("ok", "Approved"),
+            GatewayResponseCode.Create("ok", "Approved"),
             _timeProvider.GetUtcNow().Add(AuthorizationLifetime));
 
         return Task.FromResult(Result.Ok(response));
@@ -86,7 +86,7 @@ internal sealed class StubPaymentGateway : IPaymentGateway
 
         var response = new CaptureResponse(
             gatewayTransactionId,
-            new GatewayResponseCode("ok", "Captured"));
+            GatewayResponseCode.Create("ok", "Captured"));
 
         return Task.FromResult(Result.Ok(response));
     }
@@ -99,7 +99,7 @@ internal sealed class StubPaymentGateway : IPaymentGateway
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
         ct.ThrowIfCancellationRequested();
 
-        var response = new RefundResponse(new GatewayResponseCode("ok", "Refunded"));
+        var response = new RefundResponse(GatewayResponseCode.Create("ok", "Refunded"));
 
         return Task.FromResult(Result.Ok(response));
     }
@@ -110,7 +110,7 @@ internal sealed class StubPaymentGateway : IPaymentGateway
         ArgumentException.ThrowIfNullOrWhiteSpace(gatewayTransactionId);
         ct.ThrowIfCancellationRequested();
 
-        var response = new VoidResponse(new GatewayResponseCode("ok", "Voided"));
+        var response = new VoidResponse(GatewayResponseCode.Create("ok", "Voided"));
 
         return Task.FromResult(Result.Ok(response));
     }

@@ -75,7 +75,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         _repository.GetByIdForUpdateAsync(paymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(new AuthorizeResponse(GatewayTransactionId, new GatewayResponseCode("ok", "Approved"), Now.AddDays(7))));
+            .Returns(Result.Ok(new AuthorizeResponse(GatewayTransactionId, GatewayResponseCode.Create("ok", "Approved"), Now.AddDays(7))));
 
         // Capture the aggregate that the handler will add, so the next step can return it.
         PaymentTransaction? authorizedAggregate = null;
@@ -106,7 +106,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         _repository.GetByCorrelationIdForUpdateAsync(correlationId, Arg.Any<CancellationToken>())
             .Returns(authorizedAggregate);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(new CaptureResponse(GatewayTransactionId, new GatewayResponseCode("ok", "Captured"))));
+            .Returns(Result.Ok(new CaptureResponse(GatewayTransactionId, GatewayResponseCode.Create("ok", "Captured"))));
 
         var captureHandler = scope.ServiceProvider.GetRequiredService<ICommandHandler<CapturePaymentCommand>>();
 
@@ -229,7 +229,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
             "tok_visa_4242",
             Now).Value;
         _ = tx.PopDomainEvents();
-        tx.Authorize("stub-precooked", new GatewayResponseCode("ok", "Approved"), Now.AddDays(7), Now);
+        tx.Authorize("stub-precooked", GatewayResponseCode.Create("ok", "Approved"), Now.AddDays(7), Now);
         _ = tx.PopDomainEvents();
         return tx;
     }

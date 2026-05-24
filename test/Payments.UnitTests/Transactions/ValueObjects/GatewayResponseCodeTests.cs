@@ -7,8 +7,8 @@ public class GatewayResponseCodeTests
     [Fact]
     public void Equality_IsByValue()
     {
-        var first = new GatewayResponseCode("ok", "Approved");
-        var second = new GatewayResponseCode("ok", "Approved");
+        var first = GatewayResponseCode.Create("ok", "Approved");
+        var second = GatewayResponseCode.Create("ok", "Approved");
 
         first.Should().Be(second);
     }
@@ -16,8 +16,8 @@ public class GatewayResponseCodeTests
     [Fact]
     public void Inequality_WhenCodeDiffers()
     {
-        var first = new GatewayResponseCode("ok", "Approved");
-        var second = new GatewayResponseCode("declined", "Approved");
+        var first = GatewayResponseCode.Create("ok", "Approved");
+        var second = GatewayResponseCode.Create("declined", "Approved");
 
         first.Should().NotBe(second);
     }

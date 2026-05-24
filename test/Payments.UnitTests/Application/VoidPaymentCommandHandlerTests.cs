@@ -42,7 +42,7 @@ public class VoidPaymentCommandHandlerTests
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(new VoidResponse(new GatewayResponseCode("ok", "Voided"))));
+            .Returns(Result.Ok(new VoidResponse(GatewayResponseCode.Create("ok", "Voided"))));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

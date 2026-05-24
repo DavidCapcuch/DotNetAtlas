@@ -44,7 +44,7 @@ public class CapturePaymentCommandHandlerTests
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
         _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(new CaptureResponse(PaymentTransactionFactory.DefaultGatewayTransactionId, new GatewayResponseCode("ok", "Captured"))));
+            .Returns(Result.Ok(new CaptureResponse(PaymentTransactionFactory.DefaultGatewayTransactionId, GatewayResponseCode.Create("ok", "Captured"))));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
