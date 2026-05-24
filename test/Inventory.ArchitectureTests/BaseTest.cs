@@ -287,6 +287,103 @@ public abstract class BaseTest
     }
 
     /// <summary>
+    /// Asserts the type has at least one <c>public static</c> method whose name starts with
+    /// <c>Create</c>, <c>From</c>, or <c>Fold</c> — i.e. the sanctioned aggregate factory shape
+    /// per architecture-tests.md § 1.2 line 62. Aggregates without a factory cannot return
+    /// <c>Result&lt;TAggregate&gt;</c> from validation, breaking the result-pattern boundary.
+    /// </summary>
+    /// <remarks>
+    /// Diverges from <c>Catalog.ArchitectureTests.BaseTest.HasPublicStaticFactoryMethodRule</c>
+    /// by additionally accepting the <c>Fold</c> prefix. Inventory's <c>StockItem</c> is event
+    /// sourced and its canonical static factory is <c>StockItem.Fold(events)</c> — left-fold
+    /// over the rehydrated event stream — which is the established ES convention. Renaming
+    /// it to <c>From</c> would lose the ES semantics; the rule adapts instead per the
+    /// "adapt or drop, document the divergence" guidance from the wave1 rollout.
+    /// </remarks>
+    protected sealed class HasPublicStaticFactoryMethodRule : ICustomRule
+    {
+        public bool MeetsRule(TypeDefinition type)
+        {
+            foreach (var method in type.Methods)
+            {
+                if (!method.IsPublic || !method.IsStatic)
+                {
+                    continue;
+                }
+
+                if (method.Name.StartsWith("Create", StringComparison.Ordinal) ||
+                    method.Name.StartsWith("From", StringComparison.Ordinal) ||
+                    method.Name.StartsWith("Fold", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Asserts the type does not reference any of the forbidden types via fields, properties, or
+    /// method parameters. Stricter than NetArchTest's dependency-graph check — that one walks all
+    /// IL references; this one limits to public/private surface area on the type itself, the way
+    /// architecture-tests.md § 2.1 ("Product references Category solely by ID") expects.
+    /// </summary>
+    /// <remarks>
+    /// Inventory currently has a single aggregate (<c>StockItem</c>), so no in-BC test consumes
+    /// this rule today. The rule lands in <see cref="BaseTest"/> for symmetry with Catalog +
+    /// Payments and as a regression guard the moment a second Inventory aggregate ships.
+    /// </remarks>
+    protected sealed class OnlyReferencesByIdRule : ICustomRule
+    {
+        private readonly HashSet<string> _forbiddenFullNames;
+
+        public OnlyReferencesByIdRule(params Type[] forbidden)
+        {
+            _forbiddenFullNames = forbidden
+                .Select(t => t.FullName!)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        public bool MeetsRule(TypeDefinition type)
+        {
+            foreach (var field in type.Fields)
+            {
+                if (_forbiddenFullNames.Contains(field.FieldType.FullName))
+                {
+                    return false;
+                }
+            }
+
+            foreach (var property in type.Properties)
+            {
+                if (_forbiddenFullNames.Contains(property.PropertyType.FullName))
+                {
+                    return false;
+                }
+            }
+
+            foreach (var method in type.Methods)
+            {
+                foreach (var parameter in method.Parameters)
+                {
+                    if (_forbiddenFullNames.Contains(parameter.ParameterType.FullName))
+                    {
+                        return false;
+                    }
+                }
+
+                if (_forbiddenFullNames.Contains(method.ReturnType.FullName))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Asserts the public-instance method names of the type are a subset of the allowlist.
     /// Used to lock <c>IEventStore</c> / <c>EventStoreRepository</c> to the append-only
     /// surface (<c>RehydrateAsync</c> + <c>AppendAsync</c>) per <c>inventory.md</c> § 8 — any
