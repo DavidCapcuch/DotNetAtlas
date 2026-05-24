@@ -53,11 +53,8 @@ public sealed class OutboxMessageHeaderExtensionsCorrelationIdTests
 
         // Assert
         // headers may still contain traceparent etc.; the assertion targets correlation.id specifically.
-        if (headers is not null)
-        {
-            headers.Should().NotContainKey(MessageHeaderKeys.CorrelationId,
-                "missing tag => missing top-level header (no synthesized value here; the producer middleware does that downstream when it observes the outbox-relayed message)");
-        }
+        headers?.Should().NotContainKey(MessageHeaderKeys.CorrelationId,
+            "missing tag => missing top-level header (no synthesized value here; the producer middleware does that downstream when it observes the outbox-relayed message)");
     }
 
     [Fact]
