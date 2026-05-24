@@ -14,7 +14,7 @@ namespace Inventory.Application.StockItems.InitializeStockItem;
 /// issuing <c>Initialize</c>. Duplicate delivery from Catalog is the common
 /// case; it must NOT poison the consumer.
 /// </remarks>
-public sealed class InitializeStockItemCommand : ICommand
+public sealed record InitializeStockItemCommand : ICommand
 {
     public required Guid ProductId { get; init; }
 

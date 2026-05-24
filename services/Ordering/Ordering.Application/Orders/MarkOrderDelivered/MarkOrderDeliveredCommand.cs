@@ -8,7 +8,7 @@ namespace Ordering.Application.Orders.MarkOrderDelivered;
 /// <c>OrderDeliveredEvent</c>. v2 may replace this with a carrier-webhook
 /// adapter (ordering.md Appendix B.6).
 /// </summary>
-public sealed class MarkOrderDeliveredCommand : ICommand
+public sealed record MarkOrderDeliveredCommand : ICommand
 {
     public required Guid OrderId { get; init; }
 }

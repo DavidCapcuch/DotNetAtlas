@@ -7,7 +7,7 @@ namespace Ordering.Application.Orders.ConfirmOrder;
 /// succeed. Transitions the <c>Order</c> to <c>OrderStatus.Confirmed</c>
 /// and emits the external <c>OrderConfirmedEvent</c>.
 /// </summary>
-public sealed class ConfirmOrderCommand : ICommand
+public sealed record ConfirmOrderCommand : ICommand
 {
     public required Guid OrderId { get; init; }
 }

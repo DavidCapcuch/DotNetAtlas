@@ -8,7 +8,7 @@ namespace Ordering.Application.Orders.MarkOrderStockReserved;
 /// external event is emitted (the saga already observed Inventory's own
 /// <c>StockReservedEvent</c>; see ordering.md § 6 consumer table).
 /// </summary>
-public sealed class MarkOrderStockReservedCommand : ICommand
+public sealed record MarkOrderStockReservedCommand : ICommand
 {
     public required Guid OrderId { get; init; }
 

@@ -8,7 +8,7 @@ namespace Ordering.Application.Orders.MarkOrderPaymentCompleted;
 /// external event (the saga already observed Payments' own
 /// <c>PaymentCompletedEvent</c>; see ordering.md § 6 consumer table).
 /// </summary>
-public sealed class MarkOrderPaymentCompletedCommand : ICommand
+public sealed record MarkOrderPaymentCompletedCommand : ICommand
 {
     public required Guid OrderId { get; init; }
 

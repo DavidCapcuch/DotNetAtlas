@@ -11,7 +11,7 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// <c>invoicing.md § 12</c> are deferred to a later milestone (the table requires a
 /// user-generated EF migration per CLAUDE.md).
 /// </summary>
-public sealed class ResendInvoiceCommand : ICommand
+public sealed record ResendInvoiceCommand : ICommand
 {
     public required Guid InvoiceId { get; init; }
 }

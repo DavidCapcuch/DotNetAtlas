@@ -9,7 +9,7 @@ namespace Inventory.Application.StockItems.ReleaseReservation;
 /// <see cref="Reason"/> distinguishes the cause; it propagates unchanged into
 /// the external <c>ReservationReleasedEvent</c>.
 /// </summary>
-public sealed class ReleaseReservationCommand : ICommand
+public sealed record ReleaseReservationCommand : ICommand
 {
     public required Guid ReservationId { get; init; }
 

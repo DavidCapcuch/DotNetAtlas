@@ -6,7 +6,7 @@ namespace Ordering.Application.Orders.GetOrdersByBuyer;
 /// Lists the caller's orders, most-recent-first, paged with offset / limit
 /// (Appendix B.4 default). <c>Status</c> filter is optional.
 /// </summary>
-public sealed class GetOrdersByBuyerQuery : IQuery<GetOrdersByBuyerResponse>
+public sealed record GetOrdersByBuyerQuery : IQuery<GetOrdersByBuyerResponse>
 {
     public required Guid BuyerId { get; init; }
 

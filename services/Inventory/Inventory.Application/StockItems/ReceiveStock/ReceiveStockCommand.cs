@@ -9,7 +9,7 @@ namespace Inventory.Application.StockItems.ReceiveStock;
 /// <see cref="StockLevelResponse"/> so the admin caller can render the new
 /// on-hand / reserved / available figures without a follow-up GET.
 /// </summary>
-public sealed class ReceiveStockCommand : ICommand<StockLevelResponse>
+public sealed record ReceiveStockCommand : ICommand<StockLevelResponse>
 {
     public required Guid ProductId { get; init; }
 
