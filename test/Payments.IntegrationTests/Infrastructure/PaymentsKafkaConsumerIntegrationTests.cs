@@ -54,7 +54,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
 
         await handler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -90,7 +90,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
 
         await handler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -124,14 +124,14 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var captureHandler = scope.ServiceProvider.GetRequiredService<CapturePaymentCommandKafkaHandler>();
 
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             NewAvroAuthorize(correlationId, orderId, amount: 100m));
 
         var outbox = _fixture.GetFakeOutbox();
         outbox.Clear();
 
         await captureHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
                 CorrelationId = correlationId,
@@ -168,13 +168,13 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var voidHandler = scope.ServiceProvider.GetRequiredService<VoidPaymentCommandKafkaHandler>();
 
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             NewAvroAuthorize(correlationId, orderId, amount: 50m));
 
         _fixture.GetFakeOutbox().Clear();
 
         await voidHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroVoidPaymentCommand
             {
                 CorrelationId = correlationId,
@@ -215,11 +215,11 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var refundHandler = scope.ServiceProvider.GetRequiredService<RequestRefundCommandKafkaHandler>();
 
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             NewAvroAuthorize(correlationId, orderId, amount: 75m));
 
         await captureHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
                 CorrelationId = correlationId,
@@ -232,7 +232,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         _fixture.GetFakeOutbox().Clear();
 
         await refundHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroRequestRefundCommand
             {
                 CorrelationId = correlationId,
@@ -304,7 +304,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
             await captureHandler.Handle(
-                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 avroCapture));
 
         var aggregateAfter = await dbContext.Transactions.AsNoTracking()
@@ -337,7 +337,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // Phase 1: drive the decline to land the aggregate in Failed and emit
         // PaymentAuthorizationFailedEvent on the outbox.
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -353,7 +353,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         _fixture.GetGateway().Reset();
 
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
         var afterRetry = await dbContext.Transactions.AsNoTracking()
@@ -391,11 +391,11 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var voidHandler = scope.ServiceProvider.GetRequiredService<VoidPaymentCommandKafkaHandler>();
 
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             NewAvroAuthorize(correlationId, orderId, amount: 50m));
 
         await captureHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
                 CorrelationId = correlationId,
@@ -416,7 +416,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
             await voidHandler.Handle(
-                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 new AvroVoidPaymentCommand
                 {
                     CorrelationId = correlationId,
@@ -456,7 +456,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var voidHandler = scope.ServiceProvider.GetRequiredService<VoidPaymentCommandKafkaHandler>();
 
         await authorizeHandler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             NewAvroAuthorize(correlationId, orderId, amount: 50m));
 
         _fixture.GetFakeOutbox().Clear();
@@ -464,7 +464,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
             await voidHandler.Handle(
-                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 new AvroVoidPaymentCommand
                 {
                     CorrelationId = correlationId,
@@ -502,7 +502,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
 
         await handler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
         _fixture.GetGateway().LastAuthorizeIdempotencyKey.Should().Be(avro.IdempotencyKey);
@@ -518,6 +518,15 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         new()
         {
             CorrelationId = correlationId,
+            // Cross-cutting wave1-followup #255: the production saga mints a fresh v7
+            // PaymentTransactionId at initial state and the Payments mapper uses it as the
+            // aggregate PK. For this integration-test helper we deliberately collapse the two
+            // ids onto the same value so the existing test assertions that derive the stored
+            // GatewayTransactionId via $"stub-{correlationId:N}" continue to match what
+            // StubPaymentGateway produces from tx.Id. Tests focused on the PaymentTransactionId-
+            // distinct-from-CorrelationId contract live in
+            // SagaCommandMappersTests + PaymentProcessingSagaOrchestratorTests.
+            PaymentTransactionId = correlationId,
             OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             // Real-PSP-shaped token (Stripe-style 'pm_*' string) per C-2 closeout — the Avro

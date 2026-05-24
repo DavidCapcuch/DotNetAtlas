@@ -28,6 +28,10 @@ internal sealed class PaymentRepository : IPaymentRepository
         _dbContext.Transactions.AsNoTracking().FirstOrDefaultAsync(t => t.Id == paymentId, ct);
 
     /// <inheritdoc />
+    public Task<PaymentTransaction?> GetByCorrelationIdForUpdateAsync(Guid correlationId, CancellationToken ct) =>
+        _dbContext.Transactions.FirstOrDefaultAsync(t => t.CorrelationId == correlationId, ct);
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<PaymentTransaction>> GetByOrderIdAsync(Guid orderId, CancellationToken ct) =>
         await _dbContext.Transactions
             .AsNoTracking()

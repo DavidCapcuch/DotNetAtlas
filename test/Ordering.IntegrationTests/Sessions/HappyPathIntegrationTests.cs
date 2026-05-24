@@ -51,7 +51,7 @@ public sealed class HappyPathIntegrationTests
             var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
             var avro = NewValidCreateCommand(correlationId);
             await handler.Handle(
-                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 avro);
         }
 
@@ -104,7 +104,7 @@ public sealed class HappyPathIntegrationTests
                 RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
             };
             await handler.Handle(
-                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 avro);
         }
 
