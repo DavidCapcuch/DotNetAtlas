@@ -154,7 +154,8 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
 
         var creditNoteNumber = await _numberAllocator.AllocateAsync(ct);
 
-        var createResult = CreditNote.Create(originalInvoice, reason, command.CorrelationId, utcNow);
+        var snapshot = originalInvoice.ToReversalSnapshot(utcNow);
+        var createResult = CreditNote.Create(snapshot, reason, command.CorrelationId, utcNow);
         if (createResult.IsFailed)
         {
             // Bug-class — Create's failure paths are all post-validation contract checks.
@@ -282,7 +283,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
     /// <remarks>
     /// The producer-side handler (M6) writes <see cref="RefundedAmount"/> as the absolute
     /// refunded amount (positive) — the credit note's domain layer flips the sign during
-    /// construction from <see cref="Invoice.LinesForReversal"/>.
+    /// snapshot construction inside <c>Invoice.ToReversalSnapshot</c>.
     /// </remarks>
     private sealed record PaymentPayload
     {

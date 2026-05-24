@@ -91,7 +91,7 @@ internal sealed class InvoiceSeed
 
         var utcNow = _time.GetUtcNow();
         var creditNote = CreditNote.Create(
-            originalInvoice: invoice,
+            originalInvoiceSnapshot: invoice.ToReversalSnapshot(utcNow),
             reason: CreditNoteReason.OrderCancelled,
             correlationId: invoice.CorrelationId,
             utcNow: utcNow).Value;

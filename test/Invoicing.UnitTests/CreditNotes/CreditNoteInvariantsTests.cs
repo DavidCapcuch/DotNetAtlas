@@ -9,40 +9,34 @@ using Platform.SharedKernel.Exceptions;
 namespace Invoicing.UnitTests.CreditNotes;
 
 /// <summary>
-/// Covers <c>CreditNote</c> aggregate invariants I-CN-1..I-CN-3.
+/// Covers <c>CreditNote</c> aggregate invariants I-CN-1..I-CN-3. I-CN-1 is enforced on the
+/// source side (<c>Invoice.ToReversalSnapshot</c>) per the snapshot refactor — tests
+/// targeting cancelled / draft invoices exercise that surface.
 /// </summary>
 public class CreditNoteInvariantsTests
 {
     [Fact]
-    public void ICN1_Create_FromCancelledInvoice_Throws()
+    public void ICN1_ToReversalSnapshot_FromCancelledInvoice_Throws()
     {
         var invoice = TestDataFactory.BuildIssuedInvoice();
         var creditNoteId = Guid.CreateVersion7();
         invoice.Cancel(creditNoteId, CreditNoteReason.OrderCancelled, TestDataFactory.FixedUtcNow);
 
-        var act = () => CreditNote.Create(
-            invoice,
-            CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
-            TestDataFactory.FixedUtcNow);
+        var act = () => invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow);
 
         act.Should().Throw<DataIntegrityException>()
-            .Which.ErrorCode.Should().Be("Invoicing.CreditNoteRefersToCancelledInvoice");
+            .Which.ErrorCode.Should().Be("Invoicing.SnapshotFromIneligibleInvoice");
     }
 
     [Fact]
-    public void ICN1_Create_FromDraftInvoice_Throws()
+    public void ICN1_ToReversalSnapshot_FromDraftInvoice_Throws()
     {
         var invoice = TestDataFactory.BuildDraftInvoice();
 
-        var act = () => CreditNote.Create(
-            invoice,
-            CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
-            TestDataFactory.FixedUtcNow);
+        var act = () => invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow);
 
         act.Should().Throw<DataIntegrityException>()
-            .Which.ErrorCode.Should().Be("Invoicing.CreditNoteRefersToCancelledInvoice");
+            .Which.ErrorCode.Should().Be("Invoicing.SnapshotFromIneligibleInvoice");
     }
 
     [Fact]
@@ -52,7 +46,7 @@ public class CreditNoteInvariantsTests
         var originalTotal = invoice.Total.Amount;
 
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
@@ -68,7 +62,7 @@ public class CreditNoteInvariantsTests
         var originalLine = invoice.Lines[0];
 
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
@@ -84,7 +78,7 @@ public class CreditNoteInvariantsTests
     {
         var invoice = TestDataFactory.BuildIssuedInvoice();
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
@@ -105,7 +99,7 @@ public class CreditNoteInvariantsTests
     {
         var invoice = TestDataFactory.BuildIssuedInvoice();
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
@@ -124,7 +118,7 @@ public class CreditNoteInvariantsTests
         var invoice = TestDataFactory.BuildIssuedInvoice();
 
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
@@ -137,7 +131,7 @@ public class CreditNoteInvariantsTests
     {
         var invoice = TestDataFactory.BuildIssuedInvoice();
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
@@ -153,7 +147,7 @@ public class CreditNoteInvariantsTests
     {
         var invoice = TestDataFactory.BuildIssuedInvoice();
         var creditNote = CreditNote.Create(
-            invoice,
+            invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
             Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;

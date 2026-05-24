@@ -2,7 +2,6 @@ using FluentResults;
 using Invoicing.Domain.Common.ValueObjects;
 using Invoicing.Domain.CreditNotes.Events;
 using Invoicing.Domain.CreditNotes.ValueObjects;
-using Invoicing.Domain.Invoices;
 using Invoicing.Domain.Invoices.ValueObjects;
 using Platform.SharedKernel.Base;
 using Platform.SharedKernel.Exceptions;
@@ -11,20 +10,25 @@ using Platform.SharedKernel.ValueObjects;
 namespace Invoicing.Domain.CreditNotes;
 
 /// <summary>
-/// Aggregate root \u2014 credit note reversing a previously-issued <see cref="Invoice"/>.
-/// Credit notes are immediately issued (no <c>Draft</c> state) and cannot be cancelled.
+/// Aggregate root \u2014 credit note reversing a previously-issued
+/// <c>Invoicing.Domain.Invoices.Invoice</c>. Credit notes are immediately issued (no
+/// <c>Draft</c> state) and cannot be cancelled.
 /// </summary>
 /// <remarks>
 /// Invariants ([invoicing.md \u00a7 2.2](../../../../docs/bc-design/invoicing.md) lines 84\u201387):
 /// <list type="number">
 /// <item><c>I-CN-1</c> \u2014 <see cref="OriginalInvoiceId"/> references an invoice in <c>Issued</c>
-/// or <c>Delivered</c> state (validated by the command handler before construction).</item>
+/// or <c>Delivered</c> state (gated at the command handler; the snapshot factory on
+/// <c>Invoice.ToReversalSnapshot</c> defensively re-asserts the same precondition as a
+/// bug-class guard).</item>
 /// <item><c>I-CN-2</c> \u2014 <see cref="Total"/> is strictly negative.</item>
 /// <item><c>I-CN-3</c> \u2014 <see cref="CreditNoteNumber"/> is immutable post-allocation.</item>
 /// </list>
 /// v1 only supports full-amount reversals for <see cref="CreditNoteReason.OrderCancelled"/>;
 /// partial refunds are rejected at the command handler with
 /// <c>InvoicingErrors.PartialRefundNotSupportedV1</c>.
+/// CreditNote receives its source Invoice's state via <see cref="InvoiceSnapshot"/> so the
+/// aggregate boundary stays clean (DDD: references other aggregates by Id only).
 /// </remarks>
 public sealed class CreditNote : AggregateRoot<Guid>
 {
@@ -59,68 +63,53 @@ public sealed class CreditNote : AggregateRoot<Guid>
     }
 
     /// <summary>
-    /// Creates a credit note reversing <paramref name="originalInvoice"/>. Lines are copied
-    /// from the original with flipped signs; <see cref="Total"/> is the inverse of
-    /// <see cref="Invoice.Total"/>. Raises <see cref="CreditNoteCreatedDomainEvent"/>.
+    /// Creates a credit note reversing the invoice captured by
+    /// <paramref name="originalInvoiceSnapshot"/>. The snapshot carries pre-flipped lines and
+    /// the source total; this factory only computes the negative total and stores. Raises
+    /// <see cref="CreditNoteCreatedDomainEvent"/>.
     /// </summary>
     /// <remarks>
+    /// Eligibility (status Issued/Delivered + InvoiceNumber allocated) is guaranteed by
+    /// <c>Invoice.ToReversalSnapshot</c> at snapshot time; this factory does not re-check.
     /// The aggregate transitions to <see cref="CreditNoteStatus.Issued"/> only after the
     /// allocator provides a <see cref="CreditNoteNumber"/> and the PDF is uploaded; call
-    /// <see cref="Issue"/> to complete the state.
+    /// <see cref="Issue(CreditNoteNumber, PdfBlobRef, DateTimeOffset)"/> to complete the state.
     /// </remarks>
     public static Result<CreditNote> Create(
-        Invoice originalInvoice,
+        InvoiceSnapshot originalInvoiceSnapshot,
         CreditNoteReason reason,
         Guid correlationId,
         DateTimeOffset utcNow)
     {
-        ArgumentNullException.ThrowIfNull(originalInvoice);
+        ArgumentNullException.ThrowIfNull(originalInvoiceSnapshot);
         ArgumentNullException.ThrowIfNull(reason);
 
         Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
             "Invoicing.InvalidCorrelationId", "CreditNote CorrelationId must not be empty."));
 
-        // I-CN-1 \u2014 original invoice must be in Issued or Delivered. A cancelled invoice is
-        // a bug-class condition (the handler should have short-circuited with
-        // CreditNoteRefersToCancelledInvoice first), so it throws rather than Result.Fail.
-        if (originalInvoice.Status != InvoiceStatus.Issued && originalInvoice.Status != InvoiceStatus.Delivered)
-        {
-            throw new DataIntegrityException(
-                "Invoicing.CreditNoteRefersToCancelledInvoice",
-                $"Credit note cannot reference invoice in state '{originalInvoice.Status.Name}' (I-CN-1).");
-        }
-
-        if (originalInvoice.InvoiceNumber is null)
-        {
-            throw new DataIntegrityException(
-                "Invoicing.OriginalInvoiceMissingNumber",
-                "Credit note requires the original invoice to have an allocated InvoiceNumber.");
-        }
-
-        var reversedLines = originalInvoice.LinesForReversal();
-        var originalTotal = originalInvoice.Total;
-
         // I-CN-2 \u2014 Total is negative. Construct via primary Money ctor (intent is explicit).
-        var negativeTotal = new Money(-originalTotal.Amount, originalTotal.Currency);
+        var negativeTotal = new Money(
+            -originalInvoiceSnapshot.Total.Amount,
+            originalInvoiceSnapshot.Total.Currency);
 
         var creditNote = new CreditNote
         {
             Id = Guid.CreateVersion7(),
-            OriginalInvoiceId = originalInvoice.Id,
-            OriginalInvoiceNumber = originalInvoice.InvoiceNumber,
-            BuyerId = originalInvoice.BuyerId,
+            OriginalInvoiceId = originalInvoiceSnapshot.InvoiceId,
+            OriginalInvoiceNumber = originalInvoiceSnapshot.InvoiceNumber,
+            BuyerId = originalInvoiceSnapshot.BuyerId,
             CorrelationId = correlationId,
             Total = negativeTotal,
             Reason = reason,
             Status = CreditNoteStatus.Issued,
         };
 
-        creditNote._lines.AddRange(reversedLines);
+        creditNote._lines.AddRange(originalInvoiceSnapshot.ReversalLines);
 
         creditNote.AddDomainEvent(new CreditNoteCreatedDomainEvent
         {
             CreditNoteId = creditNote.Id,
-            OriginalInvoiceId = originalInvoice.Id,
+            OriginalInvoiceId = originalInvoiceSnapshot.InvoiceId,
             CorrelationId = correlationId,
             OccurredOnUtc = utcNow,
         });
