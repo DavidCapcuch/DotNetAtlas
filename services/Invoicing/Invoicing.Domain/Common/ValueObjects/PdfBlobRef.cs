@@ -14,11 +14,19 @@ namespace Invoicing.Domain.Common.ValueObjects;
 /// a bearer credential (issue #131).
 /// </para>
 /// </summary>
-public sealed record PdfBlobRef(string BlobName, string ContentHash, long SizeBytes) : ValueObject
+public sealed record PdfBlobRef : ValueObject
 {
     public const int ContentHashLength = 64;
     public const int BlobNameMaxLength = 1024;
     private const string PdfExtension = ".pdf";
+
+    public string BlobName { get; private init; } = null!;
+    public string ContentHash { get; private init; } = null!;
+    public long SizeBytes { get; private init; }
+
+    private PdfBlobRef()
+    {
+    }
 
     public static Result<PdfBlobRef> Create(string blobName, string contentHash, long sizeBytes)
     {
@@ -65,7 +73,12 @@ public sealed record PdfBlobRef(string BlobName, string ContentHash, long SizeBy
                 nameof(SizeBytes), "SizeBytes must be strictly positive.", "Invoicing.InvalidBlobSize"));
         }
 
-        return Result.Ok(new PdfBlobRef(blobName, contentHash, sizeBytes));
+        return Result.Ok(new PdfBlobRef
+        {
+            BlobName = blobName,
+            ContentHash = contentHash,
+            SizeBytes = sizeBytes,
+        });
     }
 
     private static bool IsLowerHex(char ch) =>

@@ -7,10 +7,26 @@ namespace Invoicing.Domain.Invoices.ValueObjects;
 /// Off-ramp metadata stamped onto a cancelled <c>Invoice</c> (I-6).
 /// Immutable once set.
 /// </summary>
-/// <param name="CancelledAtUtc">When the cancellation transition was applied.</param>
-/// <param name="Reason">Why the invoice was cancelled.</param>
-/// <param name="CreditNoteId">The credit note that reverses this invoice.</param>
-public sealed record CancellationInfo(
-    DateTimeOffset CancelledAtUtc,
-    CreditNoteReason Reason,
-    Guid CreditNoteId) : ValueObject;
+public sealed record CancellationInfo : ValueObject
+{
+    /// <summary>When the cancellation transition was applied.</summary>
+    public DateTimeOffset CancelledAtUtc { get; private init; }
+
+    /// <summary>Why the invoice was cancelled.</summary>
+    public CreditNoteReason Reason { get; private init; } = null!;
+
+    /// <summary>The credit note that reverses this invoice.</summary>
+    public Guid CreditNoteId { get; private init; }
+
+    private CancellationInfo()
+    {
+    }
+
+    public static CancellationInfo Create(DateTimeOffset cancelledAtUtc, CreditNoteReason reason, Guid creditNoteId) =>
+        new()
+        {
+            CancelledAtUtc = cancelledAtUtc,
+            Reason = reason,
+            CreditNoteId = creditNoteId,
+        };
+}

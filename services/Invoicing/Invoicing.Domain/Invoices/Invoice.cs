@@ -357,7 +357,7 @@ public sealed class Invoice : AggregateRoot<Guid>
             return transition;
         }
 
-        CancellationInfo = new CancellationInfo(utcNow, reason, creditNoteId);
+        CancellationInfo = CancellationInfo.Create(utcNow, reason, creditNoteId);
         Status = InvoiceStatus.Cancelled;
 
         AddDomainEvent(new InvoiceCancelledDomainEvent

@@ -24,19 +24,21 @@ public sealed record VatLine : ValueObject
     /// <summary>Tax amount (<see cref="Base"/> × <see cref="Rate"/> / 100).</summary>
     public Money Amount { get; private init; } = null!;
 
-    // EF Core materialisation ctor.
     private VatLine()
     {
     }
 
-    public VatLine(VatRate rate, Money @base, Money amount)
+    public static VatLine Create(VatRate rate, Money @base, Money amount)
     {
         ArgumentNullException.ThrowIfNull(rate);
         ArgumentNullException.ThrowIfNull(@base);
         ArgumentNullException.ThrowIfNull(amount);
 
-        Rate = rate;
-        Base = @base;
-        Amount = amount;
+        return new VatLine
+        {
+            Rate = rate,
+            Base = @base,
+            Amount = amount,
+        };
     }
 }

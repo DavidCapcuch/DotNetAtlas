@@ -197,7 +197,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
                 .HasPrecision(VatRatePrecision, VatRateScale)
                 .HasConversion(
                     rate => rate.Percentage,
-                    value => new VatRate(value))
+                    value => VatRate.Create(value).Value)
                 .HasComment("VAT rate percentage in [0, 100], 2 decimals.");
 
             vatLines.OwnsOne(v => v.Base, money => ConfigureMoney(money, "base"));
@@ -227,7 +227,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .HasMaxLength(Sku.MaxLength)
             .HasConversion(
                 sku => sku.Value,
-                value => new Sku(value))
+                value => Sku.Create(value).Value)
             .HasComment("Catalog SKU snapshot at issuance.");
 
         lines.Property(l => l.VatRate)
@@ -235,7 +235,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .HasPrecision(VatRatePrecision, VatRateScale)
             .HasConversion(
                 rate => rate.Percentage,
-                value => new VatRate(value))
+                value => VatRate.Create(value).Value)
             .HasComment("Applicable VAT rate, in [0, 100].");
 
         lines.OwnsOne(l => l.UnitPrice, money => ConfigureMoney(money, "unit_price"));

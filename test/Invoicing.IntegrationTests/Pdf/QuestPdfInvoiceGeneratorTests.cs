@@ -114,7 +114,7 @@ public sealed class QuestPdfInvoiceGeneratorTests
             unitPrice: Money.Create(100m, eur).Value,
             vatRate: VatRate.Create(21m).Value).Value;
 
-        var vatLine = new VatLine(
+        var vatLine = VatLine.Create(
             VatRate.Create(21m).Value,
             new Money(200m, eur),
             new Money(42m, eur));
