@@ -20,8 +20,12 @@ internal sealed class PaymentRepository : IPaymentRepository
     }
 
     /// <inheritdoc />
-    public Task<PaymentTransaction?> GetByIdAsync(Guid paymentId, CancellationToken ct) =>
+    public Task<PaymentTransaction?> GetByIdForUpdateAsync(Guid paymentId, CancellationToken ct) =>
         _dbContext.Transactions.FirstOrDefaultAsync(t => t.Id == paymentId, ct);
+
+    /// <inheritdoc />
+    public Task<PaymentTransaction?> GetByIdAsNoTrackingAsync(Guid paymentId, CancellationToken ct) =>
+        _dbContext.Transactions.AsNoTracking().FirstOrDefaultAsync(t => t.Id == paymentId, ct);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<PaymentTransaction>> GetByOrderIdAsync(Guid orderId, CancellationToken ct) =>

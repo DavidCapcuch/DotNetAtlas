@@ -72,7 +72,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         const string GatewayTransactionId = "stub-deadbeef";
 
         // Authorize: aggregate doesn't exist yet → handler creates + authorizes.
-        _repository.GetByIdAsync(paymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(paymentId, Arg.Any<CancellationToken>())
             .Returns((PaymentTransaction?)null);
         _gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse(GatewayTransactionId, new GatewayResponseCode("ok", "Approved"), Now.AddDays(7))));
@@ -102,7 +102,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         authorizedAggregate.Should().NotBeNull();
 
         // Configure repo to return the (now Authorized) aggregate for the capture step.
-        _repository.GetByIdAsync(paymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(paymentId, Arg.Any<CancellationToken>())
             .Returns(authorizedAggregate);
         _gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new CaptureResponse(GatewayTransactionId, new GatewayResponseCode("ok", "Captured"))));
@@ -156,7 +156,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         // Pre-built aggregate already in Authorized status: simulates the saga retry case
         // (Example 2.2 in docs/bc-design/example-mapping/payments.md).
         var existing = BuildAuthorizedAggregate();
-        _repository.GetByIdAsync(paymentId, Arg.Any<CancellationToken>())
+        _repository.GetByIdForUpdateAsync(paymentId, Arg.Any<CancellationToken>())
             .Returns(existing);
 
         using var scope = _provider.CreateScope();
@@ -211,7 +211,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            await _repository.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            await _repository.DidNotReceive().GetByIdForUpdateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
             await _gateway.DidNotReceive().AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
     }

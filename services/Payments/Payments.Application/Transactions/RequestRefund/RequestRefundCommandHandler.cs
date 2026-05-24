@@ -47,7 +47,7 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var tx = await _repository.GetByIdAsync(command.PaymentId, ct);
+        var tx = await _repository.GetByIdForUpdateAsync(command.PaymentId, ct);
         if (tx is null)
         {
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));

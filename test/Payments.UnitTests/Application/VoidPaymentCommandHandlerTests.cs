@@ -40,7 +40,7 @@ public class VoidPaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new VoidResponse(new GatewayResponseCode("ok", "Voided"))));
 
@@ -60,7 +60,7 @@ public class VoidPaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<VoidResponse>("infra-error"));
 
@@ -79,7 +79,7 @@ public class VoidPaymentCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Voided(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -95,7 +95,7 @@ public class VoidPaymentCommandHandlerTests
     public async Task Handle_PaymentNotFound_ReturnsFailure()
     {
         var command = BuildCommand();
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -110,7 +110,7 @@ public class VoidPaymentCommandHandlerTests
         // would otherwise see a Void on an already-captured authorization (undefined behaviour).
         var existing = PaymentTransactionFactory.Completed(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, existing.GatewayTransactionId);
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -128,7 +128,7 @@ public class VoidPaymentCommandHandlerTests
         // so the message routes to DLT for operator inspection.
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id, authorizationId: "wrong-token");
-        _repository.GetByIdAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
