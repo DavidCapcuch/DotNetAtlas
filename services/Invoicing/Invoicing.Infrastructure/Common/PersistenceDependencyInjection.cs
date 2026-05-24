@@ -67,8 +67,9 @@ internal static class PersistenceDependencyInjection
                 })
             .UseSnakeCaseNamingConvention()
             // EF Core sensitive-data logging dumps query parameters (including PII-bearing
-            // _enc columns per ADR-0011). Caller (Program.cs) gates this to Development
-            // only — Test, Staging, Testing must NOT enable it (closeout1 M7).
+            // _enc columns per ADR-0011). Caller (Program.cs) gates this to non-deployed
+            // environments only (Development + Test + Testing test-host) so deployed
+            // Staging/Production never leak PII into log shippers.
             .EnableSensitiveDataLogging(enableSensitiveDataLogging)
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
             .UseExceptionProcessor()

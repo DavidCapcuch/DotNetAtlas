@@ -25,10 +25,11 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     // EF Core sensitive-data logging exposes parameter values (PII-bearing _enc
-    // columns per ADR-0011) in the query log. Gate strictly to Development —
-    // not all non-deployed environments (Test, Staging, the Testing test-host)
-    // should leak PII into logs (closeout1 M7).
-    var enableSensitiveDataLogging = builder.Environment.IsDevelopment();
+    // columns per ADR-0011). Platform convention (#121): allow it everywhere
+    // EXCEPT deployed environments (Staging/Production) — Development, Test,
+    // and the Testing test-host need the visibility for debugging. Matches the
+    // gate on every other BC's DbContext registration.
+    var enableSensitiveDataLogging = !isDeployedEnvironment;
 
     builder.Services
         .AddInvoicingAuth(builder.Configuration, isDeployedEnvironment)
