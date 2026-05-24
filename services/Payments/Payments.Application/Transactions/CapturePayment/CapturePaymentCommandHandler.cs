@@ -47,7 +47,12 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var tx = await _repository.GetByIdForUpdateAsync(command.PaymentId, ct);
+        // Post-cross-cutting wave1-followup #255: the aggregate PK is the saga-issued
+        // PaymentTransactionId, not the CorrelationId. AvroCapturePaymentCommand does not
+        // carry PaymentTransactionId (only Authorize + RequestRefund do), so we resolve the
+        // aggregate via the unique correlation_id index. command.PaymentId here is just the
+        // log-scope echo from the mapper.
+        var tx = await _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, ct);
         if (tx is null)
         {
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));

@@ -40,7 +40,7 @@ public class RequestRefundCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Completed(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id);
-        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new RefundResponse(new GatewayResponseCode("ok", "Refunded"))));
 
@@ -60,7 +60,7 @@ public class RequestRefundCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Completed(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id);
-        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<RefundResponse>("gateway-error"));
 
@@ -79,7 +79,7 @@ public class RequestRefundCommandHandlerTests
     {
         var existing = PaymentTransactionFactory.Refunded(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id);
-        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -95,7 +95,7 @@ public class RequestRefundCommandHandlerTests
     public async Task Handle_PaymentNotFound_ReturnsFailure()
     {
         var command = BuildCommand();
-        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
+        _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns((PaymentTransaction?)null);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -110,7 +110,7 @@ public class RequestRefundCommandHandlerTests
         // reject the refund or, worse, double-process. The Refund/Void asymmetry is a saga bug.
         var existing = PaymentTransactionFactory.Authorized(_timeProvider.GetUtcNow());
         var command = BuildCommand(existing.Id);
-        _repository.GetByIdForUpdateAsync(command.PaymentId, Arg.Any<CancellationToken>()).Returns(existing);
+        _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

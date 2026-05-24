@@ -47,7 +47,11 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var tx = await _repository.GetByIdForUpdateAsync(command.PaymentId, ct);
+        // Resolve by CorrelationId for consistency with Capture / Void post-#255. RequestRefund's
+        // Avro contract DOES carry PaymentTransactionId (refund targets a specific transaction by
+        // id), but the aggregate row is still uniquely identified by the saga's CorrelationId via
+        // the unique index; loading either way returns the same row.
+        var tx = await _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, ct);
         if (tx is null)
         {
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));

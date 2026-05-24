@@ -55,7 +55,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
+            correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken);
 
         await handler.Handle(context, avroCommand);
 
@@ -89,13 +89,14 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         var productId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
+        var correlationId = Guid.NewGuid();
 
         // Seed only 2 units, then request 5 -> InsufficientStock.
         await SeedStreamAsync(productId, onHand: 2);
 
         var avroCommand = new AvroReserveStockCommand
         {
-            CorrelationId = Guid.NewGuid(),
+            CorrelationId = correlationId,
             OrderId = orderId,
             ProductId = productId,
             ReservationId = reservationId,
@@ -106,7 +107,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
+            correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken);
 
         // InsufficientStock is a business-expected outcome -> the handler
         // returns Result.Ok from the application layer (which itself wrote

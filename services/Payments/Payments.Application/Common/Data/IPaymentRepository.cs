@@ -33,6 +33,18 @@ public interface IPaymentRepository
     Task<PaymentTransaction?> GetByIdAsNoTrackingAsync(Guid paymentId, CancellationToken ct);
 
     /// <summary>
+    /// Returns the aggregate whose <c>CorrelationId</c> matches <paramref name="correlationId"/>
+    /// for mutation, or <c>null</c> if no such row exists. The unique index on
+    /// <c>payment_transactions.correlation_id</c> guarantees at-most-one row. Used by the
+    /// Capture / Void / RequestRefund command handlers post-#255: the saga identifies the
+    /// aggregate by CorrelationId on those wire commands (PaymentTransactionId is only present
+    /// on AuthorizePaymentCommand + RequestRefundCommand, which suffices since the saga has
+    /// PaymentTransactionId in its own state but not all command DTOs carry it). Tracking is
+    /// enabled — caller mutates and the outbox-shared SaveChangesAsync flushes.
+    /// </summary>
+    Task<PaymentTransaction?> GetByCorrelationIdForUpdateAsync(Guid correlationId, CancellationToken ct);
+
+    /// <summary>
     /// Returns all payment transactions for a given order, in deterministic order. Read-only
     /// — used by the admin <c>GET /api/v1/payments?orderId=…</c> endpoint (M6); the
     /// implementation uses <c>AsNoTracking</c>.

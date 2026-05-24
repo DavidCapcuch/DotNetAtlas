@@ -47,7 +47,10 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var tx = await _repository.GetByIdForUpdateAsync(command.PaymentId, ct);
+        // Post-cross-cutting wave1-followup #255: see analogous comment in
+        // CapturePaymentCommandHandler. AvroVoidPaymentCommand does not carry PaymentTransactionId,
+        // so we resolve the aggregate via the unique correlation_id index.
+        var tx = await _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, ct);
         if (tx is null)
         {
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));
