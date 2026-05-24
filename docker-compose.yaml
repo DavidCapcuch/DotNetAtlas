@@ -4,7 +4,11 @@
 # downstream dependencies (DB / Redis / Kafka / Schema Registry) registered with
 # the `ready` tag in Platform.ServiceDefaults, giving (healthy) a real signal.
 x-readiness-healthcheck: &readiness-healthcheck
-  test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/readiness"]
+  # Use 127.0.0.1 (IP literal) not localhost: catalog/ordering/invoicing.api each
+  # have `extra_hosts: "localhost:host-gateway"` (for the Keycloak issuer bridge),
+  # which overrides /etc/hosts so `localhost` resolves to the host-gateway IP and
+  # the probe never hits in-container loopback. IP literals bypass /etc/hosts.
+  test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/api/readiness"]
   interval: 15s
   timeout: 5s
   retries: 3
@@ -305,7 +309,6 @@ services:
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alerts --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notification.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.commands.Payments.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=2592000000 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
@@ -689,6 +692,173 @@ services:
       - OTEL_SERVICE_NAME=Notifications
     ports:
       - "8103:8080"   # 8100 catalog.api, 8101 ordering.api, 8102 invoicing.api; 8090-8095 relays.
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  basket.api:
+    build:
+      context: .
+      dockerfile: services/Basket/Basket.Api/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
+    container_name: basket.api
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      redis-basket:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    # Same iss/metadata bridge as catalog.api: map host's `localhost` to the gateway
+    # IP inside the container so JwtBearer.Authority=http://localhost:9011/realms/dotnetatlas
+    # (the issuer baked into Keycloak's --hostname per docker-compose.yaml:731) is
+    # reachable via the host's port mapping (9011 → keycloak:8080).
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Basket=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      # Basket BC isolates two Redis instances per ADR-0016: redis-basket is the authoritative
+      # aggregate store (AOF, noeviction); redis-cache backs idempotency-key OutputCache (allkeys-lru).
+      # Both expose internal port 6379; redis-cache's 6380 host mapping is for host-side tooling only.
+      - ConnectionStrings__Redis__Basket=redis-basket:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      # Outbound ACL call to Catalog (price/availability) — in-compose service DNS.
+      - Basket__Catalog__BaseUrl=http://catalog.api:8080
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=Basket
+    ports:
+      - "8104:8080"   # 8100 catalog, 8101 ordering, 8102 invoicing, 8103 notifications; 8090-8095 relays.
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  inventory.api:
+    build:
+      context: .
+      dockerfile: services/Inventory/Inventory.API/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
+    container_name: inventory.api
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    # Same iss/metadata bridge as catalog.api (Keycloak issuer resolution from inside container).
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Inventory=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=Inventory
+    ports:
+      - "8105:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  payments.api:
+    build:
+      context: .
+      dockerfile: services/Payments/Payments.Api/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
+    container_name: payments.api
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    # Same iss/metadata bridge as catalog.api (Keycloak issuer resolution from inside container).
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Payments=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=Payments
+    ports:
+      - "8106:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # Saga orchestrator (MassTransit + SqlTransport.PostgreSQL + KafkaFlow). Internal service —
+  # no inbound JWT, no extra_hosts bridge. Reads commands from *.command topics, drives state
+  # transitions, emits checkout.sagas events via the saga outbox-relay (defined later).
+  saga:
+    build:
+      context: .
+      dockerfile: saga/SagaOrchestrators/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
+    container_name: saga
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Saga=Host=postgresdb;Port=5432;Database=Saga;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=SagaOrchestrators
+    ports:
+      - "8107:8080"
     deploy:
       resources:
         limits:
