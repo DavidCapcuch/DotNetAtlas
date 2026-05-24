@@ -117,11 +117,10 @@ internal sealed class StubPaymentGateway : IPaymentGateway
 
     private static bool EndsInNinetyNineCents(decimal amount)
     {
-        // Compare the fractional cents portion (rounded to 2dp) against 0.99 with epsilon
-        // tolerance to absorb decimal-representation noise. Currencies with non-2dp scales
-        // (JPY, KWD) will not match this rule, which is fine — the decline anchor is a
-        // teaching artefact for USD/EUR-shaped integration tests.
-        var fractional = Math.Round(amount - Math.Floor(amount), 2);
-        return Math.Abs(fractional - 0.99m) < 0.0001m;
+        // Decimal has no IEEE rounding noise, so a direct equality on the 2dp fractional portion
+        // is sound (#264). Currencies with non-2dp scales (JPY, KWD) will not match this rule,
+        // which is fine — the decline anchor is a teaching artefact for USD/EUR-shaped
+        // integration tests.
+        return Math.Round(amount - Math.Floor(amount), 2) == 0.99m;
     }
 }
