@@ -18,8 +18,8 @@ public static class AuthPolicies
 {
     /// <summary>
     /// Gates the Payments admin GET endpoints —
-    /// <c>GET /api/v1/payments/payments/{id}</c> and
-    /// <c>GET /api/v1/payments/payments?orderId=...</c>.
+    /// <c>GET /api/v1/payments/{id}</c> and
+    /// <c>GET /api/v1/payments?orderId=...</c>.
     /// Requires the <c>admin</c> realm role plus the <c>payments.read</c>
     /// scope claim (defense in depth: stolen scope alone, or admin token for
     /// a different audience without the scope, both fail).

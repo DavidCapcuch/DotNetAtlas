@@ -30,7 +30,9 @@ public sealed class PaymentStatus : SmartEnum<PaymentStatus>
 
     /// <summary>
     /// True when no further transitions are possible from this status.
-    /// <see cref="Completed"/> is NOT final — it remains saga-reversible via <see cref="Refunded"/>
+    /// Both <see cref="Captured"/> and <see cref="Completed"/> are NOT final — <see cref="Captured"/>
+    /// can auto-advance to <see cref="Completed"/> or be reversed via <see cref="Refunded"/>, and
+    /// <see cref="Completed"/> remains saga-reversible via <see cref="Refunded"/>
     /// (cancel-post-capture compensation path).
     /// </summary>
     public bool IsFinal { get; }
