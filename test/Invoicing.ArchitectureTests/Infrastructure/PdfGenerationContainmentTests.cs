@@ -1,4 +1,3 @@
-using Invoicing.ArchitectureTests.Rules;
 using NetArchTest.Rules;
 
 namespace Invoicing.ArchitectureTests.Infrastructure;
@@ -49,7 +48,7 @@ public sealed class PdfGenerationContainmentTests : BaseTest
             .That()
             .ResideInNamespaceMatching(@"^Invoicing\.Infrastructure\.Pdf(\..*)?$")
             .Should()
-            .MeetCustomRule(new DoesNotCallStaticUtcNowRule())
+            .MeetCustomRule(new NoStaticUtcNowRule())
             .GetResult();
         result.FailingTypes.Should().BeEmpty(
             "Per ADR-0019, PDF templates must derive every timestamp from aggregate state " +

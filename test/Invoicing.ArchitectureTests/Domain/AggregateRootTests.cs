@@ -1,4 +1,3 @@
-using Invoicing.ArchitectureTests.Rules;
 using NetArchTest.Rules;
 using Platform.SharedKernel.Base;
 

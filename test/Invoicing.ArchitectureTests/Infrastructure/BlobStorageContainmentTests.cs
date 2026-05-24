@@ -1,4 +1,3 @@
-using Invoicing.ArchitectureTests.Rules;
 using NetArchTest.Rules;
 
 namespace Invoicing.ArchitectureTests.Infrastructure;
@@ -50,7 +49,7 @@ public sealed class BlobStorageContainmentTests : BaseTest
             .That()
             .ResideInNamespaceMatching(@"^Invoicing\.Infrastructure\.Blobs(\..*)?$")
             .Should()
-            .MeetCustomRule(new DoesNotCallStaticUtcNowRule())
+            .MeetCustomRule(new NoStaticUtcNowRule())
             .GetResult();
         result.FailingTypes.Should().BeEmpty(
             "Per ADR-0015, the blob adapter must derive SAS expiry from an injected " +
