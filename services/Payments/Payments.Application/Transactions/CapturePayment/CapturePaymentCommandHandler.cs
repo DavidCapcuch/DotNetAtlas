@@ -83,12 +83,12 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
                 $"Cannot capture payment {tx.Id} from status '{tx.Status.Name}'.");
         }
 
-        // GatewayTransactionId was set by Authorize and is non-null in any post-Requested state;
-        // the aggregate's FSM guards in Capture / MarkCaptureFailed enforce this further.
-        var gatewayTransactionId = tx.GatewayTransactionId
-            ?? throw new DataIntegrityException(
-                "Payments.MissingGatewayTransactionId",
-                $"Payment {tx.Id} has no GatewayTransactionId despite status {tx.Status.Name}; this should be unreachable.");
+        // GatewayTransactionId is set by Authorize and is append-only per I-4. The
+        // CanTransitionTo(Captured) pre-check above proves the aggregate is in Authorized, so the
+        // bang here is safe — the aggregate's FSM is the single source of truth for the
+        // invariant. The handler-level null-guard the closeout (#250) used to carry was genuinely
+        // unreachable after the FSM pre-check landed and is removed.
+        var gatewayTransactionId = tx.GatewayTransactionId!;
 
         var gatewayResult = await _gateway.CaptureAsync(gatewayTransactionId, tx.Amount, ct);
         var utcNow = _timeProvider.GetUtcNow();

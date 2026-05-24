@@ -60,7 +60,7 @@ You own these. Justify each in your session summary.
 3. `docs/bc-design/glossary-payments.md` + `example-mapping/payments.md`
 4. `docs/bc-design/events-catalog.md` § 2 (rows with topic `payments.transactions` / `payments.commands`)
 5. `docs/bc-design/error-taxonomy.md § 3.5` (`PaymentsErrors` SSOT)
-6. `docs/bc-design/use-cases.md § 5` (command handlers + admin queries)
+6. `docs/bc-design/use-cases.md § 5` — the **Cross-Service Command Flow Summary** (no Payments-specific § exists; row 4 names the Payments touch-point in the saga → service handler flow)
 7. `docs/bc-design/checkout-saga.md` § 5 + § 6 — understand the caller side (PaymentProcessingSaga)
 8. `docs/adr/0001-centralized-saga-orchestration.md` + `0004` + `0007`
 9. **All ADRs in `<applicable_adrs>` below**

@@ -33,7 +33,7 @@ public class StubPaymentGatewayTests
         {
             result.Should().BeFailure();
             result.HasError<GatewayDeclinedError>(e =>
-                e.Reason == "insufficient_funds" && e.GatewayCode == "insufficient_funds")
+                e.Reason == "Insufficient funds on file" && e.GatewayCode == "insufficient_funds")
                 .Should().BeTrue();
         }
     }

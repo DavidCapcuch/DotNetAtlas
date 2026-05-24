@@ -84,10 +84,12 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
                 $"Cannot void payment {tx.Id} from status '{tx.Status.Name}'.");
         }
 
-        var gatewayTransactionId = tx.GatewayTransactionId
-            ?? throw new DataIntegrityException(
-                "Payments.MissingGatewayTransactionId",
-                $"Payment {tx.Id} has no GatewayTransactionId despite status {tx.Status.Name}; this should be unreachable.");
+        // GatewayTransactionId is set by Authorize and is append-only per I-4. The
+        // CanTransitionTo(Voided) pre-check above proves the aggregate is in Authorized, so the
+        // bang here is safe — the aggregate's FSM is the single source of truth for the
+        // invariant. The handler-level null-guard the closeout (#250) used to carry was genuinely
+        // unreachable after the FSM pre-check landed and is removed.
+        var gatewayTransactionId = tx.GatewayTransactionId!;
 
         var gatewayResult = await _gateway.VoidAsync(gatewayTransactionId, ct);
         var utcNow = _timeProvider.GetUtcNow();

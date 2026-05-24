@@ -66,7 +66,7 @@ internal sealed class StubPaymentGateway : IPaymentGateway
         if (EndsInNinetyNineCents(tx.Amount.Amount))
         {
             return Task.FromResult(
-                Result.Fail<AuthorizeResponse>(new GatewayDeclinedError("insufficient_funds", "insufficient_funds")));
+                Result.Fail<AuthorizeResponse>(new GatewayDeclinedError("Insufficient funds on file", "insufficient_funds")));
         }
 
         var response = new AuthorizeResponse(

@@ -262,8 +262,8 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // saga-ordering bug. Seed an aggregate in Requested status (no GatewayTransactionId)
         // and drive Capture directly — handler's FSM CanTransitionTo pre-check (H-Cond-2) fires
         // BEFORE any gateway call and throws `Payments.InvalidStatusTransition`. The legacy
-        // `Payments.MissingGatewayTransactionId` null-guard is now unreachable for this path
-        // (see M-14 follow-up issue).
+        // `Payments.MissingGatewayTransactionId` null-guard was removed in #250 — the aggregate's
+        // FSM is the single source of truth and the handler-level guard was unreachable.
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = correlationId;

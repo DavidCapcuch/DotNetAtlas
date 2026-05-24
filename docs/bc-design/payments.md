@@ -137,7 +137,7 @@ Transition guard: `PaymentStatus.CanTransitionTo(target)` consults a readonly `_
 
 ---
 
-## 5. Domain Events (internal, 8)
+## 5. Domain Events (internal, 9)
 
 Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Never published to Kafka directly — external events are translated by outbox publishers.
 
@@ -157,9 +157,11 @@ Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Nev
 
 **Topic:** `payments.transactions` — infinite retention (audit), partition key `CorrelationId`.
 
+> **Producer note:** `PaymentRequestedEvent` is the saga's *invocation* of the Payments sub-orchestration — per [`events-catalog.md § 2`](events-catalog.md) line 85 (`Producer = Checkout saga`) it is produced by Checkout / `PaymentProcessingSaga`, not by Payments. The Payments BC only owns the internal `PaymentRequestedDomainEvent` (raised when its own aggregate is created); it has no outbound publisher for `PaymentRequestedEvent`. The table row below is included for completeness so readers can trace the saga → Payments flow on a single page.
+
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
-| `PaymentRequestedEvent` | `PaymentRequestedDomainEvent` | PaymentProcessingSaga |
+| `PaymentRequestedEvent` | Checkout saga / `PaymentProcessingSaga` (NOT Payments — see note above) | PaymentProcessingSaga |
 | `PaymentAuthorizedEvent` | `PaymentAuthorizedDomainEvent` | PaymentProcessingSaga |
 | `PaymentAuthorizationFailedEvent` | `PaymentAuthorizationFailedDomainEvent` | PaymentProcessingSaga |
 | `PaymentCapturedEvent` | `PaymentCapturedDomainEvent` | PaymentProcessingSaga, **Invoicing** (enrichment trigger) |
