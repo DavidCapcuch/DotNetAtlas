@@ -26,15 +26,16 @@ public class CorrelationIdRoundtripTests : BaseApiTest
     {
     }
 
-    // The in-process test host does NOT set up the W3C Trace Context Activity that
-    // Platform.ReliableMessaging.Outbox.OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity
-    // reads; the OutboxMessage.Headers column is therefore null even when the inbound
-    // X-Correlation-Id header is set on the request. The production pipeline picks this up
-    // because YARP / OTel auto-instrumentation starts the Activity in deployed environments.
-    // Closing this in functional tests requires either (a) starting an Activity in the test
-    // fixture or (b) extracting Platform.Kafka.Common with a reusable Activity-bridge helper.
-    // Both are platform-level changes — out of M6 boundary.
-    [Fact(Skip = "Blocked on Platform.ReliableMessaging.Outbox Activity-bridge — see catalog M6 session summary deferred items.")]
+    // Still blocked, but the original skip-comment misdiagnosed the cause. The actual blocker:
+    // ApiTestFixture swaps the production IOutboxWriter for an in-memory FakeOutboxWriter that
+    // does NOT call DbContext.Add, so the test's `DbContext.Set<OutboxMessage>()` query is empty
+    // regardless of whether the Activity tag is set. Cross-cutting wave1-followup #256 closed the
+    // platform-side Activity → top-level header gap (verified by
+    // Platform.ReliableMessaging.Outbox.EFCore.UnitTests.OutboxMessageHeaderExtensionsCorrelationIdTests).
+    // Un-skipping this test requires either extending FakeOutboxWriter to capture and expose
+    // the Activity-derived headers per message, or replacing it with the real OutboxWriter for
+    // this scenario — both broader than the in-flight wave1 cleanup.
+    [Fact(Skip = "FakeOutboxWriter is in-memory and bypasses DbContext; DB query asserts nothing. Needs a FakeOutboxWriter that captures headers or a per-test real-writer override.")]
     public async Task WhenCorrelationIdHeaderProvided_OutboxRowCarriesIt()
     {
         // Arrange — seed a category needed by CreateProduct.

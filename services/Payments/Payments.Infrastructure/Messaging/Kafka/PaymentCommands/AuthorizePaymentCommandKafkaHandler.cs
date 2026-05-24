@@ -32,13 +32,16 @@ internal sealed class AuthorizePaymentCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroAuthorizePaymentCommand message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId; Avro payload field is
-        // convenience metadata only. PaymentId derives from it per the one-payment-per-saga rule.
+        // ADR-0008 — Kafka header is the authoritative CorrelationId. Aggregate PK is the
+        // saga-issued PaymentTransactionId per cross-cutting wave1-followup #255 (the Payments
+        // mapper consumes it as PaymentId; the v1 collapse where PaymentId == CorrelationId is
+        // unwound). Pass message.PaymentTransactionId into the log scope so the LogContext line
+        // matches what the aggregate actually persists.
         var correlationId = context.ExtractCorrelationId()
             ?? throw new InvalidOperationException(
                 "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
 
-        return ExecuteAsync(context, correlationId, paymentId: correlationId, async ct =>
+        return ExecuteAsync(context, correlationId, paymentId: message.PaymentTransactionId, async ct =>
         {
             var appCommand = message.ToAppCommand(correlationId);
             var result = await _appHandler.HandleAsync(appCommand, ct);
