@@ -510,6 +510,116 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task WhenPaymentInitiated_SagaStateCarriesFreshPaymentTransactionId()
+    {
+        // Cross-cutting wave1-followup #255:
+        // The saga must mint a fresh UUID v7 PaymentTransactionId at initial state — this becomes
+        // the Payments aggregate's primary key on the outbound AuthorizePaymentCommand. The id is
+        // distinct from CorrelationId; the v1 collapse where they coincided is being unwound.
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+
+        var paymentInitiatedSagaEvent = CreatePaymentInitiatedEvent(correlationId, userId);
+
+        // Act
+        await _testHarness.Bus.Publish(paymentInitiatedSagaEvent);
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
+
+        // Assert
+        var awaitingAuthorizationSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingAuthorization);
+
+        using (new AssertionScope())
+        {
+            awaitingAuthorizationSagaState.Should().NotBeNull();
+            awaitingAuthorizationSagaState.PaymentTransactionId.Should().NotBeNull(
+                "the saga issues PaymentTransactionId up front per wave1-followup #255");
+            awaitingAuthorizationSagaState.PaymentTransactionId!.Value.Should().NotBeEmpty();
+            awaitingAuthorizationSagaState.PaymentTransactionId.Value.Should().NotBe(correlationId,
+                "PaymentTransactionId must be distinct from CorrelationId — no v1 collapse");
+            IsUuidV7(awaitingAuthorizationSagaState.PaymentTransactionId.Value).Should().BeTrue(
+                "Guid.CreateVersion7() is required per ADR-0008 ID-format guidance");
+        }
+    }
+
+    [Fact]
+    public async Task WhenPaymentInitiated_PublishedAuthorizeCommand_CarriesPaymentTransactionId()
+    {
+        // Cross-cutting wave1-followup #255:
+        // The Avro AuthorizePaymentCommand must carry the saga-issued PaymentTransactionId so the
+        // Payments-side mapper can use it as the aggregate PK (AppAuthorizePaymentCommand.PaymentId).
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+
+        var paymentInitiatedSagaEvent = CreatePaymentInitiatedEvent(correlationId, userId);
+
+        await _testHarness.Bus.Publish(paymentInitiatedSagaEvent);
+        await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>();
+
+        var outboxMessage = _fakeOutboxWriter.GetMessages<AuthorizePaymentCommand>().Single();
+        var sagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingAuthorization);
+
+        using (new AssertionScope())
+        {
+            outboxMessage.IntegrationEvent.PaymentTransactionId.Should().Be(
+                sagaState.PaymentTransactionId!.Value,
+                "Avro PaymentTransactionId matches the saga-state value the Payments aggregate will adopt as its PK");
+            outboxMessage.IntegrationEvent.PaymentTransactionId.Should().NotBe(correlationId,
+                "PaymentTransactionId must be distinct from CorrelationId on the wire");
+        }
+    }
+
+    [Fact]
+    public async Task WhenAuthorizationFailedRetryable_RetriedAuthorizeCommand_ReusesPaymentTransactionId()
+    {
+        // Cross-cutting wave1-followup #255:
+        // The saga must stick with the originally-minted PaymentTransactionId on retry so the
+        // Payments aggregate can identify the existing row (one-payment-per-saga, idempotent retry).
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+
+        await _testHarness.Bus.Publish(CreatePaymentInitiatedEvent(correlationId, userId));
+        var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
+        sagaExists.Should().BeTrue();
+
+        var initialState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingAuthorization);
+        var originalPaymentTransactionId = initialState.PaymentTransactionId;
+
+        // Act: retryable auth failure → saga must republish AuthorizePaymentCommand
+        await _testHarness.Bus.Publish(new PaymentAuthorizationFailedSagaEvent
+        {
+            CorrelationId = correlationId,
+            UserId = userId,
+            ErrorCode = "GATEWAY_TIMEOUT",
+            ErrorMessage = "transient",
+            IsRetryable = true,
+            FailedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
+        });
+        await _sagaHarness.Consumed.Any<PaymentAuthorizationFailedSagaEvent>();
+
+        // Assert
+        var authorizeMessages = _fakeOutboxWriter.GetMessages<AuthorizePaymentCommand>().ToList();
+
+        using (new AssertionScope())
+        {
+            authorizeMessages.Should().HaveCount(2, "the initial publish + one retry");
+            authorizeMessages[1].IntegrationEvent.PaymentTransactionId.Should().Be(
+                originalPaymentTransactionId!.Value,
+                "the retried command must reuse the original PaymentTransactionId so Payments idempotently re-authorizes the same aggregate row");
+        }
+    }
+
+    private static bool IsUuidV7(Guid guid)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        guid.TryWriteBytes(bytes, bigEndian: true, out _);
+        return (bytes[6] >> 4) == 0x7;
+    }
+
     private PaymentInitiatedSagaEvent CreatePaymentInitiatedEvent(
         Guid correlationId,
         Guid userId,

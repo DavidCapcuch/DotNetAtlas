@@ -99,6 +99,12 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx.Saga.Currency = ctx.Message.Currency;
                     ctx.Saga.IdempotencyKey = ctx.Message.IdempotencyKey;
                     ctx.Saga.InitiatedAtUtc = ctx.Message.InitiatedAtUtc;
+                    // Cross-cutting wave1-followup #255: mint the Payments aggregate's PK up front
+                    // so the AuthorizePaymentCommand wire contract carries it, retries reuse it, and
+                    // the v7 PK guarantee on PaymentTransaction.Id is genuine. CorrelationId stays
+                    // distinct — one-payment-per-saga is enforced by the unique index on
+                    // payment_transactions.correlation_id.
+                    ctx.Saga.PaymentTransactionId = Guid.CreateVersion7();
                 })
                 .Activity(x => x.OfType<PaymentSagaStartedActivity>())
                 .PublishToOutbox(
@@ -107,6 +113,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => new AuthorizePaymentCommand
                     {
                         CorrelationId = ctx.Saga.CorrelationId,
+                        PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
                         OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
                         PaymentMethodId = ctx.Saga.PaymentMethodId,
@@ -171,6 +178,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => new AuthorizePaymentCommand
                             {
                                 CorrelationId = ctx.Saga.CorrelationId,
+                                // Reuse the PaymentTransactionId minted at initial state — the
+                                // Payments aggregate identifies the same row across retries
+                                // (one-payment-per-saga; idempotent re-authorize).
+                                PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
                                 OrderId = ctx.Saga.OrderId,
                                 UserId = ctx.Saga.UserId,
                                 PaymentMethodId = ctx.Saga.PaymentMethodId,

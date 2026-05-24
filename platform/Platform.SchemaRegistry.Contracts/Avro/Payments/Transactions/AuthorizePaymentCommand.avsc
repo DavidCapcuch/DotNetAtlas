@@ -13,6 +13,14 @@
             "doc": "Correlation ID for tracking the workflow."
         },
         {
+            "name": "PaymentTransactionId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Saga-minted UUID v7 that becomes the Payments aggregate's primary key. Saga emits a fresh value at initial state and reuses it on every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == CorrelationId) was unwound in cross-cutting wave1-followup #255 so the 'v7 PK' guarantee on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by the unique index on payment_transactions.correlation_id."
+        },
+        {
             "name": "OrderId",
             "type": {
                 "type": "string",
