@@ -84,7 +84,9 @@ public class GetPaymentByIdTests : BaseApiTest
             payload.Status.Should().Be("Requested");
             payload.Amount.Should().Be(seeded.Amount.Amount);
             payload.Currency.Should().Be(seeded.Amount.Currency.Name);
-            payload.PaymentMethodId.Should().Be(seeded.PaymentMethodId.Value);
+            // ADR-0011 — response masks sensitive tokens to last-4 (see PaymentTransactionResponseMapper.MaskTrailing).
+            // Default seed paymentMethodId is "pm_test_card_visa" → "****visa".
+            payload.PaymentMethodId.Should().Be("****visa");
             payload.GatewayTransactionId.Should().BeNull();
             payload.AuthorizedAtUtc.Should().BeNull();
         }

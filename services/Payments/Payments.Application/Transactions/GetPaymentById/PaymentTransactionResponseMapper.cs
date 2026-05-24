@@ -6,7 +6,9 @@ namespace Payments.Application.Transactions;
 /// <summary>
 /// Shared aggregate → <see cref="GetPaymentByIdResponse"/> projection. Used by both
 /// <c>GetPaymentByIdQueryHandler</c> and <c>GetPaymentsByOrderQueryHandler</c> so the wire
-/// shape is identical.
+/// shape is identical. Sensitive token fields are masked per ADR-0011 (see
+/// <see cref="MaskTrailing"/>); the underlying <c>*_enc</c> columns hold the full value
+/// for the BCs that legitimately need it (Invoicing's AuthorizationId, outbox events).
 /// </summary>
 internal static class PaymentTransactionResponseMapper
 {
@@ -22,9 +24,9 @@ internal static class PaymentTransactionResponseMapper
             OrderId = tx.OrderId,
             Amount = tx.Amount.Amount,
             Currency = tx.Amount.Currency.Name,
-            PaymentMethodId = tx.PaymentMethodId.Value,
+            PaymentMethodId = MaskTrailing(tx.PaymentMethodId.Value),
             Status = tx.Status.Name,
-            GatewayTransactionId = tx.GatewayTransactionId,
+            GatewayTransactionId = tx.GatewayTransactionId is null ? null : MaskTrailing(tx.GatewayTransactionId),
             GatewayResponseCode = tx.GatewayResponseCode?.Code,
             AuthorizedAtUtc = tx.AuthorizedAtUtc,
             CapturedAtUtc = tx.CapturedAtUtc,
@@ -38,5 +40,20 @@ internal static class PaymentTransactionResponseMapper
                 RecordedAtUtc = tx.FailureInfo.RecordedAtUtc,
             },
         };
+    }
+
+    /// <summary>
+    /// Masks all but the trailing 4 characters of a sensitive token (ADR-0011).
+    /// Values of 4 characters or fewer are returned as the literal <c>"***"</c> so
+    /// no fingerprint of a short token leaks. Returns the empty string unchanged.
+    /// </summary>
+    internal static string MaskTrailing(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return value.Length <= 4 ? "***" : $"****{value[^4..]}";
     }
 }

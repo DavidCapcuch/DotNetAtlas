@@ -5,6 +5,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Platform.ServiceDefaults.Config;
+using Platform.ServiceDefaults.Pii;
 using Weather.Application.Common.Observability;
 
 namespace Weather.Infrastructure.Common;
@@ -61,7 +62,8 @@ public static class ObservabilityDependencyInjection
                         .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
                         .AddFusionCacheInstrumentation()
                         .AddHangfireInstrumentation()
-                        .AddSource("*");
+                        .AddSource("*")
+                        .AddPiiRedactionProcessor(); // ADR-0011 — redacts [Pii]-tagged span attributes before export
 
                     tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 })
