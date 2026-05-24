@@ -61,7 +61,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentAuthorizationFailedMapper_MapsErrorCodeFromGatewayCodeWhenAvailable()
     {
-        var failureInfo = new FailureInfo(FailureReason.InsufficientFunds, "insufficient_funds", Now);
+        var failureInfo = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", Now);
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = PaymentId,
@@ -87,7 +87,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentAuthorizationFailedMapper_FallsBackToReasonNameWhenGatewayCodeMissing()
     {
-        var failureInfo = new FailureInfo(FailureReason.Unknown, GatewayCode: null, Now);
+        var failureInfo = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, Now);
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = PaymentId,
@@ -119,7 +119,7 @@ public class PaymentEventMapperTests
         int reasonValue, bool expectedIsRetryable)
     {
         var reason = FailureReason.FromValue(reasonValue);
-        var failureInfo = new FailureInfo(reason, GatewayCode: null, Now);
+        var failureInfo = FailureInfo.Create(reason, gatewayCode: null, Now);
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = PaymentId,
@@ -141,7 +141,7 @@ public class PaymentEventMapperTests
         int reasonValue, bool expectedIsRetryable)
     {
         var reason = FailureReason.FromValue(reasonValue);
-        var failureInfo = new FailureInfo(reason, GatewayCode: null, Now);
+        var failureInfo = FailureInfo.Create(reason, gatewayCode: null, Now);
         var domainEvent = new PaymentCaptureFailedDomainEvent
         {
             PaymentId = PaymentId,
@@ -190,7 +190,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentCaptureFailedMapper_PopulatesAuthorizationIdFromDomainEvent()
     {
-        var failureInfo = new FailureInfo(FailureReason.GatewayDeclined, "card_declined", Now);
+        var failureInfo = FailureInfo.Create(FailureReason.GatewayDeclined, "card_declined", Now);
         var domainEvent = new PaymentCaptureFailedDomainEvent
         {
             PaymentId = PaymentId,

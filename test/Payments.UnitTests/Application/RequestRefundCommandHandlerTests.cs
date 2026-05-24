@@ -42,7 +42,7 @@ public class RequestRefundCommandHandlerTests
         var command = BuildCommand(existing.Id);
         _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, Arg.Any<CancellationToken>()).Returns(existing);
         _gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(new RefundResponse(new GatewayResponseCode("ok", "Refunded"))));
+            .Returns(Result.Ok(new RefundResponse(GatewayResponseCode.Create("ok", "Refunded"))));
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

@@ -8,8 +8,8 @@ public class FailureInfoTests
     public void Equality_IsByValue()
     {
         var recordedAt = DateTimeOffset.UtcNow;
-        var first = new FailureInfo(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
-        var second = new FailureInfo(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
+        var first = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
+        var second = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
 
         first.Should().Be(second);
     }
@@ -18,8 +18,8 @@ public class FailureInfoTests
     public void Inequality_WhenReasonDiffers()
     {
         var recordedAt = DateTimeOffset.UtcNow;
-        var first = new FailureInfo(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
-        var second = new FailureInfo(FailureReason.FraudSuspected, "insufficient_funds", recordedAt);
+        var first = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
+        var second = FailureInfo.Create(FailureReason.FraudSuspected, "insufficient_funds", recordedAt);
 
         first.Should().NotBe(second);
     }
@@ -27,7 +27,7 @@ public class FailureInfoTests
     [Fact]
     public void NullGatewayCode_IsAccepted()
     {
-        var info = new FailureInfo(FailureReason.Unknown, GatewayCode: null, DateTimeOffset.UtcNow);
+        var info = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, DateTimeOffset.UtcNow);
 
         using (new AssertionScope())
         {

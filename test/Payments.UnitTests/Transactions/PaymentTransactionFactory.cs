@@ -16,8 +16,8 @@ internal static class PaymentTransactionFactory
     public const string DefaultGatewayTransactionId = "gw-tx-abc123";
     public const string DefaultVoidReason = "saga_compensation";
 
-    public static readonly GatewayResponseCode SuccessResponse = new("ok", "Approved");
-    public static readonly GatewayResponseCode DeclineResponse = new("insufficient_funds", "Declined");
+    public static readonly GatewayResponseCode SuccessResponse = GatewayResponseCode.Create("ok", "Approved");
+    public static readonly GatewayResponseCode DeclineResponse = GatewayResponseCode.Create("insufficient_funds", "Declined");
 
     public static Money UsdAmount(decimal amount = 100m) => Money.Create(amount, "USD").Value;
 
@@ -64,7 +64,7 @@ internal static class PaymentTransactionFactory
     {
         var tx = Requested(utcNow);
         tx.PopDomainEvents();
-        tx.MarkAuthorizationFailed(new FailureInfo(FailureReason.InsufficientFunds, "insufficient_funds", utcNow), utcNow);
+        tx.MarkAuthorizationFailed(FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", utcNow), utcNow);
         tx.PopDomainEvents();
         return tx;
     }

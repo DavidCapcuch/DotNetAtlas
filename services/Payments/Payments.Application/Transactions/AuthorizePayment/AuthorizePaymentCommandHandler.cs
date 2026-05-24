@@ -153,7 +153,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             }
 
             var reason = GatewayResponseClassifier.Classify(declined.GatewayCode);
-            var failureInfo = new FailureInfo(reason, declined.GatewayCode, utcNow);
+            var failureInfo = FailureInfo.Create(reason, declined.GatewayCode, utcNow);
             var failedResult = tx.MarkAuthorizationFailed(failureInfo, utcNow);
             if (failedResult.IsFailed)
             {

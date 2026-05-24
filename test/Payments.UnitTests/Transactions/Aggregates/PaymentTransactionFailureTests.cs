@@ -13,7 +13,7 @@ public class PaymentTransactionFailureTests
     private DateTimeOffset UtcNow => _fakeTimeProvider.GetUtcNow();
 
     private FailureInfo BuildFailureInfo() =>
-        new(FailureReason.InsufficientFunds, "insufficient_funds", UtcNow);
+        FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", UtcNow);
 
     [Fact]
     public void MarkAuthorizationFailed_FromRequested_TransitionsToFailedAndRaisesBothEventsInOrder()
