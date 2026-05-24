@@ -4,6 +4,7 @@ using Notifications.Infrastructure.Common.Observability;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Platform.ServiceDefaults.Pii;
 
 namespace Notifications.Infrastructure.Common;
 
@@ -44,6 +45,9 @@ public static class ObservabilityDependencyInjection
                     tracing
                         .AddEntityFrameworkCoreInstrumentation()
                         .AddSource("*");
+
+                    // ADR-0011 — redacts [Pii]-tagged span attributes before export.
+                    tracing.AddPiiRedactionProcessor();
 
                     tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 })

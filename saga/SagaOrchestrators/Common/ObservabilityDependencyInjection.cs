@@ -4,6 +4,7 @@ using MassTransit.Monitoring;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Platform.ServiceDefaults.Pii;
 using SagaOrchestrators.Common.Observability;
 using SagaOrchestrators.Common.Observability.Tracing;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
@@ -44,6 +45,7 @@ public static class ObservabilityDependencyInjection
                         .AddSource(SagaActivitySource.ActivitySourceName)
                         .AddSource(DiagnosticHeaders.DefaultListenerName) // MassTransit ActivitySource
                         .AddEntityFrameworkCoreInstrumentation()
+                        .AddPiiRedactionProcessor() // ADR-0011 — redacts [Pii]-tagged span attributes before export
                         .AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 })
                 .WithMetrics(metrics =>

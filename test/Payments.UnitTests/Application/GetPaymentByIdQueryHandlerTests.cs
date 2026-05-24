@@ -27,7 +27,9 @@ public class GetPaymentByIdQueryHandlerTests
             result.Should().BeSuccess();
             result.Value.PaymentId.Should().Be(existing.Id);
             result.Value.Status.Should().Be("Authorized");
-            result.Value.GatewayTransactionId.Should().Be(PaymentTransactionFactory.DefaultGatewayTransactionId);
+            // ADR-0011 — response masks sensitive tokens to last-4 (see PaymentTransactionResponseMapper.MaskTrailing).
+            // Default seed is "gw-tx-abc123" → "****c123".
+            result.Value.GatewayTransactionId.Should().Be("****c123");
             result.Value.AuthorizedAtUtc.Should().Be(_timeProvider.GetUtcNow());
         }
     }

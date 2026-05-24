@@ -3,6 +3,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Platform.OutboxRelay.WorkerService.Observability;
 using Platform.OutboxRelay.WorkerService.Observability.Metrics;
+using Platform.ServiceDefaults.Pii;
 
 namespace Platform.OutboxRelay.WorkerService.Common;
 
@@ -45,6 +46,9 @@ public static class ObservabilityDependencyInjection
             .WithTracing(tracing =>
             {
                 tracing.AddSource("*");
+
+                // ADR-0011 — redacts [Pii]-tagged span attributes before export.
+                tracing.AddPiiRedactionProcessor();
 
                 tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
             })
