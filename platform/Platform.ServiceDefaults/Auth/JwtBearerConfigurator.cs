@@ -43,6 +43,26 @@ public static class JwtBearerConfigurator
                     Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
                     "Development",
                     StringComparison.OrdinalIgnoreCase);
+                // RoleClaimType is INTENTIONALLY left at its default
+                // (ClaimTypes.Role). #234 proposed setting it to "roles" to
+                // match Keycloak's flat realm-role claim shape — that change
+                // would have BROKEN admin auth across every BC. Reason:
+                // JwtBearerOptions.MapInboundClaims defaults to true (see
+                // aspnetcore JwtBearerOptions.cs — initialized from
+                // JwtSecurityTokenHandler.DefaultMapInboundClaims) and the
+                // InboundClaimTypeMap in Microsoft.IdentityModel.JsonWebTokens
+                // contains {"roles" → ClaimTypes.Role}, so Keycloak's "roles"
+                // claim is auto-rewritten to ClaimTypes.Role on the principal
+                // before any authorization runs. Setting RoleClaimType="roles"
+                // would tell IsInRole to look for a "roles"-typed claim that
+                // the inbound mapping has already removed.
+                //
+                // The contract is pinned by Ordering.FunctionalTests
+                // MarkOrderShippedTests.WhenTokenCarriesOnlyKeycloakFlatRolesClaim_AdminAuthSucceeds.
+                // If a future ASP.NET Core flips MapInboundClaims=false by
+                // default, or someone overrides it here, that test fails
+                // loudly — re-enable the mapping or wire an OnTokenValidated
+                // transformer; do not set RoleClaimType.
                 jwt.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
