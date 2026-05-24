@@ -828,6 +828,56 @@ services:
         limits:
           memory: 768M
 
+  # One-shot bootstrap that applies the saga's idempotent EF-generated SQL scripts
+  # (V001/V002/V003 under saga/SagaOrchestrators/Common/Persistence/Database/Migrations/SqlScripts)
+  # to the Saga database. Mirrors the production pattern documented at
+  # saga/SagaOrchestrators/Program.cs:33-39 — "SQL scripts generated from EF core migrations
+  # should be used" — and the same scripts that PostgreSqlTestContainer applies via Evolve in
+  # the integration-test fixtures, so dev + test + prod all converge on one set of artefacts.
+  #
+  # Why a one-shot service and not InitialiseDatabaseAsync():
+  #   The saga's Program.cs gates `app.InitialiseDatabaseAsync()` on `app.Environment.IsLocal()`,
+  #   which is FALSE under ASPNETCORE_ENVIRONMENT=Development. Setting ENVIRONMENT=Local in
+  #   compose to flip that gate would semantically misrepresent the compose deployment as a
+  #   "local-dev" run (and would re-enable other Local-only branches across the codebase). The
+  #   out-of-band migration container preserves the Development semantic and applies the same
+  #   SQL scripts production would.
+  #
+  # Why a bash for-loop over psql -f and not the dotnet-ef CLI:
+  #   The scripts are already idempotent (every CREATE/ALTER is wrapped in
+  #   `IF NOT EXISTS` / `DO $EF$ ... WHERE NOT EXISTS(... __EFMigrationsHistory ...)` blocks
+  #   emitted by `dotnet ef migrations script --idempotent`). Re-running them on a fully-migrated
+  #   DB is a no-op. So we don't need Evolve's changelog table here — bash + psql against the
+  #   postgres:18.3 image (same as postgresdb) is the smallest correct primitive.
+  #
+  # ON_ERROR_STOP=1 fails fast on the first bad statement (default psql swallows SQL errors and
+  # returns 0). depends_on postgresdb=service_healthy ensures the DB process is accepting
+  # connections AND init-bcs.sql has created `Saga`. saga.depends_on.saga-migrate
+  # service_completed_successfully gates the saga's start on this script's exit 0.
+  saga-migrate:
+    container_name: saga-migrate
+    image: postgres:18.3@sha256:52e6ffd11fddd081ae63880b635b2a61c14008c17fc98cdc7ce5472265516dd0
+    profiles:
+      - full
+    restart: "no"
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./saga/SagaOrchestrators/Common/Persistence/Database/Migrations/SqlScripts:/scripts:ro
+    entrypoint:
+      - bash
+      - -eu
+      - -c
+      - |
+        for f in /scripts/V*.sql; do
+          echo "[saga-migrate] applying $$f"
+          psql -v ON_ERROR_STOP=1 -h postgresdb -p 5432 -U postgres -d Saga -f "$$f"
+        done
+        echo "[saga-migrate] done"
+
   # Saga orchestrator (MassTransit + SqlTransport.PostgreSQL + KafkaFlow). Internal service —
   # no inbound JWT, no extra_hosts bridge. Reads commands from *.command topics, drives state
   # transitions, emits checkout.sagas events via the saga outbox-relay (defined later).
@@ -845,6 +895,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      saga-migrate:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
