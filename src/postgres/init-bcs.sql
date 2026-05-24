@@ -23,4 +23,5 @@ SELECT 'CREATE DATABASE "Ordering"'     WHERE NOT EXISTS (SELECT FROM pg_databas
 SELECT 'CREATE DATABASE "Invoicing"'    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'Invoicing')\gexec
 SELECT 'CREATE DATABASE "Payments"'     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'Payments')\gexec
 SELECT 'CREATE DATABASE "Notifications"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'Notifications')\gexec
+SELECT 'CREATE DATABASE "Saga"'         WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'Saga')\gexec
 SELECT 'CREATE DATABASE "Weather"'      WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'Weather')\gexec

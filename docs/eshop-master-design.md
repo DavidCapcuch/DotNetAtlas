@@ -530,6 +530,8 @@ Reused unchanged from existing services (`Platform.ServiceDefaults`):
 - **Saga spans**: each state transition emits an activity `SagaOrchestrators.Checkout.StateTransition.{From}.{To}`. Counters: `saga.checkout.initiated/confirmed/failed/compensated/stuck`.
 - **Health checks**: `AspNetCore.HealthChecks.Kafka`, `.EntityFrameworkCore`, `.ApplicationStatus` per service. Standardized `/api/healthz` (liveness) and `/api/readiness` (readiness) — see [`Platform.ServiceDefaults.WebApplicationExtensions.MapPlatformHealthCheckEndpoints`](../platform/Platform.ServiceDefaults/WebApplicationExtensions.cs).
 
+**Health probe contract.** `/api/healthz` (liveness) and `/api/readiness` (readiness) are the external probe contract — orchestrators (Kubernetes kubelet, ALB target groups, monitoring systems) hit them over HTTP from outside the container. In compose local-dev, the API images run with an alpine base override (`mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22`, selected via the `BASE_IMAGE` build-arg in [`docker-compose.yaml`](../docker-compose.yaml)) and a compose-level `HEALTHCHECK` against `/api/readiness` — gives `docker compose ps` a `(healthy)` signal and enables `depends_on: condition: service_healthy` chains. Production builds the chiseled image (`mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra`, no shell, no probe tooling); production probing is handled by the orchestrator's pod-level `httpGet:` probes, externally to the container, matching the chiseled image's design intent.
+
 ### 11.4 Testing Layers (per service)
 
 | Layer | Framework | Purpose |
