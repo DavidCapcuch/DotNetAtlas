@@ -1,5 +1,4 @@
 using FastEndpoints.Testing;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +9,7 @@ using Microsoft.Extensions.Time.Testing;
 using Payments.FunctionalTests.Common.TestClientInfrastructure;
 using Payments.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Kafka;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -28,9 +28,9 @@ public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// programmatically, forces <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the host
 /// skips the saga-command Kafka consumer (booting it would require a Kafka +
 /// Schema Registry container pair that is out of scope for the M6 functional
-/// slice), and relaxes JWT validation so <see cref="FakeTokenCreator"/>'s
-/// unsigned tokens authenticate. Mirrors the Ordering precedent at
-/// <c>test/Ordering.FunctionalTests/Common/ApiTestFixture.cs</c>.
+/// slice), and pins a test-side RSA signing key into the JwtBearer pipeline so
+/// <see cref="FakeTokenCreator"/>'s tokens validate end-to-end without the
+/// pipeline disabling signature / issuer / audience / lifetime checks.
 /// </summary>
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
@@ -41,6 +41,8 @@ public class ApiTestFixture : AppFixture<Program>
         .WithPassword("TestingPasswordThatShouldBeInVault123!")
         .WithCleanUp(true)
         .Build();
+
+    private readonly FakeTokenSigner _signer = new(audience: "payments-service-tests");
 
     /// <summary>
     /// Pinned to 2026-04-27 10:00 UTC so timestamp assertions in admin GETs
@@ -58,7 +60,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
 
         // Apply EF Core migrations once per fixture lifetime against the
         // freshly-started container.
@@ -108,30 +110,10 @@ public class ApiTestFixture : AppFixture<Program>
                 services.RemoveAll<IOutboxWriter>();
                 services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
 
-                // Relax JWT validation for the test host. Configure
-                // (IConfigureNamedOptions) runs before the framework's
-                // JwtBearerPostConfigureOptions, so RequireHttpsMetadata=false
-                // is observed before the HTTPS-authority check fires.
-                services.Configure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-                        options.RequireHttpsMetadata = false;
-                        // Authority + MetadataAddress are non-nullable; clear
-                        // them so the test host doesn't try to fetch the
-                        // OIDC discovery doc from a non-existent Keycloak.
-                        options.Authority = string.Empty;
-                        options.MetadataAddress = string.Empty;
-#pragma warning disable CA5404 // Test host only — never executed in deployed environments.
-                        options.TokenValidationParameters.ValidateIssuer = false;
-                        options.TokenValidationParameters.ValidateAudience = false;
-                        options.TokenValidationParameters.ValidateLifetime = false;
-#pragma warning restore CA5404
-                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
-                        options.TokenValidationParameters.RequireSignedTokens = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
-                    });
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
@@ -154,6 +136,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _pgContainer.DisposeAsync();
     }
 }

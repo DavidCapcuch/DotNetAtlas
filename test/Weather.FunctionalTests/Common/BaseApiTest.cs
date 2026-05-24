@@ -39,6 +39,7 @@ public abstract class BaseApiTest : IAsyncLifetime
             app.Server,
             TestCaseTracer.TraceParent,
             Scope,
+            app.TokenCreator,
             TestContext.Current.CancellationToken);
     }
 

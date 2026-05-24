@@ -3,7 +3,6 @@ using Invoicing.Application.Blobs;
 using Invoicing.Domain.Common.ValueObjects;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
 using Invoicing.Infrastructure.Persistence.Database;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
 using Serilog;
@@ -48,6 +48,8 @@ public class ApiTestFixture : AppFixture<Program>
 
     private readonly RedisTestContainer _redisContainer = new();
 
+    private readonly FakeTokenSigner _signer = new(audience: "invoicing-service-tests");
+
     /// <summary>
     /// Pinned to 2026-04-23 10:00 UTC so issue-date / SAS-expiry assertions stay
     /// deterministic.
@@ -77,7 +79,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
 
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
@@ -133,31 +135,10 @@ public class ApiTestFixture : AppFixture<Program>
                 services.RemoveAll<IOutboxWriter>();
                 services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
 
-                // Relax JWT validation for the test host. Configure
-                // (IConfigureNamedOptions) runs before the framework's
-                // JwtBearerPostConfigureOptions, so RequireHttpsMetadata=false is
-                // observed before the HTTPS-authority check fires. PostConfigure would
-                // run after the framework's post-configure had already thrown.
-                services.Configure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-                        options.RequireHttpsMetadata = false;
-                        // Authority + MetadataAddress are non-nullable; clear them so
-                        // the test host doesn't try to fetch the OIDC discovery doc
-                        // from a non-existent Keycloak.
-                        options.Authority = string.Empty;
-                        options.MetadataAddress = string.Empty;
-#pragma warning disable CA5404 // Test host only — never executed in deployed environments.
-                        options.TokenValidationParameters.ValidateIssuer = false;
-                        options.TokenValidationParameters.ValidateAudience = false;
-                        options.TokenValidationParameters.ValidateLifetime = false;
-#pragma warning restore CA5404
-                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
-                        options.TokenValidationParameters.RequireSignedTokens = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
-                    });
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
@@ -188,6 +169,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _pgContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
     }

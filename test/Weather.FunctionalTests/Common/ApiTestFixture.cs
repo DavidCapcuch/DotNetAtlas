@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using OpenTelemetry;
 using Platform.Test.Framework;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
@@ -41,7 +42,11 @@ public class ApiTestFixture : AppFixture<Program>
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
 
+    private readonly FakeTokenSigner _signer = new(audience: "weather-tests");
+
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
+
+    public FakeTokenCreator TokenCreator { get; private set; } = null!;
 
     protected override async ValueTask PreSetupAsync()
     {
@@ -55,7 +60,8 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+        TokenCreator = new FakeTokenCreator(_signer);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, TokenCreator);
         return ValueTask.CompletedTask;
     }
 
@@ -106,30 +112,13 @@ public class ApiTestFixture : AppFixture<Program>
                 services.Configure<OpenIdConnectOptions>(
                     OpenIdConnectDefaults.AuthenticationScheme,
                     options => options.RequireHttpsMetadata = false);
-                // Relax JWT validation ONLY for the test host. Same ordering reasoning as
-                // the OIDC block above: Configure (IConfigureNamedOptions) runs before the
-                // framework's JwtBearerPostConfigureOptions, so RequireHttpsMetadata=false
-                // is observed before the HTTPS-authority check fires. PostConfigure would
-                // run after the framework's post-configure had already thrown, because the
-                // framework's post-configure is registered first inside AddJwtBearer.
-                // This intentionally does not live in appsettings.Testing.json so an
-                // accidental ASPNETCORE_ENVIRONMENT=Testing on a real host cannot accept
-                // unsigned tokens produced by FakeTokenCreator.
-                services.Configure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-                        options.RequireHttpsMetadata = false;
-#pragma warning disable CA5404 // Intentional for the in-process test host only.
-                        options.TokenValidationParameters.ValidateIssuer = false;
-                        options.TokenValidationParameters.ValidateAudience = false;
-                        options.TokenValidationParameters.ValidateLifetime = false;
-#pragma warning restore CA5404
-                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
-                        options.TokenValidationParameters.RequireSignedTokens = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
-                    });
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. This intentionally does not live in
+                // appsettings.Testing.json so an accidental
+                // ASPNETCORE_ENVIRONMENT=Testing on a real host cannot accept
+                // these test-signed tokens.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
@@ -145,6 +134,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();

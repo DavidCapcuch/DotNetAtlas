@@ -1,24 +1,36 @@
 using System.Security.Claims;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
+using Platform.Test.Framework.Auth;
 using Weather.Infrastructure.Common.Authorization;
 
 namespace Weather.FunctionalTests.Common.TestClientInfrastructure;
 
-public static class FakeTokenCreator
+/// <summary>
+/// Maps a <see cref="ClientType"/> to the claim set Weather's authorization
+/// policies expect, then delegates signing to <see cref="FakeTokenBuilder"/>.
+/// </summary>
+public sealed class FakeTokenCreator
 {
-    public static string CreateUserToken(ClientType clientType)
+    private readonly FakeTokenSigner _signer;
+
+    public FakeTokenCreator(FakeTokenSigner signer)
+    {
+        _signer = signer;
+    }
+
+    public string CreateUserToken(ClientType clientType)
     {
         return clientType switch
         {
-            ClientType.Dev => CreateToken("dev@dotnetatlas.com", [Roles.Developer]),
-            ClientType.RegularUser => CreateToken("pleb@dotnetatlas.com", []),
+            ClientType.Dev => FakeTokenBuilder.SignToken(_signer,
+                BuildClaims("dev@dotnetatlas.com", [Roles.Developer])),
+            ClientType.RegularUser => FakeTokenBuilder.SignToken(_signer,
+                BuildClaims("pleb@dotnetatlas.com", [])),
             ClientType.NonAuth => string.Empty,
             _ => throw new ArgumentOutOfRangeException(nameof(clientType))
         };
     }
 
-    private static string CreateToken(string userName, string[] roles)
+    private static List<Claim> BuildClaims(string userName, string[] roles)
     {
         var claims = new List<Claim>
         {
@@ -31,15 +43,6 @@ public static class FakeTokenCreator
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var handler = new JsonWebTokenHandler();
-        var descriptor = new SecurityTokenDescriptor
-        {
-            Issuer = "NOT CHECKED IN TESTING",
-            Audience = "NOT CHECKED IN TESTING",
-            Expires = DateTime.UtcNow.AddHours(1),
-            Subject = new ClaimsIdentity(claims)
-        };
-
-        return handler.CreateToken(descriptor);
+        return claims;
     }
 }

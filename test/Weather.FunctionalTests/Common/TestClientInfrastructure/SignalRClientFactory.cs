@@ -13,22 +13,25 @@ public sealed class SignalRClientFactory
     private readonly string? _traceParent;
     private readonly IServiceScope _scope;
     private readonly CancellationToken _cancellationToken;
+    private readonly FakeTokenCreator _tokenCreator;
 
     public SignalRClientFactory(
         TestServer server,
         string? traceParent,
         IServiceScope scope,
+        FakeTokenCreator tokenCreator,
         CancellationToken cancellationToken)
     {
         _server = server;
         _traceParent = traceParent;
         _scope = scope;
+        _tokenCreator = tokenCreator;
         _cancellationToken = cancellationToken;
     }
 
     public async Task<WeatherAlertHubTestClient> CreateAsync(ClientType clientType)
     {
-        var accessToken = FakeTokenCreator.CreateUserToken(clientType);
+        var accessToken = _tokenCreator.CreateUserToken(clientType);
         var hubUrl = new Uri("ws://localhost" + WeatherAlertHub.RoutePattern);
 
         var hubConnection = new HubConnectionBuilder()

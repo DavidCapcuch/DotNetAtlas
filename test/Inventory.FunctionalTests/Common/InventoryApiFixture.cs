@@ -1,16 +1,15 @@
 using FastEndpoints.Testing;
 using Inventory.FunctionalTests.Common.TestClientInfrastructure;
 using Inventory.Infrastructure.Persistence.Database;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.JsonWebTokens;
 using Npgsql;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework.Auth;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -58,6 +57,8 @@ public class InventoryApiFixture : AppFixture<Program>
         .WithCleanUp(true)
         .Build();
 
+    private readonly FakeTokenSigner _signer = new(audience: "inventory-service-tests");
+
     private ConnectionMultiplexer _redisMultiplexer = null!;
     private Respawner _databaseCleaner = null!;
 
@@ -79,7 +80,7 @@ public class InventoryApiFixture : AppFixture<Program>
     protected override async ValueTask SetupAsync()
     {
         var ct = TestContext.Current.CancellationToken;
-        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
 
         // Apply EF Core migrations after the host starts. Safe because
         // Program.cs guards `AddReservationExpiryWorker` behind
@@ -156,25 +157,10 @@ public class InventoryApiFixture : AppFixture<Program>
                 // functional tests only need to verify "the right outbox row landed".
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
-                // Relax JWT validation for the in-process test host. Use Configure
-                // (IConfigureNamedOptions) — not PostConfigure — so RequireHttpsMetadata=false
-                // is observed before JwtBearerPostConfigureOptions throws on the http://
-                // authority (mirrors Weather + Basket fixtures' rationale).
-                services.Configure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-                        options.RequireHttpsMetadata = false;
-#pragma warning disable CA5404
-                        options.TokenValidationParameters.ValidateIssuer = false;
-                        options.TokenValidationParameters.ValidateAudience = false;
-                        options.TokenValidationParameters.ValidateLifetime = false;
-#pragma warning restore CA5404
-                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
-                        options.TokenValidationParameters.RequireSignedTokens = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new JsonWebToken(token);
-                    });
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
@@ -202,6 +188,7 @@ public class InventoryApiFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _redisMultiplexer.DisposeAsync();
         await _pgContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();

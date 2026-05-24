@@ -1,21 +1,26 @@
 using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
+using Platform.Test.Framework.Auth;
 
 namespace Catalog.FunctionalTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Issues unsigned JWTs for the in-process test host. The fixture's
-/// <c>JwtBearerOptions.SignatureValidator</c> override accepts unsigned tokens; we still emit
-/// a real JWT so the <c>scope</c> claim is parsed by ASP.NET's claims pipeline exactly as it
-/// would be in production.
+/// Maps a <see cref="ClientType"/> to the claim set the Catalog scope-based
+/// policies expect, then delegates signing to <see cref="FakeTokenBuilder"/>.
 /// </summary>
-public static class FakeTokenCreator
+public sealed class FakeTokenCreator
 {
     public const string CatalogReadScope = "catalog.read";
     public const string CatalogWriteScope = "catalog.write";
 
-    public static string CreateToken(ClientType clientType)
+    private readonly FakeTokenSigner _signer;
+
+    public FakeTokenCreator(FakeTokenSigner signer)
+    {
+        _signer = signer;
+    }
+
+    public string CreateToken(ClientType clientType)
     {
         return clientType switch
         {
@@ -26,7 +31,7 @@ public static class FakeTokenCreator
         };
     }
 
-    private static string Build(string scope)
+    private string Build(string scope)
     {
         var subject = Guid.CreateVersion7().ToString();
         var claims = new List<Claim>
@@ -37,15 +42,6 @@ public static class FakeTokenCreator
             new("scope", scope),
         };
 
-        var handler = new JsonWebTokenHandler();
-        var descriptor = new SecurityTokenDescriptor
-        {
-            Issuer = "NOT CHECKED IN TESTING",
-            Audience = "NOT CHECKED IN TESTING",
-            Expires = DateTime.UtcNow.AddHours(1),
-            Subject = new ClaimsIdentity(claims),
-        };
-
-        return handler.CreateToken(descriptor);
+        return FakeTokenBuilder.SignToken(_signer, claims);
     }
 }

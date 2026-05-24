@@ -3,7 +3,6 @@ using Catalog.Infrastructure.Persistence.Database;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
 using FastEndpoints.Testing;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +10,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
-using Microsoft.IdentityModel.JsonWebTokens;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 using OpenFeature;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework.Auth;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
@@ -64,6 +63,8 @@ public class ApiTestFixture : AppFixture<Program>
         .WithCleanUp(true)
         .Build();
 
+    private readonly FakeTokenSigner _signer = new(audience: "catalog-service-tests");
+
     private ConnectionMultiplexer _redisMultiplexer = null!;
 
     /// <summary>
@@ -99,7 +100,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
 
         // Materialize the schema from the EF model — per CLAUDE.md migrations are user-generated.
         // Mirrors the M4.4 Catalog.IntegrationTests.IntegrationTestFixture approach.
@@ -161,27 +162,10 @@ public class ApiTestFixture : AppFixture<Program>
                 // by stubbing this mock.
                 services.Replace(ServiceDescriptor.Singleton(FeatureClient));
 
-                // Relax JWT for the in-process test host. Configure (NOT PostConfigure) is
-                // chosen so subsequent user-code overrides remain effective — the production
-                // JwtBearerPostConfigureOptions runs in the post-configure pass and would
-                // otherwise win the last-write race against our flips. Mirrors Weather + Basket
-                // precedents.
-                services.Configure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-                        options.RequireHttpsMetadata = false;
-#pragma warning disable CA5404
-                        options.TokenValidationParameters.ValidateIssuer = false;
-                        options.TokenValidationParameters.ValidateAudience = false;
-                        options.TokenValidationParameters.ValidateLifetime = false;
-                        options.TokenValidationParameters.RequireExpirationTime = false;
-#pragma warning restore CA5404
-                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
-                        options.TokenValidationParameters.RequireSignedTokens = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new JsonWebToken(token);
-                    });
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
@@ -215,6 +199,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _redisMultiplexer.DisposeAsync();
         await _pgContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();

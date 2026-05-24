@@ -5,20 +5,22 @@ namespace Catalog.FunctionalTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Pre-builds three <see cref="HttpClient"/> instances — one per <see cref="ClientType"/> —
-/// each carrying an unsigned JWT with the right Catalog scope claim.
+/// each carrying a properly signed JWT with the right Catalog scope claim.
 /// Tests pick the client matching the policy they exercise.
 /// </summary>
 public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class
 {
     private readonly AppFixture<TEntryPoint> _appFixture;
+    private readonly FakeTokenCreator _tokenCreator;
     private readonly HttpClient _nonAuthClient;
     private readonly HttpClient _readClient;
     private readonly HttpClient _writeClient;
 
-    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture)
+    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture, FakeTokenCreator tokenCreator)
     {
         _appFixture = appFixture;
+        _tokenCreator = tokenCreator;
         _nonAuthClient = Build(ClientType.NonAuth);
         _readClient = Build(ClientType.ReadOnly);
         _writeClient = Build(ClientType.WriteAdmin);
@@ -44,7 +46,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     {
         return _appFixture.CreateClient(client =>
         {
-            var token = FakeTokenCreator.CreateToken(clientType);
+            var token = _tokenCreator.CreateToken(clientType);
             client.DefaultRequestHeaders.Authorization = string.IsNullOrEmpty(token)
                 ? null
                 : new AuthenticationHeaderValue("Bearer", token);
