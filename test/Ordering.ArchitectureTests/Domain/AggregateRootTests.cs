@@ -1,5 +1,4 @@
 using NetArchTest.Rules;
-using Ordering.ArchitectureTests.Rules;
 using Platform.SharedKernel.Base;
 
 namespace Ordering.ArchitectureTests.Domain;
