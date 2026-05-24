@@ -96,4 +96,25 @@ public class AggregateRootTests : BaseTest
             "Aggregates should have private constructors to enforce factory method creation " +
             "and prevent EF Core hydration from raising domain events");
     }
+
+    /// <summary>
+    /// Per architecture-tests.md § 1.2, every aggregate exposes at least one
+    /// <c>public static</c> factory whose name starts with <c>Create</c> or <c>From</c>. The
+    /// factory wraps the private constructor + invariant validation in a <c>Result&lt;T&gt;</c>;
+    /// without it, callers would have no Result-pattern entry point.
+    /// </summary>
+    [Fact]
+    public void AggregateRoots_Should_HavePublicStaticFactoryMethod()
+    {
+        var result = Types.InAssembly(DomainAssembly)
+            .That()
+            .Inherit(typeof(AggregateRoot<>))
+            .Should()
+            .MeetCustomRule(new HasPublicStaticFactoryMethodRule())
+            .GetResult();
+
+        result.FailingTypes.Should().BeEmpty(
+            "Aggregates need at least one public static factory (named 'Create*' or 'From*') so " +
+            "callers can validate invariants via Result<T> instead of constructing directly");
+    }
 }
