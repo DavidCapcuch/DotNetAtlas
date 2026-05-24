@@ -34,7 +34,7 @@ public class AggregateRootTests : BaseTest
         foreach (var aggregate in aggregateRootTypes)
         {
             var otherAggregates = aggregateRootTypes
-                .Where(t => t.GetType() != aggregate.GetType())
+                .Where(t => t != aggregate)
                 .Select(t => t.FullName!)
                 .ToArray();
 

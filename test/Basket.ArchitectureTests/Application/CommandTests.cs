@@ -20,6 +20,42 @@ public class CommandTests : BaseTest
             "Commands should follow the naming convention '*Command' for easy discovery and consistency");
     }
 
+    /// <summary>
+    /// Command + query types must be sealed records. Public-class commands with mutable setters
+    /// allow consumers to mutate the input after the validation pipeline has run; sealed records
+    /// with init-only setters lock it down.
+    /// </summary>
+    [Fact]
+    public void Commands_And_Queries_Should_BeSealedRecords()
+    {
+        var offenders = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .ImplementInterface<ICommand>()
+            .Or().ImplementInterface(typeof(ICommand<>))
+            .Or().ImplementInterface(typeof(IQuery<>))
+            .GetTypes()
+            .Where(t => !IsSealedRecord(t.ReflectionType))
+            .Select(t => t.ReflectionType.FullName!)
+            .ToList();
+
+        offenders.Should().BeEmpty(
+            "Commands and queries must be sealed records (init-only setters keep them immutable post-validation)");
+    }
+
+    private static bool IsSealedRecord(Type type)
+    {
+        if (!type.IsSealed)
+        {
+            return false;
+        }
+
+        return type.GetMethod(
+            "<Clone>$",
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.NonPublic) is not null;
+    }
+
     [Fact]
     public void Commands_Should_HaveCorrespondingHandler()
     {
