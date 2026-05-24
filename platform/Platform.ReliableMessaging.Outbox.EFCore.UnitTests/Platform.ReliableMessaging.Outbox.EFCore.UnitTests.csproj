@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props,
+         imported via this project's Directory.Build.props). -->
+    <ItemGroup>
+        <PackageReference Include="NSubstitute"/>
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj"/>
+        <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj"/>
+        <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj"/>
+        <ProjectReference Include="..\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj"/>
+        <ProjectReference Include="..\Platform.Avro.UniversalSerDes\Platform.Avro.UniversalSerDes.csproj"/>
+    </ItemGroup>
+</Project>

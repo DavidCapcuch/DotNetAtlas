@@ -1,10 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <ItemGroup>
         <PackageReference Include="OpenTelemetry.Api"/>
-        
+
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Pulled in for MessageHeaderKeys.CorrelationId — the leaf Abstractions project has no
+             transitive deps, so the dependency cost is just the constant lookup. Sources the
+             canonical 'correlation.id' string used for the top-level Kafka header per
+             ADR-0008 + cross-cutting wave1-followup #256. -->
+        <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj"/>
     </ItemGroup>
 </Project>

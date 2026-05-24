@@ -85,13 +85,15 @@ Option 1 also aligns with patterns learners will encounter in production. Stripe
 
 ## Implementation Notes
 
-- Header name: `X-Correlation-Id`
+- Header name: `X-Correlation-Id` (HTTP), `correlation.id` (Kafka)
 - Format: UUID v7 — time-sortable, good for DB index locality
 - Generation boundary: YARP (for external requests) and BFF (for internal BFF-originated workflows)
 - Platform surface:
-  - `Platform.ServiceDefaults` adds `AddCorrelationId()` extension → registers ASP.NET middleware that reads/validates/generates and stores in `HttpContext.Items["CorrelationId"]`
-  - `DelegatingHandler` (also in `Platform.ServiceDefaults`) reads from the ambient context and copies onto outbound HttpClient calls
-  - `Platform.KafkaFlow.ProducerHeaders` writes the header on every produce; consumer middleware reads and sets `Activity.Current?.SetTag("correlation.id", value)` plus `LogContext.PushProperty("CorrelationId", value)` for Serilog/Seq enrichment
+  - `Platform.ServiceDefaults` adds `AddCorrelationId()` extension → registers ASP.NET middleware that reads/validates/generates and sets `Activity.Current?.SetTag("correlation.id", value)` plus `LogContext.PushProperty("CorrelationId", value)`.
+  - `DelegatingHandler` (also in `Platform.ServiceDefaults`) reads from the ambient context and copies onto outbound HttpClient calls.
+  - `Platform.KafkaFlow.ProducerHeaders.ProducerHeadersMiddleware` writes the `correlation.id` Kafka header on every direct produce, sourcing from `Activity.Current` tag or generating a fresh v7 when originating a new workflow.
+  - `Platform.KafkaFlow.ProducerHeaders.ConsumerCorrelationIdMiddleware` reads the `correlation.id` Kafka header on consume, validates it as UUID v7, and republishes onto `Activity.Current` + Serilog `LogContext` for the duration of the handler dispatch. Missing / malformed header → generates a fresh v7 (logged at Debug).
+  - `Platform.ReliableMessaging.Outbox.Core.OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity` injects `correlation.id` as a **top-level** key in the outbox row's headers JSON alongside the OTel propagation headers (`traceparent`, `tracestate`, `baggage`). The `Platform.OutboxRelay.WorkerService.OutboxRelay.OutboxMessageRelay` then copies the row's headers verbatim onto the produced Kafka message, so outbox-routed messages carry the same canonical top-level `correlation.id` header as direct-producer messages. Cross-cutting wave1-followup #256 promoted this from baggage-only encoding to a top-level header so the consumer side `Headers.GetString("correlation.id")` one-liner works for outbox-routed events too.
 - DB convention: every aggregate that can be part of a cross-BC workflow has a `correlation_id uuid NOT NULL` column. Indexed per BC choice.
 - Domain events: `IDomainEvent` base carries `CorrelationId`; factory helpers copy from ambient `HttpContext` / saga state.
 - Architecture test: outbox rows written by `Platform.ReliableMessaging.Outbox.EFCore` must include the CorrelationId header in the produced Kafka message (integration-test assertion).
