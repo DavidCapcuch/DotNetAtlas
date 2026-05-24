@@ -84,10 +84,18 @@ internal static class MessagingDependencyInjection
                         // Middleware order -> outermost to innermost.
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
-                        .RetryForever(config => config
+                        // #247: bounded retry. RetryForever blocks the partition indefinitely on
+                        // a poison-pill (DbUpdateException with a structural cause that survives
+                        // 4 backoff steps); bounded TryTimes lets the exception bubble to the
+                        // outer AddDeadLetter middleware, which routes the message to
+                        // <consumer-topic>.Payments.DLT (e.g. payments.commands.Payments.DLT) so
+                        // the partition keeps advancing. Operational runbook:
+                        // docs/runbooks/payments-dlt.md.
+                        .RetrySimple(config => config
                             .Handle<DbUpdateException>()
                             .Handle<NpgsqlException>()
                             .Handle<TimeoutException>()
+                            .TryTimes(8)
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
