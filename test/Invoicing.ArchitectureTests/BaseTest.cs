@@ -23,20 +23,6 @@ namespace Invoicing.ArchitectureTests;
 /// Inventory verbatim. The BC-specific <c>NoForbiddenActivityTagKeysRule</c> stays in
 /// <c>Rules/</c> because it encodes Invoicing's ADR-0011 PII policy — not a general rule.
 /// </para>
-/// <para><b>Divergences from Catalog</b> (documented inline below):</para>
-/// <list type="bullet">
-///   <item>
-///     <see cref="OnlyReferencesByIdRule"/> is exposed for symmetry, but the matching
-///     <c>AggregateRoots_ShouldNot_ReferenceOtherAggregatesByType</c> Fact is intentionally
-///     <b>not</b> added to <c>AggregateRootTests</c>. Invoicing's <c>CreditNote.Create(Invoice
-///     originalInvoice, ...)</c> models a reversal relationship where the credit note must
-///     read invariants from the original invoice at construction time (status check,
-///     line copy, total inversion). Replacing that with by-Id-only coupling would force the
-///     status / line-snapshot logic out of the aggregate into a domain service, sacrificing
-///     cohesion for rule-set uniformity. The trade-off is documented here so a future
-///     contributor adding a second cross-aggregate type can revisit it explicitly.
-///   </item>
-/// </list>
 /// </remarks>
 public abstract class BaseTest
 {

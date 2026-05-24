@@ -375,10 +375,44 @@ public sealed class Invoice : AggregateRoot<Guid>
     }
 
     /// <summary>
-    /// Returns an immutable <see cref="InvoiceLine"/> snapshot suitable for building a
-    /// reversing credit note (sign-flipped via <see cref="InvoiceLine.WithFlippedSign"/>).
+    /// Captures the invoice state needed to issue a reversing
+    /// <see cref="CreditNotes.CreditNote"/>. Invoice owns this construction so the credit
+    /// note never holds a direct reference to the Invoice aggregate (DDD aggregate boundary;
+    /// mirrors the <c>ProductSnapshot</c> / <c>BasketSnapshot</c> pattern in Basket↔Ordering).
     /// </summary>
-    internal IReadOnlyList<InvoiceLine> LinesForReversal()
+    /// <remarks>
+    /// Caller (the M7 command handler) MUST gate on <see cref="InvoiceStatus"/> before
+    /// invoking — snapshotting a cancelled or draft invoice is bug-class and surfaces as
+    /// <see cref="DataIntegrityException"/> here. The user-actionable
+    /// "credit-note refers to cancelled invoice" path stays at the handler boundary as a
+    /// <c>Result.Fail</c>.
+    /// </remarks>
+    public InvoiceSnapshot ToReversalSnapshot(DateTimeOffset capturedAtUtc)
+    {
+        if (Status != InvoiceStatus.Issued && Status != InvoiceStatus.Delivered)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.SnapshotFromIneligibleInvoice",
+                $"Cannot snapshot invoice in state '{Status.Name}' for reversal (must be Issued or Delivered).");
+        }
+
+        if (InvoiceNumber is null)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.SnapshotMissingInvoiceNumber",
+                "Cannot snapshot invoice without an allocated InvoiceNumber.");
+        }
+
+        return InvoiceSnapshot.Create(
+            invoiceId: Id,
+            invoiceNumber: InvoiceNumber,
+            buyerId: BuyerId,
+            reversalLines: LinesForReversal(),
+            total: Total,
+            capturedAtUtc: capturedAtUtc);
+    }
+
+    private List<InvoiceLine> LinesForReversal()
     {
         var flipped = new List<InvoiceLine>(_lines.Count);
         foreach (var line in _lines)

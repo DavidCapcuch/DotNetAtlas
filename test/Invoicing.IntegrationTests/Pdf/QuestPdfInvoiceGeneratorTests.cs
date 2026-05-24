@@ -146,7 +146,7 @@ public sealed class QuestPdfInvoiceGeneratorTests
     {
         var originalInvoice = BuildIssuedInvoice(utcNow);
         var creditNote = CreditNote.Create(
-            originalInvoice,
+            originalInvoice.ToReversalSnapshot(utcNow),
             CreditNoteReason.OrderCancelled,
             correlationId: new Guid("00000000-0000-0000-0000-000000000005"),
             utcNow: utcNow).Value;
