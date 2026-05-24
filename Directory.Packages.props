@@ -91,11 +91,11 @@
          non-vulnerable version (EFCore / FastEndpoints.ClientGen.Kiota /
          KafkaFlow transitive chains). New advisories outside this baseline
          trigger NU1903, which TreatWarningsAsErrors=true (Directory.Build.props)
-         promotes to a build failure — so this is the de-facto baseline-delta
+         promotes to a build failure, so this is the de-facto baseline-delta
          CI gate.
          To extend the baseline: bump the pin, add a comment line below
-         referencing the GHSA, and verify `dotnet restore --locked-mode`
-         resolves cleanly. -->
+         referencing the GHSA, and verify a locked-mode restore resolves
+         cleanly. -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Kiota.Abstractions" Version="1.22.2" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />

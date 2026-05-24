@@ -4,6 +4,15 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+
+        <!-- CVE-bumped transitive promoted to direct ref (test/ tier disables
+             transitive pinning, so the pin in test/Directory.Packages.props only
+             binds when referenced directly). PrivateAssets=all prevents leak.
+             Kiota is NOT needed here because Weather.UnitTests does not reference
+             Weather.Api (which transitively pulls FastEndpoints.ClientGen.Kiota). -->
+        <PackageReference Include="System.Security.Cryptography.Xml">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>

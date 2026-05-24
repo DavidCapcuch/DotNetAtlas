@@ -8,6 +8,22 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+
+        <!--
+          CVE-bumped transitives promoted to direct references so that
+          test/Directory.Packages.props pins (Microsoft.Kiota.Abstractions 1.22.2 via
+          FastEndpoints.ClientGen.Kiota chain; System.Security.Cryptography.Xml 10.0.8
+          via Microsoft.AspNetCore.Authentication.OpenIdConnect chain) actually bind.
+          test/ tier has CentralPackageTransitivePinningEnabled=false, so transitive
+          PackageVersions only apply when referenced directly. PrivateAssets=all
+          prevents downstream leak.
+        -->
+        <PackageReference Include="Microsoft.Kiota.Abstractions">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="System.Security.Cryptography.Xml">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
