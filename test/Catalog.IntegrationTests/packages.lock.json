@@ -1738,6 +1738,7 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )",
           "Evolve": "[3.2.0, )",
           "FastEndpoints.Testing": "[8.1.0, )",
+          "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Npgsql": "[10.0.2, )",
           "OpenTelemetry": "[1.15.3, )",
           "Platform.Avro.UniversalSerDes": "[1.0.0, )",

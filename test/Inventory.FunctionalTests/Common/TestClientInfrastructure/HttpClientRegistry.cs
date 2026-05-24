@@ -7,13 +7,15 @@ public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class
 {
     private readonly AppFixture<TEntryPoint> _appFixture;
+    private readonly FakeTokenCreator _tokenCreator;
     private readonly HttpClient _nonAuthClient;
     private readonly HttpClient _readOnlyClient;
     private readonly HttpClient _commandsClient;
 
-    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture)
+    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture, FakeTokenCreator tokenCreator)
     {
         _appFixture = appFixture;
+        _tokenCreator = tokenCreator;
         _nonAuthClient = CreateClientFor(ClientType.NonAuth);
         _readOnlyClient = CreateClientFor(ClientType.ReadOnly);
         _commandsClient = CreateClientFor(ClientType.Commands);
@@ -31,7 +33,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     /// <summary>Per-test client carrying a specific <c>Idempotency-Key</c> header.</summary>
     public HttpClient CommandsClientWithIdempotencyKey(string idempotencyKey)
     {
-        var token = FakeTokenCreator.CreateToken(ClientType.Commands);
+        var token = _tokenCreator.CreateToken(ClientType.Commands);
         return _appFixture.CreateClient(client =>
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -47,7 +49,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
                 client.DefaultRequestHeaders.Authorization = null);
         }
 
-        var token = FakeTokenCreator.CreateToken(clientType);
+        var token = _tokenCreator.CreateToken(clientType);
         return _appFixture.CreateClient(client =>
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token));
     }

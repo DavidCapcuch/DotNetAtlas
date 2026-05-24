@@ -4,17 +4,16 @@ using Basket.Infrastructure.Persistence.Database;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
 using FastEndpoints.Testing;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.JsonWebTokens;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Respawn;
 using Serilog;
@@ -49,6 +48,8 @@ public class ApiTestFixture : AppFixture<Program>
         .WithCleanUp(true)
         .Build();
 
+    private readonly FakeTokenSigner _signer = new(audience: "basket-service-tests");
+
     private ConnectionMultiplexer _redisMultiplexer = null!;
 
     /// <summary>
@@ -80,7 +81,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
         return ValueTask.CompletedTask;
     }
 
@@ -137,43 +138,10 @@ public class ApiTestFixture : AppFixture<Program>
                 // Confluent Schema Registry Testcontainer.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
-                // Relax JWT validation for the in-process test host. Split across two
-                // option-pipeline phases because each half has a different ordering constraint:
-                //
-                //   * Configure phase  — RequireHttpsMetadata = false must land here so the
-                //     built-in JwtBearerPostConfigureOptions (which runs in PostConfigure phase)
-                //     skips its HTTPS-authority guard. SignatureValidator is also fine here:
-                //     it's a per-options field that any later callback could overwrite, but
-                //     nothing downstream re-sets it.
-                //
-                //   * PostConfigure phase — the five TokenValidationParameters flags must land
-                //     here, NOT in Configure, because AddPlatformJwtBearer (#223,
-                //     platform/Platform.ServiceDefaults/Auth/JwtBearerConfigurator.cs) installs
-                //     its own PostConfigure that re-pins these five flags to true. PostConfigure
-                //     callbacks run in registration order; ConfigureTestServices runs after
-                //     Program.cs, so the test's PostConfigure registers later and gets the
-                //     actual last word.
-                services.Configure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-                        options.RequireHttpsMetadata = false;
-                        options.TokenValidationParameters.SignatureValidator = (token, _) =>
-                            new JsonWebToken(token);
-                    });
-
-                services.PostConfigure<JwtBearerOptions>(
-                    JwtBearerDefaults.AuthenticationScheme,
-                    options =>
-                    {
-#pragma warning disable CA5404
-                        options.TokenValidationParameters.ValidateIssuer = false;
-                        options.TokenValidationParameters.ValidateAudience = false;
-                        options.TokenValidationParameters.ValidateLifetime = false;
-#pragma warning restore CA5404
-                        options.TokenValidationParameters.ValidateIssuerSigningKey = false;
-                        options.TokenValidationParameters.RequireSignedTokens = false;
-                    });
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
@@ -192,6 +160,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _redisMultiplexer.DisposeAsync();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();

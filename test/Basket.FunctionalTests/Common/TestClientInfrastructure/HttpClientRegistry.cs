@@ -7,12 +7,14 @@ public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class
 {
     private readonly AppFixture<TEntryPoint> _appFixture;
+    private readonly FakeTokenCreator _tokenCreator;
     private readonly HttpClient _nonAuthClient;
     private string? _traceParent;
 
-    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture)
+    public HttpClientRegistry(AppFixture<TEntryPoint> appFixture, FakeTokenCreator tokenCreator)
     {
         _appFixture = appFixture;
+        _tokenCreator = tokenCreator;
         _nonAuthClient = CreateNonAuthClient();
     }
 
@@ -24,7 +26,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     /// </summary>
     public HttpClient RegularUserAuthClient(Guid userId)
     {
-        var token = FakeTokenCreator.CreateUserToken(ClientType.RegularUser, userId);
+        var token = _tokenCreator.CreateUserToken(ClientType.RegularUser, userId);
         return _appFixture.CreateClient(client =>
         {
             client.DefaultRequestHeaders.Authorization =

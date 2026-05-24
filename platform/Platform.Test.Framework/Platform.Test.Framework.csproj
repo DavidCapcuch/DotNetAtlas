@@ -6,6 +6,9 @@
     <ItemGroup>
         <PackageReference Include="FastEndpoints.Testing"/>
 
+        <!-- Auth (JwtBearer test relaxation lives in Auth/) — JsonWebTokens namespace comes transitively. -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
+
         <!-- Database -->
         <PackageReference Include="Testcontainers.PostgreSql"/>
         <PackageReference Include="Evolve"/>
