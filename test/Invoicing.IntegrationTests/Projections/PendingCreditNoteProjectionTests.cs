@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using Platform.Messaging.Abstractions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using AvroOrderCancellationBillingAddress = Ordering.Orders.OrderCancellationBillingAddress;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
@@ -70,7 +71,7 @@ public sealed class PendingCreditNoteProjectionTests
                 cancelClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await cancelHandler.Handle(BuildContext(ct), cancelEvent);
+            await cancelHandler.Handle(BuildContext(correlationId, ct), cancelEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -99,7 +100,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await refundHandler.Handle(
-                BuildContext(ct),
+                BuildContext(correlationId, ct),
                 BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
         }
 
@@ -143,7 +144,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await refundHandler.Handle(
-                BuildContext(ct),
+                BuildContext(correlationId, ct),
                 BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
         }
 
@@ -174,7 +175,7 @@ public sealed class PendingCreditNoteProjectionTests
                 cancelClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await cancelHandler.Handle(BuildContext(ct), cancelEvent);
+            await cancelHandler.Handle(BuildContext(correlationId, ct), cancelEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -216,7 +217,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(
-                BuildContext(ct),
+                BuildContext(correlationId, ct),
                 BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
         }
 
@@ -230,7 +231,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(
-                BuildContext(ct),
+                BuildContext(correlationId, ct),
                 BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
         }
 
@@ -277,7 +278,7 @@ public sealed class PendingCreditNoteProjectionTests
                 firstClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await handler.Handle(BuildContext(ct), firstEvent);
+            await handler.Handle(BuildContext(correlationId, ct), firstEvent);
         }
 
         await using (var secondScope = _fixture.CreateScope())
@@ -289,7 +290,7 @@ public sealed class PendingCreditNoteProjectionTests
                 secondClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await handler.Handle(BuildContext(ct), secondEvent);
+            await handler.Handle(BuildContext(correlationId, ct), secondEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -309,10 +310,18 @@ public sealed class PendingCreditNoteProjectionTests
         }
     }
 
-    private static IMessageContext BuildContext(CancellationToken ct)
+    private static IMessageContext BuildContext(Guid correlationId, CancellationToken ct)
     {
         var context = Substitute.For<IMessageContext>();
-        context.Headers.Returns(new MessageHeaders());
+        // ADR-0008 — projection handlers source CorrelationId from this header; tests that
+        // assert on a specific value flowing through must pass it here so header == Avro payload.
+        context.Headers.Returns(new MessageHeaders
+        {
+            {
+                MessageHeaderKeys.CorrelationId,
+                System.Text.Encoding.UTF8.GetBytes(correlationId.ToString())
+            },
+        });
         var consumerContext = Substitute.For<IConsumerContext>();
         consumerContext.WorkerStopped.Returns(ct);
         context.ConsumerContext.Returns(consumerContext);

@@ -3,6 +3,7 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Ordering.Application.Common.Data;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using AppCreateOrderCommand = Ordering.Application.Orders.CreateOrder.CreateOrderCommand;
 using AvroCreateOrderCommand = Ordering.Orders.CreateOrderCommand;
@@ -29,11 +30,19 @@ internal sealed class CreateOrderCommandKafkaHandler
         _appHandler = appHandler;
     }
 
-    public Task Handle(IMessageContext context, AvroCreateOrderCommand message) =>
-        ExecuteAsync(context, message.CorrelationId, orderId: null, async ct =>
+    public Task Handle(IMessageContext context, AvroCreateOrderCommand message)
+    {
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source; Avro payload field
+        // is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
+        return ExecuteAsync(context, correlationId, orderId: null, async ct =>
         {
-            var appCommand = message.ToAppCommand();
+            var appCommand = message.ToAppCommand(correlationId);
             var result = await _appHandler.HandleAsync(appCommand, ct);
             return result.ToResult();
         });
+    }
 }

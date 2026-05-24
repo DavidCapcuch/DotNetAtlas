@@ -76,7 +76,7 @@ public sealed class InvoiceDeliveryFlowTests
             _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
             var handler = s.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
-            var ctx = TestKafkaMessageContext.Create(ct);
+            var ctx = TestKafkaMessageContext.Create(ct: ct);
             await handler.Handle(ctx, new EmailNotificationSentEvent
             {
                 UserId = buyerId,

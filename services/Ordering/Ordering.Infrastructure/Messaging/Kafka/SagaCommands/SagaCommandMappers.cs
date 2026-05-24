@@ -33,7 +33,9 @@ internal static class SagaCommandMappers
     /// so the message flows to DLT instead of silently collapsing onto
     /// <c>Items[0]</c>'s currency.
     /// </summary>
-    internal static AppCreateOrderCommand ToAppCommand(this AvroCreateOrderCommand avro)
+    // ADR-0008 — CorrelationId is passed in explicitly from the Kafka header rather than read
+    // from the Avro payload field; the header is the authoritative source.
+    internal static AppCreateOrderCommand ToAppCommand(this AvroCreateOrderCommand avro, Guid correlationId)
     {
         var items = avro.Items
             .Select(ToItemInput)
@@ -43,7 +45,7 @@ internal static class SagaCommandMappers
 
         return new AppCreateOrderCommand
         {
-            CorrelationId = avro.CorrelationId,
+            CorrelationId = correlationId,
             BuyerId = avro.BuyerId,
             PaymentMethodId = avro.PaymentMethodId,
             Currency = currency,

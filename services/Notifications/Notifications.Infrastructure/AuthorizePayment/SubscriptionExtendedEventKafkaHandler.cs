@@ -41,10 +41,16 @@ public class AuthorizePaymentCommandKafkaHandler : IMessageHandler<AuthorizePaym
 
     public async Task Handle(IMessageContext context, AuthorizePaymentCommand message)
     {
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source; the Avro payload
+        // field is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
         var origin = context.ExtractOrigin();
         _logger.LogDebug(
             "Received ExtendSubscriptionCommand from origin: {Origin}, CorrelationId: {CorrelationId}",
-            origin ?? "unknown", message.CorrelationId);
+            origin ?? "unknown", correlationId);
 
         var cancellationToken = context.ConsumerContext.WorkerStopped;
 
@@ -54,10 +60,10 @@ public class AuthorizePaymentCommandKafkaHandler : IMessageHandler<AuthorizePaym
             await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
             _logger.LogInformation("Payment Service: Fake Authorized payment");
 
-            _transactionalOutbox.AddOutboxMessage(_topicsOptions.Payments, message.CorrelationId.ToString(),
+            _transactionalOutbox.AddOutboxMessage(_topicsOptions.Payments, correlationId.ToString(),
                 new PaymentAuthorizedEvent
                 {
-                    CorrelationId = message.CorrelationId,
+                    CorrelationId = correlationId,
                     Currency = message.Currency,
                     Amount = message.Amount,
                     AuthorizationId = Guid.CreateVersion7().ToString(),

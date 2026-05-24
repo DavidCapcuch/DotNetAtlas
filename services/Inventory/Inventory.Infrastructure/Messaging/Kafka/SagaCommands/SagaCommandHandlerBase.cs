@@ -92,7 +92,9 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     }
 
     /// <param name="context">Inbound Kafka message context.</param>
-    /// <param name="correlationId">Saga correlation id from the Avro payload.</param>
+    /// <param name="correlationId">Saga correlation id from the Kafka header (ADR-0008 — the Avro
+    /// payload field is convenience metadata only; callers extract the header value via
+    /// <c>context.ExtractCorrelationId()</c>).</param>
     /// <param name="logContext">
     /// Caller-chosen log-context keys (e.g. <c>{"OrderId", orderId,
     /// "ReservationId", reservationId}</c>). Pushed into the Serilog

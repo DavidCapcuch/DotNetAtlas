@@ -5,6 +5,7 @@ using Invoicing.Application.Invoices.Projections;
 using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using AvroPaymentCapturedEvent = Payments.Transactions.PaymentCapturedEvent;
 
 namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
@@ -47,9 +48,15 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source. Avro payload
+        // field is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
-        var paymentJson = SerializePayload(message);
+        var paymentJson = SerializePayload(message, correlationId);
 
         // ADR-0008 — log/trace correlation flows from the Kafka header via
         // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
@@ -62,10 +69,10 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
 
         var (row, isNew) = await PendingProjectionUpsertHelper.GetOrAddAsync(
             _db.PendingInvoices,
-            message.CorrelationId,
+            correlationId,
             () => new PendingInvoice
             {
-                CorrelationId = message.CorrelationId,
+                CorrelationId = correlationId,
                 PaymentId = message.PaymentTransactionId,
                 PaymentPayload = paymentJson,
                 FirstSeenAtUtc = now,
@@ -79,7 +86,7 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             {
                 _logger.LogInformation(
                     "PaymentCapturedEvent already projected for CorrelationId {CorrelationId}; no-op.",
-                    message.CorrelationId);
+                    correlationId);
                 return;
             }
 
@@ -105,25 +112,25 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             // M7 — see OrderConfirmedInvoiceProjectionKafkaHandler for the convergence
             // dispatch rationale (inbox-transaction join + idempotent M7 handler).
             var result = await _issueInvoiceHandler.HandleAsync(
-                new IssueInvoiceCommand { CorrelationId = message.CorrelationId },
+                new IssueInvoiceCommand { CorrelationId = correlationId },
                 ct);
             if (result.IsFailed)
             {
                 throw new InvalidOperationException(
-                    $"IssueInvoiceCommand failed after convergence on CorrelationId {message.CorrelationId}: "
+                    $"IssueInvoiceCommand failed after convergence on CorrelationId {correlationId}: "
                         + string.Join("; ", result.Errors.Select(e => e.Message)));
             }
         }
     }
 
-    private static string SerializePayload(AvroPaymentCapturedEvent message)
+    private static string SerializePayload(AvroPaymentCapturedEvent message, Guid correlationId)
     {
         // See OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload for the rationale
         // on the hand-rolled DTO. Avro.AvroDecimal needs explicit conversion — System.Text.Json
         // doesn't know about it; cast to decimal first (AvroDecimal exposes an explicit cast).
         return JsonSerializer.Serialize(new
         {
-            message.CorrelationId,
+            CorrelationId = correlationId,
             message.UserId,
             message.PaymentTransactionId,
             message.AuthorizationId,

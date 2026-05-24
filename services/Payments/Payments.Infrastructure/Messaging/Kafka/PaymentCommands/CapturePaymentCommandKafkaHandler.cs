@@ -2,6 +2,7 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Payments.Application.Common.Data;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using AppCapturePaymentCommand = Payments.Application.Transactions.CapturePayment.CapturePaymentCommand;
 using AvroCapturePaymentCommand = Payments.Transactions.CapturePaymentCommand;
@@ -27,10 +28,17 @@ internal sealed class CapturePaymentCommandKafkaHandler
         _appHandler = appHandler;
     }
 
-    public Task Handle(IMessageContext context, AvroCapturePaymentCommand message) =>
-        ExecuteAsync(context, message.CorrelationId, paymentId: message.CorrelationId, async ct =>
+    public Task Handle(IMessageContext context, AvroCapturePaymentCommand message)
+    {
+        // ADR-0008 — see AuthorizePaymentCommandKafkaHandler for the rationale.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
+        return ExecuteAsync(context, correlationId, paymentId: correlationId, async ct =>
         {
-            var appCommand = message.ToAppCommand();
+            var appCommand = message.ToAppCommand(correlationId);
             return await _appHandler.HandleAsync(appCommand, ct);
         });
+    }
 }

@@ -66,12 +66,18 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
 
     public async Task Handle(IMessageContext context, AvroOrderCancelledEvent message)
     {
+        // ADR-0008 — Kafka header is the authoritative CorrelationId source; Avro payload field
+        // is convenience metadata only.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
         var origin = context.ExtractOrigin();
         var cancellationToken = context.ConsumerContext.WorkerStopped;
 
         using var correlationScope = _logger.BeginScope(new Dictionary<string, object?>
         {
-            ["CorrelationId"] = message.CorrelationId,
+            ["CorrelationId"] = correlationId,
             ["OrderId"] = message.OrderId,
             ["AtStatus"] = message.AtStatus,
         });
@@ -113,7 +119,7 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                     ProductId = reservation.ProductId,
                     Reason = ReleaseReason.Cancellation,
                     OccurredOnUtc = occurredOnUtc,
-                    CorrelationId = message.CorrelationId,
+                    CorrelationId = correlationId,
                 };
 
                 var result = await _appHandler.HandleAsync(releaseCommand, cancellationToken).ConfigureAwait(false);

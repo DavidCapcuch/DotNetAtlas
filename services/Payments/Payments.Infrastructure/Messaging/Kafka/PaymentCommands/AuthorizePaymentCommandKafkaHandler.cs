@@ -3,6 +3,7 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Payments.Application.Common.Data;
 using Platform.CQRS;
+using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using AppAuthorizePaymentCommand = Payments.Application.Transactions.AuthorizePayment.AuthorizePaymentCommand;
 using AvroAuthorizePaymentCommand = Payments.Transactions.AuthorizePaymentCommand;
@@ -29,11 +30,19 @@ internal sealed class AuthorizePaymentCommandKafkaHandler
         _appHandler = appHandler;
     }
 
-    public Task Handle(IMessageContext context, AvroAuthorizePaymentCommand message) =>
-        ExecuteAsync(context, message.CorrelationId, paymentId: message.CorrelationId, async ct =>
+    public Task Handle(IMessageContext context, AvroAuthorizePaymentCommand message)
+    {
+        // ADR-0008 — Kafka header is the authoritative CorrelationId; Avro payload field is
+        // convenience metadata only. PaymentId derives from it per the one-payment-per-saga rule.
+        var correlationId = context.ExtractCorrelationId()
+            ?? throw new InvalidOperationException(
+                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+
+        return ExecuteAsync(context, correlationId, paymentId: correlationId, async ct =>
         {
-            var appCommand = message.ToAppCommand();
+            var appCommand = message.ToAppCommand(correlationId);
             var result = await _appHandler.HandleAsync(appCommand, ct);
             return result.ToResult();
         });
+    }
 }

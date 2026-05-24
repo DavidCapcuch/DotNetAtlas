@@ -43,7 +43,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
         _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
         var handler = scope.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
-        var ctx = TestKafkaMessageContext.Create(ct);
+        var ctx = TestKafkaMessageContext.Create(ct: ct);
         var sent = new EmailNotificationSentEvent
         {
             UserId = buyerId,
@@ -88,7 +88,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
 
         var handler = scope.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
 
-        await handler.Handle(TestKafkaMessageContext.Create(ct), new EmailNotificationSentEvent
+        await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new EmailNotificationSentEvent
         {
             UserId = buyerId,
             TemplateId = "weather.alert",
@@ -122,7 +122,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
 
         var handler = scope.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
 
-        await handler.Handle(TestKafkaMessageContext.Create(ct), new EmailNotificationSentEvent
+        await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new EmailNotificationSentEvent
         {
             UserId = buyerId,
             TemplateId = "invoicing.invoice-delivered",
@@ -153,7 +153,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
         var handler = scope.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
 
         var unknownInvoiceId = Guid.CreateVersion7();
-        var act = async () => await handler.Handle(TestKafkaMessageContext.Create(ct), new EmailNotificationSentEvent
+        var act = async () => await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new EmailNotificationSentEvent
         {
             UserId = Guid.CreateVersion7(),
             TemplateId = "invoicing.invoice-delivered",
