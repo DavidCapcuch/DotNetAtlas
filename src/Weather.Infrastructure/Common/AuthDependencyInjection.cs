@@ -62,9 +62,14 @@ public static class AuthDependencyInjection
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 configuration.Bind(AuthConfigSections.JwtBearerConfigSection, options);
-                // Role claims: JsonWebTokenHandler with MapInboundClaims=true (default) remaps
-                // Keycloak's "roles" array claim to ClaimTypes.Role, which matches the default
-                // TokenValidationParameters.RoleClaimType. No override needed.
+                // Role claims: Keycloak's flat "roles" array claim is auto-mapped to
+                // ClaimTypes.Role because JwtBearerOptions.MapInboundClaims defaults to
+                // true and InboundClaimTypeMap contains {"roles" → ClaimTypes.Role}.
+                // This is the platform-wide contract — see the note above
+                // TokenValidationParameters in
+                // platform/Platform.ServiceDefaults/Auth/JwtBearerConfigurator.cs
+                // and the regression pin in Ordering.FunctionalTests
+                // MarkOrderShippedTests.WhenTokenCarriesOnlyKeycloakFlatRolesClaim_AdminAuthSucceeds.
                 if (isDeployedEnvironment)
                 {
                     options.RequireHttpsMetadata = true;
