@@ -1380,7 +1380,8 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.15.3, )"
+          "OpenTelemetry.Api": "[1.15.3, )",
+          "Platform.Messaging.Abstractions": "[1.0.0, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
