@@ -12,18 +12,48 @@ namespace Payments.Transactions
 	using System.Text;
 	using global::Avro;
 	using global::Avro.Specific;
-
+	
 	/// <summary>
 	/// Command sent by Payment Saga to request payment authorization from the Payment Service.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class AuthorizePaymentCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AuthorizePaymentCommand"",""doc"":""Command sent by Payment Saga to request payment authorization from the Payment Service."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId)."",""default"":""00000000-0000-0000-0000-000000000000"",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User to authorize payment for."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentMethodId"",""doc"":""Gateway-issued opaque payment-method token (e.g. Stripe 'pm_*', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 closeout C-2 fix: previously typed as logicalType:uuid which blocked any real-PSP adapter swap because no real gateway issues UUID-shaped payment-method ids."",""type"":""string""},{""name"":""Amount"",""doc"":""Amount to authorize."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""IdempotencyKey"",""doc"":""Idempotency key to prevent duplicate authorizations."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when authorization was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"AuthorizePaymentCommand\",\"doc\":\"Command sent by Payment " +
+				"Saga to request payment authorization from the Payment Service.\",\"namespace\":\"Pa" +
+				"yments.Transactions\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Correlation ID for" +
+				" tracking the workflow.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":" +
+				"\"PaymentTransactionId\",\"doc\":\"Saga-minted UUID v7 that becomes the Payments aggr" +
+				"egate\'s primary key. Saga emits a fresh value at initial state and reuses it on " +
+				"every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == Correlat" +
+				"ionId) was unwound in cross-cutting wave1-followup #255 so the \'v7 PK\' guarantee" +
+				" on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by " +
+				"the unique index on payment_transactions.correlation_id.\",\"type\":{\"type\":\"string" +
+				"\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate id this pay" +
+				"ment is attached to. The Checkout saga creates the order before requesting payme" +
+				"nt, so OrderId is always present at authorize time. Persisted on the PaymentTran" +
+				"saction aggregate as a debugging/admin-lookup convenience; downstream Payments e" +
+				"vents drop it (cross-BC linkage is CorrelationId).\",\"default\":\"00000000-0000-000" +
+				"0-0000-000000000000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Use" +
+				"rId\",\"doc\":\"User to authorize payment for.\",\"type\":{\"type\":\"string\",\"logicalType" +
+				"\":\"uuid\"}},{\"name\":\"PaymentMethodId\",\"doc\":\"Gateway-issued opaque payment-method" +
+				" token (e.g. Stripe \'pm_*\', Adyen alphanumeric); 1-64 chars. BREAKING change in " +
+				"the Wave-1 closeout C-2 fix: previously typed as logicalType:uuid which blocked " +
+				"any real-PSP adapter swap because no real gateway issues UUID-shaped payment-met" +
+				"hod ids.\",\"type\":\"string\"},{\"name\":\"Amount\",\"doc\":\"Amount to authorize.\",\"type\":" +
+				"{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Curr" +
+				"ency\",\"doc\":\"ISO 4217 currency code.\",\"type\":\"string\"},{\"name\":\"IdempotencyKey\"," +
+				"\"doc\":\"Idempotency key to prevent duplicate authorizations.\",\"type\":\"string\"},{\"" +
+				"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when authorization was requested.\",\"" +
+				"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the workflow.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Saga-minted UUID v7 that becomes the Payments aggregate's primary key. Saga emits a fresh value at initial state and reuses it on every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == CorrelationId) was unwound in cross-cutting wave1-followup #255 so the 'v7 PK' guarantee on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by the unique index on payment_transactions.correlation_id.
+		/// </summary>
+		private System.Guid _PaymentTransactionId;
 		/// <summary>
 		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId).
 		/// </summary>
@@ -71,6 +101,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Saga-minted UUID v7 that becomes the Payments aggregate's primary key. Saga emits a fresh value at initial state and reuses it on every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == CorrelationId) was unwound in cross-cutting wave1-followup #255 so the 'v7 PK' guarantee on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by the unique index on payment_transactions.correlation_id.
+		/// </summary>
+		public System.Guid PaymentTransactionId
+		{
+			get
+			{
+				return this._PaymentTransactionId;
+			}
+			set
+			{
+				this._PaymentTransactionId = value;
 			}
 		}
 		/// <summary>
@@ -176,13 +220,14 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.PaymentMethodId;
-			case 4: return this.Amount;
-			case 5: return this.Currency;
-			case 6: return this.IdempotencyKey;
-			case 7: return this.RequestedAtUtc;
+			case 1: return this.PaymentTransactionId;
+			case 2: return this.OrderId;
+			case 3: return this.UserId;
+			case 4: return this.PaymentMethodId;
+			case 5: return this.Amount;
+			case 6: return this.Currency;
+			case 7: return this.IdempotencyKey;
+			case 8: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -191,13 +236,14 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.PaymentMethodId = (System.String)fieldValue; break;
-			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 5: this.Currency = (System.String)fieldValue; break;
-			case 6: this.IdempotencyKey = (System.String)fieldValue; break;
-			case 7: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.PaymentTransactionId = (System.Guid)fieldValue; break;
+			case 2: this.OrderId = (System.Guid)fieldValue; break;
+			case 3: this.UserId = (System.Guid)fieldValue; break;
+			case 4: this.PaymentMethodId = (System.String)fieldValue; break;
+			case 5: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 6: this.Currency = (System.String)fieldValue; break;
+			case 7: this.IdempotencyKey = (System.String)fieldValue; break;
+			case 8: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

@@ -13,8 +13,8 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 /// Translates saga-issued Avro commands on <c>payments.commands</c> to the application-layer
 /// command DTOs. Pure functions, no DI, no side-effects — simple mapping is clearer than a
 /// Mapperly config here because the shape differences (decimal AvroDecimal → C# decimal,
-/// Avro <c>UserId</c> → App <c>BuyerId</c> rename, PaymentId derivation from
-/// <c>CorrelationId</c> per the one-payment-per-saga rule) are all explicit.
+/// Avro <c>UserId</c> → App <c>BuyerId</c> rename, aggregate PK sourced from the Avro
+/// <c>PaymentTransactionId</c> field per cross-cutting wave1-followup #255) are all explicit.
 /// </summary>
 /// <remarks>
 /// ADR-0008: <c>correlationId</c> is passed in explicitly from the Kafka header rather than
@@ -25,13 +25,15 @@ internal static class SagaCommandMappers
     /// <summary>
     /// Maps <see cref="AvroAuthorizePaymentCommand"/> to the application-layer
     /// <see cref="AppAuthorizePaymentCommand"/>. Field renames: <c>UserId</c> → <c>BuyerId</c>;
-    /// PaymentId derived from <c>correlationId</c> (one-payment-per-saga assumption — see
-    /// <c>docs/bc-design/payments.md § 4</c>).
+    /// PaymentId comes from the saga-issued <c>PaymentTransactionId</c> Avro field (cross-cutting
+    /// wave1-followup #255 — the v1 collapse where PaymentId == CorrelationId was unwound to make
+    /// the "v7 PK" guarantee on the Payments aggregate genuine). One-payment-per-saga stays
+    /// enforced by the unique index on <c>payment_transactions.correlation_id</c>.
     /// </summary>
     internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro, Guid correlationId) =>
         new()
         {
-            PaymentId = correlationId,
+            PaymentId = avro.PaymentTransactionId,
             CorrelationId = correlationId,
             OrderId = avro.OrderId,
             BuyerId = avro.UserId,
