@@ -1,6 +1,6 @@
 using NetArchTest.Rules;
 
-namespace Payments.ArchitectureTests.CrossBoundedContext;
+namespace Payments.ArchitectureTests.BoundedContext;
 
 /// <summary>
 /// Per architecture-tests.md § 1.6, no direct type reference may cross BC boundaries from

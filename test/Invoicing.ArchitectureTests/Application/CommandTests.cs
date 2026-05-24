@@ -1,11 +1,11 @@
 using NetArchTest.Rules;
 using Platform.CQRS;
 
-namespace Inventory.ArchitectureTests.Application;
+namespace Invoicing.ArchitectureTests.Application;
 
 /// <summary>
-/// Every command is named <c>*Command</c> and has a paired <c>*CommandHandler</c>. Orphan
-/// commands signal dead code or a missing handler.
+/// Per architecture-tests.md § 1.4, every command is named <c>*Command</c> and has a paired
+/// <c>*CommandHandler</c>. Orphan commands signal dead code or a missing handler.
 /// </summary>
 public class CommandTests : BaseTest
 {
@@ -29,7 +29,7 @@ public class CommandTests : BaseTest
     /// allow consumers to mutate the input after the validation pipeline has run; sealed records
     /// with init-only setters lock it down.
     /// </summary>
-    [Fact(Skip = "Pre-existing arch-test debt — Inventory has commands that are not sealed records (e.g. ReserveStockCommand); see #276.")]
+    [Fact(Skip = "Pre-existing arch-test debt — Invoicing has commands that are not sealed records (e.g. ResendInvoiceCommand); see #276.")]
     public void Commands_And_Queries_Should_BeSealedRecords()
     {
         var offenders = Types.InAssembly(ApplicationAssembly)

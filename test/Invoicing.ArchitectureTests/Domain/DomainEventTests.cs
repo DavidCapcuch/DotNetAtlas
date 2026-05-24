@@ -28,6 +28,17 @@ public sealed class DomainEventTests : BaseTest
     }
 
     [Fact]
+    public void DomainEvents_Should_BeImmutable()
+    {
+        var result = Types.InAssembly(DomainAssembly)
+            .That().Inherit<DomainEvent>()
+            .Should().BeImmutable()
+            .GetResult();
+        result.FailingTypes.Should().BeEmpty(
+            "Domain events should be immutable - use init-only or private setters, not public setters");
+    }
+
+    [Fact]
     public void DomainEvents_Should_LiveIn_AggregateEventsNamespace()
     {
         var result = Types.InAssembly(DomainAssembly)

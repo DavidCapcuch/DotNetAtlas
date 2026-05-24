@@ -1,6 +1,6 @@
 using NetArchTest.Rules;
 
-namespace Basket.ArchitectureTests.CrossBC;
+namespace Basket.ArchitectureTests.BoundedContext;
 
 /// <summary>
 /// Cross-BC isolation per architecture-tests.md § 1.6.

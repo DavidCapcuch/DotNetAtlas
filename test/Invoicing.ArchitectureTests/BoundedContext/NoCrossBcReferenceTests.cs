@@ -1,6 +1,6 @@
 using NetArchTest.Rules;
 
-namespace Ordering.ArchitectureTests.CrossBoundedContext;
+namespace Invoicing.ArchitectureTests.BoundedContext;
 
 public sealed class NoCrossBcReferenceTests : BaseTest
 {
@@ -9,12 +9,12 @@ public sealed class NoCrossBcReferenceTests : BaseTest
         "Basket.Domain", "Basket.Application",
         "Catalog.Domain", "Catalog.Application",
         "Inventory.Domain", "Inventory.Application",
-        "Invoicing.Domain", "Invoicing.Application",
+        "Ordering.Domain", "Ordering.Application",
         "Payments.Domain", "Payments.Application",
     ];
 
     [Fact]
-    public void OrderingDomain_Should_NotReference_OtherBcs()
+    public void InvoicingDomain_Should_NotReference_OtherBcs()
     {
         var result = Types.InAssembly(DomainAssembly)
             .Should()
@@ -25,7 +25,7 @@ public sealed class NoCrossBcReferenceTests : BaseTest
     }
 
     [Fact]
-    public void OrderingApplication_Should_NotReference_OtherBcs()
+    public void InvoicingApplication_Should_NotReference_OtherBcs()
     {
         var result = Types.InAssembly(ApplicationAssembly)
             .Should()
