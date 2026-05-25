@@ -8,8 +8,8 @@ public sealed class GetOrdersByBuyerQueryValidator : AbstractValidator<GetOrders
     public GetOrdersByBuyerQueryValidator()
     {
         RuleFor(q => q.BuyerId).NotEmpty();
-        RuleFor(q => q.Skip).GreaterThanOrEqualTo(0);
-        RuleFor(q => q.Take).InclusiveBetween(1, 100);
+        RuleFor(q => q.PageNumber).GreaterThanOrEqualTo(1);
+        RuleFor(q => q.PageSize).InclusiveBetween(1, 100);
 
         // use-cases.md § 3.4.2 — when provided, Status must parse to a valid
         // OrderStatus SmartEnum name. An invalid value returns 400 rather than

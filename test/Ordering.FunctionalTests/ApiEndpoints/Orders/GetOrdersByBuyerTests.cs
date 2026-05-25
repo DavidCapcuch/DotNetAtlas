@@ -26,7 +26,7 @@ public class GetOrdersByBuyerTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenBuyerHasOrders_ReturnsOnlyOwnOrders()
+    public async Task WhenBuyerHasOrders_ReturnsOnlyOwnOrdersAndPagingEnvelope()
     {
         var seed = new OrderSeed(DbContext, App.FakeTime);
         var ownA = await seed.CreateOrderAsync(TestUsers.BuyerId);
@@ -35,14 +35,22 @@ public class GetOrdersByBuyerTests : BaseApiTest
 
         var (response, payload) = await HttpClientRegistry.BuyerClient
             .GETAsync<GetOrdersByBuyerEndpoint, GetOrdersByBuyerRequest, GetOrdersByBuyerResponse>(
-                new GetOrdersByBuyerRequest { Take = 10 });
+                new GetOrdersByBuyerRequest { PageNumber = 1, PageSize = 10 });
 
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            payload.Orders.Select(o => o.OrderId).Should()
+            payload.Total.Should().Be(2);
+            payload.PageNumber.Should().Be(1);
+            payload.PageSize.Should().Be(10);
+            payload.Items.Select(o => o.OrderId).Should()
                 .BeEquivalentTo(new[] { ownA.Id, ownB.Id });
-            payload.Orders.Should().NotContain(o => o.OrderId == someoneElses.Id);
+            payload.Items.Should().NotContain(o => o.OrderId == someoneElses.Id);
+            payload.Items.Should().AllSatisfy(item =>
+            {
+                item.ItemCount.Should().Be(1);
+                item.LastStatusChangeAtUtc.Should().Be(item.CreatedAtUtc);
+            });
         }
     }
 }

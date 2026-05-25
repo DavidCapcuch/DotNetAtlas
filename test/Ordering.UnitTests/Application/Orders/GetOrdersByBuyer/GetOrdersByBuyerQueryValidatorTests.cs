@@ -5,10 +5,11 @@ namespace Ordering.UnitTests.Application.Orders.GetOrdersByBuyer;
 
 /// <summary>
 /// Validator-level tests for the paged buyer-orders query. The handler's
-/// success path (projection of <c>Order</c> to the response DTO) is
-/// exercised by integration tests against the real <c>OrderingDbContext</c>
-/// in M4 — the test-project InMemory context intentionally ignores VO /
-/// SmartEnum properties that the projection reads.
+/// success path (SQL-side projection to <see cref="OrderSummaryDto"/>,
+/// including the <c>LastStatusChangeAtUtc</c> COALESCE chain) is exercised
+/// by integration tests against the real <c>OrderingDbContext</c> — EF's
+/// InMemory provider cannot translate the conditional projection on the
+/// owned <c>Shipment</c> VO.
 /// </summary>
 public class GetOrdersByBuyerQueryValidatorTests
 {
@@ -17,29 +18,33 @@ public class GetOrdersByBuyerQueryValidatorTests
     [Fact]
     public void Validate_Happy()
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Skip = 0, Take = 20 };
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), PageNumber = 1, PageSize = 20 };
         _validator.TestValidate(q).ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
     public void Validate_EmptyBuyerId_Fails()
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.Empty, Skip = 0, Take = 20 };
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.Empty, PageNumber = 1, PageSize = 20 };
         _validator.TestValidate(q).ShouldHaveValidationErrorFor(x => x.BuyerId);
     }
 
-    [Fact]
-    public void Validate_NegativeSkip_Fails()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Validate_PageNumberBelowMin_Fails(int pageNumber)
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Skip = -1, Take = 20 };
-        _validator.TestValidate(q).ShouldHaveValidationErrorFor(x => x.Skip);
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), PageNumber = pageNumber, PageSize = 20 };
+        _validator.TestValidate(q).ShouldHaveValidationErrorFor(x => x.PageNumber);
     }
 
-    [Fact]
-    public void Validate_TakeAboveMax_Fails()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public void Validate_PageSizeOutOfRange_Fails(int pageSize)
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Skip = 0, Take = 101 };
-        _validator.TestValidate(q).ShouldHaveValidationErrorFor(x => x.Take);
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), PageNumber = 1, PageSize = pageSize };
+        _validator.TestValidate(q).ShouldHaveValidationErrorFor(x => x.PageSize);
     }
 
     [Theory]
@@ -53,14 +58,14 @@ public class GetOrdersByBuyerQueryValidatorTests
     [InlineData("Failed")]
     public void Validate_ValidStatus_Passes(string status)
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Status = status, Skip = 0, Take = 20 };
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Status = status, PageNumber = 1, PageSize = 20 };
         _validator.TestValidate(q).ShouldNotHaveValidationErrorFor(x => x.Status);
     }
 
     [Fact]
     public void Validate_NullStatus_Passes()
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Status = null, Skip = 0, Take = 20 };
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Status = null, PageNumber = 1, PageSize = 20 };
         _validator.TestValidate(q).ShouldNotHaveValidationErrorFor(x => x.Status);
     }
 
@@ -69,7 +74,7 @@ public class GetOrdersByBuyerQueryValidatorTests
     [InlineData("confirmed")] // case-sensitive — SmartEnum names are PascalCase
     public void Validate_InvalidStatus_Fails(string status)
     {
-        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Status = status, Skip = 0, Take = 20 };
+        var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), Status = status, PageNumber = 1, PageSize = 20 };
         _validator.TestValidate(q).ShouldHaveValidationErrorFor(x => x.Status);
     }
 }

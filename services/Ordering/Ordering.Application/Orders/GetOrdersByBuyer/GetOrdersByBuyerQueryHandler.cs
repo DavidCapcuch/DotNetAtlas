@@ -1,7 +1,6 @@
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Common.Data;
-using Ordering.Application.Orders.GetOrderById;
 using Ordering.Domain.Orders;
 using Platform.CQRS;
 
@@ -23,83 +22,54 @@ public sealed class GetOrdersByBuyerQueryHandler
     {
         var status = ParseStatus(query.Status);
 
-        // SQL-side projection (#238, ADR-0021): selects only the columns the
-        // response uses. Optional VOs are flat nullable columns on
-        // `ordering.orders` and translate cleanly under conditional
-        // projection (EF Core 10). Keep the projected shape in sync with
-        // GetOrderByIdQueryHandler — both produce a byte-identical
-        // GetOrderByIdResponse.
-        var orders = await _dbContext.Orders
+        // SQL-side projection (#238, ADR-0021) — the list endpoint deliberately
+        // returns a summary shape that's narrower than GetOrderByIdResponse
+        // (use-cases.md § 3.4.2). LastStatusChangeAtUtc is computed in SQL via
+        // EF's `??` → COALESCE translation; ItemCount via a correlated count
+        // on the owned `ordering.order_items` table.
+        var filtered = _dbContext.Orders
             .AsNoTracking()
             .Where(o => o.BuyerId == query.BuyerId)
-            .Where(o => status == null || o.Status == status)
+            .Where(o => status == null || o.Status == status);
+
+        var total = await filtered
+            .TagWith($"{nameof(GetOrdersByBuyerQueryHandler)}:Count")
+            .CountAsync(ct);
+
+        var items = await filtered
             .OrderByDescending(o => o.CreatedAtUtc)
             .ThenByDescending(o => o.Id)
-            .Skip(query.Skip)
-            .Take(query.Take)
+            .Skip((query.PageNumber - 1) * query.PageSize)
+            .Take(query.PageSize)
             .TagWith(nameof(GetOrdersByBuyerQueryHandler))
-            .Select(o => new GetOrderByIdResponse
-            {
-                OrderId = o.Id,
-                BuyerId = o.BuyerId,
-                CorrelationId = o.CorrelationId,
-                PaymentMethodId = o.PaymentMethodId,
-                Status = o.Status.Name,
-                TotalAmount = o.Total.Amount,
-                Currency = o.Total.Currency.Name,
-                CreatedAtUtc = o.CreatedAtUtc,
-                StockReservedAtUtc = o.StockReservedAtUtc,
-                PaymentCompletedAtUtc = o.PaymentCompletedAtUtc,
-                ConfirmedAtUtc = o.ConfirmedAtUtc,
-                DeliveredAtUtc = o.DeliveredAtUtc,
-                ShippingAddress = new AddressDto(
-                    o.ShippingAddress.Street1,
-                    o.ShippingAddress.Street2,
-                    o.ShippingAddress.City,
-                    o.ShippingAddress.State,
-                    o.ShippingAddress.PostalCode,
-                    o.ShippingAddress.CountryCode),
-                BillingAddress = new AddressDto(
-                    o.BillingAddress.Street1,
-                    o.BillingAddress.Street2,
-                    o.BillingAddress.City,
-                    o.BillingAddress.State,
-                    o.BillingAddress.PostalCode,
-                    o.BillingAddress.CountryCode),
-                Items = o.Items.Select(i => new OrderItemDto(
-                    i.ProductId,
-                    i.ProductSnapshot.Sku,
-                    i.ProductSnapshot.Name,
-                    i.Quantity,
-                    i.UnitPrice.Amount,
-                    i.LineTotal.Amount)).ToList(),
-                Cancellation = o.Cancellation == null
-                    ? null
-                    : new CancellationDto(
-                        o.Cancellation.Reason,
-                        o.Cancellation.AtStatus.Name,
-                        o.Cancellation.CancelledAtUtc),
-                Failure = o.Failure == null
-                    ? null
-                    : new FailureDto(
-                        o.Failure.ErrorCode,
-                        o.Failure.ErrorMessage,
-                        o.Failure.AtStatus.Name,
-                        o.Failure.FailedAtUtc),
-                Shipment = o.Shipment == null
-                    ? null
-                    : new ShipmentDto(
-                        o.Shipment.Carrier,
-                        o.Shipment.TrackingNumber,
-                        o.Shipment.ShippedAtUtc),
-            })
+            .Select(o => new OrderSummaryDto(
+                o.Id,
+                o.Status.Name,
+                o.Total.Amount,
+                o.Total.Currency.Name,
+                o.Items.Count,
+                o.CreatedAtUtc,
+                // COALESCE chain matches use-cases.md § 3.4.2 verbatim — pick
+                // the most-recent non-null lifecycle timestamp. `o.Shipment`
+                // is an owned nullable VO; the conditional + cast keeps the
+                // expression's element type DateTimeOffset? so the chain stays
+                // null-coalesceable. Final `o.CreatedAtUtc` is non-nullable —
+                // the chain terminates here and the result type is
+                // DateTimeOffset, not DateTimeOffset?.
+                o.DeliveredAtUtc
+                    ?? (o.Shipment == null ? (DateTimeOffset?)null : o.Shipment.ShippedAtUtc)
+                    ?? o.ConfirmedAtUtc
+                    ?? o.PaymentCompletedAtUtc
+                    ?? o.StockReservedAtUtc
+                    ?? o.CreatedAtUtc))
             .ToListAsync(ct);
 
         return Result.Ok(new GetOrdersByBuyerResponse
         {
-            Orders = orders,
-            Skip = query.Skip,
-            Take = query.Take,
+            Items = items,
+            Total = total,
+            PageNumber = query.PageNumber,
+            PageSize = query.PageSize,
         });
     }
 
