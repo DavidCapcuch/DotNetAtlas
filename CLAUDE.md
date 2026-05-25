@@ -37,6 +37,7 @@ dotnet format style --no-restore --verify-no-changes
 - Codebase follows DDD and prefers domain model completeness + performance (sacrificing purity)
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts
+- **Avro C# bindings (`.cs` files next to `.avsc`):** never hand-edit. They are regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen). Run after every `.avsc` edit; commit both the `.avsc` and the regenerated `.cs` together. If avrogen isn't installed the script `dotnet tool install`s it on first run.
 - **Platform.SharedKernel contract changes:** any edit that adds or modifies `required` members, base-class signatures, or other compile-time contracts on shared-kernel types MUST be verified with `dotnet build -m` solution-wide before commit. Slice builds (Domain-only / one-BC-only) do not surface CS9035 violations in downstream BC trees and have historically broken the build (see #138 / commit 8616fe1).
 
 ## Testcontainers + corporate proxy on Windows
