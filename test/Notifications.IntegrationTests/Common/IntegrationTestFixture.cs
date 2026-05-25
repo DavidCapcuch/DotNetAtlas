@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Notifications.Application.Common.Data;
 using Notifications.Application.Email;
-using Notifications.Infrastructure.AuthorizePayment;
 using Notifications.Infrastructure.Common.Config;
 using Notifications.Infrastructure.Email;
 using Notifications.Infrastructure.Persistence.Database;
@@ -70,8 +69,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Topics:NotificationsCommands"] = "notifications.payment-commands",
-                ["Topics:Payments"] = "notifications.payments",
                 ["Topics:DltTopicSuffix"] = ".Notifications.DLT",
                 ["Topics:EmailCommands"] = "notifications.email-commands",
                 ["Topics:EmailEvents"] = "notifications.email-events",
@@ -106,7 +103,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // Register the Kafka typed handler classes as Scoped (matches the production wiring in
         // MessagingDependencyInjection.cs). Tests resolve these and invoke Handle(...) directly
         // with a FakeKafkaMessageContext — no KafkaFlow middleware stack needed.
-        services.AddScoped<AuthorizePaymentCommandKafkaHandler>();
         services.AddScoped<SendEmailNotificationCommandKafkaHandler>();
 
         _rootServices = services.BuildServiceProvider();
