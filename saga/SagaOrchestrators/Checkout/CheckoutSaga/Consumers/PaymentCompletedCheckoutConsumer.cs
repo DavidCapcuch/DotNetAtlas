@@ -5,7 +5,7 @@ using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives <see cref="PaymentCompletedEvent"/> from <c>payments.payments</c>
+/// Consumer that receives <see cref="PaymentCompletedEvent"/> from <c>payments.transactions</c>
 /// (shared topic; <c>saga-checkout</c> consumer group is offset-isolated from
 /// <c>saga-payment-processing</c> per ADR-0001) and forwards it to the
 /// <see cref="CheckoutSagaOrchestrator"/> as <see cref="PaymentCompletedSagaEvent"/> per

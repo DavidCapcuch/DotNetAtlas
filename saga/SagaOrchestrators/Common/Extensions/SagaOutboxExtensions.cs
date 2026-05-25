@@ -34,7 +34,7 @@ public static class SagaOutboxExtensions
     /// <example>
     /// <code>
     /// .PublishToOutbox(
-    ///     "payments.payments",
+    ///     "payments.transactions",
     ///     ctx => ctx.Saga.CorrelationId.ToString(),
     ///     ctx => new PaymentRequestedEvent { /* ... */ })
     /// </code>
