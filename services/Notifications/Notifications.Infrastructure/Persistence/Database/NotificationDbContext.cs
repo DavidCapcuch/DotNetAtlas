@@ -22,8 +22,14 @@ public class NotificationDbContext : DbContext, INotificationDbContext, IInboxDb
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(GetType().Assembly)
-            .HasDefaultSchema(DefaultSchemaName);
+        // Notifications has no domain aggregates persisted via EF — the only tables
+        // owned by this BC are the platform Inbox / Outbox below, configured via the
+        // dedicated extension methods. Skipping ApplyConfigurationsFromAssembly avoids
+        // the noisy "No instantiatable types implementing `IEntityTypeConfiguration` were
+        // found" warning on every cold start. When the first domain entity lands, add
+        // an `EntityConfigurations/` folder mirroring Catalog/Invoicing/etc. and
+        // reintroduce the scan call here.
+        modelBuilder.HasDefaultSchema(DefaultSchemaName);
 
         modelBuilder.ConfigureOutbox(DefaultSchemaName);
         modelBuilder.ConfigureInbox(DefaultSchemaName);
