@@ -71,7 +71,7 @@ internal static class CheckoutSagaDependencyInjection
                 });
 
             kafka.TopicEndpoint<Guid, ISpecificRecord>(
-                kafkaOptions.Topics.PaymentsPayments,
+                kafkaOptions.Topics.PaymentsTransactions,
                 checkoutGroup,
                 consumerConfig =>
                 {

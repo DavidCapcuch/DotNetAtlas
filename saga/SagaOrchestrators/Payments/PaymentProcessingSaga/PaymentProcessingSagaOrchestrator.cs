@@ -221,7 +221,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureCompletedActivity>())
                 .Unschedule(CaptureTimeout)
                 .PublishToOutbox(
-                    _topicsOptions.PaymentsPayments,
+                    _topicsOptions.PaymentsTransactions,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new PaymentCompletedEvent
                     {
@@ -279,7 +279,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                                 RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                             })
                         .PublishToOutbox(
-                            _topicsOptions.PaymentsPayments,
+                            _topicsOptions.PaymentsTransactions,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new PaymentFailedEvent
                             {
@@ -315,7 +315,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
                 .PublishToOutbox(
-                    _topicsOptions.PaymentsPayments,
+                    _topicsOptions.PaymentsTransactions,
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new PaymentFailedEvent
                     {

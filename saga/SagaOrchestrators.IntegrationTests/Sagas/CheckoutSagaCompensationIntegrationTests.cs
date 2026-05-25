@@ -434,7 +434,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, correlationId, paymentFailed);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentFailed);
     }
 
     private async Task PublishPaymentCompletedAsync(Guid correlationId, Guid userId, Guid paymentTransactionId, decimal amount)
@@ -449,7 +449,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, correlationId, paymentCompleted);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentCompleted);
     }
 
     private async Task PublishPaymentRefundedAsync(Guid correlationId, Guid userId, Guid paymentTransactionId, decimal amount)
@@ -465,7 +465,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             RefundedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, correlationId, refunded);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, refunded);
     }
 
     private async Task PublishOrderFailedAsync(
