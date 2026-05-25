@@ -14,7 +14,7 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// M7 acceptance for <see cref="CancelOrderCommandKafkaHandler"/> covering
 /// every example in <c>example-mapping/ordering.md</c> Session 2.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class CancelOrderCommandKafkaHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

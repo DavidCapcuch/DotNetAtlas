@@ -20,7 +20,7 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// (Confirm against an order that hasn't reserved stock + paid yet —
 /// which the FSM also rejects).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ConfirmOrderCommandKafkaHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

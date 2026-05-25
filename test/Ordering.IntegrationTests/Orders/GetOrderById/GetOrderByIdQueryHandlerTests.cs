@@ -20,7 +20,7 @@ namespace Ordering.IntegrationTests.Orders.GetOrderById;
 /// provider ignores VOs / SmartEnums / owned-type properties — see the note on
 /// <c>test/Ordering.UnitTests/Application/Orders/GetOrderById/GetOrderByIdQueryHandlerTests.cs</c>.
 /// </remarks>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetOrderByIdQueryHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

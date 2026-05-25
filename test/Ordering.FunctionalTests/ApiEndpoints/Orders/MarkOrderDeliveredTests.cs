@@ -8,7 +8,7 @@ using Ordering.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class MarkOrderDeliveredTests : BaseApiTest
 {
     public MarkOrderDeliveredTests(ApiTestFixture app)

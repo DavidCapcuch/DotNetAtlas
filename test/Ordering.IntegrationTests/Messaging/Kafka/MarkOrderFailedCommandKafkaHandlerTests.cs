@@ -17,7 +17,7 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// <b>not</b> from <c>Confirmed</c> (by then both stock and payment are
 /// green and no saga-driven failure path remains).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class MarkOrderFailedCommandKafkaHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

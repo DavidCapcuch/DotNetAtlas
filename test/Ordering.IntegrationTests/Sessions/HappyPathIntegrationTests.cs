@@ -28,7 +28,7 @@ namespace Ordering.IntegrationTests.Sessions;
 /// v1 and have no external event (per the Avro schema inventory in
 /// <c>events-catalog.md § 5.3</c>).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class HappyPathIntegrationTests
 {
     private readonly IntegrationTestFixture _fixture;
