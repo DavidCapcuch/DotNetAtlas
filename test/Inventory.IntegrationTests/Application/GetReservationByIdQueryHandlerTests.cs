@@ -12,7 +12,7 @@ using Platform.SharedKernel.Errors;
 
 namespace Inventory.IntegrationTests.Application;
 
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetReservationByIdQueryHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

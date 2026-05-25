@@ -10,7 +10,7 @@ namespace Inventory.FunctionalTests.ApiEndpoints.StockItems;
 [Collection<FunctionalTestCollection>]
 public sealed class ReceiveStockTests : BaseApiTest
 {
-    public ReceiveStockTests(InventoryApiFixture app)
+    public ReceiveStockTests(ApiTestFixture app)
         : base(app)
     {
     }

@@ -1,39 +1,55 @@
-using Confluent.SchemaRegistry;
-using EntityFramework.Exceptions.PostgreSQL;
-using Inventory.Application.Common;
-using Inventory.Application.Common.Data;
-using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
-using Inventory.Infrastructure.Messaging.Kafka.StockInit;
+using FastEndpoints.Testing;
 using Inventory.Infrastructure.Persistence.Database;
-using Inventory.Infrastructure.Persistence.EventStore;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Tracing;
 using Respawn;
+using Serilog;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Abstract;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Inventory.IntegrationTests.Common;
 
+internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
+
 /// <summary>
-/// Spins a throwaway Postgres container per collection and wires the full
-/// M4+M5 DI graph: <see cref="InventoryDbContext"/>, the event-store
-/// repository, the Application layer (validators, CQRS handlers, domain-
-/// event handlers + dispatcher), the transactional outbox with a fake
-/// <see cref="IOutboxWriter"/>, the <see cref="IInventoryDbContext"/>
-/// port binding, plus M5's 5 Kafka typed-handler classes
-/// (Reserve/Confirm/Release saga commands + ProductCreated /
-/// OrderCancelled cross-BC events). The KafkaFlow cluster itself is NOT
-/// booted — tests resolve the typed handlers from DI and invoke
-/// <c>Handle(IMessageContext, T)</c> directly with a synthetic
-/// <see cref="FakeKafkaMessageContext"/>, matching Ordering's M5
-/// precedent at
-/// <c>test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20</c>.
+/// Inventory integration-test fixture. Boots the real <c>Inventory.API</c>
+/// composition root inside <see cref="AppFixture{TEntryPoint}"/>, spinning a
+/// throwaway Postgres container for the EF model and applying the committed
+/// <c>V*.sql</c> scripts via Evolve (matches the production migration path).
+/// Kafka is wired in DI but its cluster is never started — Program.cs guards
+/// <c>kafkaBus.StartAsync()</c> with <c>!IsTesting()</c>, and Inventory's
+/// 5 typed Kafka handlers are exercised directly via
+/// <see cref="FakeKafkaMessageContext"/>, matching the Ordering M5 precedent.
 /// </summary>
-public sealed class IntegrationTestFixture : IAsyncLifetime
+/// <remarks>
+/// <para>
+/// No Kafka container is needed: tests resolve the typed handlers from DI and
+/// invoke <c>Handle(IMessageContext, T)</c> directly. The host's KafkaFlow
+/// registration still happens at DI time (<c>AddInfrastructure</c> calls
+/// <c>AddKafka</c>), but the broker URL points at an unreachable host so a
+/// stray production code path would fail loudly instead of leaking onto a
+/// real broker. Avro byte-level fidelity is validated in M7 functional tests
+/// alongside the Kafka consumer wiring.
+/// </para>
+/// <para>
+/// <see cref="IOutboxWriter"/> is swapped for <see cref="FakeOutboxWriter"/>
+/// in <c>ConfigureTestServices</c> so writes don't touch Schema Registry —
+/// the fake preserves topic + key + CLR type, which is enough for the
+/// "the right message landed in the right topic" assertions.
+/// </para>
+/// </remarks>
+[DisableWafCache]
+public class IntegrationTestFixture : AppFixture<Program>
 {
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Inventory",
@@ -43,83 +59,72 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             SchemasToInclude = [InventoryDbContext.DefaultSchemaName]
         });
 
-    private ServiceProvider _rootServices = null!;
-
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask PreSetupAsync()
     {
-        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+    }
 
-        var services = new ServiceCollection();
-
-        services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
-
-        // Minimal in-memory IConfiguration satisfies
-        // AddOptionsWithValidateOnStart<TopicsOptions>().BindConfiguration(...)
-        // inside Inventory.Application's composition root.
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Topics:InventoryStockEvents"] = "inventory.stock-events",
-                ["Topics:InventoryReservations"] = "inventory.reservations",
-                ["Topics:DltTopicSuffix"] = ".Inventory.DLT",
-            })
-            .Build();
-        services.AddSingleton<IConfiguration>(config);
-
-        services.AddDbContext<InventoryDbContext>(options => options
-            .UseNpgsql(_dbContainer.ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor());
-
-        // Event-store + port bindings.
-        services.AddScoped<EventStoreRepository>();
-        services.AddScoped<IEventStore>(sp => sp.GetRequiredService<EventStoreRepository>());
-        services.AddScoped<IInventoryDbContext>(sp => sp.GetRequiredService<InventoryDbContext>());
-
-        // Application composition root: validators + CQRS + domain-event
-        // handlers + dispatcher + TopicsOptions binding.
-        services.AddApplication();
-
-        // Transactional outbox. We replace IOutboxWriter with a fake BEFORE
-        // AddOutbox so the platform's TryAddSingleton skips its OutboxWriter
-        // (which would call Schema Registry at write time). The fake inserts
-        // the OutboxMessage row directly with topic + key + CLR type preserved
-        // — enough for M4 to assert "the right message lands in the right
-        // topic" without standing up a Schema Registry container. End-to-end
-        // Avro byte-level fidelity is validated in M7 alongside the Kafka
-        // consumer wiring (matching the Ordering BC's M4 precedent of
-        // outbox-publishers-without-broker).
-        services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
-
-        services.AddOutbox(outbox =>
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        a.ConfigureWebHost(webBuilder =>
         {
-            outbox.ConfigureMessageOrigin("Inventory");
-            outbox.ConfigureSchemaRegistryConfig(opts =>
-            {
-                opts.Url = "http://mock-schema-registry";
-            });
-            outbox.ConfigureAvroSerializerConfig(opts =>
-            {
-                opts.SubjectNameStrategy = SubjectNameStrategy.Record;
-                opts.AutoRegisterSchemas = false;
-            });
+            webBuilder
+                .UseSetting("ConnectionStrings:Inventory", _dbContainer.ConnectionString)
+                // Inventory.API/Program.cs guards the Kafka boot with !IsTesting(), but
+                // AddInfrastructure still binds Kafka options at DI time — point them at
+                // unreachable hosts so any accidental use blows up loudly instead of
+                // silently flowing to a real broker.
+                .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-integration-tests:9094")
+                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-integration-tests:8081")
+                .UseSetting("Kafka:AvroSerializer:AutoRegisterSchemas", "false")
+                .UseSetting("Kafka:AvroSerializer:SubjectNameStrategy", "Record")
+                .UseSetting("Kafka:AvroSerializer:NormalizeSchemas", "true");
         });
 
-        // M5: register the 5 Kafka typed-handler classes as Scoped (matches
-        // KafkaFlow's WithHandlerLifetime(InstanceLifetime.Scoped)). Tests
-        // resolve these and invoke Handle(...) directly with a synthetic
-        // FakeKafkaMessageContext.
-        services.AddScoped<ReserveStockCommandKafkaHandler>();
-        services.AddScoped<ConfirmReservationCommandKafkaHandler>();
-        services.AddScoped<ReleaseReservationCommandKafkaHandler>();
-        services.AddScoped<ProductCreatedEventKafkaHandler>();
-        services.AddScoped<OrderCancelledEventKafkaHandler>();
+        return base.ConfigureAppHost(a);
+    }
 
-        _rootServices = services.BuildServiceProvider();
+    protected override void ConfigureApp(IWebHostBuilder a)
+    {
+        a
+            .UseEnvironment("Testing")
+            .ConfigureServices((context, services) =>
+            {
+                var injectableTestOutputSink = new InjectableTestOutputSink();
+                services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
+                services.AddSerilog((_, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .MinimumLevel.Debug()
+                        .ReadFrom.Configuration(context.Configuration)
+                        .WriteTo.InjectableTestOutput(injectableTestOutputSink)
+                        .Enrich.FromLogContext();
+                }, true, true);
+            })
+            .ConfigureTestServices(services =>
+            {
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter
+                // with the fake. Avro byte-fidelity is validated in M7 functional
+                // tests; integration tests only need to verify "the right outbox
+                // row landed".
+                services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
+
+                // Inventory.API's production host only wires OpenTelemetry when
+                // OTEL_EXPORTER_OTLP_ENDPOINT is set in configuration — which it
+                // isn't here. Register a minimal TracerProvider with the test
+                // ActivitySource so BaseIntegrationTest's TestCaseTracer can
+                // resolve TracerProvider and emit a per-test trace.
+                services.AddSingleton<TracerProvider>(_ => Sdk.CreateTracerProviderBuilder()
+                    .AddSource(TestActivitySource.ActivitySourceName)
+                    .Build());
+            });
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
-    public IServiceScope CreateScope() => _rootServices.CreateScope();
+    public IServiceScope CreateScope() => Services.CreateScope();
 
     /// <summary>
     /// Wipes every table in the Inventory schema (preserving schema + EF
@@ -132,13 +137,8 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask TearDownAsync()
     {
-        if (_rootServices is not null)
-        {
-            await _rootServices.DisposeAsync();
-        }
-
         await _dbContainer.DisposeAsync();
     }
 }

@@ -28,7 +28,7 @@ namespace Inventory.IntegrationTests.BackgroundJobs;
 /// already-Released and already-Confirmed audit rows (DoD line 400 — race
 /// between TTL expiry and confirm).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset SeedUtc =

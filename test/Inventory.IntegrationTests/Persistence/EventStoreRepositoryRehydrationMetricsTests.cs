@@ -16,7 +16,7 @@ namespace Inventory.IntegrationTests.Persistence;
 /// "snapshot threshold" alert. The alert opens the v2-snapshot work item; until it
 /// fires, ES rehydration on per-product streams is fast enough for v1 traffic.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class EventStoreRepositoryRehydrationMetricsTests : BaseIntegrationTest
 {
     private const int StreamLength = 1000;

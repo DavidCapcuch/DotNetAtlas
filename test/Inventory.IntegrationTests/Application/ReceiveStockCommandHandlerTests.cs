@@ -16,7 +16,7 @@ namespace Inventory.IntegrationTests.Application;
 /// Proves the handler appends the ES event AND returns the post-mutation
 /// <see cref="StockLevelResponse"/> matching the projection row.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ReceiveStockCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

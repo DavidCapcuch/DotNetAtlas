@@ -13,7 +13,7 @@ namespace Inventory.FunctionalTests.ApiEndpoints.Reservations;
 [Collection<FunctionalTestCollection>]
 public sealed class GetReservationTests : BaseApiTest
 {
-    public GetReservationTests(InventoryApiFixture app)
+    public GetReservationTests(ApiTestFixture app)
         : base(app)
     {
     }

@@ -51,7 +51,7 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// new behaviour Session 3.4 specifies (Verify R5).
 /// </para>
 /// </remarks>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

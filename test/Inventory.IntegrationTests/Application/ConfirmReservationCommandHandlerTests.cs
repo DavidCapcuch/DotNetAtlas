@@ -18,7 +18,7 @@ namespace Inventory.IntegrationTests.Application;
 /// physical stock + emits the external <c>ReservationConfirmedEvent</c> in one
 /// atomic transaction.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ConfirmReservationCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

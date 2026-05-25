@@ -54,7 +54,7 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// behaviour Session 2.3 specifies (Verify R5).
 /// </para>
 /// </remarks>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class Session2CannotOversellTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =
