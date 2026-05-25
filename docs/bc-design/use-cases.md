@@ -754,7 +754,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 ### 3.1 Commands — saga-driven (no HTTP endpoints)
 
-The following four commands are **not** exposed via HTTP. They enter the service exclusively through the `ordering.order-commands` Kafka topic (see § 3.3). Nevertheless they are full `Platform.CQRS.ICommand` types with validators and handlers — the same code path is exercised by integration tests via `ISender`.
+The following commands are **not** exposed via HTTP. Four of them enter the service through the `ordering.order-commands` Kafka topic (see § 3.3) — `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand`. The other two — `MarkOrderStockReservedCommand` and `MarkOrderPaymentCompletedCommand` — are saga-internal: the Wave-2 saga dispatches them in-process via `ISender` (no Kafka inbox consumer). All six are full `Platform.CQRS.ICommand` types with validators and handlers — the same code path is exercised by integration tests via `ISender`.
 
 #### 3.1.1 `CreateOrderCommand`
 
@@ -813,7 +813,7 @@ The following four commands are **not** exposed via HTTP. They enter the service
 
 #### 3.1.2 `MarkOrderStockReservedCommand`
 
-- **HTTP:** *None* — from saga via `ordering.order-commands`. Triggered by saga on `StockReservedEvent`.
+- **HTTP:** *None* — saga-internal application-layer command (in-process dispatch from the Wave-2 saga; **not** on `ordering.order-commands`). Triggered by saga on `StockReservedEvent` from Inventory.
 - **Authorization:** service identity.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -836,7 +836,7 @@ The following four commands are **not** exposed via HTTP. They enter the service
 
 #### 3.1.3 `MarkOrderPaymentCompletedCommand`
 
-- **HTTP:** *None* — from saga.
+- **HTTP:** *None* — saga-internal application-layer command (in-process dispatch from the Wave-2 saga; **not** on `ordering.order-commands`). Triggered by saga on `PaymentCompletedEvent` from Payments.
 - **Authorization:** service identity.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -995,11 +995,10 @@ These commands enter via HTTP; the buyer or admin initiates them through the BFF
 
 | Avro command record | Handler class | Internal command it dispatches |
 |---------------------|---------------|-------------------------------|
-| `Ordering.Commands.CreateOrderCommand` | `CreateOrderKafkaHandler` | `CreateOrderCommand` |
-| `Ordering.Commands.MarkOrderStockReservedCommand` | `MarkOrderStockReservedKafkaHandler` | `MarkOrderStockReservedCommand` |
-| `Ordering.Commands.MarkOrderPaymentCompletedCommand` | `MarkOrderPaymentCompletedKafkaHandler` | `MarkOrderPaymentCompletedCommand` |
-| `Ordering.Commands.ConfirmOrderCommand` | `ConfirmOrderKafkaHandler` | `ConfirmOrderCommand` |
-| `Ordering.Commands.MarkOrderFailedCommand` | `MarkOrderFailedKafkaHandler` | `MarkOrderFailedCommand` |
+| `Ordering.Commands.CreateOrderCommand` | `CreateOrderCommandKafkaHandler` | `CreateOrderCommand` |
+| `Ordering.Commands.ConfirmOrderCommand` | `ConfirmOrderCommandKafkaHandler` | `ConfirmOrderCommand` |
+| `Ordering.Commands.CancelOrderCommand` | `CancelOrderCommandKafkaHandler` | `CancelOrderCommand` |
+| `Ordering.Commands.MarkOrderFailedCommand` | `MarkOrderFailedCommandKafkaHandler` | `MarkOrderFailedCommand` |
 
 **Middleware pipeline** (applied to the topic in `Ordering.Api.Program.cs`):
 
@@ -1485,10 +1484,10 @@ The saga-to-service command flow can be summarized as follows, aligning the thre
 |-----------|-----------------------------|----------------|-----------------------------|-------------------------------------|
 | 1. Checkout initiated (consume `basket.sessions`) | `ordering.order-commands` | Ordering | `CreateOrderCommand` | `OrderCreatedEvent` on `ordering.orders` |
 | 2. Reserve stock per line-item | `inventory.reservation-commands` | Inventory | `ReserveStockCommand` | `StockReservedEvent` OR `StockReservationFailedEvent` on `inventory.reservations` |
-| 3a. All reservations succeed → mark order stock-reserved | `ordering.order-commands` | Ordering | `MarkOrderStockReservedCommand` | *(audit-only internal event)* |
+| 3a. All reservations succeed → mark order stock-reserved | `(in-process)` | Ordering | `MarkOrderStockReservedCommand` | *(audit-only internal event)* |
 | 3b. Any reservation failed → fail order + release successful reservations | `ordering.order-commands` + `inventory.reservation-commands` | Ordering + Inventory | `MarkOrderFailedCommand` + `ReleaseReservationCommand` (per successful reservation) | `OrderFailedEvent`; `ReservationReleasedEvent(Compensation)` |
 | 4. Process payment | (Payments saga sub-orchestration — existing; out of scope here) | Payments | *(Payments commands)* | `PaymentCompletedEvent` OR `PaymentFailedEvent` |
-| 5a. Payment completed → mark paid | `ordering.order-commands` | Ordering | `MarkOrderPaymentCompletedCommand` | *(audit-only)* |
+| 5a. Payment completed → mark paid | `(in-process)` | Ordering | `MarkOrderPaymentCompletedCommand` | *(audit-only)* |
 | 5b. Payment failed → fail order + release reservations | `ordering.order-commands` + `inventory.reservation-commands` | Ordering + Inventory | `MarkOrderFailedCommand` + `ReleaseReservationCommand(Compensation)` | `OrderFailedEvent`; `ReservationReleasedEvent` |
 | 6. Confirm order | `ordering.order-commands` | Ordering | `ConfirmOrderCommand` | `OrderConfirmedEvent` |
 | 7. Confirm reservation per line-item (stock physically leaves warehouse) | `inventory.reservation-commands` | Inventory | `ConfirmReservationCommand` | `ReservationConfirmedEvent` |
