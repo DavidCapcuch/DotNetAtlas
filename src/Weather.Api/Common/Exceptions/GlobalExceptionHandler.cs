@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Platform.ServiceDefaults;
 
 namespace Weather.Api.Common.Exceptions;
 
@@ -38,7 +39,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
             case ApplicationException:
                 statusCode = StatusCodes.Status400BadRequest;
                 title = "Bad Request";
-                detail = _environment.IsDevelopment()
+                detail = !_environment.IsDeployedEnvironment()
                     ? exception.Message
                     : "The request was invalid.";
                 type = "https://tools.ietf.org/html/rfc9110#section-15.5.1";
@@ -46,7 +47,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
             case TimeoutException:
                 statusCode = StatusCodes.Status408RequestTimeout;
                 title = "Request Timeout";
-                detail = _environment.IsDevelopment()
+                detail = !_environment.IsDeployedEnvironment()
                     ? $"{httpContext.Request.Method} {httpContext.Request.Path} {httpContext.Request.QueryString}".Trim()
                     : "The request timed out.";
                 type = "https://tools.ietf.org/html/rfc9110#section-15.5.9";
