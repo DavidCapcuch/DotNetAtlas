@@ -563,7 +563,6 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Catalog=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - Kafka__Brokers__0=broker:9092
@@ -611,7 +610,6 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Ordering=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - Kafka__Brokers__0=broker:9092
@@ -661,7 +659,6 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Invoicing=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - ConnectionStrings__AzureStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
@@ -704,7 +701,6 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Notifications=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - Kafka__Brokers__0=broker:9092
       - Kafka__SchemaRegistry__Url=http://schema-registry:8081
@@ -751,7 +747,6 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Basket=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       # Basket BC isolates two Redis instances per ADR-0016: redis-basket is the authoritative
       # aggregate store (AOF, noeviction); redis-cache backs idempotency-key OutputCache (allkeys-lru).
@@ -802,7 +797,6 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Inventory=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - Kafka__Brokers__0=broker:9092
@@ -845,7 +839,6 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Payments=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - Kafka__Brokers__0=broker:9092
       - Kafka__SchemaRegistry__Url=http://schema-registry:8081
@@ -937,7 +930,6 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Saga=Host=postgresdb;Port=5432;Database=Saga;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - Kafka__Brokers__0=broker:9092
       - Kafka__SchemaRegistry__Url=http://schema-registry:8081
