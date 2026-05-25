@@ -16,7 +16,7 @@ namespace Invoicing.IntegrationTests.Allocators;
 /// allocator and are covered there; these tests prove the second adapter is
 /// wired against the right table and produces the <c>CN-</c> prefix.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class CreditNoteNumberAllocatorTests
 {
     private readonly IntegrationTestFixture _fixture;

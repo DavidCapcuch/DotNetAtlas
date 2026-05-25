@@ -10,7 +10,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// Pins the paged-list projection shape and per-row SAS URL minting against both the
 /// pre- and post-#277 handler.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetInvoicesByBuyerQueryHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

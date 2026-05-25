@@ -10,6 +10,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
@@ -24,8 +26,7 @@ using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Invoicing.FunctionalTests.Common;
 
-[CollectionDefinition(nameof(FunctionalTestCollection))]
-public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
+internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 
 /// <summary>
 /// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Invoicing API. Spins up
@@ -62,6 +63,8 @@ public class ApiTestFixture : AppFixture<Program>
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
+    public FakeTokenCreator TokenCreator { get; private set; } = null!;
+
     /// <summary>
     /// NSubstitute fake for <see cref="IBlobStore"/> — returns a deterministic SAS URL on
     /// <c>GetSasUrlAsync</c> so M8 query handlers can exercise the URL-minting code path
@@ -72,17 +75,17 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over
-        // the Windows named pipe interleave on the shared ChunkedReadStream and
-        // intermittently raise "Invalid chunk header encountered". Mirrors the Ordering
-        // fixture's reasoning.
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
     }
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        TokenCreator = new FakeTokenCreator(_signer);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, TokenCreator);
         return ValueTask.CompletedTask;
     }
 
@@ -117,6 +120,13 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
+                // Register a TracerProvider so BaseApiTest's TestCaseTracer can resolve it.
+                // Invoicing.Api intentionally does not register OpenTelemetry in production
+                // (no OTEL_EXPORTER_OTLP_ENDPOINT in appsettings); the test host needs a
+                // provider so each test method gets its own Jaeger trace in local dev.
+                services.AddOpenTelemetry()
+                    .WithTracing(tracing => tracing.AddSource(Platform.Test.Framework.Tracing.TestActivitySource.ActivitySourceName));
+
                 // Pin time so SAS-expiry / IssueDate assertions are stable.
                 services.AddSingleton<TimeProvider>(FakeTime);
 
@@ -144,6 +154,8 @@ public class ApiTestFixture : AppFixture<Program>
 
     public async Task ResetFixtureStateAsync()
     {
+        using var _ = SuppressInstrumentationScope.Begin();
+
         // Respawn (inside PostgreSqlTestContainer) wipes every user table in the
         // invoicing schema in dependency order; Redis flushes its own keyspace.
         await Task.WhenAll(

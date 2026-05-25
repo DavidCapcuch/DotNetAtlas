@@ -14,7 +14,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// <see cref="GetInvoiceByIdQueryHandlerTests"/> — keyed off <c>OrderId</c> instead of
 /// the invoice's own id. Must pass against both the pre- and post-#277 handler.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetInvoiceByOrderIdQueryHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

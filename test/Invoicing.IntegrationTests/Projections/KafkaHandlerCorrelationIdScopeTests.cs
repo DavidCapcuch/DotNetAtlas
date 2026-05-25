@@ -27,7 +27,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// log enrichment. This test pins each projection handler to the contract: open
 /// scopes are allowed, but they must not include <c>CorrelationId</c> as a key.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class KafkaHandlerCorrelationIdScopeTests
 {
     private readonly IntegrationTestFixture _fixture;

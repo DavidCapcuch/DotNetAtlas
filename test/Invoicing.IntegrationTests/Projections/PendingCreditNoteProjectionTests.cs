@@ -32,7 +32,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// with it and are persisted into <c>pending_credit_notes.OrderPayload</c>
 /// for M8 to read. Each test asserts the round-trip through the jsonb column.
 /// </remarks>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class PendingCreditNoteProjectionTests
 {
     private static readonly DateTimeOffset CancelArrivalUtc =

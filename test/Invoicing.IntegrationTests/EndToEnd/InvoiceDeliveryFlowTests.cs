@@ -16,7 +16,7 @@ using Xunit;
 
 namespace Invoicing.IntegrationTests.EndToEnd;
 
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class InvoiceDeliveryFlowTests
 {
     private readonly IntegrationTestFixture _fixture;

@@ -25,7 +25,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// state is built through real production code), then drives the credit-note flow.
 /// Covers example-mapping § 3.1 (happy path) and § 3.3 (cancelled-invoice rejected).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class IssueCreditNoteCommandHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

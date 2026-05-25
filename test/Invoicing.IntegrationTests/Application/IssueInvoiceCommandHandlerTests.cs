@@ -30,7 +30,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// level (see <c>IntegrationTestFixture</c>); the assertions verify what the M7 handler
 /// SHOULD have invoked rather than what the third-party adapters produce.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class IssueInvoiceCommandHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

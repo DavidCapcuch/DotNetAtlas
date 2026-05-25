@@ -7,7 +7,7 @@ using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Invoicing.FunctionalTests.ApiEndpoints.CreditNotes;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class GetCreditNoteByIdTests : BaseApiTest
 {
     public GetCreditNoteByIdTests(ApiTestFixture app)

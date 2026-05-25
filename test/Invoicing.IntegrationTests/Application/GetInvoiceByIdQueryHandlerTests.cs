@@ -12,7 +12,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// <c>WithSpecification(InvoiceByIdSpec)</c> handler AND the SQL-side-projection rewrite
 /// that drops Ardalis.Specification on the read side.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetInvoiceByIdQueryHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;
