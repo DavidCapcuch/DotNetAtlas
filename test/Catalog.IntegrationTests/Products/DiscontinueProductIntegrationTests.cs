@@ -18,14 +18,12 @@ namespace Catalog.IntegrationTests.Products;
 /// UpdateAuditableEntitiesInterceptor against a Postgres Testcontainer, so a regression
 /// where the handler reaches for DateTimeOffset.UtcNow (ADR-0015) surfaces here.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
-public sealed class DiscontinueProductIntegrationTests
+[Collection<IntegrationTestCollection>]
+public sealed class DiscontinueProductIntegrationTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
-    public DiscontinueProductIntegrationTests(IntegrationTestFixture fixture)
+    public DiscontinueProductIntegrationTests(IntegrationTestFixture app)
+        : base(app)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -37,7 +35,7 @@ public sealed class DiscontinueProductIntegrationTests
         var run = Guid.CreateVersion7().ToString("N")[..8];
         Guid productId;
         Guid categoryId;
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var categoryHandler = scope.ServiceProvider
                 .GetRequiredService<ICommandHandler<CreateCategoryCommand, Guid>>();
@@ -65,11 +63,11 @@ public sealed class DiscontinueProductIntegrationTests
         // Post-#177: products are Active on create — no separate Activate step. Move the
         // clock forward by 1 hour so the Discontinue write has a distinguishable
         // LastModifiedUtc from the Create write.
-        _fixture.TimeProvider.Advance(TimeSpan.FromHours(1));
-        var expectedLastModifiedUtc = _fixture.TimeProvider.GetUtcNow();
+        Fixture.TimeProvider.Advance(TimeSpan.FromHours(1));
+        var expectedLastModifiedUtc = Fixture.TimeProvider.GetUtcNow();
 
         // Act
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider
                 .GetRequiredService<ICommandHandler<DiscontinueProductCommand>>();
@@ -87,7 +85,7 @@ public sealed class DiscontinueProductIntegrationTests
         // injected TimeProvider; the handler's own _timeProvider.GetUtcNow() feeds the
         // ProductDiscontinuedDomainEvent. If anyone reaches for static DateTimeOffset.UtcNow
         // by accident, LastModifiedUtc would diverge from the FakeTimeProvider value.
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CatalogDbContext>();
         var persisted = await verifyDb.Products
             .AsNoTracking()

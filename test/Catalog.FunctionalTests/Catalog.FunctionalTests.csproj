@@ -3,6 +3,7 @@
     <ItemGroup>
         <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="NSubstitute.Analyzers.CSharp">

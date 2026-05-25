@@ -1,32 +1,22 @@
-using Catalog.FunctionalTests.Common.TestClientInfrastructure;
 using Catalog.Infrastructure.Persistence.Database;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
-using OpenFeature;
 using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
-namespace Catalog.FunctionalTests.Common;
+namespace Catalog.IntegrationTests.Common;
 
-public abstract class BaseApiTest : IAsyncLifetime
+public abstract class BaseIntegrationTest : IAsyncLifetime
 {
+    private readonly TestCaseTracer _testCaseTracer;
     private readonly Func<Task> _resetFixtureStateAsync;
 
-    protected TestCaseTracer TestCaseTracer { get; }
-
-    protected ApiTestFixture Fixture { get; }
-
+    protected IntegrationTestFixture Fixture { get; }
     protected IServiceScope Scope { get; }
-
-    protected CatalogDbContext DbContext { get; }
-
-    protected HttpClientRegistry<Program> HttpClientRegistry { get; }
-
-    protected IFeatureClient FeatureClient => Fixture.FeatureClient;
-
+    protected CatalogDbContext CatalogDbContext { get; }
     protected FakeTimeProvider TimeProvider => Fixture.TimeProvider;
 
-    protected BaseApiTest(ApiTestFixture app)
+    protected BaseIntegrationTest(IntegrationTestFixture app)
     {
         Fixture = app;
         var outputSink = app.Services.GetRequiredService<IInjectableTestOutputSink>();
@@ -34,31 +24,34 @@ public abstract class BaseApiTest : IAsyncLifetime
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        DbContext = Scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        CatalogDbContext = Scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
-        TestCaseTracer = new TestCaseTracer(
+        _testCaseTracer = new TestCaseTracer(
             Scope.ServiceProvider,
             TestContext.Current.TestMethod!.MethodName,
             TestContext.Current.TestCase!.UniqueID,
-            testType: "functional");
-
-        HttpClientRegistry = app.HttpClientRegistry;
+            testType: "integration");
     }
 
-    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+    public ValueTask InitializeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
 
     public async ValueTask DisposeAsync()
     {
         if (TestContext.Current.TestState?.Result == TestResult.Failed)
         {
-            TestCaseTracer.RecordTestFailure(
+            _testCaseTracer.RecordTestFailure(
                 TestContext.Current.TestState.ExceptionMessages);
         }
 
+        _testCaseTracer.LogTestTraceLocalJaegerLink();
+
+        _testCaseTracer.Dispose();
         await _resetFixtureStateAsync();
-        TestCaseTracer.Dispose();
         Scope.Dispose();
     }
 }

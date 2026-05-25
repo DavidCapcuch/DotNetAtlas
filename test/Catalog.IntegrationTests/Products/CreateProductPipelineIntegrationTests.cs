@@ -21,14 +21,12 @@ namespace Catalog.IntegrationTests.Products;
 /// collection, Money + currency converter, jsonb columns, xmin concurrency) exercised
 /// end-to-end.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
-public sealed class CreateProductPipelineIntegrationTests
+[Collection<IntegrationTestCollection>]
+public sealed class CreateProductPipelineIntegrationTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
-    public CreateProductPipelineIntegrationTests(IntegrationTestFixture fixture)
+    public CreateProductPipelineIntegrationTests(IntegrationTestFixture app)
+        : base(app)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -36,7 +34,7 @@ public sealed class CreateProductPipelineIntegrationTests
     {
         // Arrange — first create a category so the Product has somewhere to live.
         Guid categoryId;
-        using (var setupScope = _fixture.CreateScope())
+        using (var setupScope = Fixture.CreateScope())
         {
             var categoryHandler = setupScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<CreateCategoryCommand, Guid>>();
@@ -70,7 +68,7 @@ public sealed class CreateProductPipelineIntegrationTests
 
         // Act
         Guid productId;
-        using (var actScope = _fixture.CreateScope())
+        using (var actScope = Fixture.CreateScope())
         {
             var handler = actScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<CreateProductCommand, Guid>>();
@@ -87,7 +85,7 @@ public sealed class CreateProductPipelineIntegrationTests
 
         // Assert — re-resolve the DbContext from a fresh scope so we read what was
         // actually committed to Postgres, not what's still in the prior scope's change tracker.
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<CatalogDbContext>();
 
         // 1. Write-model row landed with VOs flattened into single columns.

@@ -1,43 +1,43 @@
-using Catalog.Application.Common;
-using Catalog.Application.Common.Data;
-using Catalog.Application.Common.Messaging;
-using Catalog.Infrastructure.Common;
+using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Persistence.Database;
-using Catalog.Infrastructure.Persistence.Database.Interceptors;
-using Confluent.SchemaRegistry;
-using EntityFramework.Exceptions.PostgreSQL;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
+using FastEndpoints.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
-using Platform.ReliableMessaging.Outbox.Core;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Redis;
 using Respawn;
+using Serilog;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Abstract;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Catalog.IntegrationTests.Common;
 
+internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
+
 /// <summary>
-/// Spins a throwaway Postgres container per collection and wires the M4 DI graph:
-/// real <see cref="CatalogDbContext"/>, the <see cref="ICatalogDbContext"/> port
-/// binding, the Application layer (validators, CQRS handlers, projection +
-/// outbox-publisher domain-event handlers, the M3.5 cycle/path services), the
-/// transactional outbox backed by <see cref="FakeOutboxWriter"/>, and a
-/// <see cref="FakeTimeProvider"/> pinned to <see cref="Now"/> so OccurredOnUtc
-/// + LastUpdatedAtUtc assertions are deterministic across CI runs.
+/// Boots the real <c>Program.cs</c> host inside an <see cref="AppFixture{TEntryPoint}"/>
+/// against Postgres + Redis + Kafka Testcontainers (containers mirror what
+/// <see cref="Common.MessagingDependencyInjection"/> validates at startup; the
+/// KafkaFlow consumer block is registered but Catalog's <c>Program.cs</c> intentionally
+/// omits the <c>kafkaBus.StartAsync()</c> call so no consumer poll loop runs in tests).
+/// Schema comes from the same idempotent V*.sql scripts Flyway runs in compose (#269).
+/// Replaces the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/>
+/// so command-handler outbox assertions don't require a Schema Registry round-trip; pins
+/// <see cref="TimeProvider"/> to <see cref="Now"/> so <c>OccurredOnUtc</c> +
+/// <c>LastUpdatedAtUtc</c> assertions stay deterministic across CI runs.
 /// </summary>
-/// <remarks>
-/// Schema comes from the same idempotent V*.sql scripts Flyway runs in compose (#269);
-/// Catalog's Initial EF migration was added as part of #269 (Catalog previously relied on
-/// EnsureCreatedAsync and had no migrations committed).
-/// </remarks>
-public sealed class IntegrationTestFixture : IAsyncLifetime
+[DisableWafCache]
+public class IntegrationTestFixture : AppFixture<Program>
 {
-    /// <summary>Stable test clock — also exposed on <see cref="TimeProvider"/> as a singleton.</summary>
+    /// <summary>Stable test clock — matches <c>Catalog.FunctionalTests.ApiTestFixture.Now</c>.</summary>
     public static readonly DateTimeOffset Now =
         new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
 
@@ -49,106 +49,88 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             SchemasToInclude = [CatalogDbContext.DefaultSchemaName]
         });
 
-    private ServiceProvider _rootServices = null!;
+    private readonly RedisTestContainer _redisContainer = new();
+    private readonly KafkaTestContainer _kafkaContainer = new();
 
     /// <summary>Test-controlled <see cref="FakeTimeProvider"/> — call <c>Advance(...)</c> per scenario.</summary>
     public FakeTimeProvider TimeProvider { get; } = new(Now);
 
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask PreSetupAsync()
     {
-        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+        await _redisContainer.StartAsync();
+        await _kafkaContainer.StartAsync();
+    }
 
-        var services = new ServiceCollection();
-        services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
-
-        // Minimal in-memory IConfiguration backing the explicit
-        // services.Configure<CatalogTopicsOptions>(config.GetSection(...)) call below — outbox
-        // publishers resolve topic names through this options instance.
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["CatalogTopics:CatalogProducts"] = "catalog.products",
-                ["CatalogTopics:CatalogCategories"] = "catalog.categories",
-                ["CatalogTopics:StockLevelChanged"] = "inventory.stock-level-changed",
-                ["CatalogTopics:DltTopicSuffix"] = ".Catalog.DLT",
-            })
-            .Build();
-        services.AddSingleton<IConfiguration>(config);
-
-        services.AddSingleton<TimeProvider>(TimeProvider);
-
-        // Mirror production wiring (PersistenceDependencyInjection.cs) so projection +
-        // outbox-publisher domain-event handlers run inside the same SaveChangesAsync as
-        // the aggregate write — the CQRS-on-Postgres atomicity catalog.md § 9 promises.
-        // Without these the DispatchDomainEventsInterceptor never fires and product_search_view
-        // stays empty regardless of what the command handlers do.
-        services.AddScoped<DispatchDomainEventsInterceptor>();
-        services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
-
-        // Real DbContext bypassing Catalog.Infrastructure.AddDatabase (which binds an
-        // EfCoreOptions section + production retry knobs not material for tests).
-        services.AddDbContext<CatalogDbContext>((sp, options) => options
-            .UseNpgsql(_dbContainer.ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor()
-            .ConfigureWarnings(w => w.Log(RelationalEventId.PendingModelChangesWarning))
-            .AddInterceptors(
-                sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>(),
-                sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
-
-        services.AddScoped<ICatalogDbContext>(sp => sp.GetRequiredService<CatalogDbContext>());
-
-        // Application composition root: validators, CQRS handlers, domain-event dispatcher
-        // (which wires projection + outbox publishers), and the M3.5 ICategoryAncestryService +
-        // ICategoryPathService. Note: AddCatalogApplication only does AddOptions<CatalogTopicsOptions>()
-        // without binding — production wires the binding in Catalog.Infrastructure's
-        // MessagingDependencyInjection (which this fixture intentionally skips because it owns the
-        // Kafka consumer wiring as well). Bind separately below so outbox publishers resolve real
-        // topic names instead of nulls.
-        services.AddCatalogApplication();
-        // Fail-fast topic-config binding (#220): swap services.Configure<> for
-        // AddOptionsWithValidateOnStart + ValidateDataAnnotations so a missing topic
-        // key or [Required] violation surfaces at container build time instead of on
-        // first publish.
-        services.AddOptionsWithValidateOnStart<CatalogTopicsOptions>()
-            .BindConfiguration(CatalogTopicsOptions.Section)
-            .ValidateDataAnnotations();
-
-        // Replace IOutboxWriter with FakeOutboxWriter BEFORE AddOutbox — the platform's
-        // TryAddSingleton respects the prior registration so we bypass the Schema Registry
-        // round-trip. Mirrors Basket M6 + Inventory M4.
-        services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
-
-        services.AddOutbox(outbox =>
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        a.ConfigureWebHost(webBuilder =>
         {
-            outbox.ConfigureMessageOrigin(MessagingDependencyInjection.KafkaProducerOrigin);
-            outbox.ConfigureSchemaRegistryConfig(opts => opts.Url = "http://mock-schema-registry");
-            outbox.ConfigureAvroSerializerConfig(opts =>
-            {
-                opts.SubjectNameStrategy = SubjectNameStrategy.Record;
-                opts.AutoRegisterSchemas = false;
-            });
+            var redisConfig = _redisContainer.ConfigurationOptions;
+            webBuilder
+                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Catalog)}",
+                    _dbContainer.ConnectionString)
+                .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
+                .UseKafkaSettings(_kafkaContainer.KafkaOptions);
         });
 
-        _rootServices = services.BuildServiceProvider(validateScopes: true);
+        return base.ConfigureAppHost(a);
+    }
+
+    protected override void ConfigureApp(IWebHostBuilder a)
+    {
+        a
+            .UseEnvironment("Testing")
+            .ConfigureServices((context, services) =>
+            {
+                var injectableTestOutputSink = new InjectableTestOutputSink();
+                services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
+                services.AddSerilog((_, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .MinimumLevel.Debug()
+                        .ReadFrom.Configuration(context.Configuration)
+                        .WriteTo.InjectableTestOutput(injectableTestOutputSink)
+                        .Enrich.FromLogContext();
+                }, true, true);
+            })
+            .ConfigureTestServices(services =>
+            {
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a
+                // fake. Avro byte fidelity is asserted in AvroByteFidelityTests with its own
+                // Schema-Registry container; the rest of the suite stays fast.
+                services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
+
+                // Pin the wall-clock so deterministic OccurredOnUtc / LastUpdatedAtUtc
+                // assertions match across CI runs (mirrors ApiTestFixture).
+                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(TimeProvider));
+            });
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
-    public IServiceScope CreateScope() => _rootServices.CreateScope();
+    public IServiceScope CreateScope() => Services.CreateScope();
 
     /// <summary>Connection string for tests that bypass the DbContext.</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
-    /// <summary>Wipes every table in the Catalog schema between tests.</summary>
-    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
-
-    public async ValueTask DisposeAsync()
+    /// <summary>Wipes every table in the Catalog schema between tests, flushes Redis, and rewinds the clock.</summary>
+    public async Task ResetFixtureStateAsync()
     {
-        if (_rootServices is not null)
-        {
-            await _rootServices.DisposeAsync();
-        }
+        TimeProvider.SetUtcNow(Now);
 
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync()
+        );
+    }
+
+    protected override async ValueTask TearDownAsync()
+    {
         await _dbContainer.DisposeAsync();
+        await _redisContainer.DisposeAsync();
+        await _kafkaContainer.DisposeAsync();
     }
 }
