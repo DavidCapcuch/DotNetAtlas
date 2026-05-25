@@ -60,7 +60,7 @@ internal static class FakeKafkaMessageContext
 
         var consumerContext = Substitute.For<IConsumerContext>();
         consumerContext.WorkerStopped.Returns(cancellationToken);
-        consumerContext.Topic.Returns("payments.commands");
+        consumerContext.Topic.Returns("payments.payment-commands");
         consumerContext.Partition.Returns(0);
         consumerContext.Offset.Returns(0);
 

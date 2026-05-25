@@ -10,7 +10,7 @@ using AvroVoidPaymentCommand = Payments.Transactions.VoidPaymentCommand;
 namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
-/// Translates saga-issued Avro commands on <c>payments.commands</c> to the application-layer
+/// Translates saga-issued Avro commands on <c>payments.payment-commands</c> to the application-layer
 /// command DTOs. Pure functions, no DI, no side-effects — simple mapping is clearer than a
 /// Mapperly config here because the shape differences (decimal AvroDecimal → C# decimal,
 /// Avro <c>UserId</c> → App <c>BuyerId</c> rename, aggregate PK sourced from the Avro

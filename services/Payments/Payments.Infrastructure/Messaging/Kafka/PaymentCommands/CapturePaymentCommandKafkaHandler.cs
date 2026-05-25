@@ -11,7 +11,7 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
 /// Consumes the saga-issued <see cref="AvroCapturePaymentCommand"/> on
-/// <c>payments.commands</c> and dispatches it to the application handler. Idempotency: inbox
+/// <c>payments.payment-commands</c> and dispatches it to the application handler. Idempotency: inbox
 /// dedup at the middleware level + terminal-status short-circuit on the aggregate.
 /// </summary>
 internal sealed class CapturePaymentCommandKafkaHandler

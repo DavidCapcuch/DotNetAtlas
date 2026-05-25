@@ -11,7 +11,7 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
 /// Consumes the saga-issued <see cref="AvroVoidPaymentCommand"/> (pre-capture compensation) on
-/// <c>payments.commands</c> and dispatches it to the application handler.
+/// <c>payments.payment-commands</c> and dispatches it to the application handler.
 /// </summary>
 internal sealed class VoidPaymentCommandKafkaHandler
     : SagaCommandHandlerBase<AvroVoidPaymentCommand>, IMessageHandler<AvroVoidPaymentCommand>

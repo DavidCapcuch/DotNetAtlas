@@ -88,7 +88,7 @@ internal static class MessagingDependencyInjection
                         // a poison-pill (DbUpdateException with a structural cause that survives
                         // 4 backoff steps); bounded TryTimes lets the exception bubble to the
                         // outer AddDeadLetter middleware, which routes the message to
-                        // <consumer-topic>.Payments.DLT (e.g. payments.commands.Payments.DLT) so
+                        // <consumer-topic>.Payments.DLT (e.g. payments.payment-commands.Payments.DLT) so
                         // the partition keeps advancing. Operational runbook:
                         // docs/runbooks/payments-dlt.md.
                         .RetrySimple(config => config

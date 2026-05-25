@@ -121,7 +121,7 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     public Guid? PaymentTransactionId { get; set; }
 
     /// <summary>
-    /// UTC timestamp when PaymentRequestedEvent was emitted to payments.commands.
+    /// UTC timestamp when PaymentRequestedEvent was emitted to payments.payment-commands.
     /// </summary>
     public DateTimeOffset? PaymentRequestedAtUtc { get; set; }
 
