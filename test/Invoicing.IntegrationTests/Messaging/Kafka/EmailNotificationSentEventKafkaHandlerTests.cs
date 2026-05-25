@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Invoicing.IntegrationTests.Messaging.Kafka;
 
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class EmailNotificationSentEventKafkaHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

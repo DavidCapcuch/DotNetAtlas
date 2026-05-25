@@ -71,7 +71,7 @@ try
     // Skip the Kafka enrichment-projection consumers in the test host. M6's
     // integration tests exercise the consumer slice against a real broker; M8's
     // functional tests exercise the HTTP surface only and do not need Kafka up.
-    if (!app.Environment.IsEnvironment("Testing"))
+    if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();
         await kafkaBus.StartAsync();

@@ -10,7 +10,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// Pins the credit-note projection shape, per-request SAS URL minting, and authorization
 /// branches. Must pass against both the pre- and post-#277 handler.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetCreditNoteByIdQueryHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

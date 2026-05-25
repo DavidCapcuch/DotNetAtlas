@@ -8,7 +8,7 @@ using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Invoicing.FunctionalTests.ApiEndpoints.Invoices;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class ResendInvoiceTests : BaseApiTest
 {
     public ResendInvoiceTests(ApiTestFixture app)

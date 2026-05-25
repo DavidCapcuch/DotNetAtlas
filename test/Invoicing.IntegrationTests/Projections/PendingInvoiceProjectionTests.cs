@@ -31,7 +31,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// with it and are persisted into <c>pending_invoices.OrderPayload</c> for
 /// M7 to read. Each test asserts the round-trip through the jsonb column.
 /// </remarks>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class PendingInvoiceProjectionTests
 {
     private static readonly DateTimeOffset OrderArrivalUtc =

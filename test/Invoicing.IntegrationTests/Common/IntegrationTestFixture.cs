@@ -1,10 +1,8 @@
 using System.Text.Json;
-using EntityFramework.Exceptions.PostgreSQL;
+using FastEndpoints.Testing;
 using FluentResults;
 using Invoicing.Application.Blobs;
-using Invoicing.Application.Common;
 using Invoicing.Application.Common.Data;
-using Invoicing.Application.Common.Numbering;
 using Invoicing.Application.CreditNotes.IssueCreditNote;
 using Invoicing.Application.CreditNotes.Projections;
 using Invoicing.Application.Invoices.IssueInvoice;
@@ -13,42 +11,44 @@ using Invoicing.Application.Pdf;
 using Invoicing.Domain.Common.ValueObjects;
 using Invoicing.Infrastructure.Messaging.Kafka.Notifications;
 using Invoicing.Infrastructure.Persistence.Database;
-using Invoicing.Infrastructure.Persistence.Database.Interceptors;
-using Invoicing.Infrastructure.Persistence.Numbering;
 using KafkaFlow;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
 using Respawn;
+using Serilog;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Abstract;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Invoicing.IntegrationTests.Common;
 
+internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
+
 /// <summary>
-/// Spins a throwaway Postgres container per collection and wires the M5/M6/M7
-/// persistence + application slices. M5 brought <see cref="InvoicingDbContext"/> +
-/// the gap-free allocators; M6 added the projection tables + inbox; M7 adds the
-/// <c>Invoices</c> + <c>CreditNotes</c> aggregate tables, the
-/// <see cref="DispatchDomainEventsInterceptor"/>, the Application-layer command
-/// handlers + outbox publishers, and a stubbed <see cref="ITransactionalOutbox{TContext}"/>
-/// so M7 tests can assert the correct external Avro events were enqueued without
-/// standing up a real Confluent Schema Registry.
+/// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Invoicing host. Boots the real
+/// <c>Invoicing.API</c> composition root inside <c>UseEnvironment("Testing")</c>, swaps in test
+/// doubles for the M3/M4/M7 external adapters (<see cref="IPdfGenerator"/>,
+/// <see cref="IBlobStore"/>, <see cref="ITransactionalOutbox{TContext}"/>), and points
+/// <see cref="ConnectionStringsOptions.Invoicing"/> at a throwaway Postgres container whose
+/// schema is materialised by the same idempotent V*.sql scripts Flyway runs in compose
+/// (#269). Tests resolve handlers from <see cref="Services"/> and invoke them directly;
+/// Kafka consumers are skipped (Program.cs guards <c>CreateKafkaBus().StartAsync()</c> with
+/// <c>!app.Environment.IsTesting()</c>) and the M5 <see cref="EmailNotificationSentEventKafkaHandler"/>
+/// is invoked synchronously via <c>TestKafkaMessageContext</c> instead of through a real broker.
 /// </summary>
-/// <remarks>
-/// Schema is materialised by <see cref="PostgreSqlTestContainer"/> running the same
-/// idempotent V*.sql files Flyway runs in compose (#269) — Integration and Functional
-/// fixtures previously diverged (EnsureCreatedAsync vs MigrateAsync); both now consume
-/// one source of truth. The blob store and PDF generator are NSubstitute stubs at this
-/// level (lifecycle: singleton); the M3 integration tests in <c>AzuriteFixture</c>
-/// exercise the real Azurite-backed adapter.
-/// </remarks>
-public sealed class IntegrationTestFixture : IAsyncLifetime
+[DisableWafCache]
+public class IntegrationTestFixture : AppFixture<Program>
 {
     /// <summary>Pinned to 2026-04-24 09:00 UTC so M7 assertions on issue dates / invoice-number year are deterministic.</summary>
     public static readonly DateTimeOffset FixedFakeNow =
@@ -61,8 +61,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         {
             SchemasToInclude = [InvoicingDbContext.DefaultSchemaName]
         });
-
-    private ServiceProvider _rootServices = null!;
 
     /// <summary>Test-controlled clock pinned to <see cref="FixedFakeNow"/>; resolvable as <see cref="TimeProvider"/>.</summary>
     public FakeTimeProvider FakeTime { get; } = new(FixedFakeNow);
@@ -77,86 +75,90 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// <summary>The shared NSubstitute blob store stub. Returns a deterministic <see cref="PdfBlobRef"/>.</summary>
     public IBlobStore BlobStoreSubstitute { get; } = BuildBlobStoreStub();
 
-    public async ValueTask InitializeAsync()
-    {
-        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
-
-        var services = new ServiceCollection();
-
-        services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
-
-        // Minimal in-memory configuration so InvoicingTopicsOptions + BlobStorageOptions bind.
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["InvoicingTopics:Invoices"] = "invoicing.invoices",
-                ["InvoicingTopics:OrderingOrders"] = "ordering.orders",
-                ["InvoicingTopics:PaymentsTransactions"] = "payments.transactions",
-                ["InvoicingTopics:NotificationsEmailCommands"] = "notifications.email-commands",
-                ["InvoicingTopics:NotificationsEmailEvents"] = "notifications.email-events",
-                ["InvoicingTopics:DltTopicSuffix"] = ".Invoicing.DLT",
-                ["BuyerPortal:BaseUrl"] = "https://invoicing.test",
-                ["BlobStorage:InvoicesContainerName"] = "invoices-test",
-                ["BlobStorage:ConnectionString"] = "UseDevelopmentStorage=true",
-            })
-            .Build();
-        services.AddSingleton<IConfiguration>(config);
-
-        services.AddSingleton<TimeProvider>(FakeTime);
-
-        services.AddScoped<DispatchDomainEventsInterceptor>();
-
-        services.AddDbContext<InvoicingDbContext>((sp, options) => options
-            .UseNpgsql(_dbContainer.ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor()
-            .AddInterceptors(sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
-
-        services.AddScoped<IInvoicingDbContext>(sp => sp.GetRequiredService<InvoicingDbContext>());
-
-        // Real allocators (require an enclosing transaction per ADR-0018; M7 handlers
-        // ensure that contract).
-        services.AddScoped<IInvoiceNumberAllocator, PostgresInvoiceNumberAllocator>();
-        services.AddScoped<ICreditNoteNumberAllocator, PostgresCreditNoteNumberAllocator>();
-
-        // Stubbed PDF generator + blob store: M3/M4 own the real adapters via the
-        // AzuriteFixture / QuestPdf integration tests respectively. Here we only need
-        // a deterministic in-memory result so the M7 handler can flow end-to-end.
-        services.AddSingleton(PdfGeneratorSubstitute);
-        services.AddSingleton(BlobStoreSubstitute);
-
-        // Stubbed transactional outbox. The Application-layer outbox publisher
-        // domain-event handlers will resolve this stub; tests assert on the stub's
-        // received AddOutboxMessage calls. Skipping AddOutbox(...) avoids wiring a
-        // schema-registry container in tests.
-        services.AddSingleton(OutboxSubstitute);
-
-        // BlobStorageOptions: tests bind from the in-memory config above. Production
-        // wires the connection string from ConnectionStrings:AzureStorage in
-        // InfrastructureDependencyInjection; tests don't need that.
-        services.AddOptions<BlobStorageOptions>()
-            .BindConfiguration(BlobStorageOptions.SectionName)
-            .ValidateDataAnnotations();
-
-        // Real Application-layer DI: validators, command handlers, domain-event
-        // handlers + dispatcher, behavior chain (Tracing→Logging→Metrics→Validation).
-        services.AddInvoicingApplication();
-
-        // Kafka typed handlers — registered Scoped to match production KafkaFlow wiring.
-        // Tests resolve these directly and invoke Handle(...) without a middleware stack.
-        services.AddScoped<EmailNotificationSentEventKafkaHandler>();
-
-        _rootServices = services.BuildServiceProvider();
-    }
-
-    /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
-    public AsyncServiceScope CreateScope() => _rootServices.CreateAsyncScope();
-
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
+    protected override async ValueTask PreSetupAsync()
+    {
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+    }
+
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        a.ConfigureWebHost(webBuilder =>
+        {
+            webBuilder
+                .UseSetting("ConnectionStrings:Invoicing", _dbContainer.ConnectionString)
+                // Pin the buyer-portal base URL so M7's ViewInvoiceUrl assertion
+                // (`https://invoicing.test/invoices/{invoiceId}`) is independent of the
+                // production appsettings value (`invoicing.example.com`).
+                .UseSetting("BuyerPortal:BaseUrl", "https://invoicing.test");
+        });
+
+        return base.ConfigureAppHost(a);
+    }
+
+    protected override void ConfigureApp(IWebHostBuilder a)
+    {
+        a
+            .UseEnvironment("Testing")
+            .ConfigureServices((context, services) =>
+            {
+                var injectableTestOutputSink = new InjectableTestOutputSink();
+                services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
+                services.AddSerilog((_, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .MinimumLevel.Debug()
+                        .ReadFrom.Configuration(context.Configuration)
+                        .WriteTo.InjectableTestOutput(injectableTestOutputSink)
+                        .Enrich.FromLogContext();
+                }, true, true);
+            })
+            .ConfigureTestServices(services =>
+            {
+                // Register a TracerProvider so BaseIntegrationTest's TestCaseTracer can
+                // resolve it. Invoicing.Api intentionally does not register OpenTelemetry
+                // in production (no OTEL_EXPORTER_OTLP_ENDPOINT in appsettings); the test
+                // host needs a provider so each test method gets its own Jaeger trace in
+                // local dev.
+                services.AddOpenTelemetry()
+                    .WithTracing(tracing => tracing.AddSource(Platform.Test.Framework.Tracing.TestActivitySource.ActivitySourceName));
+
+                // Pin time so issue-date / SAS-expiry assertions are stable.
+                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(FakeTime));
+
+                // Replace the real Azurite-backed adapter with the NSubstitute stub. The
+                // real adapter is exercised by the M3 integration tests in AzuriteFixture.
+                services.RemoveAll<IBlobStore>();
+                services.AddSingleton(BlobStoreSubstitute);
+
+                // Replace the real QuestPdf-backed adapter with the NSubstitute stub. The
+                // real adapter is exercised by the M4 QuestPdfInvoiceGeneratorTests.
+                services.RemoveAll<IPdfGenerator>();
+                services.AddSingleton(PdfGeneratorSubstitute);
+
+                // Replace the platform Scoped TransactionalOutbox with our NSubstitute stub
+                // so M7 tests can assert which Avro events the handlers enqueue without
+                // standing up a Schema Registry container. Singleton lifetime matches the
+                // pre-AppFixture wiring; KafkaFlow's typed handlers resolve it from the
+                // request scope, which honours the singleton descriptor.
+                services.RemoveAll<ITransactionalOutbox<IInvoicingDbContext>>();
+                services.AddSingleton(OutboxSubstitute);
+            });
+    }
+
+    /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
+    public AsyncServiceScope CreateScope() => Services.CreateAsyncScope();
+
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
+
+    /// <summary>Wipes every user table in the Invoicing schema between tests.</summary>
+    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
 
     /// <summary>
     /// Seeds a fully-issued invoice by seeding a <see cref="PendingInvoice"/> projection row
@@ -174,7 +176,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
         await SeedConvergedPendingInvoiceAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
 
-        await using var scope = _rootServices.CreateAsyncScope();
+        await using var scope = Services.CreateAsyncScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
 
         var result = await handler.HandleAsync(new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
@@ -198,7 +200,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     {
         var (invoiceId, buyerId) = await SeedIssuedInvoiceAsync(ct);
 
-        await using var scope = _rootServices.CreateAsyncScope();
+        await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
 
         // Wire the outbox stub's Database so EnsureTransactionAsync can open a real transaction.
@@ -257,7 +259,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     private async Task IssueInvoiceForCreditNoteSeedAsync(Guid correlationId, CancellationToken ct)
     {
-        await using var invoiceScope = _rootServices.CreateAsyncScope();
+        await using var invoiceScope = Services.CreateAsyncScope();
         var invoiceHandler = invoiceScope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
         var invoiceResult = await invoiceHandler.HandleAsync(
@@ -271,7 +273,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     private async Task<Guid> IssueCreditNoteForSeedAsync(Guid correlationId, CancellationToken ct)
     {
-        await using var creditScope = _rootServices.CreateAsyncScope();
+        await using var creditScope = Services.CreateAsyncScope();
         var creditHandler = creditScope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueCreditNoteCommand, Guid>>();
         var creditResult = await creditHandler.HandleAsync(
@@ -299,7 +301,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         string currency,
         CancellationToken ct)
     {
-        await using var scope = _rootServices.CreateAsyncScope();
+        await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
 
         var orderPayload = JsonSerializer.Serialize(new
@@ -375,7 +377,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         string currency,
         CancellationToken ct)
     {
-        await using var scope = _rootServices.CreateAsyncScope();
+        await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
 
         var orderPayload = JsonSerializer.Serialize(new
@@ -436,13 +438,8 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         await db.SaveChangesAsync(ct);
     }
 
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask TearDownAsync()
     {
-        if (_rootServices is not null)
-        {
-            await _rootServices.DisposeAsync();
-        }
-
         await _dbContainer.DisposeAsync();
     }
 
@@ -503,11 +500,3 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         return stub;
     }
 }
-
-/// <summary>
-/// xUnit v3 collection definition scoping <see cref="IntegrationTestFixture"/>
-/// — one Postgres container shared across all integration tests in the
-/// <c>Invoicing-Integration</c> collection, fresh per run.
-/// </summary>
-[CollectionDefinition(nameof(IntegrationTestCollection))]
-public sealed class IntegrationTestCollection : ICollectionFixture<IntegrationTestFixture>;

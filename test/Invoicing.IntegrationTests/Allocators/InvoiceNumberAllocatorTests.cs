@@ -18,7 +18,7 @@ namespace Invoicing.IntegrationTests.Allocators;
 /// Each test instantiates its own <see cref="FakeTimeProvider"/> so the
 /// fixture's clock never goes backwards across test orderings.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class InvoiceNumberAllocatorTests
 {
     private readonly IntegrationTestFixture _fixture;
