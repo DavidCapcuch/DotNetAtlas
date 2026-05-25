@@ -48,6 +48,14 @@
                 "logicalType": "uuid"
             },
             "doc": "Checkout saga correlation id of the cancellation flow."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record."
         }
     ]
 }

@@ -19,7 +19,25 @@ namespace Invoicing.Invoices
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class InvoiceCancelledEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""InvoiceCancelledEvent"",""doc"":""Emitted when an Invoice transitions Issued|Delivered -> Cancelled because the order was cancelled-after-capture and a CreditNote was issued. Carries the reversing CreditNoteId so downstream consumers (Notifications, BFF cache) can correlate the cancellation with the corresponding CreditNoteIssuedEvent."",""namespace"":""Invoicing.Invoices"",""fields"":[{""name"":""InvoiceId"",""doc"":""Identifier of the Invoice aggregate that was cancelled."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""Buyer of the cancelled invoice. Used as the Kafka partition key on 'invoicing.invoices'."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CancelledAtUtc"",""doc"":""UTC timestamp when the invoice transitioned to Cancelled."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""Reason"",""doc"":""CreditNoteReason SmartEnum name explaining why the invoice was cancelled (v1: 'OrderCancelled')."",""type"":""string""},{""name"":""CreditNoteId"",""doc"":""Identifier of the reversing CreditNote (Invoice invariant I-6). Cancellation always pairs with a credit note issuance."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id of the cancellation flow."",""type"":{""type"":""string"",""logicalType"":""uuid""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"InvoiceCancelledEvent\",\"doc\":\"Emitted when an Invoice tr" +
+				"ansitions Issued|Delivered -> Cancelled because the order was cancelled-after-ca" +
+				"pture and a CreditNote was issued. Carries the reversing CreditNoteId so downstr" +
+				"eam consumers (Notifications, BFF cache) can correlate the cancellation with the" +
+				" corresponding CreditNoteIssuedEvent.\",\"namespace\":\"Invoicing.Invoices\",\"fields\"" +
+				":[{\"name\":\"InvoiceId\",\"doc\":\"Identifier of the Invoice aggregate that was cancel" +
+				"led.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"Bu" +
+				"yer of the cancelled invoice. Used as the Kafka partition key on \'invoicing.invo" +
+				"ices\'.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CancelledAtUtc\"," +
+				"\"doc\":\"UTC timestamp when the invoice transitioned to Cancelled.\",\"type\":{\"type\"" +
+				":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"Reason\",\"doc\":\"CreditNoteRea" +
+				"son SmartEnum name explaining why the invoice was cancelled (v1: \'OrderCancelled" +
+				"\').\",\"type\":\"string\"},{\"name\":\"CreditNoteId\",\"doc\":\"Identifier of the reversing " +
+				"CreditNote (Invoice invariant I-6). Cancellation always pairs with a credit note" +
+				" issuance.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationI" +
+				"d\",\"doc\":\"Checkout saga correlation id of the cancellation flow.\",\"type\":{\"type\"" +
+				":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OccurredOnUtc\",\"doc\":\"Domain event occ" +
+				"urrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-p" +
+				"rocess record.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Identifier of the Invoice aggregate that was cancelled.
 		/// </summary>
@@ -44,6 +62,10 @@ namespace Invoicing.Invoices
 		/// Checkout saga correlation id of the cancellation flow.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.
+		/// </summary>
+		private System.DateTime _OccurredOnUtc;
 		public virtual global::Avro.Schema Schema
 		{
 			get
@@ -135,6 +157,20 @@ namespace Invoicing.Invoices
 				this._CorrelationId = value;
 			}
 		}
+		/// <summary>
+		/// Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.
+		/// </summary>
+		public System.DateTime OccurredOnUtc
+		{
+			get
+			{
+				return this._OccurredOnUtc;
+			}
+			set
+			{
+				this._OccurredOnUtc = value;
+			}
+		}
 		public virtual object Get(int fieldPos)
 		{
 			switch (fieldPos)
@@ -145,6 +181,7 @@ namespace Invoicing.Invoices
 			case 3: return this.Reason;
 			case 4: return this.CreditNoteId;
 			case 5: return this.CorrelationId;
+			case 6: return this.OccurredOnUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -158,6 +195,7 @@ namespace Invoicing.Invoices
 			case 3: this.Reason = (System.String)fieldValue; break;
 			case 4: this.CreditNoteId = (System.Guid)fieldValue; break;
 			case 5: this.CorrelationId = (System.Guid)fieldValue; break;
+			case 6: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

@@ -88,6 +88,14 @@
             "name": "PdfSizeBytes",
             "type": "long",
             "doc": "Size of the PDF blob in bytes (>0)."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record."
         }
     ]
 }

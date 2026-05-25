@@ -12,7 +12,7 @@ namespace Invoicing.Invoices
 	using System.Text;
 	using global::Avro;
 	using global::Avro.Specific;
-
+	
 	/// <summary>
 	/// Emitted when an Invoice transitions Issued -> Delivered (a downstream delivery channel reported success). Topic 'invoicing.invoices' has 10-year retention; consumers may need this to advance their own state machines (BFF cache, audit reports). FORWARD_TRANSITIVE compat.
 	/// </summary>
