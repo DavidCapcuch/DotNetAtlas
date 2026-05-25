@@ -7,7 +7,7 @@ using Payments.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Payments.FunctionalTests.ApiEndpoints.Payments;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class GetPaymentByIdTests : BaseApiTest
 {
     public GetPaymentByIdTests(ApiTestFixture app)

@@ -28,7 +28,7 @@ namespace Payments.IntegrationTests.Infrastructure;
 /// roundtrip against a real Schema Registry is exercised by the docker-compose smoke test (M9);
 /// the purpose at M5 is to prove the Infrastructure layer composes correctly.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class PaymentsKafkaConsumerIntegrationTests
 {
     private readonly IntegrationTestFixture _fixture;
