@@ -6,7 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Email;
 using Notifications.Email;
-using Notifications.Infrastructure.AuthorizePayment;
 using Notifications.Infrastructure.Common.Config;
 using Notifications.Infrastructure.Common.Observability;
 using Notifications.Infrastructure.Email;
@@ -18,7 +17,6 @@ using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
 using Platform.ReliableMessaging.Inbox.EFCore.Common;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
-using Weather.Alerts;
 
 namespace Notifications.Infrastructure.Common;
 
@@ -80,28 +78,6 @@ internal static class MessagingDependencyInjection
                         .AddMiddlewares(m => m
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
-                .AddConsumer(consumer => consumer
-                    .Topic(topicsOptions.NotificationsCommands)
-                    .WithConsumerConfig(consumerOptions)
-                    .WithBufferSize(consumerOptions.BufferSize)
-                    .WithWorkersCount(consumerOptions.WorkersCount)
-                    .AddMiddlewares(middlewares => middlewares
-                        .AddSchemaRegistryAvroDeserializer()
-                        // Middleware order -> outermost to innermost
-                        .AddDeadLetter()
-                        .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
-                            .WithTimeBetweenTriesPlan(
-                                TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
-                                TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
-                        .AddInbox(typeof(ActivateAlertSubscriptionCommand), typeof(ExtendAlertSubscriptionCommand))
-                        .AddTypedHandlers(handlers => handlers
-                            .WithHandlerLifetime(InstanceLifetime.Scoped)
-                            .AddHandler<AuthorizePaymentCommandKafkaHandler>())
-                    )
-                )
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.EmailCommands)
                     .WithConsumerConfig(consumerOptions)

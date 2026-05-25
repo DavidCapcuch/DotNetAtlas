@@ -293,10 +293,10 @@ services:
   #   * Audit        — retention.ms=315360000000 (10y). Regulatory retention
   #                    (invoicing.invoices).
   #   * Health probe — defaults, partitions=1 (healthchecks).
-  # Topics WITHOUT explicit retention.ms (weather.*, notification.commands,
-  # payments.commands) fall back to the Kafka broker default (~7d) and are
-  # treated as command-class. Replication factor is 1 because this is a
-  # single-broker dev compose; production raises to 3 with min.insync.replicas=2.
+  # Topics WITHOUT explicit retention.ms (weather.*, payments.commands) fall
+  # back to the Kafka broker default (~7d) and are treated as command-class.
+  # Replication factor is 1 because this is a single-broker dev compose;
+  # production raises to 3 with min.insync.replicas=2.
   kafka-create-topic:
     container_name: kafka-create-topic
     image: confluentinc/cp-kafka:7.5.9
@@ -307,7 +307,6 @@ services:
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.feedbacks --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alerts --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notification.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
@@ -322,7 +321,7 @@ services:
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic checkout.sagas --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=2592000000 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic invoicing.invoices --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=315360000000 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payment-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists
       "
     depends_on:
       kafka:

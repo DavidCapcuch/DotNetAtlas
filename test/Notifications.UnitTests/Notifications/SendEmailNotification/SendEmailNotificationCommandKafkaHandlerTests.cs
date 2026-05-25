@@ -41,8 +41,6 @@ public sealed class SendEmailNotificationCommandKafkaHandlerTests : IDisposable
         new(_outbox, _gateway, _renderer,
             Options.Create(new TopicsOptions
             {
-                NotificationsCommands = "n/a",
-                Payments = "n/a",
                 EmailCommands = "notifications.email-commands",
                 EmailEvents = "notifications.email-events",
                 DltTopicSuffix = ".DLT",

@@ -12,20 +12,6 @@ public sealed class TopicsOptions
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>
-    /// Topic for Notification commands (consumed by this BC).
-    /// </summary>
-    [Required]
-    [Length(1, MaximumKafkaTopicLength)]
-    public required string NotificationsCommands { get; set; }
-
-    /// <summary>
-    /// Topic for Payment events.
-    /// </summary>
-    [Required]
-    [Length(1, MaximumKafkaTopicLength)]
-    public required string Payments { get; set; }
-
-    /// <summary>
     /// Suffix appended to topic names to create Dead Letter Topics (e.g., ".DLT").
     /// </summary>
     [Required]
