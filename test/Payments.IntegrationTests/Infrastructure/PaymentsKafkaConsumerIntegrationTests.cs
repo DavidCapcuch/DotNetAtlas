@@ -447,7 +447,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // (saga bug, stale-token replay) must throw before the gateway is touched. The
         // KafkaFlow retry middleware classifies DataIntegrityException as poison and routes
-        // the message to the `payments.commands` DLT for operator inspection.
+        // the message to the `payments.payment-commands` DLT for operator inspection.
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
 

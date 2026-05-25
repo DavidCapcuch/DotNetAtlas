@@ -17,7 +17,7 @@ public sealed class TopicOptionsUsageTests : BaseTest
     private static readonly string[] ForbiddenTopicLiterals =
     [
         "payments.transactions",
-        "payments.commands",
+        "payments.payment-commands",
     ];
 
     [Fact]

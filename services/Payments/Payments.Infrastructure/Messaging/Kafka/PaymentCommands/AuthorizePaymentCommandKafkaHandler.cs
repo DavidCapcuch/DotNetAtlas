@@ -12,7 +12,7 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
 /// Consumes the saga-issued <see cref="AvroAuthorizePaymentCommand"/> on
-/// <c>payments.commands</c> and dispatches it to the application handler. Idempotency is
+/// <c>payments.payment-commands</c> and dispatches it to the application handler. Idempotency is
 /// enforced by KafkaFlow inbox middleware (message-id dedup) plus the handler's
 /// terminal-status short-circuit.
 /// </summary>

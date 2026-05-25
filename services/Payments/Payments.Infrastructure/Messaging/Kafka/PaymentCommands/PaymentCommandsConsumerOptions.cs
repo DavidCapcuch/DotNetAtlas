@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
-/// Kafka consumer configuration for the <c>payments.commands</c> saga-command topic. Bound from
+/// Kafka consumer configuration for the <c>payments.payment-commands</c> saga-command topic. Bound from
 /// <c>KafkaPaymentCommandsConsumer</c> section. Inherits from <see cref="ConsumerConfig"/> so
 /// broker-level knobs (auto-offset-reset, session-timeout, etc.) are bindable directly.
 /// </summary>

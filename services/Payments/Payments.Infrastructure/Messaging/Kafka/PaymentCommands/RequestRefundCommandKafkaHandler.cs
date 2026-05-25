@@ -11,7 +11,7 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
 /// Consumes the saga-issued <see cref="AvroRequestRefundCommand"/> (cancel-post-capture
-/// compensation) on <c>payments.commands</c> and dispatches it to the application handler.
+/// compensation) on <c>payments.payment-commands</c> and dispatches it to the application handler.
 /// PaymentId comes from the wire <c>PaymentTransactionId</c>; the refund explicitly references
 /// an existing transaction so the saga sends the canonical id.
 /// </summary>
