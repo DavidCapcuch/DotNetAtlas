@@ -1,8 +1,9 @@
+using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using Notifications.Application.Common.Data;
 using Notifications.Infrastructure.Persistence.Database;
@@ -11,34 +12,39 @@ using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
 using Respawn;
+using Serilog;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Abstract;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Notifications.IntegrationTests.Common;
 
+internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
+
 /// <summary>
 /// xUnit fixture for Notifications integration tests. Boots the real
-/// Notifications.Api host via <see cref="WebApplicationFactory{TEntryPoint}"/>
-/// against a Postgres testcontainer (real schema via the BC's <c>V*.sql</c>
-/// migrations). Program.cs's <c>!IsTesting()</c> guard skips the KafkaFlow
-/// cluster boot — the typed Kafka handlers are still registered (so tests can
-/// resolve them via DI), but no consumer ever opens a broker connection.
+/// Notifications.Api host via <see cref="AppFixture{TProgram}"/> against a
+/// Postgres testcontainer (real schema via the BC's <c>V*.sql</c> migrations).
+/// Program.cs's <c>!IsTesting()</c> guard skips the KafkaFlow cluster boot —
+/// the typed Kafka handlers are still registered (so tests can resolve them via
+/// DI), but no consumer ever opens a broker connection.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Booting through <see cref="WebApplicationFactory{TEntryPoint}"/> means every
+/// Booting through <see cref="AppFixture{TProgram}"/> means every
 /// <c>AddOptionsWithValidateOnStart</c> chain in the production composition root
 /// runs during fixture initialisation — drift between <c>[Required]</c> IOptions
 /// properties and appsettings keys fails at test setup instead of at first
-/// container start. Mirrors the saga + Inventory fixture patterns.
+/// container start. Mirrors Weather's canonical fixture pattern.
 /// </para>
 /// <para>
 /// The transactional outbox is replaced with an NSubstitute stub via
-/// <see cref="ITestServiceProviderFactoryExtensions.ConfigureTestServices"/> so
-/// tests can assert on outbox calls without standing up a Schema Registry
-/// container. Mirrors the Inventory functional-test pattern of swapping
-/// <c>IOutboxWriter</c>.
+/// <see cref="TestHostBuilderExtensions.ConfigureTestServices"/> so tests can
+/// assert on outbox calls without standing up a Schema Registry container.
 /// </para>
 /// </remarks>
-public sealed class IntegrationTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
+[DisableWafCache]
+public class IntegrationTestFixture : AppFixture<Program>
 {
     /// <summary>Pinned to 2026-05-22 09:00 UTC so business-timestamp assertions stay deterministic.</summary>
     public static readonly DateTimeOffset FixedFakeNow =
@@ -62,17 +68,48 @@ public sealed class IntegrationTestFixture : WebApplicationFactory<Program>, IAs
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    protected override async ValueTask PreSetupAsync()
     {
-        builder
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+    }
+
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        a.ConfigureWebHost(webBuilder =>
+        {
+            webBuilder
+                .UseSetting("ConnectionStrings:Notifications", _dbContainer.ConnectionString)
+                // Kafka cluster boot is guarded by !IsTesting() in Program.cs but
+                // AddInfrastructure still binds KafkaOptions at DI time. Point those
+                // at unreachable hosts so any accidental use blows up loudly rather
+                // than silently producing to a real broker.
+                .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-integration-tests:9094")
+                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-integration-tests:8081");
+        });
+
+        return base.ConfigureAppHost(a);
+    }
+
+    protected override void ConfigureApp(IWebHostBuilder a)
+    {
+        a
             .UseEnvironment("Testing")
-            .UseSetting("ConnectionStrings:Notifications", _dbContainer.ConnectionString)
-            // Kafka cluster boot is guarded by !IsTesting() in Program.cs but
-            // AddInfrastructure still binds KafkaOptions at DI time. Point those
-            // at unreachable hosts so any accidental use blows up loudly rather
-            // than silently producing to a real broker. Mirrors InventoryApiFixture.
-            .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-integration-tests:9094")
-            .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-integration-tests:8081")
+            .ConfigureServices((context, services) =>
+            {
+                var injectableTestOutputSink = new InjectableTestOutputSink();
+                services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
+                services.AddSerilog((_, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .MinimumLevel.Debug()
+                        .ReadFrom.Configuration(context.Configuration)
+                        .WriteTo.InjectableTestOutput(injectableTestOutputSink)
+                        .Enrich.FromLogContext();
+                }, true, true);
+            })
             .ConfigureTestServices(services =>
             {
                 services.AddSingleton<TimeProvider>(FakeTime);
@@ -85,17 +122,6 @@ public sealed class IntegrationTestFixture : WebApplicationFactory<Program>, IAs
             });
     }
 
-    public async ValueTask InitializeAsync()
-    {
-        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
-
-        // Force eager host construction + StartupValidator pass. WebApplicationFactory
-        // builds the host lazily on first Server / CreateClient access; touching Server
-        // here triggers the host startup (including AddOptionsWithValidateOnStart) so
-        // any IOptions binding mismatch surfaces in fixture setup, not mid-test.
-        _ = Server;
-    }
-
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
     public AsyncServiceScope CreateScope() => Services.CreateAsyncScope();
 
@@ -105,9 +131,8 @@ public sealed class IntegrationTestFixture : WebApplicationFactory<Program>, IAs
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
 
-    public new async ValueTask DisposeAsync()
+    protected override async ValueTask TearDownAsync()
     {
-        await base.DisposeAsync();
         await _dbContainer.DisposeAsync();
     }
 }
