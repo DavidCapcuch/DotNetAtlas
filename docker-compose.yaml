@@ -392,7 +392,8 @@ services:
     profiles:
       - full
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - "9000:8080"
     restart: always
