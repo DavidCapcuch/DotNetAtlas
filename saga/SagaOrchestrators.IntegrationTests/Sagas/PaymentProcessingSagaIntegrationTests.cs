@@ -31,7 +31,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
 
         // Act
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             paymentRequestedEvent);
 
         // Assert
@@ -80,7 +80,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, capturedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
@@ -118,8 +118,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var event2 = CreatePaymentRequestedEvent(correlationId2, userId2, 99.99m, "EUR");
 
         // Act
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId1, event1);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId2, event2);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId1, event1);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId2, event2);
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.AwaitingAuthorization, DefaultTimeout);
@@ -157,7 +157,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Step 1: Initiate payment
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, 49.99m, "USD", paymentMethodId);
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             paymentRequestedEvent);
 
         // Verify: AwaitingAuthorization state persisted
@@ -189,7 +189,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, authorizedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, authorizedEvent);
 
         // Verify: AwaitingCapture state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
@@ -217,7 +217,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, capturedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
 
         // Verify: PaymentCompleted state persisted
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
@@ -276,7 +276,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var userId = Guid.CreateVersion7();
 
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             paymentRequestedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
@@ -292,7 +292,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, authFailedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, authFailedEvent);
 
         // Assert - verify saga finalized (removed from database)
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -321,7 +321,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             captureFailedEvent);
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
 
@@ -367,7 +367,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             VoidedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, voidedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, voidedEvent);
 
         // Assert - verify saga finalized (removed from database)
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -425,7 +425,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var userId = Guid.CreateVersion7();
 
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             paymentRequestedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
@@ -540,7 +540,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         string currency = "USD")
     {
         var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, amount, currency);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             paymentRequestedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
@@ -556,7 +556,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, authorizedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, authorizedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
     }
@@ -581,7 +581,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
             captureFailedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
@@ -609,7 +609,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, userId, capturedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
     }

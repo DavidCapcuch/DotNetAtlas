@@ -207,7 +207,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                             ctx.Saga.PaymentRequestedAtUtc = _timeProvider.GetUtcNow();
                         })
                         .PublishToOutbox(
-                            _topicsOptions.PaymentsPayments,
+                            _topicsOptions.PaymentsTransactions,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => BuildPaymentRequestedEvent(ctx.Saga))
                         .Schedule(PaymentTimeout,
@@ -346,7 +346,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                         .Activity(x => x.OfType<AllStockReservedActivity>())
                         .Unschedule(StockReservationTimeout)
                         .PublishToOutbox(
-                            _topicsOptions.PaymentsPayments,
+                            _topicsOptions.PaymentsTransactions,
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => BuildPaymentRequestedEvent(ctx.Saga))
                         .Schedule(PaymentTimeout,

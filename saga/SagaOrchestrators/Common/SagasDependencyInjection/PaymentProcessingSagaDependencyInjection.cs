@@ -30,7 +30,7 @@ internal static class PaymentProcessingSagaDependencyInjection
             KafkaOptions kafkaOptions)
         {
             kafka.TopicEndpoint<Guid, ISpecificRecord>(
-                kafkaOptions.Topics.PaymentsPayments,
+                kafkaOptions.Topics.PaymentsTransactions,
                 kafkaOptions.ConsumerGroups.PaymentProcessingSaga,
                 consumerConfig =>
                 {

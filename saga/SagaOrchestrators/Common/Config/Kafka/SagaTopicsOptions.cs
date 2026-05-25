@@ -21,7 +21,7 @@ public sealed class SagaTopicsOptions
 
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
-    public required string PaymentsPayments { get; set; }
+    public required string PaymentsTransactions { get; set; }
 
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
@@ -60,7 +60,7 @@ public sealed class SagaTopicsOptions
         [
             WeatherAlertSubscriptions,
             WeatherAlertSubscriptionsCommands,
-            PaymentsPayments,
+            PaymentsTransactions,
             PaymentsPaymentCommands,
             BasketSessions,
             OrderingOrders,

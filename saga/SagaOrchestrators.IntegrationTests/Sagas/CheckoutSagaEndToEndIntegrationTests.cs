@@ -208,7 +208,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
             CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPayments, correlationId, paymentCompleted);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentCompleted);
     }
 
     private async Task PublishOrderConfirmedAsync(Guid correlationId, Guid buyerId, Guid orderId)
