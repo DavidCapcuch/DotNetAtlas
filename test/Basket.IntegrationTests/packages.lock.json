@@ -20,6 +20,17 @@
         "resolved": "10.0.1",
         "contentHash": "27jXSV/0DbVqF5jDrAxuQFZ9oaz6gmG03p8ttxAFk+X0M4woFYj7MoWDLCna5EGLb0CE6OE7X6ZH3Wt5smTtaA=="
       },
+      "FastEndpoints.Testing": {
+        "type": "Direct",
+        "requested": "[8.1.0, )",
+        "resolved": "8.1.0",
+        "contentHash": "aOw6jkyz/9n7NyT/BjsJ9ZzIy8pxZ2QldRcU8HY3sWAA1LahE4l3g7TKLySThWyowvikkKDArQSCUsCeKqjLBw==",
+        "dependencies": {
+          "Bogus": "35.6.5",
+          "Microsoft.AspNetCore.Mvc.Testing": "10.0.5",
+          "xunit.v3.extensibility.core": "3.2.2"
+        }
+      },
       "FluentResults.Extensions.FluentAssertions": {
         "type": "Direct",
         "requested": "[2.2.1, )",
@@ -2591,7 +2602,6 @@
           "AspNetCore.HealthChecks.Prometheus.Metrics": "[9.0.0, )",
           "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
           "Elastic.Serilog.Enrichers.Web": "[9.0.0, )",
-          "Evolve": "[3.2.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": "[10.0.8, )",
           "Microsoft.EntityFrameworkCore": "[10.0.8, )",
@@ -2750,17 +2760,6 @@
         "dependencies": {
           "FastEndpoints": "8.1.0",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "10.0.5"
-        }
-      },
-      "FastEndpoints.Testing": {
-        "type": "CentralTransitive",
-        "requested": "[8.1.0, )",
-        "resolved": "8.1.0",
-        "contentHash": "aOw6jkyz/9n7NyT/BjsJ9ZzIy8pxZ2QldRcU8HY3sWAA1LahE4l3g7TKLySThWyowvikkKDArQSCUsCeKqjLBw==",
-        "dependencies": {
-          "Bogus": "35.6.5",
-          "Microsoft.AspNetCore.Mvc.Testing": "10.0.5",
-          "xunit.v3.extensibility.core": "3.2.2"
         }
       },
       "FluentValidation": {

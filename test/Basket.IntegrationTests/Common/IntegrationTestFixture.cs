@@ -1,34 +1,31 @@
 using Basket.Application.Abstractions;
-using Basket.Application.Common;
-using Basket.Application.Common.Data;
-using Basket.Infrastructure.Common;
 using Basket.Infrastructure.Persistence.Database;
-using Confluent.SchemaRegistry;
-using EntityFramework.Exceptions.PostgreSQL;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using FastEndpoints.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Redis;
+using Platform.Test.Framework.Tracing;
 using Respawn;
+using Serilog;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Abstract;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Basket.IntegrationTests.Common;
 
-/// <summary>
-/// Spins a throwaway Postgres container per collection and wires the M6 DI
-/// graph: real <see cref="BasketDbContext"/>, the
-/// <see cref="IBasketDbContext"/> port binding, the Application layer
-/// (validators, CQRS handlers, domain-event dispatcher), and the transactional
-/// outbox backed by <see cref="FakeOutboxWriter"/>. <see cref="IBasketRepository"/>
-/// and <see cref="IProductCatalogQueryPort"/> remain NSubstitute-stubbed —
-/// M6's focus is the SQL outbox roundtrip, not Redis or Catalog HTTP.
-/// </summary>
-public sealed class IntegrationTestFixture : IAsyncLifetime
+internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
+
+[DisableWafCache]
+public class IntegrationTestFixture : AppFixture<Program>
 {
     /// <summary>
     /// Stable test clock — shared with tests that want to assert on
@@ -45,101 +42,134 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             SchemasToInclude = [BasketDbContext.DefaultSchemaName]
         });
 
-    private ServiceProvider _rootServices = null!;
+    private readonly RedisTestContainer _redisContainer = new();
 
     /// <summary>
     /// Test-controlled <see cref="IBasketRepository"/>. Tests configure return
     /// values per-scenario; the fixture exposes the substitute so they don't
-    /// have to re-resolve from DI.
+    /// have to re-resolve from DI. The production
+    /// <c>RedisBasketRepository</c> registration in
+    /// <c>Basket.Infrastructure.Persistence.PersistenceDependencyInjection</c>
+    /// is swapped via <c>Replace</c> in <see cref="ConfigureApp"/>.
     /// </summary>
     public IBasketRepository Repository { get; } = Substitute.For<IBasketRepository>();
 
     /// <summary>
     /// Test-controlled <see cref="IProductCatalogQueryPort"/>. Registered
     /// because Application DI requires it; not exercised by Checkout
-    /// (snapshot-validation runs at AddItem time, not Checkout).
+    /// (snapshot-validation runs at AddItem time, not Checkout). The
+    /// production HTTP adapter is swapped via <c>Replace</c> in
+    /// <see cref="ConfigureApp"/>.
     /// </summary>
     public IProductCatalogQueryPort Catalog { get; } = Substitute.For<IProductCatalogQueryPort>();
 
-    public async ValueTask InitializeAsync()
+    /// <summary>
+    /// Stable <see cref="FakeTimeProvider"/> pinned at <see cref="Now"/>.
+    /// Exposed for tests that want to advance time deterministically.
+    /// </summary>
+    public FakeTimeProvider FakeTime { get; } = new(Now);
+
+    protected override async ValueTask PreSetupAsync()
     {
-        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+        await _redisContainer.StartAsync();
+    }
 
-        var services = new ServiceCollection();
-        services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
-
-        // Minimal in-memory IConfiguration satisfies
-        // AddOptionsWithValidateOnStart<TopicsOptions>().BindConfiguration(...)
-        // inside Basket.Application's composition root.
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Topics:BasketSessions"] = "basket.sessions",
-                ["Topics:DltTopicSuffix"] = ".Basket.DLT",
-            })
-            .Build();
-        services.AddSingleton<IConfiguration>(config);
-
-        // Real DbContext bypassing AddDatabase (which expects ConfigurationManager
-        // + an EfCoreOptions section). M6 tests assert on the outbox table
-        // directly, so the production EF retry/splitting knobs are not material.
-        // Schema lives in V*.sql applied by PostgreSqlTestContainer; EF doesn't
-        // own the __EFMigrationsHistory table here.
-        services.AddDbContext<BasketDbContext>(options => options
-            .UseNpgsql(_dbContainer.ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor());
-
-        services.AddScoped<IBasketDbContext>(sp => sp.GetRequiredService<BasketDbContext>());
-
-        // Application composition root: validators + CQRS handlers + domain-event
-        // dispatcher + TopicsOptions binding.
-        services.AddApplication();
-
-        // Test seams.
-        services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
-        services.AddSingleton(Repository);
-        services.AddSingleton(Catalog);
-
-        // Replace IOutboxWriter with FakeOutboxWriter BEFORE AddOutbox — the
-        // platform's TryAddSingleton respects the prior registration so we
-        // bypass the Schema Registry round-trip. Mirrors the Inventory M4
-        // fixture pattern.
-        services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
-
-        services.AddOutbox(outbox =>
+    protected override IHost ConfigureAppHost(IHostBuilder a)
+    {
+        a.ConfigureWebHost(webBuilder =>
         {
-            // Use the production const so a future rename of
-            // MessagingDependencyInjection.KafkaProducerOrigin propagates here
-            // and the fixture can't silently drift from production wiring.
-            outbox.ConfigureMessageOrigin(MessagingDependencyInjection.KafkaProducerOrigin);
-            outbox.ConfigureSchemaRegistryConfig(opts =>
-            {
-                opts.Url = "http://mock-schema-registry";
-            });
-            outbox.ConfigureAvroSerializerConfig(opts =>
-            {
-                opts.SubjectNameStrategy = SubjectNameStrategy.Record;
-                opts.AutoRegisterSchemas = false;
-            });
+            var redisConnectionString = _redisContainer.ConfigurationOptions.ToString();
+            webBuilder
+                .UseSetting("ConnectionStrings:Basket", _dbContainer.ConnectionString)
+                .UseSetting("ConnectionStrings:Redis:Basket", redisConnectionString)
+                .UseSetting("ConnectionStrings:Redis:Cache", redisConnectionString)
+                // KafkaOptions.ValidateOnStart requires Brokers + SchemaRegistry + AvroSerializer
+                // even though no Kafka container runs in IT — FakeOutboxWriter handles the publish
+                // path so a real cluster isn't needed. Mirrors Basket.FunctionalTests' approach for
+                // the SchemaRegistry URL placeholder.
+                .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-integration-tests:9092")
+                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-integration-tests:8081")
+                .UseSetting("Kafka:AvroSerializer:AutoRegisterSchemas", "false")
+                .UseSetting("Kafka:AvroSerializer:SubjectNameStrategy", "Record")
+                .UseSetting("Kafka:AvroSerializer:NormalizeSchemas", "true");
         });
 
-        _rootServices = services.BuildServiceProvider(validateScopes: true);
+        return base.ConfigureAppHost(a);
+    }
+
+    protected override void ConfigureApp(IWebHostBuilder a)
+    {
+        a
+            .UseEnvironment("Testing")
+            .ConfigureServices((context, services) =>
+            {
+                var injectableTestOutputSink = new InjectableTestOutputSink();
+                services.AddSingleton<IInjectableTestOutputSink>(injectableTestOutputSink);
+                services.AddSerilog((_, loggerConfiguration) =>
+                {
+                    loggerConfiguration
+                        .MinimumLevel.Debug()
+                        .ReadFrom.Configuration(context.Configuration)
+                        .WriteTo.InjectableTestOutput(injectableTestOutputSink)
+                        .Enrich.FromLogContext();
+                }, true, true);
+            })
+            .ConfigureTestServices(services =>
+            {
+                // Basket.Infrastructure does not call AddOpenTelemetry() (unlike Notifications/
+                // Catalog/etc.) so TracerProvider is absent from the production composition.
+                // Register a minimal tracer that listens on TestActivitySource so
+                // TestCaseTracer (Platform.Test.Framework.Tracing) can resolve TracerProvider
+                // from DI. Same pattern test fixtures use to plug observability gaps without
+                // editing Basket.Infrastructure (outside this agent's file-ownership island).
+                services.AddOpenTelemetry()
+                    .WithTracing(tracing => tracing.AddSource(TestActivitySource.ActivitySourceName));
+
+                // Pin the clock so deterministic timestamp assertions work without
+                // each test re-creating a FakeTimeProvider.
+                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(FakeTime));
+
+                // Swap the production RedisBasketRepository with the NSubstitute so tests
+                // can stub repository responses without standing up basket state in Redis.
+                // Use Replace so the production scoped registration is removed — AddSingleton
+                // would only add a second descriptor with the proxy's runtime type, leaving
+                // the real adapter live for resolution.
+                services.Replace(ServiceDescriptor.Singleton<IBasketRepository>(Repository));
+
+                // Swap the Catalog HTTP adapter for the substitute — application DI requires
+                // the port, but DB-backed integration tests don't exercise the HTTP roundtrip.
+                services.Replace(ServiceDescriptor.Singleton<IProductCatalogQueryPort>(Catalog));
+
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a
+                // fake that writes a stub OutboxMessage row directly. M6 owns "the right
+                // outbox row hits Postgres" — Avro byte-level fidelity is decoupled (matches
+                // Inventory + Ordering precedent of not standing up Schema Registry just
+                // for outbox shape assertions).
+                services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
+            });
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
-    public IServiceScope CreateScope() => _rootServices.CreateScope();
+    public IServiceScope CreateScope() => Services.CreateScope();
 
     /// <summary>Connection string for tests that bypass the DbContext.</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
-    public async ValueTask DisposeAsync()
+    public async Task ResetFixtureStateAsync()
     {
-        if (_rootServices is not null)
-        {
-            await _rootServices.DisposeAsync();
-        }
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync()
+        );
+    }
 
+    protected override async ValueTask TearDownAsync()
+    {
         await _dbContainer.DisposeAsync();
+        await _redisContainer.DisposeAsync();
     }
 }

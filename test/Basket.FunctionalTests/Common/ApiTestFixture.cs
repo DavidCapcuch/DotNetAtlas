@@ -1,8 +1,6 @@
 using Basket.Application.Abstractions;
 using Basket.FunctionalTests.Common.TestClientInfrastructure;
 using Basket.Infrastructure.Persistence.Database;
-using Confluent.Kafka;
-using Confluent.Kafka.Admin;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -11,26 +9,29 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Redis;
+using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using StackExchange.Redis;
-using Testcontainers.Kafka;
-using Testcontainers.Redis;
 
 namespace Basket.FunctionalTests.Common;
+
+internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
 {
-    private const string BasketTopic = "basket.sessions";
-
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Basket",
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Basket/Basket.Infrastructure"),
@@ -39,14 +40,8 @@ public class ApiTestFixture : AppFixture<Program>
             SchemasToInclude = [BasketDbContext.DefaultSchemaName]
         });
 
-    private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7.4.6")
-        .WithCleanUp(true)
-        .Build();
-
-    private readonly KafkaContainer _kafkaContainer = new KafkaBuilder("confluentinc/cp-kafka:7.5.9")
-        .WithKRaft()
-        .WithCleanUp(true)
-        .Build();
+    private readonly RedisTestContainer _redisContainer = new();
+    private readonly KafkaTestContainer _kafkaContainer = new();
 
     private readonly FakeTokenSigner _signer = new(audience: "basket-service-tests");
 
@@ -62,26 +57,32 @@ public class ApiTestFixture : AppFixture<Program>
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
+    public FakeTokenCreator TokenCreator { get; private set; } = null!;
+
     public IConnectionMultiplexer RedisMultiplexer => _redisMultiplexer;
 
     public IDatabase RedisBasketDb => _redisMultiplexer.GetDatabase();
 
     protected override async ValueTask PreSetupAsync()
     {
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
 
-        var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
-        redisOptions.AllowAdmin = true;
+        // Dedicated multiplexer for test-side Redis assertions (e.g. KeyExistsAsync on
+        // CheckoutBasketTests). The host gets its own multiplexer from
+        // AddBasketRedisPersistence using the same connection string.
+        var redisOptions = _redisContainer.ConfigurationOptions;
         _redisMultiplexer = await ConnectionMultiplexer.ConnectAsync(redisOptions);
-
-        await CreateBasketTopicAsync();
     }
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        TokenCreator = new FakeTokenCreator(_signer);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, TokenCreator);
         return ValueTask.CompletedTask;
     }
 
@@ -89,16 +90,12 @@ public class ApiTestFixture : AppFixture<Program>
     {
         a.ConfigureWebHost(webBuilder =>
         {
-            var redisConnectionString = _redisContainer.GetConnectionString();
+            var redisConnectionString = _redisContainer.ConfigurationOptions.ToString();
             webBuilder
                 .UseSetting("ConnectionStrings:Basket", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Basket", redisConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConnectionString)
-                .UseSetting("Kafka:Brokers:0", _kafkaContainer.GetBootstrapAddress())
-                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-functional-tests:8081")
-                .UseSetting("Kafka:AvroSerializer:AutoRegisterSchemas", "false")
-                .UseSetting("Kafka:AvroSerializer:SubjectNameStrategy", "Record")
-                .UseSetting("Kafka:AvroSerializer:NormalizeSchemas", "true");
+                .UseKafkaSettings(_kafkaContainer.KafkaOptions);
         });
 
         return base.ConfigureAppHost(a);
@@ -123,6 +120,15 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
+                // Basket.Infrastructure does not call AddOpenTelemetry() (unlike Notifications/
+                // Catalog/etc.) so TracerProvider is absent from the production composition.
+                // Register a minimal tracer that listens on TestActivitySource so
+                // TestCaseTracer (Platform.Test.Framework.Tracing) can resolve TracerProvider
+                // from DI. Same pattern test fixtures use to plug observability gaps without
+                // editing Basket.Infrastructure (outside this agent's file-ownership island).
+                services.AddOpenTelemetry()
+                    .WithTracing(tracing => tracing.AddSource(TestActivitySource.ActivitySourceName));
+
                 // Substitute the ACL port so tests can stub Catalog responses without
                 // a Catalog service running. Use Replace so the production HTTP-adapter
                 // registration in Basket.Infrastructure is removed — AddSingleton(instance)
@@ -134,8 +140,8 @@ public class ApiTestFixture : AppFixture<Program>
                 // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a
                 // fake that writes a stub OutboxMessage row directly. Avro byte-level
                 // fidelity is asserted in Basket.IntegrationTests; functional tests only
-                // need to verify "the right outbox row landed". Avoids spinning a
-                // Confluent Schema Registry Testcontainer.
+                // need to verify "the right outbox row landed". Avoids exercising the
+                // KafkaTestContainer's Schema Registry just for outbox shape assertions.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
                 // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
@@ -147,15 +153,14 @@ public class ApiTestFixture : AppFixture<Program>
 
     public async Task ResetFixtureStateAsync()
     {
+        using var _ = SuppressInstrumentationScope.Begin();
+
         Catalog.ClearSubstitute(ClearOptions.All);
 
-        // Flush Redis between tests so basket-key + idempotency-cache state cannot leak.
-        var endpoints = _redisMultiplexer.GetEndPoints();
-        foreach (var endpoint in endpoints)
-        {
-            var server = _redisMultiplexer.GetServer(endpoint);
-            await server.FlushAllDatabasesAsync();
-        }
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync()
+        );
     }
 
     protected override async ValueTask TearDownAsync()
@@ -165,31 +170,5 @@ public class ApiTestFixture : AppFixture<Program>
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();
-    }
-
-    private async Task CreateBasketTopicAsync()
-    {
-        var adminConfig = new AdminClientConfig
-        {
-            BootstrapServers = _kafkaContainer.GetBootstrapAddress(),
-        };
-
-        using var adminClient = new AdminClientBuilder(adminConfig).Build();
-        try
-        {
-            await adminClient.CreateTopicsAsync(
-            [
-                new TopicSpecification
-                {
-                    Name = BasketTopic,
-                    NumPartitions = 3,
-                    ReplicationFactor = 1,
-                },
-            ]);
-        }
-        catch (CreateTopicsException ex) when (ex.Results[0].Error.Code == ErrorCode.TopicAlreadyExists)
-        {
-            // Topic already exists — re-using container.
-        }
     }
 }
