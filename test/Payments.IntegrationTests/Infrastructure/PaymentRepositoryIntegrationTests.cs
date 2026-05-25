@@ -15,7 +15,7 @@ namespace Payments.IntegrationTests.Infrastructure;
 /// while <see cref="IPaymentRepository.GetByIdAsNoTrackingAsync"/> returns the entity detached
 /// (read-side query handler depends on this to keep the change tracker cold).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class PaymentRepositoryIntegrationTests
 {
     private readonly IntegrationTestFixture _fixture;

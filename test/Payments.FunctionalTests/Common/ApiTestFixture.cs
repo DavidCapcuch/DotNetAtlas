@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
+using OpenTelemetry.Trace;
 using Payments.FunctionalTests.Common.TestClientInfrastructure;
 using Payments.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -12,6 +13,7 @@ using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -20,8 +22,7 @@ using Serilog.Sinks.XUnit.Injectable.Extensions;
 
 namespace Payments.FunctionalTests.Common;
 
-[CollectionDefinition(nameof(FunctionalTestCollection))]
-public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
+internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 
 /// <summary>
 /// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Payments API.
@@ -55,14 +56,20 @@ public class ApiTestFixture : AppFixture<Program>
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
+    public FakeTokenCreator TokenCreator { get; private set; } = null!;
+
     protected override async ValueTask PreSetupAsync()
     {
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
     }
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        TokenCreator = new FakeTokenCreator(_signer);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, TokenCreator);
         return ValueTask.CompletedTask;
     }
 
@@ -92,6 +99,13 @@ public class ApiTestFixture : AppFixture<Program>
                         .WriteTo.InjectableTestOutput(injectableTestOutputSink)
                         .Enrich.FromLogContext();
                 }, true, true);
+
+                // Payments production does not register an OpenTelemetry TracerProvider
+                // (Weather/Notifications are the only BCs that do today). Tests need one
+                // so BaseApiTest's TestCaseTracer can flush activities and resolve
+                // a TracerProvider from the scope.
+                services.AddOpenTelemetry()
+                    .WithTracing(tracing => tracing.AddSource(TestActivitySource.ActivitySourceName));
             })
             .ConfigureTestServices(services =>
             {

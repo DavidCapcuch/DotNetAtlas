@@ -59,7 +59,7 @@ try
     // Skip the Kafka saga-command consumer in the test host. The consumer is
     // integration-tested in M5 against a real broker; functional tests
     // exercise the HTTP surface only and do not stand up a Kafka container.
-    if (!app.Environment.IsEnvironment("Testing"))
+    if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();
         await kafkaBus.StartAsync();
