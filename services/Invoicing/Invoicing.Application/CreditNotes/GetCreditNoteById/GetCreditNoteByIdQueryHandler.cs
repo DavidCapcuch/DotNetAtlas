@@ -1,10 +1,8 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Invoicing.Application.Blobs;
 using Invoicing.Application.Common.Blobs;
 using Invoicing.Application.Common.Data;
 using Invoicing.Domain.Common.Errors;
-using Invoicing.Domain.CreditNotes.Specifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -43,18 +41,21 @@ internal sealed class GetCreditNoteByIdQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var creditNote = await _dbContext.CreditNotes
+        // SQL-side projection via CreditNoteRow.Projection (ADR-0021 / #277).
+        var row = await _dbContext.CreditNotes
             .AsNoTracking()
-            .WithSpecification(new CreditNoteByIdSpec(query.CreditNoteId))
+            .Where(cn => cn.Id == query.CreditNoteId)
+            .TagWith(nameof(GetCreditNoteByIdQueryHandler))
+            .Select(CreditNoteRow.Projection)
             .FirstOrDefaultAsync(ct);
 
-        if (creditNote is null)
+        if (row is null)
         {
             return Result.Fail<GetCreditNoteByIdResponse>(
                 InvoicingErrors.CreditNoteNotFound(query.CreditNoteId));
         }
 
-        if (!query.IsAdmin && creditNote.BuyerId != query.BuyerId)
+        if (!query.IsAdmin && row.BuyerId != query.BuyerId)
         {
             _logger.LogInformation(
                 "Buyer {BuyerId} requested credit note {CreditNoteId} owned by a different buyer — returning NotFound.",
@@ -66,17 +67,17 @@ internal sealed class GetCreditNoteByIdQueryHandler
 
         Uri? sasUrl = null;
         DateTimeOffset? sasExpiresAtUtc = null;
-        if (creditNote.PdfBlobRef is not null && creditNote.CreditNoteNumber is not null)
+        if (row.PdfBlobName is not null)
         {
             var ttl = TimeSpan.FromMinutes(PdfSasTtlMinutes);
             sasUrl = await _blobStore.GetSasUrlAsync(
                 _blobOptions.InvoicesContainerName,
-                InvoicePdfBlobName.For(creditNote.CreditNoteNumber),
+                row.PdfBlobName,
                 ttl,
                 ct);
             sasExpiresAtUtc = _timeProvider.GetUtcNow().Add(ttl);
         }
 
-        return Result.Ok(CreditNoteProjection.ToResponse(creditNote, sasUrl, sasExpiresAtUtc));
+        return Result.Ok(row.ToResponse(sasUrl, sasExpiresAtUtc));
     }
 }

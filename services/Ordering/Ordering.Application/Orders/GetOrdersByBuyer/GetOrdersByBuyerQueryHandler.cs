@@ -23,11 +23,12 @@ public sealed class GetOrdersByBuyerQueryHandler
     {
         var status = ParseStatus(query.Status);
 
-        // SQL-side projection (#238): selects only the columns the response
-        // uses. Optional VOs are flat nullable columns on `ordering.orders`
-        // and translate cleanly under conditional projection (EF Core 10).
-        // Mirrors OrderProjection.ToResponse — keep the two shapes in sync
-        // (GetOrderById still consumes the in-memory projection).
+        // SQL-side projection (#238, ADR-0021): selects only the columns the
+        // response uses. Optional VOs are flat nullable columns on
+        // `ordering.orders` and translate cleanly under conditional
+        // projection (EF Core 10). Keep the projected shape in sync with
+        // GetOrderByIdQueryHandler — both produce a byte-identical
+        // GetOrderByIdResponse.
         var orders = await _dbContext.Orders
             .AsNoTracking()
             .Where(o => o.BuyerId == query.BuyerId)

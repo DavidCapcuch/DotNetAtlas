@@ -5,6 +5,8 @@ using Invoicing.Application.Blobs;
 using Invoicing.Application.Common;
 using Invoicing.Application.Common.Data;
 using Invoicing.Application.Common.Numbering;
+using Invoicing.Application.CreditNotes.IssueCreditNote;
+using Invoicing.Application.CreditNotes.Projections;
 using Invoicing.Application.Invoices.IssueInvoice;
 using Invoicing.Application.Invoices.Projections;
 using Invoicing.Application.Pdf;
@@ -227,6 +229,142 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Seeds a fully-issued credit note by first issuing an invoice, then seeding a
+    /// <see cref="PendingCreditNote"/> against the same saga correlation, then running
+    /// the real <c>IssueCreditNoteCommandHandler</c>. Returns <c>(CreditNoteId, BuyerId)</c>.
+    /// Resets the outbox call recorder so the caller starts with a clean baseline.
+    /// </summary>
+    public async Task<(Guid CreditNoteId, Guid BuyerId)> SeedIssuedCreditNoteAsync(CancellationToken ct)
+    {
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var paymentId = Guid.CreateVersion7();
+        var buyerId = Guid.CreateVersion7();
+        const decimal totalAmount = 100.00m;
+        const string currency = "EUR";
+
+        // M7 invoice — prerequisite for the credit-note flow. Each step gets its own DI
+        // scope (matching SeedDeliveredInvoiceAsync's pattern) so the invoice handler's
+        // SaveChanges-time domain-event dispatcher completes before the credit-note scope
+        // opens its own DbContext / outbox publisher chain.
+        await SeedConvergedPendingInvoiceAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        await IssueInvoiceForCreditNoteSeedAsync(correlationId, ct);
+
+        await SeedConvergedPendingCreditNoteAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        var creditNoteId = await IssueCreditNoteForSeedAsync(correlationId, ct);
+
+        ResetOutboxSubstitute();
+        return (creditNoteId, buyerId);
+    }
+
+    private async Task IssueInvoiceForCreditNoteSeedAsync(Guid correlationId, CancellationToken ct)
+    {
+        await using var invoiceScope = _rootServices.CreateAsyncScope();
+        var invoiceHandler = invoiceScope.ServiceProvider
+            .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
+        var invoiceResult = await invoiceHandler.HandleAsync(
+            new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+        if (invoiceResult.IsFailed)
+        {
+            throw new InvalidOperationException(
+                $"SeedIssuedCreditNoteAsync (invoice step) failed — {string.Join("; ", invoiceResult.Errors.Select(e => e.Message))}");
+        }
+    }
+
+    private async Task<Guid> IssueCreditNoteForSeedAsync(Guid correlationId, CancellationToken ct)
+    {
+        await using var creditScope = _rootServices.CreateAsyncScope();
+        var creditHandler = creditScope.ServiceProvider
+            .GetRequiredService<ICommandHandler<IssueCreditNoteCommand, Guid>>();
+        var creditResult = await creditHandler.HandleAsync(
+            new IssueCreditNoteCommand { CorrelationId = correlationId }, ct);
+        if (creditResult.IsFailed)
+        {
+            throw new InvalidOperationException(
+                $"SeedIssuedCreditNoteAsync (credit-note step) failed — {string.Join("; ", creditResult.Errors.Select(e => e.Message))}");
+        }
+
+        return creditResult.Value;
+    }
+
+    /// <summary>
+    /// Seeds a <see cref="PendingCreditNote"/> projection row representing a converged
+    /// (OrderCancelled + PaymentRefunded) state — the precondition for running
+    /// <c>IssueCreditNoteCommandHandler</c>.
+    /// </summary>
+    private async Task SeedConvergedPendingCreditNoteAsync(
+        Guid correlationId,
+        Guid orderId,
+        Guid paymentId,
+        Guid buyerId,
+        decimal refundedAmount,
+        string currency,
+        CancellationToken ct)
+    {
+        await using var scope = _rootServices.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
+
+        var orderPayload = JsonSerializer.Serialize(new
+        {
+            OrderId = orderId,
+            CorrelationId = correlationId,
+            BuyerId = buyerId,
+            Reason = "BuyerCancelled",
+            AtStatus = "Confirmed",
+            CancelledAtUtc = FixedFakeNow.UtcDateTime,
+            Items = new[]
+            {
+                new
+                {
+                    ProductId = Guid.CreateVersion7(),
+                    Sku = "SKU-WIDGET-1",
+                    Name = "Test Widget",
+                    Quantity = 1,
+                    UnitPriceAmount = refundedAmount,
+                    LineTotalAmount = refundedAmount,
+                },
+            },
+            TotalAmount = (decimal?)refundedAmount,
+            Currency = (string?)currency,
+            BillingAddress = new
+            {
+                Street1 = "Main Street 1",
+                Street2 = (string?)null,
+                City = "Prague",
+                State = (string?)null,
+                PostalCode = "11000",
+                CountryCode = "CZ",
+            },
+        });
+
+        var paymentPayload = JsonSerializer.Serialize(new
+        {
+            CorrelationId = correlationId,
+            UserId = buyerId,
+            PaymentTransactionId = paymentId,
+            RefundTransactionId = Guid.CreateVersion7(),
+            RefundedAmount = refundedAmount,
+            Currency = currency,
+            RefundedAtUtc = FixedFakeNow.UtcDateTime,
+        });
+
+        db.PendingCreditNotes.Add(new PendingCreditNote
+        {
+            CorrelationId = correlationId,
+            OrderId = orderId,
+            PaymentId = paymentId,
+            BuyerId = buyerId,
+            OrderPayload = orderPayload,
+            PaymentPayload = paymentPayload,
+            FirstSeenAtUtc = FixedFakeNow,
+            CompletedAtUtc = FixedFakeNow,
+            IssuedCreditNoteId = null,
+        });
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Seeds a <see cref="PendingInvoice"/> projection row representing a converged
     /// (Order + Payment) state — the precondition for running <c>IssueInvoiceCommandHandler</c>.
     /// </summary>
@@ -347,6 +485,22 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
                 }
 
                 return refResult.Value;
+            });
+
+        // Read-side query handlers (GetInvoiceById, GetInvoiceByOrderId, GetInvoicesByBuyer,
+        // GetCreditNoteById) mint a per-request SAS URL on every fetch. The returned URI
+        // echoes the container + blob name so tests can assert the mapper used the right
+        // PdfBlobRef.BlobName without a real Azurite round-trip.
+        stub.GetSasUrlAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<TimeSpan>(),
+                Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var container = call.ArgAt<string>(0);
+                var blobName = call.ArgAt<string>(1);
+                return new Uri($"https://test-blob.local/{container}/{blobName}?sig=test");
             });
         return stub;
     }

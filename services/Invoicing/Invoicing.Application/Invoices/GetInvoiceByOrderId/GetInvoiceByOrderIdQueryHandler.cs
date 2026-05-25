@@ -1,11 +1,9 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Invoicing.Application.Blobs;
 using Invoicing.Application.Common.Blobs;
 using Invoicing.Application.Common.Data;
 using Invoicing.Application.Invoices.GetInvoiceById;
 using Invoicing.Domain.Common.Errors;
-using Invoicing.Domain.Invoices.Specifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -44,12 +42,16 @@ internal sealed class GetInvoiceByOrderIdQueryHandler
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var invoice = await _dbContext.Invoices
+        // SQL-side projection via the shared InvoiceRow.Projection (ADR-0021 / #277) —
+        // same shape as GetInvoiceById, keyed off the unique UX_Invoices_OrderId index.
+        var row = await _dbContext.Invoices
             .AsNoTracking()
-            .WithSpecification(new InvoiceByOrderIdSpec(query.OrderId))
+            .Where(i => i.OrderId == query.OrderId)
+            .TagWith(nameof(GetInvoiceByOrderIdQueryHandler))
+            .Select(InvoiceRow.Projection)
             .FirstOrDefaultAsync(ct);
 
-        if (invoice is null)
+        if (row is null)
         {
             // No invoice for this order — surface the 404 keyed off the OrderId so the
             // problem-details payload identifies the actual lookup input. Reuses
@@ -57,7 +59,7 @@ internal sealed class GetInvoiceByOrderIdQueryHandler
             return Result.Fail<GetInvoiceByIdResponse>(InvoicingErrors.InvoiceForOrderNotFound(query.OrderId));
         }
 
-        if (!query.IsAdmin && invoice.BuyerId != query.BuyerId)
+        if (!query.IsAdmin && row.BuyerId != query.BuyerId)
         {
             _logger.LogInformation(
                 "Buyer {BuyerId} requested invoice for order {OrderId} owned by a different buyer — returning NotFound.",
@@ -68,17 +70,17 @@ internal sealed class GetInvoiceByOrderIdQueryHandler
 
         Uri? sasUrl = null;
         DateTimeOffset? sasExpiresAtUtc = null;
-        if (invoice.PdfBlobRef is not null && invoice.InvoiceNumber is not null)
+        if (row.PdfBlobName is not null)
         {
             var ttl = TimeSpan.FromMinutes(PdfSasTtlMinutes);
             sasUrl = await _blobStore.GetSasUrlAsync(
                 _blobOptions.InvoicesContainerName,
-                InvoicePdfBlobName.For(invoice.InvoiceNumber),
+                row.PdfBlobName,
                 ttl,
                 ct);
             sasExpiresAtUtc = _timeProvider.GetUtcNow().Add(ttl);
         }
 
-        return Result.Ok(InvoiceProjection.ToResponse(invoice, sasUrl, sasExpiresAtUtc));
+        return Result.Ok(row.ToResponse(sasUrl, sasExpiresAtUtc));
     }
 }
