@@ -2,6 +2,7 @@ using KafkaFlow;
 using Notifications.Application.Common;
 using Notifications.Infrastructure.Common;
 using Notifications.Infrastructure.Common.Observability;
+using Notifications.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
 using Serilog;
 
@@ -29,6 +30,8 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
+
+    await app.MigrateOnStartupIfLocalAsync<NotificationDbContext>();
 
     // Skip the Kafka cluster boot in the test host. Integration tests register the
     // typed Kafka handlers directly and invoke them with synthetic message contexts
