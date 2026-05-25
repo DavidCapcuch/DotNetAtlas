@@ -8,7 +8,6 @@
         <PackageReference Include="Testcontainers.Kafka" />
         <PackageReference Include="Confluent.Kafka" />
         <PackageReference Include="WireMock.Net" />
-        <PackageReference Include="Respawn" />
     </ItemGroup>
 
     <ItemGroup>

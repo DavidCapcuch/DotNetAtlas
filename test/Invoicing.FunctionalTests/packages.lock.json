@@ -65,12 +65,6 @@
           "Castle.Core": "5.1.1"
         }
       },
-      "Respawn": {
-        "type": "Direct",
-        "requested": "[7.0.0, )",
-        "resolved": "7.0.0",
-        "contentHash": "AyWlducZGOnmlEVz4PaL3Qv8wcY3ClPZS9CrlDnSVahGd/E9tTEgSFiC8yoV/F6o6P6IYm8xnHFa/vmWT8tfcw=="
-      },
       "Serilog.Sinks.XUnit.Injectable": {
         "type": "Direct",
         "requested": "[4.0.222, )",
@@ -2511,7 +2505,6 @@
           "Microsoft.NET.Test.Sdk": "[18.5.1, )",
           "NSubstitute": "[5.3.0, )",
           "Platform.Test.Framework": "[1.0.0, )",
-          "Respawn": "[7.0.0, )",
           "Serilog.Sinks.XUnit.Injectable": "[4.0.222, )",
           "Testcontainers.Azurite": "[4.11.0, )",
           "Testcontainers.Kafka": "[4.11.0, )",
@@ -3054,6 +3047,12 @@
         "dependencies": {
           "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
+      },
+      "Respawn": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "AyWlducZGOnmlEVz4PaL3Qv8wcY3ClPZS9CrlDnSVahGd/E9tTEgSFiC8yoV/F6o6P6IYm8xnHFa/vmWT8tfcw=="
       },
       "Riok.Mapperly": {
         "type": "CentralTransitive",
