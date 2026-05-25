@@ -32,6 +32,7 @@ internal static class CreditNoteIssuedMapper
             PdfBlobName = source.PdfBlobRef.BlobName,
             PdfContentHash = source.PdfBlobRef.ContentHash,
             PdfSizeBytes = source.PdfBlobRef.SizeBytes,
+            OccurredOnUtc = source.OccurredOnUtc.UtcDateTime,
         };
     }
 }

@@ -42,13 +42,15 @@ namespace Invoicing.CreditNotes
 				"},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code (matches the original Invoice" +
 				"\'s currency).\",\"type\":\"string\"},{\"name\":\"Reason\",\"doc\":\"CreditNoteReason SmartEn" +
 				"um name (v1: \'OrderCancelled\'; v2 adds \'PartialRefund\', \'Adjustment\').\",\"type\":\"" +
-				"string\"},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blob name (e.g., '2026" +
-				"/05/CN-2026-000007.pdf'). Consumers must call Invoicing's GET endpoint (or re-min" +
-				"t via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — neve" +
-				"r embed long-lived URLs in this stream (issue #131).\",\"type\":\"string\"},{\"name\":\"" +
-				"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercas" +
-				"e hex (64 chars).\",\"type\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PD" +
-				"F blob in bytes (>0).\",\"type\":\"long\"}]}");
+				"string\"},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blob name (e.g., \'2026" +
+				"/05/CN-2026-000007.pdf\'). Consumers must call Invoicing\'s GET endpoint (or re-mi" +
+				"nt via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — ne" +
+				"ver embed long-lived URLs in this stream (issue #131).\",\"type\":\"string\"},{\"name\"" +
+				":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercase hex (64 chars).\",\"t" +
+				"ype\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PDF blob in bytes (>0)." +
+				"\",\"type\":\"long\"},{\"name\":\"OccurredOnUtc\",\"doc\":\"Domain event occurrence time (en" +
+				"velope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.\"," +
+				"\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Unique identifier of the CreditNote aggregate.
 		/// </summary>
@@ -101,6 +103,10 @@ namespace Invoicing.CreditNotes
 		/// Size of the PDF blob in bytes (>0).
 		/// </summary>
 		private long _PdfSizeBytes;
+		/// <summary>
+		/// Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.
+		/// </summary>
+		private System.DateTime _OccurredOnUtc;
 		public virtual global::Avro.Schema Schema
 		{
 			get
@@ -290,6 +296,20 @@ namespace Invoicing.CreditNotes
 				this._PdfSizeBytes = value;
 			}
 		}
+		/// <summary>
+		/// Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.
+		/// </summary>
+		public System.DateTime OccurredOnUtc
+		{
+			get
+			{
+				return this._OccurredOnUtc;
+			}
+			set
+			{
+				this._OccurredOnUtc = value;
+			}
+		}
 		public virtual object Get(int fieldPos)
 		{
 			switch (fieldPos)
@@ -307,6 +327,7 @@ namespace Invoicing.CreditNotes
 			case 10: return this.PdfBlobName;
 			case 11: return this.PdfContentHash;
 			case 12: return this.PdfSizeBytes;
+			case 13: return this.OccurredOnUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -327,6 +348,7 @@ namespace Invoicing.CreditNotes
 			case 10: this.PdfBlobName = (System.String)fieldValue; break;
 			case 11: this.PdfContentHash = (System.String)fieldValue; break;
 			case 12: this.PdfSizeBytes = (System.Int64)fieldValue; break;
+			case 13: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

@@ -12,7 +12,7 @@ namespace Notifications.Email
 	using System.Text;
 	using global::Avro;
 	using global::Avro.Specific;
-
+	
 	/// <summary>
 	/// Emitted after IEmailGateway reports successful send for a SendEmailNotificationCommand. Generic — consumers route by TemplateId prefix.
 	/// </summary>

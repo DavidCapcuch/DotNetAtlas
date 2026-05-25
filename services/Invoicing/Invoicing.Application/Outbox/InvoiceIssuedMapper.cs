@@ -44,6 +44,7 @@ public static partial class InvoiceIssuedMapper
             PdfContentHash = source.PdfBlobRef.ContentHash,
             PdfSizeBytes = source.PdfBlobRef.SizeBytes,
             DeliveryChannel = source.DeliveryChannel.Name,
+            OccurredOnUtc = source.OccurredOnUtc.UtcDateTime,
         };
 
     [UserMapping]

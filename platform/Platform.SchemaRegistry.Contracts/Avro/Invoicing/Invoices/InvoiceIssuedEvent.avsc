@@ -196,6 +196,14 @@
             "name": "DeliveryChannel",
             "type": "string",
             "doc": "DeliveryChannel SmartEnum name: 'None', 'Email', or 'TaxAuthorityWebhook' (v2). Indicates how the issuer intends the invoice to be delivered downstream."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "Domain event occurrence time (envelope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record."
         }
     ]
 }
