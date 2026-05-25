@@ -25,7 +25,7 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// Mirrors Inventory's M5 precedent at
 /// <c>test/Inventory.IntegrationTests/Messaging/Kafka/ReserveStockCommandKafkaHandlerTests.cs</c>.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class CreateOrderCommandKafkaHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

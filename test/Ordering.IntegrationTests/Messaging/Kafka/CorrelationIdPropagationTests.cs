@@ -22,7 +22,7 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// with the same value as the Avro payload so the propagation chain is
 /// observable end-to-end.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class CorrelationIdPropagationTests
 {
     private readonly IntegrationTestFixture _fixture;

@@ -66,7 +66,7 @@ try
     // is integration-tested in M4 / M7 against a real broker. Booting the
     // consumer in tests would require a Kafka + schema-registry container
     // pair that isn't part of M5's scope.
-    if (!app.Environment.IsEnvironment("Testing"))
+    if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();
         await kafkaBus.StartAsync();

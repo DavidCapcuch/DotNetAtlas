@@ -21,7 +21,7 @@ namespace Ordering.IntegrationTests.Persistence;
 /// <c>DispatchDomainEventsInterceptor</c> all participate.
 /// Full Kafka saga-command ingress coverage lands in M7.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class OrderPersistenceTests
 {
     private readonly IntegrationTestFixture _fixture;

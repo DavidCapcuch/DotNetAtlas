@@ -12,7 +12,7 @@ using Platform.Test.Framework.Auth;
 
 namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class MarkOrderShippedTests : BaseApiTest
 {
     public MarkOrderShippedTests(ApiTestFixture app)

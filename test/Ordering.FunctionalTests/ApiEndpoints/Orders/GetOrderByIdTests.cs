@@ -7,7 +7,7 @@ using Ordering.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class GetOrderByIdTests : BaseApiTest
 {
     public GetOrderByIdTests(ApiTestFixture app)

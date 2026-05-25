@@ -17,7 +17,7 @@ namespace Ordering.IntegrationTests.Orders.GetOrdersByBuyer;
 /// <c>LastStatusChangeAtUtc</c> — so these run against the real Postgres
 /// container (ADR-0021).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetOrdersByBuyerQueryHandlerTests
 {
     private readonly IntegrationTestFixture _fixture;

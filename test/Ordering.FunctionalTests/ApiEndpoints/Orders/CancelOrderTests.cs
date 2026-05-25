@@ -13,7 +13,7 @@ using Platform.Test.Framework.Kafka;
 
 namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
 
-[Collection(nameof(FunctionalTestCollection))]
+[Collection<FunctionalTestCollection>]
 public class CancelOrderTests : BaseApiTest
 {
     public CancelOrderTests(ApiTestFixture app)
