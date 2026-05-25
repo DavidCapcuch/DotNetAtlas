@@ -40,10 +40,13 @@
         <!-- OTel PII allowlist processor (ADR-0011) -->
         <PackageReference Include="OpenTelemetry" />
 
-        <!-- EF Core — MigrateOnStartupIfLocalAsync<TContext> (#213 part 2).
-             .Relational supplies the MigrateAsync extension on DatabaseFacade. -->
+        <!-- EF Core — ApplySqlScriptsOnStartupIfLocalAsync<TContext> (#213 + #269).
+             .Relational supplies the GetDbConnection extension on DatabaseFacade.
+             Evolve runs the same idempotent V*.sql files Flyway runs in compose, so the
+             Local-laptop startup path exercises identical SQL to production. -->
         <PackageReference Include="Microsoft.EntityFrameworkCore" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+        <PackageReference Include="Evolve" />
     </ItemGroup>
 
     <ItemGroup>

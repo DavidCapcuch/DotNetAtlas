@@ -54,3 +54,62 @@ jobs:
             -p:FileVersion=$ASSEMBLY_SEMFILEVER \
             -p:InformationalVersion=$INFORMATIONAL_VERSION
 
+  # Per-BC `dotnet ef migrations has-pending-model-changes` (#269).
+  # Catches uncommitted EF model changes that have not been added as a migration.
+  # Matrix axis is per-BC so a single BC failure doesn't mask the rest.
+  migrations-check:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - bc: Catalog
+            project: services/Catalog/Catalog.Infrastructure
+            startup: services/Catalog/Catalog.API
+          - bc: Basket
+            project: services/Basket/Basket.Infrastructure
+            startup: services/Basket/Basket.Api
+          - bc: Inventory
+            project: services/Inventory/Inventory.Infrastructure
+            startup: services/Inventory/Inventory.API
+          - bc: Ordering
+            project: services/Ordering/Ordering.Infrastructure
+            startup: services/Ordering/Ordering.API
+          - bc: Invoicing
+            project: services/Invoicing/Invoicing.Infrastructure
+            startup: services/Invoicing/Invoicing.API
+          - bc: Payments
+            project: services/Payments/Payments.Infrastructure
+            startup: services/Payments/Payments.Api
+          - bc: Notifications
+            project: services/Notifications/Notifications.Infrastructure
+            startup: services/Notifications/Notifications.Api
+          - bc: Weather
+            project: src/Weather.Infrastructure
+            startup: src/Weather.Api
+          - bc: Saga
+            project: saga/SagaOrchestrators
+            startup: saga/SagaOrchestrators
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Setup .NET SDK (10.0.100)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5
+        with:
+          dotnet-version: "10.0.100"
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - name: Restore
+        run: dotnet restore --locked-mode
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 10.0.0
+      - name: Check for pending model changes (${{ matrix.bc }})
+        run: |
+          dotnet ef migrations has-pending-model-changes \
+            --project ${{ matrix.project }} \
+            --startup-project ${{ matrix.startup }} \
+            --no-build
+

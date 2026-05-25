@@ -11,8 +11,10 @@ using Ordering.Infrastructure.Persistence.Database;
 using Ordering.Infrastructure.Persistence.Database.Interceptors;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
-using Testcontainers.PostgreSql;
+using Respawn;
 using Xunit;
 
 namespace Ordering.IntegrationTests.Common;
@@ -35,12 +37,13 @@ namespace Ordering.IntegrationTests.Common;
 /// </summary>
 public sealed class IntegrationTestFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Ordering")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Ordering",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Ordering/Ordering.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [OrderingDbContext.DefaultSchemaName]
+        });
 
     private ServiceProvider _rootServices = null!;
 
@@ -53,7 +56,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await _pgContainer.StartAsync(TestContext.Current.CancellationToken);
+        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
 
@@ -79,8 +82,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddSingleton<UpdateAuditableEntitiesInterceptor>();
 
         services.AddDbContext<OrderingDbContext>((sp, options) => options
-            .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", OrderingDbContext.DefaultSchemaName))
+            .UseNpgsql(_dbContainer.ConnectionString)
             .UseSnakeCaseNamingConvention()
             .AddInterceptors(
                 sp.GetRequiredService<UpdateAuditableEntitiesInterceptor>(),
@@ -130,17 +132,15 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddScoped<MarkOrderFailedCommandKafkaHandler>();
 
         _rootServices = services.BuildServiceProvider();
-
-        // Apply EF migrations once per fixture lifetime.
-        await using var migrationScope = _rootServices.CreateAsyncScope();
-        var dbContext = migrationScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-        await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>
     /// Creates a per-test DI scope. Caller disposes.
     /// </summary>
     public IServiceScope CreateScope() => _rootServices.CreateScope();
+
+    /// <summary>Wipes every table in the Ordering schema between tests.</summary>
+    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
 
     /// <summary>
     /// Resolves the singleton <see cref="FakeOutboxWriter"/> so individual
@@ -157,7 +157,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await _rootServices.DisposeAsync();
         }
 
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 }
 

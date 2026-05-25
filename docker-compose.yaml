@@ -467,6 +467,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -499,6 +501,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -538,6 +542,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -583,6 +589,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -627,6 +635,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -678,6 +688,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -711,6 +723,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis-basket:
         condition: service_healthy
       redis-cache:
@@ -763,6 +777,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       redis-cache:
         condition: service_healthy
       kafka:
@@ -804,6 +820,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -828,35 +846,20 @@ services:
         limits:
           memory: 768M
 
-  # One-shot bootstrap that applies the saga's idempotent EF-generated SQL scripts
-  # (V001/V002/V003 under saga/SagaOrchestrators/Common/Persistence/Database/Migrations/SqlScripts)
-  # to the Saga database. Mirrors the production pattern documented at
-  # saga/SagaOrchestrators/Program.cs:33-39 — "SQL scripts generated from EF core migrations
-  # should be used" — and the same scripts that PostgreSqlTestContainer applies via Evolve in
-  # the integration-test fixtures, so dev + test + prod all converge on one set of artefacts.
+  # Single one-shot Flyway migration container for ALL bounded contexts incl. saga (#269).
+  # Runs Flyway sequentially against each per-BC database (created by src/postgres/init-bcs.sql),
+  # applying the same idempotent V*.sql files that PostgreSqlTestContainer feeds to Evolve in
+  # tests. One container, one image pull, one log stream — dev + test + prod converge on one
+  # set of artefacts. Every BC API + outbox-relay + saga gates startup on this service via
+  # `condition: service_completed_successfully`.
   #
-  # Why a one-shot service and not InitialiseDatabaseAsync():
-  #   The saga's Program.cs gates `app.InitialiseDatabaseAsync()` on `app.Environment.IsLocal()`,
-  #   which is FALSE under ASPNETCORE_ENVIRONMENT=Development. Setting ENVIRONMENT=Local in
-  #   compose to flip that gate would semantically misrepresent the compose deployment as a
-  #   "local-dev" run (and would re-enable other Local-only branches across the codebase). The
-  #   out-of-band migration container preserves the Development semantic and applies the same
-  #   SQL scripts production would.
-  #
-  # Why a bash for-loop over psql -f and not the dotnet-ef CLI:
-  #   The scripts are already idempotent (every CREATE/ALTER is wrapped in
-  #   `IF NOT EXISTS` / `DO $EF$ ... WHERE NOT EXISTS(... __EFMigrationsHistory ...)` blocks
-  #   emitted by `dotnet ef migrations script --idempotent`). Re-running them on a fully-migrated
-  #   DB is a no-op. So we don't need Evolve's changelog table here — bash + psql against the
-  #   postgres:18.3 image (same as postgresdb) is the smallest correct primitive.
-  #
-  # ON_ERROR_STOP=1 fails fast on the first bad statement (default psql swallows SQL errors and
-  # returns 0). depends_on postgresdb=service_healthy ensures the DB process is accepting
-  # connections AND init-bcs.sql has created `Saga`. saga.depends_on.saga-migrate
-  # service_completed_successfully gates the saga's start on this script's exit 0.
-  saga-migrate:
-    container_name: saga-migrate
-    image: postgres:18.3@sha256:52e6ffd11fddd081ae63880b635b2a61c14008c17fc98cdc7ce5472265516dd0
+  # Each BC's SqlScripts dir is mounted under /flyway/sql/<bc> (read-only). The entrypoint
+  # loops over the (db,schema) pairs; FLYWAY_PASSWORD is read from the env so it isn't
+  # interpolated into the command line. `$$` escapes compose's variable expansion so the
+  # shell sees `$db`/`$schema` at run time.
+  flyway:
+    container_name: flyway
+    image: flyway/flyway:11.16-alpine
     profiles:
       - full
     restart: "no"
@@ -864,19 +867,32 @@ services:
       postgresdb:
         condition: service_healthy
     environment:
-      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - FLYWAY_USER=postgres
+      - FLYWAY_PASSWORD=${POSTGRES_PASSWORD}
+      - FLYWAY_BASELINE_ON_MIGRATE=true
     volumes:
-      - ./saga/SagaOrchestrators/Common/Persistence/Database/Migrations/SqlScripts:/scripts:ro
+      - ./services/Catalog/Catalog.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/catalog:ro
+      - ./services/Basket/Basket.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/basket:ro
+      - ./services/Inventory/Inventory.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/inventory:ro
+      - ./services/Ordering/Ordering.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/ordering:ro
+      - ./services/Invoicing/Invoicing.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/invoicing:ro
+      - ./services/Payments/Payments.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/payments:ro
+      - ./services/Notifications/Notifications.Infrastructure/Persistence/Database/Migrations/SqlScripts:/flyway/sql/notifications:ro
+      - ./saga/SagaOrchestrators/Common/Persistence/Database/Migrations/SqlScripts:/flyway/sql/saga:ro
     entrypoint:
-      - bash
-      - -eu
-      - -c
+      - sh
+      - -euc
       - |
-        for f in /scripts/V*.sql; do
-          echo "[saga-migrate] applying $$f"
-          psql -v ON_ERROR_STOP=1 -h postgresdb -p 5432 -U postgres -d Saga -f "$$f"
+        for pair in "Catalog catalog" "Basket basket" "Inventory inventory" "Ordering ordering" "Invoicing invoicing" "Payments payments" "Notifications notifications" "Saga saga"; do
+          db=$${pair%% *}
+          schema=$${pair##* }
+          echo "[flyway] applying $$db -> schema $$schema"
+          flyway -url=jdbc:postgresql://postgresdb:5432/$$db \
+                 -schemas=$$schema \
+                 -locations=filesystem:/flyway/sql/$$schema \
+                 migrate
         done
-        echo "[saga-migrate] done"
+        echo "[flyway] all bounded contexts migrated"
 
   # Saga orchestrator (MassTransit + SqlTransport.PostgreSQL + KafkaFlow). Internal service —
   # no inbound JWT, no extra_hosts bridge. Reads commands from *.command topics, drives state
@@ -895,7 +911,7 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
-      saga-migrate:
+      flyway:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
@@ -927,6 +943,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -959,6 +977,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -991,6 +1011,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:
@@ -1023,6 +1045,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       schema-registry:

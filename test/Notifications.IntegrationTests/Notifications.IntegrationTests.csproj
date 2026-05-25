@@ -8,7 +8,6 @@
         </PackageReference>
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="WireMock.Net" />
     </ItemGroup>
 

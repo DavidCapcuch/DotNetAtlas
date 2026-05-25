@@ -7,7 +7,6 @@
         <PackageReference Include="Respawn" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="StackExchange.Redis" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers.Redis" />
     </ItemGroup>
 

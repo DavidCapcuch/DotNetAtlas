@@ -15,7 +15,9 @@ using Microsoft.Extensions.Time.Testing;
 using Platform.ReliableMessaging.Outbox.Core;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
-using Testcontainers.PostgreSql;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Respawn;
 
 namespace Catalog.IntegrationTests.Common;
 
@@ -29,9 +31,9 @@ namespace Catalog.IntegrationTests.Common;
 /// + LastUpdatedAtUtc assertions are deterministic across CI runs.
 /// </summary>
 /// <remarks>
-/// Schema is materialized via <c>EnsureCreatedAsync</c> rather than EF migrations —
-/// per CLAUDE.md the user generates production migrations deterministically; tests
-/// derive the schema from the EF model so the fixture stays self-contained.
+/// Schema comes from the same idempotent V*.sql scripts Flyway runs in compose (#269);
+/// Catalog's Initial EF migration was added as part of #269 (Catalog previously relied on
+/// EnsureCreatedAsync and had no migrations committed).
 /// </remarks>
 public sealed class IntegrationTestFixture : IAsyncLifetime
 {
@@ -39,12 +41,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     public static readonly DateTimeOffset Now =
         new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
 
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Catalog")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Catalog",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Catalog/Catalog.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [CatalogDbContext.DefaultSchemaName]
+        });
 
     private ServiceProvider _rootServices = null!;
 
@@ -53,7 +56,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await _pgContainer.StartAsync(TestContext.Current.CancellationToken);
+        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
@@ -85,8 +88,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // Real DbContext bypassing Catalog.Infrastructure.AddDatabase (which binds an
         // EfCoreOptions section + production retry knobs not material for tests).
         services.AddDbContext<CatalogDbContext>((sp, options) => options
-            .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", CatalogDbContext.DefaultSchemaName))
+            .UseNpgsql(_dbContainer.ConnectionString)
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor()
             .ConfigureWarnings(w => w.Log(RelationalEventId.PendingModelChangesWarning))
@@ -129,18 +131,16 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         });
 
         _rootServices = services.BuildServiceProvider(validateScopes: true);
-
-        // Materialize the schema from the EF model — per CLAUDE.md migrations are user-generated.
-        await using var setupScope = _rootServices.CreateAsyncScope();
-        var dbContext = setupScope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
     public IServiceScope CreateScope() => _rootServices.CreateScope();
 
     /// <summary>Connection string for tests that bypass the DbContext.</summary>
-    public string ConnectionString => _pgContainer.GetConnectionString();
+    public string ConnectionString => _dbContainer.ConnectionString;
+
+    /// <summary>Wipes every table in the Catalog schema between tests.</summary>
+    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
 
     public async ValueTask DisposeAsync()
     {
@@ -149,6 +149,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await _rootServices.DisposeAsync();
         }
 
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 }

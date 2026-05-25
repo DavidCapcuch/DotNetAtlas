@@ -9,5 +9,6 @@
         <ProjectReference Include="..\..\services\Invoicing\Invoicing.Domain\Invoicing.Domain.csproj" />
         <ProjectReference Include="..\..\services\Invoicing\Invoicing.Application\Invoicing.Application.csproj" />
         <ProjectReference Include="..\..\services\Invoicing\Invoicing.Infrastructure\Invoicing.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 </Project>

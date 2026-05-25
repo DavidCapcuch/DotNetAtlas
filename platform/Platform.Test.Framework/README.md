@@ -1,36 +1,37 @@
 # Platform.Test.Framework
 
-TestContainers‑based components for simplyfing spinning up infrastructure setup and state management in integration and functional tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
+TestContainers‑based components for simplifying spinning up infrastructure setup and state management in integration and functional tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
 
-- **SQL Server**: Sql script migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
+- **PostgreSQL**: SQL-script migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
 - **Redis**: flush-all resets, pre-configured ConfigurationOptions.
 - **Kafka + Schema Registry** with config encapsulation
 
 ## Quick start
 
-### [SQL Server](Database/SqlServerTestContainer.cs)
+### [PostgreSQL](Database/PostgreSqlTestContainer.cs)
 
 ```csharp
+using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
 
-var sqlServer = new SqlServerTestContainer(
+var postgres = new PostgreSqlTestContainer(
     databaseName: "Weather",
-    sqlScriptsMigrationsPath: SolutionPaths.SqlScriptsMigrationsDirectory,
+    sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("src/Weather.Infrastructure"),
     new RespawnerOptions
     {
-        SchemasToInclude = ["weather", "HangFire"]
+        SchemasToInclude = ["weather", "hangfire"]
     });
 
-await sqlServer.StartAsync();
+await postgres.StartAsync();
 
 // Use for DI
-builder.UseSetting("ConnectionStrings:Weather", sqlServer.ConnectionString);
+builder.UseSetting("ConnectionStrings:Weather", postgres.ConnectionString);
 
 // Between tests
-await sqlServer.CleanDataAsync();
+await postgres.CleanDataAsync();
 
 // Teardown
-await sqlServer.DisposeAsync();
+await postgres.DisposeAsync();
 ```
 
 ### [Redis](Redis/RedisTestContainer.cs)
@@ -123,12 +124,43 @@ if (TestContext.Current.TestState?.Result == TestResult.Failed)
 tracer.Dispose();
 ```
 
+## Migration-script drift policy
+
+The same `V*.sql` files are consumed by two different runners (#269):
+
+| Runner | Where | Tracking |
+|---|---|---|
+| **Evolve** | `PostgreSqlTestContainer` in integration / functional tests | `changelog` table + per-file checksum |
+| **Flyway** | Single one-shot `flyway` service in `docker-compose.yaml` (loops over all BC schemas incl. saga) | `flyway_schema_history` table per schema + per-file checksum |
+
+Both tools refuse to re-apply a `V*.sql` file whose **content has changed** after it was first recorded. This is intentional — a changed checksum is the only reliable signal that production and tests have diverged. Once a `Vnnn__Name.sql` has been merged, treat it as **immutable**.
+
+### Symptoms
+
+- **Evolve (tests):** `EvolveException: Validate failed: Migration checksum mismatch for migration version <n>` raised inside `PostgreSqlTestContainer.StartAsync()`. The container starts but Evolve aborts before any tests run.
+- **Flyway (compose):** The `flyway` service exits non-zero with `FlywayValidateException: Validate failed: Migration checksum mismatch for migration version <n>`. Because every BC API + outbox-relay gates on `flyway: condition: service_completed_successfully`, an exit-1 there blocks the whole stack.
+
+### Recovery
+
+| Environment | Recovery | Rationale |
+|---|---|---|
+| Local dev DB (compose) | `docker compose down -v` + `up -d` to wipe the postgres volume, OR `docker run --rm ... flyway/flyway:11-alpine repair` | Local data is throwaway. Wipe-and-resync is simplest. |
+| Shared dev / staging | `flyway repair` against the shared DB | Preserves data. Requires the new checksum to actually match what production will apply. |
+| Production | **Incident.** Escalate. Never repair without a deliberate rollback / forward-fix plan reviewed by whoever owns the data. | Drift in prod means tests and prod are no longer reading the same migration text. |
+| Integration / functional tests | Re-emit the script from the EF migration: `dotnet ef migrations script <from> <to> --idempotent --output ...SqlScripts/Vnnn__Name.sql`. Testcontainers are throwaway, so checksum mismatch in tests is always a "regenerate the file" situation, never a "repair" situation. | |
+
+### Prevention
+
+- Never edit a merged `V*.sql` to fix a defect. Emit a new `Vnnn+1__Fix_*.sql` instead.
+- The per-BC `DatabaseMigrationFilesTests` arch test enforces `# EF migrations == # V*.sql files`. It catches the "added an EF migration but forgot to emit the SQL" case, not content drift — content drift is caught at runtime by Evolve / Flyway.
+- CI runs `dotnet ef migrations has-pending-model-changes` per BC (`build-dotnet.yml`), which catches the "edited the model but forgot to emit any migration" case earlier.
+
 ## Tips
 
 - Start multiple containers in parallel to speed up setup:
 ```csharp
 await Task.WhenAll(
-    sqlContainer.StartAsync(),
+    postgresContainer.StartAsync(),
     redisContainer.StartAsync(),
     kafkaContainer.StartAsync()
 );

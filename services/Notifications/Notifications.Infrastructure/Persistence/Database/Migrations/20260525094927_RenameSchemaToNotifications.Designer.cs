@@ -4,24 +4,24 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Notifications.Infrastructure.Common.Persistence.Database;
+using Notifications.Infrastructure.Persistence.Database;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Notifications.Infrastructure.Common.Persistence.Database.Migrations
+namespace Notifications.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(NotificationDbContext))]
-    [Migration("20260417121247_Init")]
-    partial class Init
+    [Migration("20260525094927_RenameSchemaToNotifications")]
+    partial class RenameSchemaToNotifications
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("payment")
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasDefaultSchema("notifications")
+                .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -44,7 +44,7 @@ namespace Notifications.Infrastructure.Common.Persistence.Database.Migrations
                     b.HasIndex("ProcessedAtUtc")
                         .HasDatabaseName("IX_InboxMessages_ProcessedAtUtc");
 
-                    b.ToTable("InboxMessages", "payment", t =>
+                    b.ToTable("InboxMessages", "notifications", t =>
                         {
                             t.HasComment("Inbox pattern table for idempotent message processing. Tracks processed messages to prevent duplicate processing.");
                         });
@@ -103,7 +103,7 @@ namespace Notifications.Infrastructure.Common.Persistence.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_outbox_messages");
 
-                    b.ToTable("OutboxMessages", "payment", t =>
+                    b.ToTable("OutboxMessages", "notifications", t =>
                         {
                             t.HasComment("Outbox pattern table for storing domain events as Avro-serialized messages for reliable event publishing.");
                         });
