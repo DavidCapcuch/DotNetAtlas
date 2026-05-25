@@ -13,7 +13,7 @@ public sealed class GetOrdersByBuyerRequest
     /// </summary>
     public string? Status { get; init; }
 
-    public int Skip { get; init; }
+    public int PageNumber { get; init; } = 1;
 
-    public int Take { get; init; } = 20;
+    public int PageSize { get; init; } = 20;
 }

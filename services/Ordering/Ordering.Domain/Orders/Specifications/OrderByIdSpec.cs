@@ -3,9 +3,10 @@ using Ardalis.Specification;
 namespace Ordering.Domain.Orders.Specifications;
 
 /// <summary>
-/// Loads a single <see cref="Order"/> by its primary key.
-/// Used by every saga-command handler and the <c>GetOrderByIdQuery</c> — any
-/// consumer that needs the aggregate by id.
+/// Loads a single <see cref="Order"/> by its primary key. Write-side only —
+/// used by every saga-command handler that needs to mutate the aggregate.
+/// Per ADR-0021 the CQRS read side does not consume this spec; query
+/// handlers use inline LINQ with SQL-side projection instead.
 /// </summary>
 /// <remarks>
 /// Tagged with the spec class name for SQL-level observability (EF Core

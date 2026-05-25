@@ -7,9 +7,9 @@ using Serilog.Context;
 namespace Ordering.API.Endpoints.Orders.GetOrdersByBuyer;
 
 /// <summary>
-/// <c>GET /api/v1/ordering/orders?status=&amp;skip=&amp;take=</c> — paged
-/// list of the calling buyer's orders. Admin override (an admin requesting
-/// a particular buyer's orders) is deferred to v2+ per
+/// <c>GET /api/v1/ordering/orders?status=&amp;pageNumber=&amp;pageSize=</c> —
+/// paged list of the calling buyer's orders. Admin override (an admin
+/// requesting a particular buyer's orders) is deferred to v2+ per
 /// <c>ordering.md Appendix B</c>.
 /// </summary>
 internal sealed class GetOrdersByBuyerEndpoint
@@ -55,8 +55,8 @@ internal sealed class GetOrdersByBuyerEndpoint
         {
             BuyerId = buyerId.Value,
             Status = req.Status,
-            Skip = req.Skip,
-            Take = req.Take,
+            PageNumber = req.PageNumber,
+            PageSize = req.PageSize,
         };
 
         var result = await _handler.HandleAsync(query, ct);

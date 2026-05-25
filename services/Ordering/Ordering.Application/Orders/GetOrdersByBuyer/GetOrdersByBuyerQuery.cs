@@ -3,8 +3,9 @@ using Platform.CQRS;
 namespace Ordering.Application.Orders.GetOrdersByBuyer;
 
 /// <summary>
-/// Lists the caller's orders, most-recent-first, paged with offset / limit
-/// (Appendix B.4 default). <c>Status</c> filter is optional.
+/// Lists the caller's orders, most-recent-first, paged with 1-indexed
+/// <c>pageNumber</c> / <c>pageSize</c> (<c>use-cases.md § 3.4.2</c>). The
+/// <c>Status</c> filter is optional.
 /// </summary>
 public sealed record GetOrdersByBuyerQuery : IQuery<GetOrdersByBuyerResponse>
 {
@@ -12,7 +13,7 @@ public sealed record GetOrdersByBuyerQuery : IQuery<GetOrdersByBuyerResponse>
 
     public string? Status { get; init; }
 
-    public int Skip { get; init; }
+    public int PageNumber { get; init; } = 1;
 
-    public int Take { get; init; } = 20;
+    public int PageSize { get; init; } = 20;
 }
