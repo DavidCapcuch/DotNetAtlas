@@ -1,8 +1,9 @@
 using Catalog.FunctionalTests.Common.TestClientInfrastructure;
+using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Persistence.Database;
-using Confluent.Kafka;
-using Confluent.Kafka.Admin;
 using FastEndpoints.Testing;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,34 +13,35 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 using OpenFeature;
+using OpenTelemetry;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Redis;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using StackExchange.Redis;
-using Testcontainers.Kafka;
-using Testcontainers.Redis;
 
 namespace Catalog.FunctionalTests.Common;
+
+internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 
 /// <summary>
 /// Functional-test fixture for the Catalog HTTP surface.
 /// Spins Postgres + Redis + Kafka (KRaft) Testcontainers. Schema comes from the same
-/// idempotent V*.sql scripts Flyway runs in compose (#269) — Catalog's Initial migration
-/// was added as part of #269; Integration and Functional fixtures now share one source of
-/// truth instead of both EnsureCreatedAsync-ing from the model.
+/// idempotent V*.sql scripts Flyway runs in compose (#269) — Integration and Functional
+/// fixtures share one source of truth.
 /// Replaces the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/>
 /// (skips Schema Registry; byte-fidelity is asserted by the dedicated
 /// <c>EndToEnd/AvroByteFidelityTests</c>), pins <see cref="TimeProvider"/> to
 /// <see cref="Now"/>, replaces <see cref="IFeatureClient"/> with an NSubstitute mock so
-/// tests can flip <c>catalog.show-discontinued-in-search</c> per-scenario, and relaxes
-/// <see cref="JwtBearerOptions"/> so the <see cref="FakeTokenCreator"/> unsigned tokens
-/// parse.
+/// tests can flip <c>catalog.show-discontinued-in-search</c> per-scenario, and trusts the
+/// <see cref="FakeTokenSigner"/>'s RSA key via <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
 /// </summary>
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
@@ -47,8 +49,6 @@ public class ApiTestFixture : AppFixture<Program>
     /// <summary>Stable test clock — matches <c>Catalog.IntegrationTests.IntegrationTestFixture.Now</c>.</summary>
     public static readonly DateTimeOffset Now =
         new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
-
-    private const string StockLevelChangedTopic = "inventory.stock-level-changed";
 
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Catalog",
@@ -58,18 +58,10 @@ public class ApiTestFixture : AppFixture<Program>
             SchemasToInclude = [CatalogDbContext.DefaultSchemaName]
         });
 
-    private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7.4.6")
-        .WithCleanUp(true)
-        .Build();
-
-    private readonly KafkaContainer _kafkaContainer = new KafkaBuilder("confluentinc/cp-kafka:7.5.9")
-        .WithKRaft()
-        .WithCleanUp(true)
-        .Build();
+    private readonly RedisTestContainer _redisContainer = new();
+    private readonly KafkaTestContainer _kafkaContainer = new();
 
     private readonly FakeTokenSigner _signer = new(audience: "catalog-service-tests");
-
-    private ConnectionMultiplexer _redisMultiplexer = null!;
 
     /// <summary>
     /// Test-controlled <see cref="IFeatureClient"/>. Defaults all flags to <c>false</c>; tests
@@ -82,29 +74,28 @@ public class ApiTestFixture : AppFixture<Program>
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
+    public FakeTokenCreator TokenCreator { get; private set; } = null!;
+
     public string PostgresConnectionString => _dbContainer.ConnectionString;
 
-    public IDatabase RedisCacheDb => _redisMultiplexer.GetDatabase();
+    public IDatabase RedisCacheDb => ConnectionMultiplexer
+        .Connect(_redisContainer.ConfigurationOptions)
+        .GetDatabase();
 
     protected override async ValueTask PreSetupAsync()
     {
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
-
-        var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
-        redisOptions.AllowAdmin = true;
-        _redisMultiplexer = await ConnectionMultiplexer.ConnectAsync(redisOptions);
-
-        // Pre-create the inbound topic so KafkaFlow's StockLevelChanged consumer can
-        // subscribe at host startup. Without it the consumer logs subscription errors
-        // every poll cycle and floods the test output.
-        await CreateStockLevelChangedTopicAsync();
     }
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        TokenCreator = new FakeTokenCreator(_signer);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, TokenCreator);
         return ValueTask.CompletedTask;
     }
 
@@ -112,16 +103,12 @@ public class ApiTestFixture : AppFixture<Program>
     {
         a.ConfigureWebHost(webBuilder =>
         {
+            var redisConfig = _redisContainer.ConfigurationOptions;
             webBuilder
-                .UseSetting("ConnectionStrings:Catalog", _dbContainer.ConnectionString)
-                .UseSetting("ConnectionStrings:Redis:Cache", _redisContainer.GetConnectionString())
-                .UseSetting("Kafka:Brokers:0", _kafkaContainer.GetBootstrapAddress())
-                // FakeOutboxWriter bypasses Schema Registry; default-tests don't need it. The
-                // dedicated AvroByteFidelityTests bring their own real registry container.
-                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-functional-tests:8081")
-                .UseSetting("Kafka:AvroSerializer:AutoRegisterSchemas", "false")
-                .UseSetting("Kafka:AvroSerializer:SubjectNameStrategy", "Record")
-                .UseSetting("Kafka:AvroSerializer:NormalizeSchemas", "true");
+                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Catalog)}",
+                    _dbContainer.ConnectionString)
+                .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
+                .UseKafkaSettings(_kafkaContainer.KafkaOptions);
         });
 
         return base.ConfigureAppHost(a);
@@ -152,7 +139,7 @@ public class ApiTestFixture : AppFixture<Program>
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
                 // Pin the wall-clock so deterministic OccurredOnUtc / LastUpdatedAtUtc
-                // assertions match across CI runs (mirrors M4.4 IntegrationTestFixture).
+                // assertions match across CI runs (mirrors IntegrationTestFixture).
                 services.Replace(ServiceDescriptor.Singleton<TimeProvider>(TimeProvider));
 
                 // Replace the OpenFeature client so per-test feature-flag flips don't depend
@@ -160,6 +147,16 @@ public class ApiTestFixture : AppFixture<Program>
                 // (catalog.show-discontinued-in-search) is exercised by SearchProductsTests
                 // by stubbing this mock.
                 services.Replace(ServiceDescriptor.Singleton(FeatureClient));
+
+                // Relax the OIDC scheme's HTTPS-metadata requirement BEFORE the framework's
+                // default IPostConfigureOptions<OpenIdConnectOptions> runs. Using Configure
+                // (IConfigureNamedOptions) ensures ordering: all IConfigureOptions run before
+                // any IPostConfigureOptions, so the default post-configure sees
+                // RequireHttpsMetadata=false and skips the HTTPS-authority throw.
+                // PostConfigure would fire too late (after the default already threw).
+                services.Configure<OpenIdConnectOptions>(
+                    OpenIdConnectDefaults.AuthenticationScheme,
+                    options => options.RequireHttpsMetadata = false);
 
                 // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
                 // every TokenValidationParameters flag at its production default
@@ -170,54 +167,22 @@ public class ApiTestFixture : AppFixture<Program>
 
     public async Task ResetFixtureStateAsync()
     {
+        using var _ = SuppressInstrumentationScope.Begin();
+
         FeatureClient.ClearSubstitute(ClearOptions.All);
         TimeProvider.SetUtcNow(Now);
 
-        // Flush Redis so idempotency-cache state cannot leak between tests.
-        var endpoints = _redisMultiplexer.GetEndPoints();
-        foreach (var endpoint in endpoints)
-        {
-            var server = _redisMultiplexer.GetServer(endpoint);
-            await server.FlushAllDatabasesAsync();
-        }
-
-        // Respawn (inside PostgreSqlTestContainer) wipes every user table in the catalog schema
-        // in dependency order — replaces the previous hand-maintained TRUNCATE list.
-        await _dbContainer.CleanDataAsync();
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync()
+        );
     }
 
     protected override async ValueTask TearDownAsync()
     {
         _signer.Dispose();
-        await _redisMultiplexer.DisposeAsync();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();
-    }
-
-    private async Task CreateStockLevelChangedTopicAsync()
-    {
-        var adminConfig = new AdminClientConfig
-        {
-            BootstrapServers = _kafkaContainer.GetBootstrapAddress(),
-        };
-
-        using var adminClient = new AdminClientBuilder(adminConfig).Build();
-        try
-        {
-            await adminClient.CreateTopicsAsync(
-            [
-                new TopicSpecification
-                {
-                    Name = StockLevelChangedTopic,
-                    NumPartitions = 3,
-                    ReplicationFactor = 1,
-                },
-            ]);
-        }
-        catch (CreateTopicsException ex) when (ex.Results[0].Error.Code == ErrorCode.TopicAlreadyExists)
-        {
-            // Topic already exists — re-using container.
-        }
     }
 }

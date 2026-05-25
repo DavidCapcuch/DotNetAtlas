@@ -18,14 +18,12 @@ namespace Catalog.IntegrationTests.Categories;
 /// rewrite and the <c>product_search_view.CategoryPath</c> rewrite are both verified
 /// against the actual SQL.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
-public sealed class ReparentCategoryIntegrationTests
+[Collection<IntegrationTestCollection>]
+public sealed class ReparentCategoryIntegrationTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
-    public ReparentCategoryIntegrationTests(IntegrationTestFixture fixture)
+    public ReparentCategoryIntegrationTests(IntegrationTestFixture app)
+        : base(app)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -42,7 +40,7 @@ public sealed class ReparentCategoryIntegrationTests
         Guid computersId;
         Guid laptopsId;
         Guid productId;
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var categoryHandler = scope.ServiceProvider
                 .GetRequiredService<ICommandHandler<CreateCategoryCommand, Guid>>();
@@ -78,7 +76,7 @@ public sealed class ReparentCategoryIntegrationTests
 
         // Act — reparent /alpha-{run}/computers under /beta-{run}. Per CategoryPathService,
         // computers + every descendant should have its path rewritten in a single SQL transaction.
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider
                 .GetRequiredService<ICommandHandler<ReparentCategoryCommand>>();
@@ -94,7 +92,7 @@ public sealed class ReparentCategoryIntegrationTests
 
         // Assert against a fresh scope so we read what was committed, not what the prior
         // scope's change-tracker held (the M3.5 fix clears the tracker after the cascade).
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<CatalogDbContext>();
 
         // Guid.ToString("N") already emits lowercase hex; concatenating into the slug below
