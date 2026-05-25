@@ -13,7 +13,6 @@
         <PackageReference Include="Azure.Storage.Blobs" />
         <PackageReference Include="Confluent.Kafka" />
         <PackageReference Include="WireMock.Net" />
-        <PackageReference Include="Respawn" />
     </ItemGroup>
 
     <ItemGroup>

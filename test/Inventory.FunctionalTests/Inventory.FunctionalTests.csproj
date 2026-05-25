@@ -4,7 +4,6 @@
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="NSubstitute" />
-        <PackageReference Include="Respawn" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="StackExchange.Redis" />
         <PackageReference Include="Testcontainers.Redis" />
