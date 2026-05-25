@@ -5,7 +5,7 @@ using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives <see cref="PaymentRefundedEvent"/> from <c>payments.payments</c> and
+/// Consumer that receives <see cref="PaymentRefundedEvent"/> from <c>payments.transactions</c> and
 /// forwards it to the <see cref="CheckoutSagaOrchestrator"/> as
 /// <see cref="PaymentRefundedSagaEvent"/> per docs/bc-design/checkout-saga.md § 8 row 12. The
 /// <c>Checkout</c> suffix disambiguates from any future PaymentProcessingSaga consumer of the

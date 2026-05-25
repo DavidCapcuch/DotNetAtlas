@@ -24,7 +24,7 @@ internal static class CheckoutSagaDependencyInjection
     {
         /// <summary>
         /// Configures Kafka topic endpoints and consumers for the Checkout saga. The
-        /// <c>payments.payments</c> topic is shared with PaymentProcessingSaga; the
+        /// <c>payments.transactions</c> topic is shared with PaymentProcessingSaga; the
         /// <c>saga-checkout</c> consumer group keeps offsets independent so the two sagas
         /// receive every event independently per ADR-0001.
         /// </summary>
