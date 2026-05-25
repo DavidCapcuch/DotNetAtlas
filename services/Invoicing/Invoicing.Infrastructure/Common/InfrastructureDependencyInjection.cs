@@ -16,7 +16,7 @@ namespace Invoicing.Infrastructure.Common;
 /// <c>InvoicingDbContext</c> + the gap-free number allocators (ADR-0018) →
 /// M6 adds the four enrichment-projection KafkaFlow consumers + inbox dedup.
 /// Subsequent milestones wire:
-///   M7 — IssueInvoice / IssueCreditNote command handlers + outbox publishers
+///   M7 — IssueInvoice / IssueCreditNote command handlers + outbox publishers.
 /// </summary>
 public static class InfrastructureDependencyInjection
 {

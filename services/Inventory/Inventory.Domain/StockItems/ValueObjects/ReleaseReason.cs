@@ -3,7 +3,7 @@ namespace Inventory.Domain.StockItems.ValueObjects;
 /// <summary>
 /// Why a reservation was released. Carried on every <c>ReservationReleasedEvent</c> and
 /// <c>ReleaseReservationCommand</c>. Critical for ops/auditing — a release is never
-/// "just a release."
+/// "just a release.".
 /// </summary>
 public enum ReleaseReason
 {

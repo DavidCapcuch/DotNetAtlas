@@ -15,6 +15,9 @@ internal sealed class OneShotConflictInterceptor : ISaveChangesInterceptor
     private readonly int _firesRemaining;
     private int _firedCount;
 
+    /// <summary>
+    /// OneShotConflictInterceptor.
+    /// </summary>
     /// <param name="injectConflict">
     /// The work to run before save. Typically inserts a competing row via a
     /// fresh DbContext/scope.

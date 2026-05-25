@@ -83,6 +83,6 @@ public sealed partial class CorrelationIdMiddleware
     {
         Span<byte> bytes = stackalloc byte[16];
         guid.TryWriteBytes(bytes, bigEndian: true, out _);
-        return (bytes[6] >> 4) == 0x7;
+        return bytes[6] >> 4 == 0x7;
     }
 }
