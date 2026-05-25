@@ -113,7 +113,7 @@ All mutating methods end with `Version++` and `LastModifiedAtUtc = utcNow` (inje
 record BasketItem(
     Guid ProductId,          // Catalog reference — by identity only (Vernon rule 3)
     ProductSnapshot Snapshot,
-    int Quantity             // ≥ 1, enforced on construction
+    int Quantity             // ≥ 1, enforced by the Basket aggregate (AddItem / ChangeQuantity)
 )
 ```
 
