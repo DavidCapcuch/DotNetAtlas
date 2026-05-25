@@ -30,12 +30,13 @@ namespace Basket.IntegrationTests.Persistence;
 /// <see cref="FakeOutboxWriter"/> for the rationale (matches Inventory + Ordering
 /// precedent of decoupling outbox tests from Schema Registry).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
-public sealed class BasketCheckoutOutboxDbIntegrationTests
+[Collection<IntegrationTestCollection>]
+public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
 {
     private readonly IntegrationTestFixture _fixture;
 
     public BasketCheckoutOutboxDbIntegrationTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
         _fixture = fixture;
     }

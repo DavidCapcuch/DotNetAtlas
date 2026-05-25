@@ -1,43 +1,34 @@
-using Basket.Application.Abstractions;
-using Basket.FunctionalTests.Common.TestClientInfrastructure;
 using Basket.Infrastructure.Persistence.Database;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
-namespace Basket.FunctionalTests.Common;
+namespace Basket.IntegrationTests.Common;
 
-public abstract class BaseApiTest : IAsyncLifetime
+public abstract class BaseIntegrationTest : IAsyncLifetime
 {
+    private readonly TestCaseTracer _testCaseTracer;
     private readonly Func<Task> _resetFixtureStateAsync;
-    protected TestCaseTracer TestCaseTracer { get; }
+
     protected IServiceScope Scope { get; }
-    protected BasketDbContext DbContext { get; }
-    protected ApiTestFixture Fixture { get; }
-    protected HttpClientRegistry<Program> HttpClientRegistry { get; }
+    protected BasketDbContext BasketDbContext { get; }
 
-    protected IProductCatalogQueryPort Catalog => Fixture.Catalog;
-
-    protected BaseApiTest(ApiTestFixture app)
+    protected BaseIntegrationTest(IntegrationTestFixture app)
     {
-        Fixture = app;
         var outputSink = app.Services.GetRequiredService<IInjectableTestOutputSink>();
         outputSink.Inject(TestContext.Current.TestOutputHelper!);
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        DbContext = Scope.ServiceProvider.GetRequiredService<BasketDbContext>();
+        BasketDbContext = Scope.ServiceProvider.GetRequiredService<BasketDbContext>();
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
-        TestCaseTracer = new TestCaseTracer(
+        _testCaseTracer = new TestCaseTracer(
             Scope.ServiceProvider,
             TestContext.Current.TestMethod!.MethodName,
             TestContext.Current.TestCase!.UniqueID,
-            testType: "functional");
-
-        HttpClientRegistry = app.HttpClientRegistry;
-        HttpClientRegistry.SetTraceParent(TestCaseTracer.TraceParent);
+            testType: "integration");
     }
 
     public ValueTask InitializeAsync()
@@ -49,12 +40,14 @@ public abstract class BaseApiTest : IAsyncLifetime
     {
         if (TestContext.Current.TestState?.Result == TestResult.Failed)
         {
-            TestCaseTracer.RecordTestFailure(
+            _testCaseTracer.RecordTestFailure(
                 TestContext.Current.TestState.ExceptionMessages);
         }
 
+        _testCaseTracer.LogTestTraceLocalJaegerLink();
+
+        _testCaseTracer.Dispose();
         await _resetFixtureStateAsync();
-        TestCaseTracer.Dispose();
         Scope.Dispose();
     }
 }
