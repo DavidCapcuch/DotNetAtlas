@@ -44,7 +44,7 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// row).
 /// </para>
 /// </remarks>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class Session1ReservationTtlTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset SeedUtc =

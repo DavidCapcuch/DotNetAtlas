@@ -6,25 +6,31 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Redis;
+using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using StackExchange.Redis;
-using Testcontainers.Redis;
 
 namespace Inventory.FunctionalTests.Common;
 
+internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
+
 /// <summary>
 /// Inventory functional-test fixture. Spins Postgres + Redis Testcontainers,
-/// runs EF migrations, and disables JWT signature validation so
-/// <see cref="FakeTokenCreator"/> can mint unsigned tokens with a
-/// <c>scope</c> claim that drives <see cref="InventoryAuthorizationPolicies"/>.
+/// applies the committed <c>V*.sql</c> migrations via Evolve, and disables
+/// JWT signature validation so <see cref="FakeTokenCreator"/> can mint
+/// unsigned tokens with a <c>scope</c> claim that drives
+/// <see cref="Inventory.API.Common.Authorization.InventoryAuthorizationPolicies"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -32,18 +38,18 @@ namespace Inventory.FunctionalTests.Common;
 /// KafkaFlow cluster boot with <c>!IsTesting()</c>, and Inventory's outbox
 /// publishers use the <see cref="FakeOutboxWriter"/> registered below
 /// (replaces the production Avro+SchemaRegistry-backed writer). Saga-command
-/// Kafka consumer flows are covered by the M5 integration tests; M7
-/// functional tests focus on the HTTP surface end-to-end.
+/// Kafka consumer flows are covered by the integration tests; functional
+/// tests focus on the HTTP surface end-to-end.
 /// </para>
 /// <para>
-/// JWT validation is relaxed (issuer/audience/lifetime/signing-key all off,
-/// signature accepted as-is) the same way Basket / Weather do — the
-/// authentication scheme still runs, the policy still parses scope claims,
-/// only signature verification is bypassed.
+/// JwtBearer validation keeps every <c>TokenValidationParameters</c> flag at
+/// its production default; the test host trusts only the
+/// <see cref="FakeTokenSigner"/>'s RSA key via
+/// <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
 /// </para>
 /// </remarks>
 [DisableWafCache]
-public class InventoryApiFixture : AppFixture<Program>
+public class ApiTestFixture : AppFixture<Program>
 {
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Inventory",
@@ -53,9 +59,7 @@ public class InventoryApiFixture : AppFixture<Program>
             SchemasToInclude = [InventoryDbContext.DefaultSchemaName]
         });
 
-    private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7.4.6")
-        .WithCleanUp(true)
-        .Build();
+    private readonly RedisTestContainer _redisContainer = new();
 
     private readonly FakeTokenSigner _signer = new(audience: "inventory-service-tests");
 
@@ -63,22 +67,25 @@ public class InventoryApiFixture : AppFixture<Program>
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
+    public FakeTokenCreator TokenCreator { get; private set; } = null!;
+
     public IConnectionMultiplexer RedisMultiplexer => _redisMultiplexer;
 
     protected override async ValueTask PreSetupAsync()
     {
-        var ct = TestContext.Current.CancellationToken;
-        await _dbContainer.StartAsync(ct);
-        await _redisContainer.StartAsync(ct);
+        // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
+        // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
+        // raise "Invalid chunk header encountered".
+        await _dbContainer.StartAsync();
+        await _redisContainer.StartAsync();
 
-        var redisOptions = ConfigurationOptions.Parse(_redisContainer.GetConnectionString());
-        redisOptions.AllowAdmin = true;
-        _redisMultiplexer = await ConnectionMultiplexer.ConnectAsync(redisOptions);
+        _redisMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisContainer.ConfigurationOptions);
     }
 
     protected override ValueTask SetupAsync()
     {
-        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        TokenCreator = new FakeTokenCreator(_signer);
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, TokenCreator);
         return ValueTask.CompletedTask;
     }
 
@@ -86,9 +93,10 @@ public class InventoryApiFixture : AppFixture<Program>
     {
         a.ConfigureWebHost(webBuilder =>
         {
+            var redisConfig = _redisContainer.ConfigurationOptions;
             webBuilder
                 .UseSetting("ConnectionStrings:Inventory", _dbContainer.ConnectionString)
-                .UseSetting("ConnectionStrings:Redis:Cache", _redisContainer.GetConnectionString())
+                .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
                 // Inventory.API/Program.cs guards the Kafka boot with !IsTesting(), but
                 // AddInfrastructure still binds Kafka options at DI time — point them at
                 // unreachable hosts so any accidental use blows up loudly instead of
@@ -131,21 +139,26 @@ public class InventoryApiFixture : AppFixture<Program>
                 // every TokenValidationParameters flag at its production default
                 // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
                 services.ConfigureJwtBearerForTests(_signer);
+
+                // Inventory.API's production host only wires OpenTelemetry when
+                // OTEL_EXPORTER_OTLP_ENDPOINT is set in configuration — which it
+                // isn't here. Register a minimal TracerProvider with the test
+                // ActivitySource so BaseApiTest's TestCaseTracer can resolve
+                // TracerProvider and emit a per-test trace.
+                services.AddSingleton<TracerProvider>(_ => Sdk.CreateTracerProviderBuilder()
+                    .AddSource(TestActivitySource.ActivitySourceName)
+                    .Build());
             });
     }
 
     public async Task ResetFixtureStateAsync()
     {
-        // Respawn (inside PostgreSqlTestContainer) wipes every user table in the
-        // inventory schema in dependency order; Redis flushes its own keyspace.
-        await _dbContainer.CleanDataAsync();
+        using var _ = SuppressInstrumentationScope.Begin();
 
-        var endpoints = _redisMultiplexer.GetEndPoints();
-        foreach (var endpoint in endpoints)
-        {
-            var server = _redisMultiplexer.GetServer(endpoint);
-            await server.FlushAllDatabasesAsync();
-        }
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync()
+        );
     }
 
     protected override async ValueTask TearDownAsync()

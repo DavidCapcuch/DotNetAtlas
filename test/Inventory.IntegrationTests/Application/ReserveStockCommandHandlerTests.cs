@@ -22,7 +22,7 @@ namespace Inventory.IntegrationTests.Application;
 /// carries <c>StockReservationFailedEvent</c>, no stream mutation), and the
 /// correlation-id roundtrip from command → <c>stock_events.correlation_id</c>.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

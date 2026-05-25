@@ -16,7 +16,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// a no-op (Application-layer guard <c>Version &gt; 0</c> returns
 /// <c>Result.Ok</c> without appending).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ProductCreatedEventKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =

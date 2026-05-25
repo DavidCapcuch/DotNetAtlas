@@ -22,7 +22,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// decrements, and the external <c>ReservationConfirmedEvent</c> lands in
 /// the outbox.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =

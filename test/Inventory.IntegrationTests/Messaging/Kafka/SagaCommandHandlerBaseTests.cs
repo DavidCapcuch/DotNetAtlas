@@ -24,7 +24,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// bug-class condition like Confirm-on-uninitialized-stream — propagates,
 /// also DLT-routed but via KafkaFlow's unhandled-exception path).
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =

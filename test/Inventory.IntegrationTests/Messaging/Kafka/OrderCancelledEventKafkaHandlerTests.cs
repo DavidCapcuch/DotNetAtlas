@@ -23,7 +23,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// to <c>Released</c>, both products' Available climbs back, and two
 /// <c>ReservationReleasedEvent</c> outbox rows land — one per product.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =

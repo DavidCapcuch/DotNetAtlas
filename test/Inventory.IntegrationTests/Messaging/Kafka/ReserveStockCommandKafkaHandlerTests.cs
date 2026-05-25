@@ -21,7 +21,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// — same observable surface as the M4 application-handler tests, but
 /// driven through the Avro→app-command translation path.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =

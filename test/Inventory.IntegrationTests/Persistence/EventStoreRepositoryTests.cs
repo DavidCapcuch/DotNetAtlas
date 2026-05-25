@@ -19,7 +19,7 @@ namespace Inventory.IntegrationTests.Persistence;
 /// retry-once success, retry-exhausted failure with
 /// <see cref="ConcurrencyError"/>, and command-delegate fast-fail semantics.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 {
     // Pinned so the jsonb payload assertions are bit-exact (ISO 8601).

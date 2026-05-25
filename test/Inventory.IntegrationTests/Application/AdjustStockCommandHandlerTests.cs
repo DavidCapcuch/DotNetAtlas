@@ -15,7 +15,7 @@ namespace Inventory.IntegrationTests.Application;
 /// Drives a positive and a negative adjustment, asserting the snapshot the
 /// HTTP admin endpoint will return matches the post-mutation state.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class AdjustStockCommandHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

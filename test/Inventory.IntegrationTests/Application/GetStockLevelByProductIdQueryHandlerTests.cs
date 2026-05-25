@@ -15,7 +15,7 @@ namespace Inventory.IntegrationTests.Application;
 /// the read-side returns the projection row when present and a typed
 /// <see cref="NotFoundError"/> when absent.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class GetStockLevelByProductIdQueryHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

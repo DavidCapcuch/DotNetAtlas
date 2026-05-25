@@ -41,6 +41,26 @@ public sealed class HttpClientRegistry<TEntryPoint>
         });
     }
 
+    /// <summary>
+    /// Updates the traceparent header for all registered HTTP clients to establish a distributed tracing context.
+    /// </summary>
+    /// <param name="traceParent">
+    /// The W3C Trace Context traceparent header value (format: version-trace-id-parent-id-trace-flags).
+    /// If null, removes the traceparent header from all clients.
+    /// </param>
+    /// <remarks>
+    /// This method removes any existing traceparent header and sets a new one for all registry-managed clients,
+    /// enabling correlation of HTTP requests with the test's Jaeger trace.
+    /// </remarks>
+    public void SetTraceParent(string? traceParent)
+    {
+        foreach (var client in new[] { _nonAuthClient, _readOnlyClient, _commandsClient })
+        {
+            client.DefaultRequestHeaders.Remove("traceparent");
+            client.DefaultRequestHeaders.Add("traceparent", traceParent);
+        }
+    }
+
     private HttpClient CreateClientFor(ClientType clientType)
     {
         if (clientType == ClientType.NonAuth)

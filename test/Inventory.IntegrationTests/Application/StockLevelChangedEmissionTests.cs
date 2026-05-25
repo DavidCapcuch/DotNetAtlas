@@ -16,7 +16,7 @@ namespace Inventory.IntegrationTests.Application;
 /// <c>StockLevelChanged</c> fires ONLY on <c>0 &lt;-&gt; positive</c>
 /// transitions, never on every stock movement.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class StockLevelChangedEmissionTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset UtcNow =

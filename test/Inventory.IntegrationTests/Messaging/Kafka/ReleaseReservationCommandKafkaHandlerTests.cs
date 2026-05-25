@@ -22,7 +22,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// reserved quantity returns to Available, and the external
 /// <c>ReservationReleasedEvent</c> lands in the outbox.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
+[Collection<IntegrationTestCollection>]
 public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private static readonly DateTime UtcNow =
