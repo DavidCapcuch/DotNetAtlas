@@ -1,16 +1,11 @@
-using EntityFramework.Exceptions.PostgreSQL;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using Notifications.Application.Common.Data;
-using Notifications.Application.Email;
-using Notifications.Infrastructure.Common.Config;
-using Notifications.Infrastructure.Email;
 using Notifications.Infrastructure.Persistence.Database;
-using Notifications.Infrastructure.SendEmailNotification;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
@@ -20,21 +15,32 @@ using Respawn;
 namespace Notifications.IntegrationTests.Common;
 
 /// <summary>
-/// xUnit fixture spinning up a throwaway Postgres container per collection and wiring the
-/// Notifications persistence slice (<see cref="NotificationDbContext"/>) together with the
-/// Kafka typed handlers registered as Scoped (matching KafkaFlow's
-/// <c>WithHandlerLifetime(InstanceLifetime.Scoped)</c>).
+/// xUnit fixture for Notifications integration tests. Boots the real
+/// Notifications.Api host via <see cref="WebApplicationFactory{TEntryPoint}"/>
+/// against a Postgres testcontainer (real schema via the BC's <c>V*.sql</c>
+/// migrations). Program.cs's <c>!IsTesting()</c> guard skips the KafkaFlow
+/// cluster boot — the typed Kafka handlers are still registered (so tests can
+/// resolve them via DI), but no consumer ever opens a broker connection.
 /// </summary>
 /// <remarks>
-/// The transactional outbox (<see cref="ITransactionalOutbox{TContext}"/>) is replaced with
-/// an NSubstitute stub so tests can assert on outbox calls without standing up a Confluent
-/// Schema Registry container. Blob storage is not used in the Notifications BC so no
-/// Azurite container is started. Sequential container startup follows the CLAUDE.md guideline
-/// to avoid named-pipe races on Windows.
+/// <para>
+/// Booting through <see cref="WebApplicationFactory{TEntryPoint}"/> means every
+/// <c>AddOptionsWithValidateOnStart</c> chain in the production composition root
+/// runs during fixture initialisation — drift between <c>[Required]</c> IOptions
+/// properties and appsettings keys fails at test setup instead of at first
+/// container start. Mirrors the saga + Inventory fixture patterns.
+/// </para>
+/// <para>
+/// The transactional outbox is replaced with an NSubstitute stub via
+/// <see cref="ITestServiceProviderFactoryExtensions.ConfigureTestServices"/> so
+/// tests can assert on outbox calls without standing up a Schema Registry
+/// container. Mirrors the Inventory functional-test pattern of swapping
+/// <c>IOutboxWriter</c>.
+/// </para>
 /// </remarks>
-public sealed class IntegrationTestFixture : IAsyncLifetime
+public sealed class IntegrationTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    /// <summary>Pinned to 2026-05-22 09:00 UTC so assertions on business timestamps are deterministic.</summary>
+    /// <summary>Pinned to 2026-05-22 09:00 UTC so business-timestamp assertions stay deterministic.</summary>
     public static readonly DateTimeOffset FixedFakeNow =
         new(2026, 05, 22, 09, 00, 00, TimeSpan.Zero);
 
@@ -46,73 +52,52 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             SchemasToInclude = [NotificationDbContext.DefaultSchemaName]
         });
 
-    private ServiceProvider _rootServices = null!;
-
     /// <summary>Test-controlled clock pinned to <see cref="FixedFakeNow"/>; resolvable as <see cref="TimeProvider"/>.</summary>
     public FakeTimeProvider FakeTime { get; } = new(FixedFakeNow);
 
-    /// <summary>The shared NSubstitute transactional-outbox stub. Tests assert on its received calls.</summary>
+    /// <summary>NSubstitute transactional-outbox stub. Tests assert on its <c>Received</c> AddOutboxMessage calls.</summary>
     public ITransactionalOutbox<INotificationDbContext> OutboxSubstitute { get; } =
         Substitute.For<ITransactionalOutbox<INotificationDbContext>>();
 
+    /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
+    public string ConnectionString => _dbContainer.ConnectionString;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder
+            .UseEnvironment("Testing")
+            .UseSetting("ConnectionStrings:Notifications", _dbContainer.ConnectionString)
+            // Kafka cluster boot is guarded by !IsTesting() in Program.cs but
+            // AddInfrastructure still binds KafkaOptions at DI time. Point those
+            // at unreachable hosts so any accidental use blows up loudly rather
+            // than silently producing to a real broker. Mirrors InventoryApiFixture.
+            .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-integration-tests:9094")
+            .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-integration-tests:8081")
+            .ConfigureTestServices(services =>
+            {
+                services.AddSingleton<TimeProvider>(FakeTime);
+
+                // Swap the production Avro+SchemaRegistry-backed ITransactionalOutbox
+                // for an NSubstitute stub. Tests assert on received AddOutboxMessage
+                // calls — production wiring requires a live Schema Registry which we
+                // don't stand up in integration tests.
+                services.Replace(ServiceDescriptor.Singleton<ITransactionalOutbox<INotificationDbContext>>(OutboxSubstitute));
+            });
+    }
+
     public async ValueTask InitializeAsync()
     {
-        // Sequential startup per CLAUDE.md note on Windows named-pipe races.
         await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
-        var services = new ServiceCollection();
-
-        services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Warning));
-
-        // Minimal in-memory IConfiguration satisfies AddOptionsWithValidateOnStart bindings
-        // inside the Notifications composition root (TopicsOptions).
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Topics:DltTopicSuffix"] = ".Notifications.DLT",
-                ["Topics:EmailCommands"] = "notifications.email-commands",
-                ["Topics:EmailEvents"] = "notifications.email-events",
-            })
-            .Build();
-        services.AddSingleton<IConfiguration>(config);
-
-        services.AddSingleton<TimeProvider>(FakeTime);
-
-        services.AddDbContext<NotificationDbContext>((_, options) => options
-            .UseNpgsql(_dbContainer.ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor());
-
-        services.AddScoped<INotificationDbContext>(sp => sp.GetRequiredService<NotificationDbContext>());
-
-        // Stubbed transactional outbox: handlers resolve this stub; tests assert on the
-        // stub's received AddOutboxMessage calls. Skipping AddOutbox(...) avoids wiring a
-        // schema-registry container in tests.
-        services.AddSingleton(OutboxSubstitute);
-
-        // Email collaborators — MockEmailGateway is the production no-op; use a fresh stub
-        // so tests can configure call behaviour per scenario.
-        services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
-        services.AddScoped<IEmailGateway, MockEmailGateway>();
-
-        // TopicsOptions: bound from the in-memory config above.
-        services.AddOptions<TopicsOptions>()
-            .BindConfiguration(TopicsOptions.Section)
-            .ValidateDataAnnotations();
-
-        // Register the Kafka typed handler classes as Scoped (matches the production wiring in
-        // MessagingDependencyInjection.cs). Tests resolve these and invoke Handle(...) directly
-        // with a FakeKafkaMessageContext — no KafkaFlow middleware stack needed.
-        services.AddScoped<SendEmailNotificationCommandKafkaHandler>();
-
-        _rootServices = services.BuildServiceProvider();
+        // Force eager host construction + StartupValidator pass. WebApplicationFactory
+        // builds the host lazily on first Server / CreateClient access; touching Server
+        // here triggers the host startup (including AddOptionsWithValidateOnStart) so
+        // any IOptions binding mismatch surfaces in fixture setup, not mid-test.
+        _ = Server;
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
-    public AsyncServiceScope CreateScope() => _rootServices.CreateAsyncScope();
-
-    /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
-    public string ConnectionString => _dbContainer.ConnectionString;
+    public AsyncServiceScope CreateScope() => Services.CreateAsyncScope();
 
     /// <summary>Wipes every table in the Notifications schema between tests.</summary>
     public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
@@ -120,14 +105,9 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
 
-    public async ValueTask DisposeAsync()
+    public new async ValueTask DisposeAsync()
     {
-        if (_rootServices is not null)
-        {
-            await _rootServices.DisposeAsync();
-        }
-
+        await base.DisposeAsync();
         await _dbContainer.DisposeAsync();
     }
 }
-

@@ -30,8 +30,16 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    var kafkaBus = app.Services.CreateKafkaBus();
-    await kafkaBus.StartAsync();
+    // Skip the Kafka cluster boot in the test host. Integration tests register the
+    // typed Kafka handlers directly and invoke them with synthetic message contexts
+    // (matches the Inventory precedent at services/Inventory/Inventory.API/Program.cs:79-83).
+    // Booting the consumers in-test would require Kafka + Schema Registry test
+    // containers — out of scope for the handler-level coverage these tests provide.
+    if (!app.Environment.IsTesting())
+    {
+        var kafkaBus = app.Services.CreateKafkaBus();
+        await kafkaBus.StartAsync();
+    }
 
     await app.RunAsync();
 }
@@ -48,3 +56,10 @@ finally
 {
     await Log.CloseAndFlushAsync();
 }
+
+/// <summary>
+/// Partial <c>Program</c> marker so integration tests can use
+/// <c>Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory&lt;Program&gt;</c>.
+/// Matches the convention in every other BC API (Catalog/Ordering/Invoicing/etc.).
+/// </summary>
+public partial class Program;
