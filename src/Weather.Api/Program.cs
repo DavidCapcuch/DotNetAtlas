@@ -82,7 +82,7 @@ try
 
     // Local: apply pending EF migrations. UseAsyncSeeding is wired into the
     // Non-Local environments apply SQL scripts out-of-band — see #213 / #269.
-    await app.ApplySqlScriptsOnStartupIfLocalAsync<WeatherDbContext>("src/Weather.Infrastructure");
+    await app.MigrateOnStartupIfLocalAsync<WeatherDbContext>();
 
     var kafkaBus = app.Services.CreateKafkaBus();
     await kafkaBus.StartAsync();

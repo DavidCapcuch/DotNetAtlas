@@ -68,7 +68,7 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    await app.ApplySqlScriptsOnStartupIfLocalAsync<InventoryDbContext>("services/Inventory/Inventory.Infrastructure");
+    await app.MigrateOnStartupIfLocalAsync<InventoryDbContext>();
 
     // Skip the Kafka cluster boot in the test host. Functional / integration
     // tests register the typed Kafka handlers directly and invoke them with

@@ -59,7 +59,7 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
 
-    await app.ApplySqlScriptsOnStartupIfLocalAsync<OrderingDbContext>("services/Ordering/Ordering.Infrastructure");
+    await app.MigrateOnStartupIfLocalAsync<OrderingDbContext>();
 
     // Skip the Kafka saga-command consumer in the test host. M5's
     // functional-test slice exercises the HTTP surface only; the consumer
