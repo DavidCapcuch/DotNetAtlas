@@ -1,5 +1,4 @@
 using Bogus;
-using HealthChecks.UI.Data;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry;
 using Serilog;
