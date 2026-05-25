@@ -8,7 +8,6 @@
         <PackageReference Include="NSubstitute.Analyzers.CSharp" />
         <PackageReference Include="Respawn" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
     </ItemGroup>
 
     <ItemGroup>

@@ -27,6 +27,13 @@ dotnet format style --no-restore --verify-no-changes
 
 - **Package versions:** Centralized in `Directory.Packages.props` at root, `services/`, `saga/`, `platform/`, and `test/` levels — add packages to the correct level's file
 - EF Core migrations: generate via `dotnet ef migrations add` (never hand-write the `.cs` migration from scratch). After generation, inspect the `Up()` / `Down()` and fix EF's choices where they would destroy data — typically swap `DropColumn` + `AddColumn` for `RenameColumn` on column renames. The schema-snapshot files (`*ModelSnapshot.cs`, `*.Designer.cs`) are tool-managed; let `dotnet ef` regenerate them.
+- **SQL-script migrations** (`V*.sql` under each BC's `Persistence/Database/Migrations/SqlScripts/`): emit with **both** `--idempotent` and `--no-transactions` — Flyway and Evolve both wrap each script in their own transaction, so any `START TRANSACTION;` / `COMMIT;` inside the script produces noisy "transaction already in progress" warnings and a non-zero nested commit. Idempotent guards (`DO $EF$ BEGIN IF NOT EXISTS(... __EFMigrationsHistory ...) THEN ... END IF; END $EF$;`) stay; only the outer transaction wrappers go.
+  ```bash
+  dotnet ef migrations script <from> <to> --idempotent --no-transactions \
+    --project services/<BC>/<BC>.Infrastructure \
+    --startup-project services/<BC>/<BC>.Api \
+    --output services/<BC>/<BC>.Infrastructure/Persistence/Database/Migrations/SqlScripts/V###__<Name>.sql
+  ```
 - Codebase follows DDD and prefers domain model completeness + performance (sacrificing purity)
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts

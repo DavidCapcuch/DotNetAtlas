@@ -8,7 +8,6 @@
         </PackageReference>
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers.Kafka" />
         <PackageReference Include="Testcontainers.Azurite" />
         <PackageReference Include="Azure.Storage.Blobs" />
@@ -20,5 +19,6 @@
     <ItemGroup>
         <ProjectReference Include="..\..\services\Invoicing\Invoicing.API\Invoicing.API.csproj" />
         <ProjectReference Include="..\..\services\Invoicing\Invoicing.Infrastructure\Invoicing.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
     </ItemGroup>
 </Project>

@@ -1,7 +1,6 @@
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -9,13 +8,15 @@ using Microsoft.Extensions.Time.Testing;
 using Payments.FunctionalTests.Common.TestClientInfrastructure;
 using Payments.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
+using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
+using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
-using Testcontainers.PostgreSql;
 
 namespace Payments.FunctionalTests.Common;
 
@@ -35,12 +36,13 @@ public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
 {
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Payments")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Payments",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Payments/Payments.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [PaymentsDbContext.DefaultSchemaName]
+        });
 
     private readonly FakeTokenSigner _signer = new(audience: "payments-service-tests");
 
@@ -55,25 +57,20 @@ public class ApiTestFixture : AppFixture<Program>
 
     protected override async ValueTask PreSetupAsync()
     {
-        await _pgContainer.StartAsync();
+        await _dbContainer.StartAsync();
     }
 
-    protected override async ValueTask SetupAsync()
+    protected override ValueTask SetupAsync()
     {
         HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
-
-        // Apply EF Core migrations once per fixture lifetime against the
-        // freshly-started container.
-        using var scope = Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-        await db.Database.MigrateAsync();
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
     {
         a.ConfigureWebHost(webBuilder =>
         {
-            webBuilder.UseSetting("ConnectionStrings:Payments", _pgContainer.GetConnectionString());
+            webBuilder.UseSetting("ConnectionStrings:Payments", _dbContainer.ConnectionString);
         });
 
         return base.ConfigureAppHost(a);
@@ -117,26 +114,11 @@ public class ApiTestFixture : AppFixture<Program>
             });
     }
 
-    public async Task ResetFixtureStateAsync()
-    {
-        // Truncate the Payments schema's user tables. Inbox + Outbox table
-        // names are PascalCase (configured by the Platform.ReliableMessaging
-        // helpers — quoted so Postgres preserves the case).
-        using var scope = Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-        await db.Database.ExecuteSqlRawAsync(
-            $"""
-             TRUNCATE TABLE
-                 "{PaymentsDbContext.DefaultSchemaName}"."payment_transactions",
-                 "{PaymentsDbContext.DefaultSchemaName}"."OutboxMessages",
-                 "{PaymentsDbContext.DefaultSchemaName}"."InboxMessages"
-             RESTART IDENTITY CASCADE;
-             """);
-    }
+    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
 
     protected override async ValueTask TearDownAsync()
     {
         _signer.Dispose();
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 }

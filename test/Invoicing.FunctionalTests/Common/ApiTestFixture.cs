@@ -5,21 +5,22 @@ using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
 using Invoicing.Infrastructure.Persistence.Database;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
+using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
+using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
-using Testcontainers.PostgreSql;
 
 namespace Invoicing.FunctionalTests.Common;
 
@@ -28,9 +29,10 @@ public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 
 /// <summary>
 /// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Invoicing API. Spins up
-/// Postgres + Redis Testcontainers, applies EF Core migrations programmatically (the
-/// schema is committed under <c>Invoicing.Infrastructure/Persistence/Database/Migrations</c>),
-/// forces <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the host skips the Kafka enrichment
+/// Postgres + Redis Testcontainers. Schema comes from the same idempotent V*.sql scripts
+/// Flyway runs in compose (#269) — Integration and Functional fixtures share one source
+/// of truth instead of diverging on EnsureCreatedAsync vs MigrateAsync.
+/// Forces <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the host skips the Kafka enrichment
 /// consumers, replaces <see cref="IBlobStore"/> with an NSubstitute fake (M3's Azurite
 /// roundtrip is exercised by the integration suite), and replaces the schema-registry-backed
 /// <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/> so seeded
@@ -39,12 +41,13 @@ public sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
 {
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Invoicing")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Invoicing",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Invoicing/Invoicing.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [InvoicingDbContext.DefaultSchemaName]
+        });
 
     private readonly RedisTestContainer _redisContainer = new();
 
@@ -73,17 +76,14 @@ public class ApiTestFixture : AppFixture<Program>
         // the Windows named pipe interleave on the shared ChunkedReadStream and
         // intermittently raise "Invalid chunk header encountered". Mirrors the Ordering
         // fixture's reasoning.
-        await _pgContainer.StartAsync();
+        await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
     }
 
-    protected override async ValueTask SetupAsync()
+    protected override ValueTask SetupAsync()
     {
         HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
-
-        using var scope = Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        await db.Database.MigrateAsync();
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -91,7 +91,7 @@ public class ApiTestFixture : AppFixture<Program>
         a.ConfigureWebHost(webBuilder =>
         {
             webBuilder
-                .UseSetting("ConnectionStrings:Invoicing", _pgContainer.GetConnectionString())
+                .UseSetting("ConnectionStrings:Invoicing", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", _redisContainer.ConnectionString);
         });
 
@@ -144,33 +144,17 @@ public class ApiTestFixture : AppFixture<Program>
 
     public async Task ResetFixtureStateAsync()
     {
-        // Wipe Redis so the idempotency cache from a prior test does not poison the
-        // next one. Postgres state is wiped by truncating the invoicing schema's user
-        // tables.
-        await _redisContainer.CleanDataAsync();
-
-        using var scope = Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        await db.Database.ExecuteSqlRawAsync(
-            $"""
-             TRUNCATE TABLE
-                 "{InvoicingDbContext.DefaultSchemaName}"."credit_note_lines",
-                 "{InvoicingDbContext.DefaultSchemaName}"."credit_notes",
-                 "{InvoicingDbContext.DefaultSchemaName}"."invoice_lines",
-                 "{InvoicingDbContext.DefaultSchemaName}"."invoice_vat_lines",
-                 "{InvoicingDbContext.DefaultSchemaName}"."invoices",
-                 "{InvoicingDbContext.DefaultSchemaName}"."pending_invoices",
-                 "{InvoicingDbContext.DefaultSchemaName}"."pending_credit_notes",
-                 "{InvoicingDbContext.DefaultSchemaName}"."OutboxMessages",
-                 "{InvoicingDbContext.DefaultSchemaName}"."InboxMessages"
-             RESTART IDENTITY CASCADE;
-             """);
+        // Respawn (inside PostgreSqlTestContainer) wipes every user table in the
+        // invoicing schema in dependency order; Redis flushes its own keyspace.
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync());
     }
 
     protected override async ValueTask TearDownAsync()
     {
         _signer.Dispose();
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
     }
 

@@ -24,7 +24,9 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Testcontainers.PostgreSql;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Respawn;
 
 namespace Invoicing.IntegrationTests.Common;
 
@@ -39,12 +41,12 @@ namespace Invoicing.IntegrationTests.Common;
 /// standing up a real Confluent Schema Registry.
 /// </summary>
 /// <remarks>
-/// Schema is materialised via <see cref="DatabaseFacade.EnsureCreatedAsync"/>
-/// rather than EF migrations — per CLAUDE.md the user generates production
-/// migrations deterministically; tests derive the schema from the EF model
-/// so the fixture stays self-contained. The blob store and PDF generator are
-/// NSubstitute stubs at this level (lifecycle: singleton); the M3 integration
-/// tests in <c>AzuriteFixture</c> exercise the real Azurite-backed adapter.
+/// Schema is materialised by <see cref="PostgreSqlTestContainer"/> running the same
+/// idempotent V*.sql files Flyway runs in compose (#269) — Integration and Functional
+/// fixtures previously diverged (EnsureCreatedAsync vs MigrateAsync); both now consume
+/// one source of truth. The blob store and PDF generator are NSubstitute stubs at this
+/// level (lifecycle: singleton); the M3 integration tests in <c>AzuriteFixture</c>
+/// exercise the real Azurite-backed adapter.
 /// </remarks>
 public sealed class IntegrationTestFixture : IAsyncLifetime
 {
@@ -52,12 +54,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     public static readonly DateTimeOffset FixedFakeNow =
         new(2026, 04, 24, 09, 00, 00, TimeSpan.Zero);
 
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Invoicing")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Invoicing",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Invoicing/Invoicing.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [InvoicingDbContext.DefaultSchemaName]
+        });
 
     private ServiceProvider _rootServices = null!;
 
@@ -76,7 +79,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await _pgContainer.StartAsync(TestContext.Current.CancellationToken);
+        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
 
@@ -104,8 +107,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddScoped<DispatchDomainEventsInterceptor>();
 
         services.AddDbContext<InvoicingDbContext>((sp, options) => options
-            .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", InvoicingDbContext.DefaultSchemaName))
+            .UseNpgsql(_dbContainer.ConnectionString)
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor()
             .AddInterceptors(sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
@@ -145,17 +147,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddScoped<EmailNotificationSentEventKafkaHandler>();
 
         _rootServices = services.BuildServiceProvider();
-
-        await using var setupScope = _rootServices.CreateAsyncScope();
-        var dbContext = setupScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
     public AsyncServiceScope CreateScope() => _rootServices.CreateAsyncScope();
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
-    public string ConnectionString => _pgContainer.GetConnectionString();
+    public string ConnectionString => _dbContainer.ConnectionString;
 
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
@@ -445,7 +443,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await _rootServices.DisposeAsync();
         }
 
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 
     private static IPdfGenerator BuildPdfGeneratorStub()

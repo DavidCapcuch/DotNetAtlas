@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Common.Data;
 using Notifications.Infrastructure.Common.Config;
-using Notifications.Infrastructure.Common.Persistence.Database;
+using Notifications.Infrastructure.Persistence.Database;
 
 namespace Notifications.Infrastructure.Common;
 

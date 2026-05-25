@@ -5,7 +5,6 @@ using Confluent.Kafka.Admin;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -14,29 +13,33 @@ using NSubstitute;
 using NSubstitute.ClearExtensions;
 using OpenFeature;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
+using Platform.Test.Framework.Database;
+using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using StackExchange.Redis;
 using Testcontainers.Kafka;
-using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
 
 namespace Catalog.FunctionalTests.Common;
 
 /// <summary>
 /// Functional-test fixture for the Catalog HTTP surface.
-/// Spins Postgres + Redis + Kafka (KRaft) Testcontainers, materializes the EF schema via
-/// <c>EnsureCreatedAsync</c> (per <c>CLAUDE.md</c> migrations are user-generated), replaces
-/// the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/> (skips
-/// Schema Registry; byte-fidelity is asserted by the dedicated
+/// Spins Postgres + Redis + Kafka (KRaft) Testcontainers. Schema comes from the same
+/// idempotent V*.sql scripts Flyway runs in compose (#269) — Catalog's Initial migration
+/// was added as part of #269; Integration and Functional fixtures now share one source of
+/// truth instead of both EnsureCreatedAsync-ing from the model.
+/// Replaces the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/>
+/// (skips Schema Registry; byte-fidelity is asserted by the dedicated
 /// <c>EndToEnd/AvroByteFidelityTests</c>), pins <see cref="TimeProvider"/> to
-/// <see cref="Now"/>, replaces <see cref="IFeatureClient"/> with an
-/// NSubstitute mock so tests can flip <c>catalog.show-discontinued-in-search</c>
-/// per-scenario, and relaxes <see cref="JwtBearerOptions"/> so the
-/// <see cref="FakeTokenCreator"/> unsigned tokens parse.
+/// <see cref="Now"/>, replaces <see cref="IFeatureClient"/> with an NSubstitute mock so
+/// tests can flip <c>catalog.show-discontinued-in-search</c> per-scenario, and relaxes
+/// <see cref="JwtBearerOptions"/> so the <see cref="FakeTokenCreator"/> unsigned tokens
+/// parse.
 /// </summary>
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
@@ -47,12 +50,13 @@ public class ApiTestFixture : AppFixture<Program>
 
     private const string StockLevelChangedTopic = "inventory.stock-level-changed";
 
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Catalog")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Catalog",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Catalog/Catalog.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [CatalogDbContext.DefaultSchemaName]
+        });
 
     private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7.4.6")
         .WithCleanUp(true)
@@ -78,13 +82,13 @@ public class ApiTestFixture : AppFixture<Program>
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
-    public string PostgresConnectionString => _pgContainer.GetConnectionString();
+    public string PostgresConnectionString => _dbContainer.ConnectionString;
 
     public IDatabase RedisCacheDb => _redisMultiplexer.GetDatabase();
 
     protected override async ValueTask PreSetupAsync()
     {
-        await _pgContainer.StartAsync();
+        await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
 
@@ -98,15 +102,10 @@ public class ApiTestFixture : AppFixture<Program>
         await CreateStockLevelChangedTopicAsync();
     }
 
-    protected override async ValueTask SetupAsync()
+    protected override ValueTask SetupAsync()
     {
         HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
-
-        // Materialize the schema from the EF model — per CLAUDE.md migrations are user-generated.
-        // Mirrors the M4.4 Catalog.IntegrationTests.IntegrationTestFixture approach.
-        await using var scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-        await dbContext.Database.EnsureCreatedAsync();
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -114,7 +113,7 @@ public class ApiTestFixture : AppFixture<Program>
         a.ConfigureWebHost(webBuilder =>
         {
             webBuilder
-                .UseSetting("ConnectionStrings:Catalog", _pgContainer.GetConnectionString())
+                .UseSetting("ConnectionStrings:Catalog", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", _redisContainer.GetConnectionString())
                 .UseSetting("Kafka:Brokers:0", _kafkaContainer.GetBootstrapAddress())
                 // FakeOutboxWriter bypasses Schema Registry; default-tests don't need it. The
@@ -182,26 +181,16 @@ public class ApiTestFixture : AppFixture<Program>
             await server.FlushAllDatabasesAsync();
         }
 
-        // Truncate Catalog tables — cheaper than EnsureCreated/Delete cycles.
-        // Snake-case conversion applies to entity-driven names (products, categories,
-        // product_search_view) but Platform.ReliableMessaging.Outbox sets its table name
-        // explicitly via ToTable("OutboxMessages", ...) which bypasses the convention.
-        // Same shape for InboxMessages. Quote the mixed-case names so Postgres preserves them.
-        await using var scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-        await dbContext.Database.ExecuteSqlRawAsync(
-            $"TRUNCATE TABLE \"{CatalogDbContext.DefaultSchemaName}\".product_search_view, " +
-            $"\"{CatalogDbContext.DefaultSchemaName}\".products, " +
-            $"\"{CatalogDbContext.DefaultSchemaName}\".categories, " +
-            $"\"{CatalogDbContext.DefaultSchemaName}\".\"OutboxMessages\", " +
-            $"\"{CatalogDbContext.DefaultSchemaName}\".\"InboxMessages\" CASCADE;");
+        // Respawn (inside PostgreSqlTestContainer) wipes every user table in the catalog schema
+        // in dependency order — replaces the previous hand-maintained TRUNCATE list.
+        await _dbContainer.CleanDataAsync();
     }
 
     protected override async ValueTask TearDownAsync()
     {
         _signer.Dispose();
         await _redisMultiplexer.DisposeAsync();
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();
     }

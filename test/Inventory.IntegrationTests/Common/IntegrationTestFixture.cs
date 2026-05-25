@@ -10,11 +10,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
 using Respawn;
-using Testcontainers.PostgreSql;
 
 namespace Inventory.IntegrationTests.Common;
 
@@ -35,19 +35,19 @@ namespace Inventory.IntegrationTests.Common;
 /// </summary>
 public sealed class IntegrationTestFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Inventory")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Inventory",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Inventory/Inventory.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [InventoryDbContext.DefaultSchemaName]
+        });
 
     private ServiceProvider _rootServices = null!;
-    private Respawner _databaseCleaner = null!;
 
     public async ValueTask InitializeAsync()
     {
-        await _pgContainer.StartAsync(TestContext.Current.CancellationToken);
+        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
 
@@ -67,8 +67,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddSingleton<IConfiguration>(config);
 
         services.AddDbContext<InventoryDbContext>(options => options
-            .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
+            .UseNpgsql(_dbContainer.ConnectionString)
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor());
 
@@ -117,29 +116,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddScoped<OrderCancelledEventKafkaHandler>();
 
         _rootServices = services.BuildServiceProvider();
-
-        // Apply EF migrations once per fixture lifetime.
-        await using var migrationScope = _rootServices.CreateAsyncScope();
-        var dbContext = migrationScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
-
-        // M9 (#153): build a Respawner once after migrations land so
-        // ResetFixtureStateAsync can wipe Postgres between tests, matching
-        // the functional fixture's discipline. The Inventory schema houses
-        // every table we own (stock_events, current_stock_levels,
-        // reservation_audit, plus the platform outbox/inbox tables bound to
-        // DefaultSchemaName="inventory"). Respawn excludes EF's
-        // __EFMigrationsHistory table by default, so the schema is preserved
-        // and only data is wiped.
-        await using var respawnConnection = new NpgsqlConnection(_pgContainer.GetConnectionString());
-        await respawnConnection.OpenAsync(TestContext.Current.CancellationToken);
-        _databaseCleaner = await Respawner.CreateAsync(
-            respawnConnection,
-            new RespawnerOptions
-            {
-                DbAdapter = DbAdapter.Postgres,
-                SchemasToInclude = [InventoryDbContext.DefaultSchemaName],
-            });
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
@@ -151,15 +127,10 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// after each test so per-test isolation no longer relies solely on
     /// <see cref="Guid.NewGuid"/> discipline.
     /// </summary>
-    public async Task ResetFixtureStateAsync()
-    {
-        await using var connection = new NpgsqlConnection(_pgContainer.GetConnectionString());
-        await connection.OpenAsync();
-        await _databaseCleaner.ResetAsync(connection);
-    }
+    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
-    public string ConnectionString => _pgContainer.GetConnectionString();
+    public string ConnectionString => _dbContainer.ConnectionString;
 
     public async ValueTask DisposeAsync()
     {
@@ -168,6 +139,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await _rootServices.DisposeAsync();
         }
 
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 }

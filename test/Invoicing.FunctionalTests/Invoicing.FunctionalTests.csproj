@@ -4,7 +4,6 @@
         <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="NSubstitute" />
-        <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="Testcontainers.Redis" />
         <PackageReference Include="Testcontainers.Kafka" />
         <PackageReference Include="Confluent.Kafka" />

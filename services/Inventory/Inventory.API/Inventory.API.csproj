@@ -8,6 +8,12 @@
     <ItemGroup>
         <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders"/>
 
+        <!-- Required on the startup project for `dotnet ef migrations …` (#269). -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+
         <PackageReference Include="FastEndpoints.Security"/>
         <PackageReference Include="FastEndpoints.Swagger"/>
         <PackageReference Include="FastEndpoints.Generator">

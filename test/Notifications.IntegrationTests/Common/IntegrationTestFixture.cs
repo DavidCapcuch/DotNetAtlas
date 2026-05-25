@@ -9,12 +9,14 @@ using Notifications.Application.Common.Data;
 using Notifications.Application.Email;
 using Notifications.Infrastructure.AuthorizePayment;
 using Notifications.Infrastructure.Common.Config;
-using Notifications.Infrastructure.Common.Persistence.Database;
 using Notifications.Infrastructure.Email;
+using Notifications.Infrastructure.Persistence.Database;
 using Notifications.Infrastructure.SendEmailNotification;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Testcontainers.PostgreSql;
+using Platform.Test.Framework;
+using Platform.Test.Framework.Database;
+using Respawn;
 
 namespace Notifications.IntegrationTests.Common;
 
@@ -37,12 +39,13 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     public static readonly DateTimeOffset FixedFakeNow =
         new(2026, 05, 22, 09, 00, 00, TimeSpan.Zero);
 
-    private readonly PostgreSqlContainer _pgContainer = new PostgreSqlBuilder("postgres:18.3")
-        .WithDatabase("Notifications")
-        .WithUsername("postgres")
-        .WithPassword("TestingPasswordThatShouldBeInVault123!")
-        .WithCleanUp(true)
-        .Build();
+    private readonly PostgreSqlTestContainer _dbContainer = new(
+        databaseName: "Notifications",
+        sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Notifications/Notifications.Infrastructure"),
+        new RespawnerOptions
+        {
+            SchemasToInclude = [NotificationDbContext.DefaultSchemaName]
+        });
 
     private ServiceProvider _rootServices = null!;
 
@@ -56,7 +59,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         // Sequential startup per CLAUDE.md note on Windows named-pipe races.
-        await _pgContainer.StartAsync(TestContext.Current.CancellationToken);
+        await _dbContainer.StartAsync(TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
 
@@ -79,8 +82,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddSingleton<TimeProvider>(FakeTime);
 
         services.AddDbContext<NotificationDbContext>((_, options) => options
-            .UseNpgsql(_pgContainer.GetConnectionString(), npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", NotificationDbContext.DefaultSchemaName))
+            .UseNpgsql(_dbContainer.ConnectionString)
             .UseSnakeCaseNamingConvention()
             .UseExceptionProcessor());
 
@@ -108,19 +110,16 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         services.AddScoped<SendEmailNotificationCommandKafkaHandler>();
 
         _rootServices = services.BuildServiceProvider();
-
-        // Materialise the schema once per fixture lifetime via EnsureCreatedAsync
-        // (mirrors Invoicing's fixture; no EF migrations needed for test isolation).
-        await using var setupScope = _rootServices.CreateAsyncScope();
-        var dbContext = setupScope.ServiceProvider.GetRequiredService<NotificationDbContext>();
-        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
     public AsyncServiceScope CreateScope() => _rootServices.CreateAsyncScope();
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
-    public string ConnectionString => _pgContainer.GetConnectionString();
+    public string ConnectionString => _dbContainer.ConnectionString;
+
+    /// <summary>Wipes every table in the Notifications schema between tests.</summary>
+    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
 
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
@@ -132,7 +131,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await _rootServices.DisposeAsync();
         }
 
-        await _pgContainer.DisposeAsync();
+        await _dbContainer.DisposeAsync();
     }
 }
 

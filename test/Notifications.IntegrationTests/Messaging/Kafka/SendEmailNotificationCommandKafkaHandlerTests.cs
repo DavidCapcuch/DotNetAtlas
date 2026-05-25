@@ -2,7 +2,7 @@ using AwesomeAssertions.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Common.Data;
 using Notifications.Email;
-using Notifications.Infrastructure.Common.Persistence.Database;
+using Notifications.Infrastructure.Persistence.Database;
 using Notifications.Infrastructure.SendEmailNotification;
 using Notifications.IntegrationTests.Common;
 using NSubstitute;

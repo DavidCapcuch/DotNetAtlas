@@ -81,9 +81,8 @@ try
         .WithStaticAssets();
 
     // Local: apply pending EF migrations. UseAsyncSeeding is wired into the
-    // DbContextOptions, so the seed runs as part of MigrateAsync. Non-Local
-    // environments apply SQL scripts out-of-band — see #213.
-    await app.MigrateOnStartupIfLocalAsync<WeatherDbContext>();
+    // Non-Local environments apply SQL scripts out-of-band — see #213 / #269.
+    await app.ApplySqlScriptsOnStartupIfLocalAsync<WeatherDbContext>("src/Weather.Infrastructure");
 
     var kafkaBus = app.Services.CreateKafkaBus();
     await kafkaBus.StartAsync();
