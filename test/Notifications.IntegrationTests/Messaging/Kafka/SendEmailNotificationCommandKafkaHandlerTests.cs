@@ -16,12 +16,13 @@ namespace Notifications.IntegrationTests.Messaging.Kafka;
 /// full handler round-trip against the Testcontainers Postgres fixture: template rendering,
 /// email gateway dispatch, and outbox message enqueue.
 /// </summary>
-[Collection(nameof(IntegrationTestCollection))]
-public sealed class SendEmailNotificationCommandKafkaHandlerTests
+[Collection<IntegrationTestCollection>]
+public sealed class SendEmailNotificationCommandKafkaHandlerTests : BaseIntegrationTest
 {
     private readonly IntegrationTestFixture _fixture;
 
     public SendEmailNotificationCommandKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
         _fixture = fixture;
         _fixture.ResetOutboxSubstitute();
