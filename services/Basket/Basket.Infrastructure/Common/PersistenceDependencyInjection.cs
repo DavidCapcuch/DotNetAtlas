@@ -10,9 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Basket.Infrastructure.Common;
 
 /// <summary>
-/// DI wiring for the Basket SQL side-car: binds <see cref="EfCoreOptions"/>,
-/// reads the Postgres connection string under
-/// <see cref="ConnectionStringNames.Basket"/>, registers
+/// DI wiring for the Basket SQL side-car: binds <see cref="EfCoreOptions"/>
+/// and <see cref="ConnectionStringsOptions"/>, registers
 /// <see cref="BasketDbContext"/> with snake_case + exception-processor
 /// conventions, and exposes the <see cref="IBasketDbContext"/> application
 /// port. Redis wiring lives separately in
@@ -31,22 +30,17 @@ internal static class PersistenceDependencyInjection
             .BindConfiguration(EfCoreOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<ConnectionStringsOptions>()
+            .BindConfiguration(ConnectionStringsOptions.Section)
+            .ValidateDataAnnotations();
+
         var efCoreOptions = configuration
             .GetRequiredSection(EfCoreOptions.Section)
             .Get<EfCoreOptions>()!;
 
-        var connectionString = configuration.GetConnectionString(ConnectionStringNames.Basket);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringNames.Basket}' is not configured. " +
-                $"Basket.Infrastructure requires the {ConnectionStringNames.Basket} entry " +
-                $"(Postgres SQL side-car for outbox + inbox per ADR-0003).");
-        }
-
         services.AddDbContext<BasketDbContext>((_, options) => options
             .UseNpgsql(
-                connectionString,
+                configuration.GetConnectionString(nameof(ConnectionStringsOptions.Basket)),
                 npgsqlOptions =>
                 {
                     npgsqlOptions.MigrationsHistoryTable(

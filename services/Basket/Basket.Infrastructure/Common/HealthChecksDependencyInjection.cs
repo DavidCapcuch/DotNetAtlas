@@ -43,10 +43,10 @@ internal static class HealthChecksDependencyInjection
         var producerConfig = new ProducerConfig { BootstrapServers = kafkaOptions.BrokersFlat };
 
         var redisBasketConnectionString =
-            configuration.GetConnectionString(ConnectionStringNames.BasketRedis)
+            configuration.GetConnectionString("Redis:Basket")
             ?? throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringNames.BasketRedis}' is not configured. " +
-                $"Required by the Basket health-checks slice (redis-basket per ADR-0016).");
+                "Connection string 'Redis:Basket' is not configured. " +
+                "Required by the Basket health-checks slice (redis-basket per ADR-0016).");
 
         var databaseTimeout = timeouts.DatabaseTimeout;
 

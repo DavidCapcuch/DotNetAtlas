@@ -33,13 +33,13 @@ internal static class PersistenceDependencyInjection
             .Bind(configuration.GetSection(BasketRedisOptions.Section))
             .ValidateDataAnnotations();
 
-        var connectionString = configuration.GetConnectionString(ConnectionStringNames.BasketRedis);
+        var connectionString = configuration.GetConnectionString("Redis:Basket");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringNames.BasketRedis}' is not configured. " +
-                $"Basket.Infrastructure requires the {ConnectionStringNames.BasketRedis} entry " +
-                $"(redis-basket per ADR-0016).");
+                "Connection string 'Redis:Basket' is not configured. " +
+                "Basket.Infrastructure requires the 'Redis:Basket' entry " +
+                "(redis-basket per ADR-0016).");
         }
 
         services.AddKeyedSingleton<IConnectionMultiplexer>(
