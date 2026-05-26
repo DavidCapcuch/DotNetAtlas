@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;

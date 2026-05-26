@@ -1,82 +1,98 @@
 using System.Collections.Concurrent;
 using Avro.Specific;
+using Platform.ReliableMessaging.Outbox.Core;
 using Platform.ReliableMessaging.Outbox.EFCore;
 
 namespace Platform.Test.Framework.Kafka;
 
 /// <summary>
-/// Fake implementation of <see cref="IOutboxWriter"/> that captures messages for verification in tests.
-/// </summary>
-/// <remarks>
-/// This allows saga tests to verify that the correct messages were added to the outbox
-/// without requiring actual Kafka/database infrastructure.
+/// Test-side <see cref="IOutboxWriter"/> that does two things in one call:
+/// <list type="number">
+///   <item>
+///     Inserts a stub <see cref="OutboxMessage"/> row into the supplied
+///     <see cref="IOutboxDbContext"/> with an empty Avro payload so integration
+///     tests can exercise the real outbox-relay path against Postgres without
+///     standing up Schema Registry. Topic name, Kafka key, and the integration
+///     event's CLR type are preserved.
+///   </item>
+///   <item>
+///     Captures the same call in-memory for assertion helpers
+///     (<see cref="CapturedMessages"/>, <see cref="GetMessages{TMessage}"/>,
+///     <see cref="HasMessage{TMessage}"/>) used by saga unit tests that bypass
+///     the database entirely.
+///   </item>
+/// </list>
 /// Thread-safe for concurrent test scenarios.
-/// </remarks>
+/// </summary>
 public sealed class FakeOutboxWriter : IOutboxWriter
 {
-    private readonly ConcurrentBag<OutboxMessage> _messages = [];
+    private readonly ConcurrentBag<CapturedOutboxMessage> _messages = [];
 
     /// <summary>
-    /// Gets all messages that have been added to the outbox.
+    /// All messages captured in-memory across the lifetime of this writer.
     /// </summary>
-    public IReadOnlyCollection<OutboxMessage> CapturedMessages => _messages.ToArray();
+    public IReadOnlyCollection<CapturedOutboxMessage> CapturedMessages => _messages.ToArray();
 
     /// <inheritdoc />
-    public void AddOutboxMessage(IOutboxDbContext dbContext,
+    public void AddOutboxMessage(
+        IOutboxDbContext dbContext,
         string topicName,
         string? kafkaKey,
         ISpecificRecord integrationEvent)
     {
         ArgumentNullException.ThrowIfNull(dbContext);
+        ArgumentException.ThrowIfNullOrWhiteSpace(topicName);
         ArgumentNullException.ThrowIfNull(integrationEvent);
 
-        _messages.Add(new OutboxMessage(topicName, kafkaKey, integrationEvent));
+        var messageType = integrationEvent.GetType();
+
+        dbContext.OutboxMessages.Add(new OutboxMessage
+        {
+            TopicName = topicName,
+            KafkaKey = kafkaKey,
+            AvroPayload = [],
+            Type = messageType.FullName ?? messageType.Name,
+            CreatedUtc = DateTimeOffset.UtcNow,
+        });
+
+        _messages.Add(new CapturedOutboxMessage(topicName, kafkaKey, integrationEvent));
     }
 
     /// <summary>
-    /// Clears all captured messages. Useful for test setup/teardown.
+    /// Clears all captured in-memory messages. Useful for test setup/teardown.
+    /// Does not affect any rows already inserted into the DbContext.
     /// </summary>
     public void Clear() => _messages.Clear();
 
     /// <summary>
-    /// Gets all messages of a specific type.
+    /// Gets all captured messages of a specific Avro type.
     /// </summary>
     /// <typeparam name="TMessage">The Avro message type to filter by.</typeparam>
-    /// <returns>Messages matching the specified type.</returns>
-    public IEnumerable<OutboxMessage<TMessage>> GetMessages<TMessage>()
+    public IEnumerable<CapturedOutboxMessage<TMessage>> GetMessages<TMessage>()
         where TMessage : ISpecificRecord
-    {
-        return _messages
+        => _messages
             .Where(m => m.IntegrationEvent is TMessage)
-            .Select(m => new OutboxMessage<TMessage>(m.TopicName, m.KafkaKey, (TMessage)m.IntegrationEvent));
-    }
+            .Select(m => new CapturedOutboxMessage<TMessage>(m.TopicName, m.KafkaKey, (TMessage)m.IntegrationEvent));
 
     /// <summary>
-    /// Checks if any message of the specified type was added to the outbox.
+    /// Returns whether any captured message of the specified Avro type exists.
     /// </summary>
     /// <typeparam name="TMessage">The Avro message type to check for.</typeparam>
-    /// <returns>True if at least one message of the specified type exists.</returns>
     public bool HasMessage<TMessage>()
         where TMessage : ISpecificRecord
-    {
-        return _messages.Any(m => m.IntegrationEvent is TMessage);
-    }
+        => _messages.Any(m => m.IntegrationEvent is TMessage);
 
-    /// <summary>
-    /// Represents a captured outbox message.
-    /// </summary>
-    /// <param name="TopicName">The Kafka topic where the message would be published.</param>
-    /// <param name="KafkaKey">The Kafka key for partitioning.</param>
+    /// <summary>A captured outbox call (in-memory view).</summary>
+    /// <param name="TopicName">The Kafka topic the message would be published to.</param>
+    /// <param name="KafkaKey">The Kafka key (for partitioning).</param>
     /// <param name="IntegrationEvent">The Avro integration event.</param>
-    public sealed record OutboxMessage(string TopicName, string? KafkaKey, ISpecificRecord IntegrationEvent);
+    public sealed record CapturedOutboxMessage(string TopicName, string? KafkaKey, ISpecificRecord IntegrationEvent);
 
-    /// <summary>
-    /// Represents a captured outbox message with a strongly-typed event.
-    /// </summary>
+    /// <summary>A captured outbox call with a strongly-typed Avro event.</summary>
     /// <typeparam name="TMessage">The Avro message type.</typeparam>
-    /// <param name="TopicName">The Kafka topic where the message would be published.</param>
-    /// <param name="KafkaKey">The Kafka key for partitioning.</param>
+    /// <param name="TopicName">The Kafka topic the message would be published to.</param>
+    /// <param name="KafkaKey">The Kafka key (for partitioning).</param>
     /// <param name="IntegrationEvent">The Avro integration event.</param>
-    public sealed record OutboxMessage<TMessage>(string TopicName, string? KafkaKey, TMessage IntegrationEvent)
+    public sealed record CapturedOutboxMessage<TMessage>(string TopicName, string? KafkaKey, TMessage IntegrationEvent)
         where TMessage : ISpecificRecord;
 }
