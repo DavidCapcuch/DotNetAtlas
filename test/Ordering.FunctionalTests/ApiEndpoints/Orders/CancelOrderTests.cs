@@ -53,7 +53,7 @@ public class CancelOrderTests : BaseApiTest
     [Fact]
     public async Task WhenReasonEmpty_ReturnsClientError()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var response = await PostCancelAsync(
@@ -70,7 +70,7 @@ public class CancelOrderTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerCancelsOwnCreatedOrder_ReturnsNoContent()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var response = await PostCancelAsync(
@@ -91,7 +91,7 @@ public class CancelOrderTests : BaseApiTest
     [Fact]
     public async Task WhenAnotherBuyerTriesToCancel_ReturnsNotFound()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var response = await PostCancelAsync(
@@ -113,7 +113,7 @@ public class CancelOrderTests : BaseApiTest
     [Fact]
     public async Task WhenOrderShipped_ReturnsConflict()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateShippedOrderAsync(TestUsers.AdminId);
 
         var response = await PostCancelAsync(
@@ -127,7 +127,7 @@ public class CancelOrderTests : BaseApiTest
     [Fact]
     public async Task WhenSameIdempotencyKeyReplayed_HandlerInvokedOnceOnly()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         // The fixture replaces IOutboxWriter with FakeOutboxWriter so we can
@@ -186,7 +186,7 @@ public class CancelOrderTests : BaseApiTest
         // slots. If a future FastEndpoints minor drops Authorization from
         // the defaults, this test fails loudly instead of silently leaking
         // 204s across buyers.
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var ownerOrder = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var sharedKey = Guid.NewGuid().ToString();

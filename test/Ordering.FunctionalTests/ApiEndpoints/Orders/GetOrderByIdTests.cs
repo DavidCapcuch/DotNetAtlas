@@ -28,7 +28,7 @@ public class GetOrderByIdTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerReadsOwnOrder_ReturnsOk()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var (response, payload) = await HttpClientRegistry.BuyerClient
@@ -47,7 +47,7 @@ public class GetOrderByIdTests : BaseApiTest
     [Fact]
     public async Task WhenAdminReadsAnotherBuyersOrder_ReturnsOk()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var (response, payload) = await HttpClientRegistry.AdminClient
@@ -64,7 +64,7 @@ public class GetOrderByIdTests : BaseApiTest
     [Fact]
     public async Task WhenOtherBuyerReadsAnothersOrder_ReturnsNotFound()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         var (response, _) = await HttpClientRegistry.OtherBuyerClient

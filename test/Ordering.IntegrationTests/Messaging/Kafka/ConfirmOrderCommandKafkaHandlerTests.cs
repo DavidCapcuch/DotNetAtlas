@@ -44,7 +44,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -84,7 +84,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         {
             OrderId = orderId,
             CorrelationId = Guid.CreateVersion7(),
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -122,7 +122,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateShippedOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -134,7 +134,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         {
             OrderId = orderId,
             CorrelationId = Guid.CreateVersion7(),
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -158,7 +158,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -170,7 +170,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         {
             OrderId = orderId,
             CorrelationId = Guid.CreateVersion7(),
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);

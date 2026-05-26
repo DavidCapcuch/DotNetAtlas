@@ -198,7 +198,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         },
         ShippingAddress = NewValidAvroAddress(),
         BillingAddress = NewValidAvroAddress(),
-        RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+        RequestedAtUtc = DateTime.UtcNow,
     };
 
     private static AvroOrderAddress NewValidAvroAddress() => new()

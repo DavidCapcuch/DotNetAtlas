@@ -28,7 +28,7 @@ public class GetOrdersByBuyerTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerHasOrders_ReturnsOnlyOwnOrdersAndPagingEnvelope()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var ownA = await seed.CreateOrderAsync(TestUsers.BuyerId);
         var ownB = await seed.CreateOrderAsync(TestUsers.BuyerId);
         var someoneElses = await seed.CreateOrderAsync(TestUsers.OtherBuyerId);

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using Ordering.Application.Common.Data;
 using Ordering.Application.Orders.GetOrdersByBuyer;
 using Ordering.Domain.Orders;
@@ -37,7 +38,7 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
         }
 
@@ -51,10 +52,12 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         dto.TotalAmount.Should().Be(19.98m);
         dto.Currency.Should().Be(CurrencyCode.Eur.Name);
         dto.ItemCount.Should().Be(1);
-        dto.CreatedAtUtc.Should().Be(seeded.CreatedAtUtc);
+        // Postgres timestamptz truncates the .NET DateTimeOffset's 100-ns precision
+        // to microseconds, so compare with a sub-second tolerance rather than equality.
+        dto.CreatedAtUtc.Should().BeCloseTo(seeded.CreatedAtUtc, TimeSpan.FromSeconds(1));
         // LastStatusChangeAtUtc falls back to CreatedAtUtc — no later
         // transition timestamps populated.
-        dto.LastStatusChangeAtUtc.Should().Be(seeded.CreatedAtUtc);
+        dto.LastStatusChangeAtUtc.Should().BeCloseTo(seeded.CreatedAtUtc, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -70,7 +73,7 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             ownA = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
             ownB = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
             someoneElses = await seed.CreateOrderAsync(buyerId: otherBuyerId, cancellationToken: ct);
@@ -94,7 +97,7 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             for (var i = 0; i < 5; i++)
             {
                 await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
@@ -127,10 +130,10 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct); // stays Created
             cancelledOrder = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
-            cancelledOrder.Cancel(reason, _fixture.FakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+            cancelledOrder.Cancel(reason, DateTimeOffset.UtcNow).IsSuccess.Should().BeTrue();
             await dbContext.SaveChangesAsync(ct);
         }
 
@@ -190,16 +193,21 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
 
     /// <summary>
     /// Walks the order through the FSM up to <paramref name="target"/>,
-    /// advancing the fake clock by one minute between transitions so every
-    /// lifecycle timestamp is distinct. This is what lets the COALESCE
-    /// chain test assert the projection picked the <em>right</em> field,
-    /// not just any non-null one.
+    /// advancing a per-call <see cref="FakeTimeProvider"/> by one minute
+    /// between transitions so every lifecycle timestamp is distinct. This
+    /// is what lets the COALESCE chain test assert the projection picked
+    /// the <em>right</em> field, not just any non-null one. Per ADR-0015
+    /// the fake clock is constructed in test code (not lifted into the
+    /// shared fixture singleton).
     /// </summary>
     private async Task<Order> SeedOrderAdvancingTimeAsync(Guid buyerId, LifecycleState target, CancellationToken ct)
     {
+        var fakeTime = new FakeTimeProvider(
+            new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero));
+
         using var seedScope = _fixture.CreateScope();
         var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-        var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+        var seed = new OrderSeed(dbContext, fakeTime);
 
         var order = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
         if (target == LifecycleState.Created)
@@ -207,40 +215,40 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
             return order;
         }
 
-        _fixture.FakeTime.Advance(TimeSpan.FromMinutes(1));
-        order.MarkStockReserved(Guid.CreateVersion7(), _fixture.FakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+        fakeTime.Advance(TimeSpan.FromMinutes(1));
+        order.MarkStockReserved(Guid.CreateVersion7(), fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         if (target == LifecycleState.StockReserved)
         {
             await dbContext.SaveChangesAsync(ct);
             return order;
         }
 
-        _fixture.FakeTime.Advance(TimeSpan.FromMinutes(1));
-        order.MarkPaymentCompleted(Guid.CreateVersion7(), _fixture.FakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+        fakeTime.Advance(TimeSpan.FromMinutes(1));
+        order.MarkPaymentCompleted(Guid.CreateVersion7(), fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         if (target == LifecycleState.PaymentCompleted)
         {
             await dbContext.SaveChangesAsync(ct);
             return order;
         }
 
-        _fixture.FakeTime.Advance(TimeSpan.FromMinutes(1));
-        order.Confirm(_fixture.FakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+        fakeTime.Advance(TimeSpan.FromMinutes(1));
+        order.Confirm(fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         if (target == LifecycleState.Confirmed)
         {
             await dbContext.SaveChangesAsync(ct);
             return order;
         }
 
-        _fixture.FakeTime.Advance(TimeSpan.FromMinutes(1));
-        order.MarkShipped("DHL", "1Z999AA10123456784", _fixture.FakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+        fakeTime.Advance(TimeSpan.FromMinutes(1));
+        order.MarkShipped("DHL", "1Z999AA10123456784", fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         if (target == LifecycleState.Shipped)
         {
             await dbContext.SaveChangesAsync(ct);
             return order;
         }
 
-        _fixture.FakeTime.Advance(TimeSpan.FromMinutes(1));
-        order.MarkDelivered(_fixture.FakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+        fakeTime.Advance(TimeSpan.FromMinutes(1));
+        order.MarkDelivered(fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         await dbContext.SaveChangesAsync(ct);
         return order;
     }

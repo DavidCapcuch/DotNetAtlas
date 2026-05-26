@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Time.Testing;
 using Ordering.Domain.Baskets;
 using Ordering.Domain.Orders;
 using Ordering.Infrastructure.Persistence.Database;
@@ -15,9 +14,9 @@ namespace Ordering.FunctionalTests.Common;
 internal sealed class OrderSeed
 {
     private readonly OrderingDbContext _db;
-    private readonly FakeTimeProvider _time;
+    private readonly TimeProvider _time;
 
-    public OrderSeed(OrderingDbContext db, FakeTimeProvider time)
+    public OrderSeed(OrderingDbContext db, TimeProvider time)
     {
         _db = db;
         _time = time;

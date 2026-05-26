@@ -35,7 +35,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -73,7 +73,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateConfirmedOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -113,7 +113,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateShippedOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -150,7 +150,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateDeliveredOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -185,7 +185,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
             OrderId = orderId,
             CorrelationId = Guid.CreateVersion7(),
             Reason = reason,
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);

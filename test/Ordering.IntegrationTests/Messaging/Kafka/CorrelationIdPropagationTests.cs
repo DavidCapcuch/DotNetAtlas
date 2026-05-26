@@ -58,7 +58,7 @@ public sealed class CorrelationIdPropagationTests
             },
             ShippingAddress = NewAvroAddress(),
             BillingAddress = NewAvroAddress(),
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
 
         using var scope = _fixture.CreateScope();
