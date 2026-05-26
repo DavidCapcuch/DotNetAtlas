@@ -1086,7 +1086,7 @@ public sealed class CreateOrderKafkaHandler
   - `OrderId` — NotEmpty.
   - `BuyerId` — NotEmpty.
 - **Filter/paging:** none.
-- **Read source:** `ordering.orders` + `ordering.order_items` via `OrderByIdSpec(orderId, buyerId, isAdmin)` (Ardalis.Specification). Spec applies `o.Id == id && (isAdmin || o.BuyerId == buyerId)`. Missing → `Result.Fail(OrderingErrors.NotFound)` (same failure for not-owned vs not-existing — no existence leak).
+- **Read source:** `ordering.orders` + `ordering.order_items` via inline LINQ in `GetOrderByIdQueryHandler` (`.Where(o => o.Id == query.OrderId).Select(...).FirstOrDefaultAsync()`) — SQL-side projection, no `Ardalis.Specification` per [ADR-0021](../adr/0021-read-side-no-specifications.md). Ownership is enforced post-SELECT in-memory: if `!query.IsAdmin && response.BuyerId != query.BuyerId`, return `Result.Fail(OrderingErrors.OrderNotFound)` (same failure for not-owned vs not-existing — no existence leak; cross-buyer attempt logged at Warning).
 
 #### 3.4.2 `GetOrdersByBuyerQuery`
 
@@ -1114,7 +1114,8 @@ public sealed class CreateOrderKafkaHandler
       {
         "orderId": "Guid",
         "status": "string",
-        "total": { "amount": "decimal", "currency": "string" },
+        "totalAmount": "decimal",
+        "currency": "string",
         "itemCount": "int",
         "createdAtUtc": "DateTimeOffset",
         "lastStatusChangeAtUtc": "DateTimeOffset"
@@ -1132,7 +1133,7 @@ public sealed class CreateOrderKafkaHandler
   - `WHERE BuyerId = @buyerId AND (@status IS NULL OR Status = @status)`.
   - `ORDER BY CreatedAtUtc DESC, OrderId DESC`.
   - `LIMIT @pageSize OFFSET ((@pageNumber - 1) * @pageSize)`.
-- **Read source:** `ordering.orders` via `OrdersByBuyerSpec`. `LastStatusChangeAtUtc` is derived by taking `COALESCE(DeliveredAtUtc, ShippedAtUtc, ConfirmedAtUtc, PaymentCompletedAtUtc, StockReservedAtUtc, CreatedAtUtc)` — whichever most recent transition timestamp is non-null.
+- **Read source:** `ordering.orders` via inline LINQ in `GetOrdersByBuyerQueryHandler` (`.Where(...).OrderByDescending(...).Skip(...).Take(...).Select(...)`) — predicate, paging, and projection are co-located on the handler and translated SQL-side; no `Ardalis.Specification` per [ADR-0021](../adr/0021-read-side-no-specifications.md). `LastStatusChangeAtUtc` is derived by taking `COALESCE(DeliveredAtUtc, ShippedAtUtc, ConfirmedAtUtc, PaymentCompletedAtUtc, StockReservedAtUtc, CreatedAtUtc)` — whichever most recent transition timestamp is non-null.
 
 ---
 
