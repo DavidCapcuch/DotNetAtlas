@@ -7,8 +7,8 @@ namespace Payments.Infrastructure.Common;
 /// <summary>
 /// Composition root for the Payments Infrastructure layer. Called from
 /// <c>Payments.Api.Program.cs</c> after <c>AddServiceDefaults</c> and
-/// <c>AddPaymentsApplication</c>. Order: persistence → kafka messaging → health checks →
-/// gateway adapter.
+/// <c>AddPaymentsApplication</c>. Order: observability → persistence → kafka messaging →
+/// health checks → gateway adapter.
 /// </summary>
 public static class InfrastructureDependencyInjection
 {
@@ -18,6 +18,7 @@ public static class InfrastructureDependencyInjection
         bool isDeployedEnvironment)
     {
         services
+            .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
             .AddKafkaMessaging(configuration)
             .AddPaymentsHealthChecks(configuration)
