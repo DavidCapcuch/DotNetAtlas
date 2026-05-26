@@ -10,14 +10,12 @@ using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
-using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -120,15 +118,6 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Basket.Infrastructure does not call AddOpenTelemetry() (unlike Notifications/
-                // Catalog/etc.) so TracerProvider is absent from the production composition.
-                // Register a minimal tracer that listens on TestActivitySource so
-                // TestCaseTracer (Platform.Test.Framework.Tracing) can resolve TracerProvider
-                // from DI. Same pattern test fixtures use to plug observability gaps without
-                // editing Basket.Infrastructure (outside this agent's file-ownership island).
-                services.AddOpenTelemetry()
-                    .WithTracing(tracing => tracing.AddSource(TestActivitySource.ActivitySourceName));
-
                 // Substitute the ACL port so tests can stub Catalog responses without
                 // a Catalog service running. Use Replace so the production HTTP-adapter
                 // registration in Basket.Infrastructure is removed — AddSingleton(instance)
