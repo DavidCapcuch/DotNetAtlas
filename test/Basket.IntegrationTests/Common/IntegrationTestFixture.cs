@@ -11,6 +11,7 @@ using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
 using Respawn;
 using Serilog;
