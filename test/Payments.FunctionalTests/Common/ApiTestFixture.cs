@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using Payments.FunctionalTests.Common.TestClientInfrastructure;
 using Payments.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -44,13 +43,6 @@ public class ApiTestFixture : AppFixture<Program>
         });
 
     private readonly FakeTokenSigner _signer = new(audience: "payments-service-tests");
-
-    /// <summary>
-    /// Pinned to 2026-04-27 10:00 UTC so timestamp assertions in admin GETs
-    /// stay deterministic. Same instant the M5 integration fixture uses.
-    /// </summary>
-    public FakeTimeProvider FakeTime { get; } = new(
-        new DateTimeOffset(2026, 4, 27, 10, 0, 0, TimeSpan.Zero));
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
@@ -100,8 +92,11 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin time so timestamp assertions are stable.
-                services.AddSingleton<TimeProvider>(FakeTime);
+                // TimeProvider.System is auto-registered by the Generic Host (ADR-0015).
+                // Tests that need determinism construct FakeTimeProvider locally per
+                // ADR-0015 line 104; the previous fixture-level FakeTimeProvider leaked
+                // state across tests in the shared collection (SetUtcNow can only move
+                // forward) and is removed.
 
                 // Replace the real Avro/SchemaRegistry-backed outbox writer
                 // with an in-memory fake. Without this, any seed helper that

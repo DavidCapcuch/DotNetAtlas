@@ -138,7 +138,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(100m),
-                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                RequestedAtUtc = DateTime.UtcNow,
             });
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -181,7 +181,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Reason = "saga compensation",
-                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                RequestedAtUtc = DateTime.UtcNow,
             });
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -226,7 +226,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(75m),
-                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                RequestedAtUtc = DateTime.UtcNow,
             });
 
         _fixture.GetFakeOutbox().Clear();
@@ -239,7 +239,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 UserId = Guid.CreateVersion7(),
                 PaymentTransactionId = paymentId,
                 Reason = "buyer cancelled after delivery",
-                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                RequestedAtUtc = DateTime.UtcNow,
             });
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -279,7 +279,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             orderId,
             amount,
             paymentMethodId: "tok_visa_4242",
-            utcNow: _fixture.FakeTime.GetUtcNow()).Value;
+            utcNow: DateTimeOffset.UtcNow).Value;
 
         // Discard PaymentRequestedDomainEvent so the seed save doesn't dispatch it through the
         // interceptor — there is no outbox publisher for it, but discarding keeps the test
@@ -299,7 +299,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "stub-auth-ignored",
             Amount = new Avro.AvroDecimal(100m),
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
 
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
@@ -402,7 +402,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(50m),
-                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                RequestedAtUtc = DateTime.UtcNow,
             });
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -423,7 +423,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                     UserId = Guid.CreateVersion7(),
                     AuthorizationId = StoredGatewayTransactionId(correlationId),
                     Reason = "saga ordering bug — should have refunded",
-                    RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                    RequestedAtUtc = DateTime.UtcNow,
                 }));
 
         var afterVoidAttempt = await dbContext.Transactions.AsNoTracking()
@@ -471,7 +471,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                     UserId = Guid.CreateVersion7(),
                     AuthorizationId = "wire-token-stale",
                     Reason = "saga compensation",
-                    RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                    RequestedAtUtc = DateTime.UtcNow,
                 }));
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -535,6 +535,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             Amount = new Avro.AvroDecimal(amount),
             Currency = "USD",
             IdempotencyKey = $"key-{correlationId}",
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
 }

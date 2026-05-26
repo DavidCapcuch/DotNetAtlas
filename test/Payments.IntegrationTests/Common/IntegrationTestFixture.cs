@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using Payments.Application.Abstractions;
 using Payments.Infrastructure.ExternalServices.PaymentGateway;
 using Payments.Infrastructure.Persistence.Database;
@@ -56,13 +55,6 @@ public class IntegrationTestFixture : AppFixture<Program>
     private FakeOutboxWriter _fakeOutbox = null!;
     private CountingPaymentGateway _gateway = null!;
 
-    /// <summary>
-    /// Pinned to 2026-04-27 10:00 UTC so assertions on business timestamps don't depend on
-    /// wall-clock time.
-    /// </summary>
-    public FakeTimeProvider FakeTime { get; } = new(
-        new DateTimeOffset(2026, 4, 27, 10, 0, 0, TimeSpan.Zero));
-
     protected override async ValueTask PreSetupAsync()
     {
         // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
@@ -100,8 +92,11 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin time so timestamp assertions are stable.
-                services.AddSingleton<TimeProvider>(FakeTime);
+                // TimeProvider.System is auto-registered by the Generic Host (ADR-0015).
+                // Tests that need determinism construct FakeTimeProvider locally per
+                // ADR-0015 line 104; the previous fixture-level FakeTimeProvider leaked
+                // state across tests in the shared collection (SetUtcNow can only move
+                // forward) and is removed.
 
                 // Replace the real Avro/SchemaRegistry-backed outbox writer with an in-memory
                 // fake. Captures topic + key + Avro CLR instance for later assertions without
