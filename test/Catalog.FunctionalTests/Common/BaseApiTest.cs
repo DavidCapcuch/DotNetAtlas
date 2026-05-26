@@ -1,7 +1,6 @@
 using Catalog.FunctionalTests.Common.TestClientInfrastructure;
 using Catalog.Infrastructure.Persistence.Database;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Time.Testing;
 using OpenFeature;
 using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
@@ -23,8 +22,6 @@ public abstract class BaseApiTest : IAsyncLifetime
     protected HttpClientRegistry<Program> HttpClientRegistry { get; }
 
     protected IFeatureClient FeatureClient => Fixture.FeatureClient;
-
-    protected FakeTimeProvider TimeProvider => Fixture.TimeProvider;
 
     protected BaseApiTest(ApiTestFixture app)
     {

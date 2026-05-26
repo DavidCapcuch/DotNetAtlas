@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ClearExtensions;
 using OpenFeature;
@@ -38,18 +37,17 @@ internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// fixtures share one source of truth.
 /// Replaces the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/>
 /// (skips Schema Registry; byte-fidelity is asserted by the dedicated
-/// <c>EndToEnd/AvroByteFidelityTests</c>), pins <see cref="TimeProvider"/> to
-/// <see cref="Now"/>, replaces <see cref="IFeatureClient"/> with an NSubstitute mock so
-/// tests can flip <c>catalog.show-discontinued-in-search</c> per-scenario, and trusts the
-/// <see cref="FakeTokenSigner"/>'s RSA key via <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
+/// <c>EndToEnd/AvroByteFidelityTests</c>), replaces <see cref="IFeatureClient"/> with an
+/// NSubstitute mock so tests can flip <c>catalog.show-discontinued-in-search</c> per-scenario,
+/// and trusts the <see cref="FakeTokenSigner"/>'s RSA key via
+/// <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
+/// Per ADR-0015 the host's <c>TimeProvider.System</c> singleton is left in place — tests
+/// that need deterministic time construct <c>FakeTimeProvider</c> locally and inject it
+/// into a directly-constructed SUT.
 /// </summary>
 [DisableWafCache]
 public class ApiTestFixture : AppFixture<Program>
 {
-    /// <summary>Stable test clock — matches <c>Catalog.IntegrationTests.IntegrationTestFixture.Now</c>.</summary>
-    public static readonly DateTimeOffset Now =
-        new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
-
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Catalog",
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Catalog/Catalog.Infrastructure"),
@@ -68,9 +66,6 @@ public class ApiTestFixture : AppFixture<Program>
     /// override per-scenario by calling <c>fixture.FeatureClient.GetBooleanValueAsync(...).Returns(...)</c>.
     /// </summary>
     public IFeatureClient FeatureClient { get; } = Substitute.For<IFeatureClient>();
-
-    /// <summary>Mutable test clock — call <c>Advance(...)</c> to move time forward in a test.</summary>
-    public FakeTimeProvider TimeProvider { get; } = new(Now);
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
@@ -138,10 +133,6 @@ public class ApiTestFixture : AppFixture<Program>
                 // Schema-Registry container; the rest of the suite stays fast.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
-                // Pin the wall-clock so deterministic OccurredOnUtc / LastUpdatedAtUtc
-                // assertions match across CI runs (mirrors IntegrationTestFixture).
-                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(TimeProvider));
-
                 // Replace the OpenFeature client so per-test feature-flag flips don't depend
                 // on a JSON file on disk. The closed M5 follow-up
                 // (catalog.show-discontinued-in-search) is exercised by SearchProductsTests
@@ -171,10 +162,6 @@ public class ApiTestFixture : AppFixture<Program>
 
         FeatureClient.ClearSubstitute(ClearOptions.All);
 
-        // Note: TimeProvider is intentionally NOT rewound — FakeTimeProvider.SetUtcNow
-        // rejects going backwards in time, and tests that advance the clock with
-        // TimeProvider.Advance(...) use relative offsets. The singleton lives for the
-        // fixture lifetime; tests are isolated by Postgres/Redis cleanup, not by clock rewind.
         await Task.WhenAll(
             _dbContainer.CleanDataAsync(),
             _redisContainer.CleanDataAsync()
