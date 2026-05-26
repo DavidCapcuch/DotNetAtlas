@@ -23,7 +23,7 @@ public static class ApplicationDependencyInjection
 {
     extension(IServiceCollection services)
     {
-        public IServiceCollection AddPaymentsApplication()
+        public IServiceCollection AddApplication()
         {
             var assembly = typeof(ApplicationDependencyInjection).Assembly;
 

@@ -27,7 +27,7 @@ try
     builder.Services
         .AddPaymentsAuth(builder.Configuration, isDeployedEnvironment)
         .AddPresentation()
-        .AddPaymentsApplication()
+        .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();

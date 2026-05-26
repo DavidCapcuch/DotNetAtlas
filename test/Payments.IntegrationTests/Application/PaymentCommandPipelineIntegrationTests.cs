@@ -19,7 +19,7 @@ using Platform.SharedKernel.ValueObjects;
 namespace Payments.IntegrationTests.Application;
 
 /// <summary>
-/// End-to-end pipeline test exercising the full <c>AddPaymentsApplication()</c> DI graph —
+/// End-to-end pipeline test exercising the full <c>AddApplication()</c> DI graph —
 /// validation behaviour, CQRS handler, in-process domain-event dispatch, outbox publishers,
 /// and the Avro mappers — against NSubstitute mocks for the seam ports
 /// (<c>IPaymentRepository</c>, <c>IPaymentGateway</c>, <c>ITransactionalOutbox</c>). Mirrors
@@ -47,7 +47,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
 
-        services.AddPaymentsApplication();
+        services.AddApplication();
         services.Configure<PaymentsTopicsOptions>(opts =>
         {
             opts.Transactions = "payments.transactions";
