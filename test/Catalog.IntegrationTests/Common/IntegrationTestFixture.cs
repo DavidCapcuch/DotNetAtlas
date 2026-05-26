@@ -116,11 +116,13 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>Connection string for tests that bypass the DbContext.</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
-    /// <summary>Wipes every table in the Catalog schema between tests, flushes Redis, and rewinds the clock.</summary>
+    /// <summary>Wipes every table in the Catalog schema between tests and flushes Redis.
+    /// Note: <see cref="TimeProvider"/> is intentionally NOT rewound — <see cref="FakeTimeProvider.SetUtcNow"/>
+    /// rejects going backwards in time, and tests that advance the clock with
+    /// <c>TimeProvider.Advance(...)</c> use relative offsets. The singleton lives for the
+    /// fixture lifetime; tests are isolated by Postgres/Redis cleanup, not by clock rewind.</summary>
     public async Task ResetFixtureStateAsync()
     {
-        TimeProvider.SetUtcNow(Now);
-
         await Task.WhenAll(
             _dbContainer.CleanDataAsync(),
             _redisContainer.CleanDataAsync()
