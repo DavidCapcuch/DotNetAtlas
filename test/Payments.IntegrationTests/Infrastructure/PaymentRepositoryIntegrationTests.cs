@@ -78,7 +78,7 @@ public sealed class PaymentRepositoryIntegrationTests
             orderId: Guid.CreateVersion7(),
             amount,
             "tok_visa_4242",
-            _fixture.FakeTime.GetUtcNow()).Value;
+            DateTimeOffset.UtcNow).Value;
 
         repository.Add(tx);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);

@@ -68,7 +68,7 @@ public class GetPaymentByIdTests : BaseApiTest
     [Fact]
     public async Task WhenAdminAndPaymentExists_ReturnsOkWithPayment()
     {
-        var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, App.FakeTime.GetUtcNow());
+        var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, DateTimeOffset.UtcNow);
 
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
