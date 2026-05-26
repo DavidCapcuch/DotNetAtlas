@@ -5,13 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
-using OpenTelemetry.Trace;
 using Ordering.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
-using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -111,14 +109,6 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // + key + CLR instance captured by the fake.
                 services.RemoveAll<IOutboxWriter>();
                 services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
-
-                // Register a minimal OpenTelemetry TracerProvider so BaseIntegrationTest's
-                // TestCaseTracer can resolve it. Ordering production has no host-level
-                // OpenTelemetry wiring (only KafkaFlow-side instrumentation), so we
-                // register it test-side instead. Listens on the test activity source
-                // so per-test traces flow into the (unsampled) provider.
-                services.AddOpenTelemetry().WithTracing(tracing => tracing
-                    .AddSource(TestActivitySource.ActivitySourceName));
             });
     }
 

@@ -16,6 +16,7 @@ public static class InfrastructureDependencyInjection
         bool isDeployedEnvironment)
     {
         services
+            .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
             .AddKafkaMessaging(configuration)
             .AddOrderingHealthChecks(configuration);

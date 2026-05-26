@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Ordering.FunctionalTests.Common.TestClientInfrastructure;
 using Ordering.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -15,7 +14,6 @@ using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
-using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -143,14 +141,6 @@ public class ApiTestFixture : AppFixture<Program>
                 // every TokenValidationParameters flag at its production default
                 // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
                 services.ConfigureJwtBearerForTests(_signer);
-
-                // Register a minimal OpenTelemetry TracerProvider so BaseApiTest's
-                // TestCaseTracer can resolve it. Ordering production has no host-level
-                // OpenTelemetry wiring (only KafkaFlow-side instrumentation), so we
-                // register it test-side instead. Listens on the test activity source
-                // so per-test traces flow into the (unsampled) provider.
-                services.AddOpenTelemetry().WithTracing(tracing => tracing
-                    .AddSource(TestActivitySource.ActivitySourceName));
             });
     }
 
