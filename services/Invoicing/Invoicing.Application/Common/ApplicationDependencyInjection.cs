@@ -15,7 +15,7 @@ namespace Invoicing.Application.Common;
 /// <remarks>
 /// <para>
 /// Registers FluentValidation validators, CQRS command/query handlers, the
-/// Tracing → Logging → Metrics → Validation behaviour chain (M8 — all three handler
+/// Tracing -> Logging -> Metrics -> Validation behaviour chain (M8 - all three handler
 /// shapes are now present so Scrutor's <c>Decorate</c> is satisfied), domain-event
 /// handlers + dispatcher (the <c>DispatchDomainEventsInterceptor</c> in Infrastructure
 /// picks up the dispatcher from this composition root), and the
