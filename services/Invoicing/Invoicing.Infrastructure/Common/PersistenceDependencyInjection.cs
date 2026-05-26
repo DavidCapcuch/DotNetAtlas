@@ -21,7 +21,7 @@ namespace Invoicing.Infrastructure.Common;
 /// </summary>
 internal static class PersistenceDependencyInjection
 {
-    internal static IServiceCollection AddPersistence(
+    internal static IServiceCollection AddDatabase(
         this IServiceCollection services,
         IConfiguration configuration,
         bool enableSensitiveDataLogging)
