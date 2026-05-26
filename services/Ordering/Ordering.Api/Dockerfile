@@ -57,17 +57,17 @@ COPY services/Ordering/Ordering.Infrastructure/packages.lock.json services/Order
 COPY services/Ordering/Ordering.Api/packages.lock.json services/Ordering/Ordering.Api/
 
 # Restore the API entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true services/Ordering/Ordering.Api/Ordering.Api.csproj
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true services/Ordering/Ordering.Api/Ordering.Api.csproj
 
 # Copy the rest of the source.
 COPY . .
 WORKDIR /workspace/services/Ordering/Ordering.Api
 
 # Re-restore after the source copy so analyzers/source-generators/avro generators settle.
-RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true Ordering.Api.csproj
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true Ordering.Api.csproj
 
 # Build without restore.
-RUN dotnet build Ordering.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -m:1 -o /app/build \
+RUN dotnet build Ordering.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
     -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM build AS publish
@@ -78,7 +78,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/services/Ordering/Ordering.Api
-RUN dotnet publish Ordering.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -m:1 -o /app/publish \
+RUN dotnet publish Ordering.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
