@@ -13,10 +13,11 @@ namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
 /// Health-check surface for the Invoicing service — Self, <see cref="InvoicingDbContext"/>,
-/// and Kafka. Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
-/// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout parameter,
-/// so <see cref="HealthChecksOptions.DatabaseTimeout"/> is enforced via a custom test query
-/// that cancels its own <see cref="CancellationTokenSource"/>. Required by
+/// and Kafka. Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
+/// <c>AddDbContextCheck</c> does not expose a direct timeout parameter, so the DB readiness
+/// probe runs under EF's command-timeout default (Catalog M10 precedent — operators who need
+/// a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
+/// into <c>EfCoreOptions</c>). Required by
 /// <c>Platform.ServiceDefaults.WebApplicationExtensions.MapPlatformHealthCheckEndpoints</c>
 /// which calls <c>UseHealthChecks(...)</c> against the registered set.
 /// </summary>
@@ -40,8 +41,6 @@ internal static class HealthChecksDependencyInjection
 
         var producerConfig = new ProducerConfig { BootstrapServers = kafkaOptions.BrokersFlat };
 
-        var databaseTimeout = timeouts.DatabaseTimeout;
-
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
@@ -50,13 +49,7 @@ internal static class HealthChecksDependencyInjection
             .AddDbContextCheck<InvoicingDbContext>(
                 name: "Invoicing DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
-                customTestQuery: async (db, ct) =>
-                {
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts.CancelAfter(databaseTimeout);
-                    return await db.Database.CanConnectAsync(cts.Token).ConfigureAwait(false);
-                })
+                failureStatus: HealthStatus.Unhealthy)
             .AddKafka(
                 producerConfig,
                 name: "Kafka",
