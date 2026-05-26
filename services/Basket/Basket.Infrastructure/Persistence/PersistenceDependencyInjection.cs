@@ -19,9 +19,9 @@ namespace Basket.Infrastructure.Persistence;
 /// and wires <see cref="IBasketRepository"/> to
 /// <see cref="RedisBasketRepository"/>.
 /// </summary>
-public static class PersistenceDependencyInjection
+internal static class PersistenceDependencyInjection
 {
-    public static IServiceCollection AddBasketRedisPersistence(
+    internal static IServiceCollection AddBasketRedisPersistence(
         this IServiceCollection services,
         IConfiguration configuration)
     {
