@@ -36,7 +36,7 @@ internal static class PersistenceDependencyInjection
             .BindConfiguration(ConnectionStringsOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddDbContext<NotificationDbContext>((
+        services.AddDbContext<NotificationsDbContext>((
             sp,
             options) => options
             .UseNpgsql(
@@ -44,7 +44,7 @@ internal static class PersistenceDependencyInjection
                 npgsqlOptions =>
                 {
                     npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName,
-                        NotificationDbContext.DefaultSchemaName);
+                        NotificationsDbContext.DefaultSchemaName);
                     npgsqlOptions.UseQuerySplittingBehavior(
                         efCoreOptions.UseQuerySplitting
                             ? QuerySplittingBehavior.SplitQuery
@@ -60,7 +60,7 @@ internal static class PersistenceDependencyInjection
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
             .UseExceptionProcessor()); // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
 
-        services.AddScoped<INotificationDbContext>(sp => sp.GetRequiredService<NotificationDbContext>());
+        services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
 
         return services;
     }

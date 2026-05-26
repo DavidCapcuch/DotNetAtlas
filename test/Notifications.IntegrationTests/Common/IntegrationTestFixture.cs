@@ -50,12 +50,12 @@ public class IntegrationTestFixture : AppFixture<Program>
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Notifications/Notifications.Infrastructure"),
         new RespawnerOptions
         {
-            SchemasToInclude = [NotificationDbContext.DefaultSchemaName]
+            SchemasToInclude = [NotificationsDbContext.DefaultSchemaName]
         });
 
     /// <summary>NSubstitute transactional-outbox stub. Tests assert on its <c>Received</c> AddOutboxMessage calls.</summary>
-    public ITransactionalOutbox<INotificationDbContext> OutboxSubstitute { get; } =
-        Substitute.For<ITransactionalOutbox<INotificationDbContext>>();
+    public ITransactionalOutbox<INotificationsDbContext> OutboxSubstitute { get; } =
+        Substitute.For<ITransactionalOutbox<INotificationsDbContext>>();
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
@@ -113,7 +113,7 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // for an NSubstitute stub. Tests assert on received AddOutboxMessage
                 // calls — production wiring requires a live Schema Registry which we
                 // don't stand up in integration tests.
-                services.Replace(ServiceDescriptor.Singleton<ITransactionalOutbox<INotificationDbContext>>(OutboxSubstitute));
+                services.Replace(ServiceDescriptor.Singleton<ITransactionalOutbox<INotificationsDbContext>>(OutboxSubstitute));
             });
     }
 

@@ -103,7 +103,7 @@ internal static class MessagingDependencyInjection
             .UseMicrosoftLog()
             .AddOpenTelemetryInstrumentation());
 
-        services.AddInbox<NotificationDbContext>();
+        services.AddInbox<NotificationsDbContext>();
         services.AddOutbox(outbox =>
         {
             outbox.ConfigureMessageOrigin(ApplicationInfo.AppName);

@@ -8,11 +8,11 @@ using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Notifications.Infrastructure.Persistence.Database;
 
-public class NotificationDbContext : DbContext, INotificationDbContext, IInboxDbContext
+public sealed class NotificationsDbContext : DbContext, INotificationsDbContext, IInboxDbContext
 {
     public const string DefaultSchemaName = "notifications";
 
-    public NotificationDbContext(DbContextOptions<NotificationDbContext> options)
+    public NotificationsDbContext(DbContextOptions<NotificationsDbContext> options)
         : base(options)
     {
     }

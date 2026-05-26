@@ -18,7 +18,7 @@ namespace Notifications.Infrastructure.SendEmailNotification;
 /// </summary>
 public sealed class SendEmailNotificationCommandKafkaHandler : IMessageHandler<SendEmailNotificationCommand>
 {
-    private readonly ITransactionalOutbox<INotificationDbContext> _outbox;
+    private readonly ITransactionalOutbox<INotificationsDbContext> _outbox;
     private readonly IEmailGateway _gateway;
     private readonly IEmailTemplateRenderer _renderer;
     private readonly TopicsOptions _topics;
@@ -26,7 +26,7 @@ public sealed class SendEmailNotificationCommandKafkaHandler : IMessageHandler<S
     private readonly ILogger<SendEmailNotificationCommandKafkaHandler> _logger;
 
     public SendEmailNotificationCommandKafkaHandler(
-        ITransactionalOutbox<INotificationDbContext> outbox,
+        ITransactionalOutbox<INotificationsDbContext> outbox,
         IEmailGateway gateway,
         IEmailTemplateRenderer renderer,
         IOptions<TopicsOptions> topics,

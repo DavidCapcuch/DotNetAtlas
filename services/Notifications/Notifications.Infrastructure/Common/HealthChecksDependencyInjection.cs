@@ -45,7 +45,7 @@ public static class HealthChecksDependencyInjection
             .AddApplicationStatus("Self",
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
                 timeout: timeoutsOptions.SelfTimeout)
-            .AddDbContextCheck<NotificationDbContext>(
+            .AddDbContextCheck<NotificationsDbContext>(
                 name: "Payment DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag],
                 failureStatus: HealthStatus.Unhealthy)
