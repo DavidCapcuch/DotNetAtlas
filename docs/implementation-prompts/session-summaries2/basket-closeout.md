@@ -181,7 +181,7 @@ Invoicing.FunctionalTests — none in Basket).
 ... build of Basket.Domain / Basket.Application / Basket.Infrastructure / Basket.Api
 ... succeeded.
 Exit: 0  (after sequential rerun — initial parallel run produced two file-lock
-errors on Inventory.API.pdb and Weather.Infrastructure.dll caused by other test-host
+errors on Inventory.Api.pdb and Weather.Infrastructure.dll caused by other test-host
 processes that this closeout had started in parallel; rerunning in isolation passed.)
 ```
 

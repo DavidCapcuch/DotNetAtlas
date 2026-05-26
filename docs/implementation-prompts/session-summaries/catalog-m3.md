@@ -14,11 +14,11 @@
   - `Categories/CategoryCreatedEvent.avsc` / `.cs`
 - **Application common** under `services/Catalog/Catalog.Application/Common/`:
   - `Data/ICatalogDbContext.cs` — application-owned contract extending `IOutboxDbContext` with `Products`, `Categories`, `ProductSearchView` sets.
-  - `Messaging/CatalogTopicsOptions.cs` — `CatalogProducts`, `CatalogCategories` (DataAnnotations-validated; DltTopicSuffix dropped, see M4 finding).
+  - `Messaging/TopicsOptions.cs` — `CatalogProducts`, `CatalogCategories` (DataAnnotations-validated; DltTopicSuffix dropped, see M4 finding).
   - `ReadModels/ProductSearchViewRow.cs` — denormalized POCO matching `catalog.md § 9` with `CorrelationId` TODO for M6.
   - `ReadModels/ProductSearchViewMapper.cs` — row → `GetProductByIdResponse` mapping + `Dimensions`/`Images` JSON (de)serialization helpers.
   - `FeatureFlags/CatalogFeatureFlags.cs` — constant `ShowDiscontinuedInSearch`.
-  - `ApplicationDependencyInjection.cs` — `AddCatalogApplication()` extension (validators, CQRS handlers, domain-event handlers, behaviour chain).
+  - `ApplicationDependencyInjection.cs` — `AddApplication()` extension (validators, CQRS handlers, domain-event handlers, behaviour chain).
 - **7 commands + validators + handlers**: `CreateProduct`, `UpdateProductPrice`, `DescribeProduct`, `DiscontinueProduct`, `ReactivateProduct`, `CreateCategory`, `ReparentCategory` (self-parent guard only).
 - **5 queries + response DTOs + (where applicable) validators**: `GetProductById`, `SearchProducts` (feature-flag gated via `IFeatureClient`), `GetProductsByIds` (partial-tolerant, 1–100 ids), `GetCategoryTree` (whole tree or subtree), `GetProductsByCategory` (direct or include-descendants).
 - **8 projection handlers** (one per internal domain event, including `ProductActivated` added during review fix-up): live in each command feature folder, co-located with its command/handler. All run inside the command's UoW without calling `SaveChanges`.
@@ -50,7 +50,7 @@ Flagged up-front with the user; tracked via TODO comments in the source:
 - **Projection handler organisation**: one class per internal domain event (8 classes). Matches `catalog.md <example_design_decision>`: test isolation, DI registers per closed type (mirrors natural dispatcher scan), consumer-per-event-type analogy from Kafka. Cost: ~30 LOC each, low duplication.
 - **Money VO source**: shared-kernel `Platform.SharedKernel.ValueObjects.Money` (NO duplication in the Catalog BC). Confirmed via `Product.cs` imports.
 - **`Catalog.Application` boundary around EF Core**: `ICatalogDbContext` lives in the Application layer; Infrastructure will implement it in M4. This avoids a direct Application→EF dependency in shape, while still allowing LINQ-against-`DbSet<T>` for query handlers.
-- **Options binding**: `CatalogTopicsOptions` registered via `services.AddOptions<T>()` only — binding to `IConfiguration` and `ValidateOnStart()` are the API host's job in M6. Rationale: avoids pulling `Microsoft.Extensions.Options.ConfigurationExtensions` into `Catalog.Application` and keeps the layer free of `IConfiguration`. Documented in `ApplicationDependencyInjection.cs` remarks.
+- **Options binding**: `TopicsOptions` registered via `services.AddOptions<T>()` only — binding to `IConfiguration` and `ValidateOnStart()` are the API host's job in M6. Rationale: avoids pulling `Microsoft.Extensions.Options.ConfigurationExtensions` into `Catalog.Application` and keeps the layer free of `IConfiguration`. Documented in `ApplicationDependencyInjection.cs` remarks.
 - **Outbox enrichment pattern**: publishers load the aggregate (and related Category) via `DbContext.Products.FindAsync` / `Categories.FindAsync`. When the domain-event dispatcher fires, the aggregate is in the change tracker so `FindAsync` returns instantly without DB I/O. For the Create path, the Category was loaded by the command handler for existence check, so it's also tracked. For any other path it's a single-row fetch on a bounded-size table — acceptable latency.
 - **Test strategy**: unit-only in M3. The milestone text mentions "outbox integration test", but `Catalog.IntegrationTests/Placeholder.cs` explicitly says integration tests land in M4 with the real DbContext. In lieu, outbox publisher unit tests substitute `ITransactionalOutbox<ICatalogDbContext>` via NSubstitute and assert the exact topic/key/Avro payload per call. Transactional roundtrip through a real Postgres Testcontainers fixture moves to M4.
 - **ReparentCategory scope-down**: self-parent guard only, no cycle detection, no descendant cascade. Spec-faithful for M3's boundary; TODOs in place; tests assert only the implemented behaviour.
@@ -86,7 +86,7 @@ $ dotnet build -m (Catalog-scoped csprojs)
   Catalog.Domain -> ...Catalog.Domain.dll
   Catalog.Application -> ...Catalog.Application.dll
   Catalog.Infrastructure -> ...Catalog.Infrastructure.dll (4 NU1903 warnings — pre-existing transitive vulnerability in System.Security.Cryptography.Xml, not introduced by M3)
-  Catalog.API -> ...Catalog.API.dll
+  Catalog.Api -> ...Catalog.Api.dll
   Catalog.UnitTests -> ...Catalog.UnitTests.dll
   0 errors
 

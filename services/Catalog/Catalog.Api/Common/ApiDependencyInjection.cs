@@ -21,7 +21,7 @@ internal static class ApiDependencyInjection
 
         services.AddProblemDetails();
 
-        services.AddIdempotencyKeyOutputCache(configuration, serviceName: "catalog");
+        services.AddIdempotencyKeyOutputCache(configuration, serviceName: "catalog-service");
 
         return services;
     }

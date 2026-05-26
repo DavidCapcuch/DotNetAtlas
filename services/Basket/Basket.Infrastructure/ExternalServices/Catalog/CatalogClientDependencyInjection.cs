@@ -17,7 +17,7 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// configured scope (ADR-0010).
 /// </summary>
 /// <remarks>
-/// Caller MUST have invoked <c>services.AddServiceAuth("basket")</c> and
+/// Caller MUST have invoked <c>services.AddServiceAuth("basket-service")</c> and
 /// <c>services.AddCorrelationId()</c> before calling this extension — those
 /// register the delegating handlers that
 /// <c>IHttpClientBuilder.AddServiceAuth(scope)</c> and

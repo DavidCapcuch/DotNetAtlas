@@ -1,22 +1,32 @@
 using Invoicing.Api.Common.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.Auth;
 
 namespace Invoicing.Api.Common;
 
-/// <summary>
-/// Authentication + authorization wiring for the Invoicing API. JWT-only — Invoicing has
-/// no UI surface, so no Cookie/OIDC schemes are needed (ADR-0010: invoked via HTTP from
-/// the BFF or admin tooling carrying a Keycloak access token).
-/// </summary>
 internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Registers JWT bearer authentication and the <see cref="AuthPolicies.InvoicingAdmin"/>
-    /// policy. Call from the API composition root (<c>Invoicing.Api/Program.cs</c>) before
-    /// <c>UseAuthentication</c> / <c>UseAuthorization</c>.
+    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
+    /// registers the <see cref="AuthPolicies.InvoicingAdmin"/> policy. JWT-only — Invoicing has
+    /// no UI surface (ADR-0010: invoked via HTTP from the BFF or admin tooling carrying a
+    /// Keycloak access token). Invoicing v1 has no outbound HTTP calls to other services (only
+    /// the Azure Blob SDK), so the outbound service-auth host registration
+    /// (<c>AddServiceAuth</c>) is intentionally NOT wired and there is no <c>ServiceAuth</c>
+    /// section in <c>appsettings.json</c>. Inbound <c>ValidAudience</c> is set directly under
+    /// <c>Authentication:JwtBearer:TokenValidationParameters</c>. When Invoicing grows an
+    /// outbound BC client, add a <c>ServiceAuth</c> section + <c>services.AddServiceAuth(...)</c>
+    /// here in one go.
     /// </summary>
+    /// <remarks>
+    /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
+    /// post-configure guard asserts <c>RequireSignedTokens</c> and <c>ValidateIssuerSigningKey</c>
+    /// remain enabled — protects against a misconfigured env-var silently relaxing JWT validation
+    /// in production.
+    /// </remarks>
     public static IServiceCollection AddInvoicingAuthentication(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -25,33 +35,26 @@ internal static class AuthenticationDependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var isDeployedEnvironment = environment.IsDeployedEnvironment();
-
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-            {
-                configuration.Bind(JwtBearerConfigSection, options);
-
-                if (isDeployedEnvironment)
-                {
-                    options.RequireHttpsMetadata = true;
-                }
-            });
-
-        // #223: re-pin security-critical TokenValidationParameters AFTER the
-        // configuration bind above. PostConfigure runs after every Configure
-        // callback (including binders), so a misconfigured appsettings cannot
-        // silently disable signed-token / signing-key / issuer / audience /
-        // lifetime validation.
-        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+        services.AddPlatformJwtBearer(options =>
         {
-            options.TokenValidationParameters.ValidateIssuer = true;
-            options.TokenValidationParameters.ValidateAudience = true;
-            options.TokenValidationParameters.ValidateLifetime = true;
-            options.TokenValidationParameters.ValidateIssuerSigningKey = true;
-            options.TokenValidationParameters.RequireSignedTokens = true;
+            configuration.Bind(JwtBearerConfigSection, options);
         });
+
+        if (environment.IsDeployedEnvironment())
+        {
+            services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+                .PostConfigure(options =>
+                {
+                    if (!options.TokenValidationParameters.RequireSignedTokens
+                        || !options.TokenValidationParameters.ValidateIssuerSigningKey)
+                    {
+                        throw new InvalidOperationException(
+                            "JWT validation must require signed tokens and validate the signing " +
+                            "key in deployed environments. Check 'Authentication:JwtBearer' " +
+                            "configuration overrides.");
+                    }
+                });
+        }
 
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.InvoicingAdmin, policy =>

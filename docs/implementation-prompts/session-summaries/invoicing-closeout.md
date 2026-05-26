@@ -79,7 +79,7 @@ Spot-checked all 18 universal DoD lines against `services/Invoicing` + the M10 v
 - `Invoicing.Domain` references `Platform.SharedKernel` only — no EF Core, no QuestPDF, no Azure.Storage, no MediatR/CQRS.
 - `Invoicing.Application` references `Invoicing.Domain` + `Platform.CQRS` + `Platform.ReliableMessaging.Outbox.EFCore` (abstraction) + `FluentValidation` — no Infrastructure adapters.
 - `Invoicing.Infrastructure` is where adapters live: `AzureBlobStore`, `QuestPdfInvoiceGenerator`, `Postgres{Invoice,CreditNote}NumberAllocator`, EF Core configs, Kafka consumers.
-- `Invoicing.API` references all three + FastEndpoints + `Platform.ServiceDefaults`.
+- `Invoicing.Api` references all three + FastEndpoints + `Platform.ServiceDefaults`.
 
 ### 2.2 Hexagonal / Clean-Arch discipline
 
@@ -173,7 +173,7 @@ Queries follow the same pattern; each has a validator and at least one functiona
 
 ### 5.1 Outbox-only externalization
 
-Greps confirm **no `IProducer<,>` calls in `services/Invoicing/**`** that bypass `Platform.ReliableMessaging.Outbox.EFCore.ITransactionalOutbox`. The three outbox publishers (`InvoiceIssuedOutboxPublisherDomainEventHandler`, `InvoiceCancelledOutboxPublisherDomainEventHandler`, `CreditNoteIssuedOutboxPublisherDomainEventHandler`) are the only Avro emitters, all invoked by the `DispatchDomainEventsInterceptor` BEFORE `SaveChanges` commits. Topic name is centralised via `InvoicingTopicsOptions.Invoices`.
+Greps confirm **no `IProducer<,>` calls in `services/Invoicing/**`** that bypass `Platform.ReliableMessaging.Outbox.EFCore.ITransactionalOutbox`. The three outbox publishers (`InvoiceIssuedOutboxPublisherDomainEventHandler`, `InvoiceCancelledOutboxPublisherDomainEventHandler`, `CreditNoteIssuedOutboxPublisherDomainEventHandler`) are the only Avro emitters, all invoked by the `DispatchDomainEventsInterceptor` BEFORE `SaveChanges` commits. Topic name is centralised via `TopicsOptions.Invoices`.
 
 ### 5.2 Outbox row + aggregate write atomicity
 
@@ -225,7 +225,7 @@ Invoicing consumes 4 external Avro events from Ordering + Payments (`OrderConfir
 
 ### 6.3 Magic strings vs constants
 
-- Topic name: `InvoicingTopicsOptions.Invoices` (options-bound) — ✅
+- Topic name: `TopicsOptions.Invoices` (options-bound) — ✅
 - Service name: `PresentationDependencyInjection.ServiceName = "invoicing-service"` (const) — ✅
 - Connection-string keys: `ConnectionStringsOptions.cs` (typed options) — ✅
 - Error codes: `InvoicingErrorCodes.cs` (constants) — ✅
@@ -280,7 +280,7 @@ Uplynulý čas 00:02:10.95
 
 **Exit code 0**.
 
-> Note: an earlier rebuild attempt in this session reported `Počet chyb: 2` (file-lock `MSB3027` errors on `Catalog.API.dll` and `Platform.SharedKernel.UnitTests.deps.json`) caused by lingering `testhost.exe` processes from this review's parallel test slices. After the test slices completed and the OS released the locks, the build was rerun and produced the clean output above. **The errors were not Invoicing build defects** — they were environmental file-lock collisions in `bin/Debug` directories belonging to other BCs.
+> Note: an earlier rebuild attempt in this session reported `Počet chyb: 2` (file-lock `MSB3027` errors on `Catalog.Api.dll` and `Platform.SharedKernel.UnitTests.deps.json`) caused by lingering `testhost.exe` processes from this review's parallel test slices. After the test slices completed and the OS released the locks, the build was rerun and produced the clean output above. **The errors were not Invoicing build defects** — they were environmental file-lock collisions in `bin/Debug` directories belonging to other BCs.
 
 ### Gate 3 — `dotnet format whitespace --no-restore --verify-no-changes`
 
@@ -414,7 +414,7 @@ None.
 
 #### M2. GET endpoints lack declarative `Policies()` / `AuthSchemes()` — rely on global `UseAuthentication` + manual null-check
 
-- **File**: `services/Invoicing/Invoicing.API/Endpoints/Invoices/GetInvoiceById/GetInvoiceByIdEndpoint.cs:26-45`; same shape in 3 sibling GET endpoints.
+- **File**: `services/Invoicing/Invoicing.Api/Endpoints/Invoices/GetInvoiceById/GetInvoiceByIdEndpoint.cs:26-45`; same shape in 3 sibling GET endpoints.
 - **Evidence**: `Configure()` only specifies `Get(...)`, `Version(1)`, `Group<InvoicesGroup>()`, `Summary(...)`, `Description(...)`. No `Policies(...)` or `AuthSchemes(...)`. Authentication is enforced by the global `app.UseAuthentication()` + the manual `if (!isAdmin && buyerId is null) await Send.UnauthorizedAsync(ct)` at lines 52-56.
 - **Risk**: A future refactor that removes the manual short-circuit, or a misconfigured FastEndpoints default that flips to anonymous, would silently un-gate the endpoint. The IDOR check at the handler level still protects data, but unauthenticated requests would reach the handler.
 - **Recommendation**: Add `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)` to each GET endpoint's `Configure()`. Mirror Ordering's pattern.
@@ -428,7 +428,7 @@ None.
 
 #### M4. `ResendInvoiceEndpoint` xmldoc says 202; code returns 204
 
-- **File**: `services/Invoicing/Invoicing.API/Endpoints/Invoices/ResendInvoice/ResendInvoiceEndpoint.cs:16-23` (xmldoc) vs `:59,79` (config + handler).
+- **File**: `services/Invoicing/Invoicing.Api/Endpoints/Invoices/ResendInvoice/ResendInvoiceEndpoint.cs:16-23` (xmldoc) vs `:59,79` (config + handler).
 - **Evidence**: Endpoint xmldoc: *"a double-clicked admin resend returns the same 202 from the Redis-backed output cache"*. Endpoint config: `b.Produces((int)HttpStatusCode.NoContent)` (204). Handler call: `await Send.NoContentAsync(ct)`. Tests at `ResendInvoiceTests` assert 204. ADR-0013's worked example uses 202.
 - **Recommendation**: Pick one. If 204 is the deliberate BC choice (idempotent admin command with no payload), update the xmldoc + ADR-0013 cross-reference. Otherwise switch to 202.
 
@@ -441,7 +441,7 @@ None.
 
 #### M6. `GetInvoicesByBuyerEndpoint` ignores admin override
 
-- **File**: `services/Invoicing/Invoicing.API/Endpoints/Invoices/GetInvoicesByBuyer/GetInvoicesByBuyerEndpoint.cs`
+- **File**: `services/Invoicing/Invoicing.Api/Endpoints/Invoices/GetInvoicesByBuyer/GetInvoicesByBuyerEndpoint.cs`
 - **Evidence**: The other 3 GET endpoints (`GetInvoiceById`, `GetInvoiceByOrderId`, `GetCreditNoteById`) check `User.IsInvoicingAdmin()` and allow admins to read any record. `GetInvoicesByBuyer` unconditionally scopes to `User.GetBuyerIdOrNull()` and returns 401 if missing. An admin caller (e.g., service-to-service token under ADR-0010 with no `sub`) cannot list invoices at all; with a `sub` they're scoped to their own.
 - **Recommendation**: Either accept a `?buyerId={guid}` query parameter when `User.IsInvoicingAdmin()` is true, or explicitly document this v1 gap on the endpoint xmldoc and the BC chapter.
 
@@ -541,7 +541,7 @@ If pursuing PASS upgrade:
 MEDIUM-priority follow-ups (separate tickets):
 
 6. `AuthDependencyInjection.cs:54-59` — Add scope-based gating or update M10 § ADR application notes to acknowledge role-based v1 + v2 scope deferral. **M1**.
-7. All four `services/Invoicing/Invoicing.API/Endpoints/...GetInvoice*` / `GetCreditNote*` endpoints — add `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)` declarative auth. **M2**.
+7. All four `services/Invoicing/Invoicing.Api/Endpoints/...GetInvoice*` / `GetCreditNote*` endpoints — add `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)` declarative auth. **M2**.
 8. All four Kafka projection consumers — align correlation-id source (header vs payload), add invariant assertion or arch test. **M3**.
 9. `ResendInvoiceEndpoint.cs:16-23` xmldoc — reconcile 202 vs 204. **M4**.
 10. `Invoice.cs:231-284` — add I-4 write-once guard symmetric to `CreditNote.Issue`. **M5**.

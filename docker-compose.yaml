@@ -293,10 +293,6 @@ services:
   #   * Audit        — retention.ms=315360000000 (10y). Regulatory retention
   #                    (invoicing.invoices).
   #   * Health probe — defaults, partitions=1 (healthchecks).
-  # Topics WITHOUT explicit retention.ms (weather.*) fall back to the Kafka
-  # broker default (~7d) and are treated as command-class.
-  # Replication factor is 1 because this is a single-broker dev compose;
-  # production raises to 3 with min.insync.replicas=2.
   kafka-create-topic:
     container_name: kafka-create-topic
     image: confluentinc/cp-kafka:7.5.9
@@ -304,9 +300,6 @@ services:
       - full
     command: >
       bash -c "
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.forecast.requests --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.feedbacks --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic weather.alerts --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
@@ -411,114 +404,6 @@ services:
                 bootstrap.servers: "kafka:9092"
               schema-registry:
                 url: "http://schema-registry:8081"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  # BC-scoped outbox relays — one per BC schema + one for the checkout saga.
-  #   - outbox-relay-weather : drains Weather (existing reference service).
-  #   - outbox-relay-{catalog,basket,ordering,inventory,payments,invoicing} : Wave 1 BCs.
-  #     NOTE: Wave 0 lands these containers but the target databases do NOT exist yet.
-  #     Expect Npgsql connection crash-loops until the Wave 1 BC lands its schema/migration.
-  #     `restart: unless-stopped` recovers automatically once the DB appears.
-  #   - outbox-relay-saga    : drains checkout saga's MassTransit outbox (unchanged).
-  outbox-relay-weather:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-weather
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Weather;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-weather-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=weather
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      # - ASPNETCORE_ENVIRONMENT=Local
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=WeatherOutboxRelay
-    ports:
-      - "8088:8080"  # Health checks endpoint
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-basket:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-basket
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-basket-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=basket
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=BasketOutboxRelay
-    ports:
-      - "8091:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-catalog:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-catalog
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-catalog-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=catalog
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=CatalogOutboxRelay
-    ports:
-      - "8090:8080"
     deploy:
       resources:
         limits:
@@ -677,14 +562,14 @@ services:
   # KafkaFlow consumer service that processes EmailCommands / payment.payment-commands
   # and writes to Postgres. /api/healthz + /api/readiness come from Platform.ServiceDefaults
   # and the readiness check exercises DbContext + Kafka (see HealthChecksDependencyInjection).
-  notifications:
+  notifications.api:
     build:
       context: .
       dockerfile: services/Notifications/Notifications.Api/Dockerfile
       args:
         BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
     healthcheck: *readiness-healthcheck
-    container_name: notifications
+    container_name: notifications.api
     restart: unless-stopped
     profiles:
       - full
@@ -942,211 +827,6 @@ services:
         limits:
           memory: 768M
 
-  outbox-relay-inventory:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-inventory
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-inventory-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=inventory
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=InventoryOutboxRelay
-    ports:
-      - "8093:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-invoicing:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-invoicing
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-invoicing-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=invoicing
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=InvoicingOutboxRelay
-    ports:
-      - "8095:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-ordering:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-ordering
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-ordering-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=ordering
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=OrderingOutboxRelay
-    ports:
-      - "8092:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-payments:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-payments
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-payments-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=payments
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=PaymentsOutboxRelay
-    ports:
-      - "8094:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-saga:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-saga
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Saga;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-saga-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__PollingIntervalMs=2000
-      - OutboxRelay__BatchSize=100
-      - OutboxRelay__SchemaName=saga
-      - OutboxRelay__TableName=OutboxMessages
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=SagaOutboxRelay
-    ports:
-      - "8089:8080"  # Health checks endpoint
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  outbox-relay-notifications:
-    build:
-      context: .
-      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-    container_name: outbox-relay-notifications
-    restart: unless-stopped
-    profiles:
-      - full
-    depends_on:
-      postgresdb:
-        condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD}
-      - KafkaProducer__BootstrapServers=broker:9092
-      - KafkaProducer__ClientId=outbox-relay-notifications-worker
-      - KafkaProducer__LingerMs=5
-      - OutboxRelay__SchemaName=notifications
-      - OutboxRelay__TableName=OutboxMessages
-      - OutboxRelay__PollingIntervalMs=2000
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=NotificationsOutboxRelay
-    ports:
-      - "8096:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
   # Blob storage + CDN per ADR-0017:
   #   - azurite       : Azure Blob emulator (local origin); devstoreaccount1.
   #   - azurite-init  : one-shot that creates the `invoices` container and attempts the
@@ -1296,6 +976,279 @@ services:
       resources:
         limits:
           memory: 1G
+
+  outbox-relay-saga:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-saga
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Saga;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-saga-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__PollingIntervalMs=2000
+      - OutboxRelay__BatchSize=100
+      - OutboxRelay__SchemaName=saga
+      - OutboxRelay__TableName=OutboxMessages
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=SagaOutboxRelay
+    ports:
+      - "8089:8080"  # Health checks endpoint
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-basket:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-basket
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-basket-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=basket
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=BasketOutboxRelay
+    ports:
+      - "8090:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-catalog:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-catalog
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-catalog-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=catalog
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=CatalogOutboxRelay
+    ports:
+      - "8091:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-inventory:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-inventory
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-inventory-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=inventory
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=InventoryOutboxRelay
+    ports:
+      - "8092:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-invoicing:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-invoicing
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-invoicing-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=invoicing
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=InvoicingOutboxRelay
+    ports:
+      - "8093:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-notifications:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-notifications
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-notifications-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=notifications
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=NotificationsOutboxRelay
+    ports:
+      - "8094:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-ordering:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-ordering
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-ordering-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=ordering
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=OrderingOutboxRelay
+    ports:
+      - "8095:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-payments:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-payments
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-payments-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=payments
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=PaymentsOutboxRelay
+    ports:
+      - "8096:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   postgres_data:

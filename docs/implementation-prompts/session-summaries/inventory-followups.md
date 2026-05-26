@@ -40,7 +40,7 @@ After the two HIGH commits the test counts on this branch are:
 **Regression sweep:** the existing happy-path `WhenCommandsScope_AndOnHandPositive_Returns200WithUpdatedSnapshot` test was updated to use `CommandsClientWithIdempotencyKey(Guid.CreateVersion7().ToString())` so it now supplies the now-required header. `WhenAnonymous_Returns401` and `WhenReadOnlyScope_Returns403` were untouched — ASP.NET Core's auth middleware runs before the endpoint handler, so the auth branches were unaffected.
 
 Files touched (only within the in-scope boundary):
-- `services/Inventory/Inventory.API/Endpoints/StockItems/Adjust/AdjustStockEndpoint.cs`
+- `services/Inventory/Inventory.Api/Endpoints/StockItems/Adjust/AdjustStockEndpoint.cs`
 - `test/Inventory.FunctionalTests/ApiEndpoints/StockItems/AdjustStockTests.cs`
 
 ### `5575285` — `feat(inventory): cover ConfirmReservationCommandKafkaHandler failure paths`

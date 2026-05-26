@@ -29,17 +29,17 @@ COPY platform/Platform.ReliableMessaging.Outbox.EFCore/Platform.ReliableMessagin
 COPY platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj platform/Platform.OutboxRelay.WorkerService/
 
 # Restore with cache mounts
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
+RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
 
 # Copy the worker service source files
 COPY . .
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
 
 # Ensure full restore after copying all sources (includes analyzers/source generators)
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
+RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
 
 # Build without restore; cache NuGet packages
-RUN dotnet build Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
+RUN dotnet build Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -m:1 -o /app/build \
     -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM build AS publish
@@ -50,7 +50,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
-RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -m:1 -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final

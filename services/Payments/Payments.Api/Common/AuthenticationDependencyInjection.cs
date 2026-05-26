@@ -1,22 +1,33 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Payments.Api.Common.Authorization;
 using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.Auth;
 
 namespace Payments.Api.Common;
 
-/// <summary>
-/// Authentication + authorization wiring for the Payments API. Mirrors the Ordering
-/// precedent (<c>services/Ordering/Ordering.Api/Common/AuthenticationDependencyInjection.cs</c>)
-/// trimmed to JWT-only — Payments has no UI surface, only admin-tooling callers
-/// carrying a Keycloak access token (ADR-0010).
-/// </summary>
 internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Registers JWT bearer authentication and the <see cref="AuthPolicies.PaymentsAdmin"/>
-    /// policy (admin role + <c>payments.read</c> scope, defense in depth).
+    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
+    /// registers the <see cref="AuthPolicies.PaymentsAdmin"/> policy (admin role +
+    /// <c>payments.read</c> scope, defense in depth). JWT-only — Payments has no UI surface,
+    /// only admin-tooling callers carrying a Keycloak access token (ADR-0010). Payments v1
+    /// has no outbound HTTP calls (<c>IPaymentGateway</c> is bound to an in-memory stub;
+    /// real adapters land in v2), so the outbound service-auth host registration
+    /// (<c>AddServiceAuth</c>) is intentionally NOT wired and there is no <c>ServiceAuth</c>
+    /// section in <c>appsettings.json</c>. Inbound <c>ValidAudience</c> is set directly under
+    /// <c>Authentication:JwtBearer:TokenValidationParameters</c>. When the v2 real adapter
+    /// lands, add a <c>ServiceAuth</c> section + <c>services.AddServiceAuth(...)</c> here
+    /// in one go.
     /// </summary>
+    /// <remarks>
+    /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
+    /// post-configure guard asserts <c>RequireSignedTokens</c> and <c>ValidateIssuerSigningKey</c>
+    /// remain enabled — protects against a misconfigured env-var silently relaxing JWT validation
+    /// in production.
+    /// </remarks>
     public static IServiceCollection AddPaymentsAuthentication(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -25,33 +36,26 @@ internal static class AuthenticationDependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var isDeployedEnvironment = environment.IsDeployedEnvironment();
-
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-            {
-                configuration.Bind(JwtBearerConfigSection, options);
-
-                if (isDeployedEnvironment)
-                {
-                    options.RequireHttpsMetadata = true;
-                }
-            });
-
-        // #223: re-pin security-critical TokenValidationParameters AFTER the
-        // configuration bind above. PostConfigure runs after every Configure
-        // callback (including binders), so a misconfigured appsettings cannot
-        // silently disable signed-token / signing-key / issuer / audience /
-        // lifetime validation.
-        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+        services.AddPlatformJwtBearer(options =>
         {
-            options.TokenValidationParameters.ValidateIssuer = true;
-            options.TokenValidationParameters.ValidateAudience = true;
-            options.TokenValidationParameters.ValidateLifetime = true;
-            options.TokenValidationParameters.ValidateIssuerSigningKey = true;
-            options.TokenValidationParameters.RequireSignedTokens = true;
+            configuration.Bind(JwtBearerConfigSection, options);
         });
+
+        if (environment.IsDeployedEnvironment())
+        {
+            services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+                .PostConfigure(options =>
+                {
+                    if (!options.TokenValidationParameters.RequireSignedTokens
+                        || !options.TokenValidationParameters.ValidateIssuerSigningKey)
+                    {
+                        throw new InvalidOperationException(
+                            "JWT validation must require signed tokens and validate the signing " +
+                            "key in deployed environments. Check 'Authentication:JwtBearer' " +
+                            "configuration overrides.");
+                    }
+                });
+        }
 
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.PaymentsAdmin, policy =>

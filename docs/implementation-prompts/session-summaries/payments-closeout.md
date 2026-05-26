@@ -95,7 +95,7 @@ Total: **30 / 30** non-trivial assertions, all currently green. The tests read e
 
 | Severity | File:line | Description |
 |---|---|---|
-| LOW | `test/Payments.ArchitectureTests/` | **Coverage gap.** No architecture test enforces "outbox is the ONLY path for external Kafka publishes" (no test forbids `KafkaFlow.IProducer<,>` references in `Payments.Application` / `Payments.Infrastructure` outside the consumer middleware wiring), and no test asserts that outbox publishers cite `PaymentsTopicsOptions.Transactions` rather than hard-coded literal strings. Easy to add; would catch a meaningful class of future regression. |
+| LOW | `test/Payments.ArchitectureTests/` | **Coverage gap.** No architecture test enforces "outbox is the ONLY path for external Kafka publishes" (no test forbids `KafkaFlow.IProducer<,>` references in `Payments.Application` / `Payments.Infrastructure` outside the consumer middleware wiring), and no test asserts that outbox publishers cite `TopicsOptions.Transactions` rather than hard-coded literal strings. Easy to add; would catch a meaningful class of future regression. |
 
 ---
 
@@ -203,7 +203,7 @@ Spot-checks across `services/Payments/` and `test/Payments.*/`:
 - **`IDisposable` honoured**: integration-test fixture exposes `Dispose`; scope creation uses `using var scope`.
 - **`[Pii]` attribute** on `PaymentMethodId.cs:13` (ADR-0011 in-process redaction); see Dimension 5 MEDIUM for the response-DTO gap.
 - **No magic strings for connection-string keys**: typed `ConnectionStringsOptions` ([`ConnectionStringsOptions.cs`](../../../services/Payments/Payments.Infrastructure/Common/Config/ConnectionStringsOptions.cs)) + memory record that Basket uses `ConnectionStringNames` constants — Payments follows the typed-options pattern (acceptable variant; both patterns coexist in the codebase).
-- **No magic strings for topic names**: `PaymentsTopicsOptions.Transactions` injected via `IOptions<>` ([`PaymentsTopicsOptions.cs:11-33`](../../../services/Payments/Payments.Application/Common/Messaging/PaymentsTopicsOptions.cs:11)).
+- **No magic strings for topic names**: `TopicsOptions.Transactions` injected via `IOptions<>` ([`TopicsOptions.cs:11-33`](../../../services/Payments/Payments.Application/Common/Messaging/TopicsOptions.cs:11)).
 - **No magic strings for error codes**: `error-taxonomy.md`-aligned `PaymentsErrors.*` factories with stable `errorCode` strings ("Payments.NotFound", "Payments.InvalidAmount", "Payments.InvalidPaymentMethod", "Payments.GatewayUnavailable"); `PaymentsErrorCodes` constants class for the HTTP-side mapping ([`PaymentsErrorCodes.cs`](../../../services/Payments/Payments.Api/Common/Extensions/PaymentsErrorCodes.cs)).
 - **No PII logged**: grep over `services/Payments/**/*.cs` for `LogInformation`/`LogWarning`/`LogError`/`LogDebug` filtered by `PaymentMethodId|GatewayTransactionId` returns 0 hits.
 - **Nullable reference types respected**: explicit `!` operator used in 3 well-documented places in the aggregate ([`PaymentTransaction.cs:343,406,450`](../../../services/Payments/Payments.Domain/Transactions/PaymentTransaction.cs:343)) — each immediately follows a `GuardTransition` / `Throw.If` that proves the value is non-null. Comment at line 341-342 explains the reasoning.
@@ -224,7 +224,7 @@ $ unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy && dotnet restore --locked
 
 ```text
 $ unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy && dotnet build -m --nologo
-  (NOTE: first attempt failed with MSB4018/MSB3026 on Ordering.API.dll + Catalog.API.dll
+  (NOTE: first attempt failed with MSB4018/MSB3026 on Ordering.Api.dll + Catalog.Api.dll
    due to stale testhost.exe processes holding file locks. After PowerShell:
    Get-Process testhost,vstest.console | Stop-Process -Force, the build succeeded.)
   ... 106 upozornění (NU1903 baseline + per-test-project warnings, identical to M9 § 154)
@@ -386,7 +386,7 @@ Ordered by severity; address top-to-bottom.
 ### LOW
 
 17. Fix [`AuthPolicies.cs:21-22`](../../../services/Payments/Payments.Infrastructure/Common/Authorization/AuthPolicies.cs:21) doc-comment route string (`payments/payments/{id}` → `payments/{id}`).
-18. Add architecture tests for "outbox is the only path" (no `KafkaFlow.IProducer<,>` in `Payments.Application`/`Payments.Infrastructure` outside the consumer wiring) and "outbox publishers cite `PaymentsTopicsOptions.Transactions`, not literal strings".
+18. Add architecture tests for "outbox is the only path" (no `KafkaFlow.IProducer<,>` in `Payments.Application`/`Payments.Infrastructure` outside the consumer wiring) and "outbox publishers cite `TopicsOptions.Transactions`, not literal strings".
 19. Fix BC design `payments.md § 5` "internal, 8" → "9" (already lists 9 events).
 20. Resolve `use-cases.md § 5 = Payments` doc inconsistency (the dispatch prompt's `<reading_order>` refers to a section that doesn't exist; the cross-service summary at `use-cases.md:1480` is what the prompt currently lands on).
 

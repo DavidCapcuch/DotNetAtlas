@@ -228,7 +228,7 @@ for the original triage).
 | [#143](https://github.com/DavidCapcuch/DotNetAtlas/issues/143) | LOW | **Fixed** | `21d9b20` (§ 4 invoicing.invoices delta + § 5.7 Invoicing schemas with deferred 4th disclosure) — closed |
 | [#142](https://github.com/DavidCapcuch/DotNetAtlas/issues/142) | MEDIUM | **Fixed** | `bc8ccf8` (§ 6 Invoicing — 7 commands/queries documented) — closed |
 | [#139](https://github.com/DavidCapcuch/DotNetAtlas/issues/139) | LOW | **Deferred — cascade depth** | Transitive pinning surfaced 100+ NU1109 conflicts across EFCore / Npgsql / Serilog / MS.Extensions matrix; reverted to baseline (53 NU1903 warnings unchanged). Defer rationale in issue comment. |
-| [#146](https://github.com/DavidCapcuch/DotNetAtlas/issues/146) | LOW | **Blocked — Dockerfile missing** | Precondition filed as [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) (`services/Invoicing/Invoicing.API/Dockerfile` does not exist; Catalog / Ordering / Notifications all have one). Re-open #146 once #148 lands. |
+| [#146](https://github.com/DavidCapcuch/DotNetAtlas/issues/146) | LOW | **Blocked — Dockerfile missing** | Precondition filed as [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) (`services/Invoicing/Invoicing.Api/Dockerfile` does not exist; Catalog / Ordering / Notifications all have one). Re-open #146 once #148 lands. |
 | [#145](https://github.com/DavidCapcuch/DotNetAtlas/issues/145) | LOW | **Carried forward — appetite not landed** | Stryker.NET against the Invoicing suite is dispositioned defer per M10 line 244 + Invoicing-followups. Unchanged. |
 
 Net outcome: **7 closed**, **2 deferred with explicit rationale comments** (#139, #145), **1 blocked** (#146 by [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) which was filed this session).
@@ -278,7 +278,7 @@ Reverted to baseline (53 NU1903 warnings unchanged). Defer rationale + recommend
 
 #### #146 — invoicing.api compose service
 
-Blocked by `services/Invoicing/Invoicing.API/Dockerfile` not existing (Catalog / Ordering / Notifications all have one). Filed [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) as the precondition. Re-open #146 once #148 lands.
+Blocked by `services/Invoicing/Invoicing.Api/Dockerfile` not existing (Catalog / Ordering / Notifications all have one). Filed [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) as the precondition. Re-open #146 once #148 lands.
 
 #### #145 — Stryker.NET mutation pass
 
@@ -319,7 +319,7 @@ Not touched:
 - The new `OccurredOnUtc_RemainsRequiredOnEverySubtype` reflection sentinel only walks `DomainEvent` subtypes IN the platform-test reference graph (currently only `TestEvent`). The cross-BC guarantee against future `required`-member bumps is the C# compiler (CS9035) + the CLAUDE.md procedural rule ("solution-wide `dotnet build -m` before commit"). Strengthening the test to walk every BC's `*.Domain` assembly would invert layering and was deliberately skipped — the compile-time guarantee is sufficient and the CLAUDE.md rule makes it ENFORCED.
 - The Weather rebase converted 7 factory signatures to take `DateTimeOffset utcNow` parameters. Any future caller that mints a Weather aggregate now must thread time — CS7036 fires at compile time. The new `test/Weather.UnitTests/Common/TestInstants.cs` constant is the standard test-side supply; production handlers inject `TimeProvider` per ADR-0015.
 - The Basket rebase was anticipated in the original closeout follow-up rebase checklist (line 116-119 above) but neither the original session nor the Invoicing-followups session landed it — Basket-affecting cascade is now closed. The closeout-followups checklist L122-129 also mentions Weather (correctly anticipated); the cascade through the `services/Basket/**` tree is now resolved.
-- The `services/Invoicing/Invoicing.API/Dockerfile` follow-up ([#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148)) is a fast unblock — copy the Catalog or Ordering Dockerfile, swap project name, verify locally.
+- The `services/Invoicing/Invoicing.Api/Dockerfile` follow-up ([#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148)) is a fast unblock — copy the Catalog or Ordering Dockerfile, swap project name, verify locally.
 - The #139 cascade is real and needs a single dedicated session — splitting it across multiple PRs will keep reintroducing NU1109 conflicts because the underlying matrix is wide.
 
 ### Commits landed (this session)
@@ -339,7 +339,7 @@ Plus this commit (closeout summary).
 
 ### Issues filed (this session)
 
-- [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) — `cross-cutting(wave1-followup): Invoicing.API Dockerfile missing — blocks #146` (precondition for [#146](https://github.com/DavidCapcuch/DotNetAtlas/issues/146)).
+- [#148](https://github.com/DavidCapcuch/DotNetAtlas/issues/148) — `cross-cutting(wave1-followup): Invoicing.Api Dockerfile missing — blocks #146` (precondition for [#146](https://github.com/DavidCapcuch/DotNetAtlas/issues/146)).
 
 ### What "done" looks like for this fix cycle
 

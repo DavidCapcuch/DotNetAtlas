@@ -32,7 +32,7 @@ Stands up the real `Catalog.Infrastructure` on top of M3's `ICatalogDbContext` p
 - `MessagingDependencyInjection.AddKafkaMessaging(...)` mirrors Ordering 1:1 — DLT producer + one consumer for `Inventory.Stock.StockLevelChanged`. Middleware order outermost-to-innermost: deserializer → correlation-id → DLT → retry → inbox → handler. Inbox registered against `CatalogDbContext`. Outbox configured with `KafkaProducerOrigin = "Catalog"` (paired with `outbox-relay-catalog`'s `OUTBOX_MESSAGE_ORIGIN`).
 - `StockLevelChangedKafkaHandler` — recomputes `IsSellable = (Status == Active && NewAvailable > 0)` on `product_search_view` using `TimeProvider` for `LastUpdatedAtUtc`. Graceful degradation on unknown ProductId (logs Information + returns); short-circuits when IsSellable is unchanged.
 - Kafka config classes (`KafkaOptions`, `SchemaRegistryOptions`, `AvroSerializerOptions`, `StockLevelChangedConsumerOptions`) verbatim from Ordering.
-- `CatalogTopicsOptions` gained two required fields (`StockLevelChanged` topic + `DltTopicSuffix`) — M3 deliberately omitted DLT until the consumer landed.
+- `TopicsOptions` gained two required fields (`StockLevelChanged` topic + `DltTopicSuffix`) — M3 deliberately omitted DLT until the consumer landed.
 - Explicit `services.TryAddSingleton(TimeProvider.System)` so the StockLevelChangedKafkaHandler's TimeProvider dependency stays loadable independently of the inbox-side-effect registration.
 
 ### M4.3 — H1 fix: thread TimeProvider through aggregate mutators (split across `2591329` Domain + `7420de3` test assertions)
@@ -47,7 +47,7 @@ Closes the H1 carry-over from M3 (catalog-m3.md:44): every Catalog aggregate mut
 
 ### M4.4 — Integration test fixture (`790aa44`)
 
-- `IntegrationTestFixture` spins a Postgres Testcontainer per collection, materializes the schema via `EnsureCreatedAsync` (per CLAUDE.md migrations are user-generated), wires the M4 DI graph end-to-end (real `CatalogDbContext` + `AddCatalogApplication()` + `FakeOutboxWriter` to bypass Schema Registry).
+- `IntegrationTestFixture` spins a Postgres Testcontainer per collection, materializes the schema via `EnsureCreatedAsync` (per CLAUDE.md migrations are user-generated), wires the M4 DI graph end-to-end (real `CatalogDbContext` + `AddApplication()` + `FakeOutboxWriter` to bypass Schema Registry).
 - `FakeTimeProvider` pinned to `2026-04-25 12:00 UTC` exposed on the fixture so M4.5 tests assert deterministic OccurredOnUtc / LastUpdatedAtUtc.
 - Mirrors Basket M6's pattern (`BasketCheckoutOutboxDbIntegrationTests`) — direct `ServiceCollection` composition, no `WebApplicationFactory<Program>` (API host wiring is M6).
 - Replaces `Catalog.IntegrationTests/Placeholder.cs`.
@@ -64,7 +64,7 @@ Closes the H1 carry-over from M3 (catalog-m3.md:44): every Catalog aggregate mut
 Out of M4 scope per the BC's `<session_management>` (M5 architecture tests, M6 functional tests + API host, M7 docker-compose smoke):
 
 1. **Architecture tests** — M5. ADR-0015's "no `DateTimeOffset.UtcNow` in `Catalog.Domain`" rule is not yet enforced; H1 fix pinned only at the aggregate-test layer.
-2. **API host wiring** — `Catalog.API/Program.cs` still a minimal scaffold. M6 wires FastEndpoints + `AddCatalogApplication` + `AddDatabase` + `AddKafkaMessaging` + JwtBearer + `Idempotency()` filter on admin POSTs.
+2. **API host wiring** — `Catalog.Api/Program.cs` still a minimal scaffold. M6 wires FastEndpoints + `AddApplication` + `AddDatabase` + `AddKafkaMessaging` + JwtBearer + `Idempotency()` filter on admin POSTs.
 3. **Docker-compose smoke** — `outbox-relay-catalog` will crash-loop until the user generates EF migrations and applies them. M7.
 4. **Reparent path cascade integration test** — the M3.5 `CategoryPathService` ExecuteUpdate path is unit-tested at the handler level (NSubstitute mock); a real Postgres assertion against a 3-level tree is short-form follow-up work before M5.
 5. **Discontinue + OccurredOnUtc deterministic-time integration test** — M4.3 unit tests pin the threading; integration form lands once Schema Registry round-trip is enabled (M7).

@@ -120,7 +120,6 @@
     <File Path="NuGet.config" />
     <File Path="README.md" />
     <File Path="src/keycloak/realm-export.json" />
-    <File Path="Dockerfile" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Weather.Api/Weather.Api.csproj" />

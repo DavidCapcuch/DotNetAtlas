@@ -181,7 +181,7 @@ Passed!  - Failed:     0, Passed:    10, Skipped:     0, Total:    10
 $ unset HTTP_PROXY … && dotnet test saga/SagaOrchestrators.UnitTests/SagaOrchestrators.UnitTests.csproj --no-build --filter "FullyQualifiedName~PaymentProcessing"
 Passed!  - Failed:     0, Passed:    12, Skipped:     0, Total:    12
 
-$ dotnet build -m services/Ordering/Ordering.API/Ordering.API.csproj --no-restore
+$ dotnet build -m services/Ordering/Ordering.Api/Ordering.Api.csproj --no-restore
 Build succeeded.
     0 Warning(s)
     0 Error(s)

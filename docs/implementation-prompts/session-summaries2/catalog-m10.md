@@ -73,7 +73,7 @@ re-documented as carry-forwards.
 ```
 code (production):     1   services/Catalog/Catalog.Infrastructure/Common/HealthChecksDependencyInjection.cs  (+14 / -1)
 code (NEW config):     1   services/Catalog/Catalog.Infrastructure/Common/Config/HealthChecksOptions.cs       NEW (+33)
-appsettings:           1   services/Catalog/Catalog.API/appsettings.json                                       (-1 line: DatabaseTimeout)
+appsettings:           1   services/Catalog/Catalog.Api/appsettings.json                                       (-1 line: DatabaseTimeout)
 Avro schemas:          0
 docker-compose delta:  0
 tooling (NEW):         2   .config/dotnet-tools.json + test/Catalog.UnitTests/stryker-config.json              NEW
@@ -115,7 +115,7 @@ threshold for the mandatory pre-commit Opus reviewer per `_shared.md § 11` step
    [PersistenceDependencyInjection.cs:25-31](../../../services/Catalog/Catalog.Infrastructure/Common/PersistenceDependencyInjection.cs)
    for `EfCoreOptions` + `ConnectionStringsOptions`, and
    [MessagingDependencyInjection.cs:46-56](../../../services/Catalog/Catalog.Infrastructure/Common/MessagingDependencyInjection.cs)
-   for `KafkaOptions` + `CatalogTopicsOptions` + `StockLevelChangedConsumerOptions`).
+   for `KafkaOptions` + `TopicsOptions` + `StockLevelChangedConsumerOptions`).
    Catalog now has 6 fail-fast-bound options POCOs; the pattern is uniform.
 
 4. **No `Microsoft.Extensions.Options` using directive needed.** I added it briefly,
@@ -137,7 +137,7 @@ $ dotnet test test/Catalog.ArchitectureTests/ --no-build --no-restore
 ```
 
 255 + 41 baseline match. `AddOptionsWithValidateOnStart<HealthChecksOptions>()` is exercised
-indirectly via the Catalog.API host bootstrap; no Catalog unit test directly hosts the API,
+indirectly via the Catalog.Api host bootstrap; no Catalog unit test directly hosts the API,
 so the binding is verified at integration / functional level (re-run below) and at
 `dotnet stryker`'s initial build pass (which also bootstraps the API host).
 
@@ -347,7 +347,7 @@ point.
 ```
 .gitignore                                                                            +3 / -0 lines
 .config/dotnet-tools.json                                                             NEW
-services/Catalog/Catalog.API/appsettings.json                                         +0 / -1 lines
+services/Catalog/Catalog.Api/appsettings.json                                         +0 / -1 lines
 services/Catalog/Catalog.Infrastructure/Common/Config/HealthChecksOptions.cs          NEW (+33)
 services/Catalog/Catalog.Infrastructure/Common/HealthChecksDependencyInjection.cs    +14 / -1 lines
 test/Catalog.UnitTests/stryker-config.json                                            NEW
@@ -469,7 +469,7 @@ Catalog or deferred until contract / platform decisions are taken)
   — platform / chiseled-base-image follow-up.
 - **CLAUDE.md proxy-workaround documentation drift** ([catalog-m9.md:264-272](catalog-m9.md))
   — single-machine observation; needs cross-machine reproduction.
-- **`AddCatalogApplication` configuration-binding ergonomics** ([catalog-m9.md:273-281](catalog-m9.md))
+- **`AddApplication` configuration-binding ergonomics** ([catalog-m9.md:273-281](catalog-m9.md))
   — platform-level decision (a, b, or c).
 - **Sister-BC integration-fixture parity audit** ([catalog-m9.md:282-285](catalog-m9.md))
   — cross-BC sweep.
@@ -492,7 +492,7 @@ Per [catalog.md `<boundaries>`:120-122](../catalog.md):
 **In-scope:**
 - ✓ `services/Catalog/Catalog.Infrastructure/Common/Config/HealthChecksOptions.cs` (NEW).
 - ✓ `services/Catalog/Catalog.Infrastructure/Common/HealthChecksDependencyInjection.cs` (EDIT).
-- ✓ `services/Catalog/Catalog.API/appsettings.json` (EDIT — drop one key).
+- ✓ `services/Catalog/Catalog.Api/appsettings.json` (EDIT — drop one key).
 - ✓ `test/Catalog.UnitTests/stryker-config.json` (NEW).
 - ✓ `docs/implementation-prompts/session-summaries/catalog-m10.md` (NEW; this file).
 
