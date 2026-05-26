@@ -4,12 +4,18 @@ using Invoicing.API.Endpoints.Invoices.GetInvoiceByOrderId;
 using Invoicing.Application.Invoices.GetInvoiceById;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Invoicing.FunctionalTests.ApiEndpoints.Invoices;
 
 [Collection<FunctionalTestCollection>]
 public class GetInvoiceByOrderIdTests : BaseApiTest
 {
+    // ADR-0015: per-test-class pin so seeded IssueDate / invoice-number year stay
+    // deterministic.
+    private static readonly DateTimeOffset PinnedNow =
+        new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
+
     public GetInvoiceByOrderIdTests(ApiTestFixture app)
         : base(app)
     {
@@ -28,7 +34,7 @@ public class GetInvoiceByOrderIdTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerLooksUpOwnInvoiceByOrderId_ReturnsOk()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var orderId = Guid.CreateVersion7();
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId, orderId);
 
@@ -48,7 +54,7 @@ public class GetInvoiceByOrderIdTests : BaseApiTest
     [Fact]
     public async Task WhenOtherBuyerLooksUpAnothersInvoiceByOrderId_ReturnsNotFound()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var orderId = Guid.CreateVersion7();
         await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId, orderId);
 

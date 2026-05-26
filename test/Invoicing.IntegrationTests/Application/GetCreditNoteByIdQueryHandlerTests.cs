@@ -25,7 +25,9 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
     public async Task Handle_returns_issued_credit_note_with_lines_and_freshly_minted_SAS_URL()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (creditNoteId, buyerId) = await _fixture.SeedIssuedCreditNoteAsync(ct);
+        // ADR-0015: snapshot wall-clock before the act for the BeCloseTo assertion below.
+        var nowSnapshot = DateTimeOffset.UtcNow;
+        var (creditNoteId, buyerId) = await _fixture.SeedIssuedCreditNoteAsync(TimeProvider.System, ct);
 
         var result = await InvokeHandlerAsync(creditNoteId, buyerId, isAdmin: false, ct);
 
@@ -34,8 +36,8 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
         dto.CreditNoteId.Should().Be(creditNoteId);
         dto.BuyerId.Should().Be(buyerId);
         dto.Status.Should().Be("Issued");
-        dto.CreditNoteNumber.Should().MatchRegex(@"^CN-2026-\d{6}$");
-        dto.OriginalInvoiceNumber.Should().MatchRegex(@"^INV-2026-\d{6}$");
+        dto.CreditNoteNumber.Should().MatchRegex($@"^CN-{nowSnapshot.Year}-\d{{6}}$");
+        dto.OriginalInvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
         dto.Reason.Should().NotBeNullOrEmpty();
         dto.Currency.Should().Be("EUR");
         // I-CN-2: credit-note totals are negative.
@@ -45,14 +47,14 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
         dto.PdfPresignedUrl.Should().NotBeNull();
         dto.PdfPresignedUrl!.ToString().Should().Contain(dto.CreditNoteNumber);
         dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .Be(IntegrationTestFixture.FixedFakeNow.Add(TimeSpan.FromMinutes(10)));
+            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_credit_note()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (creditNoteId, _) = await _fixture.SeedIssuedCreditNoteAsync(ct);
+        var (creditNoteId, _) = await _fixture.SeedIssuedCreditNoteAsync(TimeProvider.System, ct);
         var intruder = Guid.CreateVersion7();
 
         var result = await InvokeHandlerAsync(creditNoteId, intruder, isAdmin: false, ct);
@@ -65,7 +67,7 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
     public async Task Handle_returns_credit_note_for_admin_regardless_of_buyer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (creditNoteId, owner) = await _fixture.SeedIssuedCreditNoteAsync(ct);
+        var (creditNoteId, owner) = await _fixture.SeedIssuedCreditNoteAsync(TimeProvider.System, ct);
         var admin = Guid.CreateVersion7();
 
         var result = await InvokeHandlerAsync(creditNoteId, admin, isAdmin: true, ct);

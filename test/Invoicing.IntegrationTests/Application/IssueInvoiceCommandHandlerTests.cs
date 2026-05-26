@@ -50,6 +50,11 @@ public sealed class IssueInvoiceCommandHandlerTests
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
 
+        // ADR-0015: Generic Host registers TimeProvider.System; snapshot wall-clock before
+        // the act so the BeCloseTo IssueDate assertion + dynamic-year allocator query +
+        // invoice-number regex all line up with what the handler actually observed.
+        var nowSnapshot = DateTimeOffset.UtcNow;
+
         await SeedConvergedPendingInvoiceAsync(
             correlationId, orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
 
@@ -76,7 +81,7 @@ public sealed class IssueInvoiceCommandHandlerTests
 
         invoice.Status.Should().Be(InvoiceStatus.Issued);
         invoice.InvoiceNumber.Should().NotBeNull();
-        invoice.InvoiceNumber!.Value.Should().MatchRegex(@"^INV-2026-\d{6}$");
+        invoice.InvoiceNumber!.Value.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
         invoice.OrderId.Should().Be(orderId);
         invoice.PaymentId.Should().Be(paymentId);
         invoice.BuyerId.Should().Be(buyerId);
@@ -86,16 +91,16 @@ public sealed class IssueInvoiceCommandHandlerTests
         invoice.Lines.Should().HaveCount(1);
         invoice.PdfBlobRef.Should().NotBeNull();
         invoice.PdfBlobRef!.BlobName.Should().MatchRegex(@"^\d{4}/\d{2}/INV-\d{4}-\d{6}\.pdf$");
-        invoice.IssueDate.Should().Be(IntegrationTestFixture.FixedFakeNow);
+        invoice.IssueDate.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
 
         // Projection row updated with the issued invoice id.
         var pending = await db.PendingInvoices.AsNoTracking()
             .SingleAsync(r => r.CorrelationId == correlationId, ct);
         pending.IssuedInvoiceId.Should().Be(invoiceId);
 
-        // Allocator advanced by exactly one for fiscal year 2026.
+        // Allocator advanced by exactly one for the current fiscal year.
         var allocator = await db.InvoiceNumberAllocators.AsNoTracking()
-            .SingleAsync(a => a.Year == 2026, ct);
+            .SingleAsync(a => a.Year == nowSnapshot.Year, ct);
         allocator.NextValue.Should().Be(invoice.InvoiceNumber.Sequence + 1);
 
         // Outbox substitute received exactly one InvoiceIssuedEvent keyed by BuyerId.
@@ -140,6 +145,9 @@ public sealed class IssueInvoiceCommandHandlerTests
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
+        // ADR-0015: the handler reads TimeProvider.System; the allocator row is keyed by
+        // the wall-clock year. Capture once so both branches of the test query the same row.
+        var fiscalYear = DateTimeOffset.UtcNow.Year;
 
         await SeedConvergedPendingInvoiceAsync(
             correlationId, orderId, paymentId, buyerId, totalAmount: 99.00m, currency: "EUR", ct);
@@ -160,7 +168,7 @@ public sealed class IssueInvoiceCommandHandlerTests
         {
             var db = preScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             allocatorBeforeReplay = (await db.InvoiceNumberAllocators.AsNoTracking()
-                .SingleAsync(a => a.Year == 2026, ct)).NextValue;
+                .SingleAsync(a => a.Year == fiscalYear, ct)).NextValue;
             invoiceIdBefore = (await db.PendingInvoices.AsNoTracking()
                 .SingleAsync(r => r.CorrelationId == correlationId, ct)).IssuedInvoiceId!.Value;
         }
@@ -190,7 +198,7 @@ public sealed class IssueInvoiceCommandHandlerTests
             invoiceCount.Should().Be(1, "no duplicate invoice on replay");
 
             var allocatorAfter = (await db.InvoiceNumberAllocators.AsNoTracking()
-                .SingleAsync(a => a.Year == 2026, ct)).NextValue;
+                .SingleAsync(a => a.Year == fiscalYear, ct)).NextValue;
             allocatorAfter.Should().Be(allocatorBeforeReplay, "allocator never advances on replay");
         }
 

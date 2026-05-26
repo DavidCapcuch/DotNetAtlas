@@ -43,6 +43,9 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
+        // ADR-0015: snapshot wall-clock before the act so the BeCloseTo IssueDate
+        // assertion + dynamic-year regex line up with what the handler observed.
+        var nowSnapshot = DateTimeOffset.UtcNow;
         // Single saga correlation id threads through Order → Invoice → cancellation → CreditNote.
         // OrderCancelledEvent / PaymentRefundedEvent reuse the original Checkout saga correlation
         // per events-catalog § 5.3, so Invoice.CorrelationId equals the cancellation flow's
@@ -85,12 +88,12 @@ public sealed class IssueCreditNoteCommandHandlerTests
             .SingleAsync(cn => cn.Id == creditNoteId, ct);
         creditNote.Status.Should().Be(CreditNoteStatus.Issued);
         creditNote.CreditNoteNumber.Should().NotBeNull();
-        creditNote.CreditNoteNumber!.Value.Should().MatchRegex(@"^CN-2026-\d{6}$");
+        creditNote.CreditNoteNumber!.Value.Should().MatchRegex($@"^CN-{nowSnapshot.Year}-\d{{6}}$");
         creditNote.OriginalInvoiceId.Should().Be(invoiceId);
         creditNote.Total.Amount.Should().Be(-Total, "credit note totals are negative (I-CN-2)");
         creditNote.Total.Currency.Name.Should().Be(Currency);
         creditNote.PdfBlobRef.Should().NotBeNull();
-        creditNote.IssueDate.Should().Be(IntegrationTestFixture.FixedFakeNow);
+        creditNote.IssueDate.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
         creditNote.Lines.Should().NotBeEmpty();
 
         // Original invoice transitioned to Cancelled with the cancellation info.

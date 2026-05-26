@@ -29,7 +29,10 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
     public async Task Handle_returns_issued_invoice_keyed_by_OrderId_with_SAS_URL()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        // ADR-0015: snapshot wall-clock before the act so the BeCloseTo assertion can
+        // tolerate the milliseconds between the handler's GetUtcNow() and ours.
+        var nowSnapshot = DateTimeOffset.UtcNow;
+        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
         var orderId = await GetOrderIdAsync(invoiceId, ct);
 
         var result = await InvokeHandlerAsync(orderId, buyerId, isAdmin: false, ct);
@@ -40,19 +43,19 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
         dto.OrderId.Should().Be(orderId);
         dto.BuyerId.Should().Be(buyerId);
         dto.Status.Should().Be("Issued");
-        dto.InvoiceNumber.Should().MatchRegex(@"^INV-2026-\d{6}$");
+        dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
         dto.Lines.Should().NotBeEmpty();
         dto.PdfPresignedUrl.Should().NotBeNull();
         dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
         dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .Be(IntegrationTestFixture.FixedFakeNow.Add(TimeSpan.FromMinutes(10)));
+            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_invoice()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, _) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, _) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
         var orderId = await GetOrderIdAsync(invoiceId, ct);
         var intruder = Guid.CreateVersion7();
 
@@ -67,7 +70,7 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
     public async Task Handle_returns_invoice_for_admin_regardless_of_buyer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, owner) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, owner) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
         var orderId = await GetOrderIdAsync(invoiceId, ct);
         var admin = Guid.CreateVersion7();
 

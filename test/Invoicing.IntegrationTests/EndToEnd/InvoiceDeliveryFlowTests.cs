@@ -37,7 +37,7 @@ public sealed class InvoiceDeliveryFlowTests
         var buyerId = Guid.CreateVersion7();
 
         await _fixture.SeedConvergedPendingInvoiceAsync(
-            correlationId, orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
+            TimeProvider.System, correlationId, orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
 
         // 1) IssueInvoice
         Guid invoiceId;

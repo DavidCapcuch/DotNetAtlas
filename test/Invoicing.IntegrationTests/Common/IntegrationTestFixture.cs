@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -48,7 +47,13 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>
 {
-    /// <summary>Pinned to 2026-04-24 09:00 UTC so M7 assertions on issue dates / invoice-number year are deterministic.</summary>
+    /// <summary>
+    /// Fixed "now" used by the projection-payload JSON the seed helpers persist (the
+    /// shape mirrors what the M6 producer-side handlers write — <c>ConfirmedAtUtc</c>,
+    /// <c>CapturedAtUtc</c>, etc.). This is a date constant, NOT an injected clock: per
+    /// ADR-0015 line 104 the Generic Host registers <see cref="TimeProvider.System"/>;
+    /// tests construct <see cref="FakeTimeProvider"/> locally where determinism matters.
+    /// </summary>
     public static readonly DateTimeOffset FixedFakeNow =
         new(2026, 04, 24, 09, 00, 00, TimeSpan.Zero);
 
@@ -59,9 +64,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             SchemasToInclude = [InvoicingDbContext.DefaultSchemaName]
         });
-
-    /// <summary>Test-controlled clock pinned to <see cref="FixedFakeNow"/>; resolvable as <see cref="TimeProvider"/>.</summary>
-    public FakeTimeProvider FakeTime { get; } = new(FixedFakeNow);
 
     /// <summary>The shared NSubstitute outbox stub. Tests assert on its received calls.</summary>
     public ITransactionalOutbox<IInvoicingDbContext> OutboxSubstitute { get; } =
@@ -118,9 +120,6 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin time so issue-date / SAS-expiry assertions are stable.
-                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(FakeTime));
-
                 // Replace the real Azurite-backed adapter with the NSubstitute stub. The
                 // real adapter is exercised by the M3 integration tests in AzuriteFixture.
                 services.RemoveAll<IBlobStore>();
@@ -155,7 +154,14 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// and running the real <c>IssueInvoiceCommandHandler</c>.
     /// Returns <c>(invoiceId, buyerId)</c> suitable for handler-under-test scenarios.
     /// </summary>
-    public async Task<(Guid InvoiceId, Guid BuyerId)> SeedIssuedInvoiceAsync(CancellationToken ct)
+    /// <param name="clock">
+    /// Clock the seed metadata is stamped with — pass <see cref="TimeProvider.System"/>
+    /// when determinism doesn't matter, or a local <c>FakeTimeProvider</c> when the test
+    /// pins time. The Generic Host registers <see cref="TimeProvider.System"/>, so the
+    /// underlying <c>IssueInvoiceCommandHandler</c> always sees wall-clock; this parameter
+    /// only affects the projection row's <c>FirstSeenAtUtc</c> / <c>CompletedAtUtc</c>.
+    /// </param>
+    public async Task<(Guid InvoiceId, Guid BuyerId)> SeedIssuedInvoiceAsync(TimeProvider clock, CancellationToken ct)
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -164,7 +170,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         const decimal totalAmount = 100.00m;
         const string currency = "EUR";
 
-        await SeedConvergedPendingInvoiceAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        await SeedConvergedPendingInvoiceAsync(clock, correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
 
         await using var scope = Services.CreateAsyncScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
@@ -186,9 +192,9 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// directly against the real Postgres container. Resets the outbox call-recorder
     /// before returning so test assertions start from a clean baseline.
     /// </summary>
-    public async Task<(Guid InvoiceId, Guid BuyerId)> SeedDeliveredInvoiceAsync(CancellationToken ct)
+    public async Task<(Guid InvoiceId, Guid BuyerId)> SeedDeliveredInvoiceAsync(TimeProvider clock, CancellationToken ct)
     {
-        var (invoiceId, buyerId) = await SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, buyerId) = await SeedIssuedInvoiceAsync(clock, ct);
 
         await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
@@ -224,7 +230,7 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// the real <c>IssueCreditNoteCommandHandler</c>. Returns <c>(CreditNoteId, BuyerId)</c>.
     /// Resets the outbox call recorder so the caller starts with a clean baseline.
     /// </summary>
-    public async Task<(Guid CreditNoteId, Guid BuyerId)> SeedIssuedCreditNoteAsync(CancellationToken ct)
+    public async Task<(Guid CreditNoteId, Guid BuyerId)> SeedIssuedCreditNoteAsync(TimeProvider clock, CancellationToken ct)
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -237,10 +243,10 @@ public class IntegrationTestFixture : AppFixture<Program>
         // scope (matching SeedDeliveredInvoiceAsync's pattern) so the invoice handler's
         // SaveChanges-time domain-event dispatcher completes before the credit-note scope
         // opens its own DbContext / outbox publisher chain.
-        await SeedConvergedPendingInvoiceAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        await SeedConvergedPendingInvoiceAsync(clock, correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
         await IssueInvoiceForCreditNoteSeedAsync(correlationId, ct);
 
-        await SeedConvergedPendingCreditNoteAsync(correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        await SeedConvergedPendingCreditNoteAsync(clock, correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
         var creditNoteId = await IssueCreditNoteForSeedAsync(correlationId, ct);
 
         ResetOutboxSubstitute();
@@ -283,6 +289,7 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <c>IssueCreditNoteCommandHandler</c>.
     /// </summary>
     private async Task SeedConvergedPendingCreditNoteAsync(
+        TimeProvider clock,
         Guid correlationId,
         Guid orderId,
         Guid paymentId,
@@ -293,6 +300,7 @@ public class IntegrationTestFixture : AppFixture<Program>
     {
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
+        var stampUtc = clock.GetUtcNow();
 
         var orderPayload = JsonSerializer.Serialize(new
         {
@@ -301,7 +309,7 @@ public class IntegrationTestFixture : AppFixture<Program>
             BuyerId = buyerId,
             Reason = "BuyerCancelled",
             AtStatus = "Confirmed",
-            CancelledAtUtc = FixedFakeNow.UtcDateTime,
+            CancelledAtUtc = stampUtc.UtcDateTime,
             Items = new[]
             {
                 new
@@ -335,7 +343,7 @@ public class IntegrationTestFixture : AppFixture<Program>
             RefundTransactionId = Guid.CreateVersion7(),
             RefundedAmount = refundedAmount,
             Currency = currency,
-            RefundedAtUtc = FixedFakeNow.UtcDateTime,
+            RefundedAtUtc = stampUtc.UtcDateTime,
         });
 
         db.PendingCreditNotes.Add(new PendingCreditNote
@@ -346,8 +354,8 @@ public class IntegrationTestFixture : AppFixture<Program>
             BuyerId = buyerId,
             OrderPayload = orderPayload,
             PaymentPayload = paymentPayload,
-            FirstSeenAtUtc = FixedFakeNow,
-            CompletedAtUtc = FixedFakeNow,
+            FirstSeenAtUtc = stampUtc,
+            CompletedAtUtc = stampUtc,
             IssuedCreditNoteId = null,
         });
 
@@ -359,6 +367,7 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// (Order + Payment) state — the precondition for running <c>IssueInvoiceCommandHandler</c>.
     /// </summary>
     public async Task SeedConvergedPendingInvoiceAsync(
+        TimeProvider clock,
         Guid correlationId,
         Guid orderId,
         Guid paymentId,
@@ -369,13 +378,14 @@ public class IntegrationTestFixture : AppFixture<Program>
     {
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
+        var stampUtc = clock.GetUtcNow();
 
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,
             CorrelationId = correlationId,
             BuyerId = buyerId,
-            ConfirmedAtUtc = FixedFakeNow.UtcDateTime,
+            ConfirmedAtUtc = stampUtc.UtcDateTime,
             Items = new[]
             {
                 new
@@ -409,7 +419,7 @@ public class IntegrationTestFixture : AppFixture<Program>
             AuthorizationId = "auth-seed",
             Amount = totalAmount,
             Currency = currency,
-            CapturedAtUtc = FixedFakeNow.UtcDateTime,
+            CapturedAtUtc = stampUtc.UtcDateTime,
         });
 
         db.PendingInvoices.Add(new PendingInvoice
@@ -420,8 +430,8 @@ public class IntegrationTestFixture : AppFixture<Program>
             BuyerId = buyerId,
             OrderPayload = orderPayload,
             PaymentPayload = paymentPayload,
-            FirstSeenAtUtc = FixedFakeNow,
-            CompletedAtUtc = FixedFakeNow,
+            FirstSeenAtUtc = stampUtc,
+            CompletedAtUtc = stampUtc,
             IssuedInvoiceId = null,
         });
 

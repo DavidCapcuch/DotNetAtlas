@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using OpenTelemetry;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -52,13 +51,6 @@ public class ApiTestFixture : AppFixture<Program>
     private readonly RedisTestContainer _redisContainer = new();
 
     private readonly FakeTokenSigner _signer = new(audience: "invoicing-service-tests");
-
-    /// <summary>
-    /// Pinned to 2026-04-23 10:00 UTC so issue-date / SAS-expiry assertions stay
-    /// deterministic.
-    /// </summary>
-    public FakeTimeProvider FakeTime { get; } = new(
-        new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero));
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
@@ -119,9 +111,6 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin time so SAS-expiry / IssueDate assertions are stable.
-                services.AddSingleton<TimeProvider>(FakeTime);
-
                 // Replace the real Azurite-backed adapter with the NSubstitute fake so
                 // GET endpoints can exercise SAS-URL minting without standing up
                 // Azurite. The real roundtrip is M3's territory.
