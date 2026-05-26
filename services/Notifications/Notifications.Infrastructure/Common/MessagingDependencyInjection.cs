@@ -49,8 +49,8 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<KafkaConsumerOptions>()
-            .BindConfiguration(KafkaConsumerOptions.Section)
+        services.AddOptionsWithValidateOnStart<EmailCommandsConsumerOptions>()
+            .BindConfiguration(EmailCommandsConsumerOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
@@ -58,8 +58,8 @@ internal static class MessagingDependencyInjection
             .Get<KafkaOptions>()!;
 
         var consumerOptions = configuration
-            .GetRequiredSection(KafkaConsumerOptions.Section)
-            .Get<KafkaConsumerOptions>()!;
+            .GetRequiredSection(EmailCommandsConsumerOptions.Section)
+            .Get<EmailCommandsConsumerOptions>()!;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)

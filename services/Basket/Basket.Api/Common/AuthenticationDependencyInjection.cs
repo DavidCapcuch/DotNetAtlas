@@ -39,6 +39,11 @@ internal static class AuthenticationDependencyInjection
                 .PostConfigure(AssertDeployedJwtBearerOptions);
         }
 
+        // Basket uses default JWT-bearer authorization only — every authenticated user operates
+        // on their own basket (userId is taken from the sub claim in each endpoint). There are no
+        // admin operations, scopes, or roles to enforce, so no custom policies are registered.
+        // Contrast: Catalog/Inventory use scope-based policies; Invoicing/Ordering/Payments add
+        // role-based admin gates. See Common/Authorization/ in those BCs.
         services.AddAuthorization();
         services.AddHttpContextAccessor();
 
