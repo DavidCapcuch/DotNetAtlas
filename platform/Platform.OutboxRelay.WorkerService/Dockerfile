@@ -14,32 +14,47 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
-# Copy NuGet config and project files to leverage Docker layer cache.
-# CPM files are tier-isolated per CLAUDE.md: root + platform/ + services/ + saga/ + test/.
-# The platform-tier Directory.Packages.props must be copied so the restore at L30 below
-# can resolve PackageReference items on Platform.ReliableMessaging.Outbox.{Core,EFCore}
-# (e.g. OpenTelemetry.Api, Confluent.Kafka, Apache.Avro) that are pinned ONLY at platform tier.
+# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: root + platform/).
+# OutboxRelay is platform-only — no services-tier dependencies, so services/Directory.Packages.props
+# is intentionally NOT copied. The platform-tier Directory.Packages.props supplies every
+# PackageReference pinned at that tier (OpenTelemetry.*, Confluent.Kafka, Apache.Avro, etc.).
 COPY NuGet.config .
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
+
+# Copy every Platform.* csproj transitively referenced by Platform.OutboxRelay.WorkerService.
+# Listing each file individually keeps the Docker layer cache valid when unrelated platform libs change.
+COPY platform/Platform.SharedKernel/Platform.SharedKernel.csproj platform/Platform.SharedKernel/
+COPY platform/Platform.Messaging.Abstractions/Platform.Messaging.Abstractions.csproj platform/Platform.Messaging.Abstractions/
+COPY platform/Platform.Avro.UniversalSerDes/Platform.Avro.UniversalSerDes.csproj platform/Platform.Avro.UniversalSerDes/
 COPY platform/Platform.ReliableMessaging.Outbox.Core/Platform.ReliableMessaging.Outbox.Core.csproj platform/Platform.ReliableMessaging.Outbox.Core/
 COPY platform/Platform.ReliableMessaging.Outbox.EFCore/Platform.ReliableMessaging.Outbox.EFCore.csproj platform/Platform.ReliableMessaging.Outbox.EFCore/
+COPY platform/Platform.ServiceDefaults/Platform.ServiceDefaults.csproj platform/Platform.ServiceDefaults/
 COPY platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj platform/Platform.OutboxRelay.WorkerService/
 
-# Restore with cache mounts
-RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
+# Lock files must travel with the csproj graph for --locked-mode restore.
+COPY platform/Platform.SharedKernel/packages.lock.json platform/Platform.SharedKernel/
+COPY platform/Platform.Messaging.Abstractions/packages.lock.json platform/Platform.Messaging.Abstractions/
+COPY platform/Platform.Avro.UniversalSerDes/packages.lock.json platform/Platform.Avro.UniversalSerDes/
+COPY platform/Platform.ReliableMessaging.Outbox.Core/packages.lock.json platform/Platform.ReliableMessaging.Outbox.Core/
+COPY platform/Platform.ReliableMessaging.Outbox.EFCore/packages.lock.json platform/Platform.ReliableMessaging.Outbox.EFCore/
+COPY platform/Platform.ServiceDefaults/packages.lock.json platform/Platform.ServiceDefaults/
+COPY platform/Platform.OutboxRelay.WorkerService/packages.lock.json platform/Platform.OutboxRelay.WorkerService/
+
+# Restore the WorkerService entry-point csproj — pulls every transitive ProjectReference + PackageReference.
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
 
 # Copy the worker service source files
 COPY . .
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
 
 # Ensure full restore after copying all sources (includes analyzers/source generators)
-RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
 
 # Build without restore; cache NuGet packages
-RUN dotnet build Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -m:1 -o /app/build \
+RUN dotnet build Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
     -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM build AS publish
@@ -50,7 +65,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
-RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -m:1 -o /app/publish \
+RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
