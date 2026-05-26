@@ -5,12 +5,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
-using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -111,15 +108,6 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // tests; integration tests only need to verify "the right outbox
                 // row landed".
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
-
-                // Inventory.API's production host only wires OpenTelemetry when
-                // OTEL_EXPORTER_OTLP_ENDPOINT is set in configuration — which it
-                // isn't here. Register a minimal TracerProvider with the test
-                // ActivitySource so BaseIntegrationTest's TestCaseTracer can
-                // resolve TracerProvider and emit a per-test trace.
-                services.AddSingleton<TracerProvider>(_ => Sdk.CreateTracerProviderBuilder()
-                    .AddSource(TestActivitySource.ActivitySourceName)
-                    .Build());
             });
     }
 

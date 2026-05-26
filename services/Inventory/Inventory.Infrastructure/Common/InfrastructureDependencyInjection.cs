@@ -28,6 +28,7 @@ public static class InfrastructureDependencyInjection
         bool isDeployedEnvironment)
     {
         services
+            .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
             .AddMessaging(configuration)
             .AddInventoryHealthChecks(configuration);

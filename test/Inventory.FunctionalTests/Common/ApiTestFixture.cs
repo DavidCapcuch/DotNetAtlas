@@ -7,13 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Redis;
-using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -139,15 +137,6 @@ public class ApiTestFixture : AppFixture<Program>
                 // every TokenValidationParameters flag at its production default
                 // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
                 services.ConfigureJwtBearerForTests(_signer);
-
-                // Inventory.API's production host only wires OpenTelemetry when
-                // OTEL_EXPORTER_OTLP_ENDPOINT is set in configuration — which it
-                // isn't here. Register a minimal TracerProvider with the test
-                // ActivitySource so BaseApiTest's TestCaseTracer can resolve
-                // TracerProvider and emit a per-test trace.
-                services.AddSingleton<TracerProvider>(_ => Sdk.CreateTracerProviderBuilder()
-                    .AddSource(TestActivitySource.ActivitySourceName)
-                    .Build());
             });
     }
 
