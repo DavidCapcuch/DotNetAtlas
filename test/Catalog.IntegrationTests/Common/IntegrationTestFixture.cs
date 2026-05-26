@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
@@ -30,17 +29,15 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// omits the <c>kafkaBus.StartAsync()</c> call so no consumer poll loop runs in tests).
 /// Schema comes from the same idempotent V*.sql scripts Flyway runs in compose (#269).
 /// Replaces the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/>
-/// so command-handler outbox assertions don't require a Schema Registry round-trip; pins
-/// <see cref="TimeProvider"/> to <see cref="Now"/> so <c>OccurredOnUtc</c> +
-/// <c>LastUpdatedAtUtc</c> assertions stay deterministic across CI runs.
+/// so command-handler outbox assertions don't require a Schema Registry round-trip.
+/// Per ADR-0015, <c>TimeProvider</c> is NOT replaced — production code resolves
+/// <c>TimeProvider.System</c> from the Generic Host. Tests that need deterministic time
+/// construct <c>FakeTimeProvider</c> locally and inject it into a directly-constructed
+/// SUT (see ADR-0015 line 104).
 /// </summary>
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>
 {
-    /// <summary>Stable test clock — matches <c>Catalog.FunctionalTests.ApiTestFixture.Now</c>.</summary>
-    public static readonly DateTimeOffset Now =
-        new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
-
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Catalog",
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Catalog/Catalog.Infrastructure"),
@@ -51,9 +48,6 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
-
-    /// <summary>Test-controlled <see cref="FakeTimeProvider"/> — call <c>Advance(...)</c> per scenario.</summary>
-    public FakeTimeProvider TimeProvider { get; } = new(Now);
 
     protected override async ValueTask PreSetupAsync()
     {
@@ -103,10 +97,6 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // fake. Avro byte fidelity is asserted in AvroByteFidelityTests with its own
                 // Schema-Registry container; the rest of the suite stays fast.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
-
-                // Pin the wall-clock so deterministic OccurredOnUtc / LastUpdatedAtUtc
-                // assertions match across CI runs (mirrors ApiTestFixture).
-                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(TimeProvider));
             });
     }
 
@@ -116,11 +106,7 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>Connection string for tests that bypass the DbContext.</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
 
-    /// <summary>Wipes every table in the Catalog schema between tests and flushes Redis.
-    /// Note: <see cref="TimeProvider"/> is intentionally NOT rewound — <see cref="FakeTimeProvider.SetUtcNow"/>
-    /// rejects going backwards in time, and tests that advance the clock with
-    /// <c>TimeProvider.Advance(...)</c> use relative offsets. The singleton lives for the
-    /// fixture lifetime; tests are isolated by Postgres/Redis cleanup, not by clock rewind.</summary>
+    /// <summary>Wipes every table in the Catalog schema between tests and flushes Redis.</summary>
     public async Task ResetFixtureStateAsync()
     {
         await Task.WhenAll(

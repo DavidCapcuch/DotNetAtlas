@@ -1,6 +1,5 @@
 using Catalog.Infrastructure.Persistence.Database;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Time.Testing;
 using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
@@ -14,7 +13,6 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
     protected IntegrationTestFixture Fixture { get; }
     protected IServiceScope Scope { get; }
     protected CatalogDbContext CatalogDbContext { get; }
-    protected FakeTimeProvider TimeProvider => Fixture.TimeProvider;
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
     {
