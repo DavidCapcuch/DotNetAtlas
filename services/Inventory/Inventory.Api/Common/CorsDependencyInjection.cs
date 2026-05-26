@@ -6,7 +6,7 @@ internal static class CorsDependencyInjection
 {
     public static IServiceCollection AddInventoryCors(
         this IServiceCollection services,
-        ConfigurationManager configuration)
+        IConfiguration configuration)
     {
         services.AddOptionsWithValidateOnStart<InventoryCorsOptions>()
             .BindConfiguration(InventoryCorsOptions.Section)

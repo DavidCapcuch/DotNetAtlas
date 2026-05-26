@@ -3,10 +3,7 @@ namespace Inventory.Application.Common.Messaging;
 /// <summary>
 /// Compile-time names for every Kafka topic + consumer group Inventory
 /// publishes to or consumes from. The values are LOCKED contract per the
-/// Inventory BC <c>&lt;contract&gt;</c> and ADR-0004 — a runtime typo in
-/// <c>appsettings.json</c> would silently create a new topic on prod, so an
-/// architecture test (<c>KafkaTopicNamesMatchAppSettingsTests</c>) asserts
-/// each appsettings value equals the corresponding constant here.
+/// Inventory BC.
 /// </summary>
 /// <remarks>
 /// <para>

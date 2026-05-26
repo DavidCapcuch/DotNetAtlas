@@ -1,45 +1,31 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Payments.Infrastructure.Common.Authorization;
+using Microsoft.Extensions.Hosting;
+using Payments.Api.Common.Authorization;
+using Platform.ServiceDefaults;
 
-namespace Payments.Infrastructure.Common;
+namespace Payments.Api.Common;
 
 /// <summary>
-/// Authentication + authorization wiring for the Payments API. Mirrors the
-/// Ordering precedent (<c>services/Ordering/Ordering.Infrastructure/Common/AuthDependencyInjection.cs</c>)
-/// trimmed to JWT-only — Payments has no UI surface, only admin-tooling
-/// callers carrying a Keycloak access token (ADR-0010).
+/// Authentication + authorization wiring for the Payments API. Mirrors the Ordering
+/// precedent (<c>services/Ordering/Ordering.Api/Common/AuthenticationDependencyInjection.cs</c>)
+/// trimmed to JWT-only — Payments has no UI surface, only admin-tooling callers
+/// carrying a Keycloak access token (ADR-0010).
 /// </summary>
-public static class AuthDependencyInjection
+internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Section name read by <see cref="AddPaymentsAuth"/> for the
-    /// <see cref="JwtBearerOptions"/> binding —
-    /// <c>Authority</c>, <c>Audience</c>, and <c>TokenValidationParameters</c>.
+    /// Registers JWT bearer authentication and the <see cref="AuthPolicies.PaymentsAdmin"/>
+    /// policy (admin role + <c>payments.read</c> scope, defense in depth).
     /// </summary>
-    public const string JwtBearerConfigSection = "Authentication:JwtBearer";
-
-    /// <summary>
-    /// Registers JWT bearer authentication and the
-    /// <see cref="AuthPolicies.PaymentsAdmin"/> policy. Call from the API
-    /// composition root (<c>Payments.Api/Program.cs</c>) before
-    /// <c>UseAuthentication</c> / <c>UseAuthorization</c>.
-    /// </summary>
-    /// <param name="services">Service collection.</param>
-    /// <param name="configuration">Bound to <see cref="JwtBearerConfigSection"/>.</param>
-    /// <param name="isDeployedEnvironment">
-    /// When <c>true</c>, requires HTTPS metadata on the OIDC discovery doc
-    /// (production posture per ADR-0010 § Implementation Notes). Local dev
-    /// (Keycloak on http://localhost:9011) needs this off.
-    /// </param>
-    public static IServiceCollection AddPaymentsAuth(
+    public static IServiceCollection AddPaymentsAuthentication(
         this IServiceCollection services,
         IConfiguration configuration,
-        bool isDeployedEnvironment)
+        IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
+
+        var isDeployedEnvironment = environment.IsDeployedEnvironment();
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -98,4 +84,6 @@ public static class AuthDependencyInjection
 
         return services;
     }
+
+    private const string JwtBearerConfigSection = "Authentication:JwtBearer";
 }

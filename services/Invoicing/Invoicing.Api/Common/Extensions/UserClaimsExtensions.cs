@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Invoicing.Infrastructure.Common.Authorization;
+using Invoicing.Api.Common.Authorization;
 
 namespace Invoicing.Api.Common.Extensions;
 

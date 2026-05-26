@@ -14,6 +14,6 @@ public enum ClientType
     /// <summary>Authenticated admin token missing the <c>payments.read</c> scope. Asserts the scope check is enforced, not just the role.</summary>
     AdminWithoutScope,
 
-    /// <summary>Authenticated admin token with both the realm role and the <c>payments.read</c> scope. Should pass <see cref="Payments.Infrastructure.Common.Authorization.AuthPolicies.PaymentsAdmin"/>.</summary>
+    /// <summary>Authenticated admin token with both the realm role and the <c>payments.read</c> scope. Should pass <see cref="Payments.Api.Common.Authorization.AuthPolicies.PaymentsAdmin"/>.</summary>
     Admin,
 }

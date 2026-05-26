@@ -49,7 +49,7 @@ public static class WebApplicationBuilderExtensions
     /// </remarks>
     /// <param name="builder">The web application builder.</param>
     /// <returns>The web application builder for chaining.</returns>
-    public static WebApplicationBuilder AddPlatformHostConfiguration(this WebApplicationBuilder builder)
+    internal static WebApplicationBuilder AddPlatformHostConfiguration(this WebApplicationBuilder builder)
     {
         builder.Configuration.AddEnvironmentVariables();
 
@@ -89,7 +89,7 @@ public static class WebApplicationBuilderExtensions
     /// <param name="builder">The web application builder.</param>
     /// <param name="configureOptions">Optional callback to configure Serilog options.</param>
     /// <returns>The web application builder for chaining.</returns>
-    public static WebApplicationBuilder UsePlatformSerilog(
+    internal static WebApplicationBuilder UsePlatformSerilog(
         this WebApplicationBuilder builder,
         Action<SerilogOptions>? configureOptions = null)
     {

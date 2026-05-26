@@ -17,8 +17,7 @@ try
 
     var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? ApplicationInfo.AppName;
 
-    builder.AddPlatformHostConfiguration();
-    builder.UsePlatformSerilog(options => options.ServiceName = serviceName);
+    builder.AddServiceDefaults(options => options.ServiceName = serviceName);
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 

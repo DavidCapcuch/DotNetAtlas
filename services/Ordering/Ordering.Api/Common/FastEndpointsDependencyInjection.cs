@@ -1,34 +1,12 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Platform.ServiceDefaults.Idempotency;
 
 namespace Ordering.Api.Common;
 
-/// <summary>
-/// Composition root for the Ordering.Api HTTP surface — FastEndpoints,
-/// problem-details, the Idempotency-Key output cache (ADR-0013), and the
-/// development-time Swagger document.
-/// </summary>
-internal static class PresentationDependencyInjection
+internal static class FastEndpointsDependencyInjection
 {
-    /// <summary>
-    /// Service-name token written to the Redis key prefix for the
-    /// idempotency-key store (<c>ordering-service:idem:</c>) so multiple
-    /// services sharing <c>redis-cache</c> do not collide. Keep in sync with
-    /// the Keycloak <c>aud</c> claim and OTEL service-name token.
-    /// </summary>
-    internal const string ServiceName = "ordering-service";
-
-    internal static IServiceCollection AddPresentation(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    internal static IServiceCollection AddOrderingFastEndpoints(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configuration);
-
         services.AddFastEndpoints()
             .SwaggerDocument(o =>
             {
@@ -42,18 +20,6 @@ internal static class PresentationDependencyInjection
                     s.Version = "v1";
                 };
             });
-
-        services
-            .AddProblemDetails();
-
-        // FastEndpoints' .Idempotency() filter is implemented as an
-        // IOutputCachePolicy. AddIdempotency wires that policy as a base
-        // policy on OutputCacheOptions; AddIdempotencyKeyOutputCache then
-        // swaps the in-memory IOutputCacheStore for a Redis-backed one
-        // (ADR-0013 line 141; only the Ordering cancel endpoint uses it
-        // in v1). Both calls are additive — same AddOutputCache plumbing.
-        services.AddIdempotency();
-        services.AddIdempotencyKeyOutputCache(configuration, ServiceName);
 
         return services;
     }

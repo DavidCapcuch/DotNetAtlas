@@ -1,4 +1,4 @@
-namespace Payments.Infrastructure.Common.Authorization;
+namespace Payments.Api.Common.Authorization;
 
 /// <summary>
 /// OAuth2 scope names the Payments BC requires on inbound bearer tokens. Per
@@ -7,7 +7,7 @@ namespace Payments.Infrastructure.Common.Authorization;
 /// to the realm role — the scope claim originates from the Keycloak
 /// <c>payments-service</c> client mapper.
 /// </summary>
-public static class Scopes
+internal static class Scopes
 {
     /// <summary>
     /// Read-only access to Payments admin queries. Required by

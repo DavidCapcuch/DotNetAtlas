@@ -25,8 +25,8 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
-        .AddOrderingAuth(builder.Configuration, isDeployedEnvironment)
         .AddPresentation(builder.Configuration)
+        .AddOrderingAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 

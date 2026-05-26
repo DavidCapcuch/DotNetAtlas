@@ -15,18 +15,16 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.AddPlatformHostConfiguration();
-    builder.UsePlatformSerilog(options =>
+    builder.AddServiceDefaults(options =>
     {
         options.ServiceName = "Basket";
     });
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
-    builder.Services.AddCorrelationId();
-
     builder.Services
         .AddPresentation(builder.Configuration, builder.Environment)
+        .AddBasketAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
@@ -43,10 +41,11 @@ try
 
     app.UseStatusCodePages();
 
+    app.UseCorrelationId();
+
     app.UseRouting()
         .UseCors(Basket.Api.Common.Config.BasketCorsOptions.DefaultCorsPolicyName)
         .UseOutputCache()
-        .UseCorrelationId()
         .UseAuthentication()
         .UseAuthorization();
 

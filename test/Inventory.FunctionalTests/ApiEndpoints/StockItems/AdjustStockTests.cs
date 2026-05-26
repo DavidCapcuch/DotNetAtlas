@@ -97,8 +97,8 @@ public sealed class AdjustStockTests : BaseApiTest
         //   - Polling Redis for up to 2s after the first POST yields zero
         //     keys via SCAN, even though the platform's
         //     AddIdempotencyKeyOutputCache is unconditionally registered
-        //     (ApiDependencyInjection.cs:40) and Program.cs wires
-        //     UseOutputCache() ahead of UseFastEndpoints (Program.cs:60).
+        //     (ApiDependencyInjection.cs:31) and Program.cs wires
+        //     UseOutputCache() ahead of UseFastEndpoints (Program.cs:61).
         //   - The handler likely re-executes on the replay (so no second
         //     event would be a stronger signal — but the cache write itself
         //     is the upstream gate, and we cannot observe it).

@@ -1,10 +1,9 @@
-namespace Invoicing.Infrastructure.Common.Authorization;
+namespace Invoicing.Api.Common.Authorization;
 
 /// <summary>
-/// Authorisation policy names for the Invoicing bounded context. Mirrors the Ordering
-/// precedent (<c>services/Ordering/Ordering.Infrastructure/Common/Authorization/AuthPolicies.cs</c>):
-/// constants live in the Infrastructure layer so the policy DI registration and the
-/// FastEndpoints <c>Policies(...)</c> attribute reference the same string by symbol,
+/// Authorisation policy names for the Invoicing bounded context. Constants live in the Api
+/// layer so the policy DI registration (<see cref="AuthenticationDependencyInjection"/>) and
+/// the FastEndpoints <c>Policies(...)</c> attribute reference the same string by symbol,
 /// eliminating typo drift.
 /// </summary>
 /// <remarks>
@@ -14,7 +13,7 @@ namespace Invoicing.Infrastructure.Common.Authorization;
 /// assertion alongside the role check; the policy name stays stable so endpoints don't
 /// need to change.
 /// </remarks>
-public static class AuthPolicies
+internal static class AuthPolicies
 {
     /// <summary>
     /// Gates Invoicing admin-only endpoints — currently <c>POST /api/v1/invoicing/invoices/{id}/resend</c>.
