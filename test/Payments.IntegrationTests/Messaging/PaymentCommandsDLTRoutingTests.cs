@@ -46,7 +46,7 @@ public sealed class PaymentCommandsDLTRoutingTests
         //
         // 2. Configure the production Payments composition root against the test cluster:
         //      services.UseKafkaSettings(_kafkaContainer.KafkaOptions)
-        //      services.AddPaymentsApplication();
+        //      services.AddApplication();
         //      services.AddKafkaMessaging(configuration);  // includes the new RetrySimple(8) + DLT.
         //
         // 3. Inject a DbContext interceptor that throws DbUpdateException on every

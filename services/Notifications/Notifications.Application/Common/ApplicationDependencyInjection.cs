@@ -9,5 +9,8 @@ namespace Notifications.Application.Common;
 /// </summary>
 public static class ApplicationDependencyInjection
 {
-    public static IServiceCollection AddNotificationsApplication(this IServiceCollection services) => services;
+    extension(IServiceCollection services)
+    {
+        public IServiceCollection AddApplication() => services;
+    }
 }

@@ -31,7 +31,7 @@ try
 
     builder.Services
         .AddPresentation(builder.Configuration, builder.Environment)
-        .AddCatalogApplication()
+        .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
     // Readiness probes (Self + Postgres + Kafka + redis-cache + Schema Registry) are

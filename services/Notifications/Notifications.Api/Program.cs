@@ -23,7 +23,7 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
-        .AddNotificationsApplication()
+        .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();

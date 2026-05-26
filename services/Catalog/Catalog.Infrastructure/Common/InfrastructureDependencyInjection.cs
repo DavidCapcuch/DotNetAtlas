@@ -6,7 +6,7 @@ namespace Catalog.Infrastructure.Common;
 /// <summary>
 /// Composition root for the Catalog Infrastructure layer. Called from
 /// <c>Catalog.Api.Program.cs</c> after <c>AddServiceDefaults</c> (correlation-id +
-/// service-auth per ADR-0008/0010) and <c>AddCatalogApplication</c> (validators, CQRS
+/// service-auth per ADR-0008/0010) and <c>AddApplication</c> (validators, CQRS
 /// handlers, projection handlers, outbox publishers).
 /// </summary>
 /// <remarks>

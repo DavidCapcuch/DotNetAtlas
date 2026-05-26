@@ -26,47 +26,48 @@ namespace Invoicing.Application.Common;
 /// </remarks>
 public static class ApplicationDependencyInjection
 {
-    public static IServiceCollection AddInvoicingApplication(this IServiceCollection services)
+    extension(IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        public IServiceCollection AddApplication()
+        {
+            var assembly = typeof(ApplicationDependencyInjection).Assembly;
 
-        var assembly = typeof(ApplicationDependencyInjection).Assembly;
+            services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
 
-        services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+            services.AddCqrsHandlersFromAssembly(assembly);
+            services
+                .AddDomainEventHandlersFromAssembly(assembly)
+                .AddDomainEventDispatcher();
 
-        services.AddCqrsHandlersFromAssembly(assembly);
-        services
-            .AddDomainEventHandlersFromAssembly(assembly)
-            .AddDomainEventDispatcher();
+            services.AddCqrsHandlerBehaviors();
 
-        AddCqrsHandlerBehaviors(services);
+            services.AddOptionsWithValidateOnStart<InvoicingTopicsOptions>()
+                .BindConfiguration(InvoicingTopicsOptions.Section)
+                .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<InvoicingTopicsOptions>()
-            .BindConfiguration(InvoicingTopicsOptions.Section)
-            .ValidateDataAnnotations();
+            services.AddOptionsWithValidateOnStart<BuyerPortalOptions>()
+                .BindConfiguration(BuyerPortalOptions.Section)
+                .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<BuyerPortalOptions>()
-            .BindConfiguration(BuyerPortalOptions.Section)
-            .ValidateDataAnnotations();
+            // BlobStorageOptions registration lives in Infrastructure (it injects the
+            // ConnectionStrings:AzureStorage value into the same options object); the
+            // M7 command handlers + M8 query handlers consume it via IOptions<BlobStorageOptions>.
 
-        // BlobStorageOptions registration lives in Infrastructure (it injects the
-        // ConnectionStrings:AzureStorage value into the same options object); the
-        // M7 command handlers + M8 query handlers consume it via IOptions<BlobStorageOptions>.
+            return services;
+        }
 
-        return services;
-    }
+        private IServiceCollection AddCqrsHandlerBehaviors()
+        {
+            // Decorator order: last registered = first to execute.
+            // Tracing (outer) -> Logging -> Metrics -> Validation -> Handler (inner).
+            services.AddCqrsValidationBehavior();
+            services.AddCqrsMetricsBehavior();
+            services.AddCqrsLoggingBehavior();
 
-    private static IServiceCollection AddCqrsHandlerBehaviors(IServiceCollection services)
-    {
-        // Decorator order: last registered = first to execute.
-        // Tracing (outer) → Logging → Metrics → Validation → Handler (inner).
-        services.AddCqrsValidationBehavior();
-        services.AddCqrsMetricsBehavior();
-        services.AddCqrsLoggingBehavior();
+            // Always keep before metrics so OTel exemplars work.
+            services.AddCqrsTracingBehavior();
 
-        // Always keep before metrics so OTel exemplars work.
-        services.AddCqrsTracingBehavior();
-
-        return services;
+            return services;
+        }
     }
 }
