@@ -19,7 +19,7 @@ namespace Inventory.IntegrationTests.Common;
 internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
 /// <summary>
-/// Inventory integration-test fixture. Boots the real <c>Inventory.API</c>
+/// Inventory integration-test fixture. Boots the real <c>Inventory.Api</c>
 /// composition root inside <see cref="AppFixture{TEntryPoint}"/>, spinning a
 /// throwaway Postgres container for the EF model and applying the committed
 /// <c>V*.sql</c> scripts via Evolve (matches the production migration path).
@@ -70,7 +70,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             webBuilder
                 .UseSetting("ConnectionStrings:Inventory", _dbContainer.ConnectionString)
-                // Inventory.API/Program.cs guards the Kafka boot with !IsTesting(), but
+                // Inventory.Api/Program.cs guards the Kafka boot with !IsTesting(), but
                 // AddInfrastructure still binds Kafka options at DI time — point them at
                 // unreachable hosts so any accidental use blows up loudly instead of
                 // silently flowing to a real broker.

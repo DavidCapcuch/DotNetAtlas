@@ -28,11 +28,11 @@ internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// applies the committed <c>V*.sql</c> migrations via Evolve, and disables
 /// JWT signature validation so <see cref="FakeTokenCreator"/> can mint
 /// unsigned tokens with a <c>scope</c> claim that drives
-/// <see cref="Inventory.API.Common.Authorization.InventoryAuthorizationPolicies"/>.
+/// <see cref="Inventory.Api.Common.Authorization.InventoryAuthorizationPolicies"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// No Kafka container is needed — <c>Inventory.API/Program.cs</c> guards the
+/// No Kafka container is needed — <c>Inventory.Api/Program.cs</c> guards the
 /// KafkaFlow cluster boot with <c>!IsTesting()</c>, and Inventory's outbox
 /// publishers use the <see cref="FakeOutboxWriter"/> registered below
 /// (replaces the production Avro+SchemaRegistry-backed writer). Saga-command
@@ -95,7 +95,7 @@ public class ApiTestFixture : AppFixture<Program>
             webBuilder
                 .UseSetting("ConnectionStrings:Inventory", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
-                // Inventory.API/Program.cs guards the Kafka boot with !IsTesting(), but
+                // Inventory.Api/Program.cs guards the Kafka boot with !IsTesting(), but
                 // AddInfrastructure still binds Kafka options at DI time — point them at
                 // unreachable hosts so any accidental use blows up loudly instead of
                 // silently flowing to a real broker.

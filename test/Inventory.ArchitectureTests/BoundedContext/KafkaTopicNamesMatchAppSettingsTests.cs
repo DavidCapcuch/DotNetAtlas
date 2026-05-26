@@ -6,7 +6,7 @@ namespace Inventory.ArchitectureTests.BoundedContext;
 /// <summary>
 /// Pins the LOCKED-contract Kafka topic + consumer-group names in
 /// <see cref="KafkaTopicNames"/> against the runtime values in
-/// <c>services/Inventory/Inventory.API/appsettings.json</c>. A typo in either
+/// <c>services/Inventory/Inventory.Api/appsettings.json</c>. A typo in either
 /// surface fails this test — the topic / group is a contract per the Inventory
 /// BC <c>&lt;contract&gt;</c> and ADR-0004, so an unwitting rename would
 /// silently fork a new topic on prod.
@@ -27,7 +27,7 @@ public class KafkaTopicNamesMatchAppSettingsTests
             ?? throw new InvalidOperationException("Could not resolve test assembly directory.");
         // bin/Debug/net10.0 -> climb four levels to repo root, then descend.
         var repoRoot = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", ".."));
-        var appsettingsPath = Path.Combine(repoRoot, "..", "services", "Inventory", "Inventory.API", "appsettings.json");
+        var appsettingsPath = Path.Combine(repoRoot, "..", "services", "Inventory", "Inventory.Api", "appsettings.json");
         var json = File.ReadAllText(Path.GetFullPath(appsettingsPath));
         return JsonDocument.Parse(json).RootElement;
     });

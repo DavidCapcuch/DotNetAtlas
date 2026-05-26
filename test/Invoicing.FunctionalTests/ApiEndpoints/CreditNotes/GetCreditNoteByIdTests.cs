@@ -1,6 +1,6 @@
 using System.Net;
 using FastEndpoints;
-using Invoicing.API.Endpoints.CreditNotes.GetCreditNoteById;
+using Invoicing.Api.Endpoints.CreditNotes.GetCreditNoteById;
 using Invoicing.Application.CreditNotes.GetCreditNoteById;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;

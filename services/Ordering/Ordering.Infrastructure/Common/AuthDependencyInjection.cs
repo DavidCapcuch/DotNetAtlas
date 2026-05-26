@@ -9,7 +9,7 @@ namespace Ordering.Infrastructure.Common;
 
 /// <summary>
 /// Authentication + authorization wiring for the Ordering API. Mirrors the
-/// Catalog precedent (<c>services/Catalog/Catalog.API/Common/AuthenticationDependencyInjection.cs</c>)
+/// Catalog precedent (<c>services/Catalog/Catalog.Api/Common/AuthenticationDependencyInjection.cs</c>)
 /// — Ordering has no UI surface, so no Cookie/OIDC schemes are needed
 /// (ADR-0010: Ordering is invoked via HTTP from the BFF or admin tooling
 /// carrying a Keycloak access token). Uses <see cref="JwtBearerConfigurator.AddPlatformJwtBearer"/>
@@ -29,7 +29,7 @@ public static class AuthDependencyInjection
     /// <summary>
     /// Registers JWT bearer authentication (via the platform configurator) and
     /// the <see cref="AuthPolicies.OrderingAdmin"/> policy. Call from the API
-    /// composition root (<c>Ordering.API/Program.cs</c>) before
+    /// composition root (<c>Ordering.Api/Program.cs</c>) before
     /// <c>UseAuthentication</c> / <c>UseAuthorization</c>.
     /// </summary>
     /// <remarks>

@@ -1,8 +1,8 @@
 using System.Net;
-using Catalog.API.Endpoints.Categories.CreateCategory;
-using Catalog.API.Endpoints.Products.CreateProduct;
-using Catalog.API.Endpoints.Products.DiscontinueProduct;
-using Catalog.API.Endpoints.Products.ReactivateProduct;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Products.CreateProduct;
+using Catalog.Api.Endpoints.Products.DiscontinueProduct;
+using Catalog.Api.Endpoints.Products.ReactivateProduct;
 using Catalog.FunctionalTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;

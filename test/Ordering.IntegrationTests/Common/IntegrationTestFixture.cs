@@ -21,11 +21,11 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 
 /// <summary>
 /// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for Ordering integration tests.
-/// Boots the full <c>Ordering.API</c> host against a Postgres Testcontainer so the
+/// Boots the full <c>Ordering.Api</c> host against a Postgres Testcontainer so the
 /// composition root under test is the same one production uses (validators, CQRS,
 /// domain-event dispatcher + outbox-publisher handlers, the four saga-command Kafka
 /// typed handlers registered by KafkaFlow as Scoped). The KafkaFlow consumer cluster
-/// itself is NOT started — <c>Ordering.API/Program.cs</c> guards <c>StartAsync()</c>
+/// itself is NOT started — <c>Ordering.Api/Program.cs</c> guards <c>StartAsync()</c>
 /// with <c>!IsTesting()</c> — so no Kafka or Schema-Registry container is needed.
 /// Tests resolve the typed handlers from <see cref="CreateScope"/> and invoke
 /// <c>Handle(IMessageContext, T)</c> directly with a synthetic
@@ -57,7 +57,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             webBuilder
                 .UseSetting("ConnectionStrings:Ordering", _dbContainer.ConnectionString)
-                // Ordering.API/Program.cs guards the Kafka boot with !IsTesting(), but
+                // Ordering.Api/Program.cs guards the Kafka boot with !IsTesting(), but
                 // AddInfrastructure still binds Kafka options at DI time — point them at
                 // unreachable hosts so any accidental use blows up loudly instead of
                 // silently flowing to a real broker.

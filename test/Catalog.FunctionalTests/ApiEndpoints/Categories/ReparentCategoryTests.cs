@@ -1,6 +1,6 @@
 using System.Net;
-using Catalog.API.Endpoints.Categories.CreateCategory;
-using Catalog.API.Endpoints.Categories.ReparentCategory;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Categories.ReparentCategory;
 using Catalog.FunctionalTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;

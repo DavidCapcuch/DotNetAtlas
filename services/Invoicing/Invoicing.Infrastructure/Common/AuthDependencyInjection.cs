@@ -21,7 +21,7 @@ public static class AuthDependencyInjection
 
     /// <summary>
     /// Registers JWT bearer authentication and the <see cref="AuthPolicies.InvoicingAdmin"/>
-    /// policy. Call from the API composition root (<c>Invoicing.API/Program.cs</c>) before
+    /// policy. Call from the API composition root (<c>Invoicing.Api/Program.cs</c>) before
     /// <c>UseAuthentication</c> / <c>UseAuthorization</c>.
     /// </summary>
     /// <param name="services">Service collection.</param>

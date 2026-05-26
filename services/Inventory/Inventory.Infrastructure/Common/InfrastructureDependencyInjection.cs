@@ -6,7 +6,7 @@ namespace Inventory.Infrastructure.Common;
 
 /// <summary>
 /// Composition root for the Inventory Infrastructure layer. Called from
-/// <c>Inventory.API.Program.cs</c> after <c>AddApplication</c>. Wires the
+/// <c>Inventory.Api.Program.cs</c> after <c>AddApplication</c>. Wires the
 /// persistence slice (DbContext, EF Core, event-store repository), the
 /// messaging slice (KafkaFlow cluster + 3 consumers + transactional outbox
 /// + inbox dedup), and the M7 health-check surface (Self / DB / Kafka per

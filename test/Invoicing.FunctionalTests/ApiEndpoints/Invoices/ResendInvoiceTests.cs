@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FastEndpoints;
-using Invoicing.API.Endpoints.Invoices.ResendInvoice;
+using Invoicing.Api.Endpoints.Invoices.ResendInvoice;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
 using Microsoft.Extensions.Time.Testing;

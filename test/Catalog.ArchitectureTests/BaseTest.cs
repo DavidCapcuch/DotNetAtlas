@@ -15,7 +15,7 @@ public abstract class BaseTest
     protected static readonly System.Reflection.Assembly DomainAssembly = typeof(global::Catalog.Domain.IAssemblyMarker).Assembly;
     protected static readonly System.Reflection.Assembly ApplicationAssembly = typeof(global::Catalog.Application.IAssemblyMarker).Assembly;
     protected static readonly System.Reflection.Assembly InfrastructureAssembly = typeof(global::Catalog.Infrastructure.IAssemblyMarker).Assembly;
-    protected static readonly System.Reflection.Assembly PresentationAssembly = typeof(global::Catalog.API.IAssemblyMarker).Assembly;
+    protected static readonly System.Reflection.Assembly PresentationAssembly = typeof(global::Catalog.Api.IAssemblyMarker).Assembly;
 
     /// <summary>
     /// Walks the type and every nested compiler-generated type. Required so IL-scanning rules see

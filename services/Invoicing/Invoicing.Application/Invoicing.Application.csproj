@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Invoicing.API"/>
+        <InternalsVisibleTo Include="Invoicing.Api"/>
         <InternalsVisibleTo Include="Invoicing.Infrastructure"/>
         <InternalsVisibleTo Include="Invoicing.UnitTests"/>
         <InternalsVisibleTo Include="Invoicing.IntegrationTests"/>

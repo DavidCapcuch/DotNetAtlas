@@ -7,7 +7,7 @@ namespace Payments.Api.Common;
 /// <summary>
 /// Composition root for the Payments.Api HTTP surface — FastEndpoints,
 /// problem-details, and the development-time Swagger document. Mirrors the
-/// Ordering precedent (<c>services/Ordering/Ordering.API/Common/PresentationDependencyInjection.cs</c>).
+/// Ordering precedent (<c>services/Ordering/Ordering.Api/Common/PresentationDependencyInjection.cs</c>).
 /// Payments has no state-changing HTTP endpoints in v1, so ADR-0013's
 /// idempotency-key output cache is intentionally NOT wired here.
 /// </summary>

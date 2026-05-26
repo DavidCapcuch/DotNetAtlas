@@ -8,7 +8,7 @@ namespace Ordering.Application.Common;
 
 /// <summary>
 /// Composition root for the Ordering Application layer. The host project
-/// (Ordering.API / M5) calls <c>services.AddApplication()</c>; M4 wires the
+/// (Ordering.Api / M5) calls <c>services.AddApplication()</c>; M4 wires the
 /// Infrastructure concretions (<c>OrderingDbContext</c>, Kafka consumers) on
 /// top.
 /// </summary>

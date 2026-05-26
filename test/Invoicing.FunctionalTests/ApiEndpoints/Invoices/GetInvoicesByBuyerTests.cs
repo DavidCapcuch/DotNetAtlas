@@ -1,6 +1,6 @@
 using System.Net;
 using FastEndpoints;
-using Invoicing.API.Endpoints.Invoices.GetInvoicesByBuyer;
+using Invoicing.Api.Endpoints.Invoices.GetInvoicesByBuyer;
 using Invoicing.Application.Invoices.GetInvoicesByBuyer;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;

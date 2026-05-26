@@ -11,7 +11,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\services\Invoicing\Invoicing.API\Invoicing.API.csproj" />
+        <ProjectReference Include="..\..\services\Invoicing\Invoicing.Api\Invoicing.Api.csproj" />
         <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
         <ProjectReference Include="..\Invoicing.IntegrationTests\Invoicing.IntegrationTests.csproj" />
     </ItemGroup>

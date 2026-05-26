@@ -13,7 +13,7 @@ namespace Inventory.Infrastructure.Common;
 /// Health-check surface for the Inventory service. Mirrors Basket's M6
 /// shape (Self / DbContext / Kafka). No Redis check — Inventory has no
 /// primary-store Redis (the redis-cache used by FastEndpoints idempotency
-/// is owned by Inventory.API and shared with other BCs; per-BC health
+/// is owned by Inventory.Api and shared with other BCs; per-BC health
 /// monitoring of that infra is the platform team's responsibility).
 /// </summary>
 internal static class HealthChecksDependencyInjection

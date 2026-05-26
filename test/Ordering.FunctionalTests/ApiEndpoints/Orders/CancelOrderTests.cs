@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Ordering.API.Endpoints.Orders.CancelOrder;
+using Ordering.Api.Endpoints.Orders.CancelOrder;
 using Ordering.Domain.Orders;
 using Ordering.FunctionalTests.Common;
 using Ordering.FunctionalTests.Common.TestClientInfrastructure;
