@@ -29,9 +29,11 @@ public abstract class BaseTest
     protected static readonly System.Reflection.Assembly ApplicationAssembly = typeof(ApplicationDependencyInjection).Assembly;
     protected static readonly System.Reflection.Assembly InfrastructureAssembly = typeof(InfrastructureDependencyInjection).Assembly;
 
-    // Basket.Api uses top-level statements with no public marker type (no ApiDependencyInjection
-    // class — that lands in M8 with FastEndpoints wiring). Loading by name avoids touching
-    // production source. The csproj project-references Basket.Api so the binary is co-located.
+    // Basket.Api's presentation DI classes (ApiDependencyInjection, FastEndpointsDependencyInjection,
+    // AuthenticationDependencyInjection, CorsDependencyInjection) are internal — load the assembly
+    // by name rather than via typeof(SomeInternalSymbol).Assembly to keep the test decoupled from
+    // any specific internal symbol that may be refactored. The csproj project-references Basket.Api
+    // so the binary is co-located.
     protected static readonly System.Reflection.Assembly PresentationAssembly = System.Reflection.Assembly.Load("Basket.Api");
 
     /// <summary>

@@ -11,9 +11,9 @@ internal static class AuthenticationDependencyInjection
 {
     /// <summary>
     /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
-    /// allows callers to override defaults through the <c>Authentication:JwtBearer</c>
-    /// configuration section. Registers the Inventory scope-policy pair
-    /// (<c>InventoryReadScope</c> / <c>InventoryCommandsScope</c>) per ADR-0010.
+    /// registers the Inventory scope-policy pair (<c>InventoryReadScope</c> /
+    /// <c>InventoryCommandsScope</c>) per ADR-0010. Inventory v1 has no outbound HTTP calls so
+    /// <c>AddServiceAuth</c> is intentionally not wired.
     /// </summary>
     /// <remarks>
     /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
@@ -23,7 +23,7 @@ internal static class AuthenticationDependencyInjection
     /// </remarks>
     public static IServiceCollection AddInventoryAuthentication(
         this IServiceCollection services,
-        ConfigurationManager configuration,
+        IConfiguration configuration,
         IHostEnvironment environment)
     {
         services.AddPlatformJwtBearer(options =>

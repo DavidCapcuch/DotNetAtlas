@@ -179,8 +179,6 @@ Each commit references its issue via `Closes #NNN` / `(#NNN)` for GitHub auto-cl
 
 **#154 (MEDIUM) — closed as not-a-bug.** Grep confirmed all 6 BCs use the same self-documenting placeholder convention (`PasswordThatShouldBeInVaultAndNotExposed`, `ClientSecretThatShouldBeInVaultAndNotExposed`). Replacing with the synonym `REPLACE_WITH_SECRET_MANAGER_VALUE` would yield zero security benefit and would break local `docker compose --profile core` flows for every BC. Closed manually with a rationale comment.
 
-**#162 (MEDIUM) — implemented as a feat-level commit.** Created `services/Inventory/Inventory.Application/Common/Messaging/KafkaTopicNames.cs` with 6 `const string` values plus a new arch-test file `test/Inventory.ArchitectureTests/BoundedContext/KafkaTopicNamesMatchAppSettingsTests.cs` that reads `appsettings.json` from the source tree at test time and asserts each runtime value matches its constant — 6 new architecture-test facts (arch slice grew from 33 to 39).
-
 **#166 (LOW) — implemented as a fix-level commit.** Created `ReservationReleaseFailedException : DbUpdateException` with structured `Exception.Data` (`ReservationId`, `OrderId`, `ErrorCodes`). KafkaFlow still classifies it as retry-eligible via the base class, but operators chasing a DLT post-mortem now get a dedicated exception type and structured triage data.
 
 ## Deferred (with rationale)

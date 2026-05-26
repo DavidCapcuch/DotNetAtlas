@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Ordering.Infrastructure.Common.Authorization;
+using Ordering.Api.Common.Authorization;
 
 namespace Ordering.Api.Common.Extensions;
 

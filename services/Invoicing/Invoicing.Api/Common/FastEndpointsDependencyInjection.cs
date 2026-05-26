@@ -1,22 +1,12 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace Payments.Api.Common;
+namespace Invoicing.Api.Common;
 
-/// <summary>
-/// Composition root for the Payments.Api HTTP surface — FastEndpoints,
-/// problem-details, and the development-time Swagger document. Mirrors the
-/// Ordering precedent (<c>services/Ordering/Ordering.Api/Common/PresentationDependencyInjection.cs</c>).
-/// Payments has no state-changing HTTP endpoints in v1, so ADR-0013's
-/// idempotency-key output cache is intentionally NOT wired here.
-/// </summary>
-internal static class PresentationDependencyInjection
+internal static class FastEndpointsDependencyInjection
 {
-    internal static IServiceCollection AddPresentation(this IServiceCollection services)
+    internal static IServiceCollection AddInvoicingFastEndpoints(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
-
         services.AddFastEndpoints()
             .SwaggerDocument(o =>
             {
@@ -26,17 +16,15 @@ internal static class PresentationDependencyInjection
                 o.MaxEndpointVersion = 1;
                 o.DocumentSettings = s =>
                 {
-                    s.Title = "Payments API";
+                    s.Title = "Invoicing API";
                     s.Version = "v1";
                 };
             });
 
-        services.AddProblemDetails();
-
         return services;
     }
 
-    internal static WebApplication UsePaymentsFastEndpoints(this WebApplication app)
+    internal static WebApplication UseInvoicingFastEndpoints(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
@@ -49,10 +37,10 @@ internal static class PresentationDependencyInjection
                 detailsConfig.IndicateErrorSeverity = false;
             });
 
-            // ADR-0012 — versioned routes under /api/v{n}/payments/...
-            // FastEndpoints renders v{Version()} between the prefix and the
-            // group route, so a Group("payments") + Version(1) lands on
-            // /api/v1/payments/...
+            // ADR-0012 — versioned routes under /api/v{n}/invoicing/...
+            // FastEndpoints renders v{Version()} between the prefix and the group route,
+            // so a Group("invoicing/invoices") + Version(1) lands on
+            // /api/v1/invoicing/invoices/...
             config.Versioning.Prefix = "v";
             config.Versioning.PrependToRoute = true;
             config.Versioning.DefaultVersion = 1;

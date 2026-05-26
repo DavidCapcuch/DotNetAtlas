@@ -9,8 +9,9 @@ namespace Basket.Api.Common;
 internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
-    /// allows callers to override defaults through <c>Authentication:JwtBearer</c> configuration.
+    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/>,
+    /// registers the default authorization stack, and wires the outbound service-auth host
+    /// registration (ADR-0010) so Basket can call other BCs with a client-credentials token.
     /// Basket is API-only — no Cookie / OIDC schemes (those are Web-UI concerns owned by the BFF).
     /// </summary>
     /// <remarks>
@@ -24,7 +25,7 @@ internal static class AuthenticationDependencyInjection
     /// </remarks>
     public static IServiceCollection AddBasketAuthentication(
         this IServiceCollection services,
-        ConfigurationManager configuration,
+        IConfiguration configuration,
         IHostEnvironment environment)
     {
         services.AddPlatformJwtBearer(options =>
@@ -40,6 +41,8 @@ internal static class AuthenticationDependencyInjection
 
         services.AddAuthorization();
         services.AddHttpContextAccessor();
+
+        services.AddServiceAuth(serviceName: "basket");
 
         return services;
     }
@@ -64,9 +67,4 @@ internal static class AuthenticationDependencyInjection
     }
 
     private const string JwtBearerConfigSection = "Authentication:JwtBearer";
-}
-
-internal static class AuthenticationConfigSchemes
-{
-    public const string JwtBearer = JwtBearerDefaults.AuthenticationScheme;
 }

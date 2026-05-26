@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Payments.Infrastructure.Common.Authorization;
+using Payments.Api.Common.Authorization;
 using Platform.Test.Framework.Auth;
 
 namespace Payments.FunctionalTests.Common.TestClientInfrastructure;

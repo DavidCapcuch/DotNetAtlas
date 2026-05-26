@@ -10,10 +10,11 @@ namespace Catalog.Api.Common;
 internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
-    /// allows callers to override defaults through the <c>Authentication:JwtBearer</c>
-    /// configuration section. Registers the Catalog scope-policy pair
-    /// (<c>CatalogReadScope</c> / <c>CatalogWriteScope</c>) per ADR-0010.
+    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/>,
+    /// registers the Catalog scope-policy pair (<c>CatalogReadScope</c> / <c>CatalogWriteScope</c>)
+    /// per ADR-0010, and wires the outbound service-auth host registration so Catalog can call
+    /// other BCs with a client-credentials token (registered for symmetry even though Catalog has
+    /// no outbound BC calls today).
     /// </summary>
     /// <remarks>
     /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
@@ -23,7 +24,7 @@ internal static class AuthenticationDependencyInjection
     /// </remarks>
     public static IServiceCollection AddCatalogAuthentication(
         this IServiceCollection services,
-        ConfigurationManager configuration,
+        IConfiguration configuration,
         IHostEnvironment environment)
     {
         services.AddPlatformJwtBearer(options =>
@@ -49,6 +50,8 @@ internal static class AuthenticationDependencyInjection
 
         services.AddAuthorization(options => options.AddCatalogScopePolicies());
         services.AddHttpContextAccessor();
+
+        services.AddServiceAuth(serviceName: "catalog");
 
         return services;
     }

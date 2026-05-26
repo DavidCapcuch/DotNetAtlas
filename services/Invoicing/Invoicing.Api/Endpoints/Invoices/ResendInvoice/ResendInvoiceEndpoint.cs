@@ -1,8 +1,8 @@
 using System.Net;
 using FastEndpoints;
+using Invoicing.Api.Common.Authorization;
 using Invoicing.Api.Common.Extensions;
 using Invoicing.Application.Invoices.ResendInvoice;
-using Invoicing.Infrastructure.Common.Authorization;
 using Serilog.Context;
 
 namespace Invoicing.Api.Endpoints.Invoices.ResendInvoice;

@@ -8,7 +8,7 @@ internal static class CorsDependencyInjection
 {
     public static IServiceCollection AddBasketCors(
         this IServiceCollection services,
-        ConfigurationManager configuration,
+        IConfiguration configuration,
         IHostEnvironment environment)
     {
         services.AddOptionsWithValidateOnStart<BasketCorsOptions>()

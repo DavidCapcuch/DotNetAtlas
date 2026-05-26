@@ -1,11 +1,10 @@
-namespace Ordering.Infrastructure.Common.Authorization;
+namespace Ordering.Api.Common.Authorization;
 
 /// <summary>
-/// Authorisation policy names for the Ordering bounded context. Mirrors the
-/// Weather precedent (<c>src/Weather.Infrastructure/Common/Authorization/AuthPolicies.cs</c>):
-/// constants live in the Infrastructure layer so the policy DI registration
-/// and the FastEndpoints <c>Policies(...)</c> attribute reference the same
-/// string by symbol, eliminating "OrderingAdmin" typo drift.
+/// Authorisation policy names for the Ordering bounded context. Constants live in the Api
+/// layer so the policy DI registration (<see cref="AuthenticationDependencyInjection"/>) and
+/// the FastEndpoints <c>Policies(...)</c> attribute reference the same string by symbol,
+/// eliminating "OrderingAdmin" typo drift.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,7 +21,7 @@ namespace Ordering.Infrastructure.Common.Authorization;
 /// <c>Ordering.Application.Orders.CancelOrder.CancelOrderCommand</c>).
 /// </para>
 /// </remarks>
-public static class AuthPolicies
+internal static class AuthPolicies
 {
     /// <summary>
     /// Gates Ordering admin-only endpoints — <c>POST /api/v1/ordering/orders/{id}/ship</c>,

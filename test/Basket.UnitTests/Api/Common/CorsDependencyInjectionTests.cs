@@ -5,8 +5,8 @@ namespace Basket.UnitTests.Api.Common;
 
 /// <summary>
 /// Direct coverage for the deployed-environment guard inside
-/// <see cref="CorsDependencyInjection.AddBasketCors"/>. Exposed as a static
-/// helper so the localhost-with-credentials invariant can be exercised without
+/// <see cref="CorsDependencyInjection.AssertDeployedCorsOptions"/>. Exposed as a
+/// static helper so the localhost-with-credentials invariant can be exercised without
 /// standing up the full DI container.
 /// </summary>
 public class CorsDependencyInjectionTests

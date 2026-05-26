@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Invoicing.Infrastructure.Common.Authorization;
+using Invoicing.Api.Common.Authorization;
 using Platform.Test.Framework.Auth;
 
 namespace Invoicing.FunctionalTests.Common.TestClientInfrastructure;

@@ -1,43 +1,31 @@
-using Invoicing.Infrastructure.Common.Authorization;
+using Invoicing.Api.Common.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Platform.ServiceDefaults;
 
-namespace Invoicing.Infrastructure.Common;
+namespace Invoicing.Api.Common;
 
 /// <summary>
 /// Authentication + authorization wiring for the Invoicing API. JWT-only — Invoicing has
 /// no UI surface, so no Cookie/OIDC schemes are needed (ADR-0010: invoked via HTTP from
 /// the BFF or admin tooling carrying a Keycloak access token).
 /// </summary>
-public static class AuthDependencyInjection
+internal static class AuthenticationDependencyInjection
 {
-    /// <summary>
-    /// Section name read by <see cref="AddInvoicingAuth"/> for the
-    /// <see cref="JwtBearerOptions"/> binding — e.g. <c>Authority</c>, <c>Audience</c>,
-    /// and <c>TokenValidationParameters</c>.
-    /// </summary>
-    public const string JwtBearerConfigSection = "Authentication:JwtBearer";
-
     /// <summary>
     /// Registers JWT bearer authentication and the <see cref="AuthPolicies.InvoicingAdmin"/>
     /// policy. Call from the API composition root (<c>Invoicing.Api/Program.cs</c>) before
     /// <c>UseAuthentication</c> / <c>UseAuthorization</c>.
     /// </summary>
-    /// <param name="services">Service collection.</param>
-    /// <param name="configuration">Bound to <see cref="JwtBearerConfigSection"/>.</param>
-    /// <param name="isDeployedEnvironment">
-    /// When <c>true</c>, requires HTTPS metadata on the OIDC discovery doc (production
-    /// posture per ADR-0010 § Implementation Notes). Local dev (Keycloak on
-    /// <c>http://localhost:9011</c>) needs this off.
-    /// </param>
-    public static IServiceCollection AddInvoicingAuth(
+    public static IServiceCollection AddInvoicingAuthentication(
         this IServiceCollection services,
         IConfiguration configuration,
-        bool isDeployedEnvironment)
+        IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
+
+        var isDeployedEnvironment = environment.IsDeployedEnvironment();
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -76,4 +64,6 @@ public static class AuthDependencyInjection
 
         return services;
     }
+
+    private const string JwtBearerConfigSection = "Authentication:JwtBearer";
 }

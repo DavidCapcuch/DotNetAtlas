@@ -1,8 +1,8 @@
 using System.Net;
 using FastEndpoints;
+using Ordering.Api.Common.Authorization;
 using Ordering.Api.Common.Extensions;
 using Ordering.Application.Orders.MarkOrderDelivered;
-using Ordering.Infrastructure.Common.Authorization;
 using Serilog.Context;
 
 namespace Ordering.Api.Endpoints.Orders.MarkOrderDelivered;

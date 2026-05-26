@@ -17,18 +17,16 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.AddPlatformHostConfiguration();
-    builder.UsePlatformSerilog(options =>
+    builder.AddServiceDefaults(options =>
     {
         options.ServiceName = "Inventory";
     });
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
-    builder.Services.AddCorrelationId();
-
     builder.Services
-        .AddPresentation(builder.Configuration, builder.Environment)
+        .AddPresentation(builder.Configuration)
+        .AddInventoryAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
@@ -56,10 +54,11 @@ try
 
     app.UseStatusCodePages();
 
+    app.UseCorrelationId();
+
     app.UseRouting()
         .UseCors(InventoryCorsOptions.DefaultCorsPolicyName)
         .UseOutputCache()
-        .UseCorrelationId()
         .UseAuthentication()
         .UseAuthorization();
 

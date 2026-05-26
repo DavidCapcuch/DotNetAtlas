@@ -25,8 +25,8 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
-        .AddPaymentsAuth(builder.Configuration, isDeployedEnvironment)
         .AddPresentation()
+        .AddPaymentsAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
