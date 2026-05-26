@@ -25,7 +25,9 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
     public async Task Handle_returns_single_issued_invoice_for_buyer_with_freshly_minted_SAS_URL()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        // ADR-0015: snapshot wall-clock before the act for the BeCloseTo assertion below.
+        var nowSnapshot = DateTimeOffset.UtcNow;
+        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
 
         var result = await InvokeHandlerAsync(buyerId, skip: 0, take: 20, ct);
 
@@ -37,11 +39,11 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
         dto.InvoiceId.Should().Be(invoiceId);
         dto.BuyerId.Should().Be(buyerId);
         dto.Status.Should().Be("Issued");
-        dto.InvoiceNumber.Should().MatchRegex(@"^INV-2026-\d{6}$");
+        dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
         dto.PdfPresignedUrl.Should().NotBeNull();
         dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
         dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .Be(IntegrationTestFixture.FixedFakeNow.Add(TimeSpan.FromMinutes(10)));
+            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -62,8 +64,8 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
     public async Task Handle_excludes_other_buyers_invoices()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (_, ownerA) = await _fixture.SeedIssuedInvoiceAsync(ct);
-        await _fixture.SeedIssuedInvoiceAsync(ct); // owned by a different (random) buyer
+        var (_, ownerA) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
+        await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct); // owned by a different (random) buyer
 
         var result = await InvokeHandlerAsync(ownerA, skip: 0, take: 20, ct);
 

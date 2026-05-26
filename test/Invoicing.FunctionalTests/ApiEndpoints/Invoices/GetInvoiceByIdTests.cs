@@ -4,12 +4,19 @@ using Invoicing.API.Endpoints.Invoices.GetInvoiceById;
 using Invoicing.Application.Invoices.GetInvoiceById;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Invoicing.FunctionalTests.ApiEndpoints.Invoices;
 
 [Collection<FunctionalTestCollection>]
 public class GetInvoiceByIdTests : BaseApiTest
 {
+    // ADR-0015: per-test-class pin so seeded IssueDate / invoice-number year stay
+    // deterministic. Local FakeTimeProvider instances flow into InvoiceSeed; the host
+    // itself runs on TimeProvider.System.
+    private static readonly DateTimeOffset PinnedNow =
+        new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
+
     public GetInvoiceByIdTests(ApiTestFixture app)
         : base(app)
     {
@@ -38,7 +45,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerReadsOwnInvoice_ReturnsOkWithPresignedUrl()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
 
         var (response, payload) = await HttpClientRegistry.BuyerClient
@@ -61,7 +68,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     [Fact]
     public async Task WhenAdminReadsAnotherBuyersInvoice_ReturnsOk()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
 
         var (response, payload) = await HttpClientRegistry.AdminClient
@@ -78,7 +85,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     [Fact]
     public async Task WhenOtherBuyerReadsAnothersInvoice_ReturnsNotFound()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
 
         var (response, _) = await HttpClientRegistry.OtherBuyerClient

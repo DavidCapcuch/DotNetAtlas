@@ -29,7 +29,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
     public async Task Handle_InvoicingPrefixedTemplate_TransitionsInvoiceToDelivered_AndEnqueuesAvroEvent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
 
         // SeedIssuedInvoiceAsync records InvoiceIssuedEvent on the substitute; clear
         // so the assertion below only sees calls from the handler under test.
@@ -76,7 +76,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
     public async Task Handle_NonInvoicingPrefix_NoOps()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
 
         // SeedIssuedInvoiceAsync records InvoiceIssuedEvent on the substitute; clear
         // so DidNotReceiveWithAnyArgs below only sees calls from the handler under test.
@@ -111,7 +111,7 @@ public sealed class EmailNotificationSentEventKafkaHandlerTests
     public async Task Handle_InvoiceAlreadyDelivered_NoOpsAndDoesNotEnqueueDuplicate()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedDeliveredInvoiceAsync(ct);
+        var (invoiceId, buyerId) = await _fixture.SeedDeliveredInvoiceAsync(TimeProvider.System, ct);
 
         // The seed already triggered one AddOutboxMessage call; reset before the second attempt.
         _fixture.ResetOutboxSubstitute();

@@ -5,12 +5,17 @@ using FastEndpoints;
 using Invoicing.API.Endpoints.Invoices.ResendInvoice;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Invoicing.FunctionalTests.ApiEndpoints.Invoices;
 
 [Collection<FunctionalTestCollection>]
 public class ResendInvoiceTests : BaseApiTest
 {
+    // ADR-0015: per-test-class pin so seeded IssueDate stays deterministic.
+    private static readonly DateTimeOffset PinnedNow =
+        new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
+
     public ResendInvoiceTests(ApiTestFixture app)
         : base(app)
     {
@@ -46,7 +51,7 @@ public class ResendInvoiceTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerWithoutAdminRole_ReturnsForbidden()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
 
         var response = await PostResendAsync(
@@ -69,7 +74,7 @@ public class ResendInvoiceTests : BaseApiTest
     [Fact]
     public async Task WhenAdminResendsIssuedInvoice_ReturnsNoContent()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
 
         var response = await PostResendAsync(
@@ -83,7 +88,7 @@ public class ResendInvoiceTests : BaseApiTest
     public async Task WhenInvoiceIsDraft_ReturnsConflict()
     {
         // Draft invoices have no PDF / number — resend has nothing to do.
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateDraftInvoiceAsync(TestUsers.BuyerId);
 
         var response = await PostResendAsync(
@@ -96,7 +101,7 @@ public class ResendInvoiceTests : BaseApiTest
     [Fact]
     public async Task WhenSameIdempotencyKeyReplayed_ReturnsCachedNoContent()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var invoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);
 
         var key = Guid.NewGuid().ToString();

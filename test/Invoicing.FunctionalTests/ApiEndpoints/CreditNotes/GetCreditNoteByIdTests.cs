@@ -4,12 +4,18 @@ using Invoicing.API.Endpoints.CreditNotes.GetCreditNoteById;
 using Invoicing.Application.CreditNotes.GetCreditNoteById;
 using Invoicing.FunctionalTests.Common;
 using Invoicing.FunctionalTests.Common.TestClientInfrastructure;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Invoicing.FunctionalTests.ApiEndpoints.CreditNotes;
 
 [Collection<FunctionalTestCollection>]
 public class GetCreditNoteByIdTests : BaseApiTest
 {
+    // ADR-0015: per-test-class pin so seeded IssueDate / credit-note number year stay
+    // deterministic.
+    private static readonly DateTimeOffset PinnedNow =
+        new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
+
     public GetCreditNoteByIdTests(ApiTestFixture app)
         : base(app)
     {
@@ -38,7 +44,7 @@ public class GetCreditNoteByIdTests : BaseApiTest
     [Fact]
     public async Task WhenBuyerReadsOwnCreditNote_ReturnsOk()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var creditNote = await seed.CreateIssuedCreditNoteAsync(TestUsers.BuyerId);
 
         var (response, payload) = await HttpClientRegistry.BuyerClient
@@ -60,7 +66,7 @@ public class GetCreditNoteByIdTests : BaseApiTest
     [Fact]
     public async Task WhenOtherBuyerReadsAnothersCreditNote_ReturnsNotFound()
     {
-        var seed = new InvoiceSeed(DbContext, App.FakeTime);
+        var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var creditNote = await seed.CreateIssuedCreditNoteAsync(TestUsers.BuyerId);
 
         var (response, _) = await HttpClientRegistry.OtherBuyerClient

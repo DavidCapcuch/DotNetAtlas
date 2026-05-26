@@ -27,7 +27,12 @@ public sealed class GetInvoiceByIdQueryHandlerTests
     public async Task Handle_returns_issued_invoice_with_lines_VAT_address_and_freshly_minted_SAS_URL()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        // ADR-0015: Generic Host registers TimeProvider.System; the SAS-URL minting and
+        // invoice-number year both come from wall-clock. Snapshot before the act so the
+        // BeCloseTo assertion below can tolerate the few milliseconds between the
+        // handler's GetUtcNow() and ours.
+        var nowSnapshot = DateTimeOffset.UtcNow;
+        var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
 
         var result = await InvokeHandlerAsync(invoiceId, buyerId, isAdmin: false, ct);
 
@@ -36,7 +41,7 @@ public sealed class GetInvoiceByIdQueryHandlerTests
         dto.InvoiceId.Should().Be(invoiceId);
         dto.BuyerId.Should().Be(buyerId);
         dto.Status.Should().Be("Issued");
-        dto.InvoiceNumber.Should().MatchRegex(@"^INV-2026-\d{6}$");
+        dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
         dto.Currency.Should().Be("EUR");
         dto.TotalAmount.Should().BeGreaterThan(0m);
         dto.Lines.Should().NotBeEmpty();
@@ -51,14 +56,14 @@ public sealed class GetInvoiceByIdQueryHandlerTests
         dto.PdfPresignedUrl.Should().NotBeNull();
         dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
         dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .Be(IntegrationTestFixture.FixedFakeNow.Add(TimeSpan.FromMinutes(10)));
+            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
     public async Task Handle_returns_delivered_invoice_with_DeliveredAtUtc_populated()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, buyerId) = await _fixture.SeedDeliveredInvoiceAsync(ct);
+        var (invoiceId, buyerId) = await _fixture.SeedDeliveredInvoiceAsync(TimeProvider.System, ct);
 
         var result = await InvokeHandlerAsync(invoiceId, buyerId, isAdmin: false, ct);
 
@@ -72,7 +77,7 @@ public sealed class GetInvoiceByIdQueryHandlerTests
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_invoice()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, _) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, _) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
         var intruder = Guid.CreateVersion7();
 
         var result = await InvokeHandlerAsync(invoiceId, intruder, isAdmin: false, ct);
@@ -85,7 +90,7 @@ public sealed class GetInvoiceByIdQueryHandlerTests
     public async Task Handle_returns_invoice_for_admin_regardless_of_buyer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (invoiceId, owner) = await _fixture.SeedIssuedInvoiceAsync(ct);
+        var (invoiceId, owner) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
         var admin = Guid.CreateVersion7();
 
         var result = await InvokeHandlerAsync(invoiceId, admin, isAdmin: true, ct);

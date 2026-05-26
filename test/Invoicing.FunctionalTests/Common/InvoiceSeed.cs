@@ -4,7 +4,6 @@ using Invoicing.Domain.CreditNotes.ValueObjects;
 using Invoicing.Domain.Invoices;
 using Invoicing.Domain.Invoices.ValueObjects;
 using Invoicing.Infrastructure.Persistence.Database;
-using Microsoft.Extensions.Time.Testing;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Invoicing.FunctionalTests.Common;
@@ -45,11 +44,11 @@ internal sealed class InvoiceSeed
             sizeBytes: 1024).Value;
 
     private readonly InvoicingDbContext _db;
-    private readonly FakeTimeProvider _time;
+    private readonly TimeProvider _time;
     private long _nextInvoiceSeq = 1;
     private long _nextCreditNoteSeq = 1;
 
-    public InvoiceSeed(InvoicingDbContext db, FakeTimeProvider time)
+    public InvoiceSeed(InvoicingDbContext db, TimeProvider time)
     {
         _db = db;
         _time = time;
