@@ -1,5 +1,5 @@
-using Catalog.API.Endpoints.Categories.CreateCategory;
-using Catalog.API.Endpoints.Products.CreateProduct;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Application.Products.CreateProduct;
 
 namespace Catalog.FunctionalTests.Common;

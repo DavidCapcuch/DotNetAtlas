@@ -14,7 +14,7 @@ namespace Invoicing.Infrastructure.Persistence.Database;
 /// <remarks>
 /// The connection string is read from the <c>INVOICING_CONNECTION_STRING</c>
 /// environment variable when set, otherwise falls back to the local-dev
-/// value mirrored from <c>Invoicing.API/appsettings.json</c>. It is only
+/// value mirrored from <c>Invoicing.Api/appsettings.json</c>. It is only
 /// used by the EF tooling to know which provider to target; no queries run
 /// during migration authoring.
 /// </remarks>

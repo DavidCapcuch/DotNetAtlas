@@ -56,7 +56,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Inventory.API"/>
+        <InternalsVisibleTo Include="Inventory.Api"/>
         <InternalsVisibleTo Include="Inventory.FunctionalTests"/>
         <InternalsVisibleTo Include="Inventory.IntegrationTests"/>
         <InternalsVisibleTo Include="Inventory.UnitTests"/>

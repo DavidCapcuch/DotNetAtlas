@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Ordering.API.Endpoints.Orders.MarkOrderShipped;
+using Ordering.Api.Endpoints.Orders.MarkOrderShipped;
 using Ordering.Domain.Orders;
 using Ordering.FunctionalTests.Common;
 using Ordering.FunctionalTests.Common.TestClientInfrastructure;

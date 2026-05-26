@@ -9,7 +9,7 @@ namespace Invoicing.Application.Common;
 
 /// <summary>
 /// Composition root for the Invoicing Application layer. The host project
-/// (<c>Invoicing.API</c>) calls <c>services.AddInvoicingApplication()</c>; the Infrastructure
+/// (<c>Invoicing.Api</c>) calls <c>services.AddInvoicingApplication()</c>; the Infrastructure
 /// layer's <c>AddInvoicingInfrastructure</c> wires the concretions on top.
 /// </summary>
 /// <remarks>

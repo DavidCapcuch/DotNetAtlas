@@ -1,6 +1,6 @@
 using System.Net;
-using Catalog.API.Endpoints.Categories.CreateCategory;
-using Catalog.API.Endpoints.Categories.GetCategoryTree;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Categories.GetCategoryTree;
 using Catalog.Application.Categories.GetCategoryTree;
 using Catalog.FunctionalTests.Common;
 using FastEndpoints;

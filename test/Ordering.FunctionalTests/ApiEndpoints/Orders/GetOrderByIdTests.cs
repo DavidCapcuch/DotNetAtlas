@@ -1,6 +1,6 @@
 using System.Net;
 using FastEndpoints;
-using Ordering.API.Endpoints.Orders.GetOrderById;
+using Ordering.Api.Endpoints.Orders.GetOrderById;
 using Ordering.Application.Orders.GetOrderById;
 using Ordering.FunctionalTests.Common;
 using Ordering.FunctionalTests.Common.TestClientInfrastructure;

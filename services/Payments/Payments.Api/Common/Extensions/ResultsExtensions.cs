@@ -9,7 +9,7 @@ namespace Payments.Api.Common.Extensions;
 /// <summary>
 /// Translates <see cref="FluentResults"/> failures into FastEndpoints
 /// problem-details responses. Mirrors the Ordering precedent
-/// (<c>services/Ordering/Ordering.API/Common/Extensions/ResultsExtensions.cs</c>)
+/// (<c>services/Ordering/Ordering.Api/Common/Extensions/ResultsExtensions.cs</c>)
 /// — Payments errors are returned as <see cref="ValidationError"/> per
 /// <c>error-taxonomy.md § 3.5</c>, so the HTTP mapping picks status by
 /// <c>errorCode</c> rather than by error type.

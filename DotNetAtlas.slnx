@@ -73,25 +73,25 @@
     <Project Path="services/Basket/Basket.Infrastructure/Basket.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/services/Catalog/">
-    <Project Path="services/Catalog/Catalog.API/Catalog.API.csproj" />
+    <Project Path="services/Catalog/Catalog.Api/Catalog.Api.csproj" />
     <Project Path="services/Catalog/Catalog.Application/Catalog.Application.csproj" />
     <Project Path="services/Catalog/Catalog.Domain/Catalog.Domain.csproj" />
     <Project Path="services/Catalog/Catalog.Infrastructure/Catalog.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/services/Inventory/">
-    <Project Path="services/Inventory/Inventory.API/Inventory.API.csproj" />
+    <Project Path="services/Inventory/Inventory.Api/Inventory.Api.csproj" />
     <Project Path="services/Inventory/Inventory.Application/Inventory.Application.csproj" />
     <Project Path="services/Inventory/Inventory.Domain/Inventory.Domain.csproj" />
     <Project Path="services/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/services/Invoicing/">
-    <Project Path="services/Invoicing/Invoicing.API/Invoicing.API.csproj" />
+    <Project Path="services/Invoicing/Invoicing.Api/Invoicing.Api.csproj" />
     <Project Path="services/Invoicing/Invoicing.Application/Invoicing.Application.csproj" />
     <Project Path="services/Invoicing/Invoicing.Domain/Invoicing.Domain.csproj" />
     <Project Path="services/Invoicing/Invoicing.Infrastructure/Invoicing.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/services/Ordering/">
-    <Project Path="services/Ordering/Ordering.API/Ordering.API.csproj" />
+    <Project Path="services/Ordering/Ordering.Api/Ordering.Api.csproj" />
     <Project Path="services/Ordering/Ordering.Application/Ordering.Application.csproj" />
     <Project Path="services/Ordering/Ordering.Domain/Ordering.Domain.csproj" />
     <Project Path="services/Ordering/Ordering.Infrastructure/Ordering.Infrastructure.csproj" />

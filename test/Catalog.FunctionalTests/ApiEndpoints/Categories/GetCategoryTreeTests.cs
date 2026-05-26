@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Catalog.API.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Application.Categories.GetCategoryTree;
 using Catalog.FunctionalTests.Common;
 using FastEndpoints;

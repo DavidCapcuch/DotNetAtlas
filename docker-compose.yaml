@@ -527,7 +527,7 @@ services:
   catalog.api:
     build:
       context: .
-      dockerfile: services/Catalog/Catalog.API/Dockerfile
+      dockerfile: services/Catalog/Catalog.Api/Dockerfile
       args:
         # Override the chiseled prod default (no shell, no wget) so the compose-level
         # HEALTHCHECK can shell out to wget. The alpine variant ships busybox (incl.
@@ -579,7 +579,7 @@ services:
   ordering.api:
     build:
       context: .
-      dockerfile: services/Ordering/Ordering.API/Dockerfile
+      dockerfile: services/Ordering/Ordering.Api/Dockerfile
       args:
         BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
     healthcheck: *readiness-healthcheck
@@ -626,7 +626,7 @@ services:
   invoicing.api:
     build:
       context: .
-      dockerfile: services/Invoicing/Invoicing.API/Dockerfile
+      dockerfile: services/Invoicing/Invoicing.Api/Dockerfile
       args:
         BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
     healthcheck: *readiness-healthcheck
@@ -769,7 +769,7 @@ services:
   inventory.api:
     build:
       context: .
-      dockerfile: services/Inventory/Inventory.API/Dockerfile
+      dockerfile: services/Inventory/Inventory.Api/Dockerfile
       args:
         BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
     healthcheck: *readiness-healthcheck

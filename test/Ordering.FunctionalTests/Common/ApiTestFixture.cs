@@ -28,7 +28,7 @@ internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// Spins up Postgres + Redis Testcontainers via the platform helpers (Evolve
 /// applies the same SQL scripts production runs), forces
 /// <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the host skips the saga-command
-/// Kafka consumer (per <c>Ordering.API/Program.cs</c> <c>!IsTesting()</c>
+/// Kafka consumer (per <c>Ordering.Api/Program.cs</c> <c>!IsTesting()</c>
 /// guard), and wires the JwtBearer scheme to trust the in-fixture RSA signer
 /// so <see cref="FakeTokenCreator"/>'s signed tokens authenticate without
 /// relaxing any production <see cref="Microsoft.IdentityModel.Tokens.TokenValidationParameters"/>
@@ -84,7 +84,7 @@ public class ApiTestFixture : AppFixture<Program>
             webBuilder
                 .UseSetting("ConnectionStrings:Ordering", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
-                // Ordering.API/Program.cs guards the Kafka boot with !IsTesting(), but
+                // Ordering.Api/Program.cs guards the Kafka boot with !IsTesting(), but
                 // AddInfrastructure still binds Kafka options at DI time — point them at
                 // unreachable hosts so any accidental use blows up loudly instead of
                 // silently flowing to a real broker.

@@ -68,19 +68,19 @@ jobs:
         include:
           - bc: Catalog
             project: services/Catalog/Catalog.Infrastructure
-            startup: services/Catalog/Catalog.API
+            startup: services/Catalog/Catalog.Api
           - bc: Basket
             project: services/Basket/Basket.Infrastructure
             startup: services/Basket/Basket.Api
           - bc: Inventory
             project: services/Inventory/Inventory.Infrastructure
-            startup: services/Inventory/Inventory.API
+            startup: services/Inventory/Inventory.Api
           - bc: Ordering
             project: services/Ordering/Ordering.Infrastructure
-            startup: services/Ordering/Ordering.API
+            startup: services/Ordering/Ordering.Api
           - bc: Invoicing
             project: services/Invoicing/Invoicing.Infrastructure
-            startup: services/Invoicing/Invoicing.API
+            startup: services/Invoicing/Invoicing.Api
           - bc: Payments
             project: services/Payments/Payments.Infrastructure
             startup: services/Payments/Payments.Api

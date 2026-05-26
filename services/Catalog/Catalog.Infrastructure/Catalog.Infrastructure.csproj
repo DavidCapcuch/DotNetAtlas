@@ -58,7 +58,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Catalog.API"/>
+        <InternalsVisibleTo Include="Catalog.Api"/>
         <InternalsVisibleTo Include="Catalog.FunctionalTests"/>
         <InternalsVisibleTo Include="Catalog.IntegrationTests"/>
         <InternalsVisibleTo Include="Catalog.UnitTests"/>

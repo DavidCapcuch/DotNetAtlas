@@ -34,7 +34,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 
 /// <summary>
 /// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Invoicing host. Boots the real
-/// <c>Invoicing.API</c> composition root inside <c>UseEnvironment("Testing")</c>, swaps in test
+/// <c>Invoicing.Api</c> composition root inside <c>UseEnvironment("Testing")</c>, swaps in test
 /// doubles for the M3/M4/M7 external adapters (<see cref="IPdfGenerator"/>,
 /// <see cref="IBlobStore"/>, <see cref="ITransactionalOutbox{TContext}"/>), and points
 /// <see cref="ConnectionStringsOptions.Invoicing"/> at a throwaway Postgres container whose

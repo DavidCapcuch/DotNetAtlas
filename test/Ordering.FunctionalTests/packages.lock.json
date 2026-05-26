@@ -1579,7 +1579,7 @@
           "Microsoft.Extensions.TimeProvider.Testing": "[10.6.0, )",
           "Microsoft.NET.Test.Sdk": "[18.5.1, )",
           "NSubstitute": "[5.3.0, )",
-          "Ordering.API": "[1.0.0, )",
+          "Ordering.Api": "[1.0.0, )",
           "Platform.Test.Framework": "[1.0.0, )",
           "Serilog.Sinks.XUnit.Injectable": "[4.0.222, )",
           "coverlet.collector": "[10.0.1, )",

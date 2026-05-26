@@ -10,7 +10,7 @@ namespace Inventory.Application.Common;
 
 /// <summary>
 /// Composition root for the Inventory Application layer. The host project
-/// (<c>Inventory.API</c>) calls <c>services.AddApplication()</c>; Infrastructure
+/// (<c>Inventory.Api</c>) calls <c>services.AddApplication()</c>; Infrastructure
 /// DI wires the concretions (<c>InventoryDbContext</c>, event-store repo,
 /// outbox + inbox, and — in M5 — Kafka consumers) on top.
 /// </summary>

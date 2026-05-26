@@ -2502,7 +2502,7 @@
           "Confluent.Kafka": "[2.14.0, )",
           "FastEndpoints.Testing": "[8.1.0, )",
           "FluentResults.Extensions.FluentAssertions": "[2.2.1, )",
-          "Invoicing.API": "[1.0.0, )",
+          "Invoicing.Api": "[1.0.0, )",
           "Invoicing.Infrastructure": "[1.0.0, )",
           "Microsoft.Extensions.TimeProvider.Testing": "[10.6.0, )",
           "Microsoft.NET.Test.Sdk": "[18.5.1, )",

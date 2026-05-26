@@ -1,7 +1,7 @@
 using System.Net;
-using Catalog.API.Endpoints.Categories.CreateCategory;
-using Catalog.API.Endpoints.Products.CreateProduct;
-using Catalog.API.Endpoints.Products.DescribeProduct;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Products.CreateProduct;
+using Catalog.Api.Endpoints.Products.DescribeProduct;
 using Catalog.FunctionalTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;

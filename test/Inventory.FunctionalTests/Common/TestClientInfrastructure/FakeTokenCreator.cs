@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Inventory.API.Common.Authorization;
+using Inventory.Api.Common.Authorization;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Platform.Test.Framework.Auth;
 

@@ -1,7 +1,7 @@
 using System.Net;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Ordering.API.Endpoints.Orders.MarkOrderDelivered;
+using Ordering.Api.Endpoints.Orders.MarkOrderDelivered;
 using Ordering.Domain.Orders;
 using Ordering.FunctionalTests.Common;
 using Ordering.FunctionalTests.Common.TestClientInfrastructure;

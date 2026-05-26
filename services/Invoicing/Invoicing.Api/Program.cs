@@ -1,0 +1,93 @@
+using Invoicing.Api.Common;
+using Invoicing.Application.Common;
+using Invoicing.Infrastructure.Common;
+using Invoicing.Infrastructure.Persistence.Database;
+using KafkaFlow;
+using Microsoft.Extensions.Hosting;
+using Platform.ServiceDefaults;
+using Platform.ServiceDefaults.CorrelationId;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .MinimumLevel.Debug()
+    .CreateBootstrapLogger();
+
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.AddServiceDefaults(options =>
+    {
+        options.ServiceName = "Invoicing.Api";
+    });
+
+    var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
+
+    builder.Services
+        .AddInvoicingAuth(builder.Configuration, isDeployedEnvironment)
+        .AddPresentation(builder.Configuration)
+        .AddInvoicingApplication()
+        .AddInvoicingInfrastructure(builder.Configuration, isDeployedEnvironment);
+
+    var app = builder.Build();
+
+    if (app.Environment.IsProduction())
+    {
+        app.UseExceptionHandler();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseStatusCodePages();
+
+    app.UseCorrelationId();
+
+    app.UseRouting();
+
+    // Order matters: OutputCache reads must happen before authn so cached
+    // responses can short-circuit (FastEndpoints' .Idempotency() filter sits
+    // inside the endpoint pipeline, but AddIdempotencyKeyOutputCache wires the
+    // underlying IOutputCacheStore which UseOutputCache attaches).
+    app.UseOutputCache();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.UseInvoicingFastEndpoints();
+
+    app.MapPlatformHealthCheckEndpoints();
+
+    await app.MigrateOnStartupIfLocalAsync<InvoicingDbContext>();
+
+    // Skip the Kafka enrichment-projection consumers in the test host. M6's
+    // integration tests exercise the consumer slice against a real broker; M8's
+    // functional tests exercise the HTTP surface only and do not need Kafka up.
+    if (!app.Environment.IsTesting())
+    {
+        var kafkaBus = app.Services.CreateKafkaBus();
+        await kafkaBus.StartAsync();
+    }
+
+    await app.RunAsync();
+}
+catch (HostAbortedException)
+{
+    Log.Information("Host aborted, shutting down gracefully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Host terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+
+/// <summary>
+/// Partial <c>Program</c> marker so integration / functional tests can use
+/// <c>WebApplicationFactory&lt;Program&gt;</c>.
+/// </summary>
+public partial class Program;

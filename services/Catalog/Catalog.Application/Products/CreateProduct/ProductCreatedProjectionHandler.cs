@@ -20,7 +20,7 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
 {
     // Mirrors Platform.ServiceDefaults.CorrelationId.CorrelationIdContextKeys.ActivityTagName.
     // Inlined to avoid coupling Catalog.Application to Platform.ServiceDefaults. CAT-RV-C01
-    // (Wave-1 closeout): the AddCorrelationId middleware (Catalog.API/Program.cs:27) writes
+    // (Wave-1 closeout): the AddCorrelationId middleware (Catalog.Api/Program.cs:27) writes
     // the request's correlation id onto Activity.Current via this tag.
     private const string CorrelationIdActivityTag = "correlation.id";
 

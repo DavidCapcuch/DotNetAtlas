@@ -3,7 +3,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using NetArchTest.Rules;
-using ApiAssemblyMarker = Invoicing.API.IAssemblyMarker;
+using ApiAssemblyMarker = Invoicing.Api.IAssemblyMarker;
 using ApplicationAssemblyMarker = Invoicing.Application.IAssemblyMarker;
 using DomainAssemblyMarker = Invoicing.Domain.IAssemblyMarker;
 using InfrastructureAssemblyMarker = Invoicing.Infrastructure.IAssemblyMarker;

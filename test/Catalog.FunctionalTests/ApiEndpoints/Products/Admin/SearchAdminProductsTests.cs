@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using Catalog.API.Endpoints.Categories.CreateCategory;
-using Catalog.API.Endpoints.Products.CreateProduct;
-using Catalog.API.Endpoints.Products.DiscontinueProduct;
+using Catalog.Api.Endpoints.Categories.CreateCategory;
+using Catalog.Api.Endpoints.Products.CreateProduct;
+using Catalog.Api.Endpoints.Products.DiscontinueProduct;
 using Catalog.Application.Products.SearchProducts;
 using Catalog.FunctionalTests.Common;
 using FastEndpoints;

@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\services\Catalog\Catalog.API\Catalog.API.csproj" />
+        <ProjectReference Include="..\..\services\Catalog\Catalog.Api\Catalog.Api.csproj" />
         <ProjectReference Include="..\..\services\Catalog\Catalog.Application\Catalog.Application.csproj" />
         <ProjectReference Include="..\..\services\Catalog\Catalog.Domain\Catalog.Domain.csproj" />
         <ProjectReference Include="..\..\services\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
