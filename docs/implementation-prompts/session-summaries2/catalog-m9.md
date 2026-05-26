@@ -59,13 +59,13 @@ basket-m9 + catalog-m7/m8.
 
 ## Design decisions taken (with rationale)
 
-1. **Surgical fixture fix, not a refactor of `AddCatalogApplication`.** The bug is that the test
+1. **Surgical fixture fix, not a refactor of `AddApplication`.** The bug is that the test
    fixture skips the production DI module ([`MessagingDependencyInjection.cs:50-51`](../../../services/Catalog/Catalog.Infrastructure/Common/MessagingDependencyInjection.cs))
-   which binds `CatalogTopicsOptions` AND wires the `DispatchDomainEventsInterceptor`. The fixture
+   which binds `TopicsOptions` AND wires the `DispatchDomainEventsInterceptor`. The fixture
    previously included neither. The minimal fix mirrors the production wiring exactly: register
    both interceptors as DI services, switch `AddDbContext` to the `(sp, options)` overload so the
-   scoped interceptor can be resolved, and `services.Configure<CatalogTopicsOptions>(...)` after
-   `AddCatalogApplication()`. This matches the pattern used by sister BC integration fixtures with one nuance the Opus
+   scoped interceptor can be resolved, and `services.Configure<TopicsOptions>(...)` after
+   `AddApplication()`. This matches the pattern used by sister BC integration fixtures with one nuance the Opus
    pre-commit reviewer flagged: Ordering and Payments wire BOTH `UpdateAuditableEntitiesInterceptor`
    AND `DispatchDomainEventsInterceptor`; Invoicing wires only the dispatch interceptor. Catalog
    production wires both at
@@ -76,7 +76,7 @@ basket-m9 + catalog-m7/m8.
    [Payments:78-87](../../../test/Payments.IntegrationTests/Common/IntegrationTestFixture.cs),
    [Invoicing:93-100](../../../test/Invoicing.IntegrationTests/Common/IntegrationTestFixture.cs).
    Catalog was the lone Wave-1 outlier in forgetting the dispatch interceptor entirely. **Trade-off considered + rejected**: adding `BindConfiguration` directly inside
-   `AddCatalogApplication` would centralize the binding but cross the layer boundary
+   `AddApplication` would centralize the binding but cross the layer boundary
    ([`ApplicationDependencyInjection.cs:14-22`](../../../services/Catalog/Catalog.Application/Common/ApplicationDependencyInjection.cs)
    explicitly says "the API host is responsible for binding it to configuration" — Application
    stays free of `Microsoft.Extensions.Configuration`). M9 stays out of that decision; it's a
@@ -95,8 +95,8 @@ basket-m9 + catalog-m7/m8.
 3. **Comment hygiene on the fixture's existing config block.** The pre-fix comment at
    [IntegrationTestFixture.cs:60-61 (old)] claimed the in-memory IConfiguration "satisfies
    `AddOptionsWithValidateOnStart` binding inside Catalog.Application's composition root
-   (CatalogTopicsOptions)" — but that was always false: `AddCatalogApplication` only does
-   `services.AddOptions<CatalogTopicsOptions>()` without `BindConfiguration`, so no binding ever
+   (TopicsOptions)" — but that was always false: `AddApplication` only does
+   `services.AddOptions<TopicsOptions>()` without `BindConfiguration`, so no binding ever
    happened from the IConfiguration. Comment rewritten to describe what the IConfiguration
    actually backs (the new explicit `services.Configure<>` call below it). Three lines, in-scope
    under the same fixture-file edit.
@@ -221,7 +221,7 @@ docs/implementation-prompts/session-summaries/catalog-m9.md              NEW
 
 `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` per `_shared.md § 11` step 0
 (also explicitly required by the dispatch prompt). Brief covered: the test-fixture fix vs.
-sister-BC pattern, the design decision to keep the binding out of `AddCatalogApplication`, the
+sister-BC pattern, the design decision to keep the binding out of `AddApplication`, the
 proxy-workaround discrepancy, and what's intentionally deferred (6 skipped functional tests +
 the latent M3.6 correlation-id TODO).
 
@@ -237,7 +237,7 @@ were touched).
 | LOW | L2 | Functional test count grew from M8's 23 to today's 35 (+12). Summary did not narrate the growth; would be silent absorption of bookkeeping the dispatch prompt explicitly asked about. | **Addressed inline** in Verification output § Test-count delta — one paragraph attributes the +12 to M6 (HTTP layer) + M7 (compose smoke) per commit log. |
 | LOW | L3 | `CorrelationIdRoundtripTests.WhenCorrelationIdHeaderProvided_OutboxRowCarriesIt` is among the 6 skipped — and it is the only test that would empirically validate the ADR-0008 correlation-id roundtrip claim catalog-m8.md cited as evidence. Promote from generic carry-forward to named M10 candidate. | **Addressed inline** in Open questions § "M10 candidate (priority)" — explicit promotion with framing that M8's evidence claim is empirically unverified until this skip closes. |
 | LOW | L4 | Pre-commit review-findings table contained `_populated post-review_` placeholder; would commit literal placeholder text to history. | **Addressed by populating this table** with the 6 actual findings before staging. |
-| LOW | L5 | Optional cross-BC sweep: replace `services.Configure<CatalogTopicsOptions>(...)` with `AddOptions<>().Bind(...).ValidateDataAnnotations().ValidateOnStart()` for fail-fast on missing topic keys. Sister BCs (Payments, Invoicing) have the same gap. | **Out of M9 scope** per the reviewer's own note — would touch other BCs' fixtures. Logged below as a cross-BC platform-level follow-up. |
+| LOW | L5 | Optional cross-BC sweep: replace `services.Configure<TopicsOptions>(...)` with `AddOptions<>().Bind(...).ValidateDataAnnotations().ValidateOnStart()` for fail-fast on missing topic keys. Sister BCs (Payments, Invoicing) have the same gap. | **Out of M9 scope** per the reviewer's own note — would touch other BCs' fixtures. Logged below as a cross-BC platform-level follow-up. |
 | LOW | L6 | The "Workaround A failed, Workaround B worked" claim is single-machine + single-session. Behaviour can vary by `dotnet --version` patch + Windows build. | **Addressed inline** in Open questions § CLAUDE.md drift — added "single-machine observation, breadth not yet measured" caveat so the recommendation reflects evidence breadth honestly. |
 
 ## Open questions / improvements proposed (NOT implemented unless approved)
@@ -270,13 +270,13 @@ were touched).
   a single-machine + single-session observation; behaviour can vary by `dotnet --version` patch
   level + Windows build. A cross-machine reproduction (or upstream-issue search in
   `dotnet/runtime`) would harden the case before editing CLAUDE.md.
-- **`AddCatalogApplication` configuration-binding ergonomics.** The test fixture has to
-  remember to call `services.Configure<CatalogTopicsOptions>(...)` AFTER `AddCatalogApplication`
+- **`AddApplication` configuration-binding ergonomics.** The test fixture has to
+  remember to call `services.Configure<TopicsOptions>(...)` AFTER `AddApplication`
   because the Application layer intentionally avoids `Microsoft.Extensions.Configuration`. That's
   defensible (clean-arch boundary) but easy to miss — Catalog forgot it from M4.5 to today.
   Same risk applies to anyone who composes the BC outside the API host. **Possible mitigation
-  options:** (a) add an `AddCatalogApplication(IConfiguration)` overload that takes config and
-  binds, (b) add a startup validator that throws if `CatalogTopicsOptions` is unbound when
+  options:** (a) add an `AddApplication(IConfiguration)` overload that takes config and
+  binds, (b) add a startup validator that throws if `TopicsOptions` is unbound when
   outbox publishers register, (c) leave as-is and document the gotcha in
   `ApplicationDependencyInjection.cs`. Worth a deliberate platform-level decision.
 - **Sister-BC integration-fixture parity audit.** Catalog was the only Wave-1 BC whose fixture

@@ -45,7 +45,7 @@ namespace Basket.Infrastructure.Common;
 /// <c>AddBasketCatalogClient</c> — the Catalog Anti-Corruption Layer: a
 /// typed <see cref="HttpClient"/> fronting <c>IProductCatalogQueryPort</c>
 /// with correlation-id + service-auth delegating handlers. Requires
-/// <c>AddCorrelationId()</c> + <c>AddServiceAuth("basket")</c> to have been
+/// <c>AddCorrelationId()</c> + <c>AddServiceAuth("basket-service")</c> to have been
 /// called upstream by ServiceDefaults.
 /// </description></item>
 /// <item><description>

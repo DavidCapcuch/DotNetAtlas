@@ -64,7 +64,7 @@
 | `services/Invoicing/Invoicing.Application/Outbox/InvoiceIssuedMapper.cs` | Map `PdfBlobName = source.PdfBlobRef.BlobName` |
 | `services/Invoicing/Invoicing.Application/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs:159` | Flip `DeliveryChannel.None → Email` |
 | `services/Invoicing/Invoicing.Application/Invoices/GetInvoiceById/GetInvoiceByIdQueryHandler.cs` (+ 3 sister query handlers) | Read `BlobName` from `PdfBlobRef` directly |
-| `services/Invoicing/Invoicing.Application/Common/Messaging/InvoicingTopicsOptions.cs` | Add `NotificationsEmailCommands`, `NotificationsEmailEvents` |
+| `services/Invoicing/Invoicing.Application/Common/Messaging/TopicsOptions.cs` | Add `NotificationsEmailCommands`, `NotificationsEmailEvents` |
 | `services/Invoicing/Invoicing.Application/Common/InfrastructureDependencyInjection.cs` (or wherever DI lives) | Register handlers + `BuyerPortalOptions` |
 | `services/Invoicing/Invoicing.Infrastructure/Persistence/Database/EntityConfigurations/InvoiceConfiguration.cs` | `pdf_blob_uri` → `pdf_blob_name`, remove URI conversion |
 | `services/Invoicing/Invoicing.Infrastructure/Persistence/Database/EntityConfigurations/CreditNoteConfiguration.cs` | Same |
@@ -996,7 +996,7 @@ namespace Notifications.UnitTests.Notifications.SendEmailNotification;
 
 public sealed class SendEmailNotificationCommandKafkaHandlerTests
 {
-    private readonly ITransactionalOutbox<INotificationDbContext> _outbox = Substitute.For<ITransactionalOutbox<INotificationDbContext>>();
+    private readonly ITransactionalOutbox<INotificationsDbContext> _outbox = Substitute.For<ITransactionalOutbox<INotificationsDbContext>>();
     private readonly IEmailGateway _gateway = Substitute.For<IEmailGateway>();
     private readonly IEmailTemplateRenderer _renderer = new EmailTemplateRenderer();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 5, 22, 10, 0, 0, TimeSpan.Zero));
@@ -1096,7 +1096,7 @@ namespace Notifications.Notifications.SendEmailNotification;
 /// </summary>
 public sealed class SendEmailNotificationCommandKafkaHandler : IMessageHandler<SendEmailNotificationCommand>
 {
-    private readonly ITransactionalOutbox<INotificationDbContext> _outbox;
+    private readonly ITransactionalOutbox<INotificationsDbContext> _outbox;
     private readonly IEmailGateway _gateway;
     private readonly IEmailTemplateRenderer _renderer;
     private readonly TopicsOptions _topics;
@@ -1104,7 +1104,7 @@ public sealed class SendEmailNotificationCommandKafkaHandler : IMessageHandler<S
     private readonly ILogger<SendEmailNotificationCommandKafkaHandler> _logger;
 
     public SendEmailNotificationCommandKafkaHandler(
-        ITransactionalOutbox<INotificationDbContext> outbox,
+        ITransactionalOutbox<INotificationsDbContext> outbox,
         IEmailGateway gateway,
         IEmailTemplateRenderer renderer,
         IOptions<TopicsOptions> topics,
@@ -1254,7 +1254,7 @@ Mirror Invoicing.IntegrationTests' csproj — same `PackageReference` set (`Test
 
 - [ ] **Step 3: Create `IntegrationTestFixture.cs`**
 
-Adapt Invoicing's fixture: substitute `INotificationDbContext` for `IInvoicingDbContext`, point to `NotificationDbContext`, and remove Azurite container (Notifications doesn't touch blob storage). Keep Kafka + Schema Registry + Postgres containers.
+Adapt Invoicing's fixture: substitute `INotificationsDbContext` for `IInvoicingDbContext`, point to `NotificationsDbContext`, and remove Azurite container (Notifications doesn't touch blob storage). Keep Kafka + Schema Registry + Postgres containers.
 
 - [ ] **Step 4: Create `IntegrationTestCollection.cs`**
 
@@ -1343,7 +1343,7 @@ public sealed class SendEmailNotificationCommandKafkaHandlerTests
 
         // Poll the outbox table for an EmailNotificationSentEvent row matching idempotencyKey.
         await using var assertScope = _fixture.CreateScope();
-        var db = assertScope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+        var db = assertScope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
 
         using var _ = new AssertionScope();
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -1464,10 +1464,10 @@ git add services/Invoicing/Invoicing.Application/Common/*DependencyInjection*.cs
 git commit -m "feat(invoicing): BuyerPortalOptions for non-credential email-link URL"
 ```
 
-### Task C2: Extend `InvoicingTopicsOptions` with notifications email topics
+### Task C2: Extend `TopicsOptions` with notifications email topics
 
 **Files:**
-- Modify: `services/Invoicing/Invoicing.Application/Common/Messaging/InvoicingTopicsOptions.cs`
+- Modify: `services/Invoicing/Invoicing.Application/Common/Messaging/TopicsOptions.cs`
 - Modify: `services/Invoicing/Invoicing.Api/appsettings.json` (+ Development, + test settings if any)
 
 - [ ] **Step 1: Add two `required` properties**
@@ -1499,12 +1499,12 @@ Also update `test/Invoicing.IntegrationTests/appsettings*.json` and `test/Invoic
 
 ```bash
 dotnet build -m
-git add services/Invoicing/Invoicing.Application/Common/Messaging/InvoicingTopicsOptions.cs \
+git add services/Invoicing/Invoicing.Application/Common/Messaging/TopicsOptions.cs \
         services/Invoicing/Invoicing.Api/appsettings.json \
         services/Invoicing/Invoicing.Api/appsettings.Development.json \
         test/Invoicing.IntegrationTests/appsettings*.json 2>/dev/null \
         test/Invoicing.FunctionalTests/appsettings*.json 2>/dev/null
-git commit -m "feat(invoicing): wire NotificationsEmailCommands + Events into InvoicingTopicsOptions"
+git commit -m "feat(invoicing): wire NotificationsEmailCommands + Events into TopicsOptions"
 ```
 
 ### Task C3: `InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler` + unit tests
@@ -1547,7 +1547,7 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
         var dbStub = StubInvoicingDbContext.WithInvoice(invoice);
 
         var outbox = Substitute.For<ITransactionalOutbox<IInvoicingDbContext>>();
-        var topics = Options.Create(new InvoicingTopicsOptions
+        var topics = Options.Create(new TopicsOptions
         {
             Invoices = "invoicing.invoices",
             OrderingOrders = "n/a",
@@ -1625,7 +1625,7 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler
 {
     private readonly ITransactionalOutbox<IInvoicingDbContext> _outbox;
     private readonly IInvoicingDbContext _db;
-    private readonly InvoicingTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly BuyerPortalOptions _portal;
     private readonly TimeProvider _clock;
     private readonly ILogger<InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler> _logger;
@@ -1633,7 +1633,7 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler
     public InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IInvoicingDbContext> outbox,
         IInvoicingDbContext db,
-        IOptions<InvoicingTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         IOptions<BuyerPortalOptions> portal,
         TimeProvider clock,
         ILogger<InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler> logger)
@@ -1813,7 +1813,7 @@ public sealed class InvoiceDeliveredOutboxPublisherTests
     public async Task Handle_QueuesInvoiceDeliveredEventOnInvoicesTopic_WithBuyerIdKey()
     {
         var outbox = Substitute.For<ITransactionalOutbox<IInvoicingDbContext>>();
-        var topics = Options.Create(new InvoicingTopicsOptions
+        var topics = Options.Create(new TopicsOptions
         {
             Invoices = "invoicing.invoices",
             OrderingOrders = "n/a", PaymentsTransactions = "n/a",
@@ -1865,12 +1865,12 @@ public sealed class InvoiceDeliveredOutboxPublisherDomainEventHandler
     : IDomainEventHandler<InvoiceDeliveredDomainEvent>
 {
     private readonly ITransactionalOutbox<IInvoicingDbContext> _outbox;
-    private readonly InvoicingTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<InvoiceDeliveredOutboxPublisherDomainEventHandler> _logger;
 
     public InvoiceDeliveredOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IInvoicingDbContext> outbox,
-        IOptions<InvoicingTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<InvoiceDeliveredOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

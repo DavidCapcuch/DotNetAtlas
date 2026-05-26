@@ -55,17 +55,17 @@ COPY saga/SagaOrchestrators/SagaOrchestrators.csproj saga/SagaOrchestrators/
 COPY saga/SagaOrchestrators/packages.lock.json saga/SagaOrchestrators/
 
 # Restore the saga entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true saga/SagaOrchestrators/SagaOrchestrators.csproj
+RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true saga/SagaOrchestrators/SagaOrchestrators.csproj
 
 # Copy the rest of the source.
 COPY . .
 WORKDIR /workspace/saga/SagaOrchestrators
 
 # Re-restore after the source copy so analyzers/source-generators/avro generators settle.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true SagaOrchestrators.csproj
+RUN dotnet restore --locked-mode -m:1 -p:PublishReadyToRun=true SagaOrchestrators.csproj
 
 # Build without restore.
-RUN dotnet build SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
+RUN dotnet build SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -m:1 -o /app/build \
     -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM build AS publish
@@ -76,7 +76,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/saga/SagaOrchestrators
-RUN dotnet publish SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN dotnet publish SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -m:1 -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final

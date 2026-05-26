@@ -19,8 +19,10 @@ namespace Basket.Infrastructure.Common;
 /// idempotency middleware itself; only <c>redis-basket</c> is registered here.
 /// Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
 /// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
-/// parameter, so <see cref="HealthChecksOptions.DatabaseTimeout"/> is enforced
-/// via a custom test query that cancels its own <see cref="CancellationTokenSource"/>.
+/// parameter, so the DB readiness probe runs under EF's command-timeout
+/// default (mirrors Catalog's M10 decision — operators who need a tighter
+/// DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
+/// into <c>EfCoreOptions</c>).
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
@@ -48,8 +50,6 @@ internal static class HealthChecksDependencyInjection
                 "Connection string 'Redis:Basket' is not configured. " +
                 "Required by the Basket health-checks slice (redis-basket per ADR-0016).");
 
-        var databaseTimeout = timeouts.DatabaseTimeout;
-
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
@@ -58,13 +58,7 @@ internal static class HealthChecksDependencyInjection
             .AddDbContextCheck<BasketDbContext>(
                 name: "Basket DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
-                customTestQuery: async (db, ct) =>
-                {
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts.CancelAfter(databaseTimeout);
-                    return await db.Database.CanConnectAsync(cts.Token).ConfigureAwait(false);
-                })
+                failureStatus: HealthStatus.Unhealthy)
             .AddRedis(
                 redisBasketConnectionString,
                 name: "redis-basket",

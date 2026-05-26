@@ -186,7 +186,7 @@ Add `NotificationsTopicsOptions` (new file in `services/Notifications/Notificati
 - `string EmailEvents` — `"notifications.email-events"`
 - `string DltTopicSuffix`
 
-Extend `InvoicingTopicsOptions` with:
+Extend `TopicsOptions` with:
 - `string NotificationsEmailCommands` — outbound, where Invoicing publishes `SendEmailNotificationCommand`.
 - `string NotificationsEmailEvents` — inbound, where Invoicing subscribes for `EmailNotificationSentEvent`.
 
@@ -203,7 +203,7 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<InvoiceDeliveryRequestedDomainEvent>
 {
     // ctor: ITransactionalOutbox<IInvoicingDbContext> outbox, IInvoicingDbContext db,
-    //       IOptions<InvoicingTopicsOptions> topics, IOptions<BuyerPortalOptions> portal,
+    //       IOptions<TopicsOptions> topics, IOptions<BuyerPortalOptions> portal,
     //       TimeProvider clock, ILogger<...> logger.
 
     public async Task Handle(InvoiceDeliveryRequestedDomainEvent e, CancellationToken ct)
@@ -437,7 +437,7 @@ KafkaFlow subscriber config in Notifications adds `notifications.email-commands`
 - Invoicing KafkaFlow consumer: extend to subscribe to `notifications.email-events`. Inbox middleware on (idempotency).
 - Notifications `MessagingDependencyInjection`: register `IEmailGateway`, `IEmailTemplateRenderer`, `SendEmailNotificationCommandKafkaHandler`. KafkaFlow consumer subscribes to `notifications.email-commands`.
 - Notifications `Common/Config/TopicsOptions.cs`: add `EmailCommands`, `EmailEvents`.
-- Invoicing `InvoicingTopicsOptions.cs`: add `NotificationsEmailCommands`, `NotificationsEmailEvents`.
+- Invoicing `TopicsOptions.cs`: add `NotificationsEmailCommands`, `NotificationsEmailEvents`.
 - `appsettings.json` updates in both BCs: topic names + `BuyerPortal:BaseUrl` (Invoicing only; dev default points at the Invoicing API itself).
 
 ### 9. Tests (TDD per BC)

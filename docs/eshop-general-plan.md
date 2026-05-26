@@ -35,7 +35,7 @@ DotNetAtlas/
 │   │   └── Basket.Infrastructure/
 │   │
 │   ├── Ordering/                     # Order Lifecycle BC (new — greenfield; former services/Order/ deleted)
-│   │   ├── Ordering.Api/             # (rename from Ordering.API)
+│   │   ├── Ordering.Api/             # (rename from Ordering.Api)
 │   │   ├── Ordering.Application/
 │   │   ├── Ordering.Domain/
 │   │   └── Ordering.Infrastructure/

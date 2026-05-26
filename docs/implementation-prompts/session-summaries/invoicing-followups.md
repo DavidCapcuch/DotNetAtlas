@@ -37,7 +37,7 @@ Closeout1 H1 (`ResendInvoiceCommandHandler` no-op undisclosed at M10 DoD ✅) + 
 TDD path:
 1. **RED** — added [`OpenApiDescription_DisclosesV1StubBehaviour`](../../../test/Invoicing.FunctionalTests/ApiEndpoints/Invoices/ResendInvoiceTests.cs) which hits `/swagger/v1/swagger.json`, parses the POST entry for `/api/v1/invoicing/invoices/{InvoiceId}/resend`, and asserts the description contains the stable `"v1 stub"` marker.
    - The test is **latent**: the Invoicing.FunctionalTests project transitively depends on `Platform.Test.Framework → Weather.Infrastructure → Weather.Domain`, which currently fails to build (29 `CS9035` errors). Filed as cross-cutting [#138](https://github.com/DavidCapcuch/DotNetAtlas/issues/138). The RED test is committed so the next functional-suite run validates the disclosure once Weather is fixed.
-2. **GREEN** — extended [`ResendInvoiceEndpoint.Summary{Summary,Description}`](../../../services/Invoicing/Invoicing.API/Endpoints/Invoices/ResendInvoice/ResendInvoiceEndpoint.cs) with an explicit v1-stub disclosure that flows into the OpenAPI `description`; fixed both endpoint + handler xmldoc 202 → 204 drift; cross-referenced this followups doc.
+2. **GREEN** — extended [`ResendInvoiceEndpoint.Summary{Summary,Description}`](../../../services/Invoicing/Invoicing.Api/Endpoints/Invoices/ResendInvoice/ResendInvoiceEndpoint.cs) with an explicit v1-stub disclosure that flows into the OpenAPI `description`; fixed both endpoint + handler xmldoc 202 → 204 drift; cross-referenced this followups doc.
 
 No behaviour change — same 204 success, same idempotency cache window.
 
@@ -51,7 +51,7 @@ $ dotnet restore --locked-mode
   exit 0
 
 $ dotnet build for each of:
-    services/Invoicing/Invoicing.API/Invoicing.API.csproj
+    services/Invoicing/Invoicing.Api/Invoicing.Api.csproj
     test/Invoicing.UnitTests/Invoicing.UnitTests.csproj
     test/Invoicing.ArchitectureTests/Invoicing.ArchitectureTests.csproj
     test/Invoicing.IntegrationTests/Invoicing.IntegrationTests.csproj

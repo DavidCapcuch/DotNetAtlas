@@ -51,7 +51,7 @@ internal static class AuthenticationDependencyInjection
         services.AddAuthorization(options => options.AddCatalogScopePolicies());
         services.AddHttpContextAccessor();
 
-        services.AddServiceAuth(serviceName: "catalog");
+        services.AddServiceAuth(serviceName: "catalog-service");
 
         return services;
     }

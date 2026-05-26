@@ -13,7 +13,7 @@
 |---|---|---|
 | **A — Foundation** | `b7e4879`, `45e5c27`, `d93337a`, `58919a7`, `54e6614`, `6eb7da7` | New Avro events (InvoiceDeliveredEvent, EmailNotificationSentEvent), `PdfBlobRef.BlobUri → BlobName` refactor, breaking Avro field renames on InvoiceIssued + CreditNoteIssued, EF migration (`pdf_blob_uri → pdf_blob_name` with RenameColumn + AlterColumn to preserve data) |
 | **B — Notifications BC** | `c7e7119`, `8e1f3ce`, `44c8996`, `4a9cccf`, `437156a`, `e281586`, `a90a596`, `6a99318` | New `Notifications.UnitTests` + `Notifications.IntegrationTests` projects, `IEmailGateway` + `MockEmailGateway`, `EmailTemplateRenderer` (with `invoicing.invoice-delivered`), `SendEmailNotificationCommandKafkaHandler`, KafkaFlow consumer wiring, Testcontainers fixture, end-to-end integration test |
-| **C — Invoicing publishers** | `cfc58da`, `37294e6`, `18c8667`, `577f3a0`, `e562cbc` | `BuyerPortalOptions`, `InvoicingTopicsOptions` extended with `NotificationsEmailCommands`/`Events`, `InvoiceDeliveryRequestedOutboxPublisher`, `InvoiceDeliveredMapper`, `InvoiceDeliveredOutboxPublisher` |
+| **C — Invoicing publishers** | `cfc58da`, `37294e6`, `18c8667`, `577f3a0`, `e562cbc` | `BuyerPortalOptions`, `TopicsOptions` extended with `NotificationsEmailCommands`/`Events`, `InvoiceDeliveryRequestedOutboxPublisher`, `InvoiceDeliveredMapper`, `InvoiceDeliveredOutboxPublisher` |
 | **D — Reciprocal consumer + flip** | `5f08c51`, `cd3fe17` | `EmailNotificationSentEventKafkaHandler` (Invoicing-side) + KafkaFlow subscription, flipped `DeliveryChannel.None → Email` at `IssueInvoiceCommandHandler.cs:159` |
 | **E — Closeout** | `11d434d`, `acc343e` | Extended `IssueInvoiceCommandHandlerTests` to assert `SendEmailNotificationCommand` outbox row, added end-to-end `InvoiceDeliveryFlowTests` covering Issue → Notifications ack → Delivered |
 
@@ -82,7 +82,7 @@ The original CLAUDE.md forbade generating EF migrations; the user authorised gen
 EF auto-scaffolded `Drop + Add` (data-loss path). The migration was manually rewritten to `RenameColumn + AlterColumn` so existing fixture rows survive the rename. Down-migration symmetrically restores the legacy `varchar(2048)` + comments.
 
 ### C1 + C2 — fixture follow-up commit
-Adding two `required` properties to `InvoicingTopicsOptions` regressed 5 integration tests because the in-memory configuration in `IntegrationTestFixture` didn't include the new keys. Commit `37294e6` added them inline.
+Adding two `required` properties to `TopicsOptions` regressed 5 integration tests because the in-memory configuration in `IntegrationTestFixture` didn't include the new keys. Commit `37294e6` added them inline.
 
 ### D1 — handler placement deviation
 The plan put the reciprocal consumer in `Invoicing.Application/Messaging/`. The actual `Invoicing.Application.csproj` has no KafkaFlow reference (and adding one would violate framework-independence). Implementer placed the handler in `Invoicing.Infrastructure/Messaging/Kafka/Notifications/` following established convention.

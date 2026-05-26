@@ -4,19 +4,19 @@
 
 ## Mission
 
-M6 (`6bc8bde feat(catalog): M6 HTTP layer + functional tests`) closed all behavioral wiring with one explicit hold: `services/Catalog/Catalog.API/Program.cs:36-38` had a TODO calling out Postgres / Redis / Kafka readiness probes for "M8" (mis-numbered — it's M7 per `<session_management>`). M7 turns that TODO into wired health-check DI, ships a `Catalog.API/Dockerfile`, adds `catalog.api` as a `docker compose --profile full` service, and validates the cold-start smoke flow end-to-end.
+M6 (`6bc8bde feat(catalog): M6 HTTP layer + functional tests`) closed all behavioral wiring with one explicit hold: `services/Catalog/Catalog.Api/Program.cs:36-38` had a TODO calling out Postgres / Redis / Kafka readiness probes for "M8" (mis-numbered — it's M7 per `<session_management>`). M7 turns that TODO into wired health-check DI, ships a `Catalog.Api/Dockerfile`, adds `catalog.api` as a `docker compose --profile full` service, and validates the cold-start smoke flow end-to-end.
 
 ## Deliverables
 
 ### Files created
 
 - `services/Catalog/Catalog.Infrastructure/Common/HealthChecksDependencyInjection.cs` — five readiness probes (Self / Catalog DB / redis-cache / Kafka / Schema Registry) tagged so `MapPlatformHealthCheckEndpoints` publishes liveness on `/api/healthz` and readiness on `/api/readiness`. Mirrors the Basket precedent at [services/Basket/Basket.Infrastructure/Common/HealthChecksDependencyInjection.cs](../../../services/Basket/Basket.Infrastructure/Common/HealthChecksDependencyInjection.cs); the Schema-Registry `AddUrlGroup` probe is the Catalog-specific addition (Basket does not publish Avro).
-- `services/Catalog/Catalog.API/Dockerfile` — multi-stage: `mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra` runtime base + `mcr.microsoft.com/dotnet/sdk:10.0.100-noble` build stage. **Tag-pinning matches the repo precedent verbatim** (root `Dockerfile` for Weather + `platform/Platform.OutboxRelay.WorkerService/Dockerfile` use the same exact tags). Ships every transitively-referenced platform `.csproj` + the four Catalog `.csproj`s + tier-isolated CPM files (`{platform,services}/Directory.Packages.props`) + per-project `packages.lock.json`s before the first `dotnet restore --locked-mode`.
+- `services/Catalog/Catalog.Api/Dockerfile` — multi-stage: `mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra` runtime base + `mcr.microsoft.com/dotnet/sdk:10.0.100-noble` build stage. **Tag-pinning matches the repo precedent verbatim** (root `Dockerfile` for Weather + `platform/Platform.OutboxRelay.WorkerService/Dockerfile` use the same exact tags). Ships every transitively-referenced platform `.csproj` + the four Catalog `.csproj`s + tier-isolated CPM files (`{platform,services}/Directory.Packages.props`) + per-project `packages.lock.json`s before the first `dotnet restore --locked-mode`.
 
 ### Files modified
 
 - `services/Catalog/Catalog.Infrastructure/Common/InfrastructureDependencyInjection.cs` — appended `.AddCatalogHealthChecks(configuration)` to the chain; updated `<remarks>` doc to enumerate three slices (Persistence, Messaging, HealthChecks) instead of two.
-- `services/Catalog/Catalog.API/Program.cs` — removed the redundant `builder.Services.AddHealthChecks();` call (now wired via Infrastructure DI through `AddCatalogHealthChecks`) and the M6 TODO comment about deferred readiness probes; replaced with a one-line pointer.
+- `services/Catalog/Catalog.Api/Program.cs` — removed the redundant `builder.Services.AddHealthChecks();` call (now wired via Infrastructure DI through `AddCatalogHealthChecks`) and the M6 TODO comment about deferred readiness probes; replaced with a one-line pointer.
 - `services/Catalog/Catalog.Infrastructure/Catalog.Infrastructure.csproj` — added `AspNetCore.HealthChecks.Redis` + `AspNetCore.HealthChecks.Uris` `<PackageReference>` items.
 - `services/Directory.Packages.props` — pinned `AspNetCore.HealthChecks.Uris` 9.0.0 (`Redis` was already there at line 66).
 - `docker-compose.yaml` — new `catalog.api` service inserted after `outbox-relay-catalog` (line 449), bound to host port `8100:8080`, depends_on `postgresdb` + `kafka` + `schema-registry` + `redis-cache` + `keycloak` (all `service_healthy`), `extra_hosts: localhost:host-gateway` so `JwtBearer.Authority=http://localhost:9011/realms/dotnetatlas` (the issuer baked into Keycloak's `--hostname` per docker-compose.yaml:731) resolves cleanly inside the container without overriding `MetadataAddress`. Memory limit 768 MB.
@@ -34,7 +34,7 @@ M6 (`6bc8bde feat(catalog): M6 HTTP layer + functional tests`) closed all behavi
 - **`extra_hosts: localhost:host-gateway` + Authority kept as-is** — Keycloak's `--hostname=http://localhost:9011` (compose:731) bakes the issuer into every token. Three options were considered: (a) override `JwtBearer.Authority` to the in-network URL `http://keycloak:8080/...` and the API would then reject tokens because their `iss` claim mismatches, (b) override `MetadataAddress` separately, or (c) **map `localhost` inside the container to the host gateway** so `Authority=http://localhost:9011/realms/dotnetatlas` works as-is. Picked (c) because it requires zero code changes, no platform-side issuer-validation override, and Kestrel binds `0.0.0.0` (not `localhost`) so the in-container loopback rebind is harmless. The OAuth code path was not hit during smoke (read endpoints 401 anonymously, as designed); production verification remains a follow-up.
 - **Host port `8100:8080`** — host port `8080` is taken by `nginx-cdn` (compose:687); the relay band `8090-8095` is fully occupied. `8100` is the next clean slot, leaving the `81xx` band for future BC APIs.
 - **No new `HealthChecksOptions`-style timeout binding class** — Catalog's `appsettings.json:96-101` already has a `HealthChecks` section with four timeouts, but Basket's precedent (the chosen template) doesn't bind those to per-check `timeout:` arguments either. The section sits idle for now; wiring it would be a parallel cleanup, not M7's scope.
-- **No catalog.api `healthcheck:` directive in compose** — the chiseled-extra base image has no `curl` / `wget` / shell, and the existing seven `outbox-relay-*` services in the same compose file (lines 354-622) — also chiseled — likewise have no `healthcheck:` block. Catalog matches the established repo pattern. The Opus reviewer flagged this (HIGH-3) but accepted it as a follow-up given the chiseled-image constraint and consistent precedent. Recommended longer-term fix: a self-contained healthcheck binary published alongside `Catalog.API.dll`.
+- **No catalog.api `healthcheck:` directive in compose** — the chiseled-extra base image has no `curl` / `wget` / shell, and the existing seven `outbox-relay-*` services in the same compose file (lines 354-622) — also chiseled — likewise have no `healthcheck:` block. Catalog matches the established repo pattern. The Opus reviewer flagged this (HIGH-3) but accepted it as a follow-up given the chiseled-image constraint and consistent precedent. Recommended longer-term fix: a self-contained healthcheck binary published alongside `Catalog.Api.dll`.
 
 ## ADR compliance
 
@@ -174,7 +174,7 @@ $ curl -s http://localhost:8081/subjects | jq .
 
 Per `<boundaries>` in `docs/implementation-prompts/catalog.md`:
 
-- `services/Catalog/**` ✓ — Program.cs, InfrastructureDependencyInjection.cs, HealthChecksDependencyInjection.cs (NEW), Catalog.Infrastructure.csproj, Catalog.API/Dockerfile (NEW), packages.lock.json regenerations.
+- `services/Catalog/**` ✓ — Program.cs, InfrastructureDependencyInjection.cs, HealthChecksDependencyInjection.cs (NEW), Catalog.Infrastructure.csproj, Catalog.Api/Dockerfile (NEW), packages.lock.json regenerations.
 - `services/Directory.Packages.props` ✓ — Catalog-driven package addition (`AspNetCore.HealthChecks.Uris`); cross-BC use of the same package later is fine.
 - `docker-compose.yaml` ✓ — drift-fix per the boundary clause's "only touch if you find drift" allowance, plus the catalog.md mission line about `docker compose up` starting the service.
 - `test/Catalog.{Architecture,Integration,Functional}Tests/packages.lock.json` ✓ — auto-regenerated by `--force-evaluate`; transitive consequence of the Infrastructure package additions.
@@ -192,6 +192,6 @@ The git working tree includes other un-staged files (`docs/adr/*`, `docs/bc-desi
 
 - 5/5 readiness probes green at HEAD with the HIGH-1 fix applied.
 - 255/255 Catalog unit tests + 41/41 architecture tests still green (same as M5/M6 baselines; no production-code logic change in M7).
-- Catalog.API container builds cleanly via `docker compose build catalog.api`.
+- Catalog.Api container builds cleanly via `docker compose build catalog.api`.
 - All four gates (build, restore --locked-mode, format whitespace, format style) green.
 - Hand-off block for **M8** (Docs self-corrections + session summary) follows in the session's closing message, per `_shared.md § 10` + the user's explicit closing-instruction.

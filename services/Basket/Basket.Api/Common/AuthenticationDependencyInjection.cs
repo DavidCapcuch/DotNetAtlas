@@ -42,7 +42,7 @@ internal static class AuthenticationDependencyInjection
         services.AddAuthorization();
         services.AddHttpContextAccessor();
 
-        services.AddServiceAuth(serviceName: "basket");
+        services.AddServiceAuth(serviceName: "basket-service");
 
         return services;
     }

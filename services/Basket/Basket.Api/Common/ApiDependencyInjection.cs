@@ -22,7 +22,7 @@ internal static class ApiDependencyInjection
 
         services.AddProblemDetails();
 
-        services.AddIdempotencyKeyOutputCache(configuration, serviceName: "basket");
+        services.AddIdempotencyKeyOutputCache(configuration, serviceName: "basket-service");
 
         return services;
     }

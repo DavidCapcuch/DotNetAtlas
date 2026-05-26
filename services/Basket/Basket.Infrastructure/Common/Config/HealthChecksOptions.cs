@@ -6,9 +6,10 @@ namespace Basket.Infrastructure.Common.Config;
 /// Configuration options for Basket readiness-probe timeouts. Mirrors the platform
 /// reference at
 /// <c>platform/Platform.OutboxRelay.WorkerService/Common/Config/HealthChecksOptions.cs</c>
-/// and the Catalog M10 precedent. <see cref="DatabaseTimeout"/> is Basket-specific —
-/// applied to <c>AddDbContextCheck</c> via a per-probe cancellation token (the EF Core
-/// extension does not expose a direct timeout parameter, per Wave-1 closeout #218).
+/// and the Catalog M10 precedent: <c>AddDbContextCheck</c> does not expose a direct
+/// timeout parameter, so no DB timeout is carried here. Operators who need a DB-level
+/// readiness timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
+/// <c>EfCoreOptions</c>.
 /// </summary>
 public sealed class HealthChecksOptions
 {
@@ -17,10 +18,6 @@ public sealed class HealthChecksOptions
     [Required]
     [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
     public required TimeSpan SelfTimeout { get; set; }
-
-    [Required]
-    [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
-    public required TimeSpan DatabaseTimeout { get; set; }
 
     [Required]
     [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]

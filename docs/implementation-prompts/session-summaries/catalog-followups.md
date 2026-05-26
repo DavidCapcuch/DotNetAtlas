@@ -105,7 +105,7 @@ Six items requiring a decision before implementation.
 All commands run from repo root on branch `aaqwdqwd`. The solution-wide `dotnet build -m` returned 20 errors — all in `Basket.Application` from unstaged parallel work present in the working tree when this session began (file modifications in Basket, Payments, Inventory not touched by this session). The Catalog stack builds clean:
 
 ```
-$ dotnet build services/Catalog/Catalog.API/Catalog.API.csproj -m --no-restore
+$ dotnet build services/Catalog/Catalog.Api/Catalog.Api.csproj -m --no-restore
 Build succeeded.
     0 Warning(s)
     0 Error(s)
