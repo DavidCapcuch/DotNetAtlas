@@ -18,6 +18,12 @@ namespace Basket.Infrastructure.Common;
 /// </para>
 /// <list type="bullet">
 /// <item><description>
+/// <c>AddOpenTelemetry</c> — distributed tracing + metrics pipeline.
+/// Wired first so every subsequent slice's instrumentation (EF Core, Redis,
+/// FusionCache, HTTP client) attaches to a live tracer/meter provider
+/// (mirrors Weather's ordering).
+/// </description></item>
+/// <item><description>
 /// <c>AddBasketRedisPersistence</c> — the Redis primary store: keyed
 /// <c>IConnectionMultiplexer</c> for <c>redis-basket</c>, FusionCache
 /// <c>"basket"</c>, and <c>IBasketRepository</c>. Distinct from
@@ -57,6 +63,7 @@ public static class InfrastructureDependencyInjection
         bool isDeployedEnvironment)
     {
         services
+            .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddBasketRedisPersistence(configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
             .AddMessaging(configuration)

@@ -8,12 +8,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
-using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Redis;
-using Platform.Test.Framework.Tracing;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -120,15 +118,6 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Basket.Infrastructure does not call AddOpenTelemetry() (unlike Notifications/
-                // Catalog/etc.) so TracerProvider is absent from the production composition.
-                // Register a minimal tracer that listens on TestActivitySource so
-                // TestCaseTracer (Platform.Test.Framework.Tracing) can resolve TracerProvider
-                // from DI. Same pattern test fixtures use to plug observability gaps without
-                // editing Basket.Infrastructure (outside this agent's file-ownership island).
-                services.AddOpenTelemetry()
-                    .WithTracing(tracing => tracing.AddSource(TestActivitySource.ActivitySourceName));
-
                 // Pin the clock so deterministic timestamp assertions work without
                 // each test re-creating a FakeTimeProvider.
                 services.Replace(ServiceDescriptor.Singleton<TimeProvider>(FakeTime));
