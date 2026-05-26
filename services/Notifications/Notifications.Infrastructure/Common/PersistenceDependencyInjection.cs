@@ -12,13 +12,13 @@ namespace Notifications.Infrastructure.Common;
 /// <summary>
 /// Dependency injection extensions for persistence infrastructure.
 /// </summary>
-public static class PersistenceDependencyInjection
+internal static class PersistenceDependencyInjection
 {
     /// <summary>
     /// Configures Entity Framework Core database context with PostgreSQL.
     /// Sets up connection pooling, interceptors, retry policies, seeding, and outbox pattern.
     /// </summary>
-    public static IServiceCollection AddDatabase(
+    internal static IServiceCollection AddDatabase(
         this IServiceCollection services,
         ConfigurationManager configuration,
         bool isDeployedEnvironment)
