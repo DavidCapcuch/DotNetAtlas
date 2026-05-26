@@ -4,6 +4,7 @@ using Notifications.Infrastructure.Common.Observability;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Pii;
 
 namespace Notifications.Infrastructure.Common;
@@ -15,7 +16,9 @@ namespace Notifications.Infrastructure.Common;
 public static class ObservabilityDependencyInjection
 {
     /// <summary>
-    /// Configures OpenTelemetry distributed tracing and metrics.
+    /// Configures OpenTelemetry distributed tracing and metrics. Wires
+    /// AspNetCore + HttpClient + EF Core instrumentation; skips
+    /// Redis/FusionCache because Notifications doesn't use them.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="isDeployedEnvironment">Whether running in a deployed environment.</param>
@@ -42,18 +45,29 @@ public static class ObservabilityDependencyInjection
                     .AddHostDetector())
                 .WithTracing(tracing =>
                 {
-                    tracing
+                    tracing.AddAspNetCoreInstrumentation(options =>
+                        {
+                            options.RecordException = false; // handled in tracing behavior
+                            options.Filter = context =>
+                                !context.Request.Path.StartsWithSegments(
+                                    ServiceDefaultHealthCheckTags.HealthEndpointPath,
+                                    StringComparison.OrdinalIgnoreCase)
+                                && !context.Request.Path.StartsWithSegments(
+                                    ServiceDefaultHealthCheckTags.ReadinessEndpointPath,
+                                    StringComparison.OrdinalIgnoreCase);
+                        })
+                        .AddHttpClientInstrumentation()
                         .AddEntityFrameworkCoreInstrumentation()
-                        .AddSource("*");
-
-                    // ADR-0011 — redacts [Pii]-tagged span attributes before export.
-                    tracing.AddPiiRedactionProcessor();
+                        .AddSource("*")
+                        .AddPiiRedactionProcessor(); // ADR-0011 — redacts [Pii]-tagged span attributes before export
 
                     tracing.AddOtlpExporter(options => options.Endpoint = new Uri(oltpExporterEndpoint));
                 })
                 .WithMetrics(metrics =>
                 {
                     metrics.AddMeter("*")
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
                         .AddRuntimeInstrumentation()
                         .AddProcessInstrumentation();
 

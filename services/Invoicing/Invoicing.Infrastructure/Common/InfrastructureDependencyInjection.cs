@@ -37,7 +37,7 @@ public static class InfrastructureDependencyInjection
         services.AddOpenTelemetry(isDeployedEnvironment, configuration);
         services.AddBlobStorage(configuration);
         services.AddPdfGeneration(configuration);
-        services.AddDatabase(configuration, enableSensitiveDataLogging);
+        services.AddDatabase(configuration, enableSensitiveDataLogging, isDeployedEnvironment);
         services.AddKafkaMessaging(configuration);
         services.AddInvoicingHealthChecks(configuration);
 

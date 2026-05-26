@@ -57,7 +57,10 @@ internal static class PersistenceDependencyInjection
                 })
             .UseSnakeCaseNamingConvention()
             .EnableSensitiveDataLogging(!isDeployedEnvironment)
-            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
+            // CAT-SEC-009: detailed errors leak EF parameter/column info into exception
+            // responses. Honour the config flag in non-deployed envs only; force off in
+            // deployed environments regardless of config.
+            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors && !isDeployedEnvironment)
             .UseExceptionProcessor());
 
         services.AddScoped<IBasketDbContext>(sp => sp.GetRequiredService<BasketDbContext>());

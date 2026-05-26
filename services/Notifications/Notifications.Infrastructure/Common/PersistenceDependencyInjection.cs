@@ -55,9 +55,12 @@ internal static class PersistenceDependencyInjection
                         errorCodesToAdd: null);
                 })
             .UseSnakeCaseNamingConvention()
-            .EnableSensitiveDataLogging(
-                !isDeployedEnvironment) // this is very useful for local debugging/investigating failed tests
-            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
+            // very useful for local debugging / investigating failed tests; off in deployed envs.
+            .EnableSensitiveDataLogging(!isDeployedEnvironment)
+            // CAT-SEC-009: detailed errors leak EF parameter/column info into exception
+            // responses. Honour the config flag in non-deployed envs only; force off in
+            // deployed environments regardless of config.
+            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors && !isDeployedEnvironment)
             .UseExceptionProcessor()); // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
 
         services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
