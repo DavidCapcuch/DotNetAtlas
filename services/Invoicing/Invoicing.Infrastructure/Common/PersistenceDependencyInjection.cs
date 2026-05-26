@@ -24,7 +24,8 @@ internal static class PersistenceDependencyInjection
     internal static IServiceCollection AddDatabase(
         this IServiceCollection services,
         IConfiguration configuration,
-        bool enableSensitiveDataLogging)
+        bool enableSensitiveDataLogging,
+        bool isDeployedEnvironment)
     {
         services.AddOptionsWithValidateOnStart<EfCoreOptions>()
             .BindConfiguration(EfCoreOptions.Section)
@@ -71,7 +72,10 @@ internal static class PersistenceDependencyInjection
             // environments only (Development + Test + Testing test-host) so deployed
             // Staging/Production never leak PII into log shippers.
             .EnableSensitiveDataLogging(enableSensitiveDataLogging)
-            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors)
+            // CAT-SEC-009: detailed errors leak EF parameter/column info into exception
+            // responses. Honour the config flag in non-deployed envs only; force off in
+            // deployed environments regardless of config.
+            .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors && !isDeployedEnvironment)
             .UseExceptionProcessor()
             .AddInterceptors(sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
 
