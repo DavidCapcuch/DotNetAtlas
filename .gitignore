@@ -68,3 +68,7 @@ DotNetAtlas.sln.DotSettings.user
 scripts/*
 *.lscache
 .claude/settings.local.json
+
+# Per-developer overlay for ASP.NET configuration — not committed.
+# Shared dev-machine defaults belong in appsettings.Development.json instead.
+**/appsettings.Local.json
