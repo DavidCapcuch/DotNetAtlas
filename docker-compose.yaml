@@ -570,7 +570,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=Catalog
     ports:
-      - "8100:8080"   # 8080 is taken by nginx-cdn (line 687); 8090-8095 by relays.
+      - "8100:8080"   # 8080 is taken by nginx-cdn (line 687); 8090-8096 by relays.
     deploy:
       resources:
         limits:
@@ -617,7 +617,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=Ordering
     ports:
-      - "8101:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8090-8095 by relays.
+      - "8101:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8090-8096 by relays.
     deploy:
       resources:
         limits:
@@ -667,7 +667,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=Invoicing
     ports:
-      - "8102:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8101 by ordering.api; 8090-8095 by relays.
+      - "8102:8080"   # 8080 is taken by nginx-cdn (line 687); 8100 by catalog.api; 8101 by ordering.api; 8090-8096 by relays.
     deploy:
       resources:
         limits:
@@ -707,7 +707,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=Notifications
     ports:
-      - "8103:8080"   # 8100 catalog.api, 8101 ordering.api, 8102 invoicing.api; 8090-8095 relays.
+      - "8103:8080"   # 8100 catalog.api, 8101 ordering.api, 8102 invoicing.api; 8090-8096 relays.
     deploy:
       resources:
         limits:
@@ -760,7 +760,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=Basket
     ports:
-      - "8104:8080"   # 8100 catalog, 8101 ordering, 8102 invoicing, 8103 notifications; 8090-8095 relays.
+      - "8104:8080"   # 8100 catalog, 8101 ordering, 8102 invoicing, 8103 notifications; 8090-8096 relays.
     deploy:
       resources:
         limits:
@@ -1108,6 +1108,40 @@ services:
       - OTEL_SERVICE_NAME=SagaOutboxRelay
     ports:
       - "8089:8080"  # Health checks endpoint
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  outbox-relay-notifications:
+    build:
+      context: .
+      dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    container_name: outbox-relay-notifications
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - KafkaProducer__BootstrapServers=broker:9092
+      - KafkaProducer__ClientId=outbox-relay-notifications-worker
+      - KafkaProducer__LingerMs=5
+      - OutboxRelay__SchemaName=notifications
+      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__PollingIntervalMs=2000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=NotificationsOutboxRelay
+    ports:
+      - "8096:8080"
     deploy:
       resources:
         limits:
