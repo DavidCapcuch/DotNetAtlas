@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using Notifications.Application.Common.Data;
 using Notifications.Infrastructure.Persistence.Database;
 using NSubstitute;
@@ -46,10 +45,6 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>
 {
-    /// <summary>Pinned to 2026-05-22 09:00 UTC so business-timestamp assertions stay deterministic.</summary>
-    public static readonly DateTimeOffset FixedFakeNow =
-        new(2026, 05, 22, 09, 00, 00, TimeSpan.Zero);
-
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Notifications",
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Notifications/Notifications.Infrastructure"),
@@ -57,9 +52,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             SchemasToInclude = [NotificationDbContext.DefaultSchemaName]
         });
-
-    /// <summary>Test-controlled clock pinned to <see cref="FixedFakeNow"/>; resolvable as <see cref="TimeProvider"/>.</summary>
-    public FakeTimeProvider FakeTime { get; } = new(FixedFakeNow);
 
     /// <summary>NSubstitute transactional-outbox stub. Tests assert on its <c>Received</c> AddOutboxMessage calls.</summary>
     public ITransactionalOutbox<INotificationDbContext> OutboxSubstitute { get; } =
@@ -112,7 +104,10 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                services.AddSingleton<TimeProvider>(FakeTime);
+                // TimeProvider is intentionally not replaced fixture-side (ADR-0015): a shared
+                // FakeTimeProvider singleton leaks between tests because SetUtcNow cannot move
+                // backwards. The Generic Host already registers TimeProvider.System; tests that
+                // need determinism construct their own FakeTimeProvider locally.
 
                 // Swap the production Avro+SchemaRegistry-backed ITransactionalOutbox
                 // for an NSubstitute stub. Tests assert on received AddOutboxMessage
