@@ -38,7 +38,7 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventDispatcher();
 
             // CQRS behavior chain. Decorator order: last registered = first to
-            // execute. Tracing (outer) > Logging > Metrics > Validation > Handler
+            // execute. Tracing (outer) -> Logging -> Metrics -> Validation -> Handler
             // (inner). Each AddCqrs*Behavior decorates all three handler kinds
             // (ICommandHandler<>, ICommandHandler<,>, IQueryHandler<,>); M7
             // satisfies every kind via the admin Receive/Adjust commands plus
