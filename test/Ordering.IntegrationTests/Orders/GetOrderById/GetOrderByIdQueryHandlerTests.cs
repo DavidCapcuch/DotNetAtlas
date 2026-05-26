@@ -40,7 +40,7 @@ public sealed class GetOrderByIdQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
         }
 
@@ -67,13 +67,13 @@ public sealed class GetOrderByIdQueryHandlerTests
         var buyerId = Guid.CreateVersion7();
         var ct = TestContext.Current.CancellationToken;
         const string reason = "Buyer requested cancellation";
-        var cancelledAtUtc = _fixture.FakeTime.GetUtcNow();
+        var cancelledAtUtc = DateTimeOffset.UtcNow;
 
         Order seeded;
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
             seeded.Cancel(reason, cancelledAtUtc).IsSuccess.Should().BeTrue();
             await dbContext.SaveChangesAsync(ct);
@@ -87,7 +87,8 @@ public sealed class GetOrderByIdQueryHandlerTests
         dto.Cancellation.Should().NotBeNull();
         dto.Cancellation!.Reason.Should().Be(reason);
         dto.Cancellation.AtStatus.Should().Be(OrderStatus.Created.Name);
-        dto.Cancellation.CancelledAtUtc.Should().Be(cancelledAtUtc);
+        // Postgres timestamptz truncates 100-ns precision to microseconds.
+        dto.Cancellation.CancelledAtUtc.Should().BeCloseTo(cancelledAtUtc, TimeSpan.FromSeconds(1));
         dto.Failure.Should().BeNull();
         dto.Shipment.Should().BeNull();
     }
@@ -99,13 +100,13 @@ public sealed class GetOrderByIdQueryHandlerTests
         var ct = TestContext.Current.CancellationToken;
         const string errorCode = "STOCK_UNAVAILABLE";
         const string errorMessage = "Insufficient stock for requested items";
-        var failedAtUtc = _fixture.FakeTime.GetUtcNow();
+        var failedAtUtc = DateTimeOffset.UtcNow;
 
         Order seeded;
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
             seeded.Fail(errorCode, errorMessage, failedAtUtc).IsSuccess.Should().BeTrue();
             await dbContext.SaveChangesAsync(ct);
@@ -120,7 +121,8 @@ public sealed class GetOrderByIdQueryHandlerTests
         dto.Failure!.ErrorCode.Should().Be(errorCode);
         dto.Failure.ErrorMessage.Should().Be(errorMessage);
         dto.Failure.AtStatus.Should().Be(OrderStatus.Created.Name);
-        dto.Failure.FailedAtUtc.Should().Be(failedAtUtc);
+        // Postgres timestamptz truncates 100-ns precision to microseconds.
+        dto.Failure.FailedAtUtc.Should().BeCloseTo(failedAtUtc, TimeSpan.FromSeconds(1));
         dto.Cancellation.Should().BeNull();
         dto.Shipment.Should().BeNull();
     }
@@ -130,13 +132,12 @@ public sealed class GetOrderByIdQueryHandlerTests
     {
         var buyerId = Guid.CreateVersion7();
         var ct = TestContext.Current.CancellationToken;
-        var shippedAtUtc = _fixture.FakeTime.GetUtcNow();
 
         Order seeded;
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateShippedOrderAsync(buyerId: buyerId, cancellationToken: ct);
         }
 
@@ -148,7 +149,9 @@ public sealed class GetOrderByIdQueryHandlerTests
         dto.Shipment.Should().NotBeNull();
         dto.Shipment!.Carrier.Should().Be("DHL");
         dto.Shipment.TrackingNumber.Should().Be("1Z999AA10123456784");
-        dto.Shipment.ShippedAtUtc.Should().Be(shippedAtUtc);
+        // Round-trip the seeded shipped-at timestamp through the projection.
+        // Postgres timestamptz truncates 100-ns precision to microseconds.
+        dto.Shipment.ShippedAtUtc.Should().BeCloseTo(seeded.Shipment!.ShippedAtUtc, TimeSpan.FromSeconds(1));
         dto.Cancellation.Should().BeNull();
         dto.Failure.Should().BeNull();
     }
@@ -164,7 +167,7 @@ public sealed class GetOrderByIdQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateOrderAsync(buyerId: owner, cancellationToken: ct);
         }
 
@@ -185,7 +188,7 @@ public sealed class GetOrderByIdQueryHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(dbContext, _fixture.FakeTime);
+            var seed = new OrderSeed(dbContext, TimeProvider.System);
             seeded = await seed.CreateOrderAsync(buyerId: owner, cancellationToken: ct);
         }
 

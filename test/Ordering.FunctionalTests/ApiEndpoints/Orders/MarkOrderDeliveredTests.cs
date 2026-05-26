@@ -39,7 +39,7 @@ public class MarkOrderDeliveredTests : BaseApiTest
     [Fact]
     public async Task WhenOrderShipped_ReturnsNoContentAndStatusDelivered()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateShippedOrderAsync(TestUsers.BuyerId);
 
         var response = await HttpClientRegistry.AdminClient

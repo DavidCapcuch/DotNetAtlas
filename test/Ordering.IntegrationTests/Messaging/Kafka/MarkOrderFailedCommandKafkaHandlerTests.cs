@@ -34,7 +34,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -51,7 +51,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
             CorrelationId = Guid.CreateVersion7(),
             ErrorCode = "STOCK_UNAVAILABLE",
             ErrorMessage = "Stock unavailable for one or more items.",
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);
@@ -89,7 +89,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
         using (var seedScope = _fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-            var seed = new OrderSeed(seedDb, _fixture.FakeTime);
+            var seed = new OrderSeed(seedDb, TimeProvider.System);
             var seeded = await seed.CreateConfirmedOrderAsync(
                 cancellationToken: TestContext.Current.CancellationToken);
             orderId = seeded.Id;
@@ -103,7 +103,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
             CorrelationId = Guid.CreateVersion7(),
             ErrorCode = "CONFIRMATION_TIMEOUT",
             ErrorMessage = "Should not happen post-Confirmed.",
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+            RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
             cancellationToken: TestContext.Current.CancellationToken);

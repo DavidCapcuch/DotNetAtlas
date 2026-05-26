@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using Ordering.Infrastructure.Persistence.Database;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
@@ -43,13 +42,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             SchemasToInclude = [OrderingDbContext.DefaultSchemaName]
         });
-
-    /// <summary>
-    /// Pinned to 2026-04-23 10:00 UTC so assertions on <c>CreatedAtUtc</c>
-    /// etc. do not depend on wall-clock time.
-    /// </summary>
-    public FakeTimeProvider FakeTime { get; } = new(
-        new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero));
 
     protected override async ValueTask PreSetupAsync()
     {
@@ -98,9 +90,6 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin time so timestamp assertions are stable.
-                services.AddSingleton<TimeProvider>(FakeTime);
-
                 // Replace the production Avro/SchemaRegistry-backed IOutboxWriter with
                 // an in-memory fake. The outbox publisher domain-event handlers fire on
                 // every SaveChanges; without this they would attempt to talk to a

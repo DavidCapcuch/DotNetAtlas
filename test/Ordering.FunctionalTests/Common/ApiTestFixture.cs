@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using OpenTelemetry;
 using Ordering.FunctionalTests.Common.TestClientInfrastructure;
 using Ordering.Infrastructure.Persistence.Database;
@@ -56,13 +55,6 @@ public class ApiTestFixture : AppFixture<Program>
     /// instead of the FakeTokenCreator default).
     /// </summary>
     public FakeTokenSigner Signer => _signer;
-
-    /// <summary>
-    /// Pinned to 2026-04-23 10:00 UTC so cancellation/ship/deliver
-    /// timestamps in functional-test assertions stay deterministic.
-    /// </summary>
-    public FakeTimeProvider FakeTime { get; } = new(
-        new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero));
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
@@ -125,9 +117,6 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin time so timestamp assertions are stable.
-                services.AddSingleton<TimeProvider>(FakeTime);
-
                 // Replace the real Avro/SchemaRegistry-backed outbox writer
                 // with an in-memory fake. The outbox publisher domain-event
                 // handlers fire on every SaveChanges; without this the seed

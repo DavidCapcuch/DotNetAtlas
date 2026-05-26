@@ -101,7 +101,7 @@ public sealed class HappyPathIntegrationTests
             {
                 OrderId = orderId,
                 CorrelationId = correlationId,
-                RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+                RequestedAtUtc = DateTime.UtcNow,
             };
             await handler.Handle(
                 FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
@@ -138,7 +138,7 @@ public sealed class HappyPathIntegrationTests
         }
     }
 
-    private AvroCreateOrderCommand NewValidCreateCommand(Guid correlationId) => new()
+    private static AvroCreateOrderCommand NewValidCreateCommand(Guid correlationId) => new()
     {
         CorrelationId = correlationId,
         BuyerId = Guid.CreateVersion7(),
@@ -157,7 +157,7 @@ public sealed class HappyPathIntegrationTests
         },
         ShippingAddress = NewAvroAddress(),
         BillingAddress = NewAvroAddress(),
-        RequestedAtUtc = _fixture.FakeTime.GetUtcNow().UtcDateTime,
+        RequestedAtUtc = DateTime.UtcNow,
     };
 
     private static AvroOrderAddress NewAvroAddress() => new()

@@ -68,7 +68,7 @@ public class MarkOrderShippedTests : BaseApiTest
     [Fact]
     public async Task WhenOrderConfirmed_ReturnsNoContentAndStatusShipped()
     {
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateConfirmedOrderAsync(TestUsers.BuyerId);
 
         var response = await HttpClientRegistry.AdminClient
@@ -122,7 +122,7 @@ public class MarkOrderShippedTests : BaseApiTest
         // JwtBearerConfigurator.cs, this test fails loudly — admin auth
         // across every BC consuming AddPlatformJwtBearer would break in
         // production at the same time.
-        var seed = new OrderSeed(DbContext, App.FakeTime);
+        var seed = new OrderSeed(DbContext, TimeProvider.System);
         var order = await seed.CreateConfirmedOrderAsync(TestUsers.BuyerId);
 
         var claims = new[]

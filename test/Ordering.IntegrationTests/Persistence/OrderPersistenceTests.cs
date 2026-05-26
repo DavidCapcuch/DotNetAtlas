@@ -57,6 +57,11 @@ public sealed class OrderPersistenceTests
         var shipping = Address.Create("221B Baker Street", null, "London", null, "NW1 6XE", "GB").Value;
         var billing = Address.Create("10 Downing Street", null, "London", null, "SW1A 2AA", "GB").Value;
 
+        // Snapshot "now" before the act phase so the audit-interceptor assertion
+        // below has a wall-clock-stable lower bound (the interceptor calls
+        // TimeProvider.System.GetUtcNow() during SaveChangesAsync).
+        var nowSnapshot = DateTimeOffset.UtcNow;
+
         var order = Order.CreateFromBasket(
             correlationId,
             buyerId,
@@ -64,7 +69,7 @@ public sealed class OrderPersistenceTests
             shipping,
             billing,
             paymentMethodId,
-            _fixture.FakeTime.GetUtcNow());
+            nowSnapshot);
 
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -101,9 +106,11 @@ public sealed class OrderPersistenceTests
                 ProductSnapshot = new { Sku = "SKU-42", Name = "Acme Widget" },
             });
 
-        // Audit-interceptor stamps set from FakeTimeProvider.
-        loaded.CreatedUtc.Should().Be(_fixture.FakeTime.GetUtcNow());
-        loaded.LastModifiedUtc.Should().Be(_fixture.FakeTime.GetUtcNow());
+        // Audit-interceptor stamps come from TimeProvider.System; allow a
+        // small wall-clock slack to absorb the interceptor's clock read vs
+        // the snapshot captured before the act phase.
+        loaded.CreatedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
+        loaded.LastModifiedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -128,10 +135,11 @@ public sealed class OrderPersistenceTests
         // so construct fresh Addresses for shipping vs billing and for the two Orders.
         static Address Addr() => Address.Create("1 Test Ln", null, "Palo Alto", "CA", "94301", "US").Value;
 
+        var utcNow = DateTimeOffset.UtcNow;
         var first = Order.CreateFromBasket(
-            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, _fixture.FakeTime.GetUtcNow());
+            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
         var second = Order.CreateFromBasket(
-            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, _fixture.FakeTime.GetUtcNow());
+            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
 
         dbContext.Orders.Add(first);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -180,7 +188,7 @@ public sealed class OrderPersistenceTests
                 "1 Idempotent Way", null, "Palo Alto", "CA", "94301", "US"),
             BillingAddress = new AddressInput(
                 "1 Idempotent Way", null, "Palo Alto", "CA", "94301", "US"),
-            RequestedAtUtc = _fixture.FakeTime.GetUtcNow(),
+            RequestedAtUtc = DateTimeOffset.UtcNow,
         };
 
         var first = await handler.HandleAsync(command, TestContext.Current.CancellationToken);
