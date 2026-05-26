@@ -28,7 +28,7 @@ try
         .AddInvoicingAuth(builder.Configuration, isDeployedEnvironment)
         .AddPresentation(builder.Configuration)
         .AddInvoicingApplication()
-        .AddInvoicingInfrastructure(builder.Configuration, isDeployedEnvironment);
+        .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
     var app = builder.Build();
 

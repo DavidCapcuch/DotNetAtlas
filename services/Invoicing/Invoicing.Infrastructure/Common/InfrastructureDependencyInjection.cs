@@ -20,7 +20,7 @@ namespace Invoicing.Infrastructure.Common;
 /// </summary>
 public static class InfrastructureDependencyInjection
 {
-    public static IServiceCollection AddInvoicingInfrastructure(
+    public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         ConfigurationManager configuration,
         bool isDeployedEnvironment)
@@ -37,7 +37,7 @@ public static class InfrastructureDependencyInjection
         services.AddOpenTelemetry(isDeployedEnvironment, configuration);
         services.AddBlobStorage(configuration);
         services.AddPdfGeneration(configuration);
-        services.AddPersistence(configuration, enableSensitiveDataLogging);
+        services.AddDatabase(configuration, enableSensitiveDataLogging);
         services.AddKafkaMessaging(configuration);
         services.AddInvoicingHealthChecks(configuration);
 
