@@ -22,12 +22,19 @@ public static class InfrastructureDependencyInjection
 {
     public static IServiceCollection AddInvoicingInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration,
-        bool enableSensitiveDataLogging)
+        ConfigurationManager configuration,
+        bool isDeployedEnvironment)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        // EF Core sensitive-data logging exposes parameter values (PII-bearing _enc
+        // columns per ADR-0011). Platform convention (#121): allow it everywhere
+        // EXCEPT deployed environments (Staging/Production) — Development, Test,
+        // and the Testing test-host need the visibility for debugging.
+        var enableSensitiveDataLogging = !isDeployedEnvironment;
+
+        services.AddOpenTelemetry(isDeployedEnvironment, configuration);
         services.AddBlobStorage(configuration);
         services.AddPdfGeneration(configuration);
         services.AddPersistence(configuration, enableSensitiveDataLogging);

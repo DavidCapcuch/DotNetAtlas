@@ -11,7 +11,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
@@ -120,13 +119,6 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Register a TracerProvider so BaseApiTest's TestCaseTracer can resolve it.
-                // Invoicing.Api intentionally does not register OpenTelemetry in production
-                // (no OTEL_EXPORTER_OTLP_ENDPOINT in appsettings); the test host needs a
-                // provider so each test method gets its own Jaeger trace in local dev.
-                services.AddOpenTelemetry()
-                    .WithTracing(tracing => tracing.AddSource(Platform.Test.Framework.Tracing.TestActivitySource.ActivitySourceName));
-
                 // Pin time so SAS-expiry / IssueDate assertions are stable.
                 services.AddSingleton<TimeProvider>(FakeTime);
 

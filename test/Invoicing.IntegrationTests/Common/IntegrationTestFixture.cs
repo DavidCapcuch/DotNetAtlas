@@ -19,8 +19,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
-using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
@@ -120,14 +118,6 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Register a TracerProvider so BaseIntegrationTest's TestCaseTracer can
-                // resolve it. Invoicing.Api intentionally does not register OpenTelemetry
-                // in production (no OTEL_EXPORTER_OTLP_ENDPOINT in appsettings); the test
-                // host needs a provider so each test method gets its own Jaeger trace in
-                // local dev.
-                services.AddOpenTelemetry()
-                    .WithTracing(tracing => tracing.AddSource(Platform.Test.Framework.Tracing.TestActivitySource.ActivitySourceName));
-
                 // Pin time so issue-date / SAS-expiry assertions are stable.
                 services.Replace(ServiceDescriptor.Singleton<TimeProvider>(FakeTime));
 
