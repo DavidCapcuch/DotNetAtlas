@@ -170,8 +170,11 @@ public class ApiTestFixture : AppFixture<Program>
         using var _ = SuppressInstrumentationScope.Begin();
 
         FeatureClient.ClearSubstitute(ClearOptions.All);
-        TimeProvider.SetUtcNow(Now);
 
+        // Note: TimeProvider is intentionally NOT rewound — FakeTimeProvider.SetUtcNow
+        // rejects going backwards in time, and tests that advance the clock with
+        // TimeProvider.Advance(...) use relative offsets. The singleton lives for the
+        // fixture lifetime; tests are isolated by Postgres/Redis cleanup, not by clock rewind.
         await Task.WhenAll(
             _dbContainer.CleanDataAsync(),
             _redisContainer.CleanDataAsync()

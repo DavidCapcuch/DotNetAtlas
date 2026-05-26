@@ -10,7 +10,7 @@ namespace Catalog.Infrastructure.Common;
 /// handlers, projection handlers, outbox publishers).
 /// </summary>
 /// <remarks>
-/// Chains the three infrastructure slices:
+/// Chains the infrastructure slices:
 /// <list type="bullet">
 /// <item><description>
 /// <see cref="PersistenceDependencyInjection.AddDatabase"/> (M4.1) — <see cref="Persistence.Database.CatalogDbContext"/>
@@ -21,6 +21,11 @@ namespace Catalog.Infrastructure.Common;
 /// <see cref="MessagingDependencyInjection.AddKafkaMessaging"/> (M4.2) — KafkaFlow cluster
 /// with the <c>StockLevelChanged</c> inbox consumer, transactional outbox + DLT producer,
 /// and correlation-id propagation middleware.
+/// </description></item>
+/// <item><description>
+/// <see cref="ObservabilityDependencyInjection.AddOpenTelemetry"/> — OTel tracing +
+/// metrics with ASP.NET Core, HTTP, EF Core, and Redis instrumentation. Gated on
+/// <c>OTEL_EXPORTER_OTLP_ENDPOINT</c>; ADR-0011 PII redaction processor is wired here.
 /// </description></item>
 /// <item><description>
 /// <see cref="HealthChecksDependencyInjection.AddCatalogHealthChecks"/> (M7) — readiness
@@ -39,6 +44,7 @@ public static class InfrastructureDependencyInjection
         services
             .AddDatabase(configuration, isDeployedEnvironment)
             .AddKafkaMessaging(configuration)
+            .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddCatalogHealthChecks(configuration);
 
         return services;
