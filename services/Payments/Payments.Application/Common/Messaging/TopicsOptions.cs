@@ -8,10 +8,10 @@ namespace Payments.Application.Common.Messaging;
 /// (per <c>events-catalog.md § 2</c>); the command-intake topic <c>payments.payment-commands</c> is owned
 /// by the Kafka consumer wiring in M5.
 /// </summary>
-public sealed class PaymentsTopicsOptions
+public sealed class TopicsOptions
 {
     /// <summary>Configuration section name (BC-prefixed for clarity in shared composition roots).</summary>
-    public const string Section = "PaymentsTopics";
+    public const string Section = "Topics";
 
     private const int MaximumKafkaTopicLength = 249;
 

@@ -7,9 +7,9 @@ namespace Catalog.Application.Common.Messaging;
 /// <c>StockLevelChanged</c> consumer wired in M4.2. Bound to configuration section
 /// <c>CatalogTopics</c>.
 /// </summary>
-public sealed class CatalogTopicsOptions
+public sealed class TopicsOptions
 {
-    public const string Section = "CatalogTopics";
+    public const string Section = "Topics";
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>

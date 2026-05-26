@@ -17,12 +17,12 @@ public sealed class PaymentRefundedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<PaymentRefundedDomainEvent>
 {
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly PaymentsTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<PaymentRefundedOutboxPublisherDomainEventHandler> _logger;
 
     public PaymentRefundedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IOptions<PaymentsTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<PaymentRefundedOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

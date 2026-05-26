@@ -26,7 +26,7 @@ public class CategoryCreatedOutboxPublisherTests
         var publisher = new CategoryCreatedOutboxPublisher(
             db,
             outbox,
-            Options.Create(new CatalogTopicsOptions
+            Options.Create(new TopicsOptions
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",

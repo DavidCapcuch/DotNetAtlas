@@ -16,13 +16,13 @@ public sealed class CategoryCreatedOutboxPublisher
 {
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
-    private readonly CatalogTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<CategoryCreatedOutboxPublisher> _logger;
 
     public CategoryCreatedOutboxPublisher(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
-        IOptions<CatalogTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<CategoryCreatedOutboxPublisher> logger)
     {
         _db = db;

@@ -17,12 +17,12 @@ public sealed class PaymentVoidedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<PaymentVoidedDomainEvent>
 {
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly PaymentsTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<PaymentVoidedOutboxPublisherDomainEventHandler> _logger;
 
     public PaymentVoidedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IOptions<PaymentsTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<PaymentVoidedOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

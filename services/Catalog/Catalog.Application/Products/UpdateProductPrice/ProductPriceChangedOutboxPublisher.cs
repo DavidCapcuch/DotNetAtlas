@@ -16,13 +16,13 @@ public sealed class ProductPriceChangedOutboxPublisher
 {
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
-    private readonly CatalogTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<ProductPriceChangedOutboxPublisher> _logger;
 
     public ProductPriceChangedOutboxPublisher(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
-        IOptions<CatalogTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<ProductPriceChangedOutboxPublisher> logger)
     {
         _db = db;

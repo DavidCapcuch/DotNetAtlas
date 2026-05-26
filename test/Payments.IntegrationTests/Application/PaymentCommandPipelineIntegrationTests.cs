@@ -48,7 +48,7 @@ public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
 
         services.AddApplication();
-        services.Configure<PaymentsTopicsOptions>(opts =>
+        services.Configure<TopicsOptions>(opts =>
         {
             opts.Transactions = "payments.transactions";
             opts.DltTopicSuffix = ".DLT";

@@ -27,7 +27,7 @@ public class ProductDiscontinuedOutboxPublisherTests
         var publisher = new ProductDiscontinuedOutboxPublisher(
             db,
             outbox,
-            Options.Create(new CatalogTopicsOptions
+            Options.Create(new TopicsOptions
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",

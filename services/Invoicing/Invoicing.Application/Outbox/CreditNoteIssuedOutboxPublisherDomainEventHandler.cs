@@ -18,12 +18,12 @@ public sealed class CreditNoteIssuedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<CreditNoteIssuedDomainEvent>
 {
     private readonly ITransactionalOutbox<IInvoicingDbContext> _outbox;
-    private readonly InvoicingTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<CreditNoteIssuedOutboxPublisherDomainEventHandler> _logger;
 
     public CreditNoteIssuedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IInvoicingDbContext> outbox,
-        IOptions<InvoicingTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<CreditNoteIssuedOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

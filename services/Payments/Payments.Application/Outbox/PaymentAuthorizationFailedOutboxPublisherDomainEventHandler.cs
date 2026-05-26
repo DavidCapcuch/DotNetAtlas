@@ -19,12 +19,12 @@ public sealed class PaymentAuthorizationFailedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<PaymentAuthorizationFailedDomainEvent>
 {
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly PaymentsTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<PaymentAuthorizationFailedOutboxPublisherDomainEventHandler> _logger;
 
     public PaymentAuthorizationFailedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IOptions<PaymentsTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<PaymentAuthorizationFailedOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

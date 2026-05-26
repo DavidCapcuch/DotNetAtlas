@@ -54,7 +54,7 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
-        // InvoicingTopicsOptions registration moved to AddApplication (M7) so the
+        // TopicsOptions registration moved to AddApplication (M7) so the
         // outbox publishers in the Application layer can read it without depending on
         // Infrastructure-namespace types. Consumer setup below binds it directly from
         // configuration to extract topic names at startup.
@@ -75,8 +75,8 @@ internal static class MessagingDependencyInjection
             .Get<KafkaOptions>()!;
 
         var topicsOptions = configuration
-            .GetRequiredSection(InvoicingTopicsOptions.Section)
-            .Get<InvoicingTopicsOptions>()!;
+            .GetRequiredSection(TopicsOptions.Section)
+            .Get<TopicsOptions>()!;
 
         var orderingConsumerOptions = configuration
             .GetRequiredSection(OrderingOrdersConsumerOptions.Section)

@@ -22,13 +22,13 @@ public sealed class ProductDiscontinuedOutboxPublisher
 {
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
-    private readonly CatalogTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<ProductDiscontinuedOutboxPublisher> _logger;
 
     public ProductDiscontinuedOutboxPublisher(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
-        IOptions<CatalogTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<ProductDiscontinuedOutboxPublisher> logger)
     {
         _db = db;

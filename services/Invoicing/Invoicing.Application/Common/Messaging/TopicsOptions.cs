@@ -22,9 +22,9 @@ namespace Invoicing.Application.Common.Messaging;
 /// envelopes.
 /// </para>
 /// </remarks>
-public sealed class InvoicingTopicsOptions
+public sealed class TopicsOptions
 {
-    public const string Section = "InvoicingTopics";
+    public const string Section = "Topics";
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>

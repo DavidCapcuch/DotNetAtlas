@@ -14,7 +14,7 @@ namespace Catalog.UnitTests.Products.UpdateProductPrice;
 
 public class ProductPriceChangedOutboxPublisherTests
 {
-    private static CatalogTopicsOptions DefaultTopics() => new()
+    private static TopicsOptions DefaultTopics() => new()
     {
         CatalogProducts = "catalog.products",
         CatalogCategories = "catalog.categories",

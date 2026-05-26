@@ -27,14 +27,14 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<InvoiceDeliveryRequestedDomainEvent>
 {
     private readonly ITransactionalOutbox<IInvoicingDbContext> _outbox;
-    private readonly InvoicingTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly BuyerPortalOptions _portal;
     private readonly TimeProvider _clock;
     private readonly ILogger<InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler> _logger;
 
     public InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IInvoicingDbContext> outbox,
-        IOptions<InvoicingTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         IOptions<BuyerPortalOptions> portal,
         TimeProvider clock,
         ILogger<InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler> logger)
