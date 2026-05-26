@@ -33,19 +33,23 @@ public class FakeCatalogDbContext : DbContext, ICatalogDbContext
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
-    public static FakeCatalogDbContext Create(string? databaseName = null)
+    public static FakeCatalogDbContext Create(string? databaseName = null, params IInterceptor[] interceptors)
     {
-        var options = new DbContextOptionsBuilder<FakeCatalogDbContext>()
+        var builder = new DbContextOptionsBuilder<FakeCatalogDbContext>()
             .UseInMemoryDatabase(databaseName ?? Guid.CreateVersion7().ToString())
             // The InMemory provider has no transactions; the production CatalogDbContext on
             // Postgres uses Database.EnsureTransactionAsync (e.g. ReparentCategoryCommandHandler).
             // Tell the provider to silently ignore the transaction so unit tests still exercise
             // the same handler code path; the SQL-level transactional semantics are covered by
             // Catalog.IntegrationTests against a Postgres Testcontainer in M4.
-            .ConfigureWarnings(b => b.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
+            .ConfigureWarnings(b => b.Ignore(InMemoryEventId.TransactionIgnoredWarning));
 
-        return new FakeCatalogDbContext(options);
+        if (interceptors.Length > 0)
+        {
+            builder.AddInterceptors(interceptors);
+        }
+
+        return new FakeCatalogDbContext(builder.Options);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
