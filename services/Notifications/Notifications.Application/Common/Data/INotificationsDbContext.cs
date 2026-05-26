@@ -2,6 +2,6 @@ using Platform.ReliableMessaging.Outbox.EFCore;
 
 namespace Notifications.Application.Common.Data;
 
-public interface INotificationDbContext : IOutboxDbContext
+public interface INotificationsDbContext : IOutboxDbContext
 {
 }

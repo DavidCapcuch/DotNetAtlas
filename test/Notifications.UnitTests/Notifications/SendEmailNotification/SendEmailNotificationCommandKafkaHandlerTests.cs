@@ -19,8 +19,8 @@ namespace Notifications.UnitTests.Notifications.SendEmailNotification;
 
 public sealed class SendEmailNotificationCommandKafkaHandlerTests : IDisposable
 {
-    private readonly ITransactionalOutbox<INotificationDbContext> _outbox =
-        Substitute.For<ITransactionalOutbox<INotificationDbContext>>();
+    private readonly ITransactionalOutbox<INotificationsDbContext> _outbox =
+        Substitute.For<ITransactionalOutbox<INotificationsDbContext>>();
 
     private readonly IEmailGateway _gateway = Substitute.For<IEmailGateway>();
     private readonly IEmailTemplateRenderer _renderer = new EmailTemplateRenderer();

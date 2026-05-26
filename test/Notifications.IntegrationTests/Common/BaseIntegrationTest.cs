@@ -11,7 +11,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
     private readonly Func<Task> _resetFixtureStateAsync;
 
     protected IServiceScope Scope { get; }
-    protected NotificationDbContext NotificationDbContext { get; }
+    protected NotificationsDbContext NotificationsDbContext { get; }
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
     {
@@ -20,7 +20,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        NotificationDbContext = Scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+        NotificationsDbContext = Scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main

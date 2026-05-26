@@ -39,7 +39,7 @@ public sealed class SendEmailNotificationCommandKafkaHandlerTests : BaseIntegrat
 
         // Wire the singleton outbox stub's Database property to the scoped DbContext's
         // DatabaseFacade so EnsureTransactionAsync can run a real Postgres transaction.
-        var dbContext = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
         var handler = scope.ServiceProvider.GetRequiredService<SendEmailNotificationCommandKafkaHandler>();
@@ -64,7 +64,7 @@ public sealed class SendEmailNotificationCommandKafkaHandlerTests : BaseIntegrat
 
         using var _ = new AssertionScope();
 
-        var outbox = scope.ServiceProvider.GetRequiredService<ITransactionalOutbox<INotificationDbContext>>();
+        var outbox = scope.ServiceProvider.GetRequiredService<ITransactionalOutbox<INotificationsDbContext>>();
         outbox.Received(1).AddOutboxMessage(
             "notifications.email-events",
             userId.ToString(),
