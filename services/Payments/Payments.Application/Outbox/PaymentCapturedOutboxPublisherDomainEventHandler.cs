@@ -20,12 +20,12 @@ public sealed class PaymentCapturedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<PaymentCapturedDomainEvent>
 {
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly PaymentsTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<PaymentCapturedOutboxPublisherDomainEventHandler> _logger;
 
     public PaymentCapturedOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IOptions<PaymentsTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<PaymentCapturedOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

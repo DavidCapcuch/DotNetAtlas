@@ -19,12 +19,12 @@ public sealed class InvoiceDeliveredOutboxPublisherDomainEventHandler
     : IDomainEventHandler<InvoiceDeliveredDomainEvent>
 {
     private readonly ITransactionalOutbox<IInvoicingDbContext> _outbox;
-    private readonly InvoicingTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<InvoiceDeliveredOutboxPublisherDomainEventHandler> _logger;
 
     public InvoiceDeliveredOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IInvoicingDbContext> outbox,
-        IOptions<InvoicingTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<InvoiceDeliveredOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

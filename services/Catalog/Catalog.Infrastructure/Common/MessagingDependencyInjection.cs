@@ -47,8 +47,8 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<CatalogTopicsOptions>()
-            .BindConfiguration(CatalogTopicsOptions.Section)
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddOptionsWithValidateOnStart<StockLevelChangedConsumerOptions>()
@@ -64,8 +64,8 @@ internal static class MessagingDependencyInjection
             .Get<StockLevelChangedConsumerOptions>()!;
 
         var topicsOptions = configuration
-            .GetRequiredSection(CatalogTopicsOptions.Section)
-            .Get<CatalogTopicsOptions>()!;
+            .GetRequiredSection(TopicsOptions.Section)
+            .Get<TopicsOptions>()!;
 
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster

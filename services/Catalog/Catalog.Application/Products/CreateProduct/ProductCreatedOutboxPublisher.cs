@@ -27,13 +27,13 @@ public sealed class ProductCreatedOutboxPublisher : IDomainEventHandler<ProductC
 
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
-    private readonly CatalogTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<ProductCreatedOutboxPublisher> _logger;
 
     public ProductCreatedOutboxPublisher(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
-        IOptions<CatalogTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<ProductCreatedOutboxPublisher> logger)
     {
         _db = db;

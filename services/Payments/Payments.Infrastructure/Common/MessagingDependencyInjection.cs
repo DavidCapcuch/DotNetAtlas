@@ -48,8 +48,8 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(PaymentCommandsConsumerOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<PaymentsTopicsOptions>()
-            .BindConfiguration(PaymentsTopicsOptions.Section)
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
@@ -61,8 +61,8 @@ internal static class MessagingDependencyInjection
             .Get<PaymentCommandsConsumerOptions>()!;
 
         var topicsOptions = configuration
-            .GetRequiredSection(PaymentsTopicsOptions.Section)
-            .Get<PaymentsTopicsOptions>()!;
+            .GetRequiredSection(TopicsOptions.Section)
+            .Get<TopicsOptions>()!;
 
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster

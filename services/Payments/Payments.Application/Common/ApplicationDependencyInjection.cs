@@ -10,11 +10,11 @@ namespace Payments.Application.Common;
 /// Composition root for the Payments Application layer. Mirrors the Catalog/Basket convention —
 /// scans this assembly for FluentValidation validators, CQRS handlers, and domain-event handlers,
 /// installs the behaviour-decorator chain, and registers the strongly-typed
-/// <see cref="PaymentsTopicsOptions"/>. Concrete persistence (<c>PaymentsDbContext</c>) and the
+/// <see cref="TopicsOptions"/>. Concrete persistence (<c>PaymentsDbContext</c>) and the
 /// Kafka command consumers are wired separately by <c>Payments.Infrastructure</c> in M5/M6.
 /// </summary>
 /// <remarks>
-/// <see cref="PaymentsTopicsOptions"/> is registered with <c>AddOptions&lt;T&gt;()</c> only; the API
+/// <see cref="TopicsOptions"/> is registered with <c>AddOptions&lt;T&gt;()</c> only; the API
 /// host (M6) is responsible for binding the section and calling <c>ValidateOnStart()</c>.
 /// Keeping <c>IConfiguration</c> out of the Application layer avoids a transitive dependency on
 /// <c>Microsoft.Extensions.Configuration</c>.
@@ -34,7 +34,7 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventHandlersFromAssembly(assembly)
                 .AddDomainEventDispatcher();
 
-            services.AddOptions<PaymentsTopicsOptions>();
+            services.AddOptions<TopicsOptions>();
 
             services.AddCqrsHandlerBehaviors();
 

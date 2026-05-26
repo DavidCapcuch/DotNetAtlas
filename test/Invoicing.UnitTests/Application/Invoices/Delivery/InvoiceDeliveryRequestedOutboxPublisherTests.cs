@@ -28,7 +28,7 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
         var total = new Money(152.00m, CurrencyCode.Eur);
 
         var outbox = Substitute.For<ITransactionalOutbox<Invoicing.Application.Common.Data.IInvoicingDbContext>>();
-        var topics = Options.Create(new InvoicingTopicsOptions
+        var topics = Options.Create(new TopicsOptions
         {
             Invoices = "invoicing.invoices",
             OrderingOrders = "n/a",

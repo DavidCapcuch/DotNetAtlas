@@ -18,12 +18,12 @@ public sealed class InvoiceCancelledOutboxPublisherDomainEventHandler
     : IDomainEventHandler<InvoiceCancelledDomainEvent>
 {
     private readonly ITransactionalOutbox<IInvoicingDbContext> _outbox;
-    private readonly InvoicingTopicsOptions _topics;
+    private readonly TopicsOptions _topics;
     private readonly ILogger<InvoiceCancelledOutboxPublisherDomainEventHandler> _logger;
 
     public InvoiceCancelledOutboxPublisherDomainEventHandler(
         ITransactionalOutbox<IInvoicingDbContext> outbox,
-        IOptions<InvoicingTopicsOptions> topics,
+        IOptions<TopicsOptions> topics,
         ILogger<InvoiceCancelledOutboxPublisherDomainEventHandler> logger)
     {
         _outbox = outbox;

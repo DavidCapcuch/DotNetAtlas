@@ -4,7 +4,7 @@ using Mono.Cecil.Cil;
 namespace Payments.ArchitectureTests.Infrastructure;
 
 /// <summary>
-/// Locks the Payments BC outbox publishers to <see cref="Payments.Application.Common.Messaging.PaymentsTopicsOptions"/>
+/// Locks the Payments BC outbox publishers to <see cref="Payments.Application.Common.Messaging.TopicsOptions"/>
 /// resolution rather than hard-coded topic-name string literals (#258). Reading
 /// <c>_topics.Transactions</c> from bound options keeps the topic name configurable per
 /// environment (appsettings + ConfigurationManager → AddOptionsWithValidateOnStart) and lets
@@ -32,7 +32,7 @@ public sealed class TopicOptionsUsageTests : BaseTest
         {
             var offendingLiteral = FindForbiddenLdstr(publisher);
             offendingLiteral.Should().BeNull(
-                $"{publisher.FullName} must reference PaymentsTopicsOptions.Transactions (or the " +
+                $"{publisher.FullName} must reference TopicsOptions.Transactions (or the " +
                 "commands-side equivalent) rather than the literal topic name. Found ldstr of " +
                 $"\"{offendingLiteral}\" — bind from configuration instead.");
         }

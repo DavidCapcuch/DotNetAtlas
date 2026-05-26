@@ -19,7 +19,7 @@ namespace Invoicing.Application.Common;
 /// shapes are now present so Scrutor's <c>Decorate</c> is satisfied), domain-event
 /// handlers + dispatcher (the <c>DispatchDomainEventsInterceptor</c> in Infrastructure
 /// picks up the dispatcher from this composition root), and the
-/// <see cref="InvoicingTopicsOptions"/> binding. <c>BlobStorageOptions</c> is registered
+/// <see cref="TopicsOptions"/> binding. <c>BlobStorageOptions</c> is registered
 /// in Infrastructure (it injects the connection string) and consumed by the M7 command
 /// handlers + M8 query handlers via DI.
 /// </para>
@@ -41,8 +41,8 @@ public static class ApplicationDependencyInjection
 
             services.AddCqrsHandlerBehaviors();
 
-            services.AddOptionsWithValidateOnStart<InvoicingTopicsOptions>()
-                .BindConfiguration(InvoicingTopicsOptions.Section)
+            services.AddOptionsWithValidateOnStart<TopicsOptions>()
+                .BindConfiguration(TopicsOptions.Section)
                 .ValidateDataAnnotations();
 
             services.AddOptionsWithValidateOnStart<BuyerPortalOptions>()

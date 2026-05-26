@@ -27,7 +27,7 @@ public sealed class InvoiceDeliveredOutboxPublisherTests
         var occurredOnUtc = new DateTimeOffset(2026, 5, 22, 14, 30, 1, TimeSpan.Zero);
 
         var outbox = Substitute.For<ITransactionalOutbox<IInvoicingDbContext>>();
-        var topics = Options.Create(new InvoicingTopicsOptions
+        var topics = Options.Create(new TopicsOptions
         {
             Invoices = "invoicing.invoices",
             OrderingOrders = "n/a",

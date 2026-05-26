@@ -15,7 +15,7 @@ namespace Catalog.UnitTests.Products.CreateProduct;
 
 public class ProductCreatedOutboxPublisherTests
 {
-    private static CatalogTopicsOptions DefaultTopics() => new()
+    private static TopicsOptions DefaultTopics() => new()
     {
         CatalogProducts = "catalog.products",
         CatalogCategories = "catalog.categories",
