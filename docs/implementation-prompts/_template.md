@@ -4,7 +4,7 @@
 >
 > Replace `{BC Name}` and the bracketed sections. Keep the XML tags and the `<thinking_first>` block at top — they drive the agent's first response. Mark drift from this template in your prompt's session summary.
 >
-> Paste the prompt as the first message in a fresh Claude Code session for `C:\Users\dcapc\Desktop\Git\DotNetAtlas`.
+> Paste the prompt as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
 
 <thinking_first>
 Before writing any code, do these in your **first response** — explicitly, in order:
