@@ -90,6 +90,15 @@ public sealed class CreditNote : AggregateRoot<Guid>
         // I-CN-2 \u2014 Total is negative. Negate the (positive) source invoice total.
         var negativeTotal = originalInvoiceSnapshot.Total.Negate();
 
+        // Defense-in-depth: source invoice already enforces Total >= 0 at issuance, so
+        // negate produces a strictly-negative value. Untestable through valid call paths;
+        // documents I-CN-2 after the School-B Money sign-neutrality (rejects both zero and
+        // positive \u2014 zero-total credit notes have no business meaning).
+        Throw.If(negativeTotal.Amount >= 0, new DataIntegrityException(
+            "Invoicing.CreditNoteTotalNotNegative",
+            $"CreditNote total must be strictly negative (I-CN-2); was {negativeTotal.Amount} {negativeTotal.Currency.Name}. " +
+            $"Source invoice total was {originalInvoiceSnapshot.Total.Amount}."));
+
         var creditNote = new CreditNote
         {
             Id = Guid.CreateVersion7(),

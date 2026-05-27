@@ -1,4 +1,5 @@
 using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Invoicing.Domain.Common.ValueObjects;
@@ -33,6 +34,15 @@ public sealed record VatLine : ValueObject
         ArgumentNullException.ThrowIfNull(rate);
         ArgumentNullException.ThrowIfNull(@base);
         ArgumentNullException.ThrowIfNull(amount);
+
+        // Invoicing-local invariant: Base >= 0 && Amount >= 0 (zero legal for zero-rate lines).
+        // Money is sign-neutral (School B); sign-enforcement belongs to the consuming VO.
+        Throw.If(@base.Amount < 0, new DataIntegrityException(
+            "Invoicing.VatLineBaseNegative",
+            $"VatLine base must be non-negative; was {@base.Amount} {@base.Currency.Name}."));
+        Throw.If(amount.Amount < 0, new DataIntegrityException(
+            "Invoicing.VatLineAmountNegative",
+            $"VatLine amount must be non-negative; was {amount.Amount} {amount.Currency.Name}."));
 
         return new VatLine
         {

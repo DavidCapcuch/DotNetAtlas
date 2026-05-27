@@ -125,6 +125,16 @@ public sealed class Invoice : AggregateRoot<Guid>
 
         var (subtotal, total) = ComputeTotals(lines, vatLines, currency);
 
+        // Defense-in-depth: by construction subtotal/total are non-negative (lines.Count >= 1,
+        // InvoiceLine.UnitPrice > 0, VatRate >= 0). Untestable through valid call paths;
+        // documents the invariant for refactor safety after the School-B Money sign-neutrality.
+        Throw.If(subtotal.Amount < 0, new DataIntegrityException(
+            "Invoicing.InvoiceSubtotalNegative",
+            $"Invoice subtotal must be non-negative; was {subtotal.Amount} {subtotal.Currency.Name}."));
+        Throw.If(total.Amount < 0, new DataIntegrityException(
+            "Invoicing.InvoiceTotalNegative",
+            $"Invoice total must be non-negative; was {total.Amount} {total.Currency.Name}."));
+
         var invoice = new Invoice
         {
             Id = Guid.CreateVersion7(),

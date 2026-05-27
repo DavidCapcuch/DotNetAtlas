@@ -1,4 +1,5 @@
 using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Invoicing.Domain.Common.ValueObjects;
@@ -81,13 +82,30 @@ public sealed record CreditNoteLine : ValueObject
     {
         ArgumentNullException.ThrowIfNull(line);
 
+        var creditUnitPrice = line.UnitPrice.Negate();
+        var creditLineTotal = line.LineTotal.Negate();
+
+        // Defense-in-depth: source InvoiceLine.Create enforces UnitPrice > 0 and Quantity > 0,
+        // so negate produces strictly-negative amounts and quantity stays positive. Untestable
+        // through valid call paths; documents the sign + count invariants after the School-B
+        // Money sign-neutrality.
+        Throw.If(line.Quantity <= 0, new DataIntegrityException(
+            "Invoicing.CreditNoteLineQuantityNotPositive",
+            $"CreditNoteLine Quantity must be strictly positive; was {line.Quantity}."));
+        Throw.If(creditUnitPrice.Amount >= 0, new DataIntegrityException(
+            "Invoicing.CreditNoteLineUnitPriceNotNegative",
+            $"CreditNoteLine UnitPrice must be strictly negative; was {creditUnitPrice.Amount} {creditUnitPrice.Currency.Name}."));
+        Throw.If(creditLineTotal.Amount >= 0, new DataIntegrityException(
+            "Invoicing.CreditNoteLineTotalNotNegative",
+            $"CreditNoteLine LineTotal must be strictly negative; was {creditLineTotal.Amount} {creditLineTotal.Currency.Name}."));
+
         return new CreditNoteLine(
             line.LineNumber,
             line.Sku,
             line.Description,
             line.Quantity,
-            line.UnitPrice.Negate(),
-            line.LineTotal.Negate(),
+            creditUnitPrice,
+            creditLineTotal,
             line.VatRate);
     }
 }

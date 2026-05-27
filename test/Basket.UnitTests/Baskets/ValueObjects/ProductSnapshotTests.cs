@@ -1,4 +1,5 @@
 using Basket.Domain.Baskets.ValueObjects;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.UnitTests.Baskets.ValueObjects;
@@ -43,5 +44,22 @@ public class ProductSnapshotTests
         var b = ProductSnapshot.Create("SKU-A", "Name", Money.Create(11m, CurrencyCode.Usd).Value, captured);
 
         a.Should().NotBe(b);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-0.01)]
+    [InlineData(-50)]
+    public void Create_NonPositivePrice_ThrowsDataIntegrityException(decimal nonPositive)
+    {
+        // Local Basket-domain invariant: ProductSnapshot.Price > 0. Mirrors Catalog.Product;
+        // Money itself is sign-neutral (School B), so the rule lives on the consuming VO.
+        var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);
+        var price = Money.Create(nonPositive, CurrencyCode.Eur).Value;
+
+        var act = () => ProductSnapshot.Create("SKU-1", "Widget", price, captured);
+
+        act.Should().Throw<DataIntegrityException>()
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotPriceNotPositive");
     }
 }
