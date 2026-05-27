@@ -2,7 +2,6 @@ using Ordering.Domain.Orders.Events;
 using Ordering.Orders;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.SharedKernel.ValueObjects;
-using Riok.Mapperly.Abstractions;
 
 namespace Ordering.Application.Orders.CreateOrder;
 
@@ -15,8 +14,7 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// the Avro event does not carry them (they are PII kept out of the
 /// checkout saga flow per ADR-0011 v1 policy; event-catalog § 5.3.1).
 /// </summary>
-[Mapper]
-public static partial class OrderCreatedMapper
+public static class OrderCreatedMapper
 {
     private const int Scale = 4;
 
@@ -33,7 +31,6 @@ public static partial class OrderCreatedMapper
             Items = source.Items.Select(MapItem).ToList(),
         };
 
-    [UserMapping]
     private static OrderItemCreated MapItem(OrderCreatedDomainEventItem source) =>
         new()
         {

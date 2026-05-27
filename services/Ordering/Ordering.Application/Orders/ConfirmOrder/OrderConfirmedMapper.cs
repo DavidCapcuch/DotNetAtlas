@@ -3,7 +3,6 @@ using Ordering.Domain.Orders.ValueObjects;
 using Ordering.Orders;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.SharedKernel.ValueObjects;
-using Riok.Mapperly.Abstractions;
 
 namespace Ordering.Application.Orders.ConfirmOrder;
 
@@ -15,8 +14,7 @@ namespace Ordering.Application.Orders.ConfirmOrder;
 /// mandatory; implicit <c>decimal → AvroDecimal</c> breaks serialization on
 /// scale mismatch.
 /// </summary>
-[Mapper]
-public static partial class OrderConfirmedMapper
+public static class OrderConfirmedMapper
 {
     private const int Scale = 4;
 
@@ -33,7 +31,6 @@ public static partial class OrderConfirmedMapper
             BillingAddress = MapBillingAddress(source.BillingAddress),
         };
 
-    [UserMapping]
     private static OrderItemConfirmed MapItem(OrderItem source) =>
         new()
         {
@@ -45,7 +42,6 @@ public static partial class OrderConfirmedMapper
             LineTotalAmount = source.LineTotal.Amount.ToAvroDecimal(Scale),
         };
 
-    [UserMapping]
     private static OrderBillingAddress MapBillingAddress(Address source) =>
         new()
         {
