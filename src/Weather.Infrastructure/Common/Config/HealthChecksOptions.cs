@@ -17,13 +17,6 @@ public sealed class HealthChecksOptions
     public required TimeSpan SelfTimeout { get; set; }
 
     /// <summary>
-    /// Timeout for SQL Server health checks.
-    /// </summary>
-    [Required]
-    [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
-    public required TimeSpan SqlServerTimeout { get; set; }
-
-    /// <summary>
     /// Timeout for Kafka health checks.
     /// </summary>
     [Required]

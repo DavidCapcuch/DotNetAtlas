@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.OutboxRelay.WorkerService.Common.Config;
@@ -41,6 +42,8 @@ internal static class HealthChecksDependencyInjection
             .GetRequiredSection(KafkaProducerOptions.Section)
             .Get<KafkaProducerOptions>()!;
 
+        var producerConfig = new ProducerConfig { BootstrapServers = kafkaProducerOptions.BootstrapServers };
+
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
@@ -51,7 +54,7 @@ internal static class HealthChecksDependencyInjection
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy)
             .AddKafka(
-                kafkaProducerOptions,
+                producerConfig,
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
