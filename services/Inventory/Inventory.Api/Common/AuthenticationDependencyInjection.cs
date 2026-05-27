@@ -13,7 +13,11 @@ internal static class AuthenticationDependencyInjection
     /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
     /// registers the Inventory scope-policy pair (<c>InventoryReadScope</c> /
     /// <c>InventoryCommandsScope</c>) per ADR-0010. Inventory v1 has no outbound HTTP calls so
-    /// <c>AddServiceAuth</c> is intentionally not wired.
+    /// <c>AddServiceAuth</c> is intentionally not wired and there is no <c>ServiceAuth</c>
+    /// section in <c>appsettings.json</c>. Inbound <c>ValidAudience</c> is set directly under
+    /// <c>Authentication:JwtBearer:TokenValidationParameters</c>. When Inventory grows an
+    /// outbound BC client, add a <c>ServiceAuth</c> section + <c>services.AddServiceAuth(...)</c>
+    /// here in one go.
     /// </summary>
     /// <remarks>
     /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a

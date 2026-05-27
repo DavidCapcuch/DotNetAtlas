@@ -42,7 +42,9 @@ public class ApiTestFixture : AppFixture<Program>
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
 
-    private readonly FakeTokenSigner _signer = new(audience: "weather-tests");
+    // Matches Weather.Api appsettings.json Authentication.JwtBearer.TokenValidationParameters.ValidAudience —
+    // the Keycloak "DotNet Atlas" app client GUID. JwtBearerTestExtensions asserts these match.
+    private readonly FakeTokenSigner _signer = new(audience: "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e");
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 

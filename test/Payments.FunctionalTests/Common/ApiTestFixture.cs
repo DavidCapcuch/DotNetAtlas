@@ -42,7 +42,7 @@ public class ApiTestFixture : AppFixture<Program>
             SchemasToInclude = [PaymentsDbContext.DefaultSchemaName]
         });
 
-    private readonly FakeTokenSigner _signer = new(audience: "payments-service-tests");
+    private readonly FakeTokenSigner _signer = new(audience: "payments-service");
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 

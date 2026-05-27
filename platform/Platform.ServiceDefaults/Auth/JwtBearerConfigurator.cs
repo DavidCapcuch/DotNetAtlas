@@ -17,11 +17,53 @@ public static class JwtBearerConfigurator
     /// Registers authentication and a JWT-bearer scheme with:
     /// <list type="bullet">
     /// <item><description><c>Authority</c> = <see cref="ServiceAuthOptions.Authority"/></description></item>
-    /// <item><description><c>Audience</c> = <see cref="ServiceAuthOptions.ServiceName"/></description></item>
+    /// <item><description><c>ValidIssuer</c> = <see cref="ServiceAuthOptions.Authority"/></description></item>
     /// <item><description><c>ValidateIssuer</c> / <c>ValidateAudience</c> / <c>ValidateLifetime</c> = <c>true</c></description></item>
     /// <item><description><c>ClockSkew</c> = 5 minutes per ADR-0010</description></item>
     /// </list>
+    /// <c>ValidAudience</c> is intentionally <b>not</b> defaulted here — each BC must pin it
+    /// explicitly under <c>Authentication:JwtBearer:TokenValidationParameters:ValidAudience</c>
+    /// in <c>appsettings.json</c>. The BC's <paramref name="configure"/> callback binds that
+    /// section in step 2 below.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Three-phase contract (defense-in-depth):
+    /// </para>
+    /// <list type="number">
+    /// <item><description>
+    /// <b>Configure</b> seeds <see cref="JwtBearerOptions"/> from
+    /// <see cref="ServiceAuthOptions"/> (Authority, ValidIssuer = Authority, all five
+    /// validation booleans <c>true</c>, ClockSkew per ADR-0010). <c>ValidAudience</c> is
+    /// left at its <see cref="TokenValidationParameters"/> default (<c>null</c>) so the
+    /// BC's appsettings is the single source of truth.
+    /// </description></item>
+    /// <item><description>
+    /// The BC's <paramref name="configure"/> callback runs inside this Configure
+    /// step. BCs typically <c>configuration.Bind("Authentication:JwtBearer", options)</c>
+    /// here, which can override <b>any</b> field — including silently flipping a
+    /// validation boolean to <c>false</c> via a typo'd env var or a malformed
+    /// appsettings override. The bind is also where <c>ValidAudience</c> arrives from
+    /// the BC's <c>Authentication:JwtBearer:TokenValidationParameters:ValidAudience</c>
+    /// key; if a BC forgets to set it, <c>ValidateAudience=true</c> + <c>ValidAudience=null</c>
+    /// rejects every token at runtime (fails closed).
+    /// </description></item>
+    /// <item><description>
+    /// <b>PostConfigure</b> runs <i>after</i> the BC's <c>configuration.Bind</c>
+    /// (and any other Configure callback) and re-pins the five security-critical
+    /// booleans (<c>ValidateIssuer / ValidateAudience / ValidateLifetime /
+    /// ValidateIssuerSigningKey / RequireSignedTokens</c>) to <c>true</c>. This
+    /// is the immutable security floor — no appsettings, env var, or BC-specific
+    /// override can opt out of validation, per #223.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// Net result: the <c>ValidAudience</c> / <c>ValidIssuer</c> <i>strings</i>
+    /// are configurable per BC (so a BC can validate against multiple audiences,
+    /// migrate authorities, etc.), but the boolean "are we validating at all"
+    /// flags are non-negotiable.
+    /// </para>
+    /// </remarks>
     /// <param name="services">The DI container.</param>
     /// <param name="configure">Optional callback to override any JwtBearerOption.</param>
     public static AuthenticationBuilder AddPlatformJwtBearer(
@@ -38,7 +80,6 @@ public static class JwtBearerConfigurator
             {
                 var opts = serviceAuth.Value;
                 jwt.Authority = opts.Authority;
-                jwt.Audience = opts.ServiceName;
                 jwt.RequireHttpsMetadata = !string.Equals(
                     Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
                     "Development",
@@ -71,7 +112,6 @@ public static class JwtBearerConfigurator
                     ValidateIssuerSigningKey = true,
                     RequireSignedTokens = true,
                     ClockSkew = TimeSpan.FromMinutes(5),
-                    ValidAudience = opts.ServiceName,
                     ValidIssuer = opts.Authority,
                 };
 

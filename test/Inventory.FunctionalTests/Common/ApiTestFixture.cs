@@ -60,7 +60,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     private readonly RedisTestContainer _redisContainer = new();
 
-    private readonly FakeTokenSigner _signer = new(audience: "inventory-service-tests");
+    private readonly FakeTokenSigner _signer = new(audience: "inventory-service");
 
     private ConnectionMultiplexer _redisMultiplexer = null!;
 

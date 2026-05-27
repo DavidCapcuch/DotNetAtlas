@@ -50,7 +50,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     private readonly RedisTestContainer _redisContainer = new();
 
-    private readonly FakeTokenSigner _signer = new(audience: "invoicing-service-tests");
+    private readonly FakeTokenSigner _signer = new(audience: "invoicing-service");
 
     public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 

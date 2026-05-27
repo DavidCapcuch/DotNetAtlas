@@ -59,7 +59,7 @@ public class ApiTestFixture : AppFixture<Program>
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
 
-    private readonly FakeTokenSigner _signer = new(audience: "catalog-service-tests");
+    private readonly FakeTokenSigner _signer = new(audience: "catalog-service");
 
     /// <summary>
     /// Test-controlled <see cref="IFeatureClient"/>. Defaults all flags to <c>false</c>; tests
