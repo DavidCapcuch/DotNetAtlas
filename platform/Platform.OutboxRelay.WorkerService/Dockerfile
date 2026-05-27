@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1.7
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra AS base
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
+
+FROM ${BASE_IMAGE} AS base
 USER $APP_UID
 WORKDIR /app
 ENV DOTNET_gcServer=1 \
