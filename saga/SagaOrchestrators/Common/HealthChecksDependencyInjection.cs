@@ -4,18 +4,24 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.ServiceDefaults.Config;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
-using SagaOrchestrators.Common.Constants;
 using SagaOrchestrators.Common.Observability.HealthChecks;
 using SagaOrchestrators.Common.Persistence.Database;
 
 namespace SagaOrchestrators.Common;
 
 /// <summary>
-/// Extension methods for configuring health check endpoints.
+/// Health-check surface for the Saga orchestrator — Self,
+/// <see cref="SagaDbContext"/>, Kafka, and the saga-specific
+/// <see cref="SagaStateMachineHealthCheck"/> stuck-state probe (intentionally
+/// reports <see cref="HealthStatus.Degraded"/> rather than Unhealthy so
+/// orchestrator restarts are not triggered by transient stuck-saga thresholds).
+/// Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
+/// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
+/// parameter, so the DB readiness probe runs under EF's command-timeout default.
 /// </summary>
-public static class HealthChecksDependencyInjection
+internal static class HealthChecksDependencyInjection
 {
-    public static IServiceCollection AddHealthChecksInternal(
+    internal static IServiceCollection AddSagaHealthChecks(
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
@@ -23,23 +29,19 @@ public static class HealthChecksDependencyInjection
             .BindConfiguration(SagaHealthCheckOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<HealthCheckTimeoutsOptions>()
-            .BindConfiguration(HealthCheckTimeoutsOptions.Section)
+        services.AddOptionsWithValidateOnStart<HealthChecksOptions>()
+            .BindConfiguration(HealthChecksOptions.Section)
             .ValidateDataAnnotations();
 
         var timeouts = configuration
-            .GetSection(HealthCheckTimeoutsOptions.Section)
-            .Get<HealthCheckTimeoutsOptions>() ?? new HealthCheckTimeoutsOptions();
+            .GetRequiredSection(HealthChecksOptions.Section)
+            .Get<HealthChecksOptions>()!;
 
         var sagaKafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
 
-        var healthCheckKafkaProducerConfig = new ProducerConfig
-        {
-            BootstrapServers = sagaKafkaOptions.BrokersFlat,
-            ClientId = "saga-healthcheck"
-        };
+        var producerConfig = new ProducerConfig { BootstrapServers = sagaKafkaOptions.BrokersFlat };
 
         services.AddHealthChecks()
             .AddApplicationStatus(
@@ -47,18 +49,17 @@ public static class HealthChecksDependencyInjection
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
                 timeout: timeouts.SelfTimeout)
             .AddDbContextCheck<SagaDbContext>(
-                name: "Saga Database",
-                failureStatus: HealthStatus.Unhealthy,
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag])
+                name: "Saga DB",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
+                failureStatus: HealthStatus.Unhealthy)
             .AddCheck<SagaStateMachineHealthCheck>(
                 name: "Saga StateMachine",
                 failureStatus: HealthStatus.Degraded,
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddKafka(
-                healthCheckKafkaProducerConfig,
-                topic: "healthchecks",
+                producerConfig,
                 name: "Kafka",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.MessagingTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeouts.KafkaTimeout);
 

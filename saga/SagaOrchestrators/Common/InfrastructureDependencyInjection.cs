@@ -6,7 +6,7 @@ public static class InfrastructureDependencyInjection
     {
         builder.Services.AddOpenTelemetryInternal(builder.Configuration);
         builder.Services.AddSagaStateObservability();
-        builder.Services.AddHealthChecksInternal(builder.Configuration);
+        builder.Services.AddSagaHealthChecks(builder.Configuration);
 
         return builder;
     }
