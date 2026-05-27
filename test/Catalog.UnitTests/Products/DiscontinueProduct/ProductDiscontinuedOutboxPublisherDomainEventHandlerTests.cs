@@ -11,7 +11,7 @@ using AvroProductDiscontinuedEvent = Catalog.Products.ProductDiscontinuedEvent;
 
 namespace Catalog.UnitTests.Products.DiscontinueProduct;
 
-public class ProductDiscontinuedOutboxPublisherTests
+public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
 {
     [Fact]
     public async Task Given_Discontinuation_Then_EnqueuesAvroWithReasonAndSku()
@@ -24,7 +24,7 @@ public class ProductDiscontinuedOutboxPublisherTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var outbox = Substitute.For<ITransactionalOutbox<ICatalogDbContext>>();
-        var publisher = new ProductDiscontinuedOutboxPublisher(
+        var publisher = new ProductDiscontinuedOutboxPublisherDomainEventHandler(
             db,
             outbox,
             Options.Create(new TopicsOptions
@@ -34,7 +34,7 @@ public class ProductDiscontinuedOutboxPublisherTests
                 StockLevelChanged = "inventory.stock-level-changed",
                 DltTopicSuffix = ".DLT",
             }),
-            NullLogger<ProductDiscontinuedOutboxPublisher>.Instance);
+            NullLogger<ProductDiscontinuedOutboxPublisherDomainEventHandler>.Instance);
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 

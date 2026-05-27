@@ -7,15 +7,15 @@ using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Catalog.Application.Products.ReactivateProduct;
 
-public sealed class ProductReactivatedProjectionHandler
+public sealed class ProductReactivatedProjectionDomainEventHandler
     : IDomainEventHandler<ProductReactivatedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
-    private readonly ILogger<ProductReactivatedProjectionHandler> _logger;
+    private readonly ILogger<ProductReactivatedProjectionDomainEventHandler> _logger;
 
-    public ProductReactivatedProjectionHandler(
+    public ProductReactivatedProjectionDomainEventHandler(
         ICatalogDbContext db,
-        ILogger<ProductReactivatedProjectionHandler> logger)
+        ILogger<ProductReactivatedProjectionDomainEventHandler> logger)
     {
         _db = db;
         _logger = logger;

@@ -36,7 +36,7 @@ namespace Inventory.Application.StockItems;
 /// responses on a given order (events-catalog.md § 5.4).
 /// </para>
 /// </remarks>
-internal sealed class ReservationLifecycleHandler :
+internal sealed class ReservationLifecycleDomainEventHandler :
     IDomainEventHandler<StockReservedEvent>,
     IDomainEventHandler<ReservationConfirmedEvent>,
     IDomainEventHandler<ReservationReleasedEvent>
@@ -44,13 +44,13 @@ internal sealed class ReservationLifecycleHandler :
     private readonly IInventoryDbContext _db;
     private readonly ITransactionalOutbox<IInventoryDbContext> _outbox;
     private readonly TopicsOptions _topics;
-    private readonly ILogger<ReservationLifecycleHandler> _logger;
+    private readonly ILogger<ReservationLifecycleDomainEventHandler> _logger;
 
-    public ReservationLifecycleHandler(
+    public ReservationLifecycleDomainEventHandler(
         IInventoryDbContext db,
         ITransactionalOutbox<IInventoryDbContext> outbox,
         IOptions<TopicsOptions> topics,
-        ILogger<ReservationLifecycleHandler> logger)
+        ILogger<ReservationLifecycleDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;

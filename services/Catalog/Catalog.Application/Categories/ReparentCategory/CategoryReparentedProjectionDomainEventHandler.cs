@@ -23,13 +23,13 @@ namespace Catalog.Application.Categories.ReparentCategory;
 /// breadcrumb never lags the path.
 /// </para>
 /// </remarks>
-public sealed class CategoryReparentedProjectionHandler
+public sealed class CategoryReparentedProjectionDomainEventHandler
     : IDomainEventHandler<CategoryReparentedDomainEvent>
 {
-    private readonly ILogger<CategoryReparentedProjectionHandler> _logger;
+    private readonly ILogger<CategoryReparentedProjectionDomainEventHandler> _logger;
 
-    public CategoryReparentedProjectionHandler(
-        ILogger<CategoryReparentedProjectionHandler> logger)
+    public CategoryReparentedProjectionDomainEventHandler(
+        ILogger<CategoryReparentedProjectionDomainEventHandler> logger)
     {
         _logger = logger;
     }

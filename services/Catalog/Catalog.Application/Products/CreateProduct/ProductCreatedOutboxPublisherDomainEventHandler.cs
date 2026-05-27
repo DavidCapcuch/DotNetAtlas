@@ -21,20 +21,20 @@ namespace Catalog.Application.Products.CreateProduct;
 /// and its <see cref="Catalog.Domain.Categories.Category"/> from the DbContext (free lookup via
 /// the EF Core change tracker).
 /// </summary>
-public sealed class ProductCreatedOutboxPublisher : IDomainEventHandler<ProductCreatedDomainEvent>
+public sealed class ProductCreatedOutboxPublisherDomainEventHandler : IDomainEventHandler<ProductCreatedDomainEvent>
 {
     private const int MaxDescriptionLength = 1000;
 
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
     private readonly TopicsOptions _topics;
-    private readonly ILogger<ProductCreatedOutboxPublisher> _logger;
+    private readonly ILogger<ProductCreatedOutboxPublisherDomainEventHandler> _logger;
 
-    public ProductCreatedOutboxPublisher(
+    public ProductCreatedOutboxPublisherDomainEventHandler(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
         IOptions<TopicsOptions> topics,
-        ILogger<ProductCreatedOutboxPublisher> logger)
+        ILogger<ProductCreatedOutboxPublisherDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;

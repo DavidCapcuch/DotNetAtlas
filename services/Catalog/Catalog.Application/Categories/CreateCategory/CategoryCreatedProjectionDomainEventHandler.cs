@@ -9,11 +9,11 @@ namespace Catalog.Application.Categories.CreateCategory;
 /// has no per-category row; future work may pre-seed breadcrumb caches here. Kept as an explicit
 /// <see cref="IDomainEventHandler{T}"/> so DI scanning stays uniform across events.
 /// </summary>
-public sealed class CategoryCreatedProjectionHandler : IDomainEventHandler<CategoryCreatedDomainEvent>
+public sealed class CategoryCreatedProjectionDomainEventHandler : IDomainEventHandler<CategoryCreatedDomainEvent>
 {
-    private readonly ILogger<CategoryCreatedProjectionHandler> _logger;
+    private readonly ILogger<CategoryCreatedProjectionDomainEventHandler> _logger;
 
-    public CategoryCreatedProjectionHandler(ILogger<CategoryCreatedProjectionHandler> logger)
+    public CategoryCreatedProjectionDomainEventHandler(ILogger<CategoryCreatedProjectionDomainEventHandler> logger)
     {
         _logger = logger;
     }

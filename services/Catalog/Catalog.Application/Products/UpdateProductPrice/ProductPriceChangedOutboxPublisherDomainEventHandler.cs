@@ -11,19 +11,19 @@ using AvroProductPriceChanged = Catalog.Products.ProductPriceChanged;
 
 namespace Catalog.Application.Products.UpdateProductPrice;
 
-public sealed class ProductPriceChangedOutboxPublisher
+public sealed class ProductPriceChangedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<ProductPriceChangedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
     private readonly TopicsOptions _topics;
-    private readonly ILogger<ProductPriceChangedOutboxPublisher> _logger;
+    private readonly ILogger<ProductPriceChangedOutboxPublisherDomainEventHandler> _logger;
 
-    public ProductPriceChangedOutboxPublisher(
+    public ProductPriceChangedOutboxPublisherDomainEventHandler(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
         IOptions<TopicsOptions> topics,
-        ILogger<ProductPriceChangedOutboxPublisher> logger)
+        ILogger<ProductPriceChangedOutboxPublisherDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;

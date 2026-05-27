@@ -7,7 +7,7 @@ namespace Inventory.Infrastructure.Persistence.Database.EntityConfigurations;
 /// <summary>
 /// EF mapping for <see cref="CurrentStockLevelRow"/> — the hot-path stock
 /// projection described in <c>docs/bc-design/inventory.md</c> § 9.1. Table is
-/// upserted by <c>CurrentStockLevelsProjectionHandler</c> inside the same
+/// upserted by <c>CurrentStockLevelsProjectionDomainEventHandler</c> inside the same
 /// transaction as every <c>stock_events</c> append.
 /// </summary>
 internal sealed class CurrentStockLevelRowConfiguration : IEntityTypeConfiguration<CurrentStockLevelRow>
@@ -16,7 +16,7 @@ internal sealed class CurrentStockLevelRowConfiguration : IEntityTypeConfigurati
     {
         builder.ToTable("current_stock_levels", t => t.HasComment(
             "Denormalised read projection: one row per ProductId, mutated by "
-            + "CurrentStockLevelsProjectionHandler on every ES event. "
+            + "CurrentStockLevelsProjectionDomainEventHandler on every ES event. "
             + "Rebuildable from inventory.stock_events."));
 
         builder.HasKey(r => r.ProductId);

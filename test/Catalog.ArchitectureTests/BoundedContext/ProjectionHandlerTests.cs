@@ -4,41 +4,54 @@ using Platform.SharedKernel.Base.DomainEvents;
 namespace Catalog.ArchitectureTests.BoundedContext;
 
 /// <summary>
-/// Reconciles architecture-tests.md § 2.1 (which references a singular
-/// <c>ProductSearchViewProjectionHandler</c>) with the sanctioned one-class-per-event design from
-/// <c>catalog.md &lt;example_design_decision&gt;</c>: 8 sealed projection handlers, named
-/// <c>*ProjectionHandler</c>, living under <c>Catalog.Application.{Aggregate}.{UseCase}</c>.
+/// Catalog's read-side has two shapes: (a) 7 in-process per-event projections — each implementing
+/// <see cref="IDomainEventHandler{T}"/>, suffix <c>*ProjectionDomainEventHandler</c>; (b) one
+/// Kafka-delivered, inbox-deduped projection — implementing the custom Application port
+/// <c>IStockLevelChangedProjector</c>, suffix <c>*ProjectionHandler</c> (the sole holdout of the
+/// trigger-agnostic suffix, justified by its non-<c>IDomainEventHandler</c> contract). Both
+/// shapes are sealed and live under <c>Catalog.Application.{Aggregate}.{UseCase}</c>. These
+/// rules sharpen the universal U-D rule (architecture-tests.md § 1.3) for Catalog's specific
+/// taxonomy.
 /// </summary>
 public class ProjectionHandlerTests : BaseTest
 {
     /// <summary>
     /// Every <see cref="IDomainEventHandler{T}"/> that is NOT an outbox publisher must end with
-    /// <c>ProjectionHandler</c>. Selecting on the interface (not the suffix) is what gives the
-    /// rule teeth — a future contributor naming a projection class <c>FooHandler</c> would fail
-    /// here, where a tautological "*ProjectionHandler implies *ProjectionHandler" check would not.
+    /// <c>ProjectionDomainEventHandler</c>. Selecting on the interface (not the suffix) gives
+    /// the rule teeth — a future contributor naming a projection class
+    /// <c>FooDomainEventHandler</c> (correct universal suffix but missing the role qualifier)
+    /// would fail here, where a tautological "*ProjectionDomainEventHandler implies
+    /// *ProjectionDomainEventHandler" check would not.
     /// </summary>
     [Fact]
-    public void DomainEventHandlers_ThatAreNotOutboxPublishers_Should_HaveNameEndingWith_ProjectionHandler()
+    public void DomainEventHandlers_ThatAreNotOutboxPublishers_Should_HaveNameEndingWith_ProjectionDomainEventHandler()
     {
         var result = Types.InAssembly(ApplicationAssembly)
             .That()
             .ImplementInterface(typeof(IDomainEventHandler<>))
-            .And().DoNotHaveNameEndingWith("OutboxPublisher")
+            .And().DoNotHaveNameEndingWith("OutboxPublisherDomainEventHandler")
             .Should()
-            .HaveNameEndingWith("ProjectionHandler")
+            .HaveNameEndingWith("ProjectionDomainEventHandler")
             .GetResult();
 
         result.FailingTypes.Should().BeEmpty(
-            "Every IDomainEventHandler<T> that isn't an OutboxPublisher must be a *ProjectionHandler — " +
-            "locks Catalog's one-class-per-event read-side convention (catalog.md <example_design_decision>).");
+            "Every IDomainEventHandler<T> that isn't an OutboxPublisherDomainEventHandler must " +
+            "be a *ProjectionDomainEventHandler — locks Catalog's one-class-per-event read-side " +
+            "convention.");
     }
 
+    /// <summary>
+    /// All <c>*ProjectionHandler</c>-family classes (both the U-D-suffixed
+    /// <c>*ProjectionDomainEventHandler</c> and the sole Kafka-deduped <c>*ProjectionHandler</c>)
+    /// must be sealed — each handles one shape of trigger with one side effect.
+    /// </summary>
     [Fact]
     public void ProjectionHandlers_Should_BeSealed()
     {
         var result = Types.InAssembly(ApplicationAssembly)
             .That()
             .HaveNameEndingWith("ProjectionHandler")
+            .Or().HaveNameEndingWith("ProjectionDomainEventHandler")
             .Should()
             .BeSealed()
             .GetResult();
@@ -51,7 +64,7 @@ public class ProjectionHandlerTests : BaseTest
     /// Per the file-system convention established in M3, projection handlers live next to the
     /// command that triggered them: <c>Catalog.Application.Products.{UseCase}</c> or
     /// <c>Catalog.Application.Categories.{UseCase}</c>. The regex pins the two aggregate roots so
-    /// a stray <c>Catalog.Application.Foo.ProjectionHandler</c> would fail the rule.
+    /// a stray <c>Catalog.Application.Foo.ProjectionDomainEventHandler</c> would fail the rule.
     /// </summary>
     [Fact]
     public void ProjectionHandlers_Should_LiveUnder_AggregateUseCaseNamespace()
@@ -59,6 +72,7 @@ public class ProjectionHandlerTests : BaseTest
         var result = Types.InAssembly(ApplicationAssembly)
             .That()
             .HaveNameEndingWith("ProjectionHandler")
+            .Or().HaveNameEndingWith("ProjectionDomainEventHandler")
             .Should()
             .ResideInNamespaceMatching(@"^Catalog\.Application\.(Products|Categories)\.\w+$")
             .GetResult();

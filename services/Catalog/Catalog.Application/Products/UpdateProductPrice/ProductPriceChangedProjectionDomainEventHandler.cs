@@ -6,15 +6,15 @@ using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Catalog.Application.Products.UpdateProductPrice;
 
-public sealed class ProductPriceChangedProjectionHandler
+public sealed class ProductPriceChangedProjectionDomainEventHandler
     : IDomainEventHandler<ProductPriceChangedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
-    private readonly ILogger<ProductPriceChangedProjectionHandler> _logger;
+    private readonly ILogger<ProductPriceChangedProjectionDomainEventHandler> _logger;
 
-    public ProductPriceChangedProjectionHandler(
+    public ProductPriceChangedProjectionDomainEventHandler(
         ICatalogDbContext db,
-        ILogger<ProductPriceChangedProjectionHandler> logger)
+        ILogger<ProductPriceChangedProjectionDomainEventHandler> logger)
     {
         _db = db;
         _logger = logger;

@@ -13,7 +13,7 @@ using AvroProductStatus = Catalog.Products.ProductStatus;
 
 namespace Catalog.UnitTests.Products.CreateProduct;
 
-public class ProductCreatedOutboxPublisherTests
+public class ProductCreatedOutboxPublisherDomainEventHandlerTests
 {
     private static TopicsOptions DefaultTopics() => new()
     {
@@ -34,11 +34,11 @@ public class ProductCreatedOutboxPublisherTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var outbox = Substitute.For<ITransactionalOutbox<ICatalogDbContext>>();
-        var publisher = new ProductCreatedOutboxPublisher(
+        var publisher = new ProductCreatedOutboxPublisherDomainEventHandler(
             db,
             outbox,
             Options.Create(DefaultTopics()),
-            NullLogger<ProductCreatedOutboxPublisher>.Instance);
+            NullLogger<ProductCreatedOutboxPublisherDomainEventHandler>.Instance);
 
         await publisher.Handle(
             new ProductCreatedDomainEvent
@@ -85,11 +85,11 @@ public class ProductCreatedOutboxPublisherTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var outbox = Substitute.For<ITransactionalOutbox<ICatalogDbContext>>();
-        var publisher = new ProductCreatedOutboxPublisher(
+        var publisher = new ProductCreatedOutboxPublisherDomainEventHandler(
             db,
             outbox,
             Options.Create(DefaultTopics()),
-            NullLogger<ProductCreatedOutboxPublisher>.Instance);
+            NullLogger<ProductCreatedOutboxPublisherDomainEventHandler>.Instance);
 
         await publisher.Handle(
             new ProductCreatedDomainEvent

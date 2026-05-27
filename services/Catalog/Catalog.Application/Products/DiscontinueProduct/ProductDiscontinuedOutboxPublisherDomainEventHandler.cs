@@ -17,19 +17,19 @@ namespace Catalog.Application.Products.DiscontinueProduct;
 /// transactional outbox. Runs inside the command's UoW so the outbox row commits with the
 /// aggregate write (CQRS-on-Postgres atomicity per catalog.md § 9).
 /// </summary>
-public sealed class ProductDiscontinuedOutboxPublisher
+public sealed class ProductDiscontinuedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<ProductDiscontinuedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
     private readonly TopicsOptions _topics;
-    private readonly ILogger<ProductDiscontinuedOutboxPublisher> _logger;
+    private readonly ILogger<ProductDiscontinuedOutboxPublisherDomainEventHandler> _logger;
 
-    public ProductDiscontinuedOutboxPublisher(
+    public ProductDiscontinuedOutboxPublisherDomainEventHandler(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
         IOptions<TopicsOptions> topics,
-        ILogger<ProductDiscontinuedOutboxPublisher> logger)
+        ILogger<ProductDiscontinuedOutboxPublisherDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;

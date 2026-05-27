@@ -1,31 +1,32 @@
-using Catalog.Application.Products.DiscontinueProduct;
+using Catalog.Application.Products.DescribeProduct;
 using Catalog.Domain.Products.Events;
+using Catalog.Domain.Products.ValueObjects;
 using Catalog.UnitTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Catalog.UnitTests.Products.DiscontinueProduct;
+namespace Catalog.UnitTests.Products.DescribeProduct;
 
-public class ProductDiscontinuedProjectionHandlerTests
+public class ProductDescribedProjectionDomainEventHandlerTests
 {
     [Fact]
-    public async Task Given_ExistingRow_Then_MarksDiscontinuedAndNotSellable()
+    public async Task Given_ExistingRow_Then_UpdatesDescription()
     {
         await using var db = FakeCatalogDbContext.Create();
         var row = ProductSearchViewRowBuilder.Active();
         db.ProductSearchView.Add(row);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new ProductDiscontinuedProjectionHandler(
-            db, NullLogger<ProductDiscontinuedProjectionHandler>.Instance);
+        var handler = new ProductDescribedProjectionDomainEventHandler(
+            db, NullLogger<ProductDescribedProjectionDomainEventHandler>.Instance);
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
         await handler.Handle(
-            new ProductDiscontinuedDomainEvent
+            new ProductDescribedDomainEvent
             {
                 ProductId = row.ProductId,
-                Reason = "EOL",
+                NewDescription = ProductDescription.Create("new desc").Value,
                 OccurredOnUtc = occurredOn,
             },
             TestContext.Current.CancellationToken);
@@ -33,12 +34,7 @@ public class ProductDiscontinuedProjectionHandlerTests
 
         var refreshed = await db.ProductSearchView.FirstAsync(
             r => r.ProductId == row.ProductId, TestContext.Current.CancellationToken);
-
-        using (new AssertionScope())
-        {
-            refreshed.Status.Should().Be("Discontinued");
-            refreshed.IsSellable.Should().BeFalse();
-            refreshed.LastUpdatedAtUtc.Should().Be(occurredOn);
-        }
+        refreshed.Description.Should().Be("new desc");
+        refreshed.LastUpdatedAtUtc.Should().Be(occurredOn);
     }
 }

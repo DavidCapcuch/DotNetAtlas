@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Catalog.UnitTests.Products.ReactivateProduct;
 
-public class ProductReactivatedProjectionHandlerTests
+public class ProductReactivatedProjectionDomainEventHandlerTests
 {
     [Fact]
     public async Task Given_DiscontinuedRow_Then_MarksActiveAndSellable()
@@ -16,8 +16,8 @@ public class ProductReactivatedProjectionHandlerTests
         db.ProductSearchView.Add(row);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new ProductReactivatedProjectionHandler(
-            db, NullLogger<ProductReactivatedProjectionHandler>.Instance);
+        var handler = new ProductReactivatedProjectionDomainEventHandler(
+            db, NullLogger<ProductReactivatedProjectionDomainEventHandler>.Instance);
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 

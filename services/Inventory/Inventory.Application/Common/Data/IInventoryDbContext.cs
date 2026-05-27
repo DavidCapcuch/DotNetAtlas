@@ -24,7 +24,7 @@ public interface IInventoryDbContext : IOutboxDbContext
 {
     /// <summary>
     /// Hot-path projection — one row per <c>ProductId</c>. Upserted by
-    /// <c>CurrentStockLevelsProjectionHandler</c> for every ES event.
+    /// <c>CurrentStockLevelsProjectionDomainEventHandler</c> for every ES event.
     /// </summary>
     DbSet<CurrentStockLevelRow> CurrentStockLevels { get; }
 

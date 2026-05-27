@@ -7,15 +7,15 @@ using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Catalog.Application.Products.DiscontinueProduct;
 
-public sealed class ProductDiscontinuedProjectionHandler
+public sealed class ProductDiscontinuedProjectionDomainEventHandler
     : IDomainEventHandler<ProductDiscontinuedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
-    private readonly ILogger<ProductDiscontinuedProjectionHandler> _logger;
+    private readonly ILogger<ProductDiscontinuedProjectionDomainEventHandler> _logger;
 
-    public ProductDiscontinuedProjectionHandler(
+    public ProductDiscontinuedProjectionDomainEventHandler(
         ICatalogDbContext db,
-        ILogger<ProductDiscontinuedProjectionHandler> logger)
+        ILogger<ProductDiscontinuedProjectionDomainEventHandler> logger)
     {
         _db = db;
         _logger = logger;

@@ -56,7 +56,7 @@ internal sealed class ReceiveStockCommandHandler : ICommandHandler<ReceiveStockC
         // Same DbContext scope, same transaction just committed: the projection
         // row is durable. Re-read with AsNoTracking to bypass identity-map
         // hits that would return the pre-append snapshot. A missing row means
-        // CurrentStockLevelsProjectionHandler silently failed — bug-class.
+        // CurrentStockLevelsProjectionDomainEventHandler silently failed — bug-class.
         var row = await _db.CurrentStockLevels
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.ProductId == command.ProductId, ct)
