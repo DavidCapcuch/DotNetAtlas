@@ -974,8 +974,7 @@
           "Ordering.Domain": "[1.0.0, )",
           "Platform.CQRS": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
-          "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
-          "Riok.Mapperly": "[4.3.1, )"
+          "Platform.SchemaRegistry.Contracts": "[1.0.0, )"
         }
       },
       "ordering.domain": {
@@ -1447,12 +1446,6 @@
         "dependencies": {
           "OpenTelemetry": "[1.15.3, 2.0.0)"
         }
-      },
-      "Riok.Mapperly": {
-        "type": "CentralTransitive",
-        "requested": "[4.3.1, )",
-        "resolved": "4.3.1",
-        "contentHash": "oSE+OVLHyiojrws0QVbQaAT2YKsYbyHqJXPdV7EhGseR/dYgeWS2x1T5qY5I4E+RJkJqMSG+FyZOq4SljWgJWQ=="
       },
       "StackExchange.Redis": {
         "type": "CentralTransitive",
