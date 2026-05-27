@@ -79,9 +79,9 @@ try
     app.MapRazorPages()
         .WithStaticAssets();
 
-    // Local: apply pending EF migrations. UseAsyncSeeding is wired into the
-    // Non-Local environments apply SQL scripts out-of-band — see #213 / #269.
-    await app.MigrateOnStartupIfLocalAsync<WeatherDbContext>();
+    // Development: apply pending EF migrations. UseAsyncSeeding is wired into the
+    // Non-Development environments apply SQL scripts out-of-band — see #213 / #269.
+    await app.MigrateOnStartupIfDevelopmentAsync<WeatherDbContext>();
 
     var kafkaBus = app.Services.CreateKafkaBus();
     await kafkaBus.StartAsync();

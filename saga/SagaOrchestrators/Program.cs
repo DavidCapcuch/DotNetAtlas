@@ -29,7 +29,7 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    await app.MigrateOnStartupIfLocalAsync<SagaDbContext>();
+    await app.MigrateOnStartupIfDevelopmentAsync<SagaDbContext>();
 
     await app.RunAsync();
 }

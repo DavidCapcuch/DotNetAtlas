@@ -36,14 +36,14 @@ public static class WebApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Configures platform host defaults including environment variables, user secrets (Local environment only),
+    /// Configures platform host defaults including environment variables, user secrets (Development environment only),
     /// and service provider validation (non-cluster environments only).
     /// </summary>
     /// <remarks>
     /// <para>This method configures:</para>
     /// <list type="bullet">
     ///   <item><description>Environment variables added to configuration</description></item>
-    ///   <item><description>User secrets loaded from entry assembly (Local environment only)</description></item>
+    ///   <item><description>User secrets loaded from entry assembly (Development environment only)</description></item>
     ///   <item><description>Service provider validation with ValidateScopes and ValidateOnBuild (non-cluster environments only)</description></item>
     /// </list>
     /// </remarks>
@@ -53,7 +53,7 @@ public static class WebApplicationBuilderExtensions
     {
         builder.Configuration.AddEnvironmentVariables();
 
-        if (builder.Environment.IsLocal())
+        if (builder.Environment.IsDevelopment())
         {
             var entryAssembly = Assembly.GetEntryAssembly();
             if (entryAssembly is not null)

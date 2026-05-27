@@ -59,7 +59,7 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
 
-    await app.MigrateOnStartupIfLocalAsync<InvoicingDbContext>();
+    await app.MigrateOnStartupIfDevelopmentAsync<InvoicingDbContext>();
 
     // Skip the Kafka enrichment-projection consumers in the test host. M6's
     // integration tests exercise the consumer slice against a real broker; M8's

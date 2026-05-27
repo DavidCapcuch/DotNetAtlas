@@ -40,8 +40,8 @@
         <!-- OTel PII allowlist processor (ADR-0011) -->
         <PackageReference Include="OpenTelemetry" />
 
-        <!-- EF Core — MigrateOnStartupIfLocalAsync<TContext> (#213, restored after #269 revert).
-             .Relational supplies the MigrateAsync extension on DatabaseFacade. Local startup
+        <!-- EF Core — MigrateOnStartupIfDevelopmentAsync<TContext> (#213, restored after #269 revert).
+             .Relational supplies the MigrateAsync extension on DatabaseFacade. Development startup
              uses EF Core MigrateAsync (fast dev iteration); Testing uses Evolve through
              PostgreSqlTestContainer; deployed envs use Flyway against the V*.sql files. -->
         <PackageReference Include="Microsoft.EntityFrameworkCore" />

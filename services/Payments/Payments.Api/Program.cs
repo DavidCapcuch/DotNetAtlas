@@ -54,7 +54,7 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
 
-    await app.MigrateOnStartupIfLocalAsync<PaymentsDbContext>();
+    await app.MigrateOnStartupIfDevelopmentAsync<PaymentsDbContext>();
 
     // Skip the Kafka saga-command consumer in the test host. The consumer is
     // integration-tested in M5 against a real broker; functional tests

@@ -30,7 +30,7 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    await app.MigrateOnStartupIfLocalAsync<NotificationsDbContext>();
+    await app.MigrateOnStartupIfDevelopmentAsync<NotificationsDbContext>();
 
     // Skip the Kafka cluster boot in the test host. Integration tests register the
     // typed Kafka handlers directly and invoke them with synthetic message contexts
