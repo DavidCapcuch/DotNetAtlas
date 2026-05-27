@@ -232,27 +232,27 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         {
             address.Property(a => a.Street1)
                 .HasColumnName($"{prefix}_street1_enc")
-                .HasMaxLength(200)
+                .HasMaxLength(Address.Street1MaxLength)
                 .HasComment("PII (ADR-0011): street line 1. v1 plaintext; v2 encrypts.");
             address.Property(a => a.Street2)
                 .HasColumnName($"{prefix}_street2_enc")
-                .HasMaxLength(200)
+                .HasMaxLength(Address.Street2MaxLength)
                 .HasComment("PII (ADR-0011): street line 2 (optional).");
             address.Property(a => a.City)
                 .HasColumnName($"{prefix}_city_enc")
-                .HasMaxLength(100)
+                .HasMaxLength(Address.CityMaxLength)
                 .HasComment("PII (ADR-0011): city.");
             address.Property(a => a.State)
                 .HasColumnName($"{prefix}_state_enc")
-                .HasMaxLength(100)
+                .HasMaxLength(Address.StateMaxLength)
                 .HasComment("PII (ADR-0011): state/region (optional).");
             address.Property(a => a.PostalCode)
                 .HasColumnName($"{prefix}_postal_code_enc")
-                .HasMaxLength(20)
+                .HasMaxLength(Address.PostalCodeMaxLength)
                 .HasComment("PII (ADR-0011): postal code.");
             address.Property(a => a.CountryCode)
                 .HasColumnName($"{prefix}_country_code_enc")
-                .HasMaxLength(2)
+                .HasMaxLength(Address.CountryCodeLength)
                 .HasComment("ISO 3166-1 alpha-2 country code.");
         };
     }
