@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Ordering.Application.Common.Data;
 using Ordering.Domain.Orders;
 using Platform.CQRS;
+using Platform.SharedKernel.Exceptions;
 
 namespace Ordering.Application.Orders.GetOrdersByBuyer;
 
@@ -85,11 +86,14 @@ public sealed class GetOrdersByBuyerQueryHandler
         // name reaching the handler is bug-class: validation was bypassed.
         if (!OrderStatus.TryFromName(name, out var status))
         {
-            throw new Platform.SharedKernel.Exceptions.DataIntegrityException(
-                "OrdersByBuyer.InvalidStatus",
-                $"OrderStatus '{name}' did not parse; validator should have rejected this upstream.");
+            throw InvalidStatus(name);
         }
 
         return status;
     }
+
+    private static DataIntegrityException InvalidStatus(string name) =>
+        new(
+            "OrdersByBuyer.InvalidStatus",
+            $"OrderStatus '{name}' did not parse; validator should have rejected this upstream.");
 }
