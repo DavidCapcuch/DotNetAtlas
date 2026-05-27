@@ -16,8 +16,9 @@ public class DomainEventHandlerTests : BaseTest
             .GetResult();
 
         result.FailingTypes.Should().BeEmpty(
-            "Domain event handlers should follow the naming convention '*DomainEventHandler' " +
-            "for easy discovery and to distinguish them from command/query handlers");
+            "Universal rule (architecture-tests.md § 1.3): every IDomainEventHandler<T> impl must " +
+            "end with 'DomainEventHandler'. Role precedes the suffix " +
+            "(*ProjectionDomainEventHandler, *OutboxPublisherDomainEventHandler, *LifecycleDomainEventHandler).");
     }
 
     [Fact]
