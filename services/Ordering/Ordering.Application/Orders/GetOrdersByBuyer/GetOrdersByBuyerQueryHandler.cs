@@ -10,6 +10,8 @@ namespace Ordering.Application.Orders.GetOrdersByBuyer;
 public sealed class GetOrdersByBuyerQueryHandler
     : IQueryHandler<GetOrdersByBuyerQuery, GetOrdersByBuyerResponse>
 {
+    private const int MaxPageSize = 100;
+
     private readonly IOrderingDbContext _dbContext;
 
     public GetOrdersByBuyerQueryHandler(IOrderingDbContext dbContext)
@@ -21,6 +23,20 @@ public sealed class GetOrdersByBuyerQueryHandler
         GetOrdersByBuyerQuery query,
         CancellationToken ct)
     {
+        // Defence-in-depth — GetOrdersByBuyerQueryValidator is the front-line
+        // guard for PageNumber / PageSize. This catches the bug-class case
+        // where the ValidationBehavior pipeline is bypassed (e.g. handler
+        // constructed directly outside the CQRS scope): PageSize=0 would
+        // silently return an empty page, PageNumber<1 would push the EF
+        // offset (PageNumber-1)*PageSize to <= 0 (undefined across providers),
+        // and PageSize > MaxPageSize would defeat the wave-1 100-row cap.
+        if (query.PageNumber < 1 || query.PageSize <= 0 || query.PageSize > MaxPageSize)
+        {
+            throw new DataIntegrityException(
+                "OrdersByBuyer.OutOfRange",
+                $"PageNumber / PageSize out of range (PageNumber={query.PageNumber}, PageSize={query.PageSize}, MaxPageSize={MaxPageSize}); validator should have rejected this upstream.");
+        }
+
         var status = ParseStatus(query.Status);
 
         // SQL-side projection (#238, ADR-0021) — the list endpoint deliberately
