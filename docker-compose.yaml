@@ -987,6 +987,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-saga
     restart: unless-stopped
     profiles:
@@ -1022,6 +1025,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-basket
     restart: unless-stopped
     profiles:
@@ -1056,6 +1062,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-catalog
     restart: unless-stopped
     profiles:
@@ -1090,6 +1099,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-inventory
     restart: unless-stopped
     profiles:
@@ -1124,6 +1136,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-invoicing
     restart: unless-stopped
     profiles:
@@ -1158,6 +1173,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-notifications
     restart: unless-stopped
     profiles:
@@ -1192,6 +1210,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-ordering
     restart: unless-stopped
     profiles:
@@ -1226,6 +1247,9 @@ services:
     build:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+      args:
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
     container_name: outbox-relay-payments
     restart: unless-stopped
     profiles:
