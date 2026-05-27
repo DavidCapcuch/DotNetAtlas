@@ -26,7 +26,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     {
         var (response, _) = await HttpClientRegistry.NonAuthClient
             .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, GetInvoicesByBuyerResponse>(
-                new GetInvoicesByBuyerRequest { Skip = 0, Take = 20 });
+                new GetInvoicesByBuyerRequest { PageNumber = 1, PageSize = 20 });
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -42,32 +42,35 @@ public class GetInvoicesByBuyerTests : BaseApiTest
 
         var (response, payload) = await HttpClientRegistry.BuyerClient
             .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, GetInvoicesByBuyerResponse>(
-                new GetInvoicesByBuyerRequest { Skip = 0, Take = 20 });
+                new GetInvoicesByBuyerRequest { PageNumber = 1, PageSize = 20 });
 
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            payload.Invoices.Should().HaveCount(2);
-            payload.Invoices.Should().OnlyContain(i => i.BuyerId == TestUsers.BuyerId);
+            payload.Total.Should().Be(2);
+            payload.PageNumber.Should().Be(1);
+            payload.PageSize.Should().Be(20);
+            payload.Items.Should().HaveCount(2);
+            payload.Items.Should().OnlyContain(i => i.BuyerId == TestUsers.BuyerId);
 
             // Tie-break by Id desc when IssueDate is equal (PinnedNow is shared across
             // both Create calls on the same seed instance, so both own invoices share the
             // same IssueDate). Guid v7 ids are time-ordered, so secondOwn (newer Guid)
             // should come before firstOwn.
-            payload.Invoices.Select(i => i.InvoiceId)
+            payload.Items.Select(i => i.InvoiceId)
                 .Should().ContainInOrder(secondOwn.Id, firstOwn.Id);
         }
     }
 
     [Fact]
-    public async Task WhenTakeOutOfRange_ReturnsBadRequestOrUnprocessable()
+    public async Task WhenPageSizeOutOfRange_ReturnsBadRequestOrUnprocessable()
     {
-        // Take=0 violates InclusiveBetween(1, 100). FastEndpoints' validation pipeline +
+        // PageSize=0 violates InclusiveBetween(1, 100). FastEndpoints' validation pipeline +
         // AddProblemDetails maps FluentValidation failures to 400 by default; either 400
         // or 422 is acceptable per the BC's API conventions.
         var (response, _) = await HttpClientRegistry.BuyerClient
             .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, ProblemDetails>(
-                new GetInvoicesByBuyerRequest { Skip = 0, Take = 0 });
+                new GetInvoicesByBuyerRequest { PageNumber = 1, PageSize = 0 });
 
         ((int)response.StatusCode).Should().BeOneOf(400, 422);
     }
@@ -84,13 +87,13 @@ public class GetInvoicesByBuyerTests : BaseApiTest
 
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, GetInvoicesByBuyerResponse>(
-                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.BuyerId, Skip = 0, Take = 20 });
+                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.BuyerId, PageNumber = 1, PageSize = 20 });
 
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            payload.Invoices.Should().OnlyContain(i => i.BuyerId == TestUsers.BuyerId);
-            payload.Invoices.Select(i => i.InvoiceId).Should().Contain(targetInvoice.Id);
+            payload.Items.Should().OnlyContain(i => i.BuyerId == TestUsers.BuyerId);
+            payload.Items.Select(i => i.InvoiceId).Should().Contain(targetInvoice.Id);
         }
     }
 
@@ -105,7 +108,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
 
         var (response, _) = await HttpClientRegistry.BuyerClient
             .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, ProblemDetails>(
-                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.OtherBuyerId, Skip = 0, Take = 20 });
+                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.OtherBuyerId, PageNumber = 1, PageSize = 20 });
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -120,12 +123,12 @@ public class GetInvoicesByBuyerTests : BaseApiTest
 
         var (response, payload) = await HttpClientRegistry.BuyerClient
             .GETAsync<GetInvoicesByBuyerEndpoint, GetInvoicesByBuyerRequest, GetInvoicesByBuyerResponse>(
-                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.BuyerId, Skip = 0, Take = 20 });
+                new GetInvoicesByBuyerRequest { BuyerId = TestUsers.BuyerId, PageNumber = 1, PageSize = 20 });
 
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            payload.Invoices.Select(i => i.InvoiceId).Should().Contain(own.Id);
+            payload.Items.Select(i => i.InvoiceId).Should().Contain(own.Id);
         }
     }
 }

@@ -4,15 +4,16 @@ using Platform.CQRS;
 namespace Invoicing.Application.Invoices.GetInvoicesByBuyer;
 
 /// <summary>
-/// Lists the calling buyer's invoices, most-recent-first, paged with offset / limit
-/// (use-cases.md § Conventions). Admin override (an admin requesting another buyer's
-/// invoices) is deferred to v2+; v1 always scopes to the JWT subject.
+/// Lists the calling buyer's invoices, most-recent-first, paged with 1-indexed
+/// <c>pageNumber</c> / <c>pageSize</c> (use-cases.md § Conventions). Admin override
+/// (an admin requesting another buyer's invoices) is deferred to v2+; v1 always
+/// scopes to the JWT subject.
 /// </summary>
 public sealed record GetInvoicesByBuyerQuery : IQuery<GetInvoicesByBuyerResponse>
 {
     public required Guid BuyerId { get; init; }
 
-    public int Skip { get; init; }
+    public int PageNumber { get; init; } = 1;
 
-    public int Take { get; init; } = 20;
+    public int PageSize { get; init; } = 20;
 }

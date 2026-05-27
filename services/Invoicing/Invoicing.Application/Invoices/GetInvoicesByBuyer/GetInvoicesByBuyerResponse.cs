@@ -8,9 +8,11 @@ namespace Invoicing.Application.Invoices.GetInvoicesByBuyer;
 /// </summary>
 public sealed class GetInvoicesByBuyerResponse
 {
-    public required IReadOnlyList<GetInvoiceByIdResponse> Invoices { get; init; }
+    public required IReadOnlyList<GetInvoiceByIdResponse> Items { get; init; }
 
-    public required int Skip { get; init; }
+    public required int Total { get; init; }
 
-    public required int Take { get; init; }
+    public required int PageNumber { get; init; }
+
+    public required int PageSize { get; init; }
 }

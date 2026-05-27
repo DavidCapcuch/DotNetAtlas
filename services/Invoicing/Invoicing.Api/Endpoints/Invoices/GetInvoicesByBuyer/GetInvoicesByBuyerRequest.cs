@@ -1,7 +1,7 @@
 namespace Invoicing.Api.Endpoints.Invoices.GetInvoicesByBuyer;
 
 /// <summary>
-/// HTTP request shape for <c>GET /api/v1/invoicing/invoices?skip=&amp;take=&amp;buyerId=</c>.
+/// HTTP request shape for <c>GET /api/v1/invoicing/invoices?pageNumber=&amp;pageSize=&amp;buyerId=</c>.
 /// Buyer callers list only their own invoices. Admins may supply
 /// <see cref="BuyerId"/> to scope the response to another buyer; non-admin callers
 /// passing a <see cref="BuyerId"/> different from their own JWT subject are rejected
@@ -15,7 +15,7 @@ public sealed class GetInvoicesByBuyerRequest
     /// </summary>
     public Guid? BuyerId { get; init; }
 
-    public int Skip { get; init; }
+    public int PageNumber { get; init; } = 1;
 
-    public int Take { get; init; } = 20;
+    public int PageSize { get; init; } = 20;
 }
