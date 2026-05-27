@@ -8,9 +8,9 @@ using Serilog.Context;
 namespace Invoicing.Api.Endpoints.Invoices.GetInvoicesByBuyer;
 
 /// <summary>
-/// <c>GET /api/v1/invoicing/invoices?skip=&amp;take=&amp;buyerId=</c> — paged list of
-/// invoices. Buyer callers always scope to their own JWT subject; admins may pass
-/// <c>?buyerId={guid}</c> to list another buyer's invoices. A non-admin caller
+/// <c>GET /api/v1/invoicing/invoices?pageNumber=&amp;pageSize=&amp;buyerId=</c> — paged
+/// list of invoices. Buyer callers always scope to their own JWT subject; admins may
+/// pass <c>?buyerId={guid}</c> to list another buyer's invoices. A non-admin caller
 /// passing a <c>buyerId</c> different from their own is rejected with 403.
 /// </summary>
 internal sealed class GetInvoicesByBuyerEndpoint
@@ -83,8 +83,8 @@ internal sealed class GetInvoicesByBuyerEndpoint
         var query = new GetInvoicesByBuyerQuery
         {
             BuyerId = effectiveBuyerId,
-            Skip = req.Skip,
-            Take = req.Take,
+            PageNumber = req.PageNumber,
+            PageSize = req.PageSize,
         };
 
         var result = await _handler.HandleAsync(query, ct);

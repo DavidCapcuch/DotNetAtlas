@@ -29,13 +29,14 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
         var nowSnapshot = DateTimeOffset.UtcNow;
         var (invoiceId, buyerId) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
 
-        var result = await InvokeHandlerAsync(buyerId, skip: 0, take: 20, ct);
+        var result = await InvokeHandlerAsync(buyerId, pageNumber: 1, pageSize: 20, ct);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Skip.Should().Be(0);
-        result.Value.Take.Should().Be(20);
-        result.Value.Invoices.Should().ContainSingle();
-        var dto = result.Value.Invoices[0];
+        result.Value.PageNumber.Should().Be(1);
+        result.Value.PageSize.Should().Be(20);
+        result.Value.Total.Should().Be(1);
+        result.Value.Items.Should().ContainSingle();
+        var dto = result.Value.Items[0];
         dto.InvoiceId.Should().Be(invoiceId);
         dto.BuyerId.Should().Be(buyerId);
         dto.Status.Should().Be("Issued");
@@ -52,12 +53,13 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
         var ct = TestContext.Current.CancellationToken;
         var buyerWithNoInvoices = Guid.CreateVersion7();
 
-        var result = await InvokeHandlerAsync(buyerWithNoInvoices, skip: 0, take: 20, ct);
+        var result = await InvokeHandlerAsync(buyerWithNoInvoices, pageNumber: 1, pageSize: 20, ct);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Invoices.Should().BeEmpty();
-        result.Value.Skip.Should().Be(0);
-        result.Value.Take.Should().Be(20);
+        result.Value.Items.Should().BeEmpty();
+        result.Value.Total.Should().Be(0);
+        result.Value.PageNumber.Should().Be(1);
+        result.Value.PageSize.Should().Be(20);
     }
 
     [Fact]
@@ -67,29 +69,31 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
         var (_, ownerA) = await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct);
         await _fixture.SeedIssuedInvoiceAsync(TimeProvider.System, ct); // owned by a different (random) buyer
 
-        var result = await InvokeHandlerAsync(ownerA, skip: 0, take: 20, ct);
+        var result = await InvokeHandlerAsync(ownerA, pageNumber: 1, pageSize: 20, ct);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Invoices.Should().ContainSingle();
-        result.Value.Invoices[0].BuyerId.Should().Be(ownerA);
+        result.Value.Total.Should().Be(1);
+        result.Value.Items.Should().ContainSingle();
+        result.Value.Items[0].BuyerId.Should().Be(ownerA);
     }
 
     [Fact]
-    public async Task Handle_honours_skip_and_take_for_paging()
+    public async Task Handle_honours_pageNumber_and_pageSize_for_paging()
     {
         var ct = TestContext.Current.CancellationToken;
-        var emptyResult = await InvokeHandlerAsync(Guid.CreateVersion7(), skip: 99, take: 5, ct);
+        var emptyResult = await InvokeHandlerAsync(Guid.CreateVersion7(), pageNumber: 20, pageSize: 5, ct);
 
         emptyResult.IsSuccess.Should().BeTrue();
-        emptyResult.Value.Skip.Should().Be(99);
-        emptyResult.Value.Take.Should().Be(5);
-        emptyResult.Value.Invoices.Should().BeEmpty();
+        emptyResult.Value.PageNumber.Should().Be(20);
+        emptyResult.Value.PageSize.Should().Be(5);
+        emptyResult.Value.Total.Should().Be(0);
+        emptyResult.Value.Items.Should().BeEmpty();
     }
 
     private async Task<FluentResults.Result<GetInvoicesByBuyerResponse>> InvokeHandlerAsync(
         Guid buyerId,
-        int skip,
-        int take,
+        int pageNumber,
+        int pageSize,
         CancellationToken ct)
     {
         await using var scope = _fixture.CreateScope();
@@ -97,7 +101,7 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
             .GetRequiredService<IQueryHandler<GetInvoicesByBuyerQuery, GetInvoicesByBuyerResponse>>();
 
         return await handler.HandleAsync(
-            new GetInvoicesByBuyerQuery { BuyerId = buyerId, Skip = skip, Take = take },
+            new GetInvoicesByBuyerQuery { BuyerId = buyerId, PageNumber = pageNumber, PageSize = pageSize },
             ct);
     }
 }
