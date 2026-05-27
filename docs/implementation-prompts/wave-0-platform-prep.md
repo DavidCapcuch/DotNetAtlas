@@ -1,6 +1,6 @@
 # Master System Prompt — Wave 0: Platform Prep
 
-> Paste this as the first message in a fresh Claude Code session for `C:\Users\dcapc\Desktop\Git\DotNetAtlas`.
+> Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
 >
 > This is the foundation dispatch. It **must merge before any Wave 1 BC dispatches**.
 
