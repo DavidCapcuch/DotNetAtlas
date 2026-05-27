@@ -11,7 +11,7 @@ using AvroCategoryCreatedEvent = Catalog.Categories.CategoryCreatedEvent;
 
 namespace Catalog.UnitTests.Categories.CreateCategory;
 
-public class CategoryCreatedOutboxPublisherTests
+public class CategoryCreatedOutboxPublisherDomainEventHandlerTests
 {
     [Fact]
     public async Task Given_TrackedCategory_Then_EnqueuesAvroWithFullFieldSet()
@@ -23,7 +23,7 @@ public class CategoryCreatedOutboxPublisherTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var outbox = Substitute.For<ITransactionalOutbox<ICatalogDbContext>>();
-        var publisher = new CategoryCreatedOutboxPublisher(
+        var publisher = new CategoryCreatedOutboxPublisherDomainEventHandler(
             db,
             outbox,
             Options.Create(new TopicsOptions
@@ -33,7 +33,7 @@ public class CategoryCreatedOutboxPublisherTests
                 StockLevelChanged = "inventory.stock-level-changed",
                 DltTopicSuffix = ".DLT",
             }),
-            NullLogger<CategoryCreatedOutboxPublisher>.Instance);
+            NullLogger<CategoryCreatedOutboxPublisherDomainEventHandler>.Instance);
 
         await publisher.Handle(
             new CategoryCreatedDomainEvent

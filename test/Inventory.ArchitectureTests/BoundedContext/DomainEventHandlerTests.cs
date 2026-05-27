@@ -6,18 +6,21 @@ namespace Inventory.ArchitectureTests.BoundedContext;
 /// <summary>
 /// Inventory's read-side multiplexes both projections + outbox emission inside a single class
 /// per projection table — see M2 wave_progress decision "ONE multiplexed handler per projection".
-/// As of M4 there are two: <c>CurrentStockLevelsProjectionHandler</c> (writes
+/// As of M4 there are two: <c>CurrentStockLevelsProjectionDomainEventHandler</c> (writes
 /// <c>current_stock_levels</c> + emits <c>StockLevelChanged</c>) and
-/// <c>ReservationLifecycleHandler</c> (writes <c>reservation_audit</c> + emits the three
-/// <c>inventory.reservations</c> events). Both implement <see cref="IDomainEventHandler{T}"/>
-/// for multiple events.
+/// <c>ReservationLifecycleDomainEventHandler</c> (writes <c>reservation_audit</c> + emits the
+/// three <c>inventory.reservations</c> events). Both implement <see cref="IDomainEventHandler{T}"/>
+/// for multiple events and follow the universal U-D suffix rule
+/// (architecture-tests.md § 1.3): every <c>IDomainEventHandler&lt;T&gt;</c> impl ends with
+/// <c>DomainEventHandler</c>, with the role name (<c>Projection</c>, <c>Lifecycle</c>) in front.
 /// </summary>
 /// <remarks>
 /// This deviates from Catalog's "one-class-per-event" convention (which uses separate
-/// <c>*ProjectionHandler</c> + <c>*OutboxPublisher</c> classes per event). The deviation is
-/// intentional for Inventory because the multiplexed shape keeps the projection upsert + outbox
-/// write co-located inside the single <c>EventStoreRepository.AppendAsync</c> dispatch loop,
-/// which preserves the same-DbContext-transaction invariant for the ES write path.
+/// <c>*ProjectionDomainEventHandler</c> + <c>*OutboxPublisherDomainEventHandler</c> classes per
+/// event). The deviation is intentional for Inventory because the multiplexed shape keeps the
+/// projection upsert + outbox write co-located inside the single
+/// <c>EventStoreRepository.AppendAsync</c> dispatch loop, which preserves the
+/// same-DbContext-transaction invariant for the ES write path.
 /// </remarks>
 public class DomainEventHandlerTests : BaseTest
 {

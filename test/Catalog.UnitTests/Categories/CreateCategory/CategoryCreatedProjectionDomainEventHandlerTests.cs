@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Catalog.UnitTests.Categories.CreateCategory;
 
-public class CategoryCreatedProjectionHandlerTests
+public class CategoryCreatedProjectionDomainEventHandlerTests
 {
     [Fact]
     public async Task Handle_IsNoOp_AndDoesNotChangeProductSearchView()
@@ -18,8 +18,8 @@ public class CategoryCreatedProjectionHandlerTests
 
         var before = await db.ProductSearchView.CountAsync(TestContext.Current.CancellationToken);
 
-        var handler = new CategoryCreatedProjectionHandler(
-            NullLogger<CategoryCreatedProjectionHandler>.Instance);
+        var handler = new CategoryCreatedProjectionDomainEventHandler(
+            NullLogger<CategoryCreatedProjectionDomainEventHandler>.Instance);
 
         await handler.Handle(
             new CategoryCreatedDomainEvent

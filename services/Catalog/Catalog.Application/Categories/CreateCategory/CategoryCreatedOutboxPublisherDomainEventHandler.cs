@@ -11,19 +11,19 @@ using AvroCategoryCreatedEvent = Catalog.Categories.CategoryCreatedEvent;
 
 namespace Catalog.Application.Categories.CreateCategory;
 
-public sealed class CategoryCreatedOutboxPublisher
+public sealed class CategoryCreatedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<CategoryCreatedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
     private readonly TopicsOptions _topics;
-    private readonly ILogger<CategoryCreatedOutboxPublisher> _logger;
+    private readonly ILogger<CategoryCreatedOutboxPublisherDomainEventHandler> _logger;
 
-    public CategoryCreatedOutboxPublisher(
+    public CategoryCreatedOutboxPublisherDomainEventHandler(
         ICatalogDbContext db,
         ITransactionalOutbox<ICatalogDbContext> outbox,
         IOptions<TopicsOptions> topics,
-        ILogger<CategoryCreatedOutboxPublisher> logger)
+        ILogger<CategoryCreatedOutboxPublisherDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;

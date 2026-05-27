@@ -6,15 +6,15 @@ using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Catalog.Application.Products.DescribeProduct;
 
-public sealed class ProductDescribedProjectionHandler
+public sealed class ProductDescribedProjectionDomainEventHandler
     : IDomainEventHandler<ProductDescribedDomainEvent>
 {
     private readonly ICatalogDbContext _db;
-    private readonly ILogger<ProductDescribedProjectionHandler> _logger;
+    private readonly ILogger<ProductDescribedProjectionDomainEventHandler> _logger;
 
-    public ProductDescribedProjectionHandler(
+    public ProductDescribedProjectionDomainEventHandler(
         ICatalogDbContext db,
-        ILogger<ProductDescribedProjectionHandler> logger)
+        ILogger<ProductDescribedProjectionDomainEventHandler> logger)
     {
         _db = db;
         _logger = logger;

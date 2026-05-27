@@ -9,7 +9,7 @@ namespace Catalog.Application.Categories.Common.Services;
 /// Lives next to <see cref="ICategoryPathService"/> because the breadcrumb is a function of the
 /// path; the reparent cascade in <c>CategoryPathService.RewriteDescendantPathsAsync</c> uses it
 /// to rewrite descendants' breadcrumbs alongside their paths, and
-/// <c>ProductCreatedProjectionHandler</c> uses it on initial projection.
+/// <c>ProductCreatedProjectionDomainEventHandler</c> uses it on initial projection.
 /// </remarks>
 public static class CategoryBreadcrumbBuilder
 {

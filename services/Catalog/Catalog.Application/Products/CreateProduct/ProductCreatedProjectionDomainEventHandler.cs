@@ -16,7 +16,7 @@ namespace Catalog.Application.Products.CreateProduct;
 /// <see cref="ProductCreatedDomainEvent"/>. Runs inside the command's UoW so the row lands in
 /// the same <c>SaveChangesAsync</c> call as the aggregate itself.
 /// </summary>
-public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<ProductCreatedDomainEvent>
+public sealed class ProductCreatedProjectionDomainEventHandler : IDomainEventHandler<ProductCreatedDomainEvent>
 {
     // Mirrors Platform.ServiceDefaults.CorrelationId.CorrelationIdContextKeys.ActivityTagName.
     // Inlined to avoid coupling Catalog.Application to Platform.ServiceDefaults. CAT-RV-C01
@@ -25,11 +25,11 @@ public sealed class ProductCreatedProjectionHandler : IDomainEventHandler<Produc
     private const string CorrelationIdActivityTag = "correlation.id";
 
     private readonly ICatalogDbContext _db;
-    private readonly ILogger<ProductCreatedProjectionHandler> _logger;
+    private readonly ILogger<ProductCreatedProjectionDomainEventHandler> _logger;
 
-    public ProductCreatedProjectionHandler(
+    public ProductCreatedProjectionDomainEventHandler(
         ICatalogDbContext db,
-        ILogger<ProductCreatedProjectionHandler> logger)
+        ILogger<ProductCreatedProjectionDomainEventHandler> logger)
     {
         _db = db;
         _logger = logger;

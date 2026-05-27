@@ -8,7 +8,7 @@ using Platform.SharedKernel.Exceptions;
 
 namespace Catalog.UnitTests.Products.CreateProduct;
 
-public class ProductCreatedProjectionHandlerTests
+public class ProductCreatedProjectionDomainEventHandlerTests
 {
     [Fact]
     public async Task Given_TrackedProductAndCategory_When_Handling_Then_InsertsProjectionRow()
@@ -20,8 +20,8 @@ public class ProductCreatedProjectionHandlerTests
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new ProductCreatedProjectionHandler(
-            db, NullLogger<ProductCreatedProjectionHandler>.Instance);
+        var handler = new ProductCreatedProjectionDomainEventHandler(
+            db, NullLogger<ProductCreatedProjectionDomainEventHandler>.Instance);
 
         var domainEvent = new ProductCreatedDomainEvent
         {
@@ -64,8 +64,8 @@ public class ProductCreatedProjectionHandlerTests
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new ProductCreatedProjectionHandler(
-            db, NullLogger<ProductCreatedProjectionHandler>.Instance);
+        var handler = new ProductCreatedProjectionDomainEventHandler(
+            db, NullLogger<ProductCreatedProjectionDomainEventHandler>.Instance);
         var domainEvent = new ProductCreatedDomainEvent
         {
             OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
@@ -91,8 +91,8 @@ public class ProductCreatedProjectionHandlerTests
         // Sku / Name / Price come from the same aggregate — the previous version called
         // CatalogFactories.ActiveProduct() three times, returning three diverging instances.
         await using var db = FakeCatalogDbContext.Create();
-        var handler = new ProductCreatedProjectionHandler(
-            db, NullLogger<ProductCreatedProjectionHandler>.Instance);
+        var handler = new ProductCreatedProjectionDomainEventHandler(
+            db, NullLogger<ProductCreatedProjectionDomainEventHandler>.Instance);
 
         var template = CatalogFactories.ActiveProduct();
         var domainEvent = new ProductCreatedDomainEvent
@@ -138,8 +138,8 @@ public class ProductCreatedProjectionHandlerTests
         // Mirrors Platform.ServiceDefaults.CorrelationId.CorrelationIdContextKeys.ActivityTagName.
         activity!.SetTag("correlation.id", correlationId.ToString());
 
-        var handler = new ProductCreatedProjectionHandler(
-            db, NullLogger<ProductCreatedProjectionHandler>.Instance);
+        var handler = new ProductCreatedProjectionDomainEventHandler(
+            db, NullLogger<ProductCreatedProjectionDomainEventHandler>.Instance);
         var domainEvent = new ProductCreatedDomainEvent
         {
             OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
@@ -172,8 +172,8 @@ public class ProductCreatedProjectionHandlerTests
 
         Activity.Current = null;
 
-        var handler = new ProductCreatedProjectionHandler(
-            db, NullLogger<ProductCreatedProjectionHandler>.Instance);
+        var handler = new ProductCreatedProjectionDomainEventHandler(
+            db, NullLogger<ProductCreatedProjectionDomainEventHandler>.Instance);
         var domainEvent = new ProductCreatedDomainEvent
         {
             OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),

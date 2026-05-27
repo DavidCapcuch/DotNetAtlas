@@ -7,7 +7,7 @@ using Platform.SharedKernel.ValueObjects;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;
 
-public class ProductPriceChangedProjectionHandlerTests
+public class ProductPriceChangedProjectionDomainEventHandlerTests
 {
     [Fact]
     public async Task Given_ExistingRow_When_Handling_Then_UpdatesPriceAndTimestamp()
@@ -17,8 +17,8 @@ public class ProductPriceChangedProjectionHandlerTests
         db.ProductSearchView.Add(row);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new ProductPriceChangedProjectionHandler(
-            db, NullLogger<ProductPriceChangedProjectionHandler>.Instance);
+        var handler = new ProductPriceChangedProjectionDomainEventHandler(
+            db, NullLogger<ProductPriceChangedProjectionDomainEventHandler>.Instance);
 
         var now = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
         var newPrice = Money.Create(42m, "EUR").Value;
@@ -49,8 +49,8 @@ public class ProductPriceChangedProjectionHandlerTests
     public async Task Given_MissingRow_When_Handling_Then_NoOps()
     {
         await using var db = FakeCatalogDbContext.Create();
-        var handler = new ProductPriceChangedProjectionHandler(
-            db, NullLogger<ProductPriceChangedProjectionHandler>.Instance);
+        var handler = new ProductPriceChangedProjectionDomainEventHandler(
+            db, NullLogger<ProductPriceChangedProjectionDomainEventHandler>.Instance);
 
         await handler.Handle(
             new ProductPriceChangedDomainEvent

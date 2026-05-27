@@ -7,7 +7,7 @@ namespace Inventory.Application.StockItems;
 /// Maps the post-event projection snapshot to the external Avro
 /// <see cref="StockLevelChanged"/>. Called only when the threshold-crossing
 /// predicate fires (<c>PreviousAvailable == 0 XOR NewAvailable == 0</c>) in
-/// <c>CurrentStockLevelsProjectionHandler</c>.
+/// <c>CurrentStockLevelsProjectionDomainEventHandler</c>.
 /// </summary>
 internal static class StockLevelChangedMapper
 {

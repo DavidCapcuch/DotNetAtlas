@@ -12,7 +12,7 @@ using AvroProductPriceChanged = Catalog.Products.ProductPriceChanged;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;
 
-public class ProductPriceChangedOutboxPublisherTests
+public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
 {
     private static TopicsOptions DefaultTopics() => new()
     {
@@ -33,11 +33,11 @@ public class ProductPriceChangedOutboxPublisherTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var outbox = Substitute.For<ITransactionalOutbox<ICatalogDbContext>>();
-        var publisher = new ProductPriceChangedOutboxPublisher(
+        var publisher = new ProductPriceChangedOutboxPublisherDomainEventHandler(
             db,
             outbox,
             Options.Create(DefaultTopics()),
-            NullLogger<ProductPriceChangedOutboxPublisher>.Instance);
+            NullLogger<ProductPriceChangedOutboxPublisherDomainEventHandler>.Instance);
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 

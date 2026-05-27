@@ -37,7 +37,7 @@ namespace Inventory.Application.StockItems;
 /// ONLY on <c>0 &lt;-&gt; positive</c> transitions, not on every stock movement.
 /// </para>
 /// </remarks>
-internal sealed class CurrentStockLevelsProjectionHandler :
+internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
     IDomainEventHandler<StockItemInitializedEvent>,
     IDomainEventHandler<StockReceivedEvent>,
     IDomainEventHandler<StockReservedEvent>,
@@ -48,13 +48,13 @@ internal sealed class CurrentStockLevelsProjectionHandler :
     private readonly IInventoryDbContext _db;
     private readonly ITransactionalOutbox<IInventoryDbContext> _outbox;
     private readonly TopicsOptions _topics;
-    private readonly ILogger<CurrentStockLevelsProjectionHandler> _logger;
+    private readonly ILogger<CurrentStockLevelsProjectionDomainEventHandler> _logger;
 
-    public CurrentStockLevelsProjectionHandler(
+    public CurrentStockLevelsProjectionDomainEventHandler(
         IInventoryDbContext db,
         ITransactionalOutbox<IInventoryDbContext> outbox,
         IOptions<TopicsOptions> topics,
-        ILogger<CurrentStockLevelsProjectionHandler> logger)
+        ILogger<CurrentStockLevelsProjectionDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;

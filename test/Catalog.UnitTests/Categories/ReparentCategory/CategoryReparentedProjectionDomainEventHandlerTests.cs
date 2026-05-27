@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Catalog.UnitTests.Categories.ReparentCategory;
 
-public class CategoryReparentedProjectionHandlerTests
+public class CategoryReparentedProjectionDomainEventHandlerTests
 {
     [Fact]
     public async Task Handle_IsNoOp_InM3_UntilDescendantCascadeShips()
@@ -17,8 +17,8 @@ public class CategoryReparentedProjectionHandlerTests
         db.ProductSearchView.Add(row);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new CategoryReparentedProjectionHandler(
-            NullLogger<CategoryReparentedProjectionHandler>.Instance);
+        var handler = new CategoryReparentedProjectionDomainEventHandler(
+            NullLogger<CategoryReparentedProjectionDomainEventHandler>.Instance);
 
         await handler.Handle(
             new CategoryReparentedDomainEvent
