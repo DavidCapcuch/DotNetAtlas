@@ -47,7 +47,7 @@ public class ApiTestFixture : AppFixture<Program>
 
     private readonly RedisTestContainer _redisContainer = new();
 
-    private readonly FakeTokenSigner _signer = new(audience: "ordering-service-tests");
+    private readonly FakeTokenSigner _signer = new(audience: "ordering-service");
 
     /// <summary>
     /// Exposes the fixture's RSA signer so tests can mint tokens with a

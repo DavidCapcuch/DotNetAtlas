@@ -41,7 +41,7 @@ public class ApiTestFixture : AppFixture<Program>
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
 
-    private readonly FakeTokenSigner _signer = new(audience: "basket-service-tests");
+    private readonly FakeTokenSigner _signer = new(audience: "basket-service");
 
     private ConnectionMultiplexer _redisMultiplexer = null!;
 

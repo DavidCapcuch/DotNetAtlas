@@ -11,10 +11,6 @@ namespace Platform.ServiceDefaults.Auth;
 /// <c>http://keycloak:8080/realms/dotnetatlas</c>). The handler appends
 /// <c>/protocol/openid-connect/token</c> when acquiring a token.
 /// </para>
-/// <para>
-/// <see cref="ServiceName"/> doubles as the JWT <c>audience</c> for inbound validation —
-/// see <c>JwtBearerConfigurator</c>.
-/// </para>
 /// </remarks>
 public sealed class ServiceAuthOptions
 {
@@ -43,8 +39,10 @@ public sealed class ServiceAuthOptions
     public string ClientSecret { get; set; } = string.Empty;
 
     /// <summary>
-    /// Logical name of this service. Used as JWT <c>audience</c> for inbound validation and
-    /// the cache key partition for outbound tokens.
+    /// Logical name of this service. Used as the cache key partition for outbound
+    /// client-credentials tokens (see <c>ClientCredentialsTokenHandler</c>). Inbound JWT
+    /// audience is configured separately under
+    /// <c>Authentication:JwtBearer:TokenValidationParameters:ValidAudience</c>.
     /// </summary>
     [Required]
     public string ServiceName { get; set; } = string.Empty;

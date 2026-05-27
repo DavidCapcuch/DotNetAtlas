@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-04-19)
+Accepted (2026-04-19) · **Amended 2026-05-27** — see [Amendment: Fail-closed audience contract](#amendment-2026-05-27--fail-closed-audience-contract).
 
 ## Context
 
@@ -97,6 +97,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 - **Token validation (inbound HTTP):**
   - Per-service ASP.NET `AddJwtBearer` config: `Authority = {keycloak}/realms/eshop`, `Audience = <this-service>`, `TokenValidationParameters.ValidateIssuer = true`, `ValidateAudience = true`, clock skew 5 min.
+  - **(Amended 2026-05-27)** `ValidAudience` is no longer derived implicitly from `ServiceAuthOptions.ServiceName`. Each BC pins it explicitly under `Authentication:JwtBearer:TokenValidationParameters:ValidAudience` in `appsettings.json`. See [the amendment below](#amendment-2026-05-27--fail-closed-audience-contract).
   - Scope-based authorization via `RequireClaim("scope", "catalog.read")`-style policies, or FastEndpoints' `Policies(...)` / `Permissions(...)`.
 
 - **Kafka command-topic authorization (broker-level, not per-message):**
@@ -120,3 +121,55 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — production callouts include "enable Kafka SASL/OAUTHBEARER" (v1 absent)
 - [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — saga's outbound commands are the primary consumer of this mechanism
 - [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — Avro payloads carry no auth metadata; per § Implementation Notes "Kafka command-topic authorization", service-auth on Kafka is at the broker layer (SASL/OAUTHBEARER + ACLs) in production, not in message headers or Avro fields
+
+## Amendment 2026-05-27 — Fail-closed audience contract
+
+### Context
+
+The original implementation (above) had `JwtBearerConfigurator.AddPlatformJwtBearer` default `TokenValidationParameters.ValidAudience` to `ServiceAuthOptions.ServiceName`. This implicit fallback collapsed two distinct concerns — *what audience does this BC validate inbound tokens against* and *what is this BC's own service identity for outbound `client_credentials` requests* — into one option binding, with two failure modes that motivated this amendment:
+
+1. **Surface vs. deep signal confusion.** A `ServiceAuth` section in `appsettings.json` looked like the BC was wired for outbound auth, but `ServiceAuthOptions` is only bound by an explicit `services.AddServiceAuth(...)` DI call. Inbound-only BCs that had a `ServiceAuth` section but no `AddServiceAuth` call (Inventory, Invoicing, Payments) silently resolved `ServiceAuthOptions.ServiceName` to `""`, the implicit `ValidAudience` fallback then matched nothing, and real Keycloak tokens were rejected — masked from FunctionalTests by a now-removed test-framework override (`JwtBearerTestExtensions` used to overwrite `ValidAudience` with the test signer's audience).
+2. **Drift between two strings that had to stay equal.** When a BC was outbound-active, the same value appeared in `ServiceAuth.ServiceName` and (via the fallback) `JwtBearer.ValidAudience`. Refactoring either in isolation broke the other silently.
+
+### Decision (amendment)
+
+Remove the implicit default and fail closed instead. Every BC must explicitly pin `Authentication.JwtBearer.TokenValidationParameters.ValidAudience` in `appsettings.json`. If a BC omits the key, `ValidateAudience=true` + `ValidAudience=null` rejects every token at runtime — loudly, at first auth resolution, with a clear error.
+
+This collapses BCs into two well-defined shapes:
+
+| Shape | Calls `services.AddServiceAuth("<bc>-service")`? | `ServiceAuth` section in `appsettings.json`? | `Authentication.JwtBearer.TokenValidationParameters.ValidAudience` |
+|---|---|---|---|
+| **Outbound-active** (e.g. Basket, Catalog, Ordering) | Yes | Yes — `ServiceName` must equal `ValidAudience` | Required — set to `"<bc>-service"` |
+| **Inbound-only** (e.g. Inventory, Invoicing, Payments) | No | **No — section must be omitted entirely** | Required — set to `"<bc>-service"` |
+
+Creating a `ServiceAuth` section without a matching `AddServiceAuth(...)` call is disallowed: the section is inert without the DI call, and any "pre-provisioned for future outbound calls" config introduces drift risk. Add the section the day an outbound HTTP client lands.
+
+### Defense-in-depth: three-phase options pipeline
+
+`Platform.ServiceDefaults.Auth.JwtBearerConfigurator.AddPlatformJwtBearer` keeps a three-phase pipeline so the security floor stays immutable even if a BC's `configuration.Bind` is misconfigured:
+
+1. **Configure** seeds `JwtBearerOptions` defaults from `ServiceAuthOptions` (Authority, `ValidIssuer = Authority`, the five validation booleans `true`, ClockSkew). `ValidAudience` is intentionally left at its `TokenValidationParameters` default (`null`) so the BC's appsettings binding is the sole source of truth.
+2. **BC's configure delegate** runs inside Configure — typically `configuration.Bind("Authentication:JwtBearer", options)` — and is where `ValidAudience` arrives. If a BC forgets the appsettings pin, this step doesn't set it and the runtime rejects every token (fail-closed).
+3. **PostConfigure** re-pins the five security booleans (`ValidateIssuer / ValidateAudience / ValidateLifetime / ValidateIssuerSigningKey / RequireSignedTokens`) to `true` after the BC's bind — the immutable security floor. No appsettings, env var, or BC-specific override can silently relax validation (per #223).
+
+Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; the **booleans** are not.
+
+### Keycloak `audience-self` mappers are load-bearing
+
+Each BC client in `keycloak/realm-export.json` carries an `oidc-audience-mapper` named `audience-self` that emits `aud: "<clientId>"`. **Do not delete them as boilerplate.** Empirically verified against Keycloak 26.3 on 2026-05-27: Keycloak's `client_credentials` grant by default does NOT include the requesting client's own ID in the `aud` claim. Without the mapper, tokens are issued with **no `aud` claim at all**, and every BC's `ValidateAudience=true` validator rejects them silently. A warning comment sits above the realm-export mount in `docker-compose.yaml`.
+
+### Test framework no longer masks misconfiguration
+
+`Platform.Test.Framework.Auth.JwtBearerTestExtensions.ConfigureJwtBearerForTests` previously overrode `TokenValidationParameters.ValidAudience = signer.Audience` in a later PostConfigure, masking any BC misconfiguration during FunctionalTests. The override is removed and replaced with an assertion: the BC's effective `ValidAudience` (after the BC's own Configure/PostConfigure chain) must equal the `FakeTokenSigner.Audience` the fixture constructed with. Each fixture now passes the **production** audience (no more decoupled `-tests`-suffixed values). Drift between the two surfaces as a clear `InvalidOperationException` at first auth resolution, naming both values and the appsettings key to fix.
+
+This amendment caught Inventory's silent breakage during its own implementation: tests went red, message was clear, fix was a 5-line appsettings edit.
+
+### Consequences
+
+- Audit a BC's category in 30 seconds: grep its `AuthenticationDependencyInjection.cs` for `services.AddServiceAuth(serviceName:`. Yes → outbound-active. No → inbound-only.
+- A BC that exposes inbound HTTP without setting `ValidAudience` cannot accept any token. The platform layer no longer hides the misconfiguration behind a fallback.
+- The `service-scope-matrix.md` companion document still lists every service's outbound scopes; what it does NOT do is imply that every entry corresponds to a wired `AddServiceAuth(...)` call. Wire it explicitly per service.
+
+### Out of scope (deferred)
+
+- Worker BCs (`Notifications`, `OutboxRelay`, `SagaOrchestrators`) have no inbound HTTP audience to validate today. `SagaOrchestrators` has a Wave-0-M7 seed `ServiceAuth` section pre-provisioned for the deferred outbound-auth wiring; per the rule above this section should be removed and re-added together with the `AddServiceAuth(...)` call when Wave 1 lands.
