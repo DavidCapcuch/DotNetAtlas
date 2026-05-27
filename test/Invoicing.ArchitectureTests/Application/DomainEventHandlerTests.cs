@@ -4,26 +4,27 @@ using Platform.SharedKernel.Base.DomainEvents;
 namespace Invoicing.ArchitectureTests.Application;
 
 /// <summary>
-/// Domain event handlers are sealed and follow one of the BC's two naming conventions for
-/// predictable discovery and DI scanning.
+/// Universal rule (architecture-tests.md § 1.3): every concrete class implementing
+/// <see cref="IDomainEventHandler{T}"/> ends with <c>DomainEventHandler</c>; the role name
+/// precedes the suffix (<c>*OutboxPublisherDomainEventHandler</c>, etc.). Both rules below
+/// enforce the universal naming and the seal-each-side-effect invariant.
 /// </summary>
 public class DomainEventHandlerTests : BaseTest
 {
     [Fact]
-    public void DomainEventHandlers_Should_HaveNameEndingWith_ProjectionHandlerOrOutboxPublisher()
+    public void DomainEventHandlers_Should_HaveNameEndingWith_DomainEventHandler()
     {
         var result = Types.InAssembly(ApplicationAssembly)
             .That()
             .ImplementInterface(typeof(IDomainEventHandler<>))
             .Should()
-            .HaveNameEndingWith("ProjectionHandler")
-            .Or().HaveNameEndingWith("OutboxPublisher")
-            .Or().HaveNameEndingWith("OutboxPublisherDomainEventHandler")
+            .HaveNameEndingWith("DomainEventHandler")
             .GetResult();
 
         result.FailingTypes.Should().BeEmpty(
-            "Domain event handlers must end with 'ProjectionHandler' (read-view upserts), " +
-            "'OutboxPublisher' (short form), or 'OutboxPublisherDomainEventHandler' (long form)");
+            "Universal rule (architecture-tests.md § 1.3): every IDomainEventHandler<T> impl must " +
+            "end with 'DomainEventHandler'. Role precedes the suffix " +
+            "(*ProjectionDomainEventHandler, *OutboxPublisherDomainEventHandler, *LifecycleDomainEventHandler).");
     }
 
     [Fact]
