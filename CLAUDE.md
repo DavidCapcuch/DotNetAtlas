@@ -12,7 +12,7 @@ Restore requires `--locked-mode` — lock files are committed and CI enforces th
 ## Local Infrastructure
 
 ```bash
-docker compose --profile core up -d    # DB + Redis only
+docker compose --profile core up -d    # Postgres + redis-basket + Azurite (storage deps only)
 docker compose --profile full up -d    # All services (Jaeger, Seq, Kafka, etc.)
 ```
 
