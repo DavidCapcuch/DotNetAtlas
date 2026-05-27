@@ -32,7 +32,7 @@ public class DomainEventsTests
     [Fact]
     public void ItemAddedToBasket_CarriesCapturedPrice()
     {
-        var price = new Money(10m, CurrencyCode.Usd);
+        var price = Money.Create(10m, CurrencyCode.Usd).Value;
 
         var e = new ItemAddedToBasketDomainEvent
         {
@@ -98,8 +98,8 @@ public class DomainEventsTests
         var productId = Guid.CreateVersion7();
         var change = new PriceChange(
             productId,
-            new Money(10m, CurrencyCode.Usd),
-            new Money(12m, CurrencyCode.Usd));
+            Money.Create(10m, CurrencyCode.Usd).Value,
+            Money.Create(12m, CurrencyCode.Usd).Value);
 
         var e = new BasketPricesRefreshedDomainEvent
         {
@@ -136,7 +136,7 @@ public class DomainEventsTests
     {
         var correlationId = Guid.CreateVersion7();
         var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
-        var snapshot = BasketSnapshot.Create([item], BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
+        var snapshot = BasketSnapshot.Create([item], BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value));
         var shipping = BasketTestData.Address("US");
         var billing = BasketTestData.Address("US");
         var paymentMethodId = Guid.CreateVersion7();

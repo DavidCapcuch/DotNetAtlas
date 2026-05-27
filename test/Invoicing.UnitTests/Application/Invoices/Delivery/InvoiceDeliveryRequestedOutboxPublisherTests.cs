@@ -25,7 +25,7 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
         var buyerId = Guid.CreateVersion7();
         var invoiceId = Guid.CreateVersion7();
         var invoiceNumber = InvoiceNumber.Create(2026, 42).Value;
-        var total = new Money(152.00m, CurrencyCode.Eur);
+        var total = Money.Create(152.00m, CurrencyCode.Eur).Value;
 
         var outbox = Substitute.For<ITransactionalOutbox<Invoicing.Application.Common.Data.IInvoicingDbContext>>();
         var topics = Options.Create(new TopicsOptions

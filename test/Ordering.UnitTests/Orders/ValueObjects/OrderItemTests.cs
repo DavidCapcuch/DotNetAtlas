@@ -64,10 +64,11 @@ public class OrderItemTests
     [Fact]
     public void Create_NonPositiveUnitPriceViaDirectConstruction_ReturnsUnitPriceNotPositiveError()
     {
-        // Defense-in-depth: Money.Create blocks non-positive amounts upstream, but
-        // a future caller could build a Money record directly (e.g. EF Core
-        // materialization for a corrupted row). The VO must still reject.
-        var nonPositive = new Money(-1m, CurrencyCode.Usd);
+        // Defense-in-depth: positivity is now an Ordering-local concern (Money is permissive
+        // post-School-B refactor). The VO must reject zero/negative unit prices itself, since
+        // Money.Create returns a successful negative Money and EF Core can also materialise
+        // any signed amount.
+        var nonPositive = Money.Create(-1m, CurrencyCode.Usd).Value;
 
         var result = OrderItem.Create(Guid.CreateVersion7(), Snapshot, quantity: 1, nonPositive);
 

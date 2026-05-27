@@ -137,16 +137,15 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
                 "Order.InvalidProductSnapshot",
                 $"Basket item for product '{basketItem.ProductId}' has invalid snapshot: {FormatErrors(snapshotResult)}."));
 
-            var unitPriceResult = Money.Create(basketItem.UnitPriceAmount, currency);
-            Throw.If(unitPriceResult.IsFailed, new DataIntegrityException(
-                "Order.InvalidUnitPrice",
-                $"Basket item for product '{basketItem.ProductId}' has invalid unit price: {FormatErrors(unitPriceResult)}."));
+            // Money.Create is permissive post-School-B; .Value is safe (currency is non-null).
+            // Positivity of unitPrice is enforced by the Throw.If guard above + OrderItem.Create.
+            var unitPrice = Money.Create(basketItem.UnitPriceAmount, currency).Value;
 
             var itemResult = OrderItem.Create(
                 basketItem.ProductId,
                 snapshotResult.Value,
                 basketItem.Quantity,
-                unitPriceResult.Value);
+                unitPrice);
             Throw.If(itemResult.IsFailed, new DataIntegrityException(
                 "Order.InvalidOrderItem",
                 $"Basket item for product '{basketItem.ProductId}' is invalid: {FormatErrors(itemResult)}."));
@@ -155,15 +154,10 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             totalAmount += itemResult.Value.LineTotal.Amount;
         }
 
-        // I-9 is naturally enforced — every item is constructed with currency.
-        // Routing through Money.Create keeps construction defensive against
-        // future Money invariants; failure is bug-class because totalAmount
-        // is a sum of strictly-positive line totals (guarded above).
-        var totalResult = Money.Create(totalAmount, currency);
-        Throw.If(totalResult.IsFailed, new DataIntegrityException(
-            "Order.InvalidTotal",
-            $"Computed Total failed Money.Create: {FormatErrors(totalResult)}."));
-        var total = totalResult.Value;
+        // I-9 is naturally enforced — every item is constructed with currency. Money.Create
+        // is permissive post-School-B (currency-null check only); the .Value access is safe
+        // because currency is non-null here (validated by Throw.If at the top of this method).
+        var total = Money.Create(totalAmount, currency).Value;
 
         var order = new Order
         {

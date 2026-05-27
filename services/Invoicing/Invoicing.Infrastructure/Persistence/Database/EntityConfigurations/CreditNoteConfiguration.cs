@@ -128,11 +128,11 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
         builder.OwnsMany(cn => cn.Lines, lines =>
         {
             lines.ToTable("credit_note_lines", t => t.HasComment(
-                "CreditNote line items — sign-flipped copy of the original Invoice's lines."));
+                "CreditNoteLine items — backward-looking corrections of the source invoice's lines."));
             lines.WithOwner().HasForeignKey("CreditNoteId");
-            lines.HasKey("CreditNoteId", nameof(InvoiceLine.LineNumber));
+            lines.HasKey("CreditNoteId", nameof(CreditNoteLine.LineNumber));
 
-            InvoiceConfiguration.ConfigureInvoiceLine(lines);
+            InvoiceConfiguration.ConfigureCreditNoteLine(lines);
         });
         builder.Metadata
             .FindNavigation(nameof(CreditNote.Lines))!

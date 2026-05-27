@@ -28,8 +28,9 @@ public sealed record InvoiceSnapshot : ValueObject
     /// <summary>Buyer the source invoice was issued to.</summary>
     public Guid BuyerId { get; private init; }
 
-    /// <summary>Sign-flipped copies of the source invoice's lines, ready to store on a credit note.</summary>
-    public IReadOnlyList<InvoiceLine> ReversalLines { get; private init; } = [];
+    /// <summary>Sign-flipped copies of the source invoice's lines as <see cref="CreditNoteLine"/>s,
+    /// ready to store on a credit note.</summary>
+    public IReadOnlyList<CreditNoteLine> ReversalLines { get; private init; } = [];
 
     /// <summary>Source invoice total at the moment of capture (positive; credit note inverts).</summary>
     public Money Total { get; private init; } = null!;
@@ -45,7 +46,7 @@ public sealed record InvoiceSnapshot : ValueObject
         Guid invoiceId,
         InvoiceNumber invoiceNumber,
         Guid buyerId,
-        IReadOnlyList<InvoiceLine> reversalLines,
+        IReadOnlyList<CreditNoteLine> reversalLines,
         Money total,
         DateTimeOffset capturedAtUtc) =>
         new()

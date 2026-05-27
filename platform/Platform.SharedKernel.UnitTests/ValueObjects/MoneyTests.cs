@@ -25,18 +25,20 @@ public class MoneyTests
     [InlineData(0)]
     [InlineData(-0.01)]
     [InlineData(-100)]
-    public void Create_WithCurrencyCode_WhenNonPositiveAmount_ReturnsValidationError(decimal amount)
+    public void Create_WithCurrencyCode_WhenZeroOrNegativeAmount_ReturnsSuccess(decimal amount)
     {
+        // Money is a currency-tagged signed decimal — sign is an aggregate-level concern,
+        // not Money's own invariant. Zero and negative amounts construct successfully.
+
         // Arrange & Act
         var result = Money.Create(amount, CurrencyCode.Eur);
 
         // Assert
         using (new AssertionScope())
         {
-            result.Should().BeFailure();
-            var error = result.Errors[0] as ValidationError;
-            error.Should().NotBeNull();
-            error!.ErrorCode.Should().Be("Money.AmountMustBePositive");
+            result.Should().BeSuccess();
+            result.Value.Amount.Should().Be(amount);
+            result.Value.Currency.Should().Be(CurrencyCode.Eur);
         }
     }
 
@@ -105,20 +107,94 @@ public class MoneyTests
         }
     }
 
-    [Fact]
-    public void Create_WithStringCode_WhenZeroAmount_ReturnsAmountMustBePositive()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-50)]
+    public void Create_WithStringCode_WhenZeroOrNegativeAmount_ReturnsSuccess(decimal amount)
     {
+        // Sign is not Money's concern.
+
         // Arrange & Act
-        var result = Money.Create(0m, "USD");
+        var result = Money.Create(amount, "USD");
 
         // Assert
         using (new AssertionScope())
         {
-            result.Should().BeFailure();
-            var error = result.Errors[0] as ValidationError;
-            error.Should().NotBeNull();
-            error!.ErrorCode.Should().Be("Money.AmountMustBePositive");
+            result.Should().BeSuccess();
+            result.Value.Amount.Should().Be(amount);
+            result.Value.Currency.Should().Be(CurrencyCode.Usd);
         }
+    }
+
+    [Fact]
+    public void Zero_WithValidCurrency_ReturnsAmountZero()
+    {
+        // Arrange & Act
+        var zero = Money.Zero(CurrencyCode.Czk);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            zero.Amount.Should().Be(0m);
+            zero.Currency.Should().Be(CurrencyCode.Czk);
+        }
+    }
+
+    [Fact]
+    public void Zero_WhenCurrencyIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange & Act
+        var act = () => Money.Zero(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Negate_WhenPositive_ReturnsNegativeWithSameCurrency()
+    {
+        // Arrange
+        var positive = Money.Create(12.50m, CurrencyCode.Gbp).Value;
+
+        // Act
+        var negated = positive.Negate();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            negated.Amount.Should().Be(-12.50m);
+            negated.Currency.Should().Be(CurrencyCode.Gbp);
+        }
+    }
+
+    [Fact]
+    public void Negate_WhenNegative_ReturnsPositiveWithSameCurrency()
+    {
+        // Arrange
+        var negative = Money.Create(-7m, CurrencyCode.Eur).Value;
+
+        // Act
+        var negated = negative.Negate();
+
+        // Assert
+        using (new AssertionScope())
+        {
+            negated.Amount.Should().Be(7m);
+            negated.Currency.Should().Be(CurrencyCode.Eur);
+        }
+    }
+
+    [Fact]
+    public void Negate_AppliedTwice_IsIdempotentWithOriginal()
+    {
+        // Arrange
+        var original = Money.Create(3.14m, CurrencyCode.Usd).Value;
+
+        // Act
+        var twice = original.Negate().Negate();
+
+        // Assert
+        twice.Should().Be(original);
     }
 
     [Fact]

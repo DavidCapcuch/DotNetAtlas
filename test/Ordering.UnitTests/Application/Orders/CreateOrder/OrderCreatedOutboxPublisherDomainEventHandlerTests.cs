@@ -28,7 +28,7 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
                 Guid.CreateVersion7(), "SKU", "Prod", 2, 10m, 20m)],
             ShippingAddress = TestAggregate.ShippingAddress(),
             BillingAddress = TestAggregate.BillingAddress(),
-            Total = new Money(20m, CurrencyCode.Usd),
+            Total = Money.Create(20m, CurrencyCode.Usd).Value,
             CreatedAtUtc = TestAggregate.UtcNow,
             OccurredOnUtc = TestAggregate.UtcNow,
         };

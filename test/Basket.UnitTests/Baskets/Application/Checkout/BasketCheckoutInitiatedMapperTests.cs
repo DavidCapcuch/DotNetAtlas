@@ -26,11 +26,11 @@ public class BasketCheckoutInitiatedMapperTests
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
         var occurredAt = new DateTimeOffset(2026, 04, 23, 12, 00, 00, TimeSpan.Zero);
 
-        var snapshot = ProductSnapshot.Create("SKU-42", "Widget", new Money(19.9900m, CurrencyCode.Usd), capturedAt);
+        var snapshot = ProductSnapshot.Create("SKU-42", "Widget", Money.Create(19.9900m, CurrencyCode.Usd).Value, capturedAt);
         var item = BasketItem.BuildUnchecked(productId, snapshot, 3);
         var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
-            BasketTotal.From(new Money(59.9700m, CurrencyCode.Usd)));
+            BasketTotal.From(Money.Create(59.9700m, CurrencyCode.Usd).Value));
 
         var shipping = Address.Create("1 Main St", "Apt 2", "Springfield", "IL", "62704", "US").Value;
         var billing = Address.Create("Hlavní 10", null, "Praha", null, "11000", "CZ").Value;
@@ -92,12 +92,12 @@ public class BasketCheckoutInitiatedMapperTests
         var p2 = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
 
-        var item1 = BasketItem.BuildUnchecked(p1, ProductSnapshot.Create("SKU-1", "N1", new Money(10m, CurrencyCode.Usd), capturedAt), 2);
-        var item2 = BasketItem.BuildUnchecked(p2, ProductSnapshot.Create("SKU-2", "N2", new Money(5.5m, CurrencyCode.Usd), capturedAt), 4);
+        var item1 = BasketItem.BuildUnchecked(p1, ProductSnapshot.Create("SKU-1", "N1", Money.Create(10m, CurrencyCode.Usd).Value, capturedAt), 2);
+        var item2 = BasketItem.BuildUnchecked(p2, ProductSnapshot.Create("SKU-2", "N2", Money.Create(5.5m, CurrencyCode.Usd).Value, capturedAt), 4);
 
         var snap = BasketSnapshot.Create(
             ImmutableArray.Create(item1, item2),
-            BasketTotal.From(new Money(20m + 22m, CurrencyCode.Usd)));
+            BasketTotal.From(Money.Create(20m + 22m, CurrencyCode.Usd).Value));
 
         var addr = Address.Create("S", null, "C", null, "P", "US").Value;
         var domainEvent = new BasketCheckedOutDomainEvent

@@ -10,6 +10,12 @@ public static class ProductErrors
             errorMessage: "CategoryId is required.",
             errorCode: "Product.CategoryIdRequired");
 
+    public static ValidationError PriceMustBePositive()
+        => new ValidationError(
+            propertyName: "Price",
+            errorMessage: "Price amount must be strictly positive.",
+            errorCode: "Product.PriceMustBePositive");
+
     public static ValidationError CannotRepriceDiscontinued()
         => new ValidationError(
             propertyName: "Status",

@@ -6,20 +6,17 @@ using Platform.SharedKernel.ValueObjects;
 namespace Invoicing.Domain.Common.ValueObjects;
 
 /// <summary>
-/// One line on an invoice / credit note. Immutable; frozen at issuance (I-2 non-empty; I-4 immutable).
+/// One line on an invoice — a sale or delivery of service. Its lifecycle moves forward:
+/// drafted, finalized, billed. Amounts are strictly positive (<see cref="UnitPrice"/>,
+/// <see cref="LineTotal"/>); the credit-note reversal is a distinct type
+/// <see cref="CreditNoteLine"/> with its own backward-looking lifecycle.
+/// Immutable; frozen at issuance (I-2 non-empty; I-4 immutable).
 /// </summary>
 /// <remarks>
-/// <para>
-/// For credit notes, quantities remain positive but <see cref="LineTotal"/> and
-/// <see cref="UnitPrice"/> carry the opposite sign (constructed via primary <see cref="Money"/>
-/// ctor, bypassing <see cref="Money.Create"/>'s positivity check since the domain intent is known).
-/// </para>
-/// <para>
 /// Authored as a non-positional record so EF Core can materialise it through the parameterless
 /// constructor and set the owned <see cref="Money"/> navigations via <c>private init</c>
 /// setters. Positional records emit a primary constructor whose owned-navigation parameters
 /// EF rejects.
-/// </para>
 /// </remarks>
 public sealed record InvoiceLine : ValueObject
 {
@@ -37,10 +34,10 @@ public sealed record InvoiceLine : ValueObject
     /// <summary>Units on this line (always &gt; 0).</summary>
     public int Quantity { get; private init; }
 
-    /// <summary>Price per unit; positive on invoice, negative on credit note.</summary>
+    /// <summary>Price per unit; strictly positive on an invoice.</summary>
     public Money UnitPrice { get; private init; } = null!;
 
-    /// <summary>Line total (<see cref="UnitPrice"/> × <see cref="Quantity"/>).</summary>
+    /// <summary>Line total (<see cref="UnitPrice"/> × <see cref="Quantity"/>); strictly positive.</summary>
     public Money LineTotal { get; private init; } = null!;
 
     /// <summary>Applicable VAT rate.</summary>
@@ -70,9 +67,9 @@ public sealed record InvoiceLine : ValueObject
     }
 
     /// <summary>
-    /// Creates a validated <see cref="InvoiceLine"/> for use on an <c>Invoice</c> aggregate
-    /// (all amounts strictly positive; <see cref="LineTotal"/> == <see cref="UnitPrice"/>
-    /// × <see cref="Quantity"/>).
+    /// Creates a validated <see cref="InvoiceLine"/> for use on an <c>Invoice</c> aggregate.
+    /// All amounts strictly positive; <see cref="LineTotal"/> == <see cref="UnitPrice"/>
+    /// × <see cref="Quantity"/>.
     /// </summary>
     public static Result<InvoiceLine> Create(
         int lineNumber,
@@ -106,19 +103,15 @@ public sealed record InvoiceLine : ValueObject
                 nameof(quantity), "Quantity must be >= 1.", "Invoicing.InvalidLineQuantity"));
         }
 
-        var lineTotal = new Money(unitPrice.Amount * quantity, unitPrice.Currency);
-        return Result.Ok(new InvoiceLine(lineNumber, sku, description.Trim(), quantity, unitPrice, lineTotal, vatRate));
-    }
+        if (unitPrice.Amount <= 0)
+        {
+            return Result.Fail<InvoiceLine>(new ValidationError(
+                nameof(unitPrice),
+                "UnitPrice must be strictly positive on an invoice line; credit-note reversals use CreditNoteLine.",
+                "Invoicing.InvoiceLineUnitPriceMustBePositive"));
+        }
 
-    /// <summary>
-    /// Produces the mirror of this line for a credit note (signs flipped on both
-    /// <see cref="UnitPrice"/> and <see cref="LineTotal"/>). Uses the primary <see cref="Money"/>
-    /// constructor to bypass the positivity check — intent is explicit.
-    /// </summary>
-    public InvoiceLine WithFlippedSign()
-    {
-        var flippedUnitPrice = new Money(-UnitPrice.Amount, UnitPrice.Currency);
-        var flippedLineTotal = new Money(-LineTotal.Amount, LineTotal.Currency);
-        return new InvoiceLine(LineNumber, Sku, Description, Quantity, flippedUnitPrice, flippedLineTotal, VatRate);
+        var lineTotal = Money.Create(unitPrice.Amount * quantity, unitPrice.Currency).Value;
+        return Result.Ok(new InvoiceLine(lineNumber, sku, description.Trim(), quantity, unitPrice, lineTotal, vatRate));
     }
 }

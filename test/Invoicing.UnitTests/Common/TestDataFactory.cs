@@ -49,8 +49,8 @@ internal static class TestDataFactory
         var curr = Platform.SharedKernel.ValueObjects.CurrencyCode.FromName(currency);
         return VatLine.Create(
             DefaultVatRate(rate),
-            new Money(baseAmount, curr),
-            new Money(taxAmount, curr));
+            Money.Create(baseAmount, curr).Value,
+            Money.Create(taxAmount, curr).Value);
     }
 
     public static Invoice BuildDraftInvoice(
@@ -115,8 +115,8 @@ internal static class TestDataFactory
             DefaultVatRate(0m)).Value;
         var vatLine = VatLine.Create(
             DefaultVatRate(0m),
-            new Money(totalAmount, curr),
-            new Money(0m, curr));
+            Money.Create(totalAmount, curr).Value,
+            Money.Zero(curr));
 
         var now = utcNow ?? FixedUtcNow;
         var invoice = Invoice.Create(

@@ -303,7 +303,7 @@ internal static class BasketTestData
         => ProductSnapshot.Create(
             "SKU-1",
             "Product 1",
-            new Platform.SharedKernel.ValueObjects.Money(
-                amount, Platform.SharedKernel.ValueObjects.CurrencyCode.Usd),
+            Platform.SharedKernel.ValueObjects.Money.Create(
+                amount, Platform.SharedKernel.ValueObjects.CurrencyCode.Usd).Value,
             DefaultCapturedAt);
 }

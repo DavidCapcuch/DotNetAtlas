@@ -9,7 +9,7 @@ public class ProductSnapshotTests
     public void Create_RoundTripsAllFields()
     {
         var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);
-        var price = new Money(42.50m, CurrencyCode.Eur);
+        var price = Money.Create(42.50m, CurrencyCode.Eur).Value;
 
         var snapshot = ProductSnapshot.Create("SKU-42", "Widget", price, captured);
 
@@ -27,8 +27,8 @@ public class ProductSnapshotTests
     {
         var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);
 
-        var a = ProductSnapshot.Create("SKU-A", "Name", new Money(10m, CurrencyCode.Usd), captured);
-        var b = ProductSnapshot.Create("SKU-A", "Name", new Money(10m, CurrencyCode.Usd), captured);
+        var a = ProductSnapshot.Create("SKU-A", "Name", Money.Create(10m, CurrencyCode.Usd).Value, captured);
+        var b = ProductSnapshot.Create("SKU-A", "Name", Money.Create(10m, CurrencyCode.Usd).Value, captured);
 
         a.Should().Be(b);
         a.GetHashCode().Should().Be(b.GetHashCode());
@@ -39,8 +39,8 @@ public class ProductSnapshotTests
     {
         var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);
 
-        var a = ProductSnapshot.Create("SKU-A", "Name", new Money(10m, CurrencyCode.Usd), captured);
-        var b = ProductSnapshot.Create("SKU-A", "Name", new Money(11m, CurrencyCode.Usd), captured);
+        var a = ProductSnapshot.Create("SKU-A", "Name", Money.Create(10m, CurrencyCode.Usd).Value, captured);
+        var b = ProductSnapshot.Create("SKU-A", "Name", Money.Create(11m, CurrencyCode.Usd).Value, captured);
 
         a.Should().NotBe(b);
     }
