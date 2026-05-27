@@ -1,4 +1,5 @@
 using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.Domain.Baskets.ValueObjects;
@@ -36,12 +37,23 @@ public sealed record ProductSnapshot : ValueObject
     /// <summary>
     /// Creates a frozen snapshot of Catalog product data.
     /// </summary>
-    public static ProductSnapshot Create(string sku, string name, Money price, DateTimeOffset capturedAtUtc) =>
-        new()
+    public static ProductSnapshot Create(string sku, string name, Money price, DateTimeOffset capturedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(price);
+
+        // Basket-local invariant: Price > 0. Mirrors Catalog.Product; Money itself is sign-neutral
+        // (School B), so the rule lives on the consuming VO. Bug-class: both call sites
+        // (ProductCatalogHttpAdapter, BasketStateMapper) cross from already-validated upstreams.
+        Throw.If(price.Amount <= 0, new DataIntegrityException(
+            "Basket.ProductSnapshotPriceNotPositive",
+            $"ProductSnapshot price must be strictly positive; was {price.Amount} {price.Currency.Name}."));
+
+        return new()
         {
             Sku = sku,
             Name = name,
             Price = price,
             CapturedAtUtc = capturedAtUtc,
         };
+    }
 }

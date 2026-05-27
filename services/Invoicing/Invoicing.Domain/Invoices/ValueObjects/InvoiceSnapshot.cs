@@ -1,5 +1,6 @@
 using Invoicing.Domain.Common.ValueObjects;
 using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Invoicing.Domain.Invoices.ValueObjects;
@@ -48,8 +49,19 @@ public sealed record InvoiceSnapshot : ValueObject
         Guid buyerId,
         IReadOnlyList<CreditNoteLine> reversalLines,
         Money total,
-        DateTimeOffset capturedAtUtc) =>
-        new()
+        DateTimeOffset capturedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(total);
+
+        // Defense-in-depth: sole caller (Invoice.ToReversalSnapshot) passes the source
+        // invoice's already-validated Total. Untestable through valid call paths; documents
+        // the "positive; credit note inverts" invariant on the XML doc after the School-B
+        // Money sign-neutrality.
+        Throw.If(total.Amount <= 0, new DataIntegrityException(
+            "Invoicing.InvoiceSnapshotTotalNotPositive",
+            $"InvoiceSnapshot total must be strictly positive; was {total.Amount} {total.Currency.Name}."));
+
+        return new InvoiceSnapshot
         {
             InvoiceId = invoiceId,
             InvoiceNumber = invoiceNumber,
@@ -58,4 +70,5 @@ public sealed record InvoiceSnapshot : ValueObject
             Total = total,
             CapturedAtUtc = capturedAtUtc,
         };
+    }
 }
