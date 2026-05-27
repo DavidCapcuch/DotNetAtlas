@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra AS base
 USER $APP_UID
 WORKDIR /app
@@ -44,18 +45,14 @@ COPY platform/Platform.ServiceDefaults/packages.lock.json platform/Platform.Serv
 COPY platform/Platform.OutboxRelay.WorkerService/packages.lock.json platform/Platform.OutboxRelay.WorkerService/
 
 # Restore the WorkerService entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
 
 # Copy the worker service source files
-COPY . .
+COPY --link . .
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
 
 # Ensure full restore after copying all sources (includes analyzers/source generators)
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
-
-# Build without restore; cache NuGet packages
-RUN dotnet build Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
-    -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -65,10 +62,16 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
-RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
+ARG VERSION=0.0.0
+ARG INFORMATIONAL_VERSION=0.0.0
+LABEL org.opencontainers.image.source="https://github.com/DavidCapcuch/DotNetAtlas" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${INFORMATIONAL_VERSION}" \
+      org.opencontainers.image.title="Platform.OutboxRelay.WorkerService"
 WORKDIR /app
 
 COPY --from=publish /app/publish .

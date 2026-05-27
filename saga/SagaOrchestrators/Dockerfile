@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
 
 FROM ${BASE_IMAGE} AS base
@@ -55,18 +56,14 @@ COPY saga/SagaOrchestrators/SagaOrchestrators.csproj saga/SagaOrchestrators/
 COPY saga/SagaOrchestrators/packages.lock.json saga/SagaOrchestrators/
 
 # Restore the saga entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true saga/SagaOrchestrators/SagaOrchestrators.csproj
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true saga/SagaOrchestrators/SagaOrchestrators.csproj
 
 # Copy the rest of the source.
-COPY . .
+COPY --link . .
 WORKDIR /workspace/saga/SagaOrchestrators
 
 # Re-restore after the source copy so analyzers/source-generators/avro generators settle.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true SagaOrchestrators.csproj
-
-# Build without restore.
-RUN dotnet build SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
-    -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true SagaOrchestrators.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -76,10 +73,16 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/saga/SagaOrchestrators
-RUN dotnet publish SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
+ARG VERSION=0.0.0
+ARG INFORMATIONAL_VERSION=0.0.0
+LABEL org.opencontainers.image.source="https://github.com/DavidCapcuch/DotNetAtlas" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${INFORMATIONAL_VERSION}" \
+      org.opencontainers.image.title="SagaOrchestrators"
 WORKDIR /app
 
 COPY --from=publish /app/publish .

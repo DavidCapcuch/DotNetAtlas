@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
 
 FROM ${BASE_IMAGE} AS base
@@ -57,18 +58,14 @@ COPY services/Invoicing/Invoicing.Infrastructure/packages.lock.json services/Inv
 COPY services/Invoicing/Invoicing.Api/packages.lock.json services/Invoicing/Invoicing.Api/
 
 # Restore the API entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true services/Invoicing/Invoicing.Api/Invoicing.Api.csproj
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true services/Invoicing/Invoicing.Api/Invoicing.Api.csproj
 
 # Copy the rest of the source.
-COPY . .
+COPY --link . .
 WORKDIR /workspace/services/Invoicing/Invoicing.Api
 
 # Re-restore after the source copy so analyzers/source-generators/avro generators settle.
-RUN dotnet restore --locked-mode -p:PublishReadyToRun=true Invoicing.Api.csproj
-
-# Build without restore.
-RUN dotnet build Invoicing.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID --no-restore -o /app/build \
-    -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true Invoicing.Api.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -78,10 +75,16 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/services/Invoicing/Invoicing.Api
-RUN dotnet publish Invoicing.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish Invoicing.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
+ARG VERSION=0.0.0
+ARG INFORMATIONAL_VERSION=0.0.0
+LABEL org.opencontainers.image.source="https://github.com/DavidCapcuch/DotNetAtlas" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${INFORMATIONAL_VERSION}" \
+      org.opencontainers.image.title="Invoicing.Api"
 WORKDIR /app
 
 COPY --from=publish /app/publish .
