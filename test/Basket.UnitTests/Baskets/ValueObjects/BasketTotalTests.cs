@@ -8,7 +8,7 @@ public class BasketTotalTests
     [Fact]
     public void From_ExposesAmount()
     {
-        var money = new Money(123.45m, CurrencyCode.Gbp);
+        var money = Money.Create(123.45m, CurrencyCode.Gbp).Value;
 
         var total = BasketTotal.From(money);
 
@@ -18,7 +18,7 @@ public class BasketTotalTests
     [Fact]
     public void StructuralEquality_SameAmount_AreEqual()
     {
-        var money = new Money(123.45m, CurrencyCode.Gbp);
+        var money = Money.Create(123.45m, CurrencyCode.Gbp).Value;
 
         BasketTotal.From(money).Should().Be(BasketTotal.From(money));
     }
@@ -26,7 +26,7 @@ public class BasketTotalTests
     [Fact]
     public void StructuralEquality_DifferentCurrency_AreNotEqual()
     {
-        BasketTotal.From(new Money(10m, CurrencyCode.Usd))
-            .Should().NotBe(BasketTotal.From(new Money(10m, CurrencyCode.Eur)));
+        BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value)
+            .Should().NotBe(BasketTotal.From(Money.Create(10m, CurrencyCode.Eur).Value));
     }
 }

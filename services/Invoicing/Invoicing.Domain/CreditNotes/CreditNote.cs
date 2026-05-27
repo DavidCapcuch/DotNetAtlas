@@ -32,7 +32,7 @@ namespace Invoicing.Domain.CreditNotes;
 /// </remarks>
 public sealed class CreditNote : AggregateRoot<Guid>
 {
-    private readonly List<InvoiceLine> _lines = [];
+    private readonly List<CreditNoteLine> _lines = [];
 
     public CreditNoteNumber? CreditNoteNumber { get; private set; }
 
@@ -46,7 +46,7 @@ public sealed class CreditNote : AggregateRoot<Guid>
 
     public DateTimeOffset IssueDate { get; private set; }
 
-    public IReadOnlyList<InvoiceLine> Lines => _lines;
+    public IReadOnlyList<CreditNoteLine> Lines => _lines;
 
     public Money Total { get; private set; } = default!;
 
@@ -87,10 +87,8 @@ public sealed class CreditNote : AggregateRoot<Guid>
         Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
             "Invoicing.InvalidCorrelationId", "CreditNote CorrelationId must not be empty."));
 
-        // I-CN-2 \u2014 Total is negative. Construct via primary Money ctor (intent is explicit).
-        var negativeTotal = new Money(
-            -originalInvoiceSnapshot.Total.Amount,
-            originalInvoiceSnapshot.Total.Currency);
+        // I-CN-2 \u2014 Total is negative. Negate the (positive) source invoice total.
+        var negativeTotal = originalInvoiceSnapshot.Total.Negate();
 
         var creditNote = new CreditNote
         {

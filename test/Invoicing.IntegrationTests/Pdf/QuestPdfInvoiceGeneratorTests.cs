@@ -116,8 +116,8 @@ public sealed class QuestPdfInvoiceGeneratorTests
 
         var vatLine = VatLine.Create(
             VatRate.Create(21m).Value,
-            new Money(200m, eur),
-            new Money(42m, eur));
+            Money.Create(200m, eur).Value,
+            Money.Create(42m, eur).Value);
 
         var address = Platform.SharedKernel.ValueObjects.Address.Create(
             "Main Street 1", null, "Prague", null, "11000", "CZ").Value;

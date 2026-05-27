@@ -132,6 +132,7 @@
     <Project Path="platform/Platform.ReliableMessaging.Outbox.EFCore.UnitTests/Platform.ReliableMessaging.Outbox.EFCore.UnitTests.csproj" />
     <Project Path="platform/Platform.ServiceDefaults.UnitTests/Platform.ServiceDefaults.UnitTests.csproj" />
     <Project Path="platform/Platform.SharedKernel.UnitTests/Platform.SharedKernel.UnitTests.csproj" />
+    <Project Path="test/Platform.SharedKernel.ArchitectureTests/Platform.SharedKernel.ArchitectureTests.csproj" />
     <Project Path="test/Basket.ArchitectureTests/Basket.ArchitectureTests.csproj" />
     <Project Path="test/Basket.FunctionalTests/Basket.FunctionalTests.csproj" />
     <Project Path="test/Basket.IntegrationTests/Basket.IntegrationTests.csproj" />

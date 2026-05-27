@@ -23,7 +23,7 @@ internal static class BasketTestData
         return ProductSnapshot.Create(
             sku,
             name,
-            new Money(amount, currency ?? CurrencyCode.Usd),
+            Money.Create(amount, currency ?? CurrencyCode.Usd).Value,
             capturedAtUtc ?? DefaultCapturedAt);
     }
 

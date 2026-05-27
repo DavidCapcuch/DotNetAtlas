@@ -119,6 +119,6 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
         ProductSnapshot.Create(
             "SKU-1",
             "Product 1",
-            new Money(amount, CurrencyCode.Usd),
+            Money.Create(amount, CurrencyCode.Usd).Value,
             new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero));
 }

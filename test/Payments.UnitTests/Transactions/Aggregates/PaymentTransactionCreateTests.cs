@@ -59,18 +59,23 @@ public class PaymentTransactionCreateTests
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(-100)]
-    public void Create_WhenAmountNotPositive_UpstreamMoneyFactoryRejects(decimal amount)
+    public void Create_WhenAmountNotPositive_ReturnsInvalidAmount(decimal amount)
     {
-        // Amount.Create itself enforces > 0. Test confirms the factory path never sees a zero/negative Money,
-        // because Money.Create returns a failure before PaymentTransaction.Create is reached.
-        var moneyResult = Money.Create(amount, "USD");
+        // School B: Money is a signed quantity; positivity is the Payments BC's invariant
+        // and lives at PaymentTransaction.Create. Confirm the local guard catches
+        // zero/negative amounts and surfaces Payments.InvalidAmount.
+        var nonPositiveAmount = Money.Create(amount, "USD").Value;
+
+        var result = PaymentTransaction.Create(
+            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
+            nonPositiveAmount, "tok_visa_4242", UtcNow);
 
         using (new AssertionScope())
         {
-            moneyResult.Should().BeFailure();
-            var error = moneyResult.Errors[0] as ValidationError;
+            result.Should().BeFailure();
+            var error = result.Errors[0] as ValidationError;
             error.Should().NotBeNull();
-            error!.ErrorCode.Should().Be("Money.AmountMustBePositive");
+            error!.ErrorCode.Should().Be("Payments.InvalidAmount");
         }
     }
 

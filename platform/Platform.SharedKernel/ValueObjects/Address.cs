@@ -8,19 +8,7 @@ namespace Platform.SharedKernel.ValueObjects;
 /// Postal address value object. Shared-kernel (ADR-0015 / Wave 0 pin).
 /// Country code is ISO 3166-1 alpha-2.
 /// </summary>
-/// <param name="Street1">Primary street line (required, max 200 chars).</param>
-/// <param name="Street2">Secondary street line (optional, max 200 chars).</param>
-/// <param name="City">City / locality (required, max 100 chars).</param>
-/// <param name="State">Region / state / province (optional, max 100 chars).</param>
-/// <param name="PostalCode">Postal / ZIP code (required, max 20 chars).</param>
-/// <param name="CountryCode">ISO 3166-1 alpha-2 (uppercase, 2 chars).</param>
-public sealed record Address(
-    string Street1,
-    string? Street2,
-    string City,
-    string? State,
-    string PostalCode,
-    string CountryCode) : ValueObject
+public sealed record Address : ValueObject
 {
     public const int Street1MaxLength = 200;
     public const int Street2MaxLength = 200;
@@ -28,6 +16,28 @@ public sealed record Address(
     public const int StateMaxLength = 100;
     public const int PostalCodeMaxLength = 20;
     public const int CountryCodeLength = 2;
+
+    /// <summary>Primary street line (required, max 200 chars).</summary>
+    public string Street1 { get; private init; } = null!;
+
+    /// <summary>Secondary street line (optional, max 200 chars).</summary>
+    public string? Street2 { get; private init; }
+
+    /// <summary>City / locality (required, max 100 chars).</summary>
+    public string City { get; private init; } = null!;
+
+    /// <summary>Region / state / province (optional, max 100 chars).</summary>
+    public string? State { get; private init; }
+
+    /// <summary>Postal / ZIP code (required, max 20 chars).</summary>
+    public string PostalCode { get; private init; } = null!;
+
+    /// <summary>ISO 3166-1 alpha-2 (uppercase, 2 chars).</summary>
+    public string CountryCode { get; private init; } = null!;
+
+    private Address()
+    {
+    }
 
     /// <summary>
     /// Creates an <see cref="Address"/> with validation.
@@ -85,12 +95,14 @@ public sealed record Address(
                 "Address.InvalidCountryCode"));
         }
 
-        return Result.Ok(new Address(
-            street1.Trim(),
-            street2?.Trim(),
-            city.Trim(),
-            state?.Trim(),
-            postalCode.Trim(),
-            countryCode.ToUpperInvariant()));
+        return Result.Ok(new Address
+        {
+            Street1 = street1.Trim(),
+            Street2 = street2?.Trim(),
+            City = city.Trim(),
+            State = state?.Trim(),
+            PostalCode = postalCode.Trim(),
+            CountryCode = countryCode.ToUpperInvariant(),
+        });
     }
 }

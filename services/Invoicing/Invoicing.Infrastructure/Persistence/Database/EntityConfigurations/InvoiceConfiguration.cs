@@ -230,6 +230,47 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         lines.Navigation(l => l.LineTotal).IsRequired();
     }
 
+    /// <summary>
+    /// Parallel mapping for <see cref="CreditNoteLine"/>. Structurally identical column shape
+    /// to <see cref="ConfigureInvoiceLine{TOwner}"/> — the table layout is unchanged — but the
+    /// owned-type discriminator differs because <see cref="CreditNoteLine"/> is a distinct
+    /// domain concept (corrections/returns/goodwill, backward-looking lifecycle) rather than
+    /// a sign-flipped invoice line.
+    /// </summary>
+    internal static void ConfigureCreditNoteLine<TOwner>(OwnedNavigationBuilder<TOwner, CreditNoteLine> lines)
+        where TOwner : class
+    {
+        lines.Property(l => l.LineNumber)
+            .HasComment("Position on the credit note (1-based; mirrors the original invoice line's number).");
+        lines.Property(l => l.Description)
+            .HasMaxLength(CreditNoteLine.MaxDescriptionLength)
+            .HasComment("Human-readable line description (copied from the source invoice line).");
+        lines.Property(l => l.Quantity)
+            .HasComment("Units being credited (>= 1).");
+
+        lines.Property(l => l.Sku)
+            .HasColumnName("sku")
+            .HasMaxLength(Sku.MaxLength)
+            .HasConversion(
+                sku => sku.Value,
+                value => Sku.Create(value).Value)
+            .HasComment("Catalog SKU snapshot from the reversed invoice line.");
+
+        lines.Property(l => l.VatRate)
+            .HasColumnName("vat_rate_percentage")
+            .HasPrecision(VatRatePrecision, VatRateScale)
+            .HasConversion(
+                rate => rate.Percentage,
+                value => VatRate.Create(value).Value)
+            .HasComment("VAT rate from the reversed invoice line, in [0, 100].");
+
+        lines.OwnsOne(l => l.UnitPrice, money => ConfigureMoney(money, "unit_price"));
+        lines.Navigation(l => l.UnitPrice).IsRequired();
+
+        lines.OwnsOne(l => l.LineTotal, money => ConfigureMoney(money, "line_total"));
+        lines.Navigation(l => l.LineTotal).IsRequired();
+    }
+
     internal static void ConfigureMoney<TOwner>(OwnedNavigationBuilder<TOwner, Money> money, string prefix)
         where TOwner : class
     {

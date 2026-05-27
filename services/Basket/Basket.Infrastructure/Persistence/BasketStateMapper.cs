@@ -51,7 +51,7 @@ internal static class BasketStateMapper
         foreach (var itemDocument in payload.Items)
         {
             var currency = CurrencyCode.FromName(itemDocument.Snapshot.PriceCurrencyName, ignoreCase: false);
-            var price = new Money(itemDocument.Snapshot.PriceAmount, currency);
+            var price = Money.Create(itemDocument.Snapshot.PriceAmount, currency).Value;
             var snapshot = ProductSnapshot.Create(
                 itemDocument.Snapshot.Sku,
                 itemDocument.Snapshot.Name,

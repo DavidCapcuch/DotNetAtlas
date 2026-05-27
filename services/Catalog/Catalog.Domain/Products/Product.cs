@@ -76,6 +76,13 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(ProductErrors.CategoryIdRequired());
         }
 
+        // Catalog-local invariant I-1: Price.Amount > 0. Previously inherited from
+        // Money.Create; Money is now a signed quantity (School B), so the rule lives here.
+        if (price.Amount <= 0)
+        {
+            return Result.Fail(ProductErrors.PriceMustBePositive());
+        }
+
         var product = new Product
         {
             Id = Guid.CreateVersion7(),
@@ -114,6 +121,12 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     public Result UpdatePrice(Money newPrice, DateTimeOffset utcNow)
     {
         ArgumentNullException.ThrowIfNull(newPrice);
+
+        // Catalog-local invariant I-1: Price.Amount > 0 (Money is permissive post-School-B).
+        if (newPrice.Amount <= 0)
+        {
+            return Result.Fail(ProductErrors.PriceMustBePositive());
+        }
 
         if (Status == ProductStatus.Discontinued)
         {

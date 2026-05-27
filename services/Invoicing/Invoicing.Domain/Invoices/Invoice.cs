@@ -412,12 +412,12 @@ public sealed class Invoice : AggregateRoot<Guid>
             capturedAtUtc: capturedAtUtc);
     }
 
-    private List<InvoiceLine> LinesForReversal()
+    private List<CreditNoteLine> LinesForReversal()
     {
-        var flipped = new List<InvoiceLine>(_lines.Count);
+        var flipped = new List<CreditNoteLine>(_lines.Count);
         foreach (var line in _lines)
         {
-            flipped.Add(line.WithFlippedSign());
+            flipped.Add(CreditNoteLine.FromInvoiceLine(line));
         }
 
         return flipped;
@@ -449,10 +449,11 @@ public sealed class Invoice : AggregateRoot<Guid>
 
         var totalAmount = subtotalAmount + vatTotal;
 
-        // I-1: Subtotal, VatLines, and Total self-consistent. Use primary Money ctor to
-        // bypass Money.Create's positivity check \u2014 totals may be 0 for edge cases.
-        var subtotal = new Money(subtotalAmount, currency);
-        var total = new Money(totalAmount, currency);
+        // I-1: Subtotal, VatLines, and Total self-consistent. Money.Create no longer rejects
+        // zero/negative \u2014 positivity is enforced upstream by InvoiceLine.UnitPrice > 0 and
+        // VatRate >= 0, so subtotal/total are guaranteed non-negative here.
+        var subtotal = Money.Create(subtotalAmount, currency).Value;
+        var total = Money.Create(totalAmount, currency).Value;
         return (subtotal, total);
     }
 }

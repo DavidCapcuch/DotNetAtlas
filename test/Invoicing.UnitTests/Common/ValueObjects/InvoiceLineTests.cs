@@ -1,4 +1,5 @@
 using Invoicing.Domain.Common.ValueObjects;
+using Platform.SharedKernel.Errors;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Invoicing.UnitTests.Common.ValueObjects;
@@ -41,22 +42,25 @@ public class InvoiceLineTests
             .IsSuccess.Should().BeFalse();
     }
 
-    [Fact]
-    public void WithFlippedSign_NegatesUnitPriceAndLineTotal()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-0.01)]
+    [InlineData(-50)]
+    public void Create_RejectsNonPositiveUnitPrice(decimal nonPositive)
     {
-        var line = InvoiceLine.Create(
+        // Local Invoicing-domain invariant: InvoiceLine.UnitPrice > 0. Money itself is now
+        // a signed quantity (School B); sign-enforcement belongs to the aggregate / VO.
+        var result = InvoiceLine.Create(
             1,
             Sku.Create("S").Value,
             "desc",
-            quantity: 2,
-            Money.Create(50m, "EUR").Value,
-            VatRate.Create(21m).Value).Value;
+            quantity: 1,
+            Money.Create(nonPositive, "EUR").Value,
+            VatRate.Create(0m).Value);
 
-        var flipped = line.WithFlippedSign();
-
-        flipped.UnitPrice.Amount.Should().Be(-50m);
-        flipped.LineTotal.Amount.Should().Be(-100m);
-        flipped.Quantity.Should().Be(2);
-        flipped.Sku.Should().Be(line.Sku);
+        result.IsSuccess.Should().BeFalse();
+        var error = result.Errors[0] as ValidationError;
+        error.Should().NotBeNull();
+        error!.ErrorCode.Should().Be("Invoicing.InvoiceLineUnitPriceMustBePositive");
     }
 }

@@ -25,11 +25,11 @@ public sealed record OrderItem : ValueObject
     }
 
     /// <summary>
-    /// Creates an <see cref="OrderItem"/>. Quantity must be positive; unit
-    /// price positivity is re-asserted (caller-side <see cref="Money.Create"/>
-    /// already guarantees this, but the VO is defense-in-depth). The line total
-    /// is stored rather than recomputed — lets EF Core map it as an owned
-    /// value without <c>[NotMapped]</c> hacks (<c>ordering.md § 4.3</c>).
+    /// Creates an <see cref="OrderItem"/>. Quantity and unit price must both be strictly
+    /// positive — Ordering-local invariant I-8. Money itself is permissive (School B), so
+    /// positivity is enforced here at the VO boundary. The line total is stored rather
+    /// than recomputed — lets EF Core map it as an owned value without <c>[NotMapped]</c>
+    /// hacks (<c>ordering.md § 4.3</c>).
     /// </summary>
     public static Result<OrderItem> Create(
         Guid productId,

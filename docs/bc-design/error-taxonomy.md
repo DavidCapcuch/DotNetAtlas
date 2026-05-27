@@ -151,7 +151,7 @@ Split per aggregate for locality (`ProductErrors.cs`, `CategoryErrors.cs`, value
 
 Value-object errors (already enumerated in [catalog.md](catalog.md)):
 - `SkuErrors.Empty` / `TooLong(max: 32)` / `InvalidCharacters`
-- `MoneyErrors.AmountMustBePositive` / `InvalidCurrencyCode`
+- `Money.InvalidCurrencyCode` / `Money.UnknownCurrencyCode` (shared-kernel; positivity invariants live on each BC aggregate, e.g. `ProductErrors.PriceMustBePositive`, `Invoicing.InvoiceLineUnitPriceMustBePositive`, `OrderItem.UnitPriceNotPositive`, `Payments.InvalidAmount`)
 - `ProductNameErrors.Empty` / `TooLong(max: 200)`
 - `ProductDescriptionErrors.TooLong(max: 4000)`
 - `DimensionsErrors.NonPositiveDimension` / `UnsupportedUnit`

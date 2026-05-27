@@ -69,7 +69,7 @@ Locked contract holds (13 Avro schemas, 4 commands + 9 events under `Payments.Tr
 
 ### Invariant spot-check (5 from `payments.md § 2.2`)
 
-1. **I-1 `Amount.Amount > 0`** — enforced in `PaymentTransaction.Create:118-121` + `Money.Create` upstream guard; `PaymentTransactionCreateTests.Create_WhenAmountNotPositive_UpstreamMoneyFactoryRejects` covers
+1. **I-1 `Amount.Amount > 0`** — enforced locally in `PaymentTransaction.Create:118-121` (sole guard post-School-B Money refactor; `Money` itself no longer enforces positivity). `PaymentTransactionCreateTests.Create_WhenAmountNotPositive_ReturnsInvalidAmount` covers
 2. **I-3 FSM transitions guarded by `PaymentStatus.CanTransitionTo(target)`** — `PaymentTransaction.GuardTransition:460-464` throws `DataIntegrityException` on violation; covered by `PaymentTransactionAuthorize/Capture/Void/RefundTests` (~30 invariant assertions)
 3. **I-4 `GatewayTransactionId` append-only** — `GuardAppendOnlyGatewayTransactionId:467-474` throws when an incoming value mismatches the stored token; `PaymentTransactionAuthorizeTests.Authorize_WhenDifferentGatewayTransactionId_ThrowsDataIntegrityException` covers
 4. **I-5 Terminal aggregates reject all further mutations** — FSM transition table at `PaymentStatus.BuildTransitionTable:56-68` returns empty set for `Failed`/`Voided`/`Refunded`; `PaymentTransactionAuthorize/Capture/Refund/VoidTests.*_WhenTerminal_ThrowsDataIntegrityException` parametric coverage

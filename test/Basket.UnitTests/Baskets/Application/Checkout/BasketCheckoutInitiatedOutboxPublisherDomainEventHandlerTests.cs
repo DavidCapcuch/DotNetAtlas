@@ -37,11 +37,11 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         var correlationId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-        var snapshot = ProductSnapshot.Create("SKU", "N", new Money(10m, CurrencyCode.Usd), capturedAt);
+        var snapshot = ProductSnapshot.Create("SKU", "N", Money.Create(10m, CurrencyCode.Usd).Value, capturedAt);
         var item = BasketItem.BuildUnchecked(productId, snapshot, 1);
         var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
-            BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
+            BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value));
         var address = Address.Create("S", null, "C", null, "P", "US").Value;
 
         var ev = new BasketCheckedOutDomainEvent
@@ -94,11 +94,11 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
             logger);
 
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-        var snapshot = ProductSnapshot.Create("SKU", "N", new Money(10m, CurrencyCode.Usd), capturedAt);
+        var snapshot = ProductSnapshot.Create("SKU", "N", Money.Create(10m, CurrencyCode.Usd).Value, capturedAt);
         var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), snapshot, 1);
         var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
-            BasketTotal.From(new Money(10m, CurrencyCode.Usd)));
+            BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value));
         var address = Address.Create("S", null, "C", null, "P", "US").Value;
         var ev = new BasketCheckedOutDomainEvent
         {
