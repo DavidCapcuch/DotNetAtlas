@@ -54,7 +54,7 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    await app.MigrateOnStartupIfLocalAsync<BasketDbContext>();
+    await app.MigrateOnStartupIfDevelopmentAsync<BasketDbContext>();
 
     await app.RunAsync();
 }

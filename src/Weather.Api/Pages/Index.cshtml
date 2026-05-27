@@ -60,7 +60,7 @@ else
     }
 </h3>
 
-@if (Model.Env.IsLocal())
+@if (Model.Env.IsDevelopment())
 {
     <br/>
     <h2>Docker compose services:</h2>

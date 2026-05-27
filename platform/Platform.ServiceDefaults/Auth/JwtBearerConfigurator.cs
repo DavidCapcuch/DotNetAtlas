@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -76,14 +77,15 @@ public static class JwtBearerConfigurator
             .AddJwtBearer();
 
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<ServiceAuthOptions>>((jwt, serviceAuth) =>
+            .Configure<IOptions<ServiceAuthOptions>, IHostEnvironment>((jwt, serviceAuth, env) =>
             {
                 var opts = serviceAuth.Value;
                 jwt.Authority = opts.Authority;
-                jwt.RequireHttpsMetadata = !string.Equals(
-                    Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                    "Development",
-                    StringComparison.OrdinalIgnoreCase);
+                // Development tier (laptop dotnet run + docker-compose, per
+                // HostEnvironmentExtensions taxonomy) talks to Keycloak over plain HTTP on
+                // localhost:9011, so the JwtBearer metadata-discovery handshake must accept HTTP.
+                // Every other tier (Testing fixtures, deployed clusters) requires HTTPS metadata.
+                jwt.RequireHttpsMetadata = !env.IsDevelopment();
                 // RoleClaimType is INTENTIONALLY left at its default
                 // (ClaimTypes.Role). #234 proposed setting it to "roles" to
                 // match Keycloak's flat realm-role claim shape — that change

@@ -62,7 +62,7 @@ try
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 
-    await app.MigrateOnStartupIfLocalAsync<CatalogDbContext>();
+    await app.MigrateOnStartupIfDevelopmentAsync<CatalogDbContext>();
 
     await app.RunAsync();
 }

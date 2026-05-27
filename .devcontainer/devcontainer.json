@@ -43,7 +43,7 @@
   "containerEnv": {
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
     "DOTNET_NOLOGO": "1",
-    "ASPNETCORE_ENVIRONMENT": "Local"
+    "ASPNETCORE_ENVIRONMENT": "Development"
   },
   // VS Code customizations
   "customizations": {
