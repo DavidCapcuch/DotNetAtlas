@@ -1,7 +1,6 @@
 using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.OutboxRelay.WorkerService.Common.Config;
-using Platform.OutboxRelay.WorkerService.Common.Constants;
 using Platform.OutboxRelay.WorkerService.Observability.HealthChecks;
 using Platform.OutboxRelay.WorkerService.OutboxRelay;
 using Platform.OutboxRelay.WorkerService.OutboxRelay.Config;
@@ -10,18 +9,19 @@ using Platform.ServiceDefaults.Config;
 namespace Platform.OutboxRelay.WorkerService.Common;
 
 /// <summary>
-/// Dependency injection extensions for health checks infrastructure.
-/// Configures health checks for database, messaging, and service execution monitoring.
+/// Health-check surface for the OutboxRelay worker — Self,
+/// <see cref="OutboxDbContext"/>, Kafka, and the worker-specific
+/// <see cref="OutboxRelayHealthCheck"/> execution liveness probe. Per-probe
+/// timeouts come from <see cref="HealthChecksOptions"/>; the
+/// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
+/// parameter, so the DB readiness probe runs under EF's command-timeout default
+/// (mirrors the Basket M10 decision — operators who need a tighter DB-level
+/// timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into the
+/// EF Core options).
 /// </summary>
-public static class HealthChecksDependencyInjection
+internal static class HealthChecksDependencyInjection
 {
-    /// <summary>
-    /// Configures health checks for the OutboxRelay worker.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration manager.</param>
-    /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddHealthChecksInternal(
+    internal static IServiceCollection AddOutboxRelayHealthChecks(
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
@@ -33,7 +33,7 @@ public static class HealthChecksDependencyInjection
             .BindConfiguration(HealthChecksOptions.Section)
             .ValidateDataAnnotations();
 
-        var timeoutsOptions = configuration
+        var timeouts = configuration
             .GetRequiredSection(HealthChecksOptions.Section)
             .Get<HealthChecksOptions>()!;
 
@@ -42,28 +42,25 @@ public static class HealthChecksDependencyInjection
             .Get<KafkaProducerOptions>()!;
 
         services.AddHealthChecks()
-            .AddApplicationStatus("Self",
+            .AddApplicationStatus(
+                "Self",
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeoutsOptions.SelfTimeout)
+                timeout: timeouts.SelfTimeout)
             .AddDbContextCheck<OutboxDbContext>(
-                name: "Outbox DbContext",
-                tags:
-                [
-                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag
-                ],
+                name: "Outbox DB",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy)
-            .AddKafka(kafkaProducerOptions, "healthchecks", "Kafka",
-                tags:
-                [
-                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.MessagingTag
-                ],
+            .AddKafka(
+                kafkaProducerOptions,
+                name: "Kafka",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.KafkaTimeout)
+                timeout: timeouts.KafkaTimeout)
             .AddCheck<OutboxRelayHealthCheck>(
                 name: "OutboxRelay Execution",
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.OutboxRelayExecutionTimeout);
+                timeout: timeouts.OutboxRelayExecutionTimeout);
         services.AddSingleton<OutboxRelayHealthCheck>();
 
         return services;

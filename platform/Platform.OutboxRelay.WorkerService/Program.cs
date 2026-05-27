@@ -28,7 +28,7 @@ public sealed class Program
             var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
             builder.Services.AddOpenTelemetryInternal(isDeployedEnvironment, builder.Configuration);
-            builder.Services.AddHealthChecksInternal(builder.Configuration);
+            builder.Services.AddOutboxRelayHealthChecks(builder.Configuration);
             builder.Services.AddDatabase(builder.Configuration);
             builder.Services.AddMemoryCache();
             builder.AddOutboxRelayWorker();

@@ -16,19 +16,19 @@ using Weather.Infrastructure.Persistence.Database;
 namespace Weather.Infrastructure.Common;
 
 /// <summary>
-/// Dependency injection extensions for health checks infrastructure.
-/// Configures health checks for database, messaging, APIs, and external services.
+/// Health-check surface for the Weather demo — Self,
+/// <see cref="WeatherDbContext"/>, Redis (idempotency cache), the WeatherApi.com
+/// and Open-Meteo external provider URLs, the Keycloak IDM discovery endpoint,
+/// Hangfire (degraded + unhealthy thresholds), and Kafka. The <c>HealthCheckTags.ApiTag</c>
+/// tag is Weather-specific and used for upstream provider classification — the 7 BC
+/// services do not depend on external URL groups and therefore do not carry it.
+/// Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
+/// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
+/// parameter.
 /// </summary>
-public static class HealthChecksDependencyInjection
+internal static class HealthChecksDependencyInjection
 {
-    /// <summary>
-    /// Configures health checks for the application.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="isDeployedEnvironment">Whether running in a deployed environment.</param>
-    /// <param name="configuration">The configuration manager.</param>
-    /// <returns>The service collection for chaining.</returns>
-    internal static IServiceCollection AddHealthChecksInternal(
+    internal static IServiceCollection AddWeatherHealthChecks(
         this IServiceCollection services,
         bool isDeployedEnvironment,
         ConfigurationManager configuration)
@@ -37,7 +37,7 @@ public static class HealthChecksDependencyInjection
             .BindConfiguration(HealthChecksOptions.Section)
             .ValidateDataAnnotations();
 
-        var timeoutsOptions = configuration
+        var timeouts = configuration
             .GetRequiredSection(HealthChecksOptions.Section)
             .Get<HealthChecksOptions>()!;
 
@@ -56,73 +56,64 @@ public static class HealthChecksDependencyInjection
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
-        var producerConfig = new ProducerConfig
-        {
-            BootstrapServers = kafkaOptions.BrokersFlat
-        };
+        var producerConfig = new ProducerConfig { BootstrapServers = kafkaOptions.BrokersFlat };
 
         services.AddHealthChecks()
-            .AddApplicationStatus("Self",
+            .AddApplicationStatus(
+                "Self",
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeoutsOptions.SelfTimeout)
+                timeout: timeouts.SelfTimeout)
             .AddDbContextCheck<WeatherDbContext>(
                 name: "Weather DB",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy)
             .AddRedis(
                 sp => sp.GetRequiredService<IConnectionMultiplexer>(),
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag],
+                name: "Redis",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.RedisTimeout,
-                name: "Redis")
+                timeout: timeouts.RedisTimeout)
             .AddUrlGroup(
                 new Uri(weatherApiComOptions.BaseUrl), weatherApiComOptions.BaseUrl,
-                tags:
-                [
-                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag
-                ],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.ExternalProvidersApiTimeout)
+                timeout: timeouts.ExternalProvidersApiTimeout)
             .AddUrlGroup(
                 new Uri($"{openMeteoOptions.GeoBaseUrl}v1/search?name=Berlin&count=1"), openMeteoOptions.GeoBaseUrl,
-                tags:
-                [
-                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag
-                ],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.ExternalProvidersApiTimeout)
+                timeout: timeouts.ExternalProvidersApiTimeout)
             .AddUrlGroup(
                 new Uri($"{openMeteoOptions.BaseUrl}v1/forecast"), openMeteoOptions.BaseUrl,
-                tags:
-                [
-                    ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag
-                ],
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.ExternalProvidersApiTimeout)
+                timeout: timeouts.ExternalProvidersApiTimeout)
             .AddOpenIdConnectServer(
                 oidcSvrUri: new Uri(idmAuthorityUrl),
                 discoverConfigurationSegment: ".well-known/openid-configuration",
                 name: "Keycloak IDM",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.ApiTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.IdmApiTimeout)
-            .AddHangfire(options => options.MaximumJobsFailed = timeoutsOptions.Hangfire.DegradedMaximumJobsFailed,
+                timeout: timeouts.IdmApiTimeout)
+            .AddHangfire(options => options.MaximumJobsFailed = timeouts.Hangfire.DegradedMaximumJobsFailed,
                 "Hangfire Degraded Check",
                 failureStatus: HealthStatus.Degraded,
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeoutsOptions.Hangfire.Timeout)
+                timeout: timeouts.Hangfire.Timeout)
             .AddHangfire(options =>
                 {
-                    options.MaximumJobsFailed = timeoutsOptions.Hangfire.UnhealthyMaximumJobsFailed;
-                    options.MinimumAvailableServers = timeoutsOptions.Hangfire.MinimumAvailableServers;
+                    options.MaximumJobsFailed = timeouts.Hangfire.UnhealthyMaximumJobsFailed;
+                    options.MinimumAvailableServers = timeouts.Hangfire.MinimumAvailableServers;
                 }, "Hangfire Unhealthy Check",
                 failureStatus: HealthStatus.Unhealthy,
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeoutsOptions.Hangfire.Timeout)
-            .AddKafka(producerConfig, "healthchecks", "Kafka",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.MessagingTag],
+                timeout: timeouts.Hangfire.Timeout)
+            .AddKafka(
+                producerConfig,
+                name: "Kafka",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.KafkaTimeout);
+                timeout: timeouts.KafkaTimeout);
 
         if (!isDeployedEnvironment)
         {
