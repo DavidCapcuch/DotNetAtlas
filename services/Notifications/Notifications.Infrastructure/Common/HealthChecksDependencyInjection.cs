@@ -4,24 +4,24 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Notifications.Infrastructure.Common.Config;
-using Notifications.Infrastructure.Common.Constants;
 using Notifications.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults.Config;
 
 namespace Notifications.Infrastructure.Common;
 
 /// <summary>
-/// Dependency injection extensions for health checks infrastructure.
+/// Health-check surface for the Notifications worker — Self,
+/// <see cref="NotificationsDbContext"/>, and Kafka. Per-probe timeouts come from
+/// <see cref="HealthChecksOptions"/>; the <c>AddDbContextCheck</c> EF Core extension
+/// does not expose a direct timeout parameter, so the DB readiness probe runs under
+/// EF's command-timeout default (mirrors Basket's M10 decision — operators who need
+/// a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
+/// into <c>EfCoreOptions</c>). No Redis check — Notifications has no idempotency
+/// cache layer.
 /// </summary>
-public static class HealthChecksDependencyInjection
+internal static class HealthChecksDependencyInjection
 {
-    /// <summary>
-    /// Configures health checks for the application.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration manager.</param>
-    /// <returns>The service collection for chaining.</returns>
-    internal static IServiceCollection AddHealthChecksInternal(
+    internal static IServiceCollection AddNotificationsHealthChecks(
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
@@ -29,30 +29,31 @@ public static class HealthChecksDependencyInjection
             .BindConfiguration(HealthChecksOptions.Section)
             .ValidateDataAnnotations();
 
-        var timeoutsOptions = configuration
+        var timeouts = configuration
             .GetRequiredSection(HealthChecksOptions.Section)
             .Get<HealthChecksOptions>()!;
 
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
-        var producerConfig = new ProducerConfig
-        {
-            BootstrapServers = kafkaOptions.BrokersFlat
-        };
+
+        var producerConfig = new ProducerConfig { BootstrapServers = kafkaOptions.BrokersFlat };
 
         services.AddHealthChecks()
-            .AddApplicationStatus("Self",
+            .AddApplicationStatus(
+                "Self",
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeoutsOptions.SelfTimeout)
+                timeout: timeouts.SelfTimeout)
             .AddDbContextCheck<NotificationsDbContext>(
-                name: "Payment DB",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.DatabaseTag],
+                name: "Notifications DB",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy)
-            .AddKafka(producerConfig, "healthchecks", "Kafka",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag, HealthCheckTags.MessagingTag],
+            .AddKafka(
+                producerConfig,
+                name: "Kafka",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeoutsOptions.KafkaTimeout);
+                timeout: timeouts.KafkaTimeout);
 
         return services;
     }
