@@ -4,7 +4,6 @@ using Ordering.Orders;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
-using Riok.Mapperly.Abstractions;
 
 namespace Ordering.Application.Orders.CancelOrder;
 
@@ -19,8 +18,7 @@ namespace Ordering.Application.Orders.CancelOrder;
 /// event; the Avro enum is a closed 4-symbol set (events-catalog.md § 5.3.3).
 /// An unexpected value is bug-class.
 /// </summary>
-[Mapper]
-public static partial class OrderCancelledMapper
+public static class OrderCancelledMapper
 {
     private const int Scale = 4;
 
@@ -39,7 +37,6 @@ public static partial class OrderCancelledMapper
             BillingAddress = MapBillingAddress(source.BillingAddress),
         };
 
-    [UserMapping]
     private static OrderItemCancelled MapItem(OrderItem source) =>
         new()
         {
@@ -51,7 +48,6 @@ public static partial class OrderCancelledMapper
             LineTotalAmount = source.LineTotal.Amount.ToAvroDecimal(Scale),
         };
 
-    [UserMapping]
     private static OrderCancellationBillingAddress MapBillingAddress(Address source) =>
         new()
         {
