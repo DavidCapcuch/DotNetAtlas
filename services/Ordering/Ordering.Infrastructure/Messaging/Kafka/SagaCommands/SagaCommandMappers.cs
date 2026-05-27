@@ -37,11 +37,7 @@ internal static class SagaCommandMappers
     // from the Avro payload field; the header is the authoritative source.
     internal static AppCreateOrderCommand ToAppCommand(this AvroCreateOrderCommand avro, Guid correlationId)
     {
-        var items = avro.Items
-            .Select(ToItemInput)
-            .ToArray();
-
-        var currency = ResolveUniformCurrency(avro);
+        var (items, currency) = MapItemsAndResolveCurrency(avro.Items);
 
         return new AppCreateOrderCommand
         {
@@ -60,26 +56,32 @@ internal static class SagaCommandMappers
         };
     }
 
-    private static string ResolveUniformCurrency(AvroCreateOrderCommand avro)
+    private static (AppCreateOrderItemInput[] Items, string Currency) MapItemsAndResolveCurrency(
+        IList<AvroCreateOrderItem>? avroItems)
     {
-        if (avro.Items is null || avro.Items.Count == 0)
+        if (avroItems is null || avroItems.Count == 0)
         {
-            return string.Empty;
+            return (Array.Empty<AppCreateOrderItemInput>(), string.Empty);
         }
 
-        var currency = avro.Items[0].UnitPriceCurrency;
-        for (var i = 1; i < avro.Items.Count; i++)
+        var currency = avroItems[0].UnitPriceCurrency;
+        var items = new AppCreateOrderItemInput[avroItems.Count];
+        items[0] = ToItemInput(avroItems[0]);
+
+        for (var i = 1; i < avroItems.Count; i++)
         {
-            var itemCurrency = avro.Items[i].UnitPriceCurrency;
-            if (!string.Equals(itemCurrency, currency, StringComparison.Ordinal))
+            var avroItem = avroItems[i];
+            if (!string.Equals(avroItem.UnitPriceCurrency, currency, StringComparison.Ordinal))
             {
                 throw new DataIntegrityException(
                     "Ordering.MultipleCurrencies",
-                    $"CreateOrderCommand items must share a single UnitPriceCurrency; saw '{currency}' and '{itemCurrency}'.");
+                    $"CreateOrderCommand items must share a single UnitPriceCurrency; saw '{currency}' and '{avroItem.UnitPriceCurrency}'.");
             }
+
+            items[i] = ToItemInput(avroItem);
         }
 
-        return currency;
+        return (items, currency);
     }
 
     internal static AppConfirmOrderCommand ToAppCommand(this AvroConfirmOrderCommand avro) =>
