@@ -25,7 +25,7 @@
 | Sku | Stock Keeping Unit — business-level product code, 1–32 chars, normalized uppercase. Unique across Catalog. |
 | ProductStatus | SmartEnum: `Draft → Active → Discontinued` (with `Reactivate` back-edge to `Active`, admin-only). |
 | IsSellable | Derived flag on the `product_search_view` projection: `Status == Active AND available_stock > 0`. Updated by consuming Inventory's `StockLevelChanged`. |
-| ProductSearchView | Denormalized read-side projection (CQRS) built in-process by `ProductSearchViewProjectionHandler` within the same DB transaction as the write-model save. |
+| ProductSearchView | Denormalized read-side projection (CQRS) built in-process by per-event `*ProjectionDomainEventHandler` classes within the same DB transaction as the write-model save. |
 | Reactivation | Explicit admin action to move a product back from `Discontinued` to `Active`. Requires the `AuthPolicies.CatalogAdmin` claim. |
 
 ---

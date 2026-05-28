@@ -525,17 +525,21 @@ Catalog's flagship pattern is a **denormalized read model built by an in-process
 | `CreatedAtUtc` | `timestamptz` | |
 | `LastUpdatedAtUtc` | `timestamptz` | Updated on every projection event. |
 
-#### Projection handler
+#### Projection handlers
 
-`ProductSearchViewProjectionHandler` in `Catalog.Application.ProductSearchView.Projections` implements:
+Catalog's read-side has **two projection-writer shapes** (both sealed, both writing through the same `CatalogDbContext`, both colocated under `Catalog.Application.{Aggregate}.{UseCase}`):
 
-- `IDomainEventHandler<ProductCreatedDomainEvent>` — INSERT row.
-- `IDomainEventHandler<ProductPriceChangedDomainEvent>` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
-- `IDomainEventHandler<ProductDescribedDomainEvent>` — UPDATE `Description`, `LastUpdatedAtUtc`.
-- `IDomainEventHandler<ProductDiscontinuedDomainEvent>` — UPDATE `Status`, `LastUpdatedAtUtc`.
-- `IDomainEventHandler<ProductReactivatedDomainEvent>` — UPDATE `Status`, `LastUpdatedAtUtc`.
-- `IDomainEventHandler<CategoryCreatedDomainEvent>` — no-op on `product_search_view` (future: seed breadcrumb lookup). Retained as placeholder for completeness.
-- `IDomainEventHandler<CategoryReparentedDomainEvent>` — bulk UPDATE across all products whose `CategoryPath` starts with the old path (replace prefix with new path, recompute breadcrumb). Executed in the same `SaveChangesAsync` transaction as the write-model change, so the read view never drifts.
+**(a) In-process domain-event projections** — one sealed `*ProjectionDomainEventHandler` class per event, each implementing `IDomainEventHandler<T>`:
+
+- `ProductCreatedProjectionDomainEventHandler` — INSERT row.
+- `ProductPriceChangedProjectionDomainEventHandler` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
+- `ProductDescribedProjectionDomainEventHandler` — UPDATE `Description`, `LastUpdatedAtUtc`.
+- `ProductDiscontinuedProjectionDomainEventHandler` — UPDATE `Status`, `LastUpdatedAtUtc`, `IsSellable=false`.
+- `ProductReactivatedProjectionDomainEventHandler` — UPDATE `Status`, `LastUpdatedAtUtc`.
+- `CategoryCreatedProjectionDomainEventHandler` — no-op on `product_search_view` (future: seed breadcrumb lookup). Retained as placeholder for uniform DI scanning.
+- `CategoryReparentedProjectionDomainEventHandler` — log-only seam; the actual descendant-row cascade runs inside `CategoryPathService.RewriteDescendantPathsAsync` in the same UoW as the write-model save, so the read view never drifts.
+
+**(b) Kafka-delivered, inbox-deduped projection** — one sealed `StockLevelChangedProjectionHandler` (plain `*ProjectionHandler` suffix because its contract is the custom Application port `IStockLevelChangedProjector`, NOT `IDomainEventHandler<T>` — see [architecture-tests.md § 1.3 (U-D suffix rule)](architecture-tests.md)). Driven by Inventory's `StockLevelChanged` Avro event consumed by `StockLevelChangedKafkaHandler` in `Catalog.Infrastructure.Messaging.Kafka.StockEvents`; inbox-dedup middleware (`Platform.KafkaFlow.Inbox.EFCore`) sits in front of the KafkaFlow pipeline so the same `MessageId` arriving twice short-circuits. Recomputes `IsSellable` on the row based on the cross-BC stock signal.
 
 **Transactional guarantee:** the handler writes through the **same DbContext** as the aggregate save, so the read view and write model commit atomically. No outbox, no eventual consistency **within** Catalog. Downstream BCs (Basket, Inventory, BFF) see events via Kafka and are eventually consistent, but Catalog's own search view is immediately consistent after save.
 
@@ -607,8 +611,8 @@ This is the single performance layer for Catalog reads — per the success crite
   - Read-view table: `catalog.product_search_view`.
   - `catalog.outbox_messages`, `catalog.inbox_messages` — following the `Platform.ReliableMessaging.Outbox.EFCore` / `Inbox` conventions (existing `Weather.Infrastructure` usage is the template).
 - **Outbox relay:** a new `Catalog.OutboxRelay` worker (cloned from the pattern of `platform/Platform.OutboxRelay*`) ships outbox messages to Kafka topics `catalog.products` and `catalog.categories`.
-- **Projection handler location:** `services/Catalog/Catalog.Application/ProductSearchView/Projections/ProductSearchViewProjectionHandler.cs`.
-- **External event handler location:** `services/Catalog/Catalog.Application/Products/Events/ProductOutboxPublisherDomainEventHandler.cs` (one class implementing all four `IDomainEventHandler<...>` interfaces, mirroring the Weather template).
+- **Projection handler location:** one sealed `*ProjectionDomainEventHandler` per internal domain event under `services/Catalog/Catalog.Application/{Products,Categories}/{UseCase}/` (e.g., `Products/CreateProduct/ProductCreatedProjectionDomainEventHandler.cs`), plus one Kafka-fed `Products/UpdateProductSellability/StockLevelChangedProjectionHandler.cs`. See "Projection handlers" subsection above.
+- **External event handler location:** one sealed `*OutboxPublisherDomainEventHandler` per external Avro event under the same use-case folders (e.g., `Products/CreateProduct/ProductCreatedOutboxPublisherDomainEventHandler.cs` writes to topic `catalog.products`). All implement `IDomainEventHandler<TDomainEvent>` and enqueue Avro via `ITransactionalOutbox<ICatalogDbContext>` for in-UoW atomicity with the aggregate save.
 - **FusionCache policy:** **not applied** to Catalog writes or reads in v1. The denormalized `product_search_view` is the performance layer. This is a deliberate simplification to showcase pure CQRS read projections without conflating the lesson with a distributed cache. Documented here, not in an ADR.
 - **Migrations:** deterministic migrations are generated by the user per `CLAUDE.md` ("Never touch or generate EF Core/Sql script migrations"). This document specifies the intended table shape only.
 - **Schema registry:** Avro schemas live under `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/*.avsc` and `...Avro/Catalog/Categories/*.avsc`, materialized by downstream agents. Namespace convention: `Catalog.Products` and `Catalog.Categories` — matching master-design § 3.2.

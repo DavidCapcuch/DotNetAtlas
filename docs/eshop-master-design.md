@@ -266,7 +266,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **SmartEnums:** `ProductStatus` (Draft → Active → Discontinued, with `Reactivate(adminReactivation: true)` back-edge).
 **Internal events (8):** `ProductCreated/PriceChanged/Described/Activated/Discontinued/Reactivated/DomainEvent`, `CategoryCreated/ReparentedDomainEvent`.
 **External events (4):** `ProductCreatedEvent`, `ProductPriceChanged`, `ProductDiscontinuedEvent` on `catalog.products`; `CategoryCreatedEvent` on `catalog.categories`.
-**Pattern:** CQRS read projection — `ProductSearchView` denormalized table built by `ProductSearchViewProjectionHandler` in the same transaction as the write-model save.
+**Pattern:** CQRS read projection — `ProductSearchView` denormalized table built by per-event `*ProjectionDomainEventHandler` classes (one per Catalog domain event) in the same transaction as the write-model save.
 
 ### 5.2 Basket → [bc-design/basket.md](bc-design/basket.md)
 

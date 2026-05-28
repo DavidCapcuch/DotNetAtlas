@@ -109,7 +109,7 @@ public static IServiceCollection AddFeatureFlags(this IServiceCollection service
 
 | Flag | Pattern | Where evaluated |
 |---|---|---|
-| `catalog.show-discontinued-in-search` | **Gradual rollout** — boolean; target by `buyerId` for canary cohorts | `ProductSearchViewProjectionHandler` filter predicate |
+| `catalog.show-discontinued-in-search` | **Gradual rollout** — boolean; target by `buyerId` for canary cohorts | search query filter predicate (was originally drafted for the projection handlers — moved to the query side once per-event `*ProjectionDomainEventHandler` classes landed) |
 | `bff.home-page-eager-cache-warm` | **Kill switch** — boolean; default-on but flip-off under load | BFF startup / background `IHostedService` |
 | `checkout.payment-then-stock` | **Topology swap (A/B pattern)** — boolean; default OFF; demonstrates the alternative step-order without changing ADR-0004 | Checkout saga state machine guard on initial transition |
 

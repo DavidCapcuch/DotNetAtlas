@@ -133,8 +133,8 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   5. `_dbContext.Products.Add(product); await _dbContext.SaveChangesAsync(ct);`.
   6. Return `Result.Ok(product.Id)`.
 - **Emits internal event(s):** `ProductCreatedDomainEvent` (raised inside `Product.Create`). Handler fan-out:
-  - `ProductSearchViewProjectionHandler` — INSERT row into `catalog.product_search_view`.
-  - `ProductOutboxPublisherDomainEventHandler` — writes `ProductCreatedEvent` (Avro) to outbox for topic `catalog.products`.
+  - `ProductCreatedProjectionDomainEventHandler` — INSERT row into `catalog.product_search_view`.
+  - `ProductCreatedOutboxPublisherDomainEventHandler` — writes `ProductCreatedEvent` (Avro) to outbox for topic `catalog.products`.
 
 #### 1.1.2 `UpdateProductPriceCommand`
 
@@ -160,7 +160,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   3. Call `product.UpdatePrice(money, _timeProvider.GetUtcNow())`. Surface any `Result.Fail` (e.g. `CannotRepriceDiscontinued`).
   4. `await _dbContext.SaveChangesAsync(ct);`.
 - **Emits internal event(s):** `ProductPriceChangedDomainEvent` (if price actually changed; no-op otherwise). Handler fan-out:
-  - `ProductSearchViewProjectionHandler` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
+  - `ProductPriceChangedProjectionDomainEventHandler` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
   - `ProductOutboxPublisherDomainEventHandler` — writes `ProductPriceChanged` (Avro) to outbox for topic `catalog.products`.
 
 #### 1.1.3 `DescribeProductCommand`
@@ -187,7 +187,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   3. Call `product.Describe(description)`.
   4. `SaveChangesAsync`.
 - **Emits internal event(s):** `ProductDescribedDomainEvent`. Fan-out:
-  - `ProductSearchViewProjectionHandler` — UPDATE `Description`, `LastUpdatedAtUtc`.
+  - `ProductDescribedProjectionDomainEventHandler` — UPDATE `Description`, `LastUpdatedAtUtc`.
   - *No external event* — described in `catalog.md` as deliberately not-emitted in v1.
 
 #### 1.1.4 `DiscontinueProductCommand`
@@ -212,7 +212,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   2. Call `product.Discontinue(reason)`.
   3. `SaveChangesAsync`.
 - **Emits internal event(s):** `ProductDiscontinuedDomainEvent`. Fan-out:
-  - `ProductSearchViewProjectionHandler` — UPDATE `Status`, `LastUpdatedAtUtc`.
+  - `ProductDiscontinuedProjectionDomainEventHandler` — UPDATE `Status`, `LastUpdatedAtUtc`.
   - `ProductOutboxPublisherDomainEventHandler` — writes `ProductDiscontinuedEvent` (Avro) to outbox for topic `catalog.products`.
 
 #### 1.1.5 `ReactivateProductCommand`
@@ -237,7 +237,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   2. Call `product.Reactivate(command.AdminReactivation)`; propagate any `Result.Fail`.
   3. `SaveChangesAsync`.
 - **Emits internal event(s):** `ProductReactivatedDomainEvent`. Fan-out:
-  - `ProductSearchViewProjectionHandler` — UPDATE `Status`, `LastUpdatedAtUtc`.
+  - `ProductReactivatedProjectionDomainEventHandler` — UPDATE `Status`, `LastUpdatedAtUtc`.
   - *No external event* in v1.
 
 #### 1.1.6 `AddProductImageCommand`
@@ -266,7 +266,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   2. Build `ImageReference.Create(url, altText, displayOrder)`; cascade.
   3. Call `product.AddImage(imageReference)` — if duplicate `DisplayOrder`, returns `Result.Fail(ProductErrors.DuplicateImageDisplayOrder)`.
   4. `SaveChangesAsync`.
-- **Emits internal event(s):** `ProductImageAddedDomainEvent` (in-process only — consumed by `ProductSearchViewProjectionHandler` to UPDATE `ImagesJson`). No external event.
+- **Emits internal event(s):** `ProductImageAddedDomainEvent` (in-process only — consumed by a future `ProductImageAddedProjectionDomainEventHandler` to UPDATE `ImagesJson`; not implemented in v1). No external event.
 
 #### 1.1.7 `RemoveProductImageCommand`
 
@@ -314,8 +314,8 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   3. `_dbContext.Categories.Add(category); await _dbContext.SaveChangesAsync(ct);`.
   4. Return `Result.Ok(category.Id)`.
 - **Emits internal event(s):** `CategoryCreatedDomainEvent`. Fan-out:
-  - `ProductSearchViewProjectionHandler` — no-op placeholder for future breadcrumb seeding (per `catalog.md` § 9).
-  - `CategoryOutboxPublisherDomainEventHandler` — writes `CategoryCreatedEvent` (Avro) to outbox for topic `catalog.categories`.
+  - `CategoryCreatedProjectionDomainEventHandler` — no-op placeholder for future breadcrumb seeding (per `catalog.md` § 9).
+  - `CategoryCreatedOutboxPublisherDomainEventHandler` — writes `CategoryCreatedEvent` (Avro) to outbox for topic `catalog.categories`.
 
 #### 1.1.9 `ReparentCategoryCommand`
 
@@ -342,7 +342,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   5. Descendants' paths are updated by `CategoryPathService` in the same unit-of-work (bulk UPDATE via raw SQL).
   6. `SaveChangesAsync`.
 - **Emits internal event(s):** `CategoryReparentedDomainEvent`. Fan-out:
-  - `ProductSearchViewProjectionHandler` — bulk UPDATE all products whose `CategoryPath` starts with the old path (replace prefix, recompute breadcrumb).
+  - `CategoryReparentedProjectionDomainEventHandler` — log-only seam; the descendant-row cascade (bulk UPDATE of `CategoryPath` + `CategoryBreadcrumb` for every affected `product_search_view` row) runs inside `CategoryPathService.RewriteDescendantPathsAsync` in the same UoW.
   - *No external event* in v1 (reserved for later).
 
 #### 1.1.10 `DeleteCategoryCommand`
@@ -1170,7 +1170,7 @@ public sealed class CreateOrderKafkaHandler
   3. If `stockItem.Version > 0` — already initialized. Return `Result.Ok()` (not an error; Catalog retry / re-send).
   4. Call `stockItem.Initialize(productId)`.
   5. **Transaction:** INSERT `StockItemInitializedEvent` at `Version=1`; UPSERT `inventory.current_stock_levels`; INSERT command inbox row. COMMIT.
-- **Emits internal event(s):** `StockItemInitializedEvent` (ES event, appended to stream, projected by `CurrentStockLevelsProjectionHandler`). No external event by default (per `inventory.md` § 7).
+- **Emits internal event(s):** `StockItemInitializedEvent` (ES event, appended to stream, projected by `CurrentStockLevelsProjectionDomainEventHandler`). No external event by default (per `inventory.md` § 7).
 
 #### 4.1.2 `ReserveStockCommand`
 
@@ -1229,7 +1229,7 @@ public sealed class CreateOrderKafkaHandler
   3. Call `stockItem.ConfirmReservation(reservationId)` — throws if not `Active` (bug: saga double-confirmed).
   4. Append `ReservationConfirmedEvent` at `Version+1`; UPSERT projections (`OnHand -= qty`, `Reserved -= qty`; `reservation_audit.Status = 'Confirmed'`); outbox write for external `ReservationConfirmedEvent` + optional `StockLevelChanged`.
 - **Emits internal event(s):** `ReservationConfirmedEvent` (ES). Fan-out:
-  - `CurrentStockLevelsProjectionHandler` — UPDATE `OnHand`, `Reserved`, `LastUpdatedUtc`, `LastVersion`.
+  - `CurrentStockLevelsProjectionDomainEventHandler` — UPDATE `OnHand`, `Reserved`, `LastUpdatedUtc`, `LastVersion`.
   - `ReservationAuditProjectionHandler` — UPDATE `Status='Confirmed', ResolvedAtUtc`.
   - `ReservationOutboxPublisherDomainEventHandler` — writes external `ReservationConfirmedEvent` (Avro) to outbox (`inventory.reservations`).
   - `StockLevelChangedOutboxPublisherDomainEventHandler` — if `Available` crosses threshold (e.g. remaining reserved drops to 0 freeing availability), writes `StockLevelChanged` (Avro) to outbox (`inventory.stock-events`).
@@ -1289,7 +1289,7 @@ public sealed class CreateOrderKafkaHandler
   3. Call `stockItem.ReceiveStock(quantity, source, userId)`.
   4. Append `StockReceivedEvent` at `Version+1`; UPSERT projections; outbox write for `StockLevelChanged` if `Available` crosses from 0 to positive.
 - **Emits internal event(s):** `StockReceivedEvent` (ES). Fan-out:
-  - `CurrentStockLevelsProjectionHandler` — UPDATE `OnHand += quantity`.
+  - `CurrentStockLevelsProjectionDomainEventHandler` — UPDATE `OnHand += quantity`.
   - `StockLevelChangedOutboxPublisherDomainEventHandler` — conditional external event on threshold crossing.
 
 #### 4.2.2 `AdjustStockCommand`
