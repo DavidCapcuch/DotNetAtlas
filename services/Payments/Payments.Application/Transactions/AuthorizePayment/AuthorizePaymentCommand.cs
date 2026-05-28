@@ -3,10 +3,10 @@ using Platform.CQRS;
 namespace Payments.Application.Transactions.AuthorizePayment;
 
 /// <summary>
-/// Internal CQRS command that drives the Payments aggregate's first transition. The M5 Kafka
+/// Internal CQRS command that drives the Payments aggregate's first transition. The Kafka
 /// consumer translates the wire-shape <c>Payments.Transactions.AuthorizePaymentCommand</c> Avro
 /// record into this internal type, deriving <see cref="PaymentId"/> from the saga
-/// <see cref="CorrelationId"/> (one-payment-per-saga assumption per the M4 plan Path B). If the
+/// <see cref="CorrelationId"/> (one-payment-per-saga assumption). If the
 /// aggregate already exists in <c>Requested</c>, the handler authorizes it; otherwise it
 /// creates and authorizes in a single step. Returns the canonical aggregate id so the saga
 /// can confirm what Payments persisted matches what the saga sent.

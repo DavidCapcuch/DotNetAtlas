@@ -40,7 +40,7 @@ namespace Payments.Application.Transactions.AuthorizePayment;
 ///     returns <c>Result.Fail(PaymentsErrors.GatewayUnavailable())</c>. The saga / outbox
 ///     relay retries per ADR-0010.</description></item>
 ///   <item><description>Aggregate already past <c>Requested</c>: idempotent no-op. Saga retries
-///     are deduplicated by the M5 inbox; this short-circuit is defense-in-depth.</description></item>
+///     are deduplicated by the inbox; this short-circuit is defense-in-depth.</description></item>
 /// </list>
 /// </para>
 /// </remarks>

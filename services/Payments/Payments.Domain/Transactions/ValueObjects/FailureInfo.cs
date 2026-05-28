@@ -4,8 +4,8 @@ namespace Payments.Domain.Transactions.ValueObjects;
 
 /// <summary>
 /// Terminal-failure details attached to a <see cref="PaymentTransaction"/> when it reaches
-/// <see cref="PaymentStatus.Failed"/>. Persistence shape (owned entity vs JSON column) is decided
-/// at the Infrastructure milestone (M5); the domain treats this as a plain value object.
+/// <see cref="PaymentStatus.Failed"/>. Persistence shape (owned entity vs JSON column) is
+/// decided in Infrastructure; the domain treats this as a plain value object.
 /// </summary>
 public sealed record FailureInfo : ValueObject
 {

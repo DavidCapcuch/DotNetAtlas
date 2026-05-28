@@ -10,11 +10,8 @@ using AvroVoidPaymentCommand = Payments.Transactions.VoidPaymentCommand;
 namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
-/// Translates saga-issued Avro commands on <c>payments.payment-commands</c> to the application-layer
-/// command DTOs. Pure functions, no DI, no side-effects — simple mapping is clearer than a
-/// Mapperly config here because the shape differences (decimal AvroDecimal → C# decimal,
-/// Avro <c>UserId</c> → App <c>BuyerId</c> rename, aggregate PK sourced from the Avro
-/// <c>PaymentTransactionId</c> field per cross-cutting wave1-followup #255) are all explicit.
+/// Translates saga-issued Avro commands on <c>payments.payment-commands</c> to the
+/// application-layer command DTOs. Pure functions, no DI, no side-effects.
 /// </summary>
 /// <remarks>
 /// ADR-0008: <c>correlationId</c> is passed in explicitly from the Kafka header rather than

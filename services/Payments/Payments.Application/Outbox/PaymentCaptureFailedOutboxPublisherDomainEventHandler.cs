@@ -11,7 +11,7 @@ namespace Payments.Application.Outbox;
 /// <summary>
 /// Fan-out from <see cref="PaymentCaptureFailedDomainEvent"/> to the external Avro event on
 /// <c>payments.transactions</c>. Co-emitted with <see cref="PaymentFailedDomainEvent"/>, which
-/// has no Payments-side outbox publisher per the M4 Path B resolution.
+/// has no Payments-side outbox publisher (it is produced by PaymentProcessingSaga).
 /// </summary>
 public sealed class PaymentCaptureFailedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<PaymentCaptureFailedDomainEvent>
