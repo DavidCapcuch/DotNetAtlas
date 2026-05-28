@@ -313,7 +313,18 @@ services:
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic checkout.sagas --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=2592000000 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic invoicing.invoices --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=315360000000 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payment-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.stock-events.Catalog.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservation-commands.Inventory.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products.Inventory.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.orders.Inventory.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.orders.Invoicing.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions.Invoicing.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-events.Invoicing.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic notifications.email-commands.Notifications.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.order-commands.Ordering.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.payment-commands.Payments.DLT --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=1209600000 --if-not-exists
       "
     depends_on:
       kafka:
