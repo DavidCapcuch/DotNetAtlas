@@ -14,10 +14,9 @@ namespace Notifications.Infrastructure.Common;
 /// <see cref="NotificationsDbContext"/>, and Kafka. Per-probe timeouts come from
 /// <see cref="HealthChecksOptions"/>; the <c>AddDbContextCheck</c> EF Core extension
 /// does not expose a direct timeout parameter, so the DB readiness probe runs under
-/// EF's command-timeout default (mirrors Basket's M10 decision — operators who need
-/// a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
-/// into <c>EfCoreOptions</c>). No Redis check — Notifications has no idempotency
-/// cache layer.
+/// EF's command-timeout default (operators who need a tighter DB-level timeout switch
+/// to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into <c>EfCoreOptions</c>). No
+/// Redis check — Notifications has no idempotency cache layer.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
