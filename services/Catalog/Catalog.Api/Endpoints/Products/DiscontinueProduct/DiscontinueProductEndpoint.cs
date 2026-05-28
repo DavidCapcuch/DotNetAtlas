@@ -1,8 +1,8 @@
 using System.Net;
 using Catalog.Api.Common.Authorization;
-using Catalog.Api.Common.Extensions;
 using Catalog.Application.Products.DiscontinueProduct;
 using FastEndpoints;
+using Platform.Api.Extensions;
 
 namespace Catalog.Api.Endpoints.Products.DiscontinueProduct;
 

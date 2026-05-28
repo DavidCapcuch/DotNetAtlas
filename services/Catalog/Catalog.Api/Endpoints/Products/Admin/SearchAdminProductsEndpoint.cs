@@ -1,9 +1,9 @@
 using System.Net;
 using Catalog.Api.Common.Authorization;
-using Catalog.Api.Common.Extensions;
 using Catalog.Api.Endpoints.Products.SearchProducts;
 using Catalog.Application.Products.SearchProducts;
 using FastEndpoints;
+using Platform.Api.Extensions;
 
 namespace Catalog.Api.Endpoints.Products.Admin;
 

@@ -279,7 +279,7 @@ public class ProductTests
         {
             result.Should().BeFailure();
             result.Errors.Should().ContainSingle()
-                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.Should().BeAssignableTo<ConflictError>()
                 .Which.ErrorCode.Should().Be("Product.CannotDiscontinueInStatus");
         }
     }
@@ -360,7 +360,7 @@ public class ProductTests
         {
             result.Should().BeFailure();
             result.Errors.Should().ContainSingle()
-                .Which.Should().BeAssignableTo<ValidationError>()
+                .Which.Should().BeAssignableTo<ConflictError>()
                 .Which.ErrorCode.Should().Be("Product.CannotReactivateInStatus");
         }
     }

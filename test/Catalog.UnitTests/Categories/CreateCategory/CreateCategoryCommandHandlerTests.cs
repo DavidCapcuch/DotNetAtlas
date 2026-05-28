@@ -4,6 +4,7 @@ using Catalog.UnitTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Platform.SharedKernel.Errors;
 
 namespace Catalog.UnitTests.Categories.CreateCategory;
 
@@ -72,6 +73,7 @@ public class CreateCategoryCommandHandlerTests
 
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle(e =>
-            e.Message.Contains("Parent category") && e.Message.Contains(unknownParent.ToString()));
+            ((DomainError)e).ErrorCode == "Category.ParentNotFound"
+            && e.Message.Contains(unknownParent.ToString()));
     }
 }
