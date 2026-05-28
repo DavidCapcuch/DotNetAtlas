@@ -20,8 +20,9 @@ public sealed class GetOrdersByBuyerResponse
 /// <summary>
 /// Single-row summary for the buyer-orders list view.
 /// <see cref="LastStatusChangeAtUtc"/> is
-/// <c>COALESCE(DeliveredAtUtc, ShippedAtUtc, ConfirmedAtUtc, PaymentCompletedAtUtc, StockReservedAtUtc, CreatedAtUtc)</c>
-/// projected SQL-side — the most-recent non-null lifecycle timestamp.
+/// <c>COALESCE(CancelledAtUtc, FailedAtUtc, DeliveredAtUtc, ShippedAtUtc, ConfirmedAtUtc, PaymentCompletedAtUtc, StockReservedAtUtc, CreatedAtUtc)</c>
+/// projected SQL-side — the timestamp of the order's current state, with
+/// terminal Cancellation/Failure superseding any retained happy-path timestamp.
 /// </summary>
 public sealed record OrderSummaryDto(
     Guid OrderId,

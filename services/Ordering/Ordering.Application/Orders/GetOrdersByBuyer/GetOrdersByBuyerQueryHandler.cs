@@ -67,13 +67,21 @@ public sealed class GetOrdersByBuyerQueryHandler
                 o.Items.Count,
                 o.CreatedAtUtc,
                 // COALESCE chain matches use-cases.md § 3.4.2 verbatim — pick
-                // the most-recent non-null lifecycle timestamp. `o.Shipment`
-                // is an owned nullable VO; the conditional + cast keeps the
-                // expression's element type DateTimeOffset? so the chain stays
+                // the timestamp of the order's current state. Cancellation and
+                // Failure sit at the FRONT: they are terminal alternative
+                // states whose timestamp supersedes any retained happy-path
+                // timestamp (a Shipped-then-Cancelled row's Status is
+                // "Cancelled", so its LastStatusChangeAtUtc must be
+                // CancelledAtUtc, not the now-superseded ShippedAtUtc).
+                // `o.Cancellation` / `o.Failure` / `o.Shipment` are owned
+                // nullable VOs; the conditional + cast keeps the expression's
+                // element type DateTimeOffset? so the chain stays
                 // null-coalesceable. Final `o.CreatedAtUtc` is non-nullable —
                 // the chain terminates here and the result type is
                 // DateTimeOffset, not DateTimeOffset?.
-                o.DeliveredAtUtc
+                (o.Cancellation == null ? (DateTimeOffset?)null : o.Cancellation.CancelledAtUtc)
+                    ?? (o.Failure == null ? (DateTimeOffset?)null : o.Failure.FailedAtUtc)
+                    ?? o.DeliveredAtUtc
                     ?? (o.Shipment == null ? (DateTimeOffset?)null : o.Shipment.ShippedAtUtc)
                     ?? o.ConfirmedAtUtc
                     ?? o.PaymentCompletedAtUtc
