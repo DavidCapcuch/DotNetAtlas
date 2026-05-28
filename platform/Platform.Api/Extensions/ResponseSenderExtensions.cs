@@ -67,7 +67,6 @@ public static class ResponseSenderExtensions
         var hasConflict = false;
         var hasNotFound = false;
         var hasValidation = false;
-        var hasUnknownDomainError = false;
 
         foreach (var error in result.Errors)
         {
@@ -116,7 +115,6 @@ public static class ResponseSenderExtensions
                     });
                     continue;
                 case DomainError de:
-                    hasUnknownDomainError = true;
                     failures.Add(new ValidationFailure(de.ErrorCode, de.Message)
                     {
                         ErrorCode = de.ErrorCode,
@@ -134,9 +132,7 @@ public static class ResponseSenderExtensions
         }
 
         // Precedence: most-severe wins. 503 > 501 > 403 > 409 > 404 > 422 > 400.
-        var statusCode = hasUnknownDomainError
-            ? StatusCodes.Status400BadRequest
-            : StatusCodes.Status400BadRequest;
+        var statusCode = StatusCodes.Status400BadRequest;
         if (hasValidation)
         {
             statusCode = StatusCodes.Status422UnprocessableEntity;
