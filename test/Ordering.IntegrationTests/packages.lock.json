@@ -1541,6 +1541,7 @@
           "NetEscapades.AspNetCore.SecurityHeaders": "[1.3.1, )",
           "Ordering.Application": "[1.0.0, )",
           "Ordering.Infrastructure": "[1.0.0, )",
+          "Platform.Api": "[1.0.0, )",
           "Platform.ServiceDefaults": "[1.0.0, )"
         }
       },
@@ -1555,8 +1556,7 @@
           "Ordering.Domain": "[1.0.0, )",
           "Platform.CQRS": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
-          "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
-          "Riok.Mapperly": "[4.3.1, )"
+          "Platform.SchemaRegistry.Contracts": "[1.0.0, )"
         }
       },
       "ordering.domain": {
@@ -1602,6 +1602,15 @@
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
           "Platform.ServiceDefaults": "[1.0.0, )"
+        }
+      },
+      "platform.api": {
+        "type": "Project",
+        "dependencies": {
+          "FastEndpoints": "[8.1.0, )",
+          "FluentResults": "[4.0.0, )",
+          "FluentValidation": "[12.1.1, )",
+          "Platform.SharedKernel": "[1.0.0, )"
         }
       },
       "platform.avro.universalserdes": {
@@ -2123,12 +2132,6 @@
         "requested": "[7.0.0, )",
         "resolved": "7.0.0",
         "contentHash": "AyWlducZGOnmlEVz4PaL3Qv8wcY3ClPZS9CrlDnSVahGd/E9tTEgSFiC8yoV/F6o6P6IYm8xnHFa/vmWT8tfcw=="
-      },
-      "Riok.Mapperly": {
-        "type": "CentralTransitive",
-        "requested": "[4.3.1, )",
-        "resolved": "4.3.1",
-        "contentHash": "oSE+OVLHyiojrws0QVbQaAT2YKsYbyHqJXPdV7EhGseR/dYgeWS2x1T5qY5I4E+RJkJqMSG+FyZOq4SljWgJWQ=="
       },
       "Scrutor": {
         "type": "CentralTransitive",

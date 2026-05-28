@@ -3,6 +3,7 @@ using FastEndpoints;
 using Ordering.Api.Common.Authorization;
 using Ordering.Api.Common.Extensions;
 using Ordering.Application.Orders.MarkOrderShipped;
+using Platform.Api.Extensions;
 using Serilog.Context;
 
 namespace Ordering.Api.Endpoints.Orders.MarkOrderShipped;
