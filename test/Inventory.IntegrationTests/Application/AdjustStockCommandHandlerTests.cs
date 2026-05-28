@@ -30,7 +30,7 @@ public sealed class AdjustStockCommandHandlerTests : BaseIntegrationTest
     public async Task PositiveDelta_ReflectedInResponse()
     {
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 4);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 4, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
 
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
@@ -56,7 +56,7 @@ public sealed class AdjustStockCommandHandlerTests : BaseIntegrationTest
     public async Task NegativeDelta_ReflectedInResponse()
     {
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 10);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 10, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
 
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
@@ -76,28 +76,5 @@ public sealed class AdjustStockCommandHandlerTests : BaseIntegrationTest
         result.Should().BeSuccess();
         result.Value.OnHand.Should().Be(7);
         result.Value.Available.Should().Be(7);
-    }
-
-    private async Task SeedStreamAsync(Guid productId, int onHand)
-    {
-        using var seedScope = Fixture.CreateScope();
-        var init = seedScope.ServiceProvider
-            .GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receive = seedScope.ServiceProvider
-            .GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-
-        (await init.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = UtcNow.AddMinutes(-2) },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
-        (await receive.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = onHand,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = UtcNow.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
     }
 }

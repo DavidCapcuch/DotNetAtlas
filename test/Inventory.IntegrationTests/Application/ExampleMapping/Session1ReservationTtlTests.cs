@@ -71,7 +71,15 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 2);
+        await Seed.ActiveReservationAsync(
+            productId,
+            reservationId,
+            orderId,
+            quantity: 2,
+            SeedUtc.AddMinutes(-2),
+            TestContext.Current.CancellationToken,
+            onHand: 2,
+            timeToLive: ReservationTtl);
 
         // Simulate the worker's release: write a real ReservationReleasedEvent
         // with reason=Expiry to the stream via the production handler. After
@@ -172,7 +180,15 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 1);
+        await Seed.ActiveReservationAsync(
+            productId,
+            reservationId,
+            orderId,
+            quantity: 1,
+            SeedUtc.AddMinutes(-2),
+            TestContext.Current.CancellationToken,
+            onHand: 1,
+            timeToLive: ReservationTtl);
 
         // First release: fires the real ReservationReleasedEvent + outbox row.
         using (var firstScope = Fixture.CreateScope())
@@ -227,41 +243,6 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
         // No second external event queued on the outbox.
         var releasedOutboxCountAfterSecond = await CountReleasedOutboxRowsAsync(orderId);
         releasedOutboxCountAfterSecond.Should().Be(1, "the duplicate release must NOT enqueue a second external ReservationReleasedEvent");
-    }
-
-    private async Task SeedActiveReservationAsync(Guid productId, Guid reservationId, Guid orderId, int quantity)
-    {
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
-
-        (await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = SeedUtc.AddMinutes(-2) },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
-
-        (await receiveHandler.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = Math.Max(quantity, 1),
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = SeedUtc.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
-
-        (await reserveHandler.HandleAsync(
-            new ReserveStockCommand
-            {
-                ReservationId = reservationId,
-                ProductId = productId,
-                Quantity = quantity,
-                OrderId = orderId,
-                TimeToLive = ReservationTtl,
-                OccurredOnUtc = SeedUtc,
-            },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
     }
 
     private async Task<int> CountReleasedEventsAsync(Guid productId)

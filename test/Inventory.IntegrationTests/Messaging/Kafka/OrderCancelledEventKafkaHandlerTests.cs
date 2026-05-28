@@ -44,8 +44,9 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
         var reservationAId = Guid.NewGuid();
         var reservationBId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productAId, reservationAId, orderId, quantity: 2);
-        await SeedActiveReservationAsync(productBId, reservationBId, orderId, quantity: 5);
+        var seedAnchor = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
+        await Seed.ActiveReservationAsync(productAId, reservationAId, orderId, quantity: 2, seedAnchor, TestContext.Current.CancellationToken);
+        await Seed.ActiveReservationAsync(productBId, reservationBId, orderId, quantity: 5, seedAnchor, TestContext.Current.CancellationToken);
 
         var avroEvent = new AvroOrderCancelledEvent
         {
@@ -136,42 +137,5 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
             .Where(m => m.KafkaKey == orderId.ToString())
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRowsForOrder.Should().BeEmpty();
-    }
-
-    private async Task SeedActiveReservationAsync(Guid productId, Guid reservationId, Guid orderId, int quantity)
-    {
-        var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
-
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
-
-        await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = seedUtc },
-            TestContext.Current.CancellationToken);
-
-        await receiveHandler.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = 10,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = seedUtc.AddMinutes(1),
-            },
-            TestContext.Current.CancellationToken);
-
-        await reserveHandler.HandleAsync(
-            new ReserveStockCommand
-            {
-                ReservationId = reservationId,
-                ProductId = productId,
-                Quantity = quantity,
-                OrderId = orderId,
-                TimeToLive = TimeSpan.FromMinutes(15),
-                OccurredOnUtc = seedUtc.AddMinutes(2),
-            },
-            TestContext.Current.CancellationToken);
     }
 }
