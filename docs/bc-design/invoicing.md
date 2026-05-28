@@ -1,6 +1,5 @@
 # Invoicing Bounded Context
 
-> **Implementation status (2026-05-02):** M1–M6 + Wave 1.5 are implemented. M7 (`IssueInvoiceCommand` + `IssueCreditNoteCommand` handlers) is the next milestone; it resumes against the rich `OrderConfirmedEvent` summary contract per [ADR-0020](../adr/0020-summary-events.md).
 >
 > **Status:** Authored 2026-04-19. Greenfield BC added to the eShop reference to showcase patterns absent from Catalog / Basket / Ordering / Inventory / Payments.
 > **Scope:** Invoice issuance, delivery, credit-note issuance on cancellation/refund.
