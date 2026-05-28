@@ -19,7 +19,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// business-expected error code (commit + return silently),
 /// (2) <see cref="FluentResults.Result.Fail(FluentResults.IError)"/> with a
 /// non-business code (throw <see cref="SagaCommandDispatchException"/> →
-/// DLT route per <c>docs/bc-design/kafka-dlq-strategy.md § 1</c>),
+/// DLT route per <c>docs/bc-design/kafka-dlt-strategy.md § 1</c>),
 /// (3) Unhandled exception (e.g. <c>DataIntegrityException</c> for a
 /// bug-class condition like Confirm-on-uninitialized-stream — propagates,
 /// also DLT-routed but via KafkaFlow's unhandled-exception path).

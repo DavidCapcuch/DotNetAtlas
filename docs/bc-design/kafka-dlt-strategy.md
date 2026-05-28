@@ -1,8 +1,8 @@
-# Kafka DLQ & Retry Strategy
+# Kafka DLT & Retry Strategy
 
 > Governance for dead-lettering and consumer retries across every eShop topic. Reuses the existing [`Platform.KafkaFlow.DeadLetter`](../../platform/Platform.KafkaFlow.DeadLetter/) middleware — this document specifies **per-topic configuration** and **operational procedures** so consumers are dead-letter-aware from day one.
 >
-> Terminology: the existing codebase, docker-compose references, and `TopicsOptions.DltTopicSuffix` all use the term **DLT** (Dead-Letter **Topic**). The generic industry term is **DLQ** (Dead-Letter **Queue**). They refer to the same thing in this repo. This document uses **DLT** in file names and topic identifiers (matching the running code) and **DLQ** in prose when discussing strategy.
+> Terminology: this repo uses **DLT** (Dead-Letter **Topic**) everywhere — file names, topic identifiers, metrics, and prose. That's what Kafka actually provides (a topic), and what `TopicsOptions.DltTopicSuffix` and `Platform.KafkaFlow.DeadLetter` already emit. Older write-ups may use the generic dead-letter-queue acronym as a synonym; treat any such occurrence in this repo as a doc-rot artefact and substitute the canonical term.
 
 ---
 
@@ -131,7 +131,7 @@ docker compose exec kafka kafka-console-consumer \
 
 ## 6. Observability
 
-Per [master design § 11.3](../eshop-master-design.md), `KafkaFlow.OpenTelemetry` auto-instruments consumers. For DLQ governance specifically, the following metrics / logs must be emitted:
+Per [master design § 11.3](../eshop-master-design.md), `KafkaFlow.OpenTelemetry` auto-instruments consumers. For DLT governance specifically, the following metrics / logs must be emitted:
 
 | Signal | Source | Alert threshold |
 |--------|--------|-----------------|

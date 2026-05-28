@@ -14,7 +14,7 @@ The saga enters `CompensationStuck` when compensation takes longer than `Compens
 - **Inventory release calls failed** for some reservations (stock is still reserved but payment was refunded).
 - **Kafka partition unavailable** on a command topic (consumer cannot read the release command).
 - **Saga service crashed mid-compensation** (unlikely — persisted state resumes on restart).
-- **Down-stream DLQ saturation** (release/refund messages landed in DLQ but no consumer is draining them).
+- **Down-stream DLT saturation** (release/refund messages landed in DLT but no consumer is draining them).
 
 A saga in `CompensationStuck` is **terminal from the orchestrator's perspective** — it will not self-recover. Manual intervention is mandatory to avoid orphaned reservations, double-refunds, or held funds.
 
@@ -56,7 +56,7 @@ A saga in `CompensationStuck` is **terminal from the orchestrator's perspective*
 | `PaymentsRefundFailureRate` | `> 1%` for 5m | Payment gateway likely down or misbehaving |
 | `InventoryReleaseFailureRate` | `> 1%` for 5m | Inventory consumer bug, DB issue, or topic issue |
 | `KafkaConsumerLag{consumer_group="saga-checkout"}` | `> 1000` for 10m | Saga worker falling behind or crashed |
-| `KafkaDLQMessages{topic=~".*\\.DLT"}` | `> 10` for 5m | Messages rejected repeatedly — check DLQ |
+| `KafkaDLTMessages{topic=~".*\\.DLT"}` | `> 10` for 5m | Messages rejected repeatedly — check DLT |
 | `SagaCheckoutInProgress` (gauge) | `> 500` sustained | General saga throughput issue, not necessarily stuck |
 
 If any of the above are already paging alongside `CheckoutSagaStuck`, focus root-cause investigation there first — they are likely the cause, not the symptom.
@@ -98,7 +98,7 @@ Use the `correlation_id` as the **trace id** in Jaeger / Tempo. Look for:
   FROM inventory.reservation_audit
   WHERE order_id = '{order_id}';
   ```
-- Are **release commands in DLQ**?
+- Are **release commands in DLT**?
   ```bash
   docker compose exec kafka kafka-console-consumer \
     --bootstrap-server localhost:9092 \
@@ -107,7 +107,7 @@ Use the `correlation_id` as the **trace id** in Jaeger / Tempo. Look for:
     --max-messages 50 \
     --property print.key=true | grep '{correlation_id}'
   ```
-- Are **refund commands in DLQ**? Same command against `payments.payment-commands.DLT`.
+- Are **refund commands in DLT**? Same command against `payments.payment-commands.DLT`.
 
 ### Step 3 — Classify the root cause
 
@@ -117,7 +117,7 @@ Use the `correlation_id` as the **trace id** in Jaeger / Tempo. Look for:
 | Release command in `inventory.reservation-commands.DLT` | Inventory consumer bug or Inventory DB outage | § 4.2 |
 | `ReservationExpiryWorker` already expired reservations during compensation | TTL raced with refund — reservations are already `Released` with `ReleaseReason='Expiry'` | § 4.3 |
 | Kafka consumer lag on `saga-checkout` | Saga worker OOM, crash-looping, or restarting | § 4.4 |
-| No DLQ, no gateway errors, saga state looks consistent but no compensation events | State corruption (rare) | § 4.5 |
+| No DLT, no gateway errors, saga state looks consistent but no compensation events | State corruption (rare) | § 4.5 |
 
 ### Step 4 — Quick health snapshot
 
@@ -149,9 +149,9 @@ Paste output into the incident thread — post-mortem reviewers will need it.
 Context: refund commands are piling up in `payments.payment-commands.DLT`; gateway returns 5xx or timeouts.
 
 1. Confirm gateway has recovered — synthetic test against Payments health probe.
-2. Replay refund commands from DLQ:
+2. Replay refund commands from DLT:
    ```bash
-   # Internal tool — replays DLQ messages to the live topic in batches
+   # Internal tool — replays DLT messages to the live topic in batches
    ops-replay --source payments.payment-commands.DLT --dest payments.payment-commands \
               --correlation-ids correlation-ids.txt --batch 50
    ```
@@ -164,7 +164,7 @@ Context: release commands in `inventory.reservation-commands.DLT`; Inventory log
 
 1. Capture the stack trace from Inventory logs — root cause might be a recently-shipped bug; if so, start a rollback in parallel.
 2. Deploy the fix (or roll back the bad commit).
-3. Replay release commands from DLQ:
+3. Replay release commands from DLT:
    ```bash
    ops-replay --source inventory.reservation-commands.DLT --dest inventory.reservation-commands \
               --correlation-ids correlation-ids.txt --batch 50
@@ -185,7 +185,7 @@ WHERE order_id = '{order_id}';
 -- If every row has status='Released' AND release_reason='Expiry', the stock side is already resolved.
 ```
 
-Action: if **all reservations for the OrderId already have `Status='Released'`** (regardless of reason), the inventory side is compensated. Skip DLQ replay for release commands. Only handle the refund side (§ 4.1). Then apply § 4.5.
+Action: if **all reservations for the OrderId already have `Status='Released'`** (regardless of reason), the inventory side is compensated. Skip DLT replay for release commands. Only handle the refund side (§ 4.1). Then apply § 4.5.
 
 **This is the most common `CompensationStuck` scenario** in healthy production — a transient Payments slowdown lets the reservation TTL win the race. It is benign and does not need a post-mortem unless the frequency climbs.
 
@@ -210,7 +210,7 @@ Context: `kubectl get pods -l app=saga-orchestrators` shows `CrashLoopBackOff` o
 
 - Refund is completed (check `payments.payment_transactions.status='Refunded'`), OR was never captured.
 - All reservations are released (check `inventory.reservation_audit.status='Released'` for every row).
-- No commands for this correlation id remain in any DLQ.
+- No commands for this correlation id remain in any DLT.
 
 Then, and only then:
 
@@ -292,7 +292,7 @@ Run this checklist quarterly; items that fail become tickets.
 - [ ] Chaos testing: inject Payments/Inventory outage mid-checkout during a monthly load test; confirm saga enters `CompensationStuck` only when expected and recovers cleanly.
 - [ ] Kafka consumer lag on `saga-checkout`, `inventory-reservations`, `payments-payments` is monitored continuously with paging thresholds.
 - [ ] `saga_checkout_stuck_total` counter dashboard widget is **always visible** on the eShop main dashboard.
-- [ ] DLQ depth alerts exist for `inventory.reservation-commands.DLT` and `payments.payment-commands.DLT` with 10-minute thresholds.
+- [ ] DLT depth alerts exist for `inventory.reservation-commands.DLT` and `payments.payment-commands.DLT` with 10-minute thresholds.
 - [ ] `CompensationTimeout` default (300s) is reviewed against observed p99 compensation duration — if p99 > 150s, revisit; consider lowering timeout or fixing tail-latency.
 - [ ] `ReservationExpiryWorker` TTL (15 min) is comfortably longer than `CompensationTimeout` × 2 — otherwise § 4.3 races become the norm.
 - [ ] Runbook (this document) is linked from the PagerDuty incident body via the alert's `runbook` annotation.

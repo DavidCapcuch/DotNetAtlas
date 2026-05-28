@@ -6,13 +6,13 @@
 > - Handlers return `Result.Fail(new SomeError(...))` for **user-actionable** errors. Error types implement FluentResults `IError` (existing codebase convention — see `Weather.Domain.Alerts.Errors.WeatherAlertErrors` for the canonical shape using `Platform.SharedKernel.Errors.ValidationError`).
 > - Aggregate methods throw [`DataIntegrityException`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) for **corrupted-state / bug-class** errors. These propagate up the pipeline and hit the global exception middleware → HTTP 5xx, or the KafkaFlow [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) → `.DLT` topic when consumed from Kafka.
 > - Errors from external services (Catalog HTTP down, Kafka produce fail) use adapter-specific errors (e.g., `BasketAclErrors.CatalogUnavailable`) and are categorised as infrastructure/upstream failures.
-> - "Retry-ability" in this document refers to **caller/client** retry semantics; Kafka consumer retry is governed by [kafka-dlq-strategy.md](kafka-dlq-strategy.md).
+> - "Retry-ability" in this document refers to **caller/client** retry semantics; Kafka consumer retry is governed by [kafka-dlt-strategy.md](kafka-dlt-strategy.md).
 
 ---
 
 ## 1. Master Error Table
 
-| Error | BC | Category | HTTP | Saga behavior | Retry? | DLQ? | Source |
+| Error | BC | Category | HTTP | Saga behavior | Retry? | DLT? | Source |
 |-------|----|----------|------|---------------|--------|------|--------|
 | `BasketErrors.EmptyBasket` | Basket | User | 409 | Pre-saga block — `CheckoutBasketCommand` returns `Result.Fail` before publication | No | No | [basket.md § Invariants](basket.md) (Items.Count ≥ 1) |
 | `BasketErrors.MaxItemsReached` | Basket | User | 409 | N/A (pre-saga) | No | No | [basket.md § Invariants](basket.md) (max 50 items) |
@@ -64,7 +64,7 @@
 
 Returned by handlers via `Result.Fail(IError)`. The FastEndpoints `GlobalExceptionHandler` / `ProblemDetailsFactory` pipeline translates the FluentResults `Result` into an RFC 7807 `ProblemDetails` payload with the HTTP status code selected via the mapping table in § 4. These errors:
 
-- Never hit a DLQ — they either come from an HTTP request (returned to caller) or they originate from a saga-consumer path where the handler consciously converts the `Result.Fail` into a business outcome event (e.g., `ReserveStockCommand` handler receives `InsufficientStockError` → emits `StockReservationFailedEvent` on `inventory.reservations` and **completes the consumer normally** so the offset commits).
+- Never hit a DLT — they either come from an HTTP request (returned to caller) or they originate from a saga-consumer path where the handler consciously converts the `Result.Fail` into a business outcome event (e.g., `ReserveStockCommand` handler receives `InsufficientStockError` → emits `StockReservationFailedEvent` on `inventory.reservations` and **completes the consumer normally** so the offset commits).
 - Represent legitimate end-user mistakes (empty basket, SKU clash, cancelling a shipped order) or validated-input violations.
 
 ### 2.2 Business expected (409 / saga compensation)
@@ -75,20 +75,20 @@ A distinct subset of "user errors" whose outcome is **expected in the saga flow*
 - Do NOT dead-letter (the consumer commits the offset after publishing the failure event).
 - Feed the saga compensation matrix documented in [checkout-saga.md § 6](checkout-saga.md).
 
-### 2.3 Bug-class (5xx / DLQ)
+### 2.3 Bug-class (5xx / DLT)
 
 `DataIntegrityException` (defined in [`platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs)) and similar `CriticalException`-derived throws represent conditions that **should never occur in a working system**. Example: the saga tells Inventory to confirm a reservation that was already released; the aggregate throws. These errors:
 
 - Surface as HTTP 5xx through the global exception middleware when raised in an HTTP pipeline.
 - Route to the `.DLT` topic via [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) when raised in a KafkaFlow consumer.
-- Emit an ops alert (Grafana → PagerDuty via `kafka.consumer.dlq.messages` metric — see [kafka-dlq-strategy.md § 6](kafka-dlq-strategy.md)).
+- Emit an ops alert (Grafana → PagerDuty via `kafka.consumer.dlt.messages` metric — see [kafka-dlt-strategy.md § 6](kafka-dlt-strategy.md)).
 
 ### 2.4 Infrastructure / upstream
 
 Temporary failures outside the BC's control — upstream service returning 5xx, Kafka produce failing, DB connection timing out. Example: `BasketAclErrors.CatalogUnavailable` surfaces when Basket's `ProductCatalogHttpAdapter` hits a network error or Catalog returns 5xx. These errors:
 
 - Use **client retry** (the HTTP caller or outbox relay retries).
-- Do NOT dead-letter on first failure — only after the configured retry policy is exhausted (see [kafka-dlq-strategy.md § 2](kafka-dlq-strategy.md) for Kafka side; Polly policy in [HttpClientsDependencyInjection](../../src/Weather.Infrastructure/Common/HttpClientsDependencyInjection.cs) for HTTP side).
+- Do NOT dead-letter on first failure — only after the configured retry policy is exhausted (see [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) for Kafka side; Polly policy in [HttpClientsDependencyInjection](../../src/Weather.Infrastructure/Common/HttpClientsDependencyInjection.cs) for HTTP side).
 - Map to HTTP 503 (Service Unavailable) when surfaced through an API.
 
 ---
@@ -341,7 +341,7 @@ Bug-class errors inside Ordering / Inventory that cause a saga-command consumer 
 ## 6. Cross-References
 
 - [master-design § 11.1 Result pattern](../eshop-master-design.md) — top-level `Result` vs `DataIntegrityException` split
-- [kafka-dlq-strategy.md](kafka-dlq-strategy.md) — DLT routing and alerting for Kafka errors
+- [kafka-dlt-strategy.md](kafka-dlt-strategy.md) — DLT routing and alerting for Kafka errors
 - [architecture-tests.md § 1.5](architecture-tests.md) — NetArchTest rules that enforce "no raw `ArgumentException`/`InvalidOperationException` for user errors"
 - [use-cases.md](use-cases.md) — every `*Command` / `*Query` documents the `Result.Fail(...)` paths it can return
 - [catalog.md](catalog.md), [basket.md](basket.md), [ordering.md](ordering.md), [inventory.md](inventory.md) — BC-chapter "Errors" subsections enumerating VO-level error names

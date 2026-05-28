@@ -161,7 +161,7 @@ Every `{BusinessMoment}Event` schema must satisfy (enforced in review):
 - [ ] **Identity fields** are present for saga correlation + audit: `CorrelationId` where applicable, primary aggregate id, and `*AtUtc` timestamp.
 - [ ] Payload is **NOT the full aggregate** — only the facts relevant to the moment. Avoid dumping a 30-field aggregate into every event.
 - [ ] Schema is **FORWARD_TRANSITIVE** (event log) or **FULL_TRANSITIVE** (command topic) per [ADR-0007](adr/0007-avro-compatibility-modes.md).
-- [ ] **Idempotency** via the Kafka message id: consumers dedupe via the inbox middleware ([kafka-dlq-strategy.md](bc-design/kafka-dlq-strategy.md)); you do not need a separate `EventId` field in the payload.
+- [ ] **Idempotency** via the Kafka message id: consumers dedupe via the inbox middleware ([kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md)); you do not need a separate `EventId` field in the payload.
 - [ ] When the outbox publisher **enriches**, it loads aggregate state **at the event position**, not at "now". This is trivial in an event-sourced BC (Inventory); in OLTP BCs (Catalog, Ordering, Basket) you must be careful to enrich from the aggregate *as it was immediately after the domain transition* — use the domain event's own fields as the source of truth, not a fresh repository fetch that could see a newer version.
 
 ### 3.7 Topic-naming rationale — internal / external suffixes
@@ -576,7 +576,7 @@ When implementing a new interaction, use this rule in order. If after the rule y
 - Consuming another BC's internal `*DomainEvent` as if it were an external event (internal events don't cross process boundaries — they have no Avro schema).
 - Two-way synchronous chain spanning ≥ 3 services (turn it into a saga).
 
-**Idempotency rule:** every sync command accepts the `Idempotency-Key` header ([use-cases.md § Conventions](bc-design/use-cases.md)); every async consumer uses the inbox-middleware dedup ([kafka-dlq-strategy.md](bc-design/kafka-dlq-strategy.md)).
+**Idempotency rule:** every sync command accepts the `Idempotency-Key` header ([use-cases.md § Conventions](bc-design/use-cases.md)); every async consumer uses the inbox-middleware dedup ([kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md)).
 
 **When in doubt:** ask the user before committing to a transport. The cost of asking is small; the cost of a wrong transport choice accumulates across every subsequent interaction that mirrors it.
 
@@ -846,7 +846,7 @@ Cross-linked from each BC chapter's new `## Error types` subsection.
 
 ### F.3 Kafka DLT (dead-letter) strategy
 
-[bc-design/kafka-dlq-strategy.md](bc-design/kafka-dlq-strategy.md) — aligns with the existing `Platform.KafkaFlow.DeadLetter` convention: **`.DLT`** suffix (not `.dlq` — matches existing `TopicsOptions.DltTopicSuffix`). Per-topic table covers all 8 new topics + existing Payments/Notifications; poison-message runbook; DLT replay procedure; observability signals.
+[bc-design/kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md) — aligns with the existing `Platform.KafkaFlow.DeadLetter` convention: **`.DLT`** suffix per `TopicsOptions.DltTopicSuffix`. Per-topic table covers all 8 new topics + existing Payments/Notifications; poison-message runbook; DLT replay procedure; observability signals.
 
 Factual corrections made during authoring:
 - The codebase has `Platform.KafkaFlow.DeadLetter` but **no** `Platform.KafkaFlow.Retry` — current policy is aggressive DLT on first throw (documented as intentional).
@@ -903,7 +903,7 @@ Iteration 1 and 2's fake-sticky Miro flowcharts have been removed from the board
 |---------|---------|
 | Collaborative discovery | [example-mapping/](bc-design/example-mapping/) |
 | Error handling contracts | [error-taxonomy.md](bc-design/error-taxonomy.md) |
-| Kafka reliability | [kafka-dlq-strategy.md](bc-design/kafka-dlq-strategy.md) |
+| Kafka reliability | [kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md) |
 | Schema evolution | [avro-compatibility.md](bc-design/avro-compatibility.md), [ADR-0007](adr/0007-avro-compatibility-modes.md) |
 | Code-rule enforcement | [architecture-tests.md](bc-design/architecture-tests.md) |
 | Client retry safety | `use-cases.md` Idempotency-Key convention |
