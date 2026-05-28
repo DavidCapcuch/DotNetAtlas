@@ -122,7 +122,7 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle()
             .Which.Should().BeOfType<InsufficientStockError>()
-            .Which.Metadata["ErrorCode"].Should().Be("Inventory.InsufficientStock");
+            .Which.ErrorCode.Should().Be("Inventory.InsufficientStock");
 
         using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();

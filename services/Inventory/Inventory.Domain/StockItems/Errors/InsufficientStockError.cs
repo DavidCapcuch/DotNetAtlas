@@ -1,34 +1,30 @@
-using System.Globalization;
 using FluentResults;
+using Platform.SharedKernel.Errors;
 
 namespace Inventory.Domain.StockItems.Errors;
 
 /// <summary>
 /// Business-expected outcome of <c>ReserveStockCommand</c> when <c>Available</c> is
 /// less than the requested <c>Quantity</c>. Never thrown — flows as
-/// <see cref="Result.Fail(FluentResults.IError)"/> and is translated by the application-layer
-/// handler into an external <c>StockReservationFailedEvent</c>.
+/// <see cref="Result.Fail(FluentResults.IError)"/> and is translated by the
+/// application-layer handler into an external <c>StockReservationFailedEvent</c>.
 /// </summary>
 /// <remarks>
-/// Shape is locked by <c>docs/bc-design/error-taxonomy.md</c> § 3.4.
+/// Inherits <see cref="ConflictError"/> so the canonical
+/// <c>Platform.Api.Extensions</c> dispatch maps it to 409 without a BC-specific
+/// case. Modelled as a sealed class (not a record) because C# records cannot
+/// inherit from non-record bases (CS8864). Shape is locked by
+/// <c>docs/bc-design/error-taxonomy.md</c> § 3.4.
 /// </remarks>
-public sealed record InsufficientStockError(Guid ProductId, int Requested, int Available) : IError
+public sealed class InsufficientStockError(Guid productId, int requested, int available)
+    : ConflictError(
+        entityName: "StockItem",
+        message: FormattableString.Invariant($"Stock item {productId}: requested {requested}, available {available}."),
+        errorCode: "Inventory.InsufficientStock")
 {
-    public string Message =>
-        string.Format(
-            CultureInfo.InvariantCulture,
-            "Stock item {0}: requested {1}, available {2}.",
-            ProductId,
-            Requested,
-            Available);
+    public Guid ProductId { get; } = productId;
 
-    public Dictionary<string, object> Metadata { get; } = new()
-    {
-        ["ErrorCode"] = "Inventory.InsufficientStock",
-        ["ProductId"] = ProductId,
-        ["Requested"] = Requested,
-        ["Available"] = Available,
-    };
+    public int Requested { get; } = requested;
 
-    public List<IError> Reasons { get; } = [];
+    public int Available { get; } = available;
 }

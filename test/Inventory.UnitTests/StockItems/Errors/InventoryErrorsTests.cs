@@ -1,12 +1,13 @@
 using Inventory.Domain.StockItems.Errors;
 using Inventory.Domain.StockItems.ValueObjects;
+using Platform.SharedKernel.Errors;
 
 namespace Inventory.UnitTests.StockItems.Errors;
 
 public class InventoryErrorsTests
 {
     [Fact]
-    public void InsufficientStock_CarriesMetadataPerErrorTaxonomy()
+    public void InsufficientStock_ReturnsConflictErrorWithEntityNameAndCode()
     {
         // Arrange
         var productId = Guid.CreateVersion7();
@@ -17,20 +18,19 @@ public class InventoryErrorsTests
         // Assert
         using (new AssertionScope())
         {
+            error.Should().BeAssignableTo<ConflictError>();
+            error.EntityName.Should().Be("StockItem");
+            error.ErrorCode.Should().Be("Inventory.InsufficientStock");
             error.ProductId.Should().Be(productId);
             error.Requested.Should().Be(8);
             error.Available.Should().Be(7);
             error.Message.Should().Contain(productId.ToString()).And.Contain("8").And.Contain("7");
-            error.Metadata["ErrorCode"].Should().Be("Inventory.InsufficientStock");
-            error.Metadata["ProductId"].Should().Be(productId);
-            error.Metadata["Requested"].Should().Be(8);
-            error.Metadata["Available"].Should().Be(7);
             error.Reasons.Should().BeEmpty();
         }
     }
 
     [Fact]
-    public void Concurrency_CarriesMetadataPerErrorTaxonomy()
+    public void Concurrency_ReturnsConflictErrorWithEntityNameAndCode()
     {
         // Arrange
         var streamId = Guid.CreateVersion7();
@@ -41,16 +41,18 @@ public class InventoryErrorsTests
         // Assert
         using (new AssertionScope())
         {
+            error.Should().BeAssignableTo<ConflictError>();
+            error.EntityName.Should().Be("StockItem");
+            error.ErrorCode.Should().Be("Inventory.Concurrency");
             error.StreamId.Should().Be(streamId);
             error.ExpectedVersion.Should().Be(7);
             error.Message.Should().Contain(streamId.ToString()).And.Contain("7");
-            error.Metadata["ErrorCode"].Should().Be("Inventory.Concurrency");
             error.Reasons.Should().BeEmpty();
         }
     }
 
     [Fact]
-    public void ReservationNotActive_CarriesMetadataAndStatus()
+    public void ReservationNotActive_ReturnsConflictErrorWithEntityNameAndCode()
     {
         // Arrange
         var productId = Guid.CreateVersion7();
@@ -62,13 +64,13 @@ public class InventoryErrorsTests
         // Assert
         using (new AssertionScope())
         {
+            error.Should().BeAssignableTo<ConflictError>();
+            error.EntityName.Should().Be("Reservation");
+            error.ErrorCode.Should().Be("Inventory.ReservationNotActive");
             error.ProductId.Should().Be(productId);
             error.ReservationId.Should().Be(reservationId);
             error.CurrentStatus.Should().Be(ReservationStatus.Released);
-            error.Metadata["ErrorCode"].Should().Be("Inventory.ReservationNotActive");
-            error.Metadata["ProductId"].Should().Be(productId);
-            error.Metadata["ReservationId"].Should().Be(reservationId);
-            error.Metadata["CurrentStatus"].Should().Be(ReservationStatus.Released);
+            error.Message.Should().Contain(reservationId.ToString()).And.Contain(productId.ToString());
             error.Reasons.Should().BeEmpty();
         }
     }

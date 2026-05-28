@@ -256,7 +256,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle()
             .Which.Should().BeOfType<ConcurrencyError>()
-            .Which.Metadata["ErrorCode"].Should().Be("Inventory.Concurrency");
+            .Which.ErrorCode.Should().Be("Inventory.Concurrency");
     }
 
     [Fact]
