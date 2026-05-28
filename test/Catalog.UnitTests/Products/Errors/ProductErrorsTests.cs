@@ -6,7 +6,7 @@ namespace Catalog.UnitTests.Products.Errors;
 public class ProductErrorsTests
 {
     [Fact]
-    public void NotFound_PopulatesPropertyNameMessageAndCode()
+    public void NotFound_ReturnsNotFoundErrorWithEntityNameAndCode()
     {
         var productId = Guid.CreateVersion7();
 
@@ -14,15 +14,16 @@ public class ProductErrorsTests
 
         using (new AssertionScope())
         {
-            error.Should().BeOfType<ValidationError>();
-            error.PropertyName.Should().Be("ProductId");
+            error.Should().BeOfType<NotFoundError>();
+            error.EntityName.Should().Be("Product");
+            error.Id.Should().Be(productId);
             error.ErrorCode.Should().Be("Product.NotFound");
             error.Message.Should().Contain(productId.ToString());
         }
     }
 
     [Fact]
-    public void SkuAlreadyExists_PopulatesPropertyNameMessageAndCode()
+    public void SkuAlreadyExists_ReturnsConflictErrorWithEntityNameAndCode()
     {
         var sku = "DUP-001";
 
@@ -30,8 +31,8 @@ public class ProductErrorsTests
 
         using (new AssertionScope())
         {
-            error.Should().BeOfType<ValidationError>();
-            error.PropertyName.Should().Be("Sku");
+            error.Should().BeOfType<ConflictError>();
+            error.EntityName.Should().Be("Product");
             error.ErrorCode.Should().Be("Product.SkuAlreadyExists");
             error.Message.Should().Contain(sku);
         }

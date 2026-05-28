@@ -6,6 +6,7 @@ using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using Platform.SharedKernel.Errors;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;
 
@@ -67,7 +68,7 @@ public class UpdateProductPriceCommandHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Should().BeFailure();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains("does not exist"));
+        result.Errors.Should().ContainSingle(e => ((DomainError)e).ErrorCode == "Product.NotFound");
     }
 
     [Fact]

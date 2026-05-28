@@ -8,6 +8,7 @@ using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
+using Platform.SharedKernel.Errors;
 
 namespace Catalog.UnitTests.Products.CreateProduct;
 
@@ -77,8 +78,10 @@ public class CreateProductCommandHandlerTests
             ValidCommand(category.Id), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Should().BeFailure()
-            .And.HaveReason("A product with SKU 'ABC-001' already exists.");
+        result.Should().BeFailure();
+        result.Errors.Should().ContainSingle(e =>
+            ((DomainError)e).ErrorCode == "Product.SkuAlreadyExists"
+            && e.Message.Contains("ABC-001"));
     }
 
     [Fact]
@@ -129,8 +132,10 @@ public class CreateProductCommandHandlerTests
             ValidCommand(category.Id), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Should().BeFailure()
-            .And.HaveReason("A product with SKU 'ABC-001' already exists.");
+        result.Should().BeFailure();
+        result.Errors.Should().ContainSingle(e =>
+            ((DomainError)e).ErrorCode == "Product.SkuAlreadyExists"
+            && e.Message.Contains("ABC-001"));
     }
 
     [Fact]

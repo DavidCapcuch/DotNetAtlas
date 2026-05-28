@@ -28,16 +28,16 @@ public static class CategoryErrors
             errorMessage: "A category cannot be reparented under itself.",
             errorCode: "Category.CannotParentToSelf");
 
-    public static ValidationError NotFound(Guid categoryId)
-        => new ValidationError(
-            propertyName: "CategoryId",
-            errorMessage: $"Category '{categoryId}' does not exist.",
+    public static NotFoundError NotFound(Guid categoryId)
+        => new NotFoundError(
+            entityName: "Category",
+            id: categoryId,
             errorCode: "Category.NotFound");
 
-    public static ValidationError ParentNotFound(Guid parentCategoryId)
-        => new ValidationError(
-            propertyName: "ParentCategoryId",
-            errorMessage: $"Parent category '{parentCategoryId}' does not exist.",
+    public static NotFoundError ParentNotFound(Guid parentCategoryId)
+        => new NotFoundError(
+            entityName: "Category",
+            id: parentCategoryId,
             errorCode: "Category.ParentNotFound");
 
     public static ValidationError ReparentCreatesCycle(Guid categoryId, Guid newParentCategoryId)

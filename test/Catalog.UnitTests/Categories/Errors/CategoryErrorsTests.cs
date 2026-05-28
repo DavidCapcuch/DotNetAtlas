@@ -6,7 +6,7 @@ namespace Catalog.UnitTests.Categories.Errors;
 public class CategoryErrorsTests
 {
     [Fact]
-    public void NotFound_PopulatesPropertyNameMessageAndCode()
+    public void NotFound_ReturnsNotFoundErrorWithEntityNameAndCode()
     {
         var categoryId = Guid.CreateVersion7();
 
@@ -14,15 +14,16 @@ public class CategoryErrorsTests
 
         using (new AssertionScope())
         {
-            error.Should().BeOfType<ValidationError>();
-            error.PropertyName.Should().Be("CategoryId");
+            error.Should().BeOfType<NotFoundError>();
+            error.EntityName.Should().Be("Category");
+            error.Id.Should().Be(categoryId);
             error.ErrorCode.Should().Be("Category.NotFound");
             error.Message.Should().Contain(categoryId.ToString());
         }
     }
 
     [Fact]
-    public void ParentNotFound_PopulatesPropertyNameMessageAndCode()
+    public void ParentNotFound_ReturnsNotFoundErrorWithEntityNameAndCode()
     {
         var parentId = Guid.CreateVersion7();
 
@@ -30,8 +31,9 @@ public class CategoryErrorsTests
 
         using (new AssertionScope())
         {
-            error.Should().BeOfType<ValidationError>();
-            error.PropertyName.Should().Be("ParentCategoryId");
+            error.Should().BeOfType<NotFoundError>();
+            error.EntityName.Should().Be("Category");
+            error.Id.Should().Be(parentId);
             error.ErrorCode.Should().Be("Category.ParentNotFound");
             error.Message.Should().Contain(parentId.ToString());
         }
