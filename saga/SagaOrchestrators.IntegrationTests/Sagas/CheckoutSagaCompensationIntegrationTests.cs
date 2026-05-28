@@ -550,8 +550,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     /// Wire-level audit-fidelity (ADR-0011): outbox payload bytes must not contain any of the
     /// deterministic address VALUES the test seeded into the saga state on initiation. See
     /// <see cref="CheckoutSagaTestPublishers.AddressValueWitnesses"/> for the rationale (Avro
-    /// binary encoding writes string values as length-prefixed UTF-8; the prior M9 draft
-    /// scanned for field NAMES which Avro never emits — see Opus review H1).
+    /// binary encoding writes string values as length-prefixed UTF-8, not field names).
     /// </summary>
     private static void AssertNoAddressValuesInPayload(byte[] avroPayload)
     {
