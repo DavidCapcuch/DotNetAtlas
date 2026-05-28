@@ -124,6 +124,26 @@ Types.InAssembly(DomainAssembly)
     .GetResult();
 ```
 
+**Universal `*DomainEventHandler` suffix (U-D):**
+
+Every concrete class implementing `IDomainEventHandler<T>` ends with `DomainEventHandler`. The role name precedes the suffix:
+
+- `*ProjectionDomainEventHandler` — read-model projection writes (Catalog, Inventory).
+- `*OutboxPublisherDomainEventHandler` — external-event emissions via the transactional outbox (every BC).
+- `*LifecycleDomainEventHandler` — hybrid handlers that combine projection + outbox emit in one class (Inventory's `ReservationLifecycleDomainEventHandler`).
+- Future roles follow the same shape: name the role, then the contract.
+
+Classes implementing a **different** contract keep a contract-matching suffix — for example, Catalog's `StockLevelChangedProjectionHandler` implements the custom Application port `IStockLevelChangedProjector` (Kafka-delivered, inbox-deduped projection write) and keeps the plain `*ProjectionHandler` suffix. KafkaFlow `IMessageHandler<T>` adapters use `*KafkaHandler`. The rule is *contract-named suffix when the role suffix would be ambiguous about contract*.
+
+Enforced per-BC in each `{Bc}.ArchitectureTests/Application/DomainEventHandlerTests.cs` (or `BoundedContext/DomainEventHandlerTests.cs` for Inventory) with the same one-line rule:
+
+```csharp
+Types.InAssembly(ApplicationAssembly)
+    .That().ImplementInterface(typeof(IDomainEventHandler<>))
+    .Should().HaveNameEndingWith("DomainEventHandler")
+    .GetResult();
+```
+
 ### 1.4 Command / Query Discipline
 
 - Every command handler:
@@ -207,8 +227,12 @@ These complement § 1 with rules that encode chapter-specific invariants the rev
 ### 2.1 Catalog
 
 - **`Product.CategoryId` only** — `Product` aggregate references `Category` solely by `CategoryId` (a strongly-typed ID value object), never by `Category` type. Prevents accidental navigation-property-induced joins.
-- **`ProductSearchViewRow` location** — the projection row type lives in `Catalog.Application.Common.ReadModels.ProductSearchViewRow`. Projection writes happen only in per-event `*ProjectionHandler` classes co-located with their feature folder under `Catalog.Application.{Products,Categories}.<UseCase>.` (e.g., `ProductCreatedProjectionHandler`, `ProductPriceChangedProjectionHandler`, `ProductDiscontinuedProjectionHandler`, `CategoryCreatedProjectionHandler`, `CategoryReparentedProjectionHandler`, `StockLevelChangedProjectionHandler`).
-- **No projection writes outside the handlers** — the `DbSet<ProductSearchViewRow>` is only assigned/updated from classes whose name ends with `ProjectionHandler`, plus `CategoryPathService` (the shared helper used by category-rename/reparent rebuilds — see [catalog.md](catalog.md)). Custom rule scans method bodies for writes.
+- **`ProductSearchViewRow` location and two projection-writer shapes** — the projection row type lives in `Catalog.Application.Common.ReadModels.ProductSearchViewRow`. Projection writes happen in classes co-located with their feature folder under `Catalog.Application.{Products,Categories}.<UseCase>.`, in **two shapes**:
+  - **(a) In-process domain-event projections** — 7 per-event sealed `*ProjectionDomainEventHandler` classes, each implementing `IDomainEventHandler<T>` (e.g., `ProductCreatedProjectionDomainEventHandler`, `CategoryReparentedProjectionDomainEventHandler`). Run inside the command's UoW; row and aggregate commit in the same `SaveChangesAsync`.
+  - **(b) Kafka-delivered, inbox-deduped projection** — one sealed `StockLevelChangedProjectionHandler` implementing the custom Application port `IStockLevelChangedProjector`. Driven by Inventory's `StockLevelChanged` Avro event consumed by `StockLevelChangedKafkaHandler` in Infrastructure; inbox-dedup middleware (`Platform.KafkaFlow.Inbox.EFCore`) sits in front of the KafkaFlow pipeline for exactly-once delivery. Keeps the plain `*ProjectionHandler` suffix because it does NOT implement `IDomainEventHandler<T>` — its contract is the custom port, so the suffix matches the contract per § 1.3's U-D rule.
+
+  Both shapes are sealed; both live under `Catalog.Application.{Aggregate}.{UseCase}`; both write through the same `CatalogDbContext`. This two-shape closure is the deliberate read-side design — a new shape (notification handler, etc.) would require widening Catalog's design, not just adding code.
+- **No projection writes outside the handlers** — the `DbSet<ProductSearchViewRow>` is only assigned/updated from classes whose name ends with `ProjectionDomainEventHandler` or `ProjectionHandler`, plus `CategoryPathService` (the shared helper used by category-rename/reparent rebuilds — see [catalog.md](catalog.md)). Custom rule scans method bodies for writes.
 
 ```csharp
 // Example pseudocode
@@ -259,7 +283,7 @@ Types.InAssembly(OrderingInfraAssembly)
 
 - **`StockItem` is NOT directly persisted** — `StockItem` has no EF Core mapping; the repository rehydrates it from events. Any `DbSet<StockItem>` is forbidden.
 - **`stock_events` is append-only** — `InventoryDbContext.StockEvents.Update(...)` / `.Remove(...)` must not be called from any repository method. Only `.Add(...)` is permitted.
-- **Projection-handler location** — Inventory uses **multiplexed handlers** (one class implements `IDomainEventHandler<T>` for several stock-event types), so projection handlers live in `Inventory.Application.StockItems` (e.g., `CurrentStockLevelsProjectionHandler`, `ReservationLifecycleHandler`) — *not* in a separate `Inventory.Application.Projections` folder. They upsert into `current_stock_levels` / `reservation_audit` within the same DbContext transaction as the event append (`SaveChangesAsync` commits both). No projection runs on a separate DbContext or outside the event-handler chain.
+- **Projection-handler location** — Inventory uses **multiplexed handlers** (one class implements `IDomainEventHandler<T>` for several stock-event types), so handlers live in `Inventory.Application.StockItems` — *not* in a separate `Inventory.Application.Projections` folder. As of M4 there are two: `CurrentStockLevelsProjectionDomainEventHandler` (writes `current_stock_levels` + emits `StockLevelChanged` via outbox) and `ReservationLifecycleDomainEventHandler` (writes `reservation_audit` + emits the three `inventory.reservations` events). Both follow § 1.3's universal `*DomainEventHandler` suffix; the role names (`Projection`, `Lifecycle`) reflect their primary role. They upsert into `current_stock_levels` / `reservation_audit` within the same DbContext transaction as the event append (`SaveChangesAsync` commits both). No projection runs on a separate DbContext or outside the event-handler chain.
 
 ```csharp
 Types.InAssembly(InventoryInfraAssembly)
@@ -273,8 +297,7 @@ Types.InAssembly(InventoryInfraAssembly)
 
 Types.InAssembly(InventoryAppAssembly)
     .That().ImplementInterface(typeof(IDomainEventHandler<>))
-    .And().HaveNameEndingWith("ProjectionHandler")
-    .Should().ResideInNamespace("Inventory.Application.StockItems")
+    .Should().ResideInNamespaceMatching(@"^Inventory\.Application\.StockItems(\.\w+)?$")
     .GetResult();
 ```
 
