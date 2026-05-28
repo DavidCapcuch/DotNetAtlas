@@ -18,8 +18,8 @@ namespace Platform.ServiceDefaults.Pii;
 /// </para>
 /// <para>
 /// Wired into <see cref="Serilog.LoggerConfiguration"/> from
-/// <see cref="Logging.SerilogSetup"/> as the single non-opt-in PII surface in Wave 0 M3 —
-/// PII redaction in logs is foundational and must apply to every service that picks up
+/// <see cref="Logging.SerilogSetup"/> as the single non-opt-in PII surface — PII
+/// redaction in logs is foundational and must apply to every service that picks up
 /// <c>AddServiceDefaults()</c>.
 /// </para>
 /// </remarks>
