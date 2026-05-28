@@ -8,6 +8,7 @@ using Ordering.Infrastructure.Persistence.Database;
 using Ordering.IntegrationTests.Common;
 using Platform.CQRS;
 using Platform.SharedKernel.Exceptions;
+using Platform.Test.Framework.Kafka;
 using AvroConfirmOrderCommand = Ordering.Orders.ConfirmOrderCommand;
 using AvroOrderConfirmedEvent = Ordering.Orders.OrderConfirmedEvent;
 

@@ -280,6 +280,22 @@
           "Grpc.Core.Api": "2.70.0"
         }
       },
+      "KafkaFlow": {
+        "type": "Transitive",
+        "resolved": "4.2.0",
+        "contentHash": "4LxAIwKwCqIthofZpf0x/CtWqpfDQDYphC+Ug+HDozfgaedb6+LZKNzNaH8dUJLBEUTQKPrsWY5xnq0ZcJmmqA==",
+        "dependencies": {
+          "Confluent.Kafka": "2.8.0",
+          "KafkaFlow.Abstractions": "4.2.0",
+          "Microsoft.Bcl.AsyncInterfaces": "9.0.3",
+          "Microsoft.IO.RecyclableMemoryStream": "3.0.1"
+        }
+      },
+      "KafkaFlow.Abstractions": {
+        "type": "Transitive",
+        "resolved": "4.2.0",
+        "contentHash": "NIuC/kO0dZPz2DPbnU1hrmPufi8oCOE+YNdEoUc+2rqcgFr8BDBpBkxkZ3dHp0TLeyVoHUL0PDMBXfxamugwbg=="
+      },
       "librdkafka.redist": {
         "type": "Transitive",
         "resolved": "2.14.0",
@@ -320,8 +336,8 @@
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "UcSjPsst+DfAdJGVDsu346FX0ci0ah+lw3WRtn18NUwEqRt70HaOQ7lI72vy3+1LxtqI3T5GWwV39rQSrCzAeg=="
+        "resolved": "9.0.3",
+        "contentHash": "oFFX9Ls8dnNUBCD9yzRzHTY8tqvv+CiX43B8L8DjrM8BqYTAlORYaJf6+KXNtSC2bD1135yV8OxzcZFaluow5w=="
       },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
@@ -784,6 +800,11 @@
         "dependencies": {
           "Microsoft.IdentityModel.Logging": "8.0.1"
         }
+      },
+      "Microsoft.IO.RecyclableMemoryStream": {
+        "type": "Transitive",
+        "resolved": "3.0.1",
+        "contentHash": "s/s20YTVY9r9TPfTrN5g8zPF1YhwxyqO6PxUkrYTGI2B+OGPe9AdajWZrLhFqXIvqIW23fnUE4+ztrUWNU1+9g=="
       },
       "Microsoft.Testing.Extensions.Telemetry": {
         "type": "Transitive",
@@ -1281,7 +1302,9 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )",
           "Evolve": "[3.2.0, )",
           "FastEndpoints.Testing": "[8.1.0, )",
+          "KafkaFlow": "[4.2.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
+          "NSubstitute": "[5.3.0, )",
           "Npgsql": "[10.0.2, )",
           "OpenTelemetry": "[1.15.3, )",
           "Platform.Avro.UniversalSerDes": "[1.0.0, )",

@@ -5,6 +5,7 @@ using Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 using Ordering.Infrastructure.Persistence.Database;
 using Ordering.IntegrationTests.Common;
 using Platform.SharedKernel.Exceptions;
+using Platform.Test.Framework.Kafka;
 using AvroMarkOrderFailedCommand = Ordering.Orders.MarkOrderFailedCommand;
 using AvroOrderFailedEvent = Ordering.Orders.OrderFailedEvent;
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 using Ordering.Infrastructure.Persistence.Database;
 using Ordering.IntegrationTests.Common;
+using Platform.Test.Framework.Kafka;
 using AvroCreateOrderCommand = Ordering.Orders.CreateOrderCommand;
 using AvroCreateOrderItem = Ordering.Orders.CreateOrderItem;
 using AvroOrderAddress = Ordering.Orders.OrderAddress;

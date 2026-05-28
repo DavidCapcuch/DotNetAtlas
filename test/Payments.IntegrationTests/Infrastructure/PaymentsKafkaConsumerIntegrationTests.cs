@@ -8,6 +8,7 @@ using Payments.Infrastructure.Persistence.Database;
 using Payments.IntegrationTests.Common;
 using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
+using Platform.Test.Framework.Kafka;
 using AvroAuthorizePaymentCommand = Payments.Transactions.AuthorizePaymentCommand;
 using AvroCapturePaymentCommand = Payments.Transactions.CapturePaymentCommand;
 using AvroPaymentAuthorizationFailedEvent = Payments.Transactions.PaymentAuthorizationFailedEvent;

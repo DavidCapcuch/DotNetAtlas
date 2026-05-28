@@ -9,6 +9,7 @@ using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
+using Platform.Test.Framework.Kafka;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 using AvroOrderStatusAtTransition = Ordering.Orders.OrderStatusAtTransition;
 

@@ -8,6 +8,7 @@ using Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 using Ordering.Infrastructure.Persistence.Database;
 using Ordering.IntegrationTests.Common;
 using Platform.CQRS;
+using Platform.Test.Framework.Kafka;
 using AvroConfirmOrderCommand = Ordering.Orders.ConfirmOrderCommand;
 using AvroCreateOrderCommand = Ordering.Orders.CreateOrderCommand;
 using AvroCreateOrderItem = Ordering.Orders.CreateOrderItem;
