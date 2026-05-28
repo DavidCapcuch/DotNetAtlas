@@ -92,7 +92,9 @@ public class CapturePaymentCommandHandlerTests
 
         using (new AssertionScope())
         {
-            result.Should().BeFailure().And.HaveError("Payment gateway is temporarily unavailable.");
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e =>
+                ((Platform.SharedKernel.Errors.DomainError)e).ErrorCode == "Payments.GatewayUnavailable");
             existing.Status.Should().Be(PaymentStatus.Authorized);
             await _outbox.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
         }
