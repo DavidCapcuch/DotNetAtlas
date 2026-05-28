@@ -11,7 +11,7 @@ namespace SagaOrchestrators.UnitTests.Consumers.Checkout;
 /// Asserts <see cref="ReservationReleasedConsumer"/> field-by-field maps the Avro
 /// <see cref="ReservationReleasedEvent"/> onto the internal
 /// <see cref="ReservationReleasedSagaEvent"/>. The Avro <c>ReleaseReason</c> enum is
-/// stringified via <c>.ToString()</c>; M4 will discriminate on the value.
+/// stringified via <c>.ToString()</c>; the saga discriminates on the value.
 /// </summary>
 public class ReservationReleasedConsumerTests
 {

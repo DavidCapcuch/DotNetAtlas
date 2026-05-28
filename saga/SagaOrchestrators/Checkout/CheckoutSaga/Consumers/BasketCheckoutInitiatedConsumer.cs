@@ -12,7 +12,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 /// initiator <see cref="BasketCheckoutInitiatedSagaEvent"/>. Maps Basket's
 /// <c>BasketCorrelationId</c> onto the saga's <c>CorrelationId</c> per
 /// docs/bc-design/checkout-saga.md § 8 row 1. Address payloads (PII per ADR-0011) are
-/// serialised to opaque JSON strings and never logged - the M4 <c>Initially(...)</c> handler
+/// serialised to opaque JSON strings and never logged — the <c>Initially(...)</c> handler
 /// persists them, terminal-state handlers null them out per the retention rule.
 /// </summary>
 public sealed class BasketCheckoutInitiatedConsumer : IConsumer<BasketCheckoutInitiatedEvent>

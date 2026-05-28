@@ -19,13 +19,12 @@ using SagaOrchestrators.UnitTests.Checkout;
 namespace SagaOrchestrators.UnitTests.Sagas;
 
 /// <summary>
-/// Unit tests for the <see cref="CheckoutSagaOrchestrator"/> state machine. M4 covers every
-/// event-driven cell of the § 4 transition table; timeout-driven cells (and their tests) land
-/// in M5 alongside the schedule classes.
+/// Unit tests for the <see cref="CheckoutSagaOrchestrator"/> state machine. Covers every
+/// event-driven and timeout-driven cell of the § 4 transition table.
 /// </summary>
 /// <remarks>
-/// M7 added <see cref="CheckoutMeterSerialCollection"/> participation: this class drives
-/// the same compensation transitions that <c>CheckoutSagaMetricsEmissionTests</c> asserts
+/// Participates in <see cref="CheckoutMeterSerialCollection"/>: this class drives the same
+/// compensation transitions that <c>CheckoutSagaMetricsEmissionTests</c> asserts
 /// on via <see cref="System.Diagnostics.Metrics.MeterListener"/>; the shared collection
 /// serialises the two so the listener doesn't observe cross-class measurements on the
 /// process-global <c>SagaOrchestrators</c> meter.
@@ -1152,8 +1151,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Mirrors the JSON shape written by the M3 BasketCheckoutInitiatedConsumer's
-    /// internal BasketItemSnapshot record - kept as a test-local DTO so tests don't need to
+    /// Mirrors the JSON shape written by <c>BasketCheckoutInitiatedConsumer</c>'s
+    /// internal BasketItemSnapshot record — kept as a test-local DTO so tests don't need to
     /// reach into the consumer's internals.
     /// </summary>
     private sealed record CheckoutItemSnapshot(

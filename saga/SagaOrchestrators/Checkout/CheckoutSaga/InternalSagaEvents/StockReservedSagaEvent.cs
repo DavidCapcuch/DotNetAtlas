@@ -2,10 +2,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 
 /// <summary>
 /// Internal saga event signalling that Inventory reserved stock for one ProductId. Adapted from
-/// the external <c>Inventory.Reservations.StockReservedEvent</c> by the M3 consumer adapter.
+/// the external <c>Inventory.Reservations.StockReservedEvent</c> by the consumer adapter.
 /// Per docs/bc-design/checkout-saga.md § 8.1 Option B is not yet landed on Inventory's Avro
 /// schema; the saga therefore correlates this event by <see cref="OrderId"/> instead of by
-/// <c>CorrelationId</c> (M3 plan-file § C1 Path B). The state-machine sequence guarantees
+/// <c>CorrelationId</c>. The state-machine sequence guarantees
 /// <c>OrderCreatedSagaEvent</c> precedes any Stock* event, so <c>CheckoutSagaState.OrderId</c>
 /// is always set when correlation runs. Consumed (one per distinct ProductId) in
 /// <c>AwaitingStockReservation</c>; the saga stays in state until <c>PendingReservations</c>

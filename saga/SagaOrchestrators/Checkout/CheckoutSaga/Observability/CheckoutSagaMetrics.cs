@@ -7,8 +7,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Observability;
 /// <summary>
 /// OpenTelemetry instrumentation for the Checkout saga per
 /// docs/bc-design/checkout-saga.md § 11.2. Counters + histograms cover the event-driven
-/// (M4) transition surface; timeout-driven counters land in M5 alongside the schedule
-/// classes.
+/// transition surface.
 /// </summary>
 /// <remarks>
 /// Meter is named <see cref="ApplicationInfo.AppName"/> to match the OTel registration in

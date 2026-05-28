@@ -98,7 +98,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
     /// tables (separate schema, set up by <c>UsePostgres</c> in <c>SagaDependencyInjection</c>)
     /// are intentionally NOT included here: armed timeouts that fire after a saga has already
     /// finalised are silently discarded by MassTransit's default missing-instance behaviour, and
-    /// every M9/M6 test uses a fresh UUID v7 <c>CorrelationId</c> so no cross-test correlation
+    /// every test uses a fresh UUID v7 <c>CorrelationId</c> so no cross-test correlation
     /// is possible. If a future change sets <c>OnMissingInstance(Fault)</c> on any schedule, OR
     /// if a test ever needs to assert on transport-table state, extend
     /// <see cref="RespawnerOptions.SchemasToInclude"/> in the constructor to also clean the

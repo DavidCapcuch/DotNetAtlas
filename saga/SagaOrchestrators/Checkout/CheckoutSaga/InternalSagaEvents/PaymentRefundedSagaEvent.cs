@@ -3,7 +3,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// <summary>
 /// Internal saga event acknowledging that the Payments BC (via PaymentProcessingSaga) refunded
 /// a previously captured payment. Adapted from the external
-/// <c>Payments.Transactions.PaymentRefundedEvent</c> by the M3 consumer adapter (named
+/// <c>Payments.Transactions.PaymentRefundedEvent</c> by the consumer adapter (named
 /// <c>PaymentRefundedCheckoutConsumer</c>). Consumed in <c>CompensatingPayment</c> (transition
 /// to <c>CompensatingStockReservations</c> for the second compensation phase per
 /// docs/bc-design/checkout-saga.md § 4 transition table + § 6.1 two-phase rationale).

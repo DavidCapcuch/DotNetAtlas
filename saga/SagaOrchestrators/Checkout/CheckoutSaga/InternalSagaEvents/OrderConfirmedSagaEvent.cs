@@ -2,7 +2,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 
 /// <summary>
 /// Internal saga event signalling that Ordering confirmed the order. Adapted from the external
-/// <c>Ordering.Orders.OrderConfirmedEvent</c> by the M3 consumer adapter. Consumed in
+/// <c>Ordering.Orders.OrderConfirmedEvent</c> by the consumer adapter. Consumed in
 /// <c>AwaitingConfirmation</c> (transition to terminal <c>Confirmed</c> per
 /// docs/bc-design/checkout-saga.md § 4 transition table).
 /// </summary>

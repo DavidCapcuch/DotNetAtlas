@@ -7,8 +7,8 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Snapshots;
 /// per-product <c>ReserveStockCommand</c> emission.
 /// </summary>
 /// <remarks>
-/// Promoted from <c>BasketCheckoutInitiatedConsumer.BasketItemSnapshot</c> in M4 so the
-/// orchestrator can deserialize the same shape the M3 consumer wrote.
+/// Same shape the <c>BasketCheckoutInitiatedConsumer</c> wrote so the orchestrator can
+/// deserialize it.
 /// </remarks>
 internal sealed record BasketItemSnapshot(
     Guid ProductId,

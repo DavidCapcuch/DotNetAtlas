@@ -8,9 +8,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 /// Consumer that receives <see cref="ReservationReleasedEvent"/> from
 /// <c>inventory.reservations</c> and forwards it to the <see cref="CheckoutSagaOrchestrator"/>
 /// as <see cref="ReservationReleasedSagaEvent"/> per docs/bc-design/checkout-saga.md § 8
-/// row 9. Correlated by <c>OrderId</c> (M3 plan-file § C1 Path B). Drives transitions in
-/// <c>CompensatingStockReservations</c> -&gt; <c>Compensated</c> per § 4 transition table; M4
-/// will discriminate on <see cref="ReservationReleasedSagaEvent.ReleaseReason"/> to distinguish
+/// row 9. Correlated by <c>OrderId</c> (Inventory's Avro lacks <c>CorrelationId</c>).
+/// Drives transitions in <c>CompensatingStockReservations</c> -&gt; <c>Compensated</c> per
+/// § 4 transition table; the saga discriminates on
+/// <see cref="ReservationReleasedSagaEvent.ReleaseReason"/> to distinguish
 /// compensation-driven releases from TTL expiry.
 /// </summary>
 public sealed class ReservationReleasedConsumer : IConsumer<ReservationReleasedEvent>

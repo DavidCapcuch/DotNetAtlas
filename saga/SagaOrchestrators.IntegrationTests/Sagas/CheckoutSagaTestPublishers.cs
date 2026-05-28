@@ -5,25 +5,23 @@ using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 namespace SagaOrchestrators.IntegrationTests.Sagas;
 
 /// <summary>
-/// Shared static builders for the Wave-1 BC Avro events the M9 integration tests publish to
-/// drive the Checkout saga end-to-end. Lives here (under <c>Sagas/</c>) rather than under
-/// <c>Common/</c> so it's adjacent to its callers and obvious in code review that the helpers
-/// are test-only synthetic event factories — they mirror what Basket / Ordering would actually
-/// produce, populating only the fields the saga's consumer adapters read (the rest are filled
-/// to satisfy the Avro schema with deterministic values).
+/// Shared static builders for the BC Avro events the end-to-end integration tests publish to
+/// drive the Checkout saga. Lives here (under <c>Sagas/</c>) rather than under <c>Common/</c>
+/// so it's adjacent to its callers and obvious in code review that the helpers are test-only
+/// synthetic event factories — they mirror what Basket / Ordering would actually produce,
+/// populating only the fields the saga's consumer adapters read (the rest are filled to
+/// satisfy the Avro schema with deterministic values).
 /// </summary>
 /// <remarks>
-/// M6's <see cref="CheckoutSagaIntegrationTests"/> still uses its own private builders to keep
-/// that file's git-blame intact and its blast radius zero. The M9 files use these public ones
-/// instead. If a future milestone consolidates, prefer migrating M6 here over the inverse.
+/// <see cref="CheckoutSagaIntegrationTests"/> still uses its own private builders to keep
+/// that file's git-blame intact and its blast radius zero.
 /// </remarks>
 internal static class CheckoutSagaTestPublishers
 {
     /// <summary>
     /// Builds the saga-initiator <see cref="BasketCheckoutInitiatedEvent"/> from a tuple list
-    /// of product lines. Mirrors M6's <c>CreateBasketCheckoutInitiatedEvent</c> shape so the
-    /// two test files use the same conventions ("SKU-TEST" SKUs, "USD" currency, Prague address,
-    /// freshly-minted PaymentMethodId per call).
+    /// of product lines. Conventions: "SKU-TEST" SKUs, "USD" currency, Prague address,
+    /// freshly-minted PaymentMethodId per call.
     /// </summary>
     public static BasketCheckoutInitiatedEvent BuildBasketCheckoutInitiatedEvent(
         Guid correlationId,
@@ -85,7 +83,7 @@ internal static class CheckoutSagaTestPublishers
     }
 
     /// <summary>
-    /// Builds the deterministic Prague-CZ address used as both shipping and billing in M9 tests.
+    /// Builds the deterministic Prague-CZ address used as both shipping and billing in tests.
     /// The values returned here are the same strings <see cref="AddressValueWitnesses"/> exposes
     /// for wire-level PII audit assertions (ADR-0011). Don't change one without the other.
     /// </summary>
@@ -102,11 +100,12 @@ internal static class CheckoutSagaTestPublishers
 
     /// <summary>
     /// Wire-level audit-fidelity witnesses (ADR-0011): the deterministic UTF-8 string values
-    /// the M9 helpers plant into the saga's <c>ShippingAddressJson</c>/<c>BillingAddressJson</c>
-    /// via <see cref="BuildAddress"/>. Avro's binary encoding writes field VALUES (not field
-    /// NAMES) as length-prefixed UTF-8, so a saga-terminal event that accidentally re-emitted
-    /// the saga-state address payload would surface these strings verbatim in the outbox row's
-    /// <c>AvroPayload</c> bytes — see <c>AssertNoAddressValuesInPayload</c> in the M9 test files.
+    /// the integration-test helpers plant into the saga's
+    /// <c>ShippingAddressJson</c>/<c>BillingAddressJson</c> via <see cref="BuildAddress"/>.
+    /// Avro's binary encoding writes field VALUES (not field NAMES) as length-prefixed UTF-8,
+    /// so a saga-terminal event that accidentally re-emitted the saga-state address payload
+    /// would surface these strings verbatim in the outbox row's <c>AvroPayload</c> bytes —
+    /// see <c>AssertNoAddressValuesInPayload</c>.
     ///
     /// Excludes <c>"CZ"</c> (two-letter country code) because it collides with currency codes
     /// and other short tokens in the wire payload; the remaining three are distinctive enough

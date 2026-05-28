@@ -20,7 +20,7 @@ using SagaOrchestrators.Common.Observability.Tracing;
 namespace SagaOrchestrators.UnitTests.Checkout;
 
 /// <summary>
-/// M7 observability-emit assertions per <c>docs/bc-design/checkout-saga.md § 11.2</c> and
+/// Observability-emit assertions per <c>docs/bc-design/checkout-saga.md § 11.2</c> and
 /// the <c>&lt;dod&gt;</c> requirement "CompensationStuck counter increments on
 /// CompensationTimeout". Drives the saga to the three terminal compensation outcomes
 /// (<see cref="CheckoutSagaOrchestrator.CompensationStuck"/> from each compensation
@@ -38,9 +38,8 @@ namespace SagaOrchestrators.UnitTests.Checkout;
 /// </para>
 /// <para>
 /// Helpers are kept local to this file (rather than shared with the existing
-/// <c>CheckoutSagaOrchestratorTests</c>) so M7's deliverables stay cohesive in the
-/// <c>Checkout/</c> folder and we don't regress the M3 — M6 test suite by
-/// refactoring it.
+/// <c>CheckoutSagaOrchestratorTests</c>) so this file's deliverables stay cohesive
+/// in the <c>Checkout/</c> folder.
 /// </para>
 /// </remarks>
 [Collection(nameof(CheckoutMeterSerialCollection))]

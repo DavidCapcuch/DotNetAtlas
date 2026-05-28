@@ -28,13 +28,12 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga;
 /// docs/bc-design/checkout-saga.md § 3.
 /// </summary>
 /// <remarks>
-/// M4 landed the event-driven cells of the § 4 transition table. M5 wires the five
-/// timeout schedules (<c>OrderCreation</c>/<c>StockReservation</c>/<c>Payment</c>/
-/// <c>OrderConfirmation</c>/<c>Compensation</c> per § 7) and the timeout-driven cells of
-/// the § 3 transition table (<c>*Timeout.Received</c> rows). M8 wires the
-/// <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/> flag (ADR-0014): on
-/// <c>OrderCreatedSagaEvent</c> the orchestrator reads the flag via <see cref="IFeatureClient"/>
-/// and branches between the default OFF (stock-then-payment) path and an experimental ON
+/// Implements the event-driven cells of the § 4 transition table plus the five timeout
+/// schedules (<c>OrderCreation</c>/<c>StockReservation</c>/<c>Payment</c>/
+/// <c>OrderConfirmation</c>/<c>Compensation</c> per § 7) wiring the timeout-driven cells
+/// (<c>*Timeout.Received</c> rows). The <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/>
+/// flag (ADR-0014) is read on <c>OrderCreatedSagaEvent</c> via <see cref="IFeatureClient"/>
+/// to branch between the default OFF (stock-then-payment) path and an experimental ON
 /// (payment-then-stock) path. The ON path is intentionally not validated end-to-end in v1
 /// per ADR-0014 line 116 — see the flag's XML doc for the limits.
 /// </remarks>
@@ -326,7 +325,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// AwaitingStockReservation - § 4 rows 5-6. The StockReservationTimeout-driven row (7) is M5.
+    /// AwaitingStockReservation - § 4 rows 5-6 plus the StockReservationTimeout-driven row 7.
     /// </summary>
     private void ConfigureAwaitingStockReservationState()
     {
@@ -393,7 +392,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// AwaitingPayment - § 4 rows 7-8. The PaymentTimeout-driven row (9) is M5.
+    /// AwaitingPayment - § 4 rows 7-8 plus the PaymentTimeout-driven row 9.
     /// </summary>
     private void ConfigureAwaitingPaymentState()
     {
@@ -453,8 +452,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// AwaitingConfirmation - § 4 rows 10-12. ReservationConfirmed events stay in state
-    /// (informational only). The OrderConfirmationTimeout-driven row (13) is M5.
+    /// AwaitingConfirmation - § 4 rows 10-12 plus the OrderConfirmationTimeout-driven row 13.
+    /// ReservationConfirmed events stay in state (informational only).
     /// </summary>
     private void ConfigureAwaitingConfirmationState()
     {
@@ -538,7 +537,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// CompensatingStockReservations - § 4 rows 13-14. CompensationTimeout-driven row (15) is M5.
+    /// CompensatingStockReservations - § 4 rows 13-14 plus the CompensationTimeout-driven row 15.
     /// </summary>
     private void ConfigureCompensatingStockReservationsState()
     {
@@ -598,8 +597,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// CompensatingPayment - § 4 row 16 (refund-first per § 6.1). CompensationTimeout-driven
-    /// row (17) is M5.
+    /// CompensatingPayment - § 4 row 16 (refund-first per § 6.1) plus the
+    /// CompensationTimeout-driven row 17.
     /// </summary>
     private void ConfigureCompensatingPaymentState()
     {
@@ -638,15 +637,15 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     /// <summary>
     /// Wires correlation rules per docs/bc-design/checkout-saga.md § 4.1. Most events
     /// correlate by <c>CorrelationId</c>. The four Inventory events instead correlate by
-    /// <c>OrderId</c> per M3 plan-file § C1 Path B - Inventory's Avro schemas don't yet
-    /// carry <c>CorrelationId</c> (§ 8.1 Option B not yet landed); the state-machine
-    /// sequence guarantees <c>OrderCreatedSagaEvent</c> precedes any Stock* event so
+    /// <c>OrderId</c> — Inventory's Avro schemas don't carry <c>CorrelationId</c> (§ 8.1
+    /// Option B not yet landed); the state-machine sequence guarantees
+    /// <c>OrderCreatedSagaEvent</c> precedes any Stock* event so
     /// <c>CheckoutSagaState.OrderId</c> is always set when correlation runs. All intermediate
     /// events use <c>OnMissingInstance(m =&gt; m.Discard())</c> so events arriving for an
-    /// already-finalized (or out-of-order) saga are silently dropped - the spec-mandated
+    /// already-finalized (or out-of-order) saga are silently dropped — the spec-mandated
     /// divergence from PaymentProcessingSaga, which uses <c>Fault()</c> for some events. The
     /// initiator <see cref="BasketCheckoutInitiatedEvent"/> has no missing-instance policy
-    /// because the M4 <c>Initially(...)</c> handler creates the instance on first arrival.
+    /// because the <c>Initially(...)</c> handler creates the instance on first arrival.
     /// </summary>
     private void ConfigureEvents()
     {

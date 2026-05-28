@@ -18,7 +18,7 @@ using SagaOrchestrators.UnitTests.Checkout;
 namespace SagaOrchestrators.UnitTests.Sagas;
 
 /// <summary>
-/// M8 — verifies the topology-swap flag <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/>
+/// Verifies the topology-swap flag <see cref="CheckoutSagaFeatureFlags.PaymentThenStock"/>
 /// (ADR-0014, third showcase pattern) drives the post-OrderCreated branch in
 /// <see cref="CheckoutSagaOrchestrator.ConfigureAwaitingOrderCreationState"/>. Default OFF
 /// per ADR-0004 takes the stock-then-payment path; ON takes the experimental
@@ -300,7 +300,7 @@ public class CheckoutSagaOrchestratorFlagTests
     }
 
     /// <summary>
-    /// Mirrors the JSON shape written by the M3 BasketCheckoutInitiatedConsumer's internal
+    /// Mirrors the JSON shape written by <c>BasketCheckoutInitiatedConsumer</c>'s internal
     /// BasketItemSnapshot record — kept as a test-local DTO so tests don't reach into consumer
     /// internals. Same shape as the helper in <see cref="CheckoutSagaOrchestratorTests"/>.
     /// </summary>

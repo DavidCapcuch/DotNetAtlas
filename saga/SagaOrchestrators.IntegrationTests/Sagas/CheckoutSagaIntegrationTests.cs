@@ -12,7 +12,7 @@ using SagaOrchestrators.IntegrationTests.Common;
 namespace SagaOrchestrators.IntegrationTests.Sagas;
 
 /// <summary>
-/// Integration tests for the Checkout saga's multi-item fan-out flow (M6 — § 5 fan-out
+/// Integration tests for the Checkout saga's multi-item fan-out flow (§ 5 fan-out
 /// algorithm + § 4 transition-table rows 2 and 6). Drives the saga via real Kafka
 /// (<c>basket.sessions</c>, <c>ordering.orders</c>, <c>inventory.reservations</c>) against
 /// the real EF Core saga repository in Postgres (Testcontainers via
@@ -20,13 +20,13 @@ namespace SagaOrchestrators.IntegrationTests.Sagas;
 /// <see cref="CheckoutSagaState"/> rows and on outbox commands written by the saga.
 /// </summary>
 /// <remarks>
-/// Wave-1 BC services are NOT running for these tests — the test publishes the response
-/// Avro events directly (mimicking what Ordering / Inventory would send back) so the M6
-/// scope stays focused on the saga's fan-out machinery. Compensation-terminal-state
-/// assertions (transition through to <see cref="CheckoutSagaOrchestrator.Compensated"/>)
-/// belong to M7; the full BC-driven end-to-end run plus the ADR-0011 PII null-out check
-/// against the real EF repo belong to M9. M6 stops at the entry to
-/// <see cref="CheckoutSagaOrchestrator.CompensatingStockReservations"/>.
+/// BC services are NOT running for these tests — the test publishes the response Avro
+/// events directly (mimicking what Ordering / Inventory would send back) so the scope
+/// stays focused on the saga's fan-out machinery. This file stops at the entry to
+/// <see cref="CheckoutSagaOrchestrator.CompensatingStockReservations"/>; the
+/// full end-to-end BC-driven run plus the ADR-0011 PII null-out check live in
+/// <see cref="CheckoutSagaEndToEndIntegrationTests"/> and
+/// <see cref="CheckoutSagaCompensationIntegrationTests"/>.
 /// </remarks>
 [Collection(nameof(SagaTestCollection))]
 public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest

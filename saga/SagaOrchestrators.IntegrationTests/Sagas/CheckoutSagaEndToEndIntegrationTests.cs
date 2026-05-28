@@ -14,12 +14,10 @@ using SagaOrchestrators.IntegrationTests.Common;
 namespace SagaOrchestrators.IntegrationTests.Sagas;
 
 /// <summary>
-/// M9 end-to-end integration tests for the Checkout saga happy path. Drives the saga from
+/// End-to-end integration tests for the Checkout saga happy path. Drives the saga from
 /// <see cref="CheckoutSagaOrchestrator.AwaitingOrderCreation"/> all the way to the
-/// <see cref="CheckoutSagaOrchestrator.Confirmed"/> terminal — the slice that M6 explicitly
-/// deferred ("the full BC-driven end-to-end run … belong to M9", see
-/// <see cref="CheckoutSagaIntegrationTests"/> remarks). Drives the saga via real Kafka (Wave-1
-/// BC <c>basket.sessions</c> / <c>ordering.orders</c> / <c>inventory.reservations</c> /
+/// <see cref="CheckoutSagaOrchestrator.Confirmed"/> terminal via real Kafka
+/// (BC <c>basket.sessions</c> / <c>ordering.orders</c> / <c>inventory.reservations</c> /
 /// <c>payments.payments</c> response events) against the real EF Core saga repository in
 /// Postgres (Testcontainers via <see cref="SagaIntegrationTestFixture"/>); asserts on outbox
 /// commands and on the wire-shape of the published <see cref="CheckoutCompletedEvent"/>.
@@ -33,8 +31,7 @@ namespace SagaOrchestrators.IntegrationTests.Sagas;
 /// into the saga state on initiation (verified via UTF-8 byte scan against
 /// <see cref="CheckoutSagaTestPublishers.AddressValueWitnesses"/>). Avro binary encoding does
 /// NOT include field names — only values are length-prefixed UTF-8 — so a value-witness scan is
-/// the correct shape for wire-level audit-fidelity (per the M9 Opus pre-commit review's H1
-/// finding; the prior M9 draft scanned for field names which Avro never emits, a tautology).
+/// the correct shape for wire-level audit-fidelity.
 /// The orchestrator's in-saga <c>NullOutAddresses</c> step has unit-level coverage already;
 /// this test pins the persistence + wire boundary at the integration level.
 /// </remarks>
