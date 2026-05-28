@@ -179,7 +179,7 @@ Guard rails called out so implementation agents don't trip on them:
 - [events-catalog.md § 5](events-catalog.md) — full `.avsc` files for every new event / command
 - [events-catalog.md § 7](events-catalog.md) — inbox message-type registration per service
 - [error-taxonomy.md](error-taxonomy.md) — how deserialization errors route through DLT
-- [kafka-dlq-strategy.md](kafka-dlq-strategy.md) — DLT behavior when a consumer can't decode a message (e.g., missing Schema Registry entry)
+- [kafka-dlt-strategy.md](kafka-dlt-strategy.md) — DLT behavior when a consumer can't decode a message (e.g., missing Schema Registry entry)
 - [`platform/Platform.Avro.UniversalSerDes/UniversalAvroSerializer.cs`](../../platform/Platform.Avro.UniversalSerDes/UniversalAvroSerializer.cs) — existing serializer that registers schemas on first publish
 - [`platform/Platform.Test.Framework/Kafka/KafkaTestContainer.cs`](../../platform/Platform.Test.Framework/Kafka/KafkaTestContainer.cs) — existing test setup confirming `SubjectNameStrategy.Record`
 - Pending **ADR-0007 (Avro Compatibility Policy)** — to be authored alongside the implementation wave; will supersede any conflicting clause here

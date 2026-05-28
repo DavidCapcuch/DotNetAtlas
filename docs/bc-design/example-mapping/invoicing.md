@@ -52,7 +52,7 @@
 - **And** throws `DataIntegrityException` — routed to DLT by the Kafka error-handling middleware
 - **Verify** the row in `pending_invoices` is NOT marked `IssuedInvoiceId`; invoice not created
 - **Verify** DLT topic `invoicing.invoices.DLT` (or the configured inbox DLT) receives the offending message
-- **Verify** ops alert fires per `kafka-dlq-strategy.md § DLT cumulative` (a live production incident — orders and payments should always agree on total)
+- **Verify** ops alert fires per `kafka-dlt-strategy.md § DLT cumulative` (a live production incident — orders and payments should always agree on total)
 
 ### Questions
 

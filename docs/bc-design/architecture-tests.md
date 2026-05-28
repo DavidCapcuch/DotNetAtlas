@@ -181,7 +181,7 @@ The [error-taxonomy.md](error-taxonomy.md) § 2 classification (user / business-
 
 - **Handler path:** command/query handlers and aggregate methods whose state transitions CAN fail due to user action return `Result` / `Result<T>` — **no raw throws** of `ArgumentException`, `InvalidOperationException`, `ArgumentNullException`.
 - **Bug path:** aggregate invariant violations throw `DataIntegrityException` (from `Platform.SharedKernel.Exceptions`) — **not** `InvalidOperationException`, not `Exception`, not a custom exception without inheriting `CriticalException`.
-- **Consumer handler path:** saga-command consumer handlers ([use-cases.md § 3.3](use-cases.md), [§ 4.3](use-cases.md)) handling a `Result.Fail(userError)` **must not rethrow as `InvalidOperationException`** for user-actionable errors; instead they emit a business outcome event (per [kafka-dlq-strategy.md § 2](kafka-dlq-strategy.md) "Exceptions to the throw → DLT rule").
+- **Consumer handler path:** saga-command consumer handlers ([use-cases.md § 3.3](use-cases.md), [§ 4.3](use-cases.md)) handling a `Result.Fail(userError)` **must not rethrow as `InvalidOperationException`** for user-actionable errors; instead they emit a business outcome event (per [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) "Exceptions to the throw → DLT rule").
 
 ```csharp
 // No raw ArgumentException / InvalidOperationException in handlers
@@ -430,7 +430,7 @@ Implementation agents tick these off as they author the architecture-tests proje
 - [master design § 11.4 Testing Layers](../eshop-master-design.md) — architecture tests are the third of four layers
 - [master design § Appendix B.2](../eshop-master-design.md) — authoritative layer-reference table that § 1.1 mirrors
 - [error-taxonomy.md § 2](error-taxonomy.md) — the categorization `§ 1.5` enforces
-- [kafka-dlq-strategy.md § 2](kafka-dlq-strategy.md) — the consumer-handler anti-rethrow rule referenced by § 1.5
+- [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) — the consumer-handler anti-rethrow rule referenced by § 1.5
 - [catalog.md](catalog.md) / [basket.md](basket.md) / [ordering.md](ordering.md) / [inventory.md](inventory.md) — the BC chapters whose invariants § 2.{BC} encodes
 - `test/Weather.ArchitectureTests/` — existing precedent for NetArchTest usage in this repo
 - [`platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) — the exception type checked by § 1.5
