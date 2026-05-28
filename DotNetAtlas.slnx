@@ -39,6 +39,7 @@
   </Folder>
   <Folder Name="/platform/">
     <File Path="platform/Directory.Packages.props" />
+    <Project Path="platform/Platform.Api/Platform.Api.csproj" />
     <Project Path="platform/Platform.Avro.UniversalSerDes/Platform.Avro.UniversalSerDes.csproj" />
     <Project Path="platform/Platform.CQRS/Platform.CQRS.csproj" />
     <Project Path="platform/Platform.KafkaFlow.DeadLetter/Platform.KafkaFlow.DeadLetter.csproj" />
@@ -128,6 +129,7 @@
     <Project Path="src/Weather.Infrastructure/Weather.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="platform/Platform.Api.UnitTests/Platform.Api.UnitTests.csproj" />
     <Project Path="platform/Platform.KafkaFlow.ProducerHeaders.UnitTests/Platform.KafkaFlow.ProducerHeaders.UnitTests.csproj" />
     <Project Path="platform/Platform.ReliableMessaging.Outbox.EFCore.UnitTests/Platform.ReliableMessaging.Outbox.EFCore.UnitTests.csproj" />
     <Project Path="platform/Platform.ServiceDefaults.UnitTests/Platform.ServiceDefaults.UnitTests.csproj" />
