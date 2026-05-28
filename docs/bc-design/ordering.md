@@ -567,4 +567,4 @@ Ordering's error class set is the authoritative table in **[error-taxonomy.md §
 Key Ordering-specific semantics (the rest lives in error-taxonomy.md):
 
 - `CannotCancelInStatus(status)` is the only user-visible error produced during the checkout saga flow (mapped to 409 Conflict per [error-taxonomy.md:32, 294](error-taxonomy.md)); all other Ordering errors are bug-class because saga-issued commands should have already satisfied preconditions.
-- Ordering's inbox-consumed saga commands route failures to `ordering.order-commands.DLT` per [kafka-dlt-strategy.md](kafka-dlt-strategy.md).
+- Ordering's inbox-consumed saga commands route failures to `ordering.order-commands.Ordering.DLT` per [kafka-dlt-strategy.md § 1](kafka-dlt-strategy.md).

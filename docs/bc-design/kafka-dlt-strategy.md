@@ -8,9 +8,27 @@
 
 ## 1. DLT Naming Convention
 
-`{topic}.DLT` — e.g., `inventory.reservations.DLT`, `ordering.order-commands.DLT`.
+`{source-topic}.{consumer-bc}.DLT` — the actual broker topic name as produced by the live code. Examples:
 
-The suffix is applied by [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) using the configured `DltTopicSuffix` from each service's `TopicsOptions` (see [`src/Weather.Application/Common/Messaging/TopicsOptions.cs`](../../src/Weather.Application/Common/Messaging/TopicsOptions.cs) and siblings in `services/Payments/`, `services/Notifications/`). All new services (Catalog, Basket, Ordering, Inventory, Payments, Invoicing) MUST set `DltTopicSuffix = ".DLT"` in `appsettings.json` under the Kafka topics section for consistency.
+- `payments.payment-commands.Payments.DLT` (Payments BC's consumer of `payments.payment-commands`)
+- `inventory.reservation-commands.Inventory.DLT` (Inventory BC's consumer of `inventory.reservation-commands`)
+- `ordering.orders.Invoicing.DLT` AND `ordering.orders.Inventory.DLT` (the SAME source topic, two different consumer BCs, two different DLT buckets)
+
+The suffix is applied by [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) using the configured `DltTopicSuffix` from each service's `TopicsOptions` (see e.g. [`services/Payments/Payments.Application/Common/Messaging/TopicsOptions.cs`](../../services/Payments/Payments.Application/Common/Messaging/TopicsOptions.cs) and sibling files in every BC's Application or Infrastructure project). Each BC's `appsettings.json` Topics section pins its own suffix:
+
+| BC | `DltTopicSuffix` |
+|----|------------------|
+| Basket | `.Basket.DLT` |
+| Catalog | `.Catalog.DLT` |
+| Inventory | `.Inventory.DLT` |
+| Invoicing | `.Invoicing.DLT` |
+| Notifications | `.Notifications.DLT` |
+| Ordering | `.Ordering.DLT` |
+| Payments | `.Payments.DLT` |
+
+**Per-consumer-BC isolation is intentional.** When two BCs consume the same source topic, each gets its own DLT bucket so the on-call mapping (DLT → ownership) is unambiguous — no need for a `DLT-Consumer-Group` header to disambiguate. F-1 in § 7 becomes a doc-only nice-to-have once this naming is honoured.
+
+**Saga (MassTransit) does NOT use `Platform.KafkaFlow.DeadLetter`.** Saga consumers in `saga/SagaOrchestrators/` rely on MassTransit's built-in retry + the saga state-timeout machinery documented in [saga-stuck-runbook.md](saga-stuck-runbook.md). Saga-consumed event topics (`basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions`) therefore do not have a `*.Saga.DLT` counterpart at all.
 
 **Partition count for DLT topics:** same as the originating topic so that partition-key affinity is preserved for diagnostic grouping. Retention on DLT topics is **14 days** by default — long enough for on-call investigation, short enough to avoid unbounded growth.
 
@@ -30,7 +48,7 @@ This is an intentionally **aggressive** DLT policy: a single unhandled exception
 | Stage | Behavior |
 |-------|----------|
 | 1st delivery | Handler runs; inner Polly/EF retries (≤ 3, jittered exponential) handle transient upstream faults |
-| Handler throws | Exception caught by `DeadLetterMiddleware` → message produced to `{topic}.DLT` with diagnostic headers → offset committed → NO re-consume |
+| Handler throws | Exception caught by `DeadLetterMiddleware` → message produced to `<source-topic>.<consumer-bc>.DLT` with diagnostic headers → offset committed → NO re-consume |
 | Handler returns `Result.Fail(userError)` | Consumer handler **MUST** convert the failure into a business outcome event (e.g., `StockReservationFailedEvent`) and commit normally — DO NOT throw to DLT |
 
 **Exceptions to the "throw → DLT" rule:**
@@ -41,25 +59,32 @@ This is an intentionally **aggressive** DLT policy: a single unhandled exception
 
 ---
 
-## 3. Per-Topic DLT Table
+## 3. Per-Consumer DLT Table
 
-All topic names, partition counts and retention values below must match [events-catalog.md § 4 and § 6.1](events-catalog.md). DLT partition count equals the originating topic partition count.
+Rows are keyed by **(consumer BC × source topic)** because the live `DltTopicSuffix` is per-BC and produces a distinct DLT bucket per consumer. Source-topic partition counts and retention come from [events-catalog.md § 4 and § 6.1](events-catalog.md) (unchanged here). DLT retention is 14 days across the board; DLT partition count is whatever the broker defaults to on auto-create (see § 7 F-3).
 
-| Topic | DLT topic | Source retention | DLT retention | Notes |
-|-------|-----------|------------------|---------------|-------|
-| `catalog.products` | `catalog.products.DLT` | infinite (audit) | 14 days | Event log — DLT messages indicate projection or consumer bug (BFF cache invalidator, Inventory stock-init, Basket ACL cache) |
-| `catalog.categories` | `catalog.categories.DLT` | infinite (audit) | 14 days | Category taxonomy — low traffic; DLT rarely non-empty |
-| `basket.sessions` | `basket.sessions.DLT` | 30 days | 14 days | Only the Checkout saga consumes; DLT alert = saga cannot start checkout |
-| `ordering.orders` | `ordering.orders.DLT` | infinite (audit) | 14 days | Multiple consumers (Checkout saga, Notifications, BFF cache invalidator). A consumer-group-scoped DLT is NOT used — inspectors filter by `DLT-Original-Consumer-Group` header (future enhancement; header not yet in `DltHeaders`, see § 7) |
-| `ordering.order-commands` | `ordering.order-commands.DLT` | 7 days | 14 days | Commands **must** complete — DLT = urgent ops investigation (saga step blocked) |
-| `inventory.stock-events` | `inventory.stock-events.DLT` | infinite (audit) | 14 days | Catalog / BFF cache invalidator consume |
-| `inventory.reservations` | `inventory.reservations.DLT` | infinite (audit) | 14 days | Saga fan-in depends on these — DLT delays saga completion until state-timeout triggers compensation |
-| `inventory.reservation-commands` | `inventory.reservation-commands.DLT` | 7 days | 14 days | Commands must complete — DLT = saga state-timeout + compensation imminent |
-| `payments.transactions` | `payments.transactions.DLT` | (existing) | 14 days | Existing — unchanged |
-| `payments.payment-commands` | `payments.payment-commands.DLT` | (existing) | 14 days | Existing — unchanged |
-| `notification.commands` | `notification.commands.DLT` | (existing) | 14 days | Existing — unchanged |
+| Consumer BC | Source topic | DLT topic (broker name) | Source retention | Notes |
+|-------------|--------------|--------------------------|------------------|-------|
+| Catalog | `inventory.stock-level-changed` | `inventory.stock-level-changed.Catalog.DLT` | infinite (event-log) | `StockLevelChangedKafkaHandler` projects to `Catalog.IsSellable`. Note source-topic name diverges from the `inventory.stock-events` row in events-catalog.md § 4 — separate cleanup, see § 7 follow-up. |
+| Inventory | `inventory.reservation-commands` | `inventory.reservation-commands.Inventory.DLT` | 7 days (command) | Saga → Inventory commands. DLT = saga state-timeout + compensation imminent. |
+| Inventory | `catalog.products` | `catalog.products.Inventory.DLT` | infinite (event-log) | Stock-init projection from Catalog product master. |
+| Inventory | `ordering.orders` | `ordering.orders.Inventory.DLT` | infinite (event-log) | `OrderCancelledEvent` consumer (release reserved stock). |
+| Invoicing | `ordering.orders` | `ordering.orders.Invoicing.DLT` | infinite (event-log) | `OrderConfirmedEvent` + `OrderCancelledEvent` → invoice issuance / credit-note. |
+| Invoicing | `payments.transactions` | `payments.transactions.Invoicing.DLT` | infinite (event-log) | `PaymentCapturedEvent` + `PaymentRefundedEvent` → invoice issuance trigger. |
+| Invoicing | `notifications.email-events` | `notifications.email-events.Invoicing.DLT` | (existing) | `EmailNotificationSentEvent` — delivery-confirmation projection. |
+| Notifications | `notifications.email-commands` | `notifications.email-commands.Notifications.DLT` | 7 days (command) | `SendEmailNotificationCommand` consumer (the sole inbound for Notifications). |
+| Ordering | `ordering.order-commands` | `ordering.order-commands.Ordering.DLT` | 7 days (command) | Saga → Ordering commands. DLT = urgent ops investigation (saga step blocked). |
+| Payments | `payments.payment-commands` | `payments.payment-commands.Payments.DLT` | 7 days (command) | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
 
-**Docker-compose note:** the DLT topics are NOT pre-created by the `kafka-create-topic` block; they are auto-created on first produce by the Kafka broker with cluster-default partitioning (3) and default retention (7 days). If exact parity with the source-topic partition count or a longer retention is required, add explicit `kafka-topics --create` lines to the bootstrap command for each `.DLT` topic. This is a pending operational task — logged as a follow-up in § 7.
+**Source topics with no DLT (saga-consumed):**
+
+The Checkout saga in `saga/SagaOrchestrators/` consumes `basket.sessions`, `ordering.orders`, `inventory.reservations`, and `payments.transactions` via MassTransit. Saga does NOT wire `Platform.KafkaFlow.DeadLetter` (no `.AddDeadLetter()` calls under `saga/`); on consumer failure it relies on MassTransit's redelivery + the saga state-timeout machinery (see [saga-stuck-runbook.md § 4](saga-stuck-runbook.md)). There is therefore no `*.Saga.DLT` topic on the broker.
+
+**Source topics with no current consumer:**
+
+`catalog.categories`, `inventory.stock-events`, `inventory.reservations` (saga-only; see above) — no BC currently registers a `DeadLetterMiddleware`-wrapped consumer. If a consumer lands later it will produce to `<topic>.<BC>.DLT` per the convention in § 1.
+
+**Docker-compose note:** the DLT topics are NOT pre-created by the `kafka-create-topic` block; they are auto-created on first produce by the Kafka broker with cluster-default partitioning (3) and default retention (7 days). The 14-day retention target above is therefore aspirational; pre-creating each per-BC DLT with explicit `kafka-topics --create` is logged as F-3 in § 7.
 
 ---
 
@@ -67,7 +92,7 @@ All topic names, partition counts and retention values below must match [events-
 
 Standard procedure when a DLT message appears:
 
-1. **Detection.** Message fails once → routed to `{topic}.DLT` by `DeadLetterMiddleware`. Headers preserved from the original message plus diagnostic headers (see [`DltHeaders`](../../platform/Platform.KafkaFlow.DeadLetter/DltHeaders.cs)):
+1. **Detection.** Message fails once → routed to `<source-topic>.<consumer-bc>.DLT` (e.g. `payments.payment-commands.Payments.DLT`) by `DeadLetterMiddleware`. Headers preserved from the original message plus diagnostic headers (see [`DltHeaders`](../../platform/Platform.KafkaFlow.DeadLetter/DltHeaders.cs)):
    - `DLT-Original-Topic`, `DLT-Original-Partition`, `DLT-Original-Offset`
    - `DLT-Exception-Type`, `DLT-Exception-Message`, `DLT-Exception-StackTrace`
 2. **Alert.** Grafana panel on `kafka.consumer.dlt.messages_total{topic="..."} > 0` (or equivalent delta over 5 min) → PagerDuty. One alert per consumer-group × topic combination.
@@ -76,7 +101,7 @@ Standard procedure when a DLT message appears:
    - **Code bug** → fix in codebase, deploy fix, replay per § 5.
    - **Data corruption** (unexpected payload shape, missing referenced aggregate) → write a correction script if needed, replay per § 5.
    - **Stale / obsolete** (e.g., replayed after business-level compensation already closed the issue) → mark as resolved in incident log; DO NOT replay. Document why in the incident postmortem.
-5. **Postmortem.** For any DLT incident on `ordering.order-commands.DLT` or `inventory.reservation-commands.DLT` (saga-critical), a blameless postmortem is mandatory — these indicate the saga was blocked and the user experience degraded.
+5. **Postmortem.** For any DLT incident on `ordering.order-commands.Ordering.DLT`, `inventory.reservation-commands.Inventory.DLT`, or `payments.payment-commands.Payments.DLT` (the three saga-critical command DLTs), a blameless postmortem is mandatory — these indicate the saga was blocked and the user experience degraded.
 
 ---
 
@@ -88,9 +113,12 @@ Replay is performed by a **dedicated admin consumer group** reading from the DLT
 
 ```bash
 # 1. Discover the DLT message key + payload
+#    Topic name is <source-topic>.<consumer-bc>.DLT per § 1 (here: Ordering BC's
+#    consumer of ordering.order-commands). For Inventory's reservation-commands
+#    DLT use inventory.reservation-commands.Inventory.DLT, etc.
 docker compose exec kafka kafka-console-consumer \
   --bootstrap-server kafka:9092 \
-  --topic ordering.order-commands.DLT \
+  --topic ordering.order-commands.Ordering.DLT \
   --group dlt-replay-admin-ordering \
   --from-beginning \
   --max-messages 5 \
@@ -151,9 +179,9 @@ The items below are explicit gaps between this design document and the current p
 
 | # | Gap | Owner |
 |---|-----|-------|
-| F-1 | `DltHeaders` missing `DLT-Consumer-Group` — makes multi-consumer topic DLT inspection harder | Platform / KafkaFlow DeadLetter maintainer |
+| F-1 | `DltHeaders` missing `DLT-Consumer-Group` — strictly speaking, the per-consumer-BC suffix in the DLT topic name (§ 1) already disambiguates ownership for the cases that matter today. The header is still nice-to-have for finer-grained scoping if a single BC ever runs multiple consumer groups against the same source topic. | Platform / KafkaFlow DeadLetter maintainer |
 | F-2 | No `kafka.consumer.dlt.messages_total` counter emitted — alert can't fire without metric | Platform / KafkaFlow DeadLetter maintainer |
-| F-3 | No bootstrap block creating `{topic}.DLT` topics with explicit partition count + 14-day retention — currently auto-created with broker defaults | Implementation agent editing [docker-compose.yaml](../../docker-compose.yaml) |
+| F-3 | No bootstrap block creating `<source-topic>.<consumer-bc>.DLT` topics with explicit partition count + 14-day retention — currently auto-created with broker defaults on first produce. There are 10 such DLT topics across the current 7 BC consumers (see § 3 table); each needs an explicit `kafka-topics --create` line in `docker-compose.yaml` to pin partition count + retention. | Implementation agent editing [docker-compose.yaml](../../docker-compose.yaml) |
 | F-4 | No `replay-admin-*` operator CLI | Ops / post-v1 |
 | F-5 | No `Platform.KafkaFlow.Retry` middleware (mentioned in some early design drafts) — intentionally OMITTED for v1; add only if production pressure requires retry-with-backoff-then-DLT | N/A unless requested |
 | F-6 | Grafana `Kafka Consumer Health` dashboard JSON not checked in (`ops/grafana/kafka-consumer-health.json` referenced but not present) | Ops / post-v1 |

@@ -846,7 +846,7 @@ Cross-linked from each BC chapter's new `## Error types` subsection.
 
 ### F.3 Kafka DLT (dead-letter) strategy
 
-[bc-design/kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md) — aligns with the existing `Platform.KafkaFlow.DeadLetter` convention: **`.DLT`** suffix per `TopicsOptions.DltTopicSuffix`. Per-topic table covers all 8 new topics + existing Payments/Notifications; poison-message runbook; DLT replay procedure; observability signals.
+[bc-design/kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md) — aligns with the existing `Platform.KafkaFlow.DeadLetter` convention: per-consumer-BC `<source-topic>.<consumer-bc>.DLT` suffix (each BC pins its own `DltTopicSuffix` in appsettings — `.Payments.DLT`, `.Inventory.DLT`, etc.). Per-consumer table covers all 10 BC-consumed source topics; poison-message runbook; DLT replay procedure; observability signals.
 
 Factual corrections made during authoring:
 - The codebase has `Platform.KafkaFlow.DeadLetter` but **no** `Platform.KafkaFlow.Retry` — current policy is aggressive DLT on first throw (documented as intentional).
