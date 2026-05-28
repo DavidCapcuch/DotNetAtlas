@@ -7,7 +7,7 @@ namespace Platform.ServiceDefaults.FeatureFlags;
 
 /// <summary>
 /// Hydrates an OpenFeature <see cref="InMemoryProvider"/> snapshot from the <c>flags.json</c>
-/// file seeded in Wave 0 M7 (ADR-0014 schema).
+/// file (ADR-0014 schema).
 /// </summary>
 /// <remarks>
 /// v1 supports boolean variants only; string / integer / double variants are deferred — the

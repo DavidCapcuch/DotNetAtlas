@@ -16,9 +16,8 @@ namespace Platform.OutboxRelay.WorkerService.Common;
 /// timeouts come from <see cref="HealthChecksOptions"/>; the
 /// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
 /// parameter, so the DB readiness probe runs under EF's command-timeout default
-/// (mirrors the Basket M10 decision — operators who need a tighter DB-level
-/// timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into the
-/// EF Core options).
+/// (operators who need a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire
+/// <c>CommandTimeout</c> into the EF Core options).
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
