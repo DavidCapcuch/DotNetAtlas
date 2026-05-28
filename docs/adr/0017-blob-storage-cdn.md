@@ -196,7 +196,7 @@ public interface IBlobStore
 }
 ```
 
-> **Self-correction (M3 implementation):** The upload payload type is `ReadOnlyMemory<byte>` rather than the original `Stream`. Rationale: invoice PDFs are ~30 KB per ADR-0019 § Performance, and the adapter must compute a SHA-256 digest of the payload before handing it to `BlobClient.UploadAsync`. Buffering once at the boundary (caller passes an already-materialized byte array / `Memory<byte>`) eliminates a `CryptoStream` indirection and makes the digest deterministic without double-reading. The `sasTtl` parameter was added so callers pick the presigned-URL lifetime explicitly (10 min for buyer-facing reads per this ADR; admin bulk export uses 1 hour).
+> **Self-correction:** The upload payload type is `ReadOnlyMemory<byte>` rather than the original `Stream`. Rationale: invoice PDFs are ~30 KB per ADR-0019 § Performance, and the adapter must compute a SHA-256 digest of the payload before handing it to `BlobClient.UploadAsync`. Buffering once at the boundary (caller passes an already-materialized byte array / `Memory<byte>`) eliminates a `CryptoStream` indirection and makes the digest deterministic without double-reading. The `sasTtl` parameter was added so callers pick the presigned-URL lifetime explicitly (10 min for buyer-facing reads per this ADR; admin bulk export uses 1 hour).
 
 Adapter uses `Azure.Storage.Blobs` (`BlobServiceClient`, `BlobContainerClient`, `BlobClient`) bound to the connection string injected by Aspire (in AppHost mode) or read from `appsettings.json:ConnectionStrings:AzureStorage` (in raw docker-compose mode).
 
