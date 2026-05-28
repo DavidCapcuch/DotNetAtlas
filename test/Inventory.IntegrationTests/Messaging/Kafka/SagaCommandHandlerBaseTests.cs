@@ -6,6 +6,7 @@ using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 using Inventory.IntegrationTests.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
+using Platform.Test.Framework.Kafka;
 using AvroConfirmReservationCommand = Inventory.Reservations.ConfirmReservationCommand;
 using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 

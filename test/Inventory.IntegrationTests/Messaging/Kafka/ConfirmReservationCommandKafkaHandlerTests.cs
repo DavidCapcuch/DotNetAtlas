@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
 using Platform.SharedKernel.Exceptions;
+using Platform.Test.Framework.Kafka;
 using AvroConfirmReservationCommand = Inventory.Reservations.ConfirmReservationCommand;
 
 namespace Inventory.IntegrationTests.Messaging.Kafka;

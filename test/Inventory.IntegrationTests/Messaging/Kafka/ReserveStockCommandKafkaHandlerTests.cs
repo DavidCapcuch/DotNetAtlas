@@ -8,6 +8,7 @@ using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
+using Platform.Test.Framework.Kafka;
 using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 
 namespace Inventory.IntegrationTests.Messaging.Kafka;

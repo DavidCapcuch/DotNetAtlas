@@ -4,6 +4,7 @@ using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Platform.Test.Framework.Kafka;
 using AvroProductCreatedEvent = Catalog.Products.ProductCreatedEvent;
 using AvroProductStatus = Catalog.Products.ProductStatus;
 

@@ -4,6 +4,7 @@ using Ordering.Domain.Orders;
 using Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 using Ordering.Infrastructure.Persistence.Database;
 using Ordering.IntegrationTests.Common;
+using Platform.Test.Framework.Kafka;
 using AvroCancelOrderCommand = Ordering.Orders.CancelOrderCommand;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 using AvroOrderStatusAtTransition = Ordering.Orders.OrderStatusAtTransition;
