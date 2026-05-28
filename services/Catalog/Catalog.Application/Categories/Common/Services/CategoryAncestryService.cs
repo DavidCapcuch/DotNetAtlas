@@ -10,8 +10,7 @@ namespace Catalog.Application.Categories.Common.Services;
 /// </summary>
 /// <remarks>
 /// Uses the segment-bounded prefix form (<c>== prefix || StartsWith(prefix + "/")</c>)
-/// established by the M3 H2 fix to avoid false positives across path siblings that
-/// share a leading substring.
+/// to avoid false positives across path siblings that share a leading substring.
 /// </remarks>
 public sealed class CategoryAncestryService : ICategoryAncestryService
 {

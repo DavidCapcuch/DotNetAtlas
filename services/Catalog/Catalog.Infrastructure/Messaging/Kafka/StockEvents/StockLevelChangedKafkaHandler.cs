@@ -9,8 +9,7 @@ namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 /// Inbound Kafka adapter for Inventory's <see cref="StockLevelChanged"/> events. Translates the
 /// Avro message into a call into the Application-layer
 /// <see cref="IStockLevelChangedProjectionHandler"/>; the projection write itself lives in
-/// Catalog.Application so architecture-tests.md § 2.1 holds across the inbox-driven path
-/// (CAT-ARCH-C02 / #174).
+/// Catalog.Application so architecture-tests.md § 2.1 holds across the inbox-driven path.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -20,9 +19,9 @@ namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 /// </remarks>
 internal sealed class StockLevelChangedKafkaHandler : IMessageHandler<StockLevelChanged>
 {
-    // CAT-RV-H02 (Wave-1 closeout): combine WorkerStopped with a per-message budget so a
-    // slow Postgres query during a Kafka rebalance can't hold the partition until the
-    // worker stops — misbehaving messages then starve other partitions.
+    // Combine WorkerStopped with a per-message budget so a slow Postgres query during a
+    // Kafka rebalance can't hold the partition until the worker stops — misbehaving
+    // messages then starve other partitions.
     internal static readonly TimeSpan PerMessageBudget = TimeSpan.FromSeconds(30);
 
     private readonly IStockLevelChangedProjector _projector;

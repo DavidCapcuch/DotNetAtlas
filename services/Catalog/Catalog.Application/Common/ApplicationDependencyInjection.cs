@@ -17,10 +17,7 @@ namespace Catalog.Application.Common;
 /// <see cref="Messaging.TopicsOptions"/> is bound to configuration by the API host
 /// (Catalog.Infrastructure's <c>MessagingDependencyInjection</c> in production; the
 /// <c>IntegrationTestFixture</c> in tests). Keeping <c>IConfiguration</c> out of the Application
-/// layer avoids a transitive dependency on <c>Microsoft.Extensions.Configuration</c>; the
-/// stand-alone <c>AddOptions&lt;TopicsOptions&gt;()</c> previously here was redundant
-/// because <c>Configure&lt;T&gt;</c> internally calls <c>AddOptions&lt;T&gt;</c> as well
-/// (CAT-ARCH-C06, Wave-1 closeout).
+/// layer avoids a transitive dependency on <c>Microsoft.Extensions.Configuration</c>.
 /// </para>
 /// </remarks>
 public static class ApplicationDependencyInjection

@@ -141,11 +141,10 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
         }
         catch (UniqueConstraintException)
         {
-            // CAT-RV-H04 (Wave-1 closeout): the AnyAsync precheck above is racy under
-            // concurrency. The UX_Products_Sku unique index is the authoritative defence;
-            // translate its violation back to the contract-documented Result.Fail so the
-            // API surface returns 409 Conflict instead of 500. Wired into Application via
-            // the EF.Exceptions interceptor in Catalog.Infrastructure (UseExceptionProcessor).
+            // The AnyAsync precheck above is racy under concurrency. The UX_Products_Sku
+            // unique index is the authoritative defence; translate its violation back to the
+            // contract-documented Result.Fail so the API surface returns 409 Conflict instead
+            // of 500. Wired via the EF.Exceptions interceptor (UseExceptionProcessor).
             return Result.Fail<Guid>(ProductErrors.SkuAlreadyExists(normalizedSku));
         }
 

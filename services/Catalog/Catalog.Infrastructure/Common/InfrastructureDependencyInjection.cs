@@ -13,12 +13,12 @@ namespace Catalog.Infrastructure.Common;
 /// Chains the infrastructure slices:
 /// <list type="bullet">
 /// <item><description>
-/// <see cref="PersistenceDependencyInjection.AddDatabase"/> (M4.1) — <see cref="Persistence.Database.CatalogDbContext"/>
+/// <see cref="PersistenceDependencyInjection.AddDatabase"/> — <see cref="Persistence.Database.CatalogDbContext"/>
 /// bound to Postgres with snake_case + exception-processor + the <c>DispatchDomainEventsInterceptor</c>
 /// that fires the in-process projection write atomically with the aggregate save.
 /// </description></item>
 /// <item><description>
-/// <see cref="MessagingDependencyInjection.AddKafkaMessaging"/> (M4.2) — KafkaFlow cluster
+/// <see cref="MessagingDependencyInjection.AddKafkaMessaging"/> — KafkaFlow cluster
 /// with the <c>StockLevelChanged</c> inbox consumer, transactional outbox + DLT producer,
 /// and correlation-id propagation middleware.
 /// </description></item>
@@ -28,7 +28,7 @@ namespace Catalog.Infrastructure.Common;
 /// <c>OTEL_EXPORTER_OTLP_ENDPOINT</c>; ADR-0011 PII redaction processor is wired here.
 /// </description></item>
 /// <item><description>
-/// <see cref="HealthChecksDependencyInjection.AddCatalogHealthChecks"/> (M7) — readiness
+/// <see cref="HealthChecksDependencyInjection.AddCatalogHealthChecks"/> — readiness
 /// probes (Self + Postgres + Kafka + redis-cache + Schema Registry) tagged so
 /// <c>MapPlatformHealthCheckEndpoints</c> publishes them under <c>/api/readiness</c>.
 /// </description></item>

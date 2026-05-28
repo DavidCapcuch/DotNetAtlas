@@ -7,7 +7,7 @@ namespace Catalog.Domain.Products.Events;
 /// <summary>
 /// Raised when <see cref="Product.Create"/> succeeds.
 /// Drives the read-view projection insert and the external <c>ProductCreatedEvent</c>
-/// outbox publisher (M3).
+/// outbox publisher.
 /// </summary>
 public sealed record ProductCreatedDomainEvent : DomainEvent
 {

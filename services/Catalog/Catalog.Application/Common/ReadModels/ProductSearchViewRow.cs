@@ -4,8 +4,8 @@ namespace Catalog.Application.Common.ReadModels;
 /// Denormalized row for the <c>catalog.product_search_view</c> projection described in
 /// <c>docs/bc-design/catalog.md § 9</c>. Populated and updated atomically with the write model
 /// by projection handlers (<see cref="Platform.SharedKernel.Base.DomainEvents.IDomainEventHandler{T}"/>).
-/// EF Core mapping is owned by <c>Catalog.Infrastructure</c> (arrives in M4); this POCO only
-/// defines the shape the Application layer reads from and writes to.
+/// EF Core mapping is owned by <c>Catalog.Infrastructure</c>; this POCO only defines the
+/// shape the Application layer reads from and writes to.
 /// </summary>
 public sealed class ProductSearchViewRow
 {
@@ -43,7 +43,7 @@ public sealed class ProductSearchViewRow
 
     /// <summary>
     /// True iff the product is sellable right now. Derived from <c>Status == Active</c> plus
-    /// stock level from Inventory (via <c>StockLevelChanged</c> consumer — wired in M4).
+    /// stock level from Inventory (via the <c>StockLevelChanged</c> consumer).
     /// </summary>
     public bool IsSellable { get; set; }
 
@@ -53,8 +53,8 @@ public sealed class ProductSearchViewRow
 
     /// <summary>
     /// Correlation-id of the originating HTTP request (ADR-0008). Populated from
-    /// <c>HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey]</c> in the API layer —
-    /// left as <see cref="Guid.Empty"/> in M3 until the HTTP pipeline is wired in M6.
+    /// <c>HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey]</c> in the API
+    /// layer, or <see cref="Guid.Empty"/> when no HTTP pipeline is in play.
     /// </summary>
     public Guid CorrelationId { get; set; }
 }

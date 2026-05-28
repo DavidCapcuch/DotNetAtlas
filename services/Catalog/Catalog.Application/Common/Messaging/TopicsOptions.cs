@@ -4,7 +4,7 @@ namespace Catalog.Application.Common.Messaging;
 
 /// <summary>
 /// Kafka topic names for Catalog outbox publishing AND for the inbound
-/// <c>StockLevelChanged</c> consumer wired in M4.2. Bound to configuration section
+/// <c>StockLevelChanged</c> consumer. Bound to configuration section
 /// <c>CatalogTopics</c>.
 /// </summary>
 public sealed class TopicsOptions

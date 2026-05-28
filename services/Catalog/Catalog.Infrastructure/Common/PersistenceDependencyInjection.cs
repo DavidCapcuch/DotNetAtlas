@@ -60,9 +60,9 @@ internal static class PersistenceDependencyInjection
                 })
             .UseSnakeCaseNamingConvention()
             .EnableSensitiveDataLogging(!isDeployedEnvironment)
-            // CAT-SEC-009 (Wave-1 closeout): detailed errors leak EF parameter/column info into
-            // exception responses. Honour the config flag in non-deployed envs only; force off
-            // in Production regardless of config.
+            // Detailed errors leak EF parameter/column info into exception responses.
+            // Honour the config flag in non-deployed envs only; force off in Production
+            // regardless of config.
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors && !isDeployedEnvironment)
             .UseExceptionProcessor()
             .AddInterceptors(

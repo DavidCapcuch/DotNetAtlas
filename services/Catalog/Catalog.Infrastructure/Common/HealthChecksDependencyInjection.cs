@@ -12,14 +12,11 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Catalog.Infrastructure.Common;
 
 /// <summary>
-/// M7 readiness-probe surface — Self, <see cref="CatalogDbContext"/> (Postgres write
+/// Readiness-probe surface — Self, <see cref="CatalogDbContext"/> (Postgres write
 /// store + atomic projection per ADR-0001 + ADR-0016), the Kafka cluster (outbox relay
 /// publishes + the inbound <c>StockLevelChanged</c> consumer), <c>redis-cache</c>
 /// (idempotency-key output cache per ADR-0013 + ADR-0016), and the Confluent Schema
-/// Registry (Avro publish path per ADR-0007). Mirrors the Basket precedent at
-/// <c>services/Basket/Basket.Infrastructure/Common/HealthChecksDependencyInjection.cs</c>;
-/// the Schema-Registry <c>AddUrlGroup</c> probe is the Catalog-specific addition because
-/// Catalog publishes Avro events (Basket does not).
+/// Registry (Avro publish path per ADR-0007).
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
