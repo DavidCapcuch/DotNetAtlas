@@ -11,9 +11,9 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 - **Token endpoint:** `POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`.
 - **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §3.
 
-### Drift note (ADR-0010 + wave-0-platform-prep)
+### Drift note (historical implementation prompt)
 
-ADR-0010 (Token acquisition / Token validation sub-sections) and `docs/implementation-prompts/wave-0-platform-prep.md:280` reference `realms/eshop` (port `8081`). These strings predate the realm naming decision; the authoritative values are `realms/dotnetatlas` and port `9011`. Anywhere those docs are cited, substitute the live values. A sweep PR is tracked as Wave 0 DoD follow-up.
+`docs/implementation-prompts/wave-0-platform-prep.md:280` references `realms/eshop` (port `8081`). These strings predate the realm-naming and port-allocation decisions; the authoritative values are `realms/dotnetatlas` and port `9011`. The implementation-prompts directory is frozen historical per the repo convention, so the stale strings stay there — anywhere the historical doc is cited at face value, substitute the live values.
 
 ---
 
@@ -256,6 +256,5 @@ Expected result on the last check: `azp catalog-service aud catalog-service scop
 
 ## 5. Open follow-ups (Wave 0 DoD or later)
 
-1. **`realms/eshop` doc sweep.** Replace `realms/eshop` → `realms/dotnetatlas` and `:8081` → `:9011` in `docs/adr/0010-service-to-service-auth.md` and `docs/implementation-prompts/wave-0-platform-prep.md:280`.
-2. **Wave 0 M7** — wire the nine `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
-3. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
+1. **Wave 0 M7** — wire the nine `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
+2. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
