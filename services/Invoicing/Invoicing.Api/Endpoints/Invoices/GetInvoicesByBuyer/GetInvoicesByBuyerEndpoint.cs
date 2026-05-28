@@ -3,6 +3,7 @@ using FastEndpoints;
 using Invoicing.Api.Common.Extensions;
 using Invoicing.Application.Invoices.GetInvoicesByBuyer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Platform.Api.Extensions;
 using Serilog.Context;
 
 namespace Invoicing.Api.Endpoints.Invoices.GetInvoicesByBuyer;

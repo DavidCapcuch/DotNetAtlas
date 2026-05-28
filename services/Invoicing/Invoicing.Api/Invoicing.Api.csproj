@@ -29,6 +29,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Invoicing.Application\Invoicing.Application.csproj" />
         <ProjectReference Include="..\Invoicing.Infrastructure\Invoicing.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.Api\Platform.Api.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
     </ItemGroup>
 
