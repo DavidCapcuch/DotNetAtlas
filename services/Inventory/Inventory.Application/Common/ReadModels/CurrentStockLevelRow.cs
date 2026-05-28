@@ -13,9 +13,9 @@ namespace Inventory.Application.Common.ReadModels;
 /// </para>
 /// <para>
 /// <see cref="PreviousAvailable"/> is not in the design doc; we track it so
-/// <c>StockLevelChangedOutboxPublisher</c> can detect <c>0 &lt;-&gt; positive</c>
-/// threshold crossings without reconstructing prior state by replay. The field
-/// is maintained atomically by <c>CurrentStockLevelsProjectionDomainEventHandler</c> as
+/// <c>CurrentStockLevelsProjectionDomainEventHandler.MaybeEmitStockLevelChanged</c>
+/// can detect <c>0 &lt;-&gt; positive</c> threshold crossings without reconstructing
+/// prior state by replay. The field is maintained atomically by the same handler as
 /// the per-event "before" snapshot — see <c>inventory.md</c> § 6.1 for the
 /// threshold-emission rule.
 /// </para>
@@ -40,7 +40,8 @@ public sealed class CurrentStockLevelRow
     /// <summary>
     /// Value of <see cref="Available"/> BEFORE the last applied event. Enables
     /// the threshold check <c>PreviousAvailable == 0 XOR NewAvailable == 0</c>
-    /// used by <c>StockLevelChangedOutboxPublisher</c>.
+    /// used by <c>CurrentStockLevelsProjectionDomainEventHandler.MaybeEmitStockLevelChanged</c>
+    /// to gate outbox emission to the <c>0 &lt;-&gt; positive</c> transitions only.
     /// </summary>
     public int PreviousAvailable { get; set; }
 
