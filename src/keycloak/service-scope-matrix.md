@@ -6,20 +6,20 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 
 - **Realm:** `dotnetatlas` (NOT `eshop` — see drift note below).
 - **Issuer / Authority:** `http://localhost:9011/realms/dotnetatlas` (local dev).
-- **Scope naming:** dot-separated, `<bc>.<verb>` or `<bc>.commands.<verb>`. Read/write scopes gate HTTP endpoints; `commands.*` scopes gate Kafka command-topic producers.
+- **Scope naming:** dot-separated, `<bc>.<verb>` or `<bc>.commands.<verb>`. Scopes gate inbound HTTP endpoints (e.g. `inventory.commands.reserve` gates the Inventory `Receive`/`Adjust` admin endpoints; `catalog.write` gates Catalog mutations). Kafka command topics have no application-layer scope check — the trust boundary is the docker network per ADR-0009.
 - **Audience:** every service client has an `audience-self` OIDC mapper so service-account tokens carry `"aud": "<own-clientId>"`. Inbound validation in each service enforces `Audience = <this-service>` (ADR-0010 L99).
 - **Token endpoint:** `POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`.
-- **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §4.
+- **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §3.
 
 ### Drift note (ADR-0010 + wave-0-platform-prep)
 
-ADR-0010 L94 + L99 and `docs/implementation-prompts/wave-0-platform-prep.md:280` reference `realms/eshop` (port `8081`). These strings predate the realm naming decision; the authoritative values are `realms/dotnetatlas` and port `9011`. Anywhere those docs are cited, substitute the live values. A sweep PR is tracked as Wave 0 DoD follow-up.
+ADR-0010 (Token acquisition / Token validation sub-sections) and `docs/implementation-prompts/wave-0-platform-prep.md:280` reference `realms/eshop` (port `8081`). These strings predate the realm naming decision; the authoritative values are `realms/dotnetatlas` and port `9011`. Anywhere those docs are cited, substitute the live values. A sweep PR is tracked as Wave 0 DoD follow-up.
 
 ---
 
 ## 1. Scope catalog
 
-20 scopes are defined in the top-level `clientScopes` block of `realm-export.json`. All use `protocol: openid-connect`, `display.on.consent.screen: false`, `include.in.token.scope: true`.
+10 scopes are defined in the top-level `clientScopes` block of `realm-export.json`. All use `protocol: openid-connect`, `display.on.consent.screen: false`, `include.in.token.scope: true`.
 
 ### Catalog (2)
 
@@ -35,34 +35,24 @@ ADR-0010 L94 + L99 and `docs/implementation-prompts/wave-0-platform-prep.md:280`
 | `basket.read` | Read basket contents. |
 | `basket.write` | Mutate basket (add/remove items, change quantity, checkout). |
 
-### Ordering (5)
+### Ordering (1)
 
 | Scope | Description |
 |---|---|
 | `ordering.read` | Read order details and status. |
-| `ordering.commands.create` | Publish `CreateOrderCommand` to `ordering.order-commands`. |
-| `ordering.commands.confirm` | Publish `ConfirmOrderCommand` to `ordering.order-commands`. |
-| `ordering.commands.cancel` | Publish `CancelOrderCommand` to `ordering.order-commands`. |
-| `ordering.commands.fail` | Publish `MarkOrderFailedCommand` to `ordering.order-commands`. |
 
-### Inventory (4)
+### Inventory (2)
 
 | Scope | Description |
 |---|---|
 | `inventory.read` | Read stock levels and reservation status. |
-| `inventory.commands.reserve` | Publish `ReserveStockCommand` to `inventory.reservation-commands`. |
-| `inventory.commands.confirm` | Publish `ConfirmReservationCommand` to `inventory.reservation-commands`. |
-| `inventory.commands.release` | Publish `ReleaseReservationCommand` to `inventory.reservation-commands`. |
+| `inventory.commands.reserve` | Gates the Inventory `Receive` / `Adjust` admin HTTP endpoints. |
 
-### Payments (5)
+### Payments (1)
 
 | Scope | Description |
 |---|---|
 | `payments.read` | Read payment transaction status. |
-| `payments.commands.authorize` | Publish `AuthorizePaymentCommand` to `payments.commands`. |
-| `payments.commands.capture` | Publish `CapturePaymentCommand` to `payments.commands`. |
-| `payments.commands.void` | Publish `VoidPaymentCommand` to `payments.commands`. |
-| `payments.commands.refund` | Publish `RequestRefundCommand` to `payments.commands`. |
 
 ### Invoicing (1)
 
@@ -76,7 +66,7 @@ ADR-0010 L94 + L99 and `docs/implementation-prompts/wave-0-platform-prep.md:280`
 |---|---|
 | `notifications.commands.send` | Publish `SendEmailNotificationCommand` to `notification.commands` (via outbox publisher, not direct Kafka produce). |
 
-**Total: 20 scopes.**
+**Total: 10 scopes.**
 
 ---
 
@@ -109,8 +99,8 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Audience:** `ordering-service`
 - **Outbound:** `notifications.commands.send`
   - Ordering publishes order-state-change notifications via outbox.
-- **Inbound:** `ordering.read`, `ordering.commands.create`, `ordering.commands.confirm`, `ordering.commands.cancel`, `ordering.commands.fail`
-  - BFF reads orders via `ordering.read`; the Checkout Saga is the sole producer of every `ordering.commands.*` scope (see `ADR-0004`).
+- **Inbound:** `ordering.read`
+  - BFF reads orders via `ordering.read`. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
 - **Cross-refs:** `bff.md §3.3`, `events-catalog.md §2` (Ordering Commands).
 
 ### `inventory-service`
@@ -118,8 +108,8 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Audience:** `inventory-service`
 - **Outbound:** `notifications.commands.send`
   - Inventory publishes low-stock notifications via outbox.
-- **Inbound:** `inventory.read`, `inventory.commands.reserve`, `inventory.commands.confirm`, `inventory.commands.release`
-  - BFF reads stock via `inventory.read`; the Checkout Saga is the sole producer of every `inventory.commands.*` scope.
+- **Inbound:** `inventory.read`, `inventory.commands.reserve`
+  - BFF reads stock via `inventory.read`. `inventory.commands.reserve` gates the admin `Receive` / `Adjust` HTTP endpoints (see [`InventoryAuthorizationPolicies`](../../services/Inventory/Inventory.Api/Common/Authorization/InventoryAuthorizationPolicies.cs)). Saga reservation commands enter via Kafka on `inventory.reservation-commands`; no application-layer scope check on that path.
 - **Cross-refs:** `bff.md §3.1/3.3`, `events-catalog.md §2` (Inventory Reservation Commands).
 
 ### `payments-service`
@@ -127,8 +117,8 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Audience:** `payments-service`
 - **Outbound:** `notifications.commands.send`
   - Payments publishes payment-failure / refund-issued notifications via outbox.
-- **Inbound:** `payments.read`, `payments.commands.authorize`, `payments.commands.capture`, `payments.commands.void`, `payments.commands.refund`
-  - The Checkout Saga (via its `PaymentProcessingSaga` sub-orchestrator) is the sole producer of every `payments.commands.*` scope.
+- **Inbound:** `payments.read`
+  - Payments has no admin HTTP write surface in v1. Saga payment commands enter via Kafka on `payments.commands`; no application-layer scope check on that path.
 - **Cross-refs:** `events-catalog.md §2` (Payments Commands), ADR-0005 (payments webhook if present).
 
 ### `invoicing-service`
@@ -143,12 +133,8 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 ### `checkout-saga`
 
 - **Audience:** `checkout-saga` (vestigial; kept for symmetry)
-- **Outbound:** 12 scopes — all `ordering.commands.*`, all `inventory.commands.*`, all `payments.commands.*`, plus `notifications.commands.send`:
-  - `ordering.commands.create`, `ordering.commands.confirm`, `ordering.commands.cancel`, `ordering.commands.fail`
-  - `inventory.commands.reserve`, `inventory.commands.confirm`, `inventory.commands.release`
-  - `payments.commands.authorize`, `payments.commands.capture`, `payments.commands.void`, `payments.commands.refund`
-  - `notifications.commands.send`
-  - Per ADR-0004, the Checkout Saga is the ONLY orchestrator of saga commands. This is the only client that issues `*.commands.*` tokens at runtime.
+- **Outbound:** `notifications.commands.send`
+  - The saga publishes notifications via outbox (e.g. saga-stuck operator alerts). All saga-driven orchestration commands flow over Kafka command topics, which carry no application-layer auth in this reference profile.
 - **Inbound:** none — the saga has no inbound HTTP surface.
 - **Cross-refs:** ADR-0004 (Checkout Saga Topology), `saga-stuck-runbook.md`.
 
@@ -172,20 +158,7 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 ---
 
-## 3. Cross-reference: command-topic ↔ publisher ↔ consumer
-
-| Topic | Publisher client | Required publisher scope(s) | Consumer client | Consumer must validate |
-|---|---|---|---|---|
-| `inventory.reservation-commands` | `checkout-saga` | `inventory.commands.reserve` / `.confirm` / `.release` (matching command type) | `inventory-service` | `aud = inventory-service` + scope ∈ { `inventory.commands.reserve`, `inventory.commands.confirm`, `inventory.commands.release` } |
-| `ordering.order-commands` | `checkout-saga` | `ordering.commands.create` / `.confirm` / `.cancel` / `.fail` (matching) | `ordering-service` | `aud = ordering-service` + scope ∈ { `ordering.commands.create`, `ordering.commands.confirm`, `ordering.commands.cancel`, `ordering.commands.fail` } |
-| `payments.commands` | `checkout-saga` (via `PaymentProcessingSaga`) | `payments.commands.authorize` / `.capture` / `.void` / `.refund` (matching) | `payments-service` | `aud = payments-service` + scope ∈ { `payments.commands.authorize`, `payments.commands.capture`, `payments.commands.void`, `payments.commands.refund` } |
-| `notification.commands` | any BC, saga, or notifications-service (all have `notifications.commands.send`) | `notifications.commands.send` | `notifications-service` | `aud = notifications-service` + scope `notifications.commands.send` |
-
-Event topics (e.g., `ordering.orders`, `inventory.stock-events`, `catalog.products`) do NOT require sender auth per ADR-0010 L111 — event consumers are fire-and-forget observers.
-
----
-
-## 4. Production handoff
+## 3. Production handoff
 
 ### Dev-only secrets
 
@@ -244,7 +217,7 @@ Alternatively, diff changes via the admin console or `kcadm.sh` and merge them i
 
 ---
 
-## 5. Verification
+## 4. Verification
 
 Quick realm-state sanity check (after `docker compose --profile full up -d keycloak`):
 
@@ -263,10 +236,10 @@ curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients" \
   -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','checkout-saga','notifications-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
 
-# List all client scopes — expect the 20 declared scopes plus Keycloak defaults
+# List all client scopes — expect the 10 declared scopes plus Keycloak defaults
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','ordering.commands.create','ordering.commands.confirm','ordering.commands.cancel','ordering.commands.fail','inventory.read','inventory.commands.reserve','inventory.commands.confirm','inventory.commands.release','payments.read','payments.commands.authorize','payments.commands.capture','payments.commands.void','payments.commands.refund','invoicing.read','notifications.commands.send'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
+  | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.commands.reserve','payments.read','invoicing.read','notifications.commands.send'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
 
 # Service-account token for catalog-service with scope catalog.write
 curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token \
@@ -281,10 +254,8 @@ Expected result on the last check: `azp catalog-service aud catalog-service scop
 
 ---
 
-## 6. Open follow-ups (Wave 0 DoD or later)
+## 5. Open follow-ups (Wave 0 DoD or later)
 
-1. **`realms/eshop` doc sweep.** Replace `realms/eshop` → `realms/dotnetatlas` and `:8081` → `:9011` in `docs/adr/0010-service-to-service-auth.md:94, 99` and `docs/implementation-prompts/wave-0-platform-prep.md:280`.
+1. **`realms/eshop` doc sweep.** Replace `realms/eshop` → `realms/dotnetatlas` and `:8081` → `:9011` in `docs/adr/0010-service-to-service-auth.md` and `docs/implementation-prompts/wave-0-platform-prep.md:280`.
 2. **Wave 0 M7** — wire the nine `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
-3. **No Kafka header token propagation** ([ADR-0010 lines 102-106](../../docs/adr/0010-service-to-service-auth.md:102)) — application-layer `X-Service-Token` is **NOT** implemented in v1 or v2 ("wrong layer regardless of v1/v2" per ADR). Saga-command consumers run on PLAINTEXT in v1; production hardening = broker SASL/OAUTHBEARER + per-service Kafka topic ACLs (see follow-up #4 below). Keycloak realm clients + scopes are still defined so the v2 broker-level ACL pairs are ready (see Section 3 of this matrix).
-4. **Broker-level Kafka auth** (ADR-0010 L81) — SASL/OAUTHBEARER is explicitly OUT for v1 (ADR-0009 profile). Production deployments must enable it.
-5. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
+3. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.

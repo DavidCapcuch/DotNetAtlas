@@ -20,15 +20,9 @@ namespace Inventory.Api.Common.Authorization;
 /// </para>
 /// <para>
 /// <b>Why no separate "adjust" scope:</b> the realm intentionally re-uses
-/// <c>inventory.commands.reserve</c> for both saga-driven reservations AND admin Receive /
-/// Adjust to keep the realm small. Split into a dedicated admin scope if operations needs
-/// the audit separation; the policy class is the seam to update.
-/// </para>
-/// <para>
-/// <b>Why no Confirm / Release policies:</b> the realm declares
-/// <c>inventory.commands.{confirm,release}</c> for the saga's Kafka-driven path, not for
-/// HTTP. There is no admin HTTP endpoint for confirm or release; those scopes are
-/// consumed only by the broker on the <c>inventory.reservation-commands</c> topic.
+/// <c>inventory.commands.reserve</c> across both Receive and Adjust admin endpoints to keep
+/// the realm small. Split into a dedicated admin scope if operations needs the audit
+/// separation; the policy class is the seam to update.
 /// </para>
 /// </remarks>
 internal static class InventoryAuthorizationPolicies

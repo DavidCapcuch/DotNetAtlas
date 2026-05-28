@@ -6,9 +6,9 @@ Accepted (2026-04-19) · **Amended 2026-05-27** — see [Amendment: Fail-closed 
 
 ## Context
 
-The eShop reference solution has user authentication (Keycloak-issued JWT, validated at YARP). It does **not** yet have service-to-service authentication: when Checkout saga publishes `ReserveStockCommand` to `inventory.reservation-commands`, the Inventory consumer trusts any message on the topic; when BFF calls Catalog's HTTP API with a forwarded user token, there is no audience restriction that says "only BFF may call me with a service ticket". The gap is documented in threat model § C2 (threat-model + pre-mortem review): topic ACLs are "documented trust, not enforced trust", and HTTP service hops lack audience validation.
+The eShop reference solution has user authentication (Keycloak-issued JWT, validated at YARP). It does **not** yet have service-to-service authentication on its cross-BC HTTP surface: when BFF calls Catalog's HTTP API with a forwarded user token, there is no audience restriction that says "only BFF may call me with a service ticket". The gap is documented in threat model § C2 (threat-model + pre-mortem review): HTTP service hops lack audience validation.
 
-At reference-solution scale (single AZ, single trust zone), a strong attacker model is not realistic. Still, the reference should teach the standard industry pattern so readers see what to implement in production. Keycloak is already deployed; leveraging it for service clients is strictly less infrastructure than adding mTLS or SPIFFE.
+Kafka command topics are explicitly out of scope for application-layer auth in this reference solution — the trust boundary is the docker network per [ADR-0009](0009-reference-solution-target-profile.md). At reference-solution scale (single AZ, single trust zone), a strong attacker model is not realistic. Still, the reference should teach the standard industry pattern for HTTP service-to-service auth so readers see what to implement in production. Keycloak is already deployed; leveraging it for service clients is strictly less infrastructure than adding mTLS or SPIFFE.
 
 ## Decision Drivers (ranked)
 
@@ -22,7 +22,7 @@ At reference-solution scale (single AZ, single trust zone), a strong attacker mo
 
 ### Option 1: OAuth2 Client Credentials via Keycloak
 
-Every service is a Keycloak **client** with a client secret. Outbound HTTP calls go through a `ClientCredentialsTokenHandler` that fetches a service-account token from Keycloak (cached until near expiry). Token carries `azp` (calling service), `aud` (target service), `scope`. Kafka commands carry the same token in a header; inbox consumers validate before dispatching to the handler.
+Every service is a Keycloak **client** with a client secret. Outbound HTTP calls go through a `ClientCredentialsTokenHandler` that fetches a service-account token from Keycloak (cached until near expiry). Token carries `azp` (calling service), `aud` (target service), `scope`. Inbound HTTP endpoints validate the token via `AddJwtBearer` and gate behaviour on the `scope` claim. Kafka command topics carry no application-layer auth — the trust boundary is the docker network per ADR-0009.
 
 ### Option 2: mTLS via service mesh (Istio / Linkerd)
 
@@ -48,7 +48,7 @@ A lightweight bearer token minted once per service-pair and stored in env. No Ke
 
 ## Decision
 
-We will use **Option 1: OAuth2 Client Credentials grant via Keycloak**, with per-service clients, audience-scoped tokens, and Kafka-header token propagation for command topics.
+We will use **Option 1: OAuth2 Client Credentials grant via Keycloak**, with per-service clients and audience-scoped tokens, applied to cross-BC HTTP traffic only.
 
 ## Rationale
 
@@ -62,30 +62,27 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 - Same Keycloak, same terminology as user auth — lower cognitive load.
 - Tokens carry `azp` (calling service identity) which feeds audit columns (e.g., `admin_audit.actor_service_id`).
-- Scopes enforce least privilege: `payments-service` cannot call Ordering's `MarkOrderShippedCommand` because its token lacks the scope.
-- Kafka command topics get a validated sender identity: inbox consumer rejects commands whose token scope doesn't authorize the command type.
+- Scopes enforce least privilege on HTTP: a caller lacking the required scope is rejected by the BC's `AddJwtBearer` policy (e.g. only callers with `inventory.commands.reserve` can hit the Inventory `Receive`/`Adjust` admin endpoints).
 - New services adopt with `builder.Services.AddServiceAuth("catalog-service").WithScopes("inventory.read")` in `Platform.ServiceDefaults`.
 - Tokens are short-lived (≤ 5 min by default); revocation happens naturally via expiry.
 
 ### Negative
 
 - Every service now talks to Keycloak on startup and periodically. Adds one more dependency in the critical path. Mitigation: Keycloak outage is tolerated via the token cache (existing valid tokens keep working until expiry).
-- Kafka message headers grow by ~500 bytes (JWT). Negligible at reference scale.
 - Developers must register new clients in Keycloak realm config for any new service. Mitigation: `keycloak/realm-export.json` is version-controlled; a PR adds the client.
 
 ### Risks
 
 - **Client secret leak** — env-based secrets are not rotated in v1. Mitigation: document rotation procedure; production would use dynamic secrets (Vault / cloud KMS).
-- **Token validation failure on Kafka consumer** — if Keycloak signing keys rotate, consumers may reject valid tokens briefly. Mitigation: JWKS endpoint polled every 15 minutes; tolerance window of 5 min on clock skew.
+- **Token validation failure on signing-key rotation** — if Keycloak signing keys rotate, BC `AddJwtBearer` validators may reject valid tokens briefly. Mitigation: JWKS endpoint polled every 15 minutes; tolerance window of 5 min on clock skew.
 - **Over-privilege** — a service requests too broad a scope set. Mitigation: scopes are defined centrally in `keycloak/realm-export.json`; code review.
-- **Broker-level auth absent in v1** — docker-compose Kafka runs PLAINTEXT (no SASL/OAUTHBEARER, no AclAuthorizer). Any process inside the docker network can produce to any command topic. This is a deliberate reference-solution simplification ([ADR-0009 profile](0009-reference-solution-target-profile.md)). **Production deployment is GATED on enabling SASL/OAUTHBEARER on brokers and provisioning per-service topic ACLs** — this gate appears in ADR-0009's production callouts and must be checked before any non-laptop deployment. Application-layer per-message header auth is explicitly NOT used as a substitute (wrong layer; would teach readers a non-portable pattern).
 
 ## Implementation Notes
 
 - **Realm setup** (in `keycloak/realm-export.json`):
   - One client per service: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `checkout-saga`, `notifications-service`, `bff`.
   - Each client has `serviceAccountsEnabled: true`, `publicClient: false`, client-secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`.
-  - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.commands.reserve`, `inventory.commands.confirm`, `ordering.commands.*`, `payments.commands.*`, etc.
+  - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.read`, `inventory.commands.reserve`, `notifications.commands.send`, etc.
   - Service-to-scope matrix is documented in `keycloak/service-scope-matrix.md` (co-authored with this ADR).
 
 - **Token acquisition flow (outbound HTTP):**
@@ -100,14 +97,8 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
   - **(Amended 2026-05-27)** `ValidAudience` is no longer derived implicitly from `ServiceAuthOptions.ServiceName`. Each BC pins it explicitly under `Authentication:JwtBearer:TokenValidationParameters:ValidAudience` in `appsettings.json`. See [the amendment below](#amendment-2026-05-27--fail-closed-audience-contract).
   - Scope-based authorization via `RequireClaim("scope", "catalog.read")`-style policies, or FastEndpoints' `Policies(...)` / `Permissions(...)`.
 
-- **Kafka command-topic authorization (broker-level, not per-message):**
-  - Industry standard for Kafka is **SASL/OAUTHBEARER** for connection-handshake authentication (broker validates Keycloak-issued JWTs at TCP setup) plus **Kafka topic ACLs** for per-topic authorisation. Application-layer per-message header validation (e.g., an `X-Service-Token` header inspected by an inbox middleware) is **not** the right layer — it duplicates broker controls and teaches readers to bolt auth onto the wrong boundary.
-  - **Production posture:** brokers run with `sasl.enabled.mechanisms=OAUTHBEARER`, `listener.name.<name>.oauthbearer.sasl.jaas.config` pointing to the Keycloak token endpoint, and `authorizer.class.name=kafka.security.authorizer.AclAuthorizer`. Per-service producer/consumer ACLs are provisioned, e.g. `kafka-acls --add --allow-principal User:checkout-saga --operation Write --topic ordering.order-commands`, `kafka-acls --add --allow-principal User:ordering-service --operation Read --topic ordering.order-commands --group ordering-order-commands`. Inventory / Payments command topics get equivalent ACL pairs. Event topics (`ordering.orders`, `inventory.events`, etc.) are open for `Read` cluster-wide and `Write` only to the producing service.
-  - **v1 reference posture:** docker-compose Kafka runs PLAINTEXT (no SASL, no ACLs) per [ADR-0009 reference profile](0009-reference-solution-target-profile.md) — laptop-runnable trumps production-correct. Saga-command consumers do not validate any sender token. The trust boundary is the docker network. **Production deployment checklist (in [ADR-0009 §Production callouts]) MUST enable SASL/OAUTHBEARER + AclAuthorizer + per-service ACLs before any deployment outside a single trust zone.**
-  - **What we do NOT implement in v1:** no `X-Service-Token` Kafka message header; no `Platform.KafkaFlow.Inbox.ServiceAuthMiddleware`; no per-message JWT extraction. These would be the wrong layer regardless of v1/v2 — they belong in the broker, not the consumer.
-
 - **Scope enforcement on inbound HTTP (where it does belong):**
-  - The HTTP-side `AddJwtBearer` validation above already enforces audience + issuer per service. Scope policies (`RequireClaim("scope", "ordering.commands.cancel")`-style) gate admin endpoints inside each service. This is the only layer where service-to-service tokens need application-level inspection in v1, because admin commands enter via HTTP, not Kafka.
+  - The HTTP-side `AddJwtBearer` validation above already enforces audience + issuer per service. Scope policies (`RequireClaim("scope", "inventory.commands.reserve")`-style) gate admin endpoints inside each service. This is the only layer where service-to-service tokens need application-level inspection, because admin commands enter via HTTP, not Kafka.
   - **Platform helper (Wave 1.5 cross-cutting):** `Platform.ServiceDefaults.Auth.ScopePolicyExtensions.RequireScope(string scope)` is the canonical way for a BC `AuthorizationPolicyBuilder` to enforce a scope claim. It composes `RequireAuthenticatedUser()` + `RequireClaim("scope", scope)` and validates input. Existing v1 BCs (Invoicing, Payments, Ordering) currently use `RequireRole(Roles.<Admin|Buyer>)` mapped from Keycloak realm roles — a transitional posture flagged in the Wave 1 closeouts. The v2 hardening pass migrates each admin/buyer policy to `RequireScope("<service>.<verb>")` using this helper; per-BC migration is tracked on the issue tracker under label `platform/wave1-followup`.
 
 - **Observability:**
@@ -118,9 +109,9 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 ## Related Decisions
 
 - [ADR-0008: Correlation-ID Propagation Rule](0008-correlation-id-propagation.md) — service-auth identity is separate from CorrelationId; both travel on the same hops
-- [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — production callouts include "enable Kafka SASL/OAUTHBEARER" (v1 absent)
-- [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — saga's outbound commands are the primary consumer of this mechanism
-- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — Avro payloads carry no auth metadata; per § Implementation Notes "Kafka command-topic authorization", service-auth on Kafka is at the broker layer (SASL/OAUTHBEARER + ACLs) in production, not in message headers or Avro fields
+- [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — single-trust-zone runtime profile defines the auth envelope this ADR fits into
+- [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — saga's outbound HTTP calls are the primary consumer of this mechanism
+- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — Avro payloads carry no auth metadata; HTTP is the only application layer that inspects service-auth tokens
 
 ## Amendment 2026-05-27 — Fail-closed audience contract
 

@@ -107,12 +107,11 @@ A reader who later needs production shape gets the best of both: the pattern is 
 2. Redis: Sentinel for basket (HA) or Cluster for scale; same for cache-backplane Redis.
 3. Kafka: replication factor 3; min.insync.replicas 2; 3 brokers minimum.
 4. Increase partition counts based on actual workload measurement (not pre-emptive).
-5. Introduce Kafka topic ACLs per ADR-0010 (service-principal SASL/OAUTHBEARER).
-6. Add cross-AZ Postgres standby with automatic failover.
-7. Move Azurite to a real Azure Blob Storage account (Aspire `AddAzureStorage` swaps automatically when not in `RunAsEmulator()` mode) and front with Azure Front Door / Azure CDN; see ADR-0017.
-8. Implement GDPR Article 17 tombstone + crypto-shredding per ADR-0011.
-9. Add rate-limit breakglass audit sink (file log is v1; real deployments need an audit log system).
-10. Schema-compat CI gate (ADR-0007 follow-up) becomes mandatory, not advisory.
+5. Add cross-AZ Postgres standby with automatic failover.
+6. Move Azurite to a real Azure Blob Storage account (Aspire `AddAzureStorage` swaps automatically when not in `RunAsEmulator()` mode) and front with Azure Front Door / Azure CDN; see ADR-0017.
+7. Implement GDPR Article 17 tombstone + crypto-shredding per ADR-0011.
+8. Add rate-limit breakglass audit sink (file log is v1; real deployments need an audit log system).
+9. Schema-compat CI gate (ADR-0007 follow-up) becomes mandatory, not advisory.
 
 ## Related Decisions
 

@@ -76,30 +76,6 @@
       "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
     },
     {
-      "name": "ordering.commands.create",
-      "protocol": "openid-connect",
-      "description": "Publish CreateOrderCommand to ordering.order-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "ordering.commands.confirm",
-      "protocol": "openid-connect",
-      "description": "Publish ConfirmOrderCommand to ordering.order-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "ordering.commands.cancel",
-      "protocol": "openid-connect",
-      "description": "Publish CancelOrderCommand to ordering.order-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "ordering.commands.fail",
-      "protocol": "openid-connect",
-      "description": "Publish MarkOrderFailedCommand to ordering.order-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
       "name": "inventory.read",
       "protocol": "openid-connect",
       "description": "Read stock levels and reservation status.",
@@ -112,45 +88,9 @@
       "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
     },
     {
-      "name": "inventory.commands.confirm",
-      "protocol": "openid-connect",
-      "description": "Publish ConfirmReservationCommand to inventory.reservation-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "inventory.commands.release",
-      "protocol": "openid-connect",
-      "description": "Publish ReleaseReservationCommand to inventory.reservation-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
       "name": "payments.read",
       "protocol": "openid-connect",
       "description": "Read payment transaction status.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "payments.commands.authorize",
-      "protocol": "openid-connect",
-      "description": "Publish AuthorizePaymentCommand to payments.commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "payments.commands.capture",
-      "protocol": "openid-connect",
-      "description": "Publish CapturePaymentCommand to payments.commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "payments.commands.void",
-      "protocol": "openid-connect",
-      "description": "Publish VoidPaymentCommand to payments.commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
-    },
-    {
-      "name": "payments.commands.refund",
-      "protocol": "openid-connect",
-      "description": "Publish RequestRefundCommand to payments.commands.",
       "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
     },
     {
@@ -516,17 +456,6 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": [
-        "ordering.commands.create",
-        "ordering.commands.confirm",
-        "ordering.commands.cancel",
-        "ordering.commands.fail",
-        "inventory.commands.reserve",
-        "inventory.commands.confirm",
-        "inventory.commands.release",
-        "payments.commands.authorize",
-        "payments.commands.capture",
-        "payments.commands.void",
-        "payments.commands.refund",
         "notifications.commands.send"
       ],
       "protocolMappers": [

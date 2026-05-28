@@ -25,8 +25,7 @@ namespace Payments.Infrastructure.Common;
 /// DI wiring for Kafka (saga-command consumer + outbox serialisation) and for the inbox dedup
 /// adapter against <see cref="PaymentsDbContext"/>. Payments has no producers in v1 — publish
 /// path is 100% through the transactional outbox + <c>outbox-relay-payments</c> container
-/// (ADR-0001). v1 broker is PLAINTEXT per ADR-0010 lines 102-106; production hardens via broker
-/// SASL/OAUTHBEARER + per-service ACLs.
+/// (ADR-0001).
 /// </summary>
 internal static class MessagingDependencyInjection
 {
