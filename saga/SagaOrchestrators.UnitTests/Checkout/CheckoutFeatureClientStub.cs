@@ -7,8 +7,7 @@ namespace SagaOrchestrators.UnitTests.Checkout;
 
 /// <summary>
 /// Test-double factory for <see cref="IFeatureClient"/> covering the Checkout saga's flag
-/// surface (M8, ADR-0014). NSubstitute pattern mirrors Catalog's
-/// <c>SearchProductsQueryHandlerTests.FlagClient(bool)</c>.
+/// surface (ADR-0014).
 /// </summary>
 internal static class CheckoutFeatureClientStub
 {

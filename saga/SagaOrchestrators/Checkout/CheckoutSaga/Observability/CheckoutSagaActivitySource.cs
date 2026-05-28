@@ -9,7 +9,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Observability;
 /// <see cref="SagaActivitySource"/>'s underlying source so the OTel registration in
 /// <see cref="SagaOrchestrators.Common.ObservabilityDependencyInjection"/> picks it up via
 /// the existing <c>AddSource("*")</c> + <c>AddSource(SagaActivitySource.ActivitySourceName)</c>
-/// without requiring DI changes (which sit outside M4's boundary).
+/// without requiring DI changes.
 /// </summary>
 /// <remarks>
 /// docs/bc-design/checkout-saga.md § 11.1 specifies the activity-source name

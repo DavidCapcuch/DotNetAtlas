@@ -3,11 +3,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// <summary>
 /// Internal saga event acknowledging that Inventory confirmed a previously reserved stock
 /// entry. Adapted from the external <c>Inventory.Reservations.ReservationConfirmedEvent</c> by
-/// the M3 consumer adapter. Consumed in <c>AwaitingConfirmation</c> for tracking only -
+/// the consumer adapter. Consumed in <c>AwaitingConfirmation</c> for tracking only —
 /// purely informational, does NOT gate transition to terminal <c>Confirmed</c> (Ordering's
 /// confirm is the gate per docs/bc-design/checkout-saga.md § 4 transition table). Correlated
-/// by <see cref="OrderId"/> per M3 plan-file § C1 Path B (Inventory's Avro lacks
-/// <c>CorrelationId</c>).
+/// by <see cref="OrderId"/> (Inventory's Avro lacks <c>CorrelationId</c>).
 /// </summary>
 public sealed record ReservationConfirmedSagaEvent
 {

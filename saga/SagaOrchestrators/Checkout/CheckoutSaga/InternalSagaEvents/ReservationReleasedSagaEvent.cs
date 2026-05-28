@@ -2,13 +2,12 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 
 /// <summary>
 /// Internal saga event acknowledging that Inventory released a previously reserved stock entry.
-/// Adapted from the external <c>Inventory.Reservations.ReservationReleasedEvent</c> by the M3
+/// Adapted from the external <c>Inventory.Reservations.ReservationReleasedEvent</c> by the
 /// consumer adapter. Consumed in <c>CompensatingStockReservations</c> (one per in-flight
 /// reservation) as one of the gating events for transition to terminal <c>Compensated</c> per
-/// docs/bc-design/checkout-saga.md § 4 transition table. M4 will discriminate on
+/// docs/bc-design/checkout-saga.md § 4 transition table; the saga discriminates on
 /// <see cref="ReleaseReason"/> to distinguish compensation-driven releases from TTL expiry.
-/// Correlated by <see cref="OrderId"/> per M3 plan-file § C1 Path B (Inventory's Avro lacks
-/// <c>CorrelationId</c>).
+/// Correlated by <see cref="OrderId"/> (Inventory's Avro lacks <c>CorrelationId</c>).
 /// </summary>
 public sealed record ReservationReleasedSagaEvent
 {

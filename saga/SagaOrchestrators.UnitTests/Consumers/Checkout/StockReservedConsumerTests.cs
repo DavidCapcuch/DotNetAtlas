@@ -10,7 +10,7 @@ namespace SagaOrchestrators.UnitTests.Consumers.Checkout;
 /// <summary>
 /// Asserts <see cref="StockReservedConsumer"/> field-by-field maps the Avro
 /// <see cref="StockReservedEvent"/> onto the internal <see cref="StockReservedSagaEvent"/>.
-/// Behavioural saga transitions (M4) are out of scope.
+/// Behavioural saga transitions are out of scope.
 /// </summary>
 public class StockReservedConsumerTests
 {

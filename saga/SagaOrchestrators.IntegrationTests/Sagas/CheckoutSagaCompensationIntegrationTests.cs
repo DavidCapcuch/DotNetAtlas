@@ -16,7 +16,7 @@ using SagaOrchestrators.IntegrationTests.Common;
 namespace SagaOrchestrators.IntegrationTests.Sagas;
 
 /// <summary>
-/// M9 end-to-end integration tests for the Checkout saga's compensation paths. Every test
+/// End-to-end integration tests for the Checkout saga's compensation paths. Every test
 /// drives the saga via real Kafka against the real EF Core saga repository in Postgres
 /// (Testcontainers via <see cref="SagaIntegrationTestFixture"/>) until the saga reaches its
 /// designated terminal — <see cref="CheckoutSagaOrchestrator.Compensated"/>,
@@ -28,7 +28,7 @@ namespace SagaOrchestrators.IntegrationTests.Sagas;
 /// <remarks>
 /// The compensation-timeout test triggers the schedule via direct
 /// <c>IBus.Publish&lt;CompensationTimeoutExpired&gt;</c> rather than waiting on the SQL transport
-/// scheduler — same tactic the M7 unit-level metric tests use (see
+/// scheduler — same tactic the unit-level metric tests use (see
 /// <c>CheckoutSagaMetricsEmissionTests</c>) and avoids inflating the test runtime by 60s
 /// (the <c>Saga:CheckoutTimeouts:CompensationSeconds</c> testing default). The previously-armed
 /// schedule will fire later but the saga is already finalised by then;
@@ -513,7 +513,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     /// Polls the persisted saga state until <paramref name="productId"/>'s tracking entry is
     /// <see cref="ReservationStatus.Reserved"/>. Used to sequence operations where the saga must
     /// observe a StockReservedEvent before a downstream event arrives — same race-pre-mortem
-    /// rationale M6's <c>WaitForStateConditionAsync</c> records.
+    /// rationale that <c>WaitForStateConditionAsync</c> records.
     /// </summary>
     private async Task WaitForReservedStatusAsync(Guid correlationId, Guid productId)
     {

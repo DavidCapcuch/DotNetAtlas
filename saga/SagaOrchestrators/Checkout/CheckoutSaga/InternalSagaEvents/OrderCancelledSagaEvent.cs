@@ -2,7 +2,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 
 /// <summary>
 /// Internal saga event acknowledging that Ordering cancelled the order during compensation.
-/// Adapted from the external <c>Ordering.Orders.OrderCancelledEvent</c> by the M3 consumer
+/// Adapted from the external <c>Ordering.Orders.OrderCancelledEvent</c> by the consumer
 /// adapter. Consumed in <c>CompensatingStockReservations</c> as one of the gating events for
 /// transition to terminal <c>Compensated</c> per docs/bc-design/checkout-saga.md § 4 transition
 /// table.

@@ -8,10 +8,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 /// Consumer that receives <see cref="StockReservedEvent"/> from <c>inventory.reservations</c>
 /// and forwards it to the <see cref="CheckoutSagaOrchestrator"/> as
 /// <see cref="StockReservedSagaEvent"/> per docs/bc-design/checkout-saga.md § 8 row 6.
-/// Correlated by <c>OrderId</c> per M3 plan-file § C1 Path B - Inventory's Avro schemas
-/// don't yet carry <c>CorrelationId</c>; the saga uses <c>OrderId</c> as the correlation key
-/// because the state-machine sequence guarantees <c>OrderCreatedSagaEvent</c> precedes any
-/// Stock* event.
+/// Correlated by <c>OrderId</c> — Inventory's Avro schemas don't carry
+/// <c>CorrelationId</c>; the saga uses <c>OrderId</c> as the correlation key because the
+/// state-machine sequence guarantees <c>OrderCreatedSagaEvent</c> precedes any Stock*
+/// event.
 /// </summary>
 public sealed class StockReservedConsumer : IConsumer<StockReservedEvent>
 {

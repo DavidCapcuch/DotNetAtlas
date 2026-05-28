@@ -3,7 +3,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// <summary>
 /// Internal saga event signalling that the Payments BC (via PaymentProcessingSaga) could not
 /// capture payment. Adapted from the external <c>Payments.Transactions.PaymentFailedEvent</c>
-/// by the M3 consumer adapter (named <c>PaymentFailedCheckoutConsumer</c>). Consumed in
+/// by the consumer adapter (named <c>PaymentFailedCheckoutConsumer</c>). Consumed in
 /// <c>AwaitingPayment</c> (transition to <c>CompensatingStockReservations</c> per
 /// docs/bc-design/checkout-saga.md § 4 transition table). No refund is needed because payment
 /// never captured.

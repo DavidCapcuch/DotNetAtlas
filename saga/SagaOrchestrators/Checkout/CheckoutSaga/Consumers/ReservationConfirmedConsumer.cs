@@ -9,7 +9,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 /// <c>inventory.reservations</c> and forwards it to the <see cref="CheckoutSagaOrchestrator"/>
 /// as <see cref="ReservationConfirmedSagaEvent"/> per docs/bc-design/checkout-saga.md § 8
 /// row 8 (in design doc) - informational tracking only, does not gate <c>Confirmed</c>.
-/// Correlated by <c>OrderId</c> (M3 plan-file § C1 Path B).
+/// Correlated by <c>OrderId</c> (Inventory's Avro lacks <c>CorrelationId</c>).
 /// </summary>
 public sealed class ReservationConfirmedConsumer : IConsumer<ReservationConfirmedEvent>
 {

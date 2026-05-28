@@ -8,8 +8,8 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 /// Consumer that receives <see cref="StockReservationFailedEvent"/> from
 /// <c>inventory.reservations</c> and forwards it to the <see cref="CheckoutSagaOrchestrator"/>
 /// as <see cref="StockReservationFailedSagaEvent"/> per docs/bc-design/checkout-saga.md § 8
-/// row 7. Correlated by <c>OrderId</c> (M3 plan-file § C1 Path B). First arrival wins -
-/// triggers transition to <c>CompensatingStockReservations</c>.
+/// row 7. Correlated by <c>OrderId</c> (Inventory's Avro lacks <c>CorrelationId</c>).
+/// First arrival wins — triggers transition to <c>CompensatingStockReservations</c>.
 /// </summary>
 public sealed class StockReservationFailedConsumer : IConsumer<StockReservationFailedEvent>
 {

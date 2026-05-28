@@ -2,7 +2,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 
 /// <summary>
 /// Internal saga event signalling that Ordering created the order aggregate. Adapted from the
-/// external <c>Ordering.Orders.OrderCreatedEvent</c> by the M3 consumer adapter. Consumed in
+/// external <c>Ordering.Orders.OrderCreatedEvent</c> by the consumer adapter. Consumed in
 /// state <c>AwaitingOrderCreation</c> (transition to <c>AwaitingStockReservation</c> per
 /// docs/bc-design/checkout-saga.md § 4 transition table).
 /// </summary>
