@@ -56,7 +56,7 @@ All topic names, partition counts and retention values below must match [events-
 | `inventory.reservations` | `inventory.reservations.DLT` | infinite (audit) | 14 days | Saga fan-in depends on these — DLT delays saga completion until state-timeout triggers compensation |
 | `inventory.reservation-commands` | `inventory.reservation-commands.DLT` | 7 days | 14 days | Commands must complete — DLT = saga state-timeout + compensation imminent |
 | `payments.transactions` | `payments.transactions.DLT` | (existing) | 14 days | Existing — unchanged |
-| `payments.commands` | `payments.commands.DLT` | (existing) | 14 days | Existing — unchanged |
+| `payments.payment-commands` | `payments.payment-commands.DLT` | (existing) | 14 days | Existing — unchanged |
 | `notification.commands` | `notification.commands.DLT` | (existing) | 14 days | Existing — unchanged |
 
 **Docker-compose note:** the DLT topics are NOT pre-created by the `kafka-create-topic` block; they are auto-created on first produce by the Kafka broker with cluster-default partitioning (3) and default retention (7 days). If exact parity with the source-topic partition count or a longer retention is required, add explicit `kafka-topics --create` lines to the bootstrap command for each `.DLT` topic. This is a pending operational task — logged as a follow-up in § 7.

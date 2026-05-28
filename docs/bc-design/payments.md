@@ -173,13 +173,13 @@ Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Nev
 
 **Schema compatibility:** FORWARD_TRANSITIVE per [ADR-0007](../adr/0007-avro-compatibility-modes.md).
 
-**Known classification debt:** several `*Event`-named messages have exactly one consumer (PaymentProcessingSaga) and per master-design § 3.5 are really commands. The **Checkout saga agent** has explicit authority to propose renames (`PaymentRequestedEvent` → `RequestPaymentCommand` on a new `payments.commands` topic). Proposals surface in the session summary; user approval required before implementation.
+**Known classification debt:** several `*Event`-named messages have exactly one consumer (PaymentProcessingSaga) and per master-design § 3.5 are really commands. The **Checkout saga agent** has explicit authority to propose renames (`PaymentRequestedEvent` → `RequestPaymentCommand` on the `payments.payment-commands` topic). Proposals surface in the session summary; user approval required before implementation.
 
 ---
 
 ## 7. Commands (Avro) + Command Topic
 
-**Topic:** `payments.commands` (formerly `payments.payment-commands` — renamed in Wave 0) — 7-day retention, partition key `CorrelationId`.
+**Topic:** `payments.payment-commands` — 7-day retention, partition key `CorrelationId`. Canonical name per [kafka-topology.md](../kafka-topology.md).
 
 | Command | Producer | Consumer | Trigger |
 |---|---|---|---|

@@ -40,7 +40,7 @@
 | **PaymentProcessingSaga** | Standalone saga orchestrator under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`. The **only** caller of Payments commands. Sub-saga of the Checkout saga, delegated via `PaymentRequestedEvent`. |
 | **Checkout saga** | The top-level orchestrator under `saga/SagaOrchestrators/Checkout/`. Consumes terminal Payments events (`PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`) to drive its own state transitions. Does NOT issue Payments commands directly — that's PaymentProcessingSaga's job. |
 | **payments.transactions** | Kafka topic for outbound Payments events. Infinite retention (audit). Partition key `CorrelationId`. |
-| **payments.commands** | Kafka topic for inbound commands from PaymentProcessingSaga. 7-day retention. Partition key `CorrelationId`. |
+| **payments.payment-commands** | Kafka topic for inbound commands from PaymentProcessingSaga. 7-day retention. Partition key `CorrelationId`. |
 
 ---
 
