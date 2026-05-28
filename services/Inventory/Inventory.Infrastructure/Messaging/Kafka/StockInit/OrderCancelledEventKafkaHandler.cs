@@ -9,6 +9,7 @@ using Platform.CQRS;
 using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.SharedKernel.Errors;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 
 namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
@@ -148,9 +149,8 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                         orderId: message.OrderId,
                         errorSummary: errorSummary,
                         errorCodes: result.Errors
-                            .Select(e => e.Metadata.TryGetValue("ErrorCode", out var code) ? code?.ToString() : null)
-                            .Where(c => c is not null)
-                            .Cast<string>()
+                            .OfType<DomainError>()
+                            .Select(e => e.ErrorCode)
                             .ToArray());
                 }
             }

@@ -60,7 +60,7 @@ public sealed class ReceiveStockTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenInvalidQuantity_Returns400()
+    public async Task WhenInvalidQuantity_Returns422()
     {
         var productId = Guid.CreateVersion7();
         await InitializeStreamAsync(productId);
@@ -68,7 +68,7 @@ public sealed class ReceiveStockTests : BaseApiTest
         var response = await Fixture.HttpClientRegistry.CommandsClient
             .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/receive", BuildBody(productId, 0), TestContext.Current.CancellationToken);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     // [BindFrom("productId")] tells FastEndpoints to bind the route token, but

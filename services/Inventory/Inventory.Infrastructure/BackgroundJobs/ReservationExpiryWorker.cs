@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Platform.CQRS;
+using Platform.SharedKernel.Errors;
 
 namespace Inventory.Infrastructure.BackgroundJobs;
 
@@ -181,7 +182,8 @@ internal sealed class ReservationExpiryWorker : BackgroundService
                     // (ProductId, reason) pair is the ops-escalation signal —
                     // see #158.
                     var reasonTag = result.Errors
-                        .Select(e => e.Metadata.TryGetValue("ErrorCode", out var code) ? code?.ToString() : null)
+                        .OfType<DomainError>()
+                        .Select(e => e.ErrorCode)
                         .FirstOrDefault(c => !string.IsNullOrEmpty(c)) ?? "Unknown";
                     InventoryMetrics.RecordExpiryFailure(row.ProductId, reasonTag);
                     _logger.LogWarning(

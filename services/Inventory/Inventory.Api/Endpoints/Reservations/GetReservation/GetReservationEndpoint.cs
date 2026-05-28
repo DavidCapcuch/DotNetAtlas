@@ -1,9 +1,9 @@
 using System.Net;
 using FastEndpoints;
 using Inventory.Api.Common.Authorization;
-using Inventory.Api.Common.Extensions;
 using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.GetReservationById;
+using Platform.Api.Extensions;
 
 namespace Inventory.Api.Endpoints.Reservations.GetReservation;
 

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.SharedKernel.Errors;
 
 namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 
@@ -165,9 +166,8 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     {
         foreach (var error in errors)
         {
-            if (error.Metadata.TryGetValue("ErrorCode", out var code)
-                && code is string codeString
-                && BusinessExpectedErrorCodes.Contains(codeString))
+            if (error is DomainError domainError
+                && BusinessExpectedErrorCodes.Contains(domainError.ErrorCode))
             {
                 return true;
             }

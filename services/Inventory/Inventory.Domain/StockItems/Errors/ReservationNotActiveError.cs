@@ -1,6 +1,5 @@
-using System.Globalization;
-using FluentResults;
 using Inventory.Domain.StockItems.ValueObjects;
+using Platform.SharedKernel.Errors;
 
 namespace Inventory.Domain.StockItems.Errors;
 
@@ -13,26 +12,24 @@ namespace Inventory.Domain.StockItems.Errors;
 /// <c>docs/bc-design/example-mapping/inventory.md</c> Sessions 1 and 3 specify a
 /// <c>Result.Fail</c> (not a throw) for the terminal-status case.
 /// </summary>
-public sealed record ReservationNotActiveError(
-    Guid ProductId,
-    Guid ReservationId,
-    ReservationStatus CurrentStatus) : IError
+/// <remarks>
+/// Inherits <see cref="ConflictError"/> so the canonical
+/// <c>Platform.Api.Extensions</c> dispatch maps it to 409 without a BC-specific
+/// case. Modelled as a sealed class (not a record) because C# records cannot
+/// inherit from non-record bases (CS8864).
+/// </remarks>
+public sealed class ReservationNotActiveError(
+    Guid productId,
+    Guid reservationId,
+    ReservationStatus currentStatus)
+    : ConflictError(
+        entityName: "Reservation",
+        message: FormattableString.Invariant($"Reservation {reservationId} on stock item {productId} is not Active (current status: {currentStatus})."),
+        errorCode: "Inventory.ReservationNotActive")
 {
-    public string Message =>
-        string.Format(
-            CultureInfo.InvariantCulture,
-            "Reservation {0} on stock item {1} is not Active (current status: {2}).",
-            ReservationId,
-            ProductId,
-            CurrentStatus);
+    public Guid ProductId { get; } = productId;
 
-    public Dictionary<string, object> Metadata { get; } = new()
-    {
-        ["ErrorCode"] = "Inventory.ReservationNotActive",
-        ["ProductId"] = ProductId,
-        ["ReservationId"] = ReservationId,
-        ["CurrentStatus"] = CurrentStatus,
-    };
+    public Guid ReservationId { get; } = reservationId;
 
-    public List<IError> Reasons { get; } = [];
+    public ReservationStatus CurrentStatus { get; } = currentStatus;
 }

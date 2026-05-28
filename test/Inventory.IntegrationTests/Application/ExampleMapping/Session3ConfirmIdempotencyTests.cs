@@ -189,7 +189,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle()
             .Which.Should().BeOfType<ReservationNotActiveError>()
-            .Which.Metadata["ErrorCode"].Should().Be("Inventory.ReservationNotActive");
+            .Which.ErrorCode.Should().Be("Inventory.ReservationNotActive");
 
         using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
