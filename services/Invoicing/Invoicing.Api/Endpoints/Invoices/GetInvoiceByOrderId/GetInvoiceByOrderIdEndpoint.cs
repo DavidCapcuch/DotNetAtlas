@@ -4,6 +4,7 @@ using Invoicing.Api.Common.Extensions;
 using Invoicing.Application.Invoices.GetInvoiceById;
 using Invoicing.Application.Invoices.GetInvoiceByOrderId;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Platform.Api.Extensions;
 using Serilog.Context;
 
 namespace Invoicing.Api.Endpoints.Invoices.GetInvoiceByOrderId;
