@@ -5,9 +5,9 @@ namespace Catalog.Application.Common.Validation;
 /// <summary>
 /// FluentValidation extensions whose semantics differ from the built-ins on Unicode-heavy input.
 /// <see cref="MaximumRuneLength"/> counts Unicode scalars (runes) rather than UTF-16 code units
-/// so emoji and other surrogate-pair characters are not double-counted — addresses CAT-SEC-006
-/// (Wave-1 closeout) where a user input limited to N UTF-16 code units could be truncated
-/// mid-surrogate, producing a malformed string or an unexpected byte count downstream.
+/// so emoji and other surrogate-pair characters are not double-counted — guards against a user
+/// input limited to N UTF-16 code units being truncated mid-surrogate, which would produce a
+/// malformed string or an unexpected byte count downstream.
 /// </summary>
 internal static class ValidationExtensions
 {

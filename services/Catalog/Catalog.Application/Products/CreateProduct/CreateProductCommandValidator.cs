@@ -79,8 +79,8 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
             .WithMessage("Image DisplayOrder values must be unique within the product.");
     }
 
-    // CAT-SEC-005 (Wave-1 closeout): mirror the domain-level scheme allow-list at the API
-    // surface so a hostile URL is rejected before the command reaches Product.Create.
+    // Mirror the domain-level scheme allow-list at the API surface so a hostile URL is
+    // rejected before the command reaches Product.Create.
     private static bool IsHttpOrHttpsAbsoluteUri(string? url)
     {
         return Uri.TryCreate(url, UriKind.Absolute, out var uri)

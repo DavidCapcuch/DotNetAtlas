@@ -3,9 +3,7 @@ namespace Catalog.Application.Common.Validation;
 /// <summary>
 /// Conservative heuristic that flags strings looking like HTML/XML markup so that
 /// untrusted free-text fields cannot smuggle script tags, comments, processing
-/// instructions, CDATA blocks, or HTML-encoded entities downstream (CAT-SEC-004,
-/// Wave-1 closeout). Replaces the earlier "&lt;letter" check which let comments,
-/// doctypes, processing instructions, CDATA, and encoded entities through.
+/// instructions, CDATA blocks, or HTML-encoded entities downstream.
 /// </summary>
 /// <remarks>
 /// This is a reject-on-suspicious-token heuristic, not a sanitizer. For richer
