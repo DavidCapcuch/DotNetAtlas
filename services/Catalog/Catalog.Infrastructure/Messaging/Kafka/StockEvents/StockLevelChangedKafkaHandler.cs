@@ -8,8 +8,9 @@ namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 /// <summary>
 /// Inbound Kafka adapter for Inventory's <see cref="StockLevelChanged"/> events. Translates the
 /// Avro message into a call into the Application-layer
-/// <see cref="IStockLevelChangedProjectionHandler"/>; the projection write itself lives in
-/// Catalog.Application so architecture-tests.md § 2.1 holds across the inbox-driven path.
+/// <see cref="IStockLevelChangedProjector"/>; the projection write itself lives in
+/// Catalog.Application so architecture-tests.md § 2.1 holds across the Kafka-delivered,
+/// inbox-deduped path.
 /// </summary>
 /// <remarks>
 /// <para>

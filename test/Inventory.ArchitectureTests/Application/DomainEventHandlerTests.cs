@@ -1,7 +1,7 @@
 using NetArchTest.Rules;
 using Platform.SharedKernel.Base.DomainEvents;
 
-namespace Inventory.ArchitectureTests.BoundedContext;
+namespace Inventory.ArchitectureTests.Application;
 
 /// <summary>
 /// Inventory's read-side multiplexes both projections + outbox emission inside a single class
