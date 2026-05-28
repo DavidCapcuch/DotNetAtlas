@@ -1,9 +1,9 @@
 using System.Text.Json;
 using AwesomeAssertions;
 using Invoicing.Application.Common.Data;
+using Invoicing.Application.Common.Exceptions;
 using Invoicing.Application.Invoices.IssueInvoice;
 using Invoicing.Application.Invoices.Projections;
-using Invoicing.Domain.Common.Errors;
 using Invoicing.Domain.Invoices.ValueObjects;
 using Invoicing.Infrastructure.Persistence.Database;
 using Invoicing.IntegrationTests.Common;
@@ -13,7 +13,6 @@ using Notifications.Email;
 using NSubstitute;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.SharedKernel.Exceptions;
 using Xunit;
 
 namespace Invoicing.IntegrationTests.Application;
@@ -24,7 +23,7 @@ namespace Invoicing.IntegrationTests.Application;
 /// <list type="bullet">
 /// <item>1.1 — happy path (order + payment converged → invoice issued, allocator advances, outbox fires).</item>
 /// <item>1.3 — idempotent re-issue (already-set <c>IssuedInvoiceId</c> → no-op).</item>
-/// <item>1.4 — total mismatch (Order.Total ≠ Payment.Amount → <c>DataIntegrityException</c> bug-class).</item>
+/// <item>1.4 — total mismatch (Order.Total ≠ Payment.Amount → <c>InvoiceTotalMismatchException</c> bug-class, DLT'd).</item>
 /// </list>
 /// PDF generation + blob upload + Avro outbox serialisation are stubbed at the fixture
 /// level (see <c>IntegrationTestFixture</c>); the assertions verify what the handler
@@ -265,7 +264,7 @@ public sealed class IssueInvoiceCommandHandlerTests
     }
 
     [Fact]
-    public async Task Example_1_4_TotalMismatch_ThrowsDataIntegrityException_NoInvoiceIssued()
+    public async Task Example_1_4_TotalMismatch_ThrowsInvoiceTotalMismatchException_NoInvoiceIssued()
     {
         var ct = TestContext.Current.CancellationToken;
         var correlationId = Guid.CreateVersion7();
@@ -286,9 +285,11 @@ public sealed class IssueInvoiceCommandHandlerTests
             new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
 
         using var _ = new AssertionScope();
-        await act.Should().ThrowAsync<DataIntegrityException>()
-            .Where(ex => ex.Message.Contains("152", StringComparison.Ordinal)
-                || ex.Message.Contains("150", StringComparison.Ordinal));
+        var thrown = await act.Should().ThrowAsync<InvoiceTotalMismatchException>();
+        thrown.Which.OrderTotal.Should().Be(152.00m);
+        thrown.Which.PaymentAmount.Should().Be(150.00m);
+        thrown.Which.CorrelationId.Should().Be(correlationId);
+        thrown.Which.ErrorCode.Should().Be("Invoicing.TotalMismatch");
 
         await using var assertScope = _fixture.CreateScope();
         var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();

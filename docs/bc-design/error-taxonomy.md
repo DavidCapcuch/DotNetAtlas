@@ -1,11 +1,11 @@
 # Error Taxonomy — eShop Reference Solution
 
-> Single source of truth for every `*Error` type produced by handlers and aggregates across the six new bounded contexts (Catalog, Basket, Ordering, Inventory, Payments, Invoicing) plus the Checkout saga. Each row specifies: source, HTTP mapping, saga/infrastructure semantics, retry-ability, and dead-letter behavior. Cross-linked from each BC chapter's "Error types" subsection and from [use-cases.md](use-cases.md).
+> Single source of truth for every error type and exception produced by handlers and aggregates across the six bounded contexts (Catalog, Basket, Ordering, Inventory, Payments, Invoicing) plus the Checkout saga. Each row in § 1 specifies BC, category, HTTP mapping, saga/infrastructure semantics, retry-ability, and dead-letter behavior. Cross-linked from each BC chapter's "Error types" subsection and from [use-cases.md](use-cases.md).
 >
 > **Conventions (reiterating [master design § 12.2](../eshop-master-design.md) "Result pattern"):**
-> - Handlers return `Result.Fail(new SomeError(...))` for **user-actionable** errors. Error types implement FluentResults `IError` (existing codebase convention — see `Weather.Domain.Alerts.Errors.WeatherAlertErrors` for the canonical shape using `Platform.SharedKernel.Errors.ValidationError`).
-> - Aggregate methods throw [`DataIntegrityException`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) for **corrupted-state / bug-class** errors. These propagate up the pipeline and hit the global exception middleware → HTTP 5xx, or the KafkaFlow [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) → `.DLT` topic when consumed from Kafka.
-> - Errors from external services (Catalog HTTP down, Kafka produce fail) use adapter-specific errors (e.g., `BasketAclErrors.CatalogUnavailable`) and are categorised as infrastructure/upstream failures.
+> - Handlers return `Result.Fail(SomeFactory(...))` for **user-actionable** errors. Each factory returns one of the six canonical [`DomainError`](../../platform/Platform.SharedKernel/Errors/DomainError.cs) subclasses — `ValidationError`, `NotFoundError`, `ConflictError`, `ServiceUnavailableError`, `ForbiddenError`, `NotImplementedError`. `ErrorCode` is a **property** on `DomainError`; there is no `Metadata` dictionary.
+> - Aggregate methods and saga-command handlers throw [`DataIntegrityException`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) (or a BC-scoped subclass — see § 3.6) for **corrupted-state / bug-class** errors. These propagate up the pipeline and hit the [`PlatformExceptionHandler`](../../platform/Platform.ServiceDefaults/Exceptions/PlatformExceptionHandler.cs) → HTTP 500, or the KafkaFlow [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) → `.DLT` topic when raised inside a consumer.
+> - Errors from external services (Catalog HTTP down, payment gateway timeout) use adapter-specific factories (e.g., `BasketAclErrors.CatalogUnavailable`) that return `ServiceUnavailableError` (503).
 > - "Retry-ability" in this document refers to **caller/client** retry semantics; Kafka consumer retry is governed by [kafka-dlt-strategy.md](kafka-dlt-strategy.md).
 
 ---
@@ -18,43 +18,66 @@
 | `BasketErrors.MaxItemsReached` | Basket | User | 409 | N/A (pre-saga) | No | No | [basket.md § Invariants](basket.md) (max 50 items) |
 | `BasketErrors.InvalidQuantity` | Basket | User | 422 | N/A | No | No | [basket.md § BasketItem](basket.md) (`quantity >= 1`) |
 | `BasketErrors.CurrencyMismatch` | Basket | User | 422 | N/A | No | No | [basket.md](basket.md) — all items share basket currency |
-| `BasketConcurrencyError` | Basket | Conflict | 409 | N/A | **Yes — handler retries once** (documented in [basket.md § Optimistic concurrency](basket.md)) | No | Redis CAS failure on `Basket.Version` |
+| `BasketErrors.ItemNotFound` | Basket | User | 404 | N/A | No | No | [basket.md § BasketItem](basket.md) — remove/update target missing |
+| `BasketErrors.Corruption` | Basket | User | 422 | N/A | No | No | [basket.md](basket.md) — stored basket cannot be rehydrated (e.g. retired currency code) |
+| `BasketConcurrencyError` (: `ConflictError`) | Basket | Conflict | 409 | N/A | **Yes — handler retries once** (`BasketConcurrencyRetry`; documented in [basket.md § Optimistic concurrency](basket.md)) | No | Redis CAS failure on `Basket.Version` |
 | `BasketAclErrors.CatalogUnavailable` | Basket (ACL) | Upstream | 503 | N/A | Yes (client) | No | [basket.md § ProductCatalogHttpAdapter](basket.md) — network/5xx/timeout from Catalog |
 | `BasketAclErrors.ProductNotFound(productId)` | Basket (ACL) | User | 404 | N/A | No | No | [basket.md § ProductCatalogHttpAdapter](basket.md) — 404 from Catalog |
-| `CatalogErrors.SkuAlreadyExists` | Catalog | User | 409 | N/A | No | No | [catalog.md § Product invariants](catalog.md) (SKU uniqueness) |
-| `CatalogErrors.ProductNotFound` | Catalog | User | 404 | N/A | No | No | Query/command target missing |
+| `ProductErrors.CategoryIdRequired` | Catalog | User | 422 | N/A | No | No | [catalog.md § Product.Create](catalog.md) |
+| `ProductErrors.PriceMustBePositive` | Catalog | User | 422 | N/A | No | No | [catalog.md § Money](catalog.md) — price invariant |
 | `ProductErrors.CannotRepriceDiscontinued` | Catalog | User | 409 | N/A | No | No | [catalog.md § ChangePrice](catalog.md) (`Status != Discontinued`) |
+| `ProductErrors.CannotModifyDiscontinued` | Catalog | User | 409 | N/A | No | No | [catalog.md § Describe](catalog.md) |
 | `ProductErrors.ReasonRequired` | Catalog | User | 422 | N/A | No | No | [catalog.md § Discontinue](catalog.md) |
-| `ProductErrors.ReactivationRequiresAdminFlag` | Catalog | User | 403 | N/A | No | No | [catalog.md § Reactivate](catalog.md) — policy error |
-| `CategoryErrors.HasDependents` | Catalog | User | 409 | N/A | No | No | [catalog.md § Category invariants](catalog.md) — delete blocked when children/products |
+| `ProductErrors.ReactivationRequiresAdminFlag` | Catalog | User | 403 | N/A | No | No | [catalog.md § Reactivate](catalog.md) — policy / authorisation error |
+| `ProductErrors.NotFound` | Catalog | User | 404 | N/A | No | No | Handler-level lookup miss on any product-addressing command/query |
+| `ProductErrors.SkuAlreadyExists(sku)` | Catalog | User | 409 | N/A | No | No | [catalog.md § Product invariants](catalog.md) (SKU uniqueness) |
+| `ProductErrors.CannotDiscontinueInStatus(status)` | Catalog | User | 409 | N/A | No | No | [catalog.md § Discontinue](catalog.md) — FSM precondition |
+| `ProductErrors.CannotReactivateInStatus(status)` | Catalog | User | 409 | N/A | No | No | [catalog.md § Reactivate](catalog.md) — FSM precondition |
+| `CategoryErrors.NameRequired` / `NameTooLong(max)` | Catalog | User | 422 | N/A | No | No | [catalog.md § Category invariants](catalog.md) |
 | `CategoryErrors.MaxDepthExceeded(max: 5)` | Catalog | User | 422 | N/A | No | No | [catalog.md § Category invariants](catalog.md) |
 | `CategoryErrors.CannotParentToSelf` | Catalog | User | 422 | N/A | No | No | [catalog.md § Reparent](catalog.md) |
+| `CategoryErrors.NotFound(categoryId)` | Catalog | User | 404 | N/A | No | No | Handler-level lookup miss |
+| `CategoryErrors.ParentNotFound(parentCategoryId)` | Catalog | User | 404 | N/A | No | No | [catalog.md § Create / Reparent](catalog.md) |
+| `CategoryErrors.ReparentCreatesCycle(id, newParentId)` | Catalog | User | 422 | N/A | No | No | [catalog.md § Reparent](catalog.md) — `CategoryAncestryService` |
+| Value-object validators (`SkuErrors.*`, `ProductNameErrors.*`, `BrandNameErrors.*`, `DimensionsErrors.*`, `ImageReferenceErrors.*`, `CategoryPathErrors.*`, `ProductDescriptionErrors.*`) | Catalog | User | 422 | N/A | No | No | Each VO file under `services/Catalog/Catalog.Domain/.../Errors/` — all return `ValidationError` |
 | `OrderingErrors.CannotCancelInStatus(status)` | Ordering | User | 409 | N/A (admin HTTP) | No | No | [ordering.md § Order.Cancel](ordering.md) — `CanTransitionTo(Cancelled)` |
 | `OrderingErrors.OrderNotFound` | Ordering | User | 404 | N/A | No | No | Query target missing |
-| **Invalid order-status transition from saga command** | Ordering | Bug | 5xx | Saga → `Failed` (command fell through; DLT alert raised) | No | **Yes** | [use-cases.md § 3.3 Ordering saga consumers](use-cases.md) — aggregate throws `DataIntegrityException` |
-| `InsufficientStockError` | Inventory | Business (expected) | 409 | Saga transitions to `CompensatingStockReservations` path | No | No | [inventory.md § Reserve](inventory.md) — `Available < qty` |
-| `InventoryErrors.StockItemNotFound` | Inventory | Bug | 5xx | Saga → `Failed`; DLT | No | **Yes** | [use-cases.md § 4.3 Inventory saga consumers](use-cases.md) — should never occur when Catalog has published `ProductCreatedEvent` |
-| **Unknown `ReservationId`** on confirm/release | Inventory | Bug | 5xx | DLT; ops investigates | No | **Yes** | [inventory.md § ConfirmReservation / ReleaseReservation](inventory.md) — aggregate has no record of this `ReservationId` (invariant 6 violation); throws `DataIntegrityException` |
-| `ReservationNotActiveError(productId, reservationId, currentStatus)` | Inventory | Business (expected) | 409 | Saga: caller's compensation path (no DLT) | No | No | [inventory.md § ConfirmReservation / ReleaseReservation](inventory.md) — known reservation but its status is terminal (`Confirmed`/`Released`); `Result.Fail` per [example-mapping/inventory.md](example-mapping/inventory.md) Sessions 1 & 3 |
-| `ConcurrencyError` | Inventory | Conflict | 5xx | Saga retries the step once; if still failing → compensation | Yes (1x) | No | [inventory.md § Event store optimistic concurrency](inventory.md) — stream version conflict |
+| **Invalid order-status transition from saga command** | Ordering | Bug | 500 | Saga → `Failed` (command fell through; DLT alert raised) | No | **Yes** | [use-cases.md § 3.3 Ordering saga consumers](use-cases.md) — aggregate throws `DataIntegrityException` |
+| `InsufficientStockError` (: `ConflictError`) | Inventory | Business (expected) | 409 | Saga transitions to `CompensatingStockReservations` path | No | No | [inventory.md § Reserve](inventory.md) — `Available < qty` |
+| `ConcurrencyError` (: `ConflictError`) | Inventory | Conflict | 409 | Saga retries the step once; if still failing → compensation | Yes (1x) | No | [inventory.md § Event store optimistic concurrency](inventory.md) — stream version conflict |
+| `ReservationNotActiveError(productId, reservationId, currentStatus)` (: `ConflictError`) | Inventory | Business (expected) | 409 | Saga: caller's compensation path (no DLT) | No | No | [inventory.md § ConfirmReservation / ReleaseReservation](inventory.md) — known reservation in terminal status |
+| `InventoryErrors.StockItemNotFound` | Inventory | Bug | 500 | Saga → `Failed`; DLT | No | **Yes** | [use-cases.md § 4.3 Inventory saga consumers](use-cases.md) — should never occur when Catalog has published `ProductCreatedEvent` |
+| `InventoryErrors.ReservationNotFound` | Inventory | Bug | 500 | DLT; ops investigates | No | **Yes** | [inventory.md § Command semantics](inventory.md) — confirm/release for an unknown `ReservationId` (invariant 6 violation) |
 | `PaymentsErrors.PaymentNotFound(paymentId)` | Payments | User | 404 | N/A (admin HTTP) | No | No | Query target missing |
-| `PaymentsErrors.GatewayDeclined(reason)` | Payments | Business (expected) | 409 | Saga converts to `PaymentFailedEvent` → `CompensatingStockReservations` | No | No | [payments.md § Gateway integration](payments.md) — gateway returned a non-success code |
+| `GatewayDeclinedError(reason, gatewayCode?)` (: `ConflictError`) | Payments | Business (expected) | 409 | Saga converts to `PaymentFailedEvent` → `CompensatingStockReservations` | No | No | [payments.md § Gateway integration](payments.md) — gateway returned a non-success code |
 | `PaymentsErrors.InvalidPaymentMethod` | Payments | User | 422 | N/A (factory validation) | No | No | [payments.md § PaymentMethodId VO](payments.md) |
 | `PaymentsErrors.InvalidAmount` | Payments | User | 422 | N/A (factory validation) | No | No | [payments.md § I-1](payments.md) — amount must be > 0 |
 | `PaymentsErrors.GatewayUnavailable` | Payments | Upstream | 503 | Saga retry via Polly; after exhaustion → `CompensatingStockReservations` | Yes (client) | No | [payments.md § IPaymentGateway adapter](payments.md) |
-| **Invalid payment-status transition** | Payments | Bug | 5xx | DLT; ops investigates | No | **Yes** | [payments.md § PaymentStatus SmartEnum](payments.md) — aggregate throws `DataIntegrityException` |
-| `InvoicingErrors.InvoiceNotFound(invoiceId)` | Invoicing | User | 404 | N/A | No | No | Query target missing |
-| `InvoicingErrors.InvoiceAlreadyIssued` | Invoicing | User | 409 | N/A (idempotent re-issue attempt) | No | No | [invoicing.md § Issuance projection](invoicing.md) — `pending_invoices.IssuedInvoiceId` already set |
-| `InvoicingErrors.CreditNoteRefersToCancelledInvoice` | Invoicing | Bug | 5xx | DLT | No | **Yes** | [invoicing.md § I-CN-1](invoicing.md) — credit note against already-cancelled invoice |
-| `InvoicingErrors.PdfGenerationFailed(detail)` | Invoicing | Bug | 5xx | DLT; QuestPDF error bubbles | No | **Yes** | [invoicing.md § PDF generation](invoicing.md) |
-| `InvoicingErrors.BlobUploadFailed` | Invoicing | Upstream | 5xx | Azure.Storage.Blobs SDK retries (exponential backoff per ADR-0017 `<design_open>`); DLT after exhaustion | Yes (client) | **After retries** | [invoicing.md § Blob storage](invoicing.md) — Azurite/Azure Blob upload failure |
-| `InvoicingErrors.TotalMismatch(orderTotal, paymentAmount)` | Invoicing | Bug | 5xx | DLT; ops alert (data integrity) | No | **Yes** | [invoicing.md § Example 1.4](invoicing.md) — Order.Total ≠ Payment.Amount for same CorrelationId |
+| **Invalid payment-status transition** | Payments | Bug | 500 | DLT; ops investigates | No | **Yes** | [payments.md § PaymentStatus SmartEnum](payments.md) — aggregate throws `DataIntegrityException` |
+| `InvoicingErrors.InvoiceNotFound(invoiceId)` / `InvoiceForOrderNotFound(orderId)` / `CreditNoteNotFound(creditNoteId)` | Invoicing | User | 404 | N/A | No | No | Query target missing |
+| `InvoicingErrors.InvoiceAlreadyIssued(correlationId)` | Invoicing | User | 409 | N/A (idempotent re-issue attempt) | No | No | [invoicing.md § Issuance projection](invoicing.md) — `pending_invoices.IssuedInvoiceId` already set |
+| `InvoicingErrors.CreditNoteRefersToCancelledInvoice(invoiceId)` | Invoicing | User | 409 | N/A | No | No | [invoicing.md § I-CN-1](invoicing.md) |
+| `InvoicingErrors.InvalidInvoiceTransition(from, to)` / `InvalidCreditNoteTransition(from, to)` | Invoicing | User | 409 | N/A | No | No | Aggregate FSM precondition surfaced as `Result.Fail` from the command layer |
+| `InvoicingErrors.BlobUploadFailed` | Invoicing | Upstream | 503 | Azure.Storage.Blobs SDK retries (exponential backoff); DLT after exhaustion | Yes (client) | **After retries** | [invoicing.md § Blob storage](invoicing.md) — Azurite/Azure Blob upload failure |
 | `InvoicingErrors.PartialRefundNotSupportedV1` | Invoicing | Feature-gate | 501 | Credit-note request with partial amount — rejected | No | No | [invoicing.md § Out of scope v1](invoicing.md) |
+| `InvoiceTotalMismatchException` (: `DataIntegrityException`) | Invoicing | Bug | 500 | DLT; ops alert (data integrity) | No | **Yes** | [invoicing.md § Example 1.4](invoicing.md) — Order.Total ≠ Payment.Amount for same CorrelationId |
+| `PdfGenerationFailedException` (: `DataIntegrityException`) | Invoicing | Bug | 500 | DLT; alert | No | **Yes** | [invoicing.md § PDF generation](invoicing.md) — `QuestPdfInvoiceGenerator` wraps `QuestPDF.Drawing.Exceptions.DocumentLayoutException` |
 | `SagaErrors.PaymentRefundFailed` | CheckoutSaga | Ops | — | Terminal `CompensationStuck` — PagerDuty | Manual | **Yes** | [checkout-saga.md § Compensation matrix](checkout-saga.md) |
 | `SagaErrors.ReservationReleaseStuck` | CheckoutSaga | Ops | — | Terminal `CompensationStuck` | Manual | **Yes** | [checkout-saga.md § Compensation matrix](checkout-saga.md) |
-| `DataIntegrityException` (all BCs) | any | Bug | 5xx | Dead-lettered when raised inside a Kafka consumer | No | **Yes** | Thrown by aggregates on corrupted state |
+| `DataIntegrityException` (all BCs) | any | Bug | 500 | Dead-lettered when raised inside a Kafka consumer | No | **Yes** | Thrown by aggregates on corrupted state |
 
-**Count:** 38 error rows covering all six new BCs plus saga plus platform exception.
+---
+
+### 1.5 `DataIntegrityException` scope
+
+This subsection is the architectural rule that the per-BC arch-tests (`test/<BC>.ArchitectureTests/BaseTest.cs`, `test/Inventory.ArchitectureTests/Application/ResultPatternTests.cs`) reference by name. The rule:
+
+- **Aggregates and saga-command handlers throw [`DataIntegrityException`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) (or a BC-scoped subclass) for state-corruption bugs — nothing else.** Aggregates must NOT throw `ArgumentException`, `InvalidOperationException`, `NotImplementedException`, `KeyNotFoundException`, or any other generic-CLR exception type for domain-state violations. Use a `DomainError` subclass and `Result.Fail` if the condition is user-actionable; use `DataIntegrityException` if the condition signals a bug that should never occur in a working system.
+- **`DataIntegrityException` is a subclass of [`CriticalException`](../../platform/Platform.SharedKernel/Exceptions/CriticalException.cs)** — `CriticalException` is the marker that the consumer DLT middleware and the API `PlatformExceptionHandler` both catch on. Subclassing `DataIntegrityException` (instead of catching, parsing, and re-throwing) is how BCs carry **typed payload fields** to logs and DLT messages.
+- **BC-scoped subclasses** live under the BC's own namespace and carry primary-ctor-backed properties for whatever values the throw site captured. Reference implementation: `Invoicing.Application.Common.Exceptions.InvoiceTotalMismatchException` carries `OrderTotal`, `PaymentAmount`, `CorrelationId`; `Invoicing.Application.Common.Exceptions.PdfGenerationFailedException` carries `Detail` and the inner QuestPDF exception. Both inherit `DataIntegrityException` directly so the existing `catch (CriticalException)` branches in middleware route them unchanged.
+- **Argument-null / state-precondition pre-checks** at method entry (`ArgumentNullException.ThrowIfNull(...)`, `ArgumentOutOfRangeException.ThrowIfNegative(...)`) are exempt: they catch programmer errors at the call boundary before the aggregate's invariants come into play. The arch-tests allow these.
+
+The arch-tests enforce the rule by walking every public method on every aggregate and saga consumer and asserting that any `throw new` expression resolves to a `CriticalException` subclass (with the precondition-helper exemptions noted above).
 
 ---
 
@@ -62,7 +85,7 @@
 
 ### 2.1 User errors (4xx)
 
-Returned by handlers via `Result.Fail(IError)`. The FastEndpoints `GlobalExceptionHandler` / `ProblemDetailsFactory` pipeline translates the FluentResults `Result` into an RFC 7807 `ProblemDetails` payload with the HTTP status code selected via the mapping table in § 4. These errors:
+Returned by handlers via `Result.Fail(SomeFactory(...))`. The endpoint wrapper calls [`IResponseSender.SendErrorResponseAsync(result, ct)`](../../platform/Platform.Api/Extensions/ResponseSenderExtensions.cs) from `Platform.Api.Extensions.ResponseSenderExtensions`, which type-switches on the `DomainError` subclass and emits an RFC 9457 `ProblemDetails` payload with the HTTP status code selected via the mapping table in § 4. These errors:
 
 - Never hit a DLT — they either come from an HTTP request (returned to caller) or they originate from a saga-consumer path where the handler consciously converts the `Result.Fail` into a business outcome event (e.g., `ReserveStockCommand` handler receives `InsufficientStockError` → emits `StockReservationFailedEvent` on `inventory.reservations` and **completes the consumer normally** so the offset commits).
 - Represent legitimate end-user mistakes (empty basket, SKU clash, cancelling a shipped order) or validated-input violations.
@@ -74,12 +97,13 @@ A distinct subset of "user errors" whose outcome is **expected in the saga flow*
 - Do NOT throw exceptions.
 - Do NOT dead-letter (the consumer commits the offset after publishing the failure event).
 - Feed the saga compensation matrix documented in [checkout-saga.md § 6](checkout-saga.md).
+- Are modelled as concrete subclasses of one of the canonical `DomainError` types (typically `ConflictError`) so that handlers can filter them via `result.Errors.OfType<InsufficientStockError>()` and read typed payload fields without parsing `.Message`.
 
 ### 2.3 Bug-class (5xx / DLT)
 
-`DataIntegrityException` (defined in [`platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs)) and similar `CriticalException`-derived throws represent conditions that **should never occur in a working system**. Example: the saga tells Inventory to confirm a reservation that was already released; the aggregate throws. These errors:
+`DataIntegrityException` (and its BC-scoped subclasses — see § 1.5) represents conditions that **should never occur in a working system**. Example: the saga tells Inventory to confirm a reservation that was already released; the aggregate throws. These errors:
 
-- Surface as HTTP 5xx through the global exception middleware when raised in an HTTP pipeline.
+- Surface as HTTP 500 through [`PlatformExceptionHandler`](../../platform/Platform.ServiceDefaults/Exceptions/PlatformExceptionHandler.cs) when raised in an HTTP pipeline.
 - Route to the `.DLT` topic via [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) when raised in a KafkaFlow consumer.
 - Emit an ops alert (Grafana → PagerDuty via `kafka.consumer.dlt.messages` metric — see [kafka-dlt-strategy.md § 6](kafka-dlt-strategy.md)).
 
@@ -88,207 +112,148 @@ A distinct subset of "user errors" whose outcome is **expected in the saga flow*
 Temporary failures outside the BC's control — upstream service returning 5xx, Kafka produce failing, DB connection timing out. Example: `BasketAclErrors.CatalogUnavailable` surfaces when Basket's `ProductCatalogHttpAdapter` hits a network error or Catalog returns 5xx. These errors:
 
 - Use **client retry** (the HTTP caller or outbox relay retries).
-- Do NOT dead-letter on first failure — only after the configured retry policy is exhausted (see [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) for Kafka side; Polly policy in [HttpClientsDependencyInjection](../../src/Weather.Infrastructure/Common/HttpClientsDependencyInjection.cs) for HTTP side).
-- Map to HTTP 503 (Service Unavailable) when surfaced through an API.
+- Do NOT dead-letter on first failure — only after the configured retry policy is exhausted (see [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) for Kafka side; per-adapter Polly policy for HTTP side).
+- Map to HTTP 503 (Service Unavailable) when surfaced through an API. They are constructed as `ServiceUnavailableError` (a `DomainError` subclass) so the type-switch in § 4 routes them correctly.
 
 ---
 
 ## 3. Per-BC Error Class Specifications
 
-> Implementation-note format: the snippets below are sketches only. Implementation agents write the real code using `Platform.SharedKernel.Errors.ValidationError` (or a BC-specific `IError` type) as demonstrated in [`src/Weather.Domain/Alerts/Errors/WeatherAlertErrors.cs`](../../src/Weather.Domain/Alerts/Errors/WeatherAlertErrors.cs).
+Each BC declares a static factory class (and any custom `DomainError` subclasses) under its own `Errors/` folder. The factories never construct raw `DomainError` instances — they return one of the six canonical typed subclasses (`ValidationError`, `NotFoundError`, `ConflictError`, `ServiceUnavailableError`, `ForbiddenError`, `NotImplementedError`) so that § 4's type-switch dispatch knows which HTTP status to emit.
 
-### 3.1 `BasketErrors` (in `Basket.Domain.Errors`)
+### 3.1 `Basket`
 
-```csharp
-// Sketch — implementation agents write the final shape
-public static class BasketErrors
-{
-    public static ValidationError EmptyBasket() =>
-        new("Basket", "Basket must contain at least one item to checkout.", "Basket.Empty");
+User-actionable factories in [`Basket.Domain.Baskets.Errors.BasketErrors`](../../services/Basket/Basket.Domain/Baskets/Errors/BasketErrors.cs):
 
-    public static ValidationError MaxItemsReached(int max) =>
-        new("Items", $"Basket cannot hold more than {max} items.", "Basket.MaxItemsReached");
+| Factory | Returns | HTTP | Notes |
+|---|---|---|---|
+| `EmptyBasket()` | `ConflictError` | 409 | Pre-checkout invariant — basket must have ≥ 1 item |
+| `MaxItemsReached(int max)` | `ConflictError` | 409 | 50-item cap |
+| `InvalidQuantity()` | `ValidationError` | 422 | `quantity >= 1` |
+| `CurrencyMismatch()` | `ValidationError` | 422 | All items share basket currency |
+| `ItemNotFound(Guid productId)` | `NotFoundError` | 404 | Item removal / quantity update target |
+| `Corruption(Guid userId)` | `ValidationError` | 422 | Stored basket state cannot be rehydrated |
 
-    public static ValidationError InvalidQuantity() =>
-        new("Quantity", "Item quantity must be at least 1.", "Basket.InvalidQuantity");
+ACL adapter factories live separately in [`Basket.Application.Baskets.Common.Errors.BasketAclErrors`](../../services/Basket/Basket.Application/Baskets/Common/Errors/BasketAclErrors.cs) (the Application layer owns the Catalog ACL):
 
-    public static ValidationError CurrencyMismatch() =>
-        new("Currency", "All basket items must share the same currency.", "Basket.CurrencyMismatch");
+| Factory | Returns | HTTP | Notes |
+|---|---|---|---|
+| `CatalogUnavailable()` | `ServiceUnavailableError` | 503 | Catalog HTTP 5xx / timeout |
+| `ProductNotFound(Guid productId)` | `NotFoundError` | 404 | Catalog returned 404 |
 
-    // Canonical name (NOT `ItemNotInBasket`) — mirrors `Basket.Domain.Baskets.Errors.BasketErrors.ItemNotFound`.
-    public static ValidationError ItemNotFound(Guid productId) =>
-        new("ProductId", $"Product '{productId}' is not in the basket.", "Basket.ItemNotFound");
+Custom typed subclass:
 
-    // Persisted-state rehydration failure (e.g. stored currency code no longer present in SmartEnum).
-    // 503 at the API boundary so clients can retry/fall back rather than surface a 5xx.
-    public static ValidationError Corruption(Guid userId) =>
-        new("Basket", $"Stored basket state for user '{userId}' could not be rehydrated.", "Basket.Corruption");
-}
+- [`BasketConcurrencyError(Guid UserId, int Expected, int Actual)`](../../services/Basket/Basket.Domain/Baskets/Errors/BasketConcurrencyError.cs) **`: ConflictError`** — Redis CAS failure. Flows through `Result.Fail`; intercepted by `BasketConcurrencyRetry.ExecuteAsync<T>()` which calls `result.HasError<BasketConcurrencyError>()` and re-attempts the entire command once before surfacing.
 
-// ACL adapter failures (catalog availability, product existence) live in
-// `Basket.Application.Baskets.Common.Errors.BasketAclErrors`, not BasketErrors:
-//   BasketAclErrors.CatalogUnavailable()        -> 503, Basket.CatalogUnavailable
-//   BasketAclErrors.ProductNotFound(productId)  -> 404, Basket.ProductNotFound
+### 3.2 `Catalog`
 
-public static class BasketItemErrors
-{
-    public static ValidationError InvalidQuantity() =>
-        new("Quantity", "Quantity must be at least 1.", "BasketItem.InvalidQuantity");
-}
+Aggregate-level factories split per aggregate for locality. All return `ValidationError` / `ConflictError` / `NotFoundError` / `ForbiddenError` directly:
 
-// Separate error (typed, not a ValidationError) — concurrency is a pipeline concern
-public sealed record BasketConcurrencyError(Guid UserId, int Expected, int Actual) : IError
-{
-    public string Message => $"Basket {UserId} version conflict: expected {Expected}, found {Actual}.";
-    public Dictionary<string, object> Metadata { get; } = new() { ["ErrorCode"] = "Basket.Concurrency" };
-    public List<IError> Reasons { get; } = [];
-}
-```
+[`ProductErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/ProductErrors.cs):
 
-### 3.2 `CatalogErrors` / `ProductErrors` / `CategoryErrors` (in `Catalog.Domain.Errors`)
+| Factory | Returns | HTTP |
+|---|---|---|
+| `CategoryIdRequired()` | `ValidationError` | 422 |
+| `PriceMustBePositive()` | `ValidationError` | 422 |
+| `CannotRepriceDiscontinued()` | `ConflictError` | 409 |
+| `CannotModifyDiscontinued()` | `ConflictError` | 409 |
+| `ReasonRequired()` | `ValidationError` | 422 |
+| `ReactivationRequiresAdminFlag()` | `ForbiddenError` | 403 |
+| `NotFound(Guid productId)` | `NotFoundError` | 404 |
+| `SkuAlreadyExists(string sku)` | `ConflictError` | 409 |
+| `CannotDiscontinueInStatus(string currentStatus)` | `ConflictError` | 409 |
+| `CannotReactivateInStatus(string currentStatus)` | `ConflictError` | 409 |
 
-Split per aggregate for locality (`ProductErrors.cs`, `CategoryErrors.cs`, value-object errors in `*/Errors/*.cs` following the [catalog.md](catalog.md) per-VO error lists). Each method returns `ValidationError` with a unique `errorCode` identifier (`Product.CannotRepriceDiscontinued`, `Category.HasDependents`, etc.).
+[`CategoryErrors`](../../services/Catalog/Catalog.Domain/Categories/Errors/CategoryErrors.cs):
 
-Value-object errors (already enumerated in [catalog.md](catalog.md)):
-- `SkuErrors.Empty` / `TooLong(max: 32)` / `InvalidCharacters`
-- `Money.InvalidCurrencyCode` / `Money.UnknownCurrencyCode` (shared-kernel; positivity invariants live on each BC aggregate, e.g. `ProductErrors.PriceMustBePositive`, `Invoicing.InvoiceLineUnitPriceMustBePositive`, `OrderItem.UnitPriceNotPositive`, `Payments.InvalidAmount`)
-- `ProductNameErrors.Empty` / `TooLong(max: 200)`
-- `ProductDescriptionErrors.TooLong(max: 4000)`
-- `DimensionsErrors.NonPositiveDimension` / `UnsupportedUnit`
-- `CategoryPathErrors.Malformed` / `MaxDepthExceeded(max: 5)`
-- `ImageReferenceErrors.InvalidUrl` / `AltTextEmpty` / `NegativeDisplayOrder`
-- `BrandNameErrors.Empty` / `TooLong(max: 100)`
+| Factory | Returns | HTTP |
+|---|---|---|
+| `NameRequired()` / `NameTooLong(int max)` | `ValidationError` | 422 |
+| `MaxDepthExceeded(int max)` | `ValidationError` | 422 |
+| `CannotParentToSelf()` | `ValidationError` | 422 |
+| `NotFound(Guid categoryId)` | `NotFoundError` | 404 |
+| `ParentNotFound(Guid parentCategoryId)` | `NotFoundError` | 404 |
+| `ReparentCreatesCycle(Guid categoryId, Guid newParentCategoryId)` | `ValidationError` | 422 |
 
-Aggregate-level errors raised by Application-layer command/query handlers (HTTP mapping per § 4):
-- `ProductErrors.CategoryIdRequired` — 422 Unprocessable (user input; aggregate rejects empty category reference at `Product.Create`).
-- `ProductErrors.CannotRepriceDiscontinued` — 409 Conflict (precondition failure inside `Product.UpdatePrice`).
-- `ProductErrors.CannotModifyDiscontinued` — 409 Conflict (precondition failure inside `Product.Describe`).
-- `ProductErrors.ReasonRequired` — 422 Unprocessable (empty discontinue reason in `Product.Discontinue`).
-- `ProductErrors.ReactivationRequiresAdminFlag` — 422 Unprocessable (missing admin flag on `Product.Reactivate`).
-- `ProductErrors.NotFound(productId)` — 404 Not Found (handler-level lookup miss on any product-addressing command or query).
-- `ProductErrors.SkuAlreadyExists(sku)` — 409 Conflict (uniqueness violation pre-checked inside `CreateProductCommandHandler`).
-- `CategoryErrors.NameRequired` — 422 Unprocessable (`Category.Create` / `Category.Rename` rejects empty name).
-- `CategoryErrors.NameTooLong(max)` — 422 Unprocessable (name exceeds `Category.MaxNameLength`).
-- `CategoryErrors.MaxDepthExceeded(max)` — 422 Unprocessable (path depth > 5 on `Category.Create` / `Reparent`).
-- `CategoryErrors.CannotParentToSelf` — 422 Unprocessable (`Reparent` called with `NewParentCategoryId == Id`).
-- `CategoryErrors.NotFound(categoryId)` — 404 Not Found (handler-level lookup miss on any category-addressing command or query).
-- `CategoryErrors.ParentNotFound(parentCategoryId)` — 404 Not Found (parent lookup miss in `CreateCategoryCommandHandler` or `ReparentCategoryCommandHandler`).
-- `CategoryErrors.ReparentCreatesCycle(categoryId, newParentCategoryId)` — 422 Unprocessable (the candidate parent is the category itself or one of its descendants — surfaced by `CategoryAncestryService.WouldCreateCycleAsync` before `Category.Reparent` runs).
+Value-object validators — each declares a small static class returning `ValidationError`:
+[`SkuErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/SkuErrors.cs), [`ProductNameErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/ProductNameErrors.cs), [`ProductDescriptionErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/ProductDescriptionErrors.cs), [`BrandNameErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/BrandNameErrors.cs), [`DimensionsErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/DimensionsErrors.cs), [`ImageReferenceErrors`](../../services/Catalog/Catalog.Domain/Products/Errors/ImageReferenceErrors.cs), [`CategoryPathErrors`](../../services/Catalog/Catalog.Domain/Categories/Errors/CategoryPathErrors.cs).
 
-> Category dependency-based errors (`HasChildren`, `HasProducts`) are deferred alongside the `DeleteCategoryCommand` — see the follow-up to Catalog's delete-category work.
-> Product image-collection errors (`DuplicateImageDisplayOrder`, `ImageNotFound`) are deferred alongside the `AddProductImageCommand` / `RemoveProductImageCommand` handlers.
+### 3.3 `Ordering`
 
-### 3.3 `OrderingErrors` (in `Ordering.Domain.Errors`)
+[`OrderingErrors`](../../services/Ordering/Ordering.Domain/Errors/OrderingErrors.cs):
 
-```csharp
-public static class OrderingErrors
-{
-    public static ValidationError CannotCancelInStatus(string status) =>
-        new("Status", $"Order in status '{status}' cannot be cancelled.", "Order.CannotCancelInStatus");
-
-    public static ValidationError OrderNotFound(Guid orderId) =>
-        new("OrderId", $"Order '{orderId}' does not exist.", "Order.NotFound");
-}
-```
+| Factory | Returns | HTTP |
+|---|---|---|
+| `CannotCancelInStatus(string status)` | `ConflictError` | 409 |
+| `OrderNotFound(Guid orderId)` | `NotFoundError` | 404 |
 
 All invalid **FSM transitions** from saga commands are bug-class — they do not use `OrderingErrors`; they throw `DataIntegrityException` from `Order.MarkStockReserved` / `MarkPaymentCompleted` / `Confirm` / etc. via the `Throw.If(!Status.CanTransitionTo(...))` guard. See [ordering.md § State transitions](ordering.md) and [use-cases.md § 3.3](use-cases.md).
 
-### 3.4 `InventoryErrors` (in `Inventory.Domain.Errors`)
+### 3.4 `Inventory`
 
-```csharp
-public sealed record InsufficientStockError(Guid ProductId, int Requested, int Available) : IError
-{
-    public string Message =>
-        $"Stock item {ProductId}: requested {Requested}, available {Available}.";
-    public Dictionary<string, object> Metadata { get; } = new()
-    {
-        ["ErrorCode"] = "Inventory.InsufficientStock",
-        ["ProductId"] = ProductId,
-        ["Requested"] = Requested,
-        ["Available"] = Available,
-    };
-    public List<IError> Reasons { get; } = [];
-}
+[`InventoryErrors`](../../services/Inventory/Inventory.Domain/StockItems/Errors/InventoryErrors.cs):
 
-public sealed record ConcurrencyError(Guid StreamId, int ExpectedVersion) : IError
-{
-    public string Message => $"Stream {StreamId} version conflict at {ExpectedVersion}.";
-    public Dictionary<string, object> Metadata { get; } = new() { ["ErrorCode"] = "Inventory.Concurrency" };
-    public List<IError> Reasons { get; } = [];
-}
-```
+| Factory | Returns | HTTP |
+|---|---|---|
+| `InsufficientStock(Guid productId, int requested, int available)` | `InsufficientStockError : ConflictError` | 409 |
+| `Concurrency(Guid streamId, int expectedVersion)` | `ConcurrencyError : ConflictError` | 409 |
+| `ReservationNotActive(productId, reservationId, currentStatus)` | `ReservationNotActiveError : ConflictError` | 409 |
+| `StockItemNotFound(Guid productId)` | `NotFoundError` | 404 |
+| `ReservationNotFound(Guid reservationId)` | `NotFoundError` | 404 |
 
-The bug-class inventory conditions (`StockItemNotFound` on confirm/release for an already-released reservation, admin-adjust leading to negative stock, etc.) throw `DataIntegrityException` per [inventory.md § Command semantics](inventory.md) and are not modelled as `*Error` types.
+Custom typed subclasses (each inherits `ConflictError` so they map to 409 in § 4):
 
-### 3.5 `PaymentsErrors` (in `Payments.Domain.Errors`)
+- [`InsufficientStockError(Guid ProductId, int Requested, int Available)`](../../services/Inventory/Inventory.Domain/StockItems/Errors/InsufficientStockError.cs)
+- [`ConcurrencyError(Guid StreamId, int ExpectedVersion)`](../../services/Inventory/Inventory.Domain/StockItems/Errors/ConcurrencyError.cs)
+- [`ReservationNotActiveError(Guid ProductId, Guid ReservationId, ReservationStatus CurrentStatus)`](../../services/Inventory/Inventory.Domain/StockItems/Errors/ReservationNotActiveError.cs)
 
-```csharp
-public static class PaymentsErrors
-{
-    public static ValidationError PaymentNotFound(Guid paymentId) =>
-        new("PaymentId", $"Payment '{paymentId}' does not exist.", "Payments.NotFound");
+Filtered downstream via `result.Errors.OfType<InsufficientStockError>()` (e.g., `ReserveStockCommandHandler` reads the typed properties to populate the outbox `StockReservationFailedEvent`).
 
-    public static ValidationError InvalidAmount() =>
-        new("Amount", "Payment amount must be strictly positive.", "Payments.InvalidAmount");
+The bug-class inventory conditions (admin-adjust leading to negative stock, confirm/release for an aggregate that has no record of the reservation) throw `DataIntegrityException` per [inventory.md § Command semantics](inventory.md) and are not modelled as `*Error` types.
 
-    public static ValidationError InvalidPaymentMethod() =>
-        new("PaymentMethodId", "Payment method token is empty or exceeds 64 characters.", "Payments.InvalidPaymentMethod");
+### 3.5 `Payments`
 
-    public static ValidationError GatewayUnavailable() =>
-        new("Gateway", "Payment gateway is temporarily unavailable.", "Payments.GatewayUnavailable");
-}
+[`PaymentsErrors`](../../services/Payments/Payments.Domain/Errors/PaymentsErrors.cs):
 
-// Typed error for gateway-business-failure path (consumed by saga to drive compensation)
-public sealed record GatewayDeclinedError(string Reason, string? GatewayCode) : IError
-{
-    public string Message => $"Payment gateway declined: {Reason}" + (GatewayCode is null ? "" : $" ({GatewayCode}).");
-    public Dictionary<string, object> Metadata { get; } = new() { ["ErrorCode"] = "Payments.GatewayDeclined" };
-    public List<IError> Reasons { get; } = [];
-}
-```
+| Factory | Returns | HTTP |
+|---|---|---|
+| `PaymentNotFound(Guid paymentId)` | `NotFoundError` | 404 |
+| `InvalidAmount()` | `ValidationError` | 422 |
+| `InvalidPaymentMethod()` | `ValidationError` | 422 |
+| `GatewayUnavailable()` | `ServiceUnavailableError` | 503 |
+
+Custom typed subclass:
+
+- [`GatewayDeclinedError(string Reason, string? GatewayCode)`](../../services/Payments/Payments.Domain/Errors/GatewayDeclinedError.cs) **`: ConflictError`** — gateway-business-failure path consumed by the saga to drive compensation. Filtered via `OfType<GatewayDeclinedError>()` in `AuthorizePaymentCommandHandler` / `CapturePaymentCommandHandler` to populate `FailureInfo`.
 
 Invalid FSM transitions on `PaymentTransaction` (e.g., calling `Capture` from `Failed`) are bug-class and throw `DataIntegrityException` — they do not use `PaymentsErrors`.
 
-### 3.6 `InvoicingErrors` (in `Invoicing.Domain.Errors`)
+### 3.6 `Invoicing`
 
-```csharp
-public static class InvoicingErrors
-{
-    public static ValidationError InvoiceNotFound(Guid invoiceId) =>
-        new("InvoiceId", $"Invoice '{invoiceId}' does not exist.", "Invoicing.InvoiceNotFound");
+[`InvoicingErrors`](../../services/Invoicing/Invoicing.Domain/Common/Errors/InvoicingErrors.cs) — user-actionable + feature-gate factories:
 
-    public static ValidationError InvoiceAlreadyIssued(Guid correlationId) =>
-        new("CorrelationId", $"Invoice already issued for correlation '{correlationId}'.", "Invoicing.InvoiceAlreadyIssued");
+| Factory | Returns | HTTP |
+|---|---|---|
+| `InvoiceNotFound(Guid invoiceId)` | `NotFoundError` | 404 |
+| `InvoiceForOrderNotFound(Guid orderId)` | `NotFoundError` | 404 (variant for by-Order lookup; same error code) |
+| `CreditNoteNotFound(Guid creditNoteId)` | `NotFoundError` | 404 |
+| `InvoiceAlreadyIssued(Guid correlationId)` | `ConflictError` | 409 |
+| `PartialRefundNotSupportedV1()` | `NotImplementedError` | 501 |
+| `BlobUploadFailed()` | `ServiceUnavailableError` | 503 |
+| `CreditNoteRefersToCancelledInvoice(Guid invoiceId)` | `ConflictError` | 409 |
+| `InvalidInvoiceTransition(string from, string to)` | `ConflictError` | 409 |
+| `InvalidCreditNoteTransition(string from, string to)` | `ConflictError` | 409 |
 
-    public static ValidationError PartialRefundNotSupportedV1() =>
-        new("Amount", "Partial refunds are not supported in v1; credit notes must be full-amount.", "Invoicing.PartialRefundNotSupportedV1");
+**Bug-class typed exceptions** (live under `Invoicing.Application.Common.Exceptions`, both inherit `DataIntegrityException` so the consumer middleware's existing `catch (CriticalException)` branch DLTs them unchanged — see § 1.5):
 
-    public static ValidationError BlobUploadFailed() =>
-        new("Blob", "Invoice PDF upload to object storage failed after retries.", "Invoicing.BlobUploadFailed");
-}
+- [`InvoiceTotalMismatchException(decimal OrderTotal, decimal PaymentAmount, Guid CorrelationId)`](../../services/Invoicing/Invoicing.Application/Common/Exceptions/InvoiceTotalMismatchException.cs) — raised by `IssueInvoiceCommandHandler` when `OrderConfirmedEvent.TotalAmount ≠ PaymentCapturedEvent.Amount` for the same `CorrelationId` (example-mapping 1.4). `ErrorCode = "Invoicing.TotalMismatch"`.
+- [`PdfGenerationFailedException(string Detail, Exception innerException)`](../../services/Invoicing/Invoicing.Application/Common/Exceptions/PdfGenerationFailedException.cs) — raised by `QuestPdfInvoiceGenerator` wrapping `QuestPDF.Drawing.Exceptions.DocumentLayoutException` (QuestPDF's only publicly-thrown exception type as of v2026.5.0). `ErrorCode = "Invoicing.PdfGenerationFailed"`. The original QuestPDF exception is preserved as `InnerException` for diagnostics.
 
-// Typed errors for bug-class integrity violations — these are `IError`-shaped but surface through the DLT pipeline, not user-facing
-public sealed record TotalMismatchError(decimal OrderTotal, decimal PaymentAmount, Guid CorrelationId) : IError
-{
-    public string Message =>
-        $"Total mismatch on correlation {CorrelationId}: order total {OrderTotal}, payment amount {PaymentAmount}.";
-    public Dictionary<string, object> Metadata { get; } = new() { ["ErrorCode"] = "Invoicing.TotalMismatch" };
-    public List<IError> Reasons { get; } = [];
-}
+Invariant violations on `Invoice` / `CreditNote` aggregates (e.g., issuing a credit note against a `Cancelled` invoice — I-CN-1) throw plain `DataIntegrityException`.
 
-public sealed record PdfGenerationFailedError(string Detail) : IError
-{
-    public string Message => $"PDF generation failed: {Detail}";
-    public Dictionary<string, object> Metadata { get; } = new() { ["ErrorCode"] = "Invoicing.PdfGenerationFailed" };
-    public List<IError> Reasons { get; } = [];
-}
-```
+### 3.7 `CheckoutSaga`
 
-Invariant violations on `Invoice` / `CreditNote` aggregates (e.g., issuing a credit note against a `Cancelled` invoice — I-CN-1) throw `DataIntegrityException`.
-
-### 3.7 `SagaErrors` (in `SagaOrchestrators.Checkout.Errors`)
-
-Saga-scoped errors are emitted as `FailureInfo` VO data on `CheckoutSagaState.Failure` (see [checkout-saga.md](checkout-saga.md) — `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`). The saga surfaces them as OpenTelemetry span attributes plus metric counters; per [master design § E.2](../eshop-master-design.md#e2-saga-terminal-events--decided-to-omit), no saga-terminal Kafka events are emitted in v1.
+Saga-scoped errors are emitted as `FailureInfo` VO data on `CheckoutSagaState.Failure` (see [checkout-saga.md](checkout-saga.md) — `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`). The saga surfaces them as OpenTelemetry span attributes plus metric counters; per [master design § E.2](../eshop-master-design.md), no saga-terminal Kafka events are emitted in v1.
 
 Canonical `ErrorCode` values (referenced in [ordering.md § FailureInfo](ordering.md)): `PAYMENT_FAILED`, `PAYMENT_TIMEOUT`, `STOCK_UNAVAILABLE`, `STOCK_TIMEOUT`, `CONFIRMATION_TIMEOUT`, `ORDER_CREATION_TIMEOUT`, `COMPENSATION_STUCK`.
 
@@ -296,27 +261,38 @@ Canonical `ErrorCode` values (referenced in [ordering.md § FailureInfo](orderin
 
 ## 4. HTTP Mapping Registration
 
-The API-layer `ProblemDetailsFactory` (FastEndpoints + ASP.NET Core middleware) inspects `IError.Metadata["ErrorCode"]` and maps using this table:
+The API-layer dispatch is a pure type-switch in [`Platform.Api.Extensions.ResponseSenderExtensions.MapToProblem`](../../platform/Platform.Api/Extensions/ResponseSenderExtensions.cs) — there is no `ProblemDetailsFactory` lookup, no `Metadata["ErrorCode"]` inspection, and no per-BC override hook. Each canonical `DomainError` subclass maps to exactly one HTTP status:
 
-| `ErrorCode` prefix / pattern | HTTP status | `type` (RFC 7807) |
-|---|---|---|
-| `Basket.Empty`, `Basket.MaxItemsReached`, `Basket.CatalogUnavailable` when classified as conflict, `Order.CannotCancelInStatus`, `Category.HasDependents`, `Product.CannotRepriceDiscontinued`, `Sku.AlreadyExists` | **409 Conflict** | `/errors/conflict` |
-| `*.NotFound` (any BC) | **404 Not Found** | `/errors/not-found` |
-| `*.InvalidQuantity`, `*.MaxDepthExceeded`, `*.CannotParentToSelf`, `Dimensions.*`, `Money.*`, any validator-produced `ValidationError` from FluentValidation | **422 Unprocessable Entity** | `/errors/validation` |
-| `Basket.Concurrency`, `Inventory.Concurrency` (when surfaced to HTTP, rare — after retry exhaustion) | **409 Conflict** | `/errors/concurrency` |
-| `Product.ReactivationRequiresAdminFlag` | **403 Forbidden** | `/errors/forbidden` |
-| `Basket.CatalogUnavailable`, any upstream/infrastructure error | **503 Service Unavailable** | `/errors/upstream` |
-| Uncaught `DataIntegrityException` / `CriticalException` | **500 Internal Server Error** | `/errors/internal` |
-| Uncaught generic `Exception` | **500 Internal Server Error** | `/errors/internal` |
+| `DomainError` subclass | HTTP status |
+|---|---|
+| `ServiceUnavailableError` | **503 Service Unavailable** |
+| `NotImplementedError` | **501 Not Implemented** |
+| `ForbiddenError` | **403 Forbidden** |
+| `ConflictError` (and any subclass — e.g. `InsufficientStockError`, `BasketConcurrencyError`, `GatewayDeclinedError`) | **409 Conflict** |
+| `NotFoundError` | **404 Not Found** |
+| `ValidationError` | **422 Unprocessable Entity** (RFC 9457: well-formed but semantically invalid; 400 is reserved for pre-handler input-shape validators) |
+| Unknown `DomainError` subclass | **400 Bad Request** |
+| Non-`DomainError` `IError` (or empty failure list) | **500 Internal Server Error** |
+| Unhandled exception (`DataIntegrityException`, anything else) | **500 Internal Server Error** via [`PlatformExceptionHandler`](../../platform/Platform.ServiceDefaults/Exceptions/PlatformExceptionHandler.cs) |
 
-**Implementation detail:** the mapping is registered as a decorator over `ValidationBehavior` in each service's `ApplicationDependencyInjection.AddCqrsHandlerBehaviors` chain (see [master design § Appendix B.3](../eshop-master-design.md)), and as a fallback middleware in `Api/Program.cs`. The FluentResults `Result` returned from a handler is inspected in the endpoint wrapper:
+**Precedence (most-severe wins).** When a `Result` carries multiple errors with different statuses, the order top-to-bottom in the table above is the precedence chain: `503 > 501 > 403 > 409 > 404 > 422 > 400`. Implementation: `MapToProblem` records per-category flags as it iterates `result.Errors`, then assigns the status code in a chain of `if` statements where later assignments override earlier ones.
+
+**Closed-world rule.** BCs that need a status not covered by the canonical subclasses must add a new `DomainError` subclass under [`platform/Platform.SharedKernel/Errors/`](../../platform/Platform.SharedKernel/Errors/) and a new `case` arm in `MapToProblem` — never a local per-BC override. Custom subclasses of an existing canonical type (e.g., `InsufficientStockError : ConflictError`) do not require any change to `MapToProblem` because the pattern match falls through to the base-class arm.
+
+**Endpoint usage.** Each FastEndpoints endpoint inspects the dispatched `Result` and forwards failures via the extension method:
 
 ```csharp
-// Conceptual — FastEndpoints endpoint HandleAsync sketch
-var result = await _sender.Send(command, ct);
-if (result.IsSuccess) return TypedResults.Ok(result.Value);
-return result.ToProblemDetails();  // extension method that consults the mapping table
+var result = await _sender.SendAsync(command, ct);
+if (result.IsFailed)
+{
+    await ep.SendErrorResponseAsync(result, ct);
+    return;
+}
+
+await ep.SendOkAsync(result.Value, ct);
 ```
+
+`SendErrorResponseAsync` is the entry point that invokes `MapToProblem` and emits the RFC 9457 payload via `HttpContext.Response.SendErrorsAsync`. The wrapped `IResponseSender` is the FastEndpoints abstraction over `HttpContext.Response`; no ASP.NET Core middleware sits between the endpoint and the dispatcher.
 
 ---
 
@@ -329,9 +305,9 @@ Cross-reference to [checkout-saga.md § 6 Compensation matrix](checkout-saga.md)
 | `OrderCreatedEvent` never arrives within timeout | `AwaitingOrderCreation` → `Failed` (no side effects) |
 | `StockReservationFailedEvent(InsufficientStockError)` | `AwaitingStockReservation` → `CompensatingStockReservations` → release any prior reservations for this `CorrelationId` → `CancelOrder` → `Failed` |
 | `StockReservationFailedEvent` with bug-class error (reservation ID clash etc.) | Same as above — compensation path is identical; ops alert additionally raised due to DLT message on the ORIGINATING consumer |
-| `PaymentFailedEvent` | `AwaitingPayment` → `CompensatingStockReservations` → `CancelOrder` → `Failed` |
+| `PaymentFailedEvent` (from `GatewayDeclinedError`) | `AwaitingPayment` → `CompensatingStockReservations` → `CancelOrder` → `Failed` |
 | Confirmation fails (order FSM rejects `Confirm` after payment succeeded) | `AwaitingConfirmation` → `CompensatingPayment` (`RequestRefund` via PaymentProcessingSaga) → `CompensatingStockReservations` → `CancelOrder` → `Compensated` |
-| `ReservationReleasedEvent` never arrives during compensation within 300 s | `CompensatingStockReservations` → `CompensationStuck` (ops alert, manual intervention via [saga-stuck runbook](checkout-saga.md)) |
+| `ReservationReleasedEvent` never arrives during compensation within 300 s | `CompensatingStockReservations` → `CompensationStuck` (ops alert, manual intervention via [saga-stuck runbook](saga-stuck-runbook.md)) |
 | `PaymentRefundedEvent` never arrives during `CompensatingPayment` within 300 s | `CompensatingPayment` → `CompensationStuck` |
 
 Bug-class errors inside Ordering / Inventory that cause a saga-command consumer to DLT (e.g., `DataIntegrityException` on `ConfirmReservationCommand` for an already-confirmed reservation) leave the saga in its *Awaiting* state until the corresponding response event is produced. If no response event arrives before the state timeout, the saga transitions to its compensation path using the generic timeout error code (`STOCK_TIMEOUT` / `CONFIRMATION_TIMEOUT`). The DLT alert and the saga timeout are **complementary signals** — they frequently fire together for the same incident.
@@ -340,9 +316,9 @@ Bug-class errors inside Ordering / Inventory that cause a saga-command consumer 
 
 ## 6. Cross-References
 
-- [master-design § 11.1 Result pattern](../eshop-master-design.md) — top-level `Result` vs `DataIntegrityException` split
+- [master-design § 12.2 Result pattern](../eshop-master-design.md) — top-level `Result` vs `DataIntegrityException` split
 - [kafka-dlt-strategy.md](kafka-dlt-strategy.md) — DLT routing and alerting for Kafka errors
-- [architecture-tests.md § 1.5](architecture-tests.md) — NetArchTest rules that enforce "no raw `ArgumentException`/`InvalidOperationException` for user errors"
+- [architecture-tests.md](architecture-tests.md) — NetArchTest rules that enforce § 1.5 (`DataIntegrityException`-only for aggregate bug-class throws)
 - [use-cases.md](use-cases.md) — every `*Command` / `*Query` documents the `Result.Fail(...)` paths it can return
-- [catalog.md](catalog.md), [basket.md](basket.md), [ordering.md](ordering.md), [inventory.md](inventory.md) — BC-chapter "Errors" subsections enumerating VO-level error names
+- [catalog.md](catalog.md), [basket.md](basket.md), [ordering.md](ordering.md), [inventory.md](inventory.md), [payments.md](payments.md), [invoicing.md](invoicing.md) — BC-chapter "Error types" subsections delegate to this document; per-VO error names enumerate in those files
 - [checkout-saga.md § 6](checkout-saga.md) — full compensation matrix backing § 5 above
