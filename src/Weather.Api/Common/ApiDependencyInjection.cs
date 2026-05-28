@@ -2,7 +2,6 @@ using FastEndpoints.ClientGen.Kiota;
 using Kiota.Builder;
 using TypedSignalR.Client.DevTools;
 using Weather.Api.Common.Config;
-using Weather.Api.Common.Exceptions;
 using Weather.Api.SignalRHubs.WeatherAlerts;
 using Weather.Application.WeatherAlerts.Common.Abstractions;
 
@@ -19,10 +18,6 @@ public static class ApiDependencyInjection
         services.AddCorsInternal(configuration);
 
         services.AddRazorPages();
-
-        services
-            .AddProblemDetails()
-            .AddExceptionHandler<GlobalExceptionHandler>();
 
         services.AddScoped<IWeatherAlertBroadcaster, WeatherAlertBroadcaster>();
 
