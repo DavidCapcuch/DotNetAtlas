@@ -8,11 +8,11 @@ using Platform.SharedKernel.ValueObjects;
 namespace Invoicing.Infrastructure.Persistence.Database.EntityConfigurations;
 
 /// <summary>
-/// EF Core mapping for the <see cref="Invoice"/> aggregate root (M7).
+/// EF Core mapping for the <see cref="Invoice"/> aggregate root.
 /// <list type="bullet">
 /// <item>Postgres <c>xmin</c> system column as the optimistic concurrency token via the
-/// inherited <c>Entity.RowVersion</c> property — matches the Ordering / Weather convention
-/// (no stored column, Npgsql 10 maps <c>uint + IsRowVersion()</c> to <c>xmin</c>).</item>
+/// inherited <c>Entity.RowVersion</c> property (no stored column, Npgsql 10 maps
+/// <c>uint + IsRowVersion()</c> to <c>xmin</c>).</item>
 /// <item>PII <c>billing_address_*_enc</c> columns per ADR-0011 (v1 plaintext, v2 encrypts).</item>
 /// <item><see cref="InvoiceNumber"/> persisted as a single VARCHAR(15) column via value converter
 /// so the canonical <c>INV-YYYY-NNNNNN</c> string is the wire format. Nullable while

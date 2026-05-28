@@ -25,19 +25,20 @@ using AvroPaymentRefundedEvent = Payments.Transactions.PaymentRefundedEvent;
 namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
-/// DI wiring for Kafka — the four M6 enrichment-projection consumers
+/// DI wiring for Kafka — the four enrichment-projection consumers
 /// (<c>OrderConfirmedEvent</c>, <c>OrderCancelledEvent</c>,
-/// <c>PaymentCapturedEvent</c>, <c>PaymentRefundedEvent</c>) and the inbox
-/// dedup adapter against <see cref="InvoicingDbContext"/>. M7 will add the
-/// transactional-outbox writer + outbox configuration when issuance command
-/// handlers and external <c>InvoiceIssued</c> publishers land.
+/// <c>PaymentCapturedEvent</c>, <c>PaymentRefundedEvent</c>), the inbox dedup
+/// adapter against <see cref="InvoicingDbContext"/>, and the transactional-outbox
+/// writer + outbox configuration for the issuance command handlers' external
+/// <c>InvoiceIssued</c> / <c>InvoiceCancelled</c> / <c>CreditNoteIssued</c>
+/// publishers.
 /// </summary>
 internal static class MessagingDependencyInjection
 {
     /// <summary>
     /// Service origin identifier written to the <c>origin</c> Kafka header by
-    /// the producer-headers middleware (used today by the DLT producer; M7's
-    /// outbox relay <c>outbox-relay-invoicing</c> reads its origin from
+    /// the producer-headers middleware (used by the DLT producer; the outbox relay
+    /// <c>outbox-relay-invoicing</c> reads its origin from
     /// <c>OUTBOX_MESSAGE_ORIGIN</c> and the two MUST agree).
     /// </summary>
     internal const string KafkaProducerOrigin = "Invoicing";
@@ -54,10 +55,10 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
-        // TopicsOptions registration moved to AddApplication (M7) so the
-        // outbox publishers in the Application layer can read it without depending on
-        // Infrastructure-namespace types. Consumer setup below binds it directly from
-        // configuration to extract topic names at startup.
+        // TopicsOptions registration lives in AddApplication so the outbox publishers
+        // in the Application layer can read it without depending on Infrastructure-
+        // namespace types. Consumer setup below binds it directly from configuration
+        // to extract topic names at startup.
         services.AddOptionsWithValidateOnStart<OrderingOrdersConsumerOptions>()
             .BindConfiguration(OrderingOrdersConsumerOptions.Section)
             .ValidateDataAnnotations();
@@ -175,7 +176,7 @@ internal static class MessagingDependencyInjection
 
         services.AddInbox<InvoicingDbContext>();
 
-        // M7 — transactional outbox for InvoiceIssuedEvent / InvoiceCancelledEvent /
+        // Transactional outbox for InvoiceIssuedEvent / InvoiceCancelledEvent /
         // CreditNoteIssuedEvent. The outbox-relay-invoicing container reads from
         // invoicing.OutboxMessages and publishes to invoicing.invoices using the
         // Avro serializer + schema-registry settings bound from Kafka:* below;

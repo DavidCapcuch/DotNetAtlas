@@ -13,11 +13,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
-/// DI wiring for the Invoicing persistence slice (M5): Npgsql, EF Core,
+/// DI wiring for the Invoicing persistence slice: Npgsql, EF Core,
 /// <see cref="InvoicingDbContext"/>, the gap-free number allocators per
 /// ADR-0018, and the <see cref="IInvoicingDbContext"/> port binding.
-/// Outbox / inbox / projections land in M6 + M7 alongside the consumers and
-/// command handlers that drive them.
 /// </summary>
 internal static class PersistenceDependencyInjection
 {
@@ -39,7 +37,7 @@ internal static class PersistenceDependencyInjection
             .GetRequiredSection(EfCoreOptions.Section)
             .Get<EfCoreOptions>()!;
 
-        // M7 — DispatchDomainEventsInterceptor must run in the same DI scope as the DbContext
+        // DispatchDomainEventsInterceptor must run in the same DI scope as the DbContext
         // so that outbox publishers (which inject ITransactionalOutbox<InvoicingDbContext>)
         // resolve to the same scoped UoW the aggregate save commits. See the interceptor's
         // class doc for why this matters for transactional reliability.
@@ -72,9 +70,9 @@ internal static class PersistenceDependencyInjection
             // environments only (Development + Test + Testing test-host) so deployed
             // Staging/Production never leak PII into log shippers.
             .EnableSensitiveDataLogging(enableSensitiveDataLogging)
-            // CAT-SEC-009: detailed errors leak EF parameter/column info into exception
-            // responses. Honour the config flag in non-deployed envs only; force off in
-            // deployed environments regardless of config.
+            // Detailed errors leak EF parameter/column info into exception responses.
+            // Honour the config flag in non-deployed envs only; force off in deployed
+            // environments regardless of config.
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors && !isDeployedEnvironment)
             .UseExceptionProcessor()
             .AddInterceptors(sp.GetRequiredService<DispatchDomainEventsInterceptor>()));

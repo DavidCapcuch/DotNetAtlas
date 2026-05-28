@@ -11,7 +11,7 @@ using Platform.CQRS;
 namespace Invoicing.Application.Invoices.ResendInvoice;
 
 /// <summary>
-/// Handles <see cref="ResendInvoiceCommand"/> — admin-only invoice re-delivery (M8).
+/// Handles <see cref="ResendInvoiceCommand"/> — admin-only invoice re-delivery.
 /// </summary>
 /// <remarks>
 /// <para>

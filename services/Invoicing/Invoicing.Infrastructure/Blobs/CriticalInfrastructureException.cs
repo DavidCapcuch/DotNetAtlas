@@ -8,7 +8,7 @@ namespace Invoicing.Infrastructure.Blobs;
 /// <see cref="CriticalException"/> so the same <c>catch (CriticalException)</c> handler
 /// in command-handler and Kafka-consumer pipelines treats it uniformly alongside
 /// <see cref="DataIntegrityException"/>. Mapped to <c>InvoicingErrors.BlobUploadFailed</c>
-/// at the command-handler boundary (M7); DLT-routed when it bubbles out of a consumer.
+/// at the command-handler boundary; DLT-routed when it bubbles out of a consumer.
 /// </summary>
 public sealed class CriticalInfrastructureException : CriticalException
 {

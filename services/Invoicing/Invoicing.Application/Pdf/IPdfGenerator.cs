@@ -5,19 +5,19 @@ namespace Invoicing.Application.Pdf;
 
 /// <summary>
 /// Library-neutral PDF generation seam per [ADR-0019 § IPdfGenerator abstraction](../../../../docs/adr/0019-pdf-generation-questpdf.md).
-/// The Application layer declares this interface so command handlers (M7) can produce PDFs
+/// The Application layer declares this interface so command handlers can produce PDFs
 /// without referencing QuestPDF; the Infrastructure layer owns the QuestPDF-backed adapter
 /// (<c>QuestPdfInvoiceGenerator</c>) and all QuestPDF API usage.
 /// </summary>
 /// <remarks>
 /// Architecture rule (ADR-0019 § Implementation Notes): direct imports of <c>QuestPDF.*</c>
-/// must not appear in the Application or Domain layers. Enforced by architecture test in M9.
+/// must not appear in the Application or Domain layers, enforced by an architecture test.
 /// <para>
 /// Determinism contract: two invocations of <see cref="GenerateInvoiceAsync"/> (or
 /// <see cref="GenerateCreditNoteAsync"/>) with the same aggregate state MUST produce a
 /// byte-identical PDF and therefore the same <see cref="PdfGenerationResult.ContentHash"/>.
 /// Adapters rely solely on aggregate state for any timestamp embedded in the PDF; no
-/// <c>DateTime.UtcNow</c>. Verified by the determinism integration test in M4.
+/// <c>DateTime.UtcNow</c>.
 /// </para>
 /// </remarks>
 public interface IPdfGenerator

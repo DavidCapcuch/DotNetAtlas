@@ -15,7 +15,7 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <c>ordering.orders</c>. Upserts a <see cref="PendingCreditNote"/> row
 /// keyed on <c>CorrelationId</c>, populating the order-cancel half. When
 /// the refund half is already present, marks the row converged AND dispatches
-/// M7's <see cref="IssueCreditNoteCommand"/> in the same inbox transaction.
+/// <see cref="IssueCreditNoteCommand"/> in the same inbox transaction.
 /// </summary>
 /// <remarks>
 /// Same convergence + idempotency contract as

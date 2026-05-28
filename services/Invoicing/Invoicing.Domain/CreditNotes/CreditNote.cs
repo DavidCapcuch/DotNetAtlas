@@ -126,7 +126,7 @@ public sealed class CreditNote : AggregateRoot<Guid>
 
     /// <summary>
     /// Stamps the gap-free <see cref="CreditNoteNumber"/> on a credit note that has not
-    /// yet been issued, without raising domain events. Used by the M7 command handler so
+    /// yet been issued, without raising domain events. Used by the command handler so
     /// the PDF renderer can include the number on its first pass — the
     /// <see cref="PdfBlobRef"/> only lands after upload, but the renderer needs the number
     /// embedded in the document. The number is immutable post-allocation per I-CN-3.
@@ -144,7 +144,7 @@ public sealed class CreditNote : AggregateRoot<Guid>
 
         if (PdfBlobRef is not null)
         {
-            // PdfBlobRef set without a number is a corrupted construction — the M7 handler
+            // PdfBlobRef set without a number is a corrupted construction — the handler
             // should always assign the number first. Surface as bug-class.
             throw new DataIntegrityException(
                 "Invoicing.CreditNoteAlreadyIssued",
@@ -162,7 +162,7 @@ public sealed class CreditNote : AggregateRoot<Guid>
     /// <remarks>
     /// Convenience overload that composes <see cref="AssignCreditNoteNumber"/> + the
     /// no-number <see cref="Issue(PdfBlobRef, DateTimeOffset)"/>. Use the split form in
-    /// M7's command handler when the PDF must render with the number embedded.
+    /// the command handler when the PDF must render with the number embedded.
     /// </remarks>
     public Result Issue(CreditNoteNumber creditNoteNumber, PdfBlobRef pdfBlobRef, DateTimeOffset utcNow)
     {

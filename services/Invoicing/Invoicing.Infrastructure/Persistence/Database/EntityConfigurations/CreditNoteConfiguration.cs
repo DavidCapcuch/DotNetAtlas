@@ -8,12 +8,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Invoicing.Infrastructure.Persistence.Database.EntityConfigurations;
 
 /// <summary>
-/// EF Core mapping for the <see cref="CreditNote"/> aggregate root (M7).
+/// EF Core mapping for the <see cref="CreditNote"/> aggregate root.
 /// <list type="bullet">
 /// <item>Postgres <c>xmin</c> system column as the optimistic concurrency token via the
 /// inherited <c>Entity.RowVersion</c> property.</item>
 /// <item><see cref="CreditNoteNumber"/> persisted as VARCHAR(14) (<c>CN-YYYY-NNNNNN</c>) via value
-/// converter; nullable until <see cref="CreditNote.Issue"/> stamps it (in M7 the credit note is
+/// converter; nullable until <see cref="CreditNote.Issue"/> stamps it (the credit note is
 /// stamped in the same transaction as creation, but the schema retains nullability for symmetry
 /// with <see cref="Invoicing.Domain.Invoices.Invoice"/>).</item>
 /// <item><see cref="CreditNote.OriginalInvoiceNumber"/> is required (the credit note always

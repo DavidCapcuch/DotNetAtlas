@@ -19,16 +19,15 @@ namespace Invoicing.Infrastructure.Persistence.Database;
 /// EF Core DbContext for the Invoicing bounded context. Implements
 /// <see cref="IInvoicingDbContext"/> (Application port),
 /// <see cref="IInboxDbContext"/> (Platform inbox-dedup port — required by
-/// the KafkaFlow inbox middleware that fronts the M6 enrichment consumers),
-/// and (M7) <see cref="IOutboxDbContext"/> so the issuance command handlers
-/// can write the aggregate + outbox row in one transaction via the
-/// <c>DispatchDomainEventsInterceptor</c>.
-/// M5 owns the two number-allocator tables (ADR-0018); M6 adds the
-/// <see cref="PendingInvoice"/> + <see cref="PendingCreditNote"/> projection
-/// tables plus the <c>inbox_messages</c> dedup table; M7 adds the
-/// <c>Invoice</c> + <c>CreditNote</c> aggregate sets and the
-/// <c>OutboxMessages</c> table so issuance persists atomically with the
-/// allocator increment and external-event publication.
+/// the KafkaFlow inbox middleware that fronts the enrichment consumers), and
+/// <see cref="IOutboxDbContext"/> so the issuance command handlers can write
+/// the aggregate + outbox row in one transaction via the
+/// <c>DispatchDomainEventsInterceptor</c>. Owns the two number-allocator
+/// tables (ADR-0018), the <see cref="PendingInvoice"/> +
+/// <see cref="PendingCreditNote"/> projection tables, the
+/// <c>inbox_messages</c> dedup table, the <c>Invoice</c> + <c>CreditNote</c>
+/// aggregate sets, and the <c>OutboxMessages</c> table so issuance persists
+/// atomically with the allocator increment and external-event publication.
 /// </summary>
 public sealed class InvoicingDbContext : DbContext, IInvoicingDbContext, IInboxDbContext, IOutboxDbContext
 {

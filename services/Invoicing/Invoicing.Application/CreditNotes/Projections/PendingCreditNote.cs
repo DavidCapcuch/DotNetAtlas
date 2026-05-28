@@ -3,7 +3,7 @@ namespace Invoicing.Application.CreditNotes.Projections;
 /// <summary>
 /// Async-multi-source enrichment row: buffers <c>OrderCancelledEvent</c> and
 /// <c>PaymentRefundedEvent</c> for the same <c>CorrelationId</c> until both
-/// halves arrive, at which point M7's <c>IssueCreditNoteCommandHandler</c>
+/// halves arrive, at which point <c>IssueCreditNoteCommandHandler</c>
 /// reads the row (keyed on <see cref="CorrelationId"/>) and constructs the
 /// <c>CreditNote</c> aggregate. Mirrors
 /// <see cref="Invoices.Projections.PendingInvoice"/> per
@@ -37,6 +37,6 @@ public sealed class PendingCreditNote
     /// <summary>Set when both halves are present.</summary>
     public DateTimeOffset? CompletedAtUtc { get; set; }
 
-    /// <summary>Set by M7's <c>IssueCreditNoteCommandHandler</c> after issuance. Null in M6.</summary>
+    /// <summary>Set by <c>IssueCreditNoteCommandHandler</c> after issuance.</summary>
     public Guid? IssuedCreditNoteId { get; set; }
 }

@@ -20,7 +20,7 @@ using Platform.SharedKernel.ValueObjects;
 namespace Invoicing.Application.Invoices.IssueInvoice;
 
 /// <summary>
-/// Handles <see cref="IssueInvoiceCommand"/> — the M7 happy path that turns a converged
+/// Handles <see cref="IssueInvoiceCommand"/> — the happy path that turns a converged
 /// <c>pending_invoices</c> row into an <c>Invoice</c> aggregate, allocates a gap-free
 /// invoice number, renders + uploads the PDF, and atomically writes the aggregate +
 /// outbox row + projection-row update inside a single EF transaction.
@@ -32,8 +32,8 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 /// <c>PostgresInvoiceNumberAllocator</c>'s <c>SELECT ... FOR UPDATE</c> requires
 /// the same scope as the aggregate insert. <c>EnableRetryOnFailure</c> is intentionally
 /// off (see <c>PersistenceDependencyInjection.AddPersistence</c>); transient-failure
-/// recovery is delegated to the M6 consumers re-firing this command on the next
-/// observation of convergence.
+/// recovery is delegated to the enrichment-projection consumers re-firing this command
+/// on the next observation of convergence.
 /// </para>
 /// <para>
 /// Idempotency: short-circuits when <c>PendingInvoice.IssuedInvoiceId</c> is already set
@@ -63,11 +63,9 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 /// </para>
 /// <para>
 /// V1 simplification — VAT: the producer-side <c>OrderConfirmedEvent</c> Avro schema does
-/// not carry per-line VAT rates, so M7 records every line at 0% (<see cref="VatRate"/>
+/// not carry per-line VAT rates, so every line is recorded at 0% (<see cref="VatRate"/>
 /// 0.00) with an empty <see cref="VatLine"/> breakdown. This satisfies invariant I-1
-/// trivially (Total == Subtotal). Documented in the M7 session summary as a v1 gap; v2
-/// adds rate plumbing through Ordering. (BC doc § 17 stated "Invoicing accepts VAT rates
-/// from OrderConfirmedEvent" — Wave 1.5 did not actually add the field; flagged.)
+/// trivially (Total == Subtotal); v2 will add rate plumbing through Ordering.
 /// </para>
 /// </remarks>
 internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceCommand, Guid>

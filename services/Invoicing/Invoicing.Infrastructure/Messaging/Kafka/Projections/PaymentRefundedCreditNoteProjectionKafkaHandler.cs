@@ -15,13 +15,13 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <c>payments.transactions</c>. Upserts a <see cref="PendingCreditNote"/>
 /// row keyed on <c>CorrelationId</c>, populating the refund half. When the
 /// order-cancel half is already present, marks the row converged AND dispatches
-/// M7's <see cref="IssueCreditNoteCommand"/> in the same inbox transaction.
+/// <see cref="IssueCreditNoteCommand"/> in the same inbox transaction.
 /// </summary>
 /// <remarks>
 /// The credit note compensates the original captured payment, so the row's
 /// <see cref="PendingCreditNote.PaymentId"/> stores
 /// <c>PaymentRefundedEvent.PaymentTransactionId</c> (the original) — the
-/// refund's own transaction id is preserved inside the JSON payload for M7.
+/// refund's own transaction id is preserved inside the JSON payload.
 /// </remarks>
 internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
     : IMessageHandler<AvroPaymentRefundedEvent>

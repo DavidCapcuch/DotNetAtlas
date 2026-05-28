@@ -15,7 +15,7 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <c>ordering.orders</c>. Upserts a <see cref="PendingInvoice"/> row keyed
 /// on <c>CorrelationId</c>, populating the order half. When the payment
 /// half is already present, marks the row converged via
-/// <see cref="PendingInvoice.CompletedAtUtc"/> AND dispatches M7's
+/// <see cref="PendingInvoice.CompletedAtUtc"/> AND dispatches
 /// <see cref="IssueInvoiceCommand"/> in the same inbox transaction so the
 /// projection update + invoice insert + outbox row commit atomically.
 /// </summary>
@@ -30,8 +30,8 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <para>
 /// The inbox middleware owns the surrounding transaction; the handler calls
 /// <see cref="IInvoicingDbContext.SaveChangesAsync"/> + (on convergence)
-/// dispatches the M7 command, and the middleware commits everything together.
-/// The M7 command handler detects the open transaction and joins it rather than
+/// dispatches the command, and the middleware commits everything together.
+/// The command handler detects the open transaction and joins it rather than
 /// nesting (see <see cref="IssueInvoiceCommandHandler"/>'s <c>ownsTransaction</c>
 /// branch).
 /// </para>
