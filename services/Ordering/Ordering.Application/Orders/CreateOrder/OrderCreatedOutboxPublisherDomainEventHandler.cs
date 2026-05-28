@@ -12,9 +12,9 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// <summary>
 /// Publishes <see cref="OrderCreatedEvent"/> to the <c>ordering.orders</c>
 /// Kafka topic via the transactional outbox. Runs inside the same EF-Core
-/// transaction as the aggregate save (see the
-/// <c>DispatchDomainEventsInterceptor</c> to be added in M4), so the outbox
-/// row is atomic with the order row.
+/// transaction as the aggregate save (via the
+/// <c>DispatchDomainEventsInterceptor</c>), so the outbox row is atomic with
+/// the order row.
 /// </summary>
 public sealed class OrderCreatedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<OrderCreatedDomainEvent>

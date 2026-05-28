@@ -10,7 +10,7 @@ namespace Ordering.Application.Orders.MarkOrderFailed;
 /// <see cref="string"/>; the Avro enum is <see cref="OrderStatusAtTransition"/>
 /// constrained to 4 symbols (per events-catalog.md § 5.3.6). A mismatch is
 /// bug-class — throws <see cref="DataIntegrityException"/> which routes the
-/// message to the DLT via M4's Kafka middleware.
+/// message to the DLT via the Kafka middleware.
 /// </summary>
 internal static class OrderFailedMapper
 {

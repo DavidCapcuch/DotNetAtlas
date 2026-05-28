@@ -4,7 +4,7 @@ namespace Ordering.Application.Orders.CancelOrder;
 
 /// <summary>
 /// Cancels an <c>Order</c>. Invoked from two surfaces: the admin HTTP
-/// endpoint (M5) and the Checkout saga (M4 — <c>CancelOrderCommand</c> on
+/// endpoint and the Checkout saga (<c>CancelOrderCommand</c> on
 /// <c>ordering.order-commands</c>). The caller decides the authorisation
 /// mode via <see cref="IsAdmin"/> + <see cref="BuyerId"/>:
 /// <list type="bullet">
@@ -15,7 +15,7 @@ namespace Ordering.Application.Orders.CancelOrder;
 /// </item>
 /// <item>
 /// HTTP admin cancel: <c>IsAdmin=true</c>, <c>BuyerId=Guid.Empty</c>.
-/// Authorised by the <c>AuthPolicies.OrderingAdmin</c> policy (M5).
+/// Authorised by the <c>AuthPolicies.OrderingAdmin</c> policy.
 /// </item>
 /// <item>
 /// Saga compensation: <c>IsAdmin=true</c>, <c>BuyerId=Guid.Empty</c>.

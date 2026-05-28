@@ -30,7 +30,7 @@ public sealed class TopicsOptions
 
     /// <summary>
     /// Suffix appended to topic names to create Dead Letter Topics
-    /// (e.g. <c>.DLT</c>). Consumed by the M4 Kafka consumer DLT middleware.
+    /// (e.g. <c>.DLT</c>). Consumed by the Kafka consumer DLT middleware.
     /// </summary>
     [Required]
     [Length(1, 64)]
