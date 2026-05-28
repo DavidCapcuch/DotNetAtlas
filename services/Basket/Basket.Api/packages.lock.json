@@ -1039,6 +1039,15 @@
           "ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack": "[2.6.0, )"
         }
       },
+      "platform.api": {
+        "type": "Project",
+        "dependencies": {
+          "FastEndpoints": "[8.1.0, )",
+          "FluentResults": "[4.0.0, )",
+          "FluentValidation": "[12.1.1, )",
+          "Platform.SharedKernel": "[1.0.0, )"
+        }
+      },
       "platform.avro.universalserdes": {
         "type": "Project",
         "dependencies": {

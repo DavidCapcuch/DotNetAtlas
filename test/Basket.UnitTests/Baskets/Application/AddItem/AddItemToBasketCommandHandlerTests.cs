@@ -92,7 +92,7 @@ public class AddItemToBasketCommandHandlerTests
             {
                 saveCalls++;
                 return saveCalls == 1
-                    ? Result.Fail(new BasketConcurrencyError(userId, Expected: 0, Actual: 1))
+                    ? Result.Fail(new BasketConcurrencyError(userId, expected: 0, actual: 1))
                     : Result.Ok();
             });
 

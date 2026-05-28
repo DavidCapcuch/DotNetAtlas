@@ -119,7 +119,7 @@ public class AddItemToBasketTests : BaseApiTest
             .POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest, ProblemDetails>(request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     private void StubCatalogProduct(Guid productId, decimal price = 9.99m, string currency = "EUR")

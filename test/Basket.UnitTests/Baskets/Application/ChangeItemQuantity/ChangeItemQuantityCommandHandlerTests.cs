@@ -34,7 +34,7 @@ public class ChangeItemQuantityCommandHandlerTests
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            result.Errors[0].Should().BeOfType<ValidationError>()
+            result.Errors[0].Should().BeOfType<NotFoundError>()
                 .Which.ErrorCode.Should().Be("Basket.ItemNotFound");
         }
     }

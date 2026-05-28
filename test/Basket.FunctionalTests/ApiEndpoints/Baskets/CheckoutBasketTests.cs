@@ -240,7 +240,7 @@ public class CheckoutBasketTests : BaseApiTest
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, ProblemDetails>(checkoutRequest);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     private static CheckoutBasketRequest ValidCheckoutRequest(Guid correlationId)

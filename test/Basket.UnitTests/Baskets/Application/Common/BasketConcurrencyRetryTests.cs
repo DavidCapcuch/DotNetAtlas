@@ -37,7 +37,7 @@ public class BasketConcurrencyRetryTests
             if (calls == 1)
             {
                 return Task.FromResult(
-                    Result.Fail(new BasketConcurrencyError(userId, Expected: 3, Actual: 4)));
+                    Result.Fail(new BasketConcurrencyError(userId, expected: 3, actual: 4)));
             }
 
             return Task.FromResult(Result.Ok());
@@ -60,7 +60,7 @@ public class BasketConcurrencyRetryTests
         {
             calls++;
             return Task.FromResult(
-                Result.Fail(new BasketConcurrencyError(userId, Expected: 3, Actual: 4)));
+                Result.Fail(new BasketConcurrencyError(userId, expected: 3, actual: 4)));
         }, TestContext.Current.CancellationToken);
 
         using (new AssertionScope())

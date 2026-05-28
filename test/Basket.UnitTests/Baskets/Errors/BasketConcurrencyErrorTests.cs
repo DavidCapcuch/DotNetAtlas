@@ -1,26 +1,29 @@
 using Basket.Domain.Baskets.Errors;
+using Platform.SharedKernel.Errors;
 
 namespace Basket.UnitTests.Baskets.Errors;
 
 public class BasketConcurrencyErrorTests
 {
     [Fact]
-    public void Fields_AreSurfacedViaMessageAndMetadata()
+    public void Constructor_PopulatesFieldsAndCanonicalShape()
     {
         var userId = Guid.CreateVersion7();
 
-        var err = new BasketConcurrencyError(userId, Expected: 3, Actual: 5);
+        var error = new BasketConcurrencyError(userId, expected: 3, actual: 5);
 
         using (new AssertionScope())
         {
-            err.UserId.Should().Be(userId);
-            err.Expected.Should().Be(3);
-            err.Actual.Should().Be(5);
-            err.Message.Should().Contain(userId.ToString());
-            err.Message.Should().Contain("expected 3");
-            err.Message.Should().Contain("found 5");
-            err.Metadata.Should().ContainKey("ErrorCode").WhoseValue.Should().Be("Basket.Concurrency");
-            err.Reasons.Should().BeEmpty();
+            error.Should().BeAssignableTo<ConflictError>();
+            error.EntityName.Should().Be("Basket");
+            error.ErrorCode.Should().Be("Basket.Concurrency");
+            error.UserId.Should().Be(userId);
+            error.Expected.Should().Be(3);
+            error.Actual.Should().Be(5);
+            error.Message.Should().Contain(userId.ToString());
+            error.Message.Should().Contain("expected 3");
+            error.Message.Should().Contain("found 5");
+            error.Reasons.Should().BeEmpty();
         }
     }
 }

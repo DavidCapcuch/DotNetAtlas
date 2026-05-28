@@ -2,6 +2,7 @@ using System.Net;
 using Basket.Api.Common.Extensions;
 using Basket.Application.Baskets.RemoveItem;
 using FastEndpoints;
+using Platform.Api.Extensions;
 
 namespace Basket.Api.Endpoints.Baskets.RemoveItem;
 

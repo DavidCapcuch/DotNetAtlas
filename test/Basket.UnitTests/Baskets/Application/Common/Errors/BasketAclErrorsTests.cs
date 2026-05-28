@@ -1,33 +1,38 @@
 using Basket.Application.Baskets.Common.Errors;
+using Platform.SharedKernel.Errors;
 
 namespace Basket.UnitTests.Baskets.Application.Common.Errors;
 
 public class BasketAclErrorsTests
 {
     [Fact]
-    public void CatalogUnavailable_HasExpectedShape()
+    public void CatalogUnavailable_ReturnsServiceUnavailableErrorWithResourceNameAndCode()
     {
-        var err = BasketAclErrors.CatalogUnavailable();
+        var error = BasketAclErrors.CatalogUnavailable();
 
         using (new AssertionScope())
         {
-            err.PropertyName.Should().Be("Catalog");
-            err.ErrorCode.Should().Be("Basket.CatalogUnavailable");
+            error.Should().BeOfType<ServiceUnavailableError>();
+            error.ResourceName.Should().Be("Catalog");
+            error.ErrorCode.Should().Be("Basket.CatalogUnavailable");
+            error.Message.Should().Contain("temporarily unavailable");
         }
     }
 
     [Fact]
-    public void ProductNotFound_EmbedsProductIdInMessage()
+    public void ProductNotFound_ReturnsNotFoundErrorWithEntityNameAndCode()
     {
         var productId = Guid.CreateVersion7();
 
-        var err = BasketAclErrors.ProductNotFound(productId);
+        var error = BasketAclErrors.ProductNotFound(productId);
 
         using (new AssertionScope())
         {
-            err.PropertyName.Should().Be("ProductId");
-            err.ErrorCode.Should().Be("Basket.ProductNotFound");
-            err.Message.Should().Contain(productId.ToString());
+            error.Should().BeOfType<NotFoundError>();
+            error.EntityName.Should().Be("Product");
+            error.Id.Should().Be(productId);
+            error.ErrorCode.Should().Be("Basket.ProductNotFound");
+            error.Message.Should().Contain(productId.ToString());
         }
     }
 }

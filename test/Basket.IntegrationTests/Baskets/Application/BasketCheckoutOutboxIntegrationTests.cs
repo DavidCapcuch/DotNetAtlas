@@ -183,7 +183,7 @@ public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(_ => System.Threading.Interlocked.Increment(ref saveCount) == 1
                 ? Result.Ok()
-                : Result.Fail(new BasketConcurrencyError(userId, Expected: 1, Actual: 2)));
+                : Result.Fail(new BasketConcurrencyError(userId, expected: 1, actual: 2)));
 
         using var scope1 = _provider.CreateScope();
         using var scope2 = _provider.CreateScope();
