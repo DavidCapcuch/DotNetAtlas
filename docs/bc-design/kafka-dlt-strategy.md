@@ -65,7 +65,7 @@ Rows are keyed by **(consumer BC × source topic)** because the live `DltTopicSu
 
 | Consumer BC | Source topic | DLT topic (broker name) | Source retention | Notes |
 |-------------|--------------|--------------------------|------------------|-------|
-| Catalog | `inventory.stock-level-changed` | `inventory.stock-level-changed.Catalog.DLT` | infinite (event-log) | `StockLevelChangedKafkaHandler` projects to `Catalog.IsSellable`. Note source-topic name diverges from the `inventory.stock-events` row in events-catalog.md § 4 — separate cleanup, see § 7 follow-up. |
+| Catalog | `inventory.stock-events` | `inventory.stock-events.Catalog.DLT` | infinite (event-log) | `StockLevelChangedKafkaHandler` projects to `Catalog.IsSellable`. |
 | Inventory | `inventory.reservation-commands` | `inventory.reservation-commands.Inventory.DLT` | 7 days (command) | Saga → Inventory commands. DLT = saga state-timeout + compensation imminent. |
 | Inventory | `catalog.products` | `catalog.products.Inventory.DLT` | infinite (event-log) | Stock-init projection from Catalog product master. |
 | Inventory | `ordering.orders` | `ordering.orders.Inventory.DLT` | infinite (event-log) | `OrderCancelledEvent` consumer (release reserved stock). |

@@ -1961,7 +1961,7 @@ Each service registers the message types it will dedupe in `services.AddInbox(..
 
 ### 7.1 Catalog Service
 
-**Topics consumed:** `inventory.stock-level-changed`
+**Topics consumed:** `inventory.stock-events`
 
 **Message types to dedupe:**
 - `Inventory.StockEvents.StockLevelChangedEvent` — handled by [`StockLevelChangedKafkaHandler`](../../services/Catalog/Catalog.Infrastructure/Messaging/Kafka/StockEvents/StockLevelChangedKafkaHandler.cs), which dispatches to `Catalog.Application.Products.UpdateProductSellability.StockLevelChangedProjectionHandler` to flip `ProductSearchViewRow.IsSellable` based on `Available > 0`. See [catalog.md § Sellability projection](catalog.md).
