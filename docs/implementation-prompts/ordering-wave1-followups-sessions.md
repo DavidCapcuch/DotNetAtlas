@@ -304,7 +304,7 @@ This edits `docs/bc-design/use-cases.md`, which is read by every BC + BFF. User 
 
 ## Context
 
-`docs/bc-design/use-cases.md` § 3 presents `MarkOrderStockReservedCommand` and `MarkOrderPaymentCompletedCommand` as Kafka-arriving commands on `ordering.order-commands`. They are NOT — in v1 they are application-layer only, dispatched in-process by the saga. The Kafka wire is verified by the actual `services/Ordering/Ordering.Infrastructure/Common/MessagingDependencyInjection.cs:89-99` consumer registration which lists only `AvroCreateOrderCommand`, `AvroConfirmOrderCommand`, `AvroCancelOrderCommand`, `AvroMarkOrderFailedCommand`. The same precedent fix (with the same renames + trigger-column clarifications) was already applied to `docs/bc-design/ordering.md` and `docs/bc-design/example-mapping/ordering.md` during Ordering M9.
+`docs/bc-design/use-cases.md` § 3 presents `MarkOrderStockReservedCommand` and `MarkOrderPaymentCompletedCommand` as Kafka-arriving commands on `ordering.order-commands`. They are NOT — in v1 they are application-layer only, dispatched in-process by the saga. The Kafka wire is verified by the actual `services/Ordering/Ordering.Infrastructure/Common/MessagingDependencyInjection.cs:89-99` consumer registration which lists only `AvroCreateOrderCommand`, `AvroConfirmOrderCommand`, `AvroCancelOrderCommand`, `AvroMarkOrderFailedCommand`. The same precedent fix (with the same renames + trigger-column clarifications) was already applied to `docs/bc-design/ordering.md` and `docs/bc-design/example-mapping/ordering.md`.
 
 ## Lines to fix
 

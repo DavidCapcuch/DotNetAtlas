@@ -127,12 +127,12 @@ Every BC prompt extends this list with BC-specific skills. Invoke skills proacti
 | Refactor pass | `nw-refactor` | RPP L1–L6 after tests are green |
 | Before PR | `superpowers:requesting-code-review` | structured review request |
 | On feedback | `superpowers:receiving-code-review` | rigour before implementing review suggestions |
-| **Pre-commit, every milestone** | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **mandatory** on any milestone commit touching ≥ 5 files — brief with file list + test list + what's intentionally deferred. M2 precedent: this pass caught one CRITICAL + three IMPORTANT findings that would otherwise have shipped. Use `opus` explicitly; the default model is weaker. |
+| **Pre-commit, every milestone** | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **mandatory** on any milestone commit touching ≥ 5 files — brief with file list + test list + what's intentionally deferred. Validated precedent: this pass caught one CRITICAL + three IMPORTANT findings that would otherwise have shipped. Use `opus` explicitly; the default model is weaker. |
 | Before claiming done | `superpowers:verification-before-completion` | evidence-first claim of completion (run all `<verification>` commands; paste output in summary) |
 | Final peer review | `nw-software-crafter-reviewer` | invoke with your session summary BEFORE declaring DoD met; fix any HIGH-severity findings. Runs on Haiku — complement the Opus pre-commit review, don't substitute for it. |
 | .NET idioms | `dotnet-contribution:dotnet-backend-patterns` | continuous — C#/.NET pattern reference |
 
-> **Reviewer choice note.** Some older prompts reference `code-documentation:code-reviewer` for the pre-commit review step. The concrete `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` call above is the validated path (proven on Wave 0 M2) — use it unless you have specific reason to pick a different reviewer skill.
+> **Reviewer choice note.** Some older prompts reference `code-documentation:code-reviewer` for the pre-commit review step. The concrete `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` call above is the validated path — use it unless you have specific reason to pick a different reviewer skill.
 
 ## 8. Autonomous evolution protocol
 
@@ -174,7 +174,7 @@ Every BC implementation is multi-file, multi-hour work. Manage the session as yo
 
 **Pre-commit, every milestone** (not only at DoD):
 
-0. Before `git commit` on any milestone that touches ≥ 5 files, invoke `Agent(subagent_type="feature-dev:code-reviewer", model="opus")`. Brief it with the exact file list, test list, design decisions taken, and what's intentionally deferred. Fix all CRITICAL/HIGH findings before staging; document accepted MEDIUM/LOW findings in the commit body. Use `model="opus"` — the Wave 0 M2 precedent showed the default Sonnet surfaced one CRITICAL + three IMPORTANT findings; Opus is strictly stronger for the same cost posture on a single review call.
+0. Before `git commit` on any milestone that touches ≥ 5 files, invoke `Agent(subagent_type="feature-dev:code-reviewer", model="opus")`. Brief it with the exact file list, test list, design decisions taken, and what's intentionally deferred. Fix all CRITICAL/HIGH findings before staging; document accepted MEDIUM/LOW findings in the commit body. Use `model="opus"` — the default Sonnet has historically surfaced one CRITICAL + three IMPORTANT findings on a precedent review; Opus is strictly stronger for the same cost posture on a single review call.
 
 Before posting your session summary as "complete":
 
