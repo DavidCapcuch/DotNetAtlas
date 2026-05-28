@@ -1,8 +1,8 @@
 using System.Net;
 using FastEndpoints;
 using Payments.Api.Common.Authorization;
-using Payments.Api.Common.Extensions;
 using Payments.Application.Transactions.GetPaymentsByOrder;
+using Platform.Api.Extensions;
 using Platform.CQRS;
 using Serilog.Context;
 

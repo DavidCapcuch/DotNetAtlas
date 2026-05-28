@@ -151,7 +151,9 @@ public class AuthorizePaymentCommandHandlerTests
 
         using (new AssertionScope())
         {
-            result.Should().BeFailure().And.HaveError("Payment gateway is temporarily unavailable.");
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e =>
+                ((Platform.SharedKernel.Errors.DomainError)e).ErrorCode == "Payments.GatewayUnavailable");
             // H-3: the Requested aggregate IS persisted before the gateway call, so saga retry
             // re-enters via the existing-row branch and does not re-create. The Authorized /
             // Failed transition's second SaveChanges does not happen (handler returns early

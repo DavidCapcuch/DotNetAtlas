@@ -59,8 +59,8 @@ public class GetPaymentByIdTests : BaseApiTest
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
             problem.Errors.Should()
                 .Contain(e =>
-                    string.Equals(e.Name, "PaymentId", StringComparison.OrdinalIgnoreCase)
-                    && e.Reason.Contains("does not exist", StringComparison.Ordinal)
+                    string.Equals(e.Name, "Payment", StringComparison.OrdinalIgnoreCase)
+                    && e.Reason.Contains("not found", StringComparison.Ordinal)
                     && e.Code == "Payments.NotFound");
         }
     }
