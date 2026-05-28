@@ -2,6 +2,7 @@ using System.Net;
 using FastEndpoints;
 using Ordering.Api.Common.Extensions;
 using Ordering.Application.Orders.GetOrderById;
+using Platform.Api.Extensions;
 using Serilog.Context;
 
 namespace Ordering.Api.Endpoints.Orders.GetOrderById;
