@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Platform.SharedKernel.Exceptions;
 
-namespace Basket.Api.Common.Extensions;
+namespace Basket.Api.Common;
 
 internal static class ClaimsPrincipalExtensions
 {
