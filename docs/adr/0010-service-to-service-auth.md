@@ -172,4 +172,4 @@ This amendment caught Inventory's silent breakage during its own implementation:
 
 ### Out of scope (deferred)
 
-- Worker BCs (`Notifications`, `OutboxRelay`, `SagaOrchestrators`) have no inbound HTTP audience to validate today. `SagaOrchestrators` has a Wave-0-M7 seed `ServiceAuth` section pre-provisioned for the deferred outbound-auth wiring; per the rule above this section should be removed and re-added together with the `AddServiceAuth(...)` call when Wave 1 lands.
+- Worker BCs (`Notifications`, `OutboxRelay`, `SagaOrchestrators`) have no inbound HTTP audience to validate today. `SagaOrchestrators` has a seeded `ServiceAuth` section pre-provisioned for the deferred outbound-auth wiring; per the rule above this section should be removed and re-added together with the `AddServiceAuth(...)` call when the outbound path lands.
