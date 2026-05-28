@@ -1,6 +1,6 @@
 # Invoicing — Example Mapping Sessions
 
-> **Implementation status (2026-05-02):** M1–M6 + Wave 1.5 are implemented. M7 (`IssueInvoiceCommand` + `IssueCreditNoteCommand`) is the next milestone. The Sessions 1 and 3 pseudocode reflects the [ADR-0020](../../adr/0020-summary-events.md) Summary Event shape on `OrderConfirmedEvent` (Items, TotalAmount, Currency, BillingAddress travel with the event).
+> The Sessions 1 and 3 pseudocode reflects the [ADR-0020](../../adr/0020-summary-events.md) Summary Event shape on `OrderConfirmedEvent` (Items, TotalAmount, Currency, BillingAddress travel with the event).
 >
 > Format: Matt Wynne's Example Mapping (Story / Rules / Examples / Questions) with BDD Given/When/Verify/Then for Examples. Each session corresponds to one non-trivial business rule or invariant in the Invoicing BC.
 

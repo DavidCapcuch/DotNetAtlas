@@ -1061,11 +1061,12 @@ public sealed class CreateOrderKafkaHandler
         "sku": "string",
         "name": "string",
         "quantity": "int",
-        "unitPrice": { "amount": "decimal", "currency": "string" },
-        "lineTotal": { "amount": "decimal", "currency": "string" }
+        "unitPriceAmount": "decimal",
+        "lineTotalAmount": "decimal"
       }
     ],
-    "total": { "amount": "decimal", "currency": "string" },
+    "totalAmount": "decimal",
+    "currency": "string",
     "shippingAddress": "Address",
     "billingAddress": "Address",
     "paymentMethodId": "Guid",
@@ -1133,7 +1134,7 @@ public sealed class CreateOrderKafkaHandler
   - `WHERE BuyerId = @buyerId AND (@status IS NULL OR Status = @status)`.
   - `ORDER BY CreatedAtUtc DESC, OrderId DESC`.
   - `LIMIT @pageSize OFFSET ((@pageNumber - 1) * @pageSize)`.
-- **Read source:** `ordering.orders` via inline LINQ in `GetOrdersByBuyerQueryHandler` (`.Where(...).OrderByDescending(...).Skip(...).Take(...).Select(...)`) — predicate, paging, and projection are co-located on the handler and translated SQL-side; no `Ardalis.Specification` per [ADR-0021](../adr/0021-read-side-no-specifications.md). `LastStatusChangeAtUtc` is derived by taking `COALESCE(DeliveredAtUtc, ShippedAtUtc, ConfirmedAtUtc, PaymentCompletedAtUtc, StockReservedAtUtc, CreatedAtUtc)` — whichever most recent transition timestamp is non-null.
+- **Read source:** `ordering.orders` via inline LINQ in `GetOrdersByBuyerQueryHandler` (`.Where(...).OrderByDescending(...).Skip(...).Take(...).Select(...)`) — predicate, paging, and projection are co-located on the handler and translated SQL-side; no `Ardalis.Specification` per [ADR-0021](../adr/0021-read-side-no-specifications.md). `LastStatusChangeAtUtc` is derived by taking `COALESCE(CancelledAtUtc, FailedAtUtc, DeliveredAtUtc, ShippedAtUtc, ConfirmedAtUtc, PaymentCompletedAtUtc, StockReservedAtUtc, CreatedAtUtc)` — the timestamp of the order's current state. Terminal Cancellation/Failure timestamps sit at the front of the chain: when set, they supersede any retained happy-path timestamp (a Confirmed-then-Cancelled row's `Status` is `Cancelled`, so its `LastStatusChangeAtUtc` is `CancelledAtUtc`, not the now-superseded `ConfirmedAtUtc`).
 
 ---
 

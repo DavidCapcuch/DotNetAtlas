@@ -734,7 +734,7 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc`
 
-> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's full state at the confirmation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) so Invoicing's M7 handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them.
+> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's full state at the confirmation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) so Invoicing's issuance handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them.
 
 ```json
 {
@@ -839,7 +839,7 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc`
 
-> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) (Wave 1.6 promotion) — carries the order's state at the cancellation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) alongside the original `Reason` / `AtStatus` delta payload, so Invoicing's M8 credit-note handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them. Compensation consumers (Inventory, Payments, Notifications, BFF, checkout saga) keep reading only the `Reason` / `AtStatus` fields they already used.
+> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's state at the cancellation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) alongside the original `Reason` / `AtStatus` delta payload, so Invoicing's credit-note handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them. Compensation consumers (Inventory, Payments, Notifications, BFF, checkout saga) keep reading only the `Reason` / `AtStatus` fields they already used.
 
 ```json
 {

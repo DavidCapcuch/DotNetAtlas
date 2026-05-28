@@ -621,7 +621,8 @@ record OrderDto(
     Guid BuyerId,
     string Status,
     IReadOnlyList<OrderItemDto> Items,
-    MoneyDto Total,
+    decimal TotalAmount,
+    string Currency,
     AddressDto ShippingAddress,
     AddressDto BillingAddress,
     Guid PaymentMethodId,
@@ -641,13 +642,14 @@ record OrderItemDto(
     string Sku,
     string Name,
     int Quantity,
-    MoneyDto UnitPrice,
-    MoneyDto LineTotal);
+    decimal UnitPriceAmount,
+    decimal LineTotalAmount);
 
 record OrderSummaryDto(
     Guid OrderId,
     string Status,
-    MoneyDto Total,
+    decimal TotalAmount,
+    string Currency,
     int ItemCount,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset LastStatusChangeAtUtc);
