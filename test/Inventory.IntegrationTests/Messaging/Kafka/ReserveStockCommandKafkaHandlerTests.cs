@@ -40,7 +40,11 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         var orderId = Guid.NewGuid();
         var correlationId = Guid.NewGuid();
 
-        await SeedStreamAsync(productId, onHand: 10);
+        await Seed.ProductWithOnHandAsync(
+            productId,
+            onHand: 10,
+            new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-2),
+            TestContext.Current.CancellationToken);
 
         var avroCommand = new AvroReserveStockCommand
         {
@@ -92,7 +96,11 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         var correlationId = Guid.NewGuid();
 
         // Seed only 2 units, then request 5 -> InsufficientStock.
-        await SeedStreamAsync(productId, onHand: 2);
+        await Seed.ProductWithOnHandAsync(
+            productId,
+            onHand: 2,
+            new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-2),
+            TestContext.Current.CancellationToken);
 
         var avroCommand = new AvroReserveStockCommand
         {
@@ -129,32 +137,5 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
             .Where(m => m.KafkaKey == orderId.ToString())
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().ContainSingle(m => m.TopicName == "inventory.reservations");
-    }
-
-    private async Task SeedStreamAsync(Guid productId, int onHand)
-    {
-        var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-2);
-
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-
-        await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = seedUtc },
-            TestContext.Current.CancellationToken);
-
-        if (onHand > 0)
-        {
-            await receiveHandler.HandleAsync(
-                new ReceiveStockCommand
-                {
-                    ProductId = productId,
-                    Quantity = onHand,
-                    Source = "receiving-dock",
-                    ReceivedByUserId = null,
-                    OccurredOnUtc = seedUtc.AddMinutes(1),
-                },
-                TestContext.Current.CancellationToken);
-        }
     }
 }

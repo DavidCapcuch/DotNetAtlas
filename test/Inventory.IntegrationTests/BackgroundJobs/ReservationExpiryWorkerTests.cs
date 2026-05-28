@@ -47,7 +47,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 4, reservedAtUtc: SeedUtc);
+        await Seed.ActiveReservationAsync(productId, reservationId, orderId, quantity: 4, SeedUtc.AddMinutes(-2), TestContext.Current.CancellationToken, timeToLive: ReservationTtl);
 
         // 16 min after the reservation was created — past the 15-min TTL.
         var fakeTime = new FakeTimeProvider(SeedUtc.AddMinutes(16));
@@ -85,7 +85,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
 
         foreach (var r in reservations)
         {
-            await SeedActiveReservationAsync(r.ProductId, r.ReservationId, r.OrderId, quantity: 2, reservedAtUtc: SeedUtc);
+            await Seed.ActiveReservationAsync(r.ProductId, r.ReservationId, r.OrderId, quantity: 2, SeedUtc.AddMinutes(-2), TestContext.Current.CancellationToken, timeToLive: ReservationTtl);
         }
 
         var fakeTime = new FakeTimeProvider(SeedUtc.AddMinutes(16));
@@ -124,17 +124,17 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var oldProductId = Guid.NewGuid();
         var oldReservationId = Guid.NewGuid();
         var oldOrderId = Guid.NewGuid();
-        await SeedActiveReservationAsync(
+        await Seed.ActiveReservationAsync(
             oldProductId, oldReservationId, oldOrderId, quantity: 2,
-            reservedAtUtc: SeedUtc.AddMinutes(-20));
+            SeedUtc.AddMinutes(-22), TestContext.Current.CancellationToken, timeToLive: ReservationTtl);
 
         // Fresh reservation: created at SeedUtc → expires at SeedUtc + 15m.
         var freshProductId = Guid.NewGuid();
         var freshReservationId = Guid.NewGuid();
         var freshOrderId = Guid.NewGuid();
-        await SeedActiveReservationAsync(
+        await Seed.ActiveReservationAsync(
             freshProductId, freshReservationId, freshOrderId, quantity: 2,
-            reservedAtUtc: SeedUtc);
+            SeedUtc.AddMinutes(-2), TestContext.Current.CancellationToken, timeToLive: ReservationTtl);
 
         // Tick at SeedUtc + 1m: only the old reservation has elapsed past expiry.
         var fakeTime = new FakeTimeProvider(SeedUtc.AddMinutes(1));
@@ -172,7 +172,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 2, reservedAtUtc: SeedUtc);
+        await Seed.ActiveReservationAsync(productId, reservationId, orderId, quantity: 2, SeedUtc.AddMinutes(-2), TestContext.Current.CancellationToken, timeToLive: ReservationTtl);
 
         // Pre-release via the saga compensation path so the audit row goes
         // Released/Compensation BEFORE the worker scans.
@@ -224,7 +224,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 2, reservedAtUtc: SeedUtc);
+        await Seed.ActiveReservationAsync(productId, reservationId, orderId, quantity: 2, SeedUtc.AddMinutes(-2), TestContext.Current.CancellationToken, timeToLive: ReservationTtl);
 
         using (var confirmScope = Fixture.CreateScope())
         {
@@ -273,41 +273,5 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
             logger: NullLogger<ReservationExpiryWorker>.Instance);
 
         await worker.ProcessExpiredReservationsAsync(TestContext.Current.CancellationToken);
-    }
-
-    private async Task SeedActiveReservationAsync(
-        Guid productId, Guid reservationId, Guid orderId, int quantity, DateTimeOffset reservedAtUtc)
-    {
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
-
-        await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = reservedAtUtc.AddMinutes(-2) },
-            TestContext.Current.CancellationToken);
-
-        await receiveHandler.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = 10,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = reservedAtUtc.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken);
-
-        await reserveHandler.HandleAsync(
-            new ReserveStockCommand
-            {
-                ReservationId = reservationId,
-                ProductId = productId,
-                Quantity = quantity,
-                OrderId = orderId,
-                TimeToLive = ReservationTtl,
-                OccurredOnUtc = reservedAtUtc,
-            },
-            TestContext.Current.CancellationToken);
     }
 }

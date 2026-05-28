@@ -40,7 +40,7 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedStreamAsync(productId, onHand: 10);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 10, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
 
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
@@ -100,7 +100,7 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
         var orderId = Guid.NewGuid();
 
         // Seed only 2 units, then request 5.
-        await SeedStreamAsync(productId, onHand: 2);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 2, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
 
         var eventCountBefore = await CountStockEventsAsync(productId);
 
@@ -155,7 +155,7 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
         var orderId = Guid.NewGuid();
         var correlationId = Guid.NewGuid();
 
-        await SeedStreamAsync(productId, onHand: 10);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 10, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
 
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
@@ -185,35 +185,6 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
             .FirstAsync(TestContext.Current.CancellationToken);
 
         reserveRow.CorrelationId.Should().Be(correlationId);
-    }
-
-    private async Task SeedStreamAsync(Guid productId, int onHand)
-    {
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-
-        (await initHandler.HandleAsync(
-            new InitializeStockItemCommand
-            {
-                ProductId = productId,
-                OccurredOnUtc = UtcNow.AddMinutes(-2),
-            },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
-
-        if (onHand > 0)
-        {
-            (await receiveHandler.HandleAsync(
-                new ReceiveStockCommand
-                {
-                    ProductId = productId,
-                    Quantity = onHand,
-                    Source = "receiving-dock",
-                    ReceivedByUserId = null,
-                    OccurredOnUtc = UtcNow.AddMinutes(-1),
-                },
-                TestContext.Current.CancellationToken)).Should().BeSuccess();
-        }
     }
 
     private async Task<int> CountStockEventsAsync(Guid productId)

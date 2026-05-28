@@ -48,7 +48,11 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
     public async Task ResultFailWithNonBusinessErrorCode_ThrowsSagaCommandDispatchException()
     {
         var productId = Guid.NewGuid();
-        await SeedStreamWithStockAsync(productId, onHand: 10);
+        await Seed.ProductWithOnHandAsync(
+            productId,
+            onHand: 10,
+            new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5),
+            TestContext.Current.CancellationToken);
 
         var avroCommand = new AvroReserveStockCommand
         {
@@ -118,7 +122,13 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 1);
+        await Seed.ActiveReservationAsync(
+            productId,
+            reservationId,
+            orderId,
+            quantity: 1,
+            new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5),
+            TestContext.Current.CancellationToken);
 
         var avroCommand = new AvroConfirmReservationCommand
         {
@@ -135,69 +145,5 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
 
         var act = async () => await handler.Handle(context, avroCommand);
         await act.Should().NotThrowAsync();
-    }
-
-    private async Task SeedStreamWithStockAsync(Guid productId, int onHand)
-    {
-        var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
-
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-
-        await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = seedUtc },
-            TestContext.Current.CancellationToken);
-
-        if (onHand > 0)
-        {
-            await receiveHandler.HandleAsync(
-                new ReceiveStockCommand
-                {
-                    ProductId = productId,
-                    Quantity = onHand,
-                    Source = "receiving-dock",
-                    ReceivedByUserId = null,
-                    OccurredOnUtc = seedUtc.AddMinutes(1),
-                },
-                TestContext.Current.CancellationToken);
-        }
-    }
-
-    private async Task SeedActiveReservationAsync(Guid productId, Guid reservationId, Guid orderId, int quantity)
-    {
-        var seedUtc = new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5);
-
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
-
-        await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = seedUtc },
-            TestContext.Current.CancellationToken);
-
-        await receiveHandler.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = 10,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = seedUtc.AddMinutes(1),
-            },
-            TestContext.Current.CancellationToken);
-
-        await reserveHandler.HandleAsync(
-            new ReserveStockCommand
-            {
-                ReservationId = reservationId,
-                ProductId = productId,
-                Quantity = quantity,
-                OrderId = orderId,
-                TimeToLive = TimeSpan.FromMinutes(15),
-                OccurredOnUtc = seedUtc.AddMinutes(2),
-            },
-            TestContext.Current.CancellationToken);
     }
 }

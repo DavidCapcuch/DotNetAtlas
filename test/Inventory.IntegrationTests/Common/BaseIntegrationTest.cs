@@ -28,6 +28,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
     protected IntegrationTestFixture Fixture { get; }
     protected IServiceScope Scope { get; }
     protected InventoryDbContext InventoryDbContext { get; }
+    protected StockItemSeed Seed { get; }
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
     {
@@ -39,6 +40,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
         InventoryDbContext = Scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+        Seed = new StockItemSeed(app);
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main

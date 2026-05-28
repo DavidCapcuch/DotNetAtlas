@@ -78,7 +78,15 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 3, onHand: 10);
+        await Seed.ActiveReservationAsync(
+            productId,
+            reservationId,
+            orderId,
+            quantity: 3,
+            UtcNow.AddMinutes(-3),
+            TestContext.Current.CancellationToken,
+            onHand: 10,
+            timeToLive: ReservationTtl);
 
         // First confirm: real ReservationConfirmedEvent + outbox row.
         using (var firstScope = Fixture.CreateScope())
@@ -154,7 +162,15 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        await SeedActiveReservationAsync(productId, reservationId, orderId, quantity: 2, onHand: 5);
+        await Seed.ActiveReservationAsync(
+            productId,
+            reservationId,
+            orderId,
+            quantity: 2,
+            UtcNow.AddMinutes(-3),
+            TestContext.Current.CancellationToken,
+            onHand: 5,
+            timeToLive: ReservationTtl);
 
         // Release with reason=Compensation (saga compensation, not TTL).
         using (var releaseScope = Fixture.CreateScope())
@@ -324,41 +340,6 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         rows[3].Version.Should().Be(4);
         rows[3].EventType.Should().Be(nameof(ReservationReleasedEvent),
             "exactly one resolution event for R3 — the competing release that won the version race");
-    }
-
-    private async Task SeedActiveReservationAsync(Guid productId, Guid reservationId, Guid orderId, int quantity, int onHand)
-    {
-        using var seedScope = Fixture.CreateScope();
-        var initHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<InitializeStockItemCommand>>();
-        var receiveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        var reserveHandler = seedScope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
-
-        (await initHandler.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = UtcNow.AddMinutes(-3) },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
-
-        (await receiveHandler.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = onHand,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = UtcNow.AddMinutes(-2),
-            },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
-
-        (await reserveHandler.HandleAsync(
-            new ReserveStockCommand
-            {
-                ReservationId = reservationId,
-                ProductId = productId,
-                Quantity = quantity,
-                OrderId = orderId,
-                TimeToLive = ReservationTtl,
-                OccurredOnUtc = UtcNow.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken)).Should().BeSuccess();
     }
 
     private async Task<int> CountConfirmedEventsAsync(Guid productId)
