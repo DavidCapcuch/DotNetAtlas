@@ -4,9 +4,9 @@ using FluentResults;
 using Invoicing.Application.Blobs;
 using Invoicing.Application.Common.Blobs;
 using Invoicing.Application.Common.Data;
+using Invoicing.Application.Common.Exceptions;
 using Invoicing.Application.Common.Numbering;
 using Invoicing.Application.Pdf;
-using Invoicing.Domain.Common.Errors;
 using Invoicing.Domain.Common.ValueObjects;
 using Invoicing.Domain.Invoices;
 using Invoicing.Domain.Invoices.ValueObjects;
@@ -47,8 +47,8 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 /// <list type="bullet">
 ///   <item><description><b>Total mismatch</b> (<c>OrderConfirmedEvent.TotalAmount</c> ≠
 ///     <c>PaymentCapturedEvent.Amount</c>): bug-class — throws
-///     <see cref="DataIntegrityException"/> carrying <see cref="TotalMismatchError"/>;
-///     consumer DLT'd.</description></item>
+///     <see cref="InvoiceTotalMismatchException"/> (a <see cref="DataIntegrityException"/>
+///     subclass carrying the source values as typed properties); consumer DLT'd.</description></item>
 ///   <item><description><b>Missing summary fields</b> on <c>OrderConfirmedEvent</c>
 ///     (Items / TotalAmount / Currency / BillingAddress null in the persisted JSON,
 ///     even though they are required in production): bug-class — throws
@@ -138,9 +138,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         if (orderTotal != paymentPayload.Amount
             || !string.Equals(orderPayload.Currency, paymentPayload.Currency, StringComparison.OrdinalIgnoreCase))
         {
-            throw new DataIntegrityException(
-                "Invoicing.TotalMismatch",
-                new TotalMismatchError(orderTotal, paymentPayload.Amount, command.CorrelationId).Message);
+            throw new InvoiceTotalMismatchException(orderTotal, paymentPayload.Amount, command.CorrelationId);
         }
 
         if (pending.BuyerId is null)

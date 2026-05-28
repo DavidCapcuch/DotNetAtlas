@@ -293,12 +293,16 @@ Table `invoicing.invoice_delivery_log`:
 
 Single source of truth: [`error-taxonomy.md § 3.6`](error-taxonomy.md) (`InvoicingErrors`). Do not duplicate.
 
-Key errors:
-- `InvoicingErrors.InvoiceNotFound(Guid invoiceId)`
-- `InvoicingErrors.InvoiceAlreadyIssued` — idempotent re-issue attempt
-- `InvoicingErrors.CreditNoteRefersToCancelledInvoice` — I-CN-1 violation
-- `InvoicingErrors.PdfGenerationFailed(string detail)` — bug-class; logged + DLT
-- `InvoicingErrors.BlobUploadFailed` — infrastructure-class; retried
+Key user-actionable errors (factory methods on `InvoicingErrors` returning typed `DomainError` subclasses):
+- `InvoicingErrors.InvoiceNotFound(Guid invoiceId)` — `NotFoundError`, 404
+- `InvoicingErrors.InvoiceAlreadyIssued(Guid correlationId)` — `ConflictError`, 409 (idempotent re-issue attempt)
+- `InvoicingErrors.CreditNoteRefersToCancelledInvoice(Guid invoiceId)` — `ConflictError`, 409 (I-CN-1 violation)
+- `InvoicingErrors.BlobUploadFailed()` — `ServiceUnavailableError`, 503 (Azure Blob SDK retries exhausted)
+- `InvoicingErrors.PartialRefundNotSupportedV1()` — `NotImplementedError`, 501
+
+Bug-class typed exceptions (live in `Invoicing.Application.Common.Exceptions`, inherit `DataIntegrityException` → consumer middleware DLTs them):
+- `InvoiceTotalMismatchException(decimal orderTotal, decimal paymentAmount, Guid correlationId)` — raised by `IssueInvoiceCommandHandler` when `OrderConfirmedEvent.TotalAmount ≠ PaymentCapturedEvent.Amount` (example-mapping 1.4).
+- `PdfGenerationFailedException(string detail, Exception innerException)` — raised by `QuestPdfInvoiceGenerator` wrapping `QuestPDF.Drawing.Exceptions.DocumentLayoutException`.
 
 ---
 

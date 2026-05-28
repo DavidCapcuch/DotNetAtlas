@@ -1,4 +1,3 @@
-using FluentResults;
 using Platform.SharedKernel.Errors;
 
 namespace Invoicing.Domain.Common.Errors;
@@ -11,9 +10,11 @@ namespace Invoicing.Domain.Common.Errors;
 /// <remarks>
 /// <para>
 /// Bug-class integrity violations (e.g., <c>I-CN-1</c> — credit note against already-cancelled
-/// invoice) are raised as <c>DataIntegrityException</c>, not returned as <see cref="Result"/>s.
-/// See <see cref="TotalMismatchError"/> / <see cref="PdfGenerationFailedError"/> for
-/// typed <see cref="IError"/> carriers used by the DLT pipeline.
+/// invoice) are raised as <c>DataIntegrityException</c>, not returned as
+/// <see cref="FluentResults.Result"/>s. The Invoicing BC's typed bug-class exceptions live
+/// in <c>Invoicing.Application.Common.Exceptions</c> (<c>InvoiceTotalMismatchException</c>,
+/// <c>PdfGenerationFailedException</c>); both inherit <c>DataIntegrityException</c> so the
+/// consumer middleware DLTs them via the existing <c>CriticalException</c> branch.
 /// </para>
 /// </remarks>
 public static class InvoicingErrors
@@ -67,36 +68,4 @@ public static class InvoicingErrors
             entityName: "CreditNote",
             message: $"Invalid credit-note state transition: {from} → {to}.",
             errorCode: "Invoicing.InvalidCreditNoteTransition");
-}
-
-/// <summary>
-/// Bug-class error — surfaces through the DLT pipeline when the order total and the payment
-/// amount disagree for the same <c>CorrelationId</c>. Example mapping 1.4.
-/// </summary>
-public sealed record TotalMismatchError(decimal OrderTotal, decimal PaymentAmount, Guid CorrelationId) : IError
-{
-    public string Message =>
-        $"Total mismatch on correlation {CorrelationId}: order total {OrderTotal}, payment amount {PaymentAmount}.";
-
-    public Dictionary<string, object> Metadata { get; } = new()
-    {
-        ["ErrorCode"] = "Invoicing.TotalMismatch",
-    };
-
-    public List<IError> Reasons { get; } = [];
-}
-
-/// <summary>
-/// Bug-class error — PDF rendering failed (library bug or corrupt input). DLT'd and alerted.
-/// </summary>
-public sealed record PdfGenerationFailedError(string Detail) : IError
-{
-    public string Message => $"PDF generation failed: {Detail}";
-
-    public Dictionary<string, object> Metadata { get; } = new()
-    {
-        ["ErrorCode"] = "Invoicing.PdfGenerationFailed",
-    };
-
-    public List<IError> Reasons { get; } = [];
 }

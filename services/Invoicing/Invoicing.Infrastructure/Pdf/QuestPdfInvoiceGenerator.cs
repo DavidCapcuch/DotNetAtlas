@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
+using Invoicing.Application.Common.Exceptions;
 using Invoicing.Application.Pdf;
 using Invoicing.Domain.CreditNotes;
 using Invoicing.Domain.Invoices;
 using Microsoft.Extensions.Options;
+using QuestPDF.Drawing.Exceptions;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 
@@ -61,7 +63,21 @@ internal sealed class QuestPdfInvoiceGenerator : IPdfGenerator
     {
         // DocumentExtensions.GeneratePdf() is synchronous; IPdfGenerator stays async to keep
         // the seam open for a future HTML-to-PDF adapter (ADR-0019 § Considered Options 4).
-        var bytes = document.GeneratePdf();
+        byte[] bytes;
+        try
+        {
+            bytes = document.GeneratePdf();
+        }
+        catch (DocumentLayoutException ex)
+        {
+            // QuestPDF's only publicly-thrown exception type (per QuestPDF 2026.5.0 XML docs).
+            // Wrap so downstream observability gets a typed Detail field instead of having
+            // to parse the QuestPDF message, and so the consumer middleware DLTs via the
+            // existing CriticalException branch (PdfGenerationFailedException :
+            // DataIntegrityException : CriticalException).
+            throw new PdfGenerationFailedException(ex.Message, ex);
+        }
+
         var hash = ComputeSha256Hex(bytes);
         return new PdfGenerationResult(bytes, hash, bytes.LongLength, PdfContentType);
     }
