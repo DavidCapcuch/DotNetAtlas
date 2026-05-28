@@ -11,10 +11,9 @@ namespace Invoicing.Application.Blobs;
 /// </summary>
 /// <remarks>
 /// Architecture rule (ADR-0017 \u00a7 IBlobStore abstraction): Application and Domain layers
-/// must go through this interface and never reference <c>Azure.Storage.Blobs</c> directly.
-/// Enforced by architecture test in M9. The interface lives in the Application layer (M7
-/// move) so command handlers can inject it without depending on Infrastructure-namespace
-/// types.
+/// must go through this interface and never reference <c>Azure.Storage.Blobs</c> directly,
+/// enforced by an architecture test. The interface lives in the Application layer so
+/// command handlers can inject it without depending on Infrastructure-namespace types.
 /// </remarks>
 public interface IBlobStore
 {
@@ -52,7 +51,7 @@ public interface IBlobStore
 
     /// <summary>
     /// Streams the blob content. Primarily used by the byte-deterministic PDF test
-    /// in M4 to hash-compare two regenerations.
+    /// to hash-compare two regenerations.
     /// </summary>
     Task<Stream> DownloadAsync(
         string containerName,

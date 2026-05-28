@@ -10,7 +10,7 @@ namespace Invoicing.Application.Invoices.GetInvoiceByOrderId;
 /// </summary>
 /// <remarks>
 /// Backed by the unique index <c>UX_Invoices_OrderId</c> — there is at most one invoice per
-/// order (M7 idempotency contract).
+/// order (idempotency contract).
 /// </remarks>
 public sealed record GetInvoiceByOrderIdQuery : IQuery<GetInvoiceByIdResponse>
 {

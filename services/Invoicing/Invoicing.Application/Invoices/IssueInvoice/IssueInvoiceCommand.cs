@@ -3,7 +3,7 @@ using Platform.CQRS;
 namespace Invoicing.Application.Invoices.IssueInvoice;
 
 /// <summary>
-/// Internal command issued by the M6 enrichment-projection consumers when both halves
+/// Internal command issued by the enrichment-projection consumers when both halves
 /// (<c>OrderConfirmedEvent</c> + <c>PaymentCapturedEvent</c>) for a given
 /// <see cref="CorrelationId"/> have been observed and the row in <c>pending_invoices</c>
 /// has just transitioned to <c>CompletedAtUtc</c>. Idempotent on

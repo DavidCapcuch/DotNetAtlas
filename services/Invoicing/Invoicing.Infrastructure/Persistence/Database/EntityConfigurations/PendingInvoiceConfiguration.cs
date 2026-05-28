@@ -7,7 +7,7 @@ namespace Invoicing.Infrastructure.Persistence.Database.EntityConfigurations;
 /// <summary>
 /// EF mapping for <see cref="PendingInvoice"/> per <c>docs/bc-design/invoicing.md § 8.1</c>.
 /// PK on <c>correlation_id</c> keeps consumer upserts atomic on a single row.
-/// jsonb columns hold raw Avro→JSON envelopes for M7 to rehydrate.
+/// jsonb columns hold raw Avro→JSON envelopes for the issuance command handler to rehydrate.
 /// </summary>
 internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<PendingInvoice>
 {

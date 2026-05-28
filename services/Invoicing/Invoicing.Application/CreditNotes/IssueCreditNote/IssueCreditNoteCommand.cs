@@ -3,7 +3,7 @@ using Platform.CQRS;
 namespace Invoicing.Application.CreditNotes.IssueCreditNote;
 
 /// <summary>
-/// Internal command issued by the M6 enrichment-projection consumers when both halves
+/// Internal command issued by the enrichment-projection consumers when both halves
 /// (<c>OrderCancelledEvent</c> + <c>PaymentRefundedEvent</c>) for a given
 /// <see cref="CorrelationId"/> have been observed and the row in <c>pending_credit_notes</c>
 /// has just transitioned to <c>CompletedAtUtc</c>. Idempotent on

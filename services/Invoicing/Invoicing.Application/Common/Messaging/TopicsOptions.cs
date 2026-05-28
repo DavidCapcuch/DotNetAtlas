@@ -4,7 +4,7 @@ namespace Invoicing.Application.Common.Messaging;
 
 /// <summary>
 /// Kafka topic names for the Invoicing bounded context — both the inbound topics it
-/// subscribes to (Ordering + Payments) and the outbound topic the M7 outbox publishers
+/// subscribes to (Ordering + Payments) and the outbound topic the outbox publishers
 /// emit to (<see cref="Invoices"/>). Bound from configuration section <c>InvoicingTopics</c>
 /// on startup; validated eagerly via <c>AddOptionsWithValidateOnStart</c>.
 /// </summary>
@@ -29,8 +29,9 @@ public sealed class TopicsOptions
 
     /// <summary>
     /// Outbound topic carrying Invoicing's external events — <c>InvoiceIssuedEvent</c>,
-    /// <c>InvoiceCancelledEvent</c>, <c>CreditNoteIssuedEvent</c> (M7) and <c>InvoiceDeliveredEvent</c>
-    /// (M8). Single topic, partition key <c>BuyerId</c>, 10-year retention.
+    /// <c>InvoiceCancelledEvent</c>, <c>CreditNoteIssuedEvent</c>, and
+    /// <c>InvoiceDeliveredEvent</c>. Single topic, partition key <c>BuyerId</c>,
+    /// 10-year retention.
     /// </summary>
     [Required(AllowEmptyStrings = false)]
     [Length(1, MaximumKafkaTopicLength)]

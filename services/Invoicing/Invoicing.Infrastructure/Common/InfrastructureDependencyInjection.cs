@@ -10,13 +10,11 @@ using Microsoft.Extensions.Options;
 namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
-/// DI extensions for the Invoicing infrastructure layer.
-/// M1 stub → M3 adds <c>IBlobStore</c> + Azurite adapter → M4 adds
-/// <c>IPdfGenerator</c> + QuestPDF adapter → M5 adds
-/// <c>InvoicingDbContext</c> + the gap-free number allocators (ADR-0018) →
-/// M6 adds the four enrichment-projection KafkaFlow consumers + inbox dedup.
-/// Subsequent milestones wire:
-///   M7 — IssueInvoice / IssueCreditNote command handlers + outbox publishers.
+/// DI extensions for the Invoicing infrastructure layer. Wires
+/// <c>IBlobStore</c> (Azurite adapter), <c>IPdfGenerator</c> (QuestPDF
+/// adapter), <see cref="InvoicingDbContext"/> + the gap-free number allocators
+/// (ADR-0018), the four enrichment-projection KafkaFlow consumers + inbox dedup,
+/// and the IssueInvoice / IssueCreditNote outbox publishers.
 /// </summary>
 public static class InfrastructureDependencyInjection
 {

@@ -9,13 +9,13 @@ namespace Invoicing.Infrastructure.Persistence.Database.Interceptors;
 /// Dispatches domain events from <see cref="IAggregateRoot"/> instances tracked by the
 /// DbContext to their handlers BEFORE <see cref="DbContext.SaveChangesAsync(CancellationToken)"/>
 /// commits. Outbox publisher domain-event handlers therefore enqueue Avro outbox rows in the
-/// same EF transaction as the aggregate save — the M7 reliable-messaging guarantee for the
+/// same EF transaction as the aggregate save — the reliable-messaging guarantee for the
 /// <c>InvoiceIssuedEvent</c> / <c>InvoiceCancelledEvent</c> / <c>CreditNoteIssuedEvent</c> trio.
 /// </summary>
 /// <remarks>
-/// Mirrors the Ordering / Weather precedent (same shape, different namespace). The dispatcher
-/// resolves handlers from the same DI scope as the DbContext, so any <c>ITransactionalOutbox</c>
-/// write inside a handler joins the active transaction without explicit coordination.
+/// The dispatcher resolves handlers from the same DI scope as the DbContext, so any
+/// <c>ITransactionalOutbox</c> write inside a handler joins the active transaction without
+/// explicit coordination.
 /// </remarks>
 internal sealed class DispatchDomainEventsInterceptor : SaveChangesInterceptor
 {

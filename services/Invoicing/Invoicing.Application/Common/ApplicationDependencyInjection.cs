@@ -15,13 +15,12 @@ namespace Invoicing.Application.Common;
 /// <remarks>
 /// <para>
 /// Registers FluentValidation validators, CQRS command/query handlers, the
-/// Tracing -> Logging -> Metrics -> Validation behaviour chain (M8 - all three handler
-/// shapes are now present so Scrutor's <c>Decorate</c> is satisfied), domain-event
+/// Tracing -> Logging -> Metrics -> Validation behaviour chain, domain-event
 /// handlers + dispatcher (the <c>DispatchDomainEventsInterceptor</c> in Infrastructure
 /// picks up the dispatcher from this composition root), and the
 /// <see cref="TopicsOptions"/> binding. <c>BlobStorageOptions</c> is registered
-/// in Infrastructure (it injects the connection string) and consumed by the M7 command
-/// handlers + M8 query handlers via DI.
+/// in Infrastructure (it injects the connection string) and consumed by the command
+/// + query handlers via DI.
 /// </para>
 /// </remarks>
 public static class ApplicationDependencyInjection
@@ -51,7 +50,7 @@ public static class ApplicationDependencyInjection
 
             // BlobStorageOptions registration lives in Infrastructure (it injects the
             // ConnectionStrings:AzureStorage value into the same options object); the
-            // M7 command handlers + M8 query handlers consume it via IOptions<BlobStorageOptions>.
+            // command + query handlers consume it via IOptions<BlobStorageOptions>.
 
             return services;
         }

@@ -15,13 +15,13 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <c>payments.transactions</c>. Upserts a <see cref="PendingInvoice"/> row
 /// keyed on <c>CorrelationId</c>, populating the payment half. When the
 /// order half is already present, marks the row converged AND dispatches
-/// M7's <see cref="IssueInvoiceCommand"/> in the same inbox transaction.
+/// <see cref="IssueInvoiceCommand"/> in the same inbox transaction.
 /// </summary>
 /// <remarks>
 /// Mirror of <see cref="OrderConfirmedInvoiceProjectionKafkaHandler"/> for
 /// the other half of the convergence pair. Same idempotency guarantees
 /// (inbox dedup on <c>MessageId</c>; payment-half no-op on same-CorrelationId
-/// re-arrival; M7 command idempotent on <c>IssuedInvoiceId</c>).
+/// re-arrival; the command is idempotent on <c>IssuedInvoiceId</c>).
 /// </remarks>
 internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
     : IMessageHandler<AvroPaymentCapturedEvent>

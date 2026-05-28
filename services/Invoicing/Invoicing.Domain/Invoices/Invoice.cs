@@ -25,7 +25,7 @@ namespace Invoicing.Domain.Invoices;
 /// </list>
 /// Time is injected via <c>DateTimeOffset utcNow</c> on every mutating method (ADR-0015).
 /// Concurrency is via Postgres <c>xmin</c> mapped to <c>Entity&lt;TId&gt;.RowVersion</c> (see EF
-/// configuration in M5); no explicit <c>Version</c> property \u2014 following Ordering precedent.
+/// configuration); no explicit <c>Version</c> property.
 /// </remarks>
 public sealed class Invoice : AggregateRoot<Guid>
 {
@@ -166,8 +166,8 @@ public sealed class Invoice : AggregateRoot<Guid>
 
     /// <summary>
     /// Stamps the gap-free <see cref="InvoiceNumber"/> on a <see cref="InvoiceStatus.Draft"/>
-    /// invoice without raising domain events or transitioning state. Used by the M7
-    /// command handler to assign the number BEFORE PDF rendering \u2014 the renderer reads
+    /// invoice without raising domain events or transitioning state. Used by the command
+    /// handler to assign the number BEFORE PDF rendering \u2014 the renderer reads
     /// <see cref="InvoiceNumber"/> off the aggregate, so it must be present at render time
     /// even though <see cref="PdfBlobRef"/> only lands after upload (chicken-and-egg
     /// resolved by splitting the stamp + the issue transition). Once assigned the value
@@ -203,7 +203,7 @@ public sealed class Invoice : AggregateRoot<Guid>
     /// </summary>
     /// <remarks>
     /// Convenience overload \u2014 composes <see cref="AssignInvoiceNumber"/> + the no-number
-    /// <see cref="Issue(PdfBlobRef, DateTimeOffset)"/>. Use the split form in M7's command
+    /// <see cref="Issue(PdfBlobRef, DateTimeOffset)"/>. Use the split form in the command
     /// handler when the PDF must render with the number embedded.
     /// </remarks>
     public Result Issue(InvoiceNumber invoiceNumber, PdfBlobRef pdfBlobRef, DateTimeOffset utcNow)
@@ -391,7 +391,7 @@ public sealed class Invoice : AggregateRoot<Guid>
     /// mirrors the <c>ProductSnapshot</c> / <c>BasketSnapshot</c> pattern in Basket↔Ordering).
     /// </summary>
     /// <remarks>
-    /// Caller (the M7 command handler) MUST gate on <see cref="InvoiceStatus"/> before
+    /// Caller (the command handler) MUST gate on <see cref="InvoiceStatus"/> before
     /// invoking — snapshotting a cancelled or draft invoice is bug-class and surfaces as
     /// <see cref="DataIntegrityException"/> here. The user-actionable
     /// "credit-note refers to cancelled invoice" path stays at the handler boundary as a

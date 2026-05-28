@@ -281,7 +281,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
 
     /// <summary>Mirrors the JSON shape emitted by <c>PaymentRefundedCreditNoteProjectionKafkaHandler.SerializePayload</c>.</summary>
     /// <remarks>
-    /// The producer-side handler (M6) writes <see cref="RefundedAmount"/> as the absolute
+    /// The producer-side handler writes <see cref="RefundedAmount"/> as the absolute
     /// refunded amount (positive) — the credit note's domain layer flips the sign during
     /// snapshot construction inside <c>Invoice.ToReversalSnapshot</c>.
     /// </remarks>
