@@ -14,8 +14,7 @@ namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 /// <c>inventory.reservation-commands</c> and dispatches it to the
 /// application handler. Idempotent on <c>ReservationId</c>: a second
 /// confirm on an already-Confirmed reservation returns <c>Result.Ok</c>
-/// with no event (per <c>inventory.md § 5.4</c> + M2 example-mapping
-/// session 3.R3).
+/// with no event (per <c>inventory.md § 5.4</c>).
 /// </summary>
 internal sealed class ConfirmReservationCommandKafkaHandler
     : SagaCommandHandlerBase<AvroConfirmReservationCommand>, IMessageHandler<AvroConfirmReservationCommand>

@@ -14,8 +14,8 @@ namespace Inventory.Infrastructure.Persistence.Database;
 /// <summary>
 /// EF Core DbContext for the Inventory bounded context. Implements the
 /// <see cref="IInventoryDbContext"/> application port and the <see cref="IInboxDbContext"/>
-/// interface so that saga-command consumers (M5) and the transactional outbox
-/// can share the same EF scope + transaction as the event-store append.
+/// interface so that saga-command consumers and the transactional outbox can share
+/// the same EF scope + transaction as the event-store append.
 /// </summary>
 /// <remarks>
 /// Owns the append-only ES write model (<c>stock_events</c>) alongside the two

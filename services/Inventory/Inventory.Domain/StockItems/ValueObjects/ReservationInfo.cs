@@ -9,7 +9,7 @@ namespace Inventory.Domain.StockItems.ValueObjects;
 /// compiler-synthesized copy ctor and is unaffected by the private primary ctor below.
 /// </summary>
 /// <remarks>
-/// Per the Inventory architecture-test rule (M8): value objects must not expose a public
+/// Per the Inventory architecture-test rule, value objects must not expose a public
 /// constructor — callers route through the static <see cref="Create"/> factory so the
 /// construction site is greppable and any future invariant validation has a single place
 /// to live.

@@ -34,7 +34,7 @@ public sealed class ReservationAuditRow
     public DateTimeOffset ReservedAtUtc { get; set; }
 
     /// <summary>
-    /// UTC expiry (= <see cref="ReservedAtUtc"/> + TTL). Drives the M6
+    /// UTC expiry (= <see cref="ReservedAtUtc"/> + TTL). Drives the
     /// <c>ReservationExpiryWorker</c> scan:
     /// <c>WHERE Status='Active' AND ExpiresAtUtc &lt; now()</c>.
     /// </summary>

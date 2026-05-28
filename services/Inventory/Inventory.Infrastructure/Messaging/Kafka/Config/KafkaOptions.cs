@@ -4,9 +4,7 @@ namespace Inventory.Infrastructure.Messaging.Kafka.Config;
 
 /// <summary>
 /// Kafka cluster infrastructure configuration (brokers + schema-registry +
-/// avro serializer). Bound from section <c>Kafka</c>. M4 only exposes the
-/// producer-side plumbing required by the outbox relay; the consumer-side
-/// settings for the saga-command intake + Catalog inbox land in M5.
+/// avro serializer). Bound from section <c>Kafka</c>.
 /// </summary>
 public sealed class KafkaOptions
 {

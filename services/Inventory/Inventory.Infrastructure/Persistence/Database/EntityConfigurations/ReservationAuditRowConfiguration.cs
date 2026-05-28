@@ -8,7 +8,7 @@ namespace Inventory.Infrastructure.Persistence.Database.EntityConfigurations;
 /// EF mapping for <see cref="ReservationAuditRow"/> — the reservation-lifecycle
 /// projection described in <c>docs/bc-design/inventory.md</c> § 9.2. One row
 /// per reservation; fan-in indexes on <c>OrderId</c> and the partial
-/// active-expiry index feed the M6 <c>ReservationExpiryWorker</c>'s scan.
+/// active-expiry index feed the <c>ReservationExpiryWorker</c>'s scan.
 /// </summary>
 internal sealed class ReservationAuditRowConfiguration : IEntityTypeConfiguration<ReservationAuditRow>
 {
@@ -57,9 +57,9 @@ internal sealed class ReservationAuditRowConfiguration : IEntityTypeConfiguratio
         builder.HasIndex(r => r.OrderId)
             .HasDatabaseName("ix_reservation_audit_order");
 
-        // Drives the M6 ReservationExpiryWorker scan: WHERE Status='Active'
-        // AND ExpiresAtUtc < now(). Partial index keeps it tiny — rows flip
-        // out of the index as they reach a terminal state.
+        // Drives the ReservationExpiryWorker scan: WHERE Status='Active' AND
+        // ExpiresAtUtc < now(). Partial index keeps it tiny — rows flip out of
+        // the index as they reach a terminal state.
         builder.HasIndex(r => r.ExpiresAtUtc)
             .HasDatabaseName("ix_reservation_audit_active_expiry")
             .HasFilter("status = 'Active'");

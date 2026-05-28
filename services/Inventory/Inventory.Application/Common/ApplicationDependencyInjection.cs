@@ -12,7 +12,7 @@ namespace Inventory.Application.Common;
 /// Composition root for the Inventory Application layer. The host project
 /// (<c>Inventory.Api</c>) calls <c>services.AddApplication()</c>; Infrastructure
 /// DI wires the concretions (<c>InventoryDbContext</c>, event-store repo,
-/// outbox + inbox, and — in M5 — Kafka consumers) on top.
+/// outbox + inbox, and Kafka consumers) on top.
 /// </summary>
 public static class ApplicationDependencyInjection
 {
@@ -40,9 +40,7 @@ public static class ApplicationDependencyInjection
             // CQRS behavior chain. Decorator order: last registered = first to
             // execute. Tracing (outer) -> Logging -> Metrics -> Validation -> Handler
             // (inner). Each AddCqrs*Behavior decorates all three handler kinds
-            // (ICommandHandler<>, ICommandHandler<,>, IQueryHandler<,>); M7
-            // satisfies every kind via the admin Receive/Adjust commands plus
-            // the GetStockLevel / GetReservation queries.
+            // (ICommandHandler<>, ICommandHandler<,>, IQueryHandler<,>).
             services.AddCqrsValidationBehavior();
             services.AddCqrsMetricsBehavior();
             services.AddCqrsLoggingBehavior();

@@ -12,13 +12,8 @@ namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 
 /// <summary>
 /// Translates saga-issued Avro commands on
-/// <c>inventory.reservation-commands</c> to the application-layer command
-/// DTOs. Pure functions, no DI, no side-effects — explicit mapping is
-/// clearer than a Mapperly config here because the shape differences
-/// (Avro <c>DateTime</c> with kind-defensiveness vs.
-/// <c>DateTimeOffset</c>; Avro <c>ReleaseReason</c> enum vs. domain enum)
-/// are all small and worth being visible. Mirrors Ordering's
-/// <c>SagaCommandMappers.cs</c> pattern.
+/// <c>inventory.reservation-commands</c> to the application-layer command DTOs.
+/// Pure functions, no DI, no side-effects.
 /// </summary>
 internal static class SagaCommandMappers
 {

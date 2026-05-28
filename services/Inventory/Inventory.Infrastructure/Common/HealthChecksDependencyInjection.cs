@@ -15,9 +15,9 @@ namespace Inventory.Infrastructure.Common;
 /// Health-check surface for the Inventory service — Self, <see cref="InventoryDbContext"/>,
 /// and Kafka. Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
 /// <c>AddDbContextCheck</c> does not expose a direct timeout parameter, so the DB readiness
-/// probe runs under EF's command-timeout default (Catalog M10 precedent — operators who need
-/// a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
-/// into <c>EfCoreOptions</c>). No Redis check — the redis-cache idempotency store is shared
+/// probe runs under EF's command-timeout default (operators who need a tighter DB-level
+/// timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
+/// <c>EfCoreOptions</c>). No Redis check — the redis-cache idempotency store is shared
 /// infra, monitored at the platform level.
 /// </summary>
 internal static class HealthChecksDependencyInjection

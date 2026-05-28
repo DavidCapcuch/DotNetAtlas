@@ -6,11 +6,8 @@ namespace Inventory.Application.Common.Messaging;
 /// Inventory BC.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Mirrors the pattern Ordering adopted in its M5 milestone. The constants
-/// are intentionally <c>const</c> rather than <c>static readonly</c> so they
-/// can be used in attributes / switch expressions if a future need arises.
-/// </para>
+/// The constants are intentionally <c>const</c> rather than <c>static readonly</c>
+/// so they can be used in attributes / switch expressions if a future need arises.
 /// </remarks>
 public static class KafkaTopicNames
 {

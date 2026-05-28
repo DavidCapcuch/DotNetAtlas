@@ -44,7 +44,7 @@ public sealed class TopicsOptions
 
     /// <summary>
     /// Suffix appended to topic names to create Dead Letter Topics
-    /// (e.g. <c>.Inventory.DLT</c>). Consumed by the M5 KafkaFlow DLT
+    /// (e.g. <c>.Inventory.DLT</c>). Consumed by the KafkaFlow DLT
     /// middleware.
     /// </summary>
     [Required]

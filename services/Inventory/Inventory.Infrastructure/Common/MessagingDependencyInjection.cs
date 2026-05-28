@@ -24,12 +24,11 @@ using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 namespace Inventory.Infrastructure.Common;
 
 /// <summary>
-/// Messaging DI for the Inventory bounded context. M4 wired the producer-side
-/// outbox + inbox adapter against <c>InventoryDbContext</c>; M5 adds the
-/// KafkaFlow cluster with three consumers — saga commands on
-/// <c>inventory.reservation-commands</c>, Catalog products on
-/// <c>catalog.products</c>, and Ordering orders on <c>ordering.orders</c>
-/// — plus the cluster-level DLT producer.
+/// Messaging DI for the Inventory bounded context. Wires the producer-side outbox
+/// + inbox adapter against <c>InventoryDbContext</c> plus the KafkaFlow cluster
+/// with three consumers — saga commands on <c>inventory.reservation-commands</c>,
+/// Catalog products on <c>catalog.products</c>, and Ordering orders on
+/// <c>ordering.orders</c> — and the cluster-level DLT producer.
 /// </summary>
 internal static class MessagingDependencyInjection
 {
