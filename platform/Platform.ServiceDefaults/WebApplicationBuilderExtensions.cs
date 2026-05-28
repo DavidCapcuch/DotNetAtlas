@@ -1,10 +1,12 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.CorrelationId;
+using Platform.ServiceDefaults.Exceptions;
 using Platform.ServiceDefaults.Logging;
 
 namespace Platform.ServiceDefaults;
@@ -31,6 +33,13 @@ public static class WebApplicationBuilderExtensions
         builder.UsePlatformSerilog(configureOptions);
 
         builder.Services.AddCorrelationId();
+
+        // Catch-all exception handler — auto-wired via IStartupFilter so BCs don't
+        // need `app.UseExceptionHandler()` in Program.cs. AddProblemDetails is
+        // idempotent — BCs may also call it; the second call is a no-op.
+        builder.Services.AddProblemDetails();
+        builder.Services.AddExceptionHandler<PlatformExceptionHandler>();
+        builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
 
         return builder;
     }
