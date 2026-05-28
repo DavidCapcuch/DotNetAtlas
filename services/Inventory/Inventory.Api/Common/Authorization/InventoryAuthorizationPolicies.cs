@@ -19,16 +19,15 @@ namespace Inventory.Api.Common.Authorization;
 /// Admin tokens carrying only the commands scope still satisfy the read policy.
 /// </para>
 /// <para>
-/// <b>Why no separate "adjust" scope:</b> per <c>docs/implementation-prompts/inventory.md</c>
-/// session 1 design table (line 66), the v1 realm intentionally re-uses
+/// <b>Why no separate "adjust" scope:</b> the realm intentionally re-uses
 /// <c>inventory.commands.reserve</c> for both saga-driven reservations AND admin Receive /
-/// Adjust to keep the realm small. A future wave can split into a dedicated admin scope
-/// if operations needs the audit separation; the policy class is the seam to update.
+/// Adjust to keep the realm small. Split into a dedicated admin scope if operations needs
+/// the audit separation; the policy class is the seam to update.
 /// </para>
 /// <para>
 /// <b>Why no Confirm / Release policies:</b> the realm declares
 /// <c>inventory.commands.{confirm,release}</c> for the saga's Kafka-driven path, not for
-/// HTTP. There is no admin HTTP endpoint for confirm or release in M7; those scopes are
+/// HTTP. There is no admin HTTP endpoint for confirm or release; those scopes are
 /// consumed only by the broker on the <c>inventory.reservation-commands</c> topic.
 /// </para>
 /// </remarks>

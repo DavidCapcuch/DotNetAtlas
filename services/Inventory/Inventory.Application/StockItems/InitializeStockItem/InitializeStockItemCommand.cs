@@ -4,7 +4,7 @@ namespace Inventory.Application.StockItems.InitializeStockItem;
 
 /// <summary>
 /// Creates a fresh event stream for a product. Issued by the Inventory Kafka
-/// consumer (M5) translating Catalog's <c>ProductCreatedEvent</c>. Idempotent:
+/// consumer translating Catalog's <c>ProductCreatedEvent</c>. Idempotent:
 /// a second invocation on an already-initialized stream is a no-op
 /// (<see cref="FluentResults.Result.Ok"/>, zero events appended).
 /// </summary>

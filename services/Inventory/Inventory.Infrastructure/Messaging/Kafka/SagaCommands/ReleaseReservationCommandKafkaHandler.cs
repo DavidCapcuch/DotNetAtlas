@@ -13,7 +13,7 @@ namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 /// Consumes the saga-issued <c>ReleaseReservationCommand</c> on
 /// <c>inventory.reservation-commands</c> and dispatches it to the
 /// application handler. Three sources upstream: saga compensation, the
-/// M6 TTL-expiry worker, and admin / customer cancel — distinguished by
+/// TTL-expiry worker, and admin / customer cancel — distinguished by
 /// <see cref="Inventory.Domain.StockItems.ValueObjects.ReleaseReason"/>
 /// which propagates unchanged into the external
 /// <c>ReservationReleasedEvent</c>.

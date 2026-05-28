@@ -4,8 +4,7 @@ namespace Inventory.Infrastructure.Common.Config;
 
 /// <summary>
 /// Connection strings bound from the <c>ConnectionStrings</c> section.
-/// Inventory owns a single Postgres database; Redis-cache for idempotency
-/// (ADR-0013) lands in M7.
+/// Inventory owns a single Postgres database.
 /// </summary>
 public sealed class ConnectionStringsOptions
 {

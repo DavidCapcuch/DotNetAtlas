@@ -32,7 +32,7 @@ public interface IInventoryDbContext : IOutboxDbContext
     /// Ops projection — one row per reservation. Inserted on
     /// <c>StockReservedEvent</c>; updated to terminal status (Confirmed,
     /// Released) by the later reservation-lifecycle events. Doubles as the
-    /// driving query for the M6 <c>ReservationExpiryWorker</c>.
+    /// driving query for the <c>ReservationExpiryWorker</c>.
     /// </summary>
     DbSet<ReservationAuditRow> ReservationAudit { get; }
 }
