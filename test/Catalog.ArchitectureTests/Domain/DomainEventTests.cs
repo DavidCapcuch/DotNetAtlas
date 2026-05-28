@@ -55,7 +55,7 @@ public class DomainEventTests : BaseTest
     /// <summary>
     /// Per architecture-tests.md § 1.3, every internal domain event lives in
     /// <c>Catalog.Domain.{Aggregate}.Events</c>. Keeps event discovery deterministic and pairs
-    /// with the M3-onward folder convention (<c>Products/Events/*.cs</c>,
+    /// with the folder convention (<c>Products/Events/*.cs</c>,
     /// <c>Categories/Events/*.cs</c>).
     /// </summary>
     [Fact]

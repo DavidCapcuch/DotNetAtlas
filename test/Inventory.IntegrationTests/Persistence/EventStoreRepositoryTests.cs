@@ -14,7 +14,7 @@ namespace Inventory.IntegrationTests.Persistence;
 
 /// <summary>
 /// Integration tests for <see cref="EventStoreRepository"/> against a real
-/// Testcontainers Postgres — the M3 acceptance signal. Covers rehydration
+/// Testcontainers Postgres — the acceptance signal. Covers rehydration
 /// on an empty stream, round-trip persistence, optimistic-concurrency
 /// retry-once success, retry-exhausted failure with
 /// <see cref="ConcurrencyError"/>, and command-delegate fast-fail semantics.

@@ -9,7 +9,7 @@ namespace Payments.UnitTests.Application.Outbox;
 /// <summary>
 /// Field-level mapping tests for the 6 outbox mappers. Each test verifies the locked Avro
 /// shape (per <c>events-catalog.md § 2</c>) is produced from the internal domain event under
-/// Path B in the M4 plan: <c>BuyerId → UserId</c>; <c>GatewayTransactionId → AuthorizationId</c>;
+/// Path B in the plan: <c>BuyerId → UserId</c>; <c>GatewayTransactionId → AuthorizationId</c>;
 /// <c>OrderId</c> dropped; sentinels documented inline.
 /// </summary>
 public class PaymentEventMapperTests

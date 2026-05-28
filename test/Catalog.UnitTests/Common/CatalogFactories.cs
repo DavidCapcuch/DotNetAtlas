@@ -12,7 +12,7 @@ namespace Catalog.UnitTests.Common;
 /// </summary>
 /// <remarks>
 /// All factory helpers default <c>utcNow</c> to <see cref="DefaultUtcNow"/> so unit tests that
-/// don't care about <c>OccurredOnUtc</c> are unaffected by the M4.3 H1 signature change. Tests
+/// don't care about <c>OccurredOnUtc</c> are unaffected by the H1 signature change. Tests
 /// that DO care pass an explicit value to assert event timestamps deterministically (typically
 /// the same static instant they later compare against).
 /// </remarks>

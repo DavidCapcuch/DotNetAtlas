@@ -15,7 +15,7 @@ using AvroReleaseReservationCommand = Inventory.Reservations.ReleaseReservationC
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M5 acceptance for <see cref="ReleaseReservationCommandKafkaHandler"/>.
+/// Acceptance for <see cref="ReleaseReservationCommandKafkaHandler"/>.
 /// Drives an Avro <see cref="AvroReleaseReservationCommand"/> through the
 /// handler with <see cref="AvroReleaseReason.Compensation"/> (saga
 /// rollback path) and asserts the audit row flips to Released, the

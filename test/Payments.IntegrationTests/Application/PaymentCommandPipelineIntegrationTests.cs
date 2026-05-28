@@ -23,8 +23,8 @@ namespace Payments.IntegrationTests.Application;
 /// validation behaviour, CQRS handler, in-process domain-event dispatch, outbox publishers,
 /// and the Avro mappers — against NSubstitute mocks for the seam ports
 /// (<c>IPaymentRepository</c>, <c>IPaymentGateway</c>, <c>ITransactionalOutbox</c>). Mirrors
-/// the basket M4 integration-test shape because the concrete Postgres <c>PaymentsDbContext</c>
-/// is an M5 deliverable and not yet available.
+/// the basket integration-test shape because the concrete Postgres <c>PaymentsDbContext</c>
+/// is a future deliverable and not yet available.
 /// </summary>
 public sealed class PaymentCommandPipelineIntegrationTests : IDisposable
 {

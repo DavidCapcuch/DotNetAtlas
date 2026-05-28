@@ -21,12 +21,12 @@ using AvroVoidPaymentCommand = Payments.Transactions.VoidPaymentCommand;
 namespace Payments.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// End-to-end integration tests for the M5 Kafka consumer wiring. Each scenario produces an
+/// End-to-end integration tests for the Kafka consumer wiring. Each scenario produces an
 /// Avro saga-command, invokes the corresponding consumer handler directly via a
 /// <see cref="FakeKafkaMessageContext"/> stub, and verifies the persisted aggregate state in
 /// Postgres + the captured outbox emissions in <c>FakeOutboxWriter</c>. The full Avro byte-level
-/// roundtrip against a real Schema Registry is exercised by the docker-compose smoke test (M9);
-/// the purpose at M5 is to prove the Infrastructure layer composes correctly.
+/// roundtrip against a real Schema Registry is exercised by the docker-compose smoke test;
+/// the purpose is to prove the Infrastructure layer composes correctly.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class PaymentsKafkaConsumerIntegrationTests

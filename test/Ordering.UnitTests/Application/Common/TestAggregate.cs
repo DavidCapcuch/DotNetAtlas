@@ -6,7 +6,7 @@ namespace Ordering.UnitTests.Application.Common;
 
 /// <summary>
 /// Aggregate-level test helpers for Application-layer tests. Parallels
-/// <c>Ordering.UnitTests.Orders.Aggregates.OrderTestFactory</c> (M2) but is
+/// <c>Ordering.UnitTests.Orders.Aggregates.OrderTestFactory</c> but is
 /// positioned under <c>Application/Common</c> so Application-tier tests are
 /// self-contained.
 /// </summary>

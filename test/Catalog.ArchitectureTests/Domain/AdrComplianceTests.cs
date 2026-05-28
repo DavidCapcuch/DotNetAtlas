@@ -11,7 +11,7 @@ public class AdrComplianceTests : BaseTest
     /// Per ADR-0015 (time + timezone policy), <c>Catalog.Domain</c> must obtain "now" only via the
     /// injected <see cref="System.TimeProvider"/>. Static <c>DateTime.UtcNow</c> /
     /// <c>DateTimeOffset.UtcNow</c> accessors break determinism and the
-    /// <c>FakeTimeProvider</c> test seam (see catalog-m4.md M4.3).
+    /// <c>FakeTimeProvider</c> test seam (see ADR-0015 / catalog.md).
     /// </summary>
     [Fact]
     public void Domain_ShouldNot_UseStaticUtcNow()

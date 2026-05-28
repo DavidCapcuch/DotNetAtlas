@@ -14,12 +14,12 @@ using Platform.SharedKernel.ValueObjects;
 namespace Ordering.IntegrationTests.Persistence;
 
 /// <summary>
-/// M4 smoke test: proves the Infrastructure layer can round-trip an
+/// Smoke test: proves the Infrastructure layer can round-trip an
 /// <see cref="Order"/> aggregate through Postgres — OrderingDbContext,
 /// EF mappings (including <c>_enc</c> PII columns + owned Money + owned
 /// OrderItem collection), SmartEnum conversion, and the
 /// <c>DispatchDomainEventsInterceptor</c> all participate.
-/// Full Kafka saga-command ingress coverage lands in M7.
+/// Full Kafka saga-command ingress coverage lands.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class OrderPersistenceTests

@@ -19,15 +19,15 @@ using Xunit;
 namespace Invoicing.IntegrationTests.Application;
 
 /// <summary>
-/// M7 integration tests for <c>IssueInvoiceCommandHandler</c> against a real Postgres
+/// Integration tests for <c>IssueInvoiceCommandHandler</c> against a real Postgres
 /// container. Exercises the example-mapping sessions:
 /// <list type="bullet">
-///   <item>1.1 — happy path (order + payment converged → invoice issued, allocator advances, outbox fires).</item>
-///   <item>1.3 — idempotent re-issue (already-set <c>IssuedInvoiceId</c> → no-op).</item>
-///   <item>1.4 — total mismatch (Order.Total ≠ Payment.Amount → <c>DataIntegrityException</c> bug-class).</item>
+/// <item>1.1 — happy path (order + payment converged → invoice issued, allocator advances, outbox fires).</item>
+/// <item>1.3 — idempotent re-issue (already-set <c>IssuedInvoiceId</c> → no-op).</item>
+/// <item>1.4 — total mismatch (Order.Total ≠ Payment.Amount → <c>DataIntegrityException</c> bug-class).</item>
 /// </list>
 /// PDF generation + blob upload + Avro outbox serialisation are stubbed at the fixture
-/// level (see <c>IntegrationTestFixture</c>); the assertions verify what the M7 handler
+/// level (see <c>IntegrationTestFixture</c>); the assertions verify what the handler
 /// SHOULD have invoked rather than what the third-party adapters produce.
 /// </summary>
 [Collection<IntegrationTestCollection>]

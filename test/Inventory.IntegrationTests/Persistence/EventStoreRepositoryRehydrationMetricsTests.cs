@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Inventory.IntegrationTests.Persistence;
 
 /// <summary>
-/// M8 acceptance for the rehydration-observability slice (ADR-0006 § Observability).
+/// Acceptance for the rehydration-observability slice (ADR-0006 § Observability).
 /// Drives 100 <see cref="EventStoreRepository.RehydrateAsync"/> calls against a 1000-event
 /// stream on Testcontainers Postgres, measuring the
 /// <c>inventory.aggregate.rehydration.duration</c> +

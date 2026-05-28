@@ -55,7 +55,7 @@ public class DomainEventTests : BaseTest
     /// <summary>
     /// Per architecture-tests.md § 1.3, every internal domain event lives in
     /// <c>Payments.Domain.{Aggregate}.Events</c>. Keeps event discovery deterministic and pairs
-    /// with the M2 folder convention (<c>Transactions/Events/*.cs</c>).
+    /// with the folder convention (<c>Transactions/Events/*.cs</c>).
     /// </summary>
     [Fact]
     public void DomainEvents_Should_LiveInAggregateEventsNamespace()

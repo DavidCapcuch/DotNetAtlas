@@ -4,7 +4,7 @@ using Payments.Application.Abstractions;
 namespace Payments.ArchitectureTests.Application;
 
 /// <summary>
-/// Locks the Payments gateway port-and-adapter shape per <c>payments.md</c> M7
+/// Locks the Payments gateway port-and-adapter shape per <c>payments.md</c>
 /// &lt;session_management&gt;: the <see cref="IPaymentGateway"/> port lives in
 /// <c>Payments.Application.Abstractions</c>; the Application layer must never reference any
 /// concrete adapter (<c>StubPaymentGateway</c> today; a real gateway adapter in production).

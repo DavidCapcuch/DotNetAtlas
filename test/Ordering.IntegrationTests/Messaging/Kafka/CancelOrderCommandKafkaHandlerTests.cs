@@ -11,7 +11,7 @@ using AvroOrderStatusAtTransition = Ordering.Orders.OrderStatusAtTransition;
 namespace Ordering.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M7 acceptance for <see cref="CancelOrderCommandKafkaHandler"/> covering
+/// Acceptance for <see cref="CancelOrderCommandKafkaHandler"/> covering
 /// every example in <c>example-mapping/ordering.md</c> Session 2.
 /// </summary>
 [Collection<IntegrationTestCollection>]

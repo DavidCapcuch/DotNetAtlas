@@ -14,7 +14,7 @@ using AvroOrderConfirmedEvent = Ordering.Orders.OrderConfirmedEvent;
 namespace Ordering.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M7 acceptance for <see cref="ConfirmOrderCommandKafkaHandler"/>.
+/// Acceptance for <see cref="ConfirmOrderCommandKafkaHandler"/>.
 /// Covers <c>example-mapping/ordering.md</c> Session 1 Example 4
 /// (backwards-walk Confirm-on-Shipped) and the Example-1-spirit case
 /// (Confirm against an order that hasn't reserved stock + paid yet —

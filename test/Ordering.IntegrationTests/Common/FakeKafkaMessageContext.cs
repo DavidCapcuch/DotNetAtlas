@@ -7,13 +7,13 @@ namespace Ordering.IntegrationTests.Common;
 
 /// <summary>
 /// Builds a minimal NSubstitute-backed <see cref="IMessageContext"/> good
-/// enough for Ordering's M7 saga-command Kafka handler tests. Stubs the
+/// enough for Ordering's saga-command Kafka handler tests. Stubs the
 /// bits the handlers actually read: <c>Headers</c> (so
 /// <c>ExtractMessageId</c> / <c>ExtractOrigin</c> in
 /// <c>SagaCommandHandlerBase</c> work) and
 /// <c>ConsumerContext.WorkerStopped</c> (the cancellation token threaded
 /// through every async call). Avoids standing up Testcontainers Kafka +
-/// Schema Registry — matches the precedent set in M4 / M5 by
+/// Schema Registry — matches the precedent set by
 /// <c>test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs</c>
 /// (no broker container; handlers invoked directly).
 /// </summary>
@@ -31,7 +31,7 @@ internal static class FakeKafkaMessageContext
     /// <param name="messageId">
     /// Message id the inbox middleware would read. Defaults to a fresh
     /// GUIDv7 because the platform's <c>InboxMiddleware</c> requires a
-    /// non-null header — even though M7 tests bypass the middleware
+    /// non-null header — even though tests bypass the middleware
     /// (handlers are invoked directly), keeping the header populated
     /// guards against future refactors that wire the middleware in.
     /// </param>

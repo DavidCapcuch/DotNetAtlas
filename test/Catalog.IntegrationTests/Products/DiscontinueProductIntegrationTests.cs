@@ -16,7 +16,7 @@ namespace Catalog.IntegrationTests.Products;
 /// DispatchDomainEventsInterceptor + UpdateAuditableEntitiesInterceptor on a Postgres
 /// Testcontainer: verifies the discontinue command persists the status transition and
 /// stamps <c>LastModifiedUtc</c>. Tight time-source threading (handler vs. interceptor
-/// pulling from the same <see cref="TimeProvider"/>) is owned by the M4.3 unit tests
+/// pulling from the same <see cref="TimeProvider"/>) is owned by the unit tests
 /// (which inject a <see cref="FakeTimeProvider"/> directly per ADR-0015); this test
 /// only asserts the persisted timestamp lands within a few seconds of wall-clock to
 /// catch a regression where the audit column is left null or far-future.

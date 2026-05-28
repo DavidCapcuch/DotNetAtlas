@@ -27,7 +27,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// Kafka is wired in DI but its cluster is never started — Program.cs guards
 /// <c>kafkaBus.StartAsync()</c> with <c>!IsTesting()</c>, and Inventory's
 /// 5 typed Kafka handlers are exercised directly via
-/// <see cref="FakeKafkaMessageContext"/>, matching the Ordering M5 precedent.
+/// <see cref="FakeKafkaMessageContext"/>, matching the Ordering precedent.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -36,7 +36,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// registration still happens at DI time (<c>AddInfrastructure</c> calls
 /// <c>AddKafka</c>), but the broker URL points at an unreachable host so a
 /// stray production code path would fail loudly instead of leaking onto a
-/// real broker. Avro byte-level fidelity is validated in M7 functional tests
+/// real broker. Avro byte-level fidelity is validated functional tests
 /// alongside the Kafka consumer wiring.
 /// </para>
 /// <para>

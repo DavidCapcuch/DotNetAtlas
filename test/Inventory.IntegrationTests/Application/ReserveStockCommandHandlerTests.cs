@@ -16,7 +16,7 @@ using Platform.CQRS;
 namespace Inventory.IntegrationTests.Application;
 
 /// <summary>
-/// End-to-end M4 acceptance for <c>ReserveStockCommandHandler</c>. Covers the
+/// End-to-end Acceptance for <c>ReserveStockCommandHandler</c>. Covers the
 /// happy path (event-store append + both projections + outbox write commit
 /// atomically), the <c>InsufficientStock</c> business-failure path (outbox
 /// carries <c>StockReservationFailedEvent</c>, no stream mutation), and the

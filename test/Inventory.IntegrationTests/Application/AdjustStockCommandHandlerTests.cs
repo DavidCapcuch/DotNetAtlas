@@ -10,7 +10,7 @@ using Platform.CQRS;
 namespace Inventory.IntegrationTests.Application;
 
 /// <summary>
-/// M7 acceptance for the response-bearing
+/// Acceptance for the response-bearing
 /// <c>AdjustStockCommandHandler : ICommandHandler&lt;AdjustStockCommand, StockLevelResponse&gt;</c>.
 /// Drives a positive and a negative adjustment, asserting the snapshot the
 /// HTTP admin endpoint will return matches the post-mutation state.

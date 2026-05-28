@@ -11,7 +11,7 @@ using Platform.CQRS;
 namespace Inventory.IntegrationTests.Application;
 
 /// <summary>
-/// M7 acceptance for the response-bearing
+/// Acceptance for the response-bearing
 /// <c>ReceiveStockCommandHandler : ICommandHandler&lt;ReceiveStockCommand, StockLevelResponse&gt;</c>.
 /// Proves the handler appends the ES event AND returns the post-mutation
 /// <see cref="StockLevelResponse"/> matching the projection row.

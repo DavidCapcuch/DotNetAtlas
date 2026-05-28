@@ -20,13 +20,13 @@ using Platform.SharedKernel.Base.DomainEvents;
 namespace Inventory.IntegrationTests.Application.ExampleMapping;
 
 /// <summary>
-/// M9 acceptance for the gap scenarios in
+/// Acceptance for the gap scenarios in
 /// <c>docs/bc-design/example-mapping/inventory.md</c> § Session 3
 /// (Confirm decrements OnHand by Quantity — idempotent).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Session 3 examples already covered prior to M9:
+/// Session 3 examples already covered earlier:
 /// </para>
 /// <list type="bullet">
 /// <item><description>
@@ -36,7 +36,7 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// </description></item>
 /// </list>
 /// <para>
-/// This file fills the M9 gaps: <b>3.2</b> (replayed confirm is a no-op),
+/// This file fills the gaps: <b>3.2</b> (replayed confirm is a no-op),
 /// <b>3.3</b> (confirm on a Released reservation fails with
 /// <c>ReservationNotActive</c>), and <b>3.4</b> (confirm-vs-expiry version
 /// race resolved by the <c>UNIQUE(StreamId, Version)</c> retry path).
@@ -234,7 +234,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
     /// <remarks>
     /// Tested at the <see cref="EventStoreRepository"/> level — same precedent
     /// as Session 2.3. Helpers for intercepted DbContext + competing-row
-    /// insert are copied locally per the M9 plan.
+    /// insert are copied locally per the plan.
     /// </remarks>
     [Fact]
     public async Task Example3_4_ConfirmVsExpiryRace_LoserObservesTerminalAndFails()

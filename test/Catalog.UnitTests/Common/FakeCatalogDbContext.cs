@@ -15,7 +15,7 @@ namespace Catalog.UnitTests.Common;
 /// In-memory EF Core implementation of <see cref="ICatalogDbContext"/> used by unit tests.
 /// Configures VOs via <c>OwnsOne</c> so InMemory can persist <see cref="Product"/> and
 /// <see cref="Category"/> aggregates faithfully enough for handler / projection / outbox tests.
-/// Transactional semantics, raw SQL, and JSON columns are NOT emulated — that's M4 integration
+/// Transactional semantics, raw SQL, and JSON columns are NOT emulated — that's integration
 /// territory with a real Postgres Testcontainers fixture.
 /// </summary>
 public class FakeCatalogDbContext : DbContext, ICatalogDbContext

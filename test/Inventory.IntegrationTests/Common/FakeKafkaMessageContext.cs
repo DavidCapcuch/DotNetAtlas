@@ -7,12 +7,12 @@ namespace Inventory.IntegrationTests.Common;
 
 /// <summary>
 /// Builds a minimal NSubstitute-backed <see cref="IMessageContext"/> good
-/// enough for Inventory's M5 Kafka handler tests. Stubs the bits the
+/// enough for Inventory's Kafka handler tests. Stubs the bits the
 /// handlers actually read: <c>Headers</c> (so
 /// <c>ExtractMessageId</c>/<c>ExtractOrigin</c> work) and
 /// <c>ConsumerContext.WorkerStopped</c> (the cancellation token the
 /// handlers thread through every async call). Avoids standing up
-/// Testcontainers Kafka + Schema Registry — matches Ordering's M5
+/// Testcontainers Kafka + Schema Registry — matches Ordering's
 /// precedent
 /// (<c>test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20</c>).
 /// </summary>
@@ -30,7 +30,7 @@ internal static class FakeKafkaMessageContext
     /// <param name="messageId">
     /// Message id the inbox middleware would read. Defaults to a fresh GUIDv7
     /// because the platform's <c>InboxMiddleware</c> requires a non-null
-    /// header — even though M5 tests bypass the middleware (they call the
+    /// header — even though tests bypass the middleware (they call the
     /// typed handler directly), keeping the header populated guards against
     /// future refactors that wire the middleware in.
     /// </param>

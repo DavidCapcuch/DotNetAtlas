@@ -7,12 +7,12 @@ namespace Payments.IntegrationTests.Common;
 
 /// <summary>
 /// Builds a minimal NSubstitute-backed <see cref="IMessageContext"/> good enough for Payments'
-/// M5 saga-command Kafka handler tests. Stubs the bits the handlers actually read:
+/// saga-command Kafka handler tests. Stubs the bits the handlers actually read:
 /// <c>Headers</c> (so <c>ExtractMessageId</c> / <c>ExtractOrigin</c> in
 /// <see cref="Payments.Infrastructure.Messaging.Kafka.PaymentCommands.SagaCommandHandlerBase{T}"/>
 /// work) and <c>ConsumerContext.WorkerStopped</c> (the cancellation token threaded through
 /// every async call). Avoids standing up Testcontainers Kafka + Schema Registry — matches the
-/// precedent set by Ordering's M7 fixture at
+/// precedent set by Ordering's fixture at
 /// <c>test/Ordering.IntegrationTests/Common/FakeKafkaMessageContext.cs</c>.
 /// </summary>
 internal static class FakeKafkaMessageContext
@@ -26,7 +26,7 @@ internal static class FakeKafkaMessageContext
     /// Create a stubbed <see cref="IMessageContext"/>.
     /// </summary>
     /// <param name="messageId">
-    /// Message id the inbox middleware would read. Defaults to a fresh GUIDv7 — even though M5
+    /// Message id the inbox middleware would read. Defaults to a fresh GUIDv7 — even though
     /// tests bypass the middleware (handlers are invoked directly), keeping the header
     /// populated guards against future refactors that wire the middleware in.
     /// </param>

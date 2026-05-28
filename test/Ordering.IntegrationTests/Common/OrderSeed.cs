@@ -9,7 +9,7 @@ namespace Ordering.IntegrationTests.Common;
 /// Hand-rolled fluent seed for the <see cref="Order"/> aggregate. Each
 /// <c>Build*</c> overload walks the FSM via the aggregate's own factory and
 /// transition methods so the seed produces real domain events / row-version
-/// bumps — i.e., it is byte-identical to a production-emitted order. M7
+/// bumps — i.e., it is byte-identical to a production-emitted order.
 /// integration tests use this to set up source-state preconditions for
 /// each example-mapping scenario.
 /// </summary>

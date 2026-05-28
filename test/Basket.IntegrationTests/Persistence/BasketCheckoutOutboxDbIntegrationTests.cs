@@ -15,16 +15,16 @@ using BasketAggregate = Basket.Domain.Baskets.Basket;
 namespace Basket.IntegrationTests.Persistence;
 
 /// <summary>
-/// DB-backed twin of <c>BasketCheckoutOutboxIntegrationTests</c> (M4). Where
-/// the M4 test stubs <c>ITransactionalOutbox</c> with NSubstitute, this M6
+/// DB-backed twin of <c>BasketCheckoutOutboxIntegrationTests</c>. Where
+/// the test stubs <c>ITransactionalOutbox</c> with NSubstitute, this
 /// test exercises the full pipeline against a real <see cref="BasketDbContext"/>
 /// running on a Postgres Testcontainer — proving:
 /// <list type="bullet">
-///   <item>The migration applies and creates <c>basket.OutboxMessages</c>.</item>
-///   <item>The Application layer's outbox publisher writes a row with the
-///         correct topic + Kafka key + Avro type name.</item>
-///   <item><see cref="BasketDbContext"/>'s <c>SaveChangesAsync</c> commits
-///         the outbox row atomically with the rest of the unit-of-work.</item>
+/// <item>The migration applies and creates <c>basket.OutboxMessages</c>.</item>
+/// <item>The Application layer's outbox publisher writes a row with the
+/// correct topic + Kafka key + Avro type name.</item>
+/// <item><see cref="BasketDbContext"/>'s <c>SaveChangesAsync</c> commits
+/// the outbox row atomically with the rest of the unit-of-work.</item>
 /// </list>
 /// Avro byte-level fidelity is intentionally NOT asserted here — see
 /// <see cref="FakeOutboxWriter"/> for the rationale (matches Inventory + Ordering

@@ -19,13 +19,13 @@ using Platform.SharedKernel.Base.DomainEvents;
 namespace Inventory.IntegrationTests.Application.ExampleMapping;
 
 /// <summary>
-/// M9 acceptance for the gap scenarios in
+/// Acceptance for the gap scenarios in
 /// <c>docs/bc-design/example-mapping/inventory.md</c> § Session 2
 /// (Cannot oversell — Available = OnHand − Reserved).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Session 2 examples already covered prior to M9:
+/// Session 2 examples already covered earlier:
 /// </para>
 /// <list type="bullet">
 /// <item><description>
@@ -38,7 +38,7 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// </description></item>
 /// </list>
 /// <para>
-/// This file fills the M9 gaps: <b>2.3</b> (concurrent-reserve race resolved
+/// This file fills the gaps: <b>2.3</b> (concurrent-reserve race resolved
 /// by the <c>UNIQUE(StreamId, Version)</c> retry-then-fail path) and
 /// <b>2.4</b> (rehydration is authoritative when a fresh receive lands right
 /// before a reserve, regardless of projection lag).
@@ -84,7 +84,7 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
     /// (precedent at <c>test/Inventory.IntegrationTests/Persistence/EventStoreRepositoryTests.cs:152</c>);
     /// the helper methods <c>CreateInterceptedDbContext</c> and
     /// <c>InsertCompetingRowAsync</c> are copied locally (rather than extracted
-    /// to <c>Common/</c>) to keep this M9 change inside its own file boundary —
+    /// to <c>Common/</c>) to keep this change inside its own file boundary —
     /// see plan §Out-of-scope. Application-level outbox emission of
     /// <c>StockReservationFailedEvent</c> on this fail path is covered by
     /// <c>ReserveStockCommandHandlerTests.InsufficientStock_EmitsFailureEventAndAppendsNoStockEvent</c>.

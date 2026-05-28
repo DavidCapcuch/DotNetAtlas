@@ -26,7 +26,7 @@ internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// Spins up a Postgres Testcontainer, applies EF Core migrations
 /// programmatically, forces <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the host
 /// skips the saga-command Kafka consumer (booting it would require a Kafka +
-/// Schema Registry container pair that is out of scope for the M6 functional
+/// Schema Registry container pair that is out of scope for the functional
 /// slice), and pins a test-side RSA signing key into the JwtBearer pipeline so
 /// <see cref="FakeTokenCreator"/>'s tokens validate end-to-end without the
 /// pipeline disabling signature / issuer / audience / lifetime checks.

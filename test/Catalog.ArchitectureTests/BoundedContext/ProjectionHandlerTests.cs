@@ -61,7 +61,7 @@ public class ProjectionHandlerTests : BaseTest
     }
 
     /// <summary>
-    /// Per the file-system convention established in M3, projection handlers live next to the
+    /// Per the file-system convention established, projection handlers live next to the
     /// command that triggered them: <c>Catalog.Application.Products.{UseCase}</c> or
     /// <c>Catalog.Application.Categories.{UseCase}</c>. The regex pins the two aggregate roots so
     /// a stray <c>Catalog.Application.Foo.ProjectionDomainEventHandler</c> would fail the rule.

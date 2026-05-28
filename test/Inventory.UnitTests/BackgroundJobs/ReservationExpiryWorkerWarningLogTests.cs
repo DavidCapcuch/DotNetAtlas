@@ -14,7 +14,7 @@ using Platform.CQRS;
 namespace Inventory.UnitTests.BackgroundJobs;
 
 /// <summary>
-/// M6 follow-up (carried forward to M8 per <c>inventory.md:346,438</c>): unit-level
+/// Follow-up (per <c>inventory.md:346,438</c>): unit-level
 /// coverage for the warning-log branch of
 /// <c>ReservationExpiryWorker.ProcessExpiredReservationsAsync</c> at
 /// <c>services/Inventory/Inventory.Infrastructure/BackgroundJobs/ReservationExpiryWorker.cs:152-159</c>.
@@ -30,7 +30,7 @@ namespace Inventory.UnitTests.BackgroundJobs;
 /// and continues to the next row without throwing.
 /// </para>
 /// <para>
-/// The existing M6 integration test <c>ConfirmedReservation_NotReleasedAfterExpiry</c>
+/// The existing integration test <c>ConfirmedReservation_NotReleasedAfterExpiry</c>
 /// at <c>test/Inventory.IntegrationTests/BackgroundJobs/ReservationExpiryWorkerTests.cs:220</c>
 /// covers the case where the confirm landed BEFORE the scan (so the
 /// <c>WHERE Status='Active'</c> filter excludes the row at scan time) — it never
