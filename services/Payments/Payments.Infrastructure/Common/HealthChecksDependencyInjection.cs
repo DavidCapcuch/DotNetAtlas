@@ -15,9 +15,9 @@ namespace Payments.Infrastructure.Common;
 /// Health-check surface for the Payments service — Self, <see cref="PaymentsDbContext"/>,
 /// and Kafka. Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
 /// <c>AddDbContextCheck</c> does not expose a direct timeout parameter, so the DB readiness
-/// probe runs under EF's command-timeout default (Catalog M10 precedent — operators who need
-/// a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
-/// into <c>EfCoreOptions</c>).
+/// probe runs under EF's command-timeout default (operators who need a tighter DB-level
+/// timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
+/// <c>EfCoreOptions</c>).
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {

@@ -4,9 +4,9 @@ namespace Payments.Application.Common.Messaging;
 
 /// <summary>
 /// Kafka topic names for the Payments BC's outbox publishing. Bound from configuration section
-/// <see cref="Section"/>. The single topic emitted by Payments in M4 is <c>payments.transactions</c>
-/// (per <c>events-catalog.md § 2</c>); the command-intake topic <c>payments.payment-commands</c> is owned
-/// by the Kafka consumer wiring in M5.
+/// <see cref="Section"/>. The single topic emitted by Payments is <c>payments.transactions</c>
+/// (per <c>events-catalog.md § 2</c>); the command-intake topic <c>payments.payment-commands</c>
+/// is owned by the Kafka consumer wiring.
 /// </summary>
 public sealed class TopicsOptions
 {

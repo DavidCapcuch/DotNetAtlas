@@ -5,8 +5,8 @@ using Platform.SharedKernel.ValueObjects;
 namespace Payments.Domain.Transactions.Events;
 
 /// <summary>
-/// Raised when a <see cref="PaymentTransaction"/> is created. Consumed in-process by the outbox
-/// publisher (M4) which translates it into the external <c>PaymentRequestedEvent</c> on
+/// Raised when a <see cref="PaymentTransaction"/> is created. Consumed in-process by the
+/// outbox publisher which translates it into the external <c>PaymentRequestedEvent</c> on
 /// <c>payments.transactions</c>.
 /// </summary>
 public sealed record PaymentRequestedDomainEvent : DomainEvent

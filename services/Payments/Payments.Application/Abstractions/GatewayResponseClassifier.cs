@@ -8,7 +8,7 @@ namespace Payments.Application.Abstractions;
 /// <see cref="GatewayDeclinedError.GatewayCode"/>) to a domain
 /// <see cref="FailureReason"/>. Lives in <c>Payments.Application</c> so command handlers can
 /// translate gateway-port failures into <see cref="FailureInfo"/> without taking a dependency
-/// on a concrete adapter — the M7 architecture test forbids
+/// on a concrete adapter — an architecture test forbids
 /// <c>Payments.Application → Payments.Infrastructure</c> imports.
 /// </summary>
 /// <remarks>

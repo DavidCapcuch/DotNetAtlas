@@ -4,10 +4,10 @@ namespace Payments.Application.Common.Data;
 
 /// <summary>
 /// Application-layer port over the <see cref="PaymentTransaction"/> persistence root. Concrete
-/// implementation lives in <c>Payments.Infrastructure</c> and lands in M5 (it wraps
+/// implementation lives in <c>Payments.Infrastructure</c> (it wraps
 /// <c>PaymentsDbContext.Transactions</c>). This interface exists primarily for unit-test
 /// ergonomics: mocking <see cref="System.Linq.IQueryable"/> over a <see cref="Microsoft.EntityFrameworkCore.DbSet{TEntity}"/>
-/// is awkward, so handlers depend on this port and the M5 adapter is the only place EF Core LINQ
+/// is awkward, so handlers depend on this port and the adapter is the only place EF Core LINQ
 /// runs against the aggregate set.
 /// </summary>
 public interface IPaymentRepository
@@ -46,7 +46,7 @@ public interface IPaymentRepository
 
     /// <summary>
     /// Returns all payment transactions for a given order, in deterministic order. Read-only
-    /// — used by the admin <c>GET /api/v1/payments?orderId=…</c> endpoint (M6); the
+    /// — used by the admin <c>GET /api/v1/payments?orderId=…</c> endpoint; the
     /// implementation uses <c>AsNoTracking</c>.
     /// </summary>
     Task<IReadOnlyList<PaymentTransaction>> GetByOrderIdAsync(Guid orderId, CancellationToken ct);

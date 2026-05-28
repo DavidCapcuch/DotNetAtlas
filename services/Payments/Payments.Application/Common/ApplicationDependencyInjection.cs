@@ -7,15 +7,15 @@ using Platform.SharedKernel.Common;
 namespace Payments.Application.Common;
 
 /// <summary>
-/// Composition root for the Payments Application layer. Mirrors the Catalog/Basket convention —
-/// scans this assembly for FluentValidation validators, CQRS handlers, and domain-event handlers,
-/// installs the behaviour-decorator chain, and registers the strongly-typed
-/// <see cref="TopicsOptions"/>. Concrete persistence (<c>PaymentsDbContext</c>) and the
-/// Kafka command consumers are wired separately by <c>Payments.Infrastructure</c> in M5/M6.
+/// Composition root for the Payments Application layer. Scans this assembly for
+/// FluentValidation validators, CQRS handlers, and domain-event handlers, installs the
+/// behaviour-decorator chain, and registers the strongly-typed <see cref="TopicsOptions"/>.
+/// Concrete persistence (<c>PaymentsDbContext</c>) and the Kafka command consumers are
+/// wired separately by <c>Payments.Infrastructure</c>.
 /// </summary>
 /// <remarks>
 /// <see cref="TopicsOptions"/> is registered with <c>AddOptions&lt;T&gt;()</c> only; the API
-/// host (M6) is responsible for binding the section and calling <c>ValidateOnStart()</c>.
+/// host is responsible for binding the section and calling <c>ValidateOnStart()</c>.
 /// Keeping <c>IConfiguration</c> out of the Application layer avoids a transitive dependency on
 /// <c>Microsoft.Extensions.Configuration</c>.
 /// </remarks>

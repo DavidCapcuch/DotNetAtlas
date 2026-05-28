@@ -9,9 +9,9 @@ namespace Payments.Application.Outbox;
 /// <see cref="PaymentAuthorizedEvent"/>. Hand-written because the field-set diverges from the
 /// domain event (<c>BuyerId</c> → <c>UserId</c>; <c>GatewayTransactionId</c> →
 /// <c>AuthorizationId</c>; <c>OrderId</c> dropped — recoverable downstream via
-/// <c>CorrelationId</c> per Path B in the M4 plan). <c>ExpiresAtUtc</c> is now sourced from
-/// the gateway response (carried through the domain event); v1 stub returns
-/// <c>now + 7 days</c>, real PSP adapters return the gateway's value (H-6 closeout).
+/// <c>CorrelationId</c>). <c>ExpiresAtUtc</c> is sourced from the gateway response (carried
+/// through the domain event); the v1 stub returns <c>now + 7 days</c>, real PSP adapters
+/// return the gateway's value.
 /// </summary>
 internal static class PaymentAuthorizedMapper
 {
