@@ -12,7 +12,7 @@ namespace Inventory.ArchitectureTests;
 /// </summary>
 /// <remarks>
 /// Mirrors <c>Catalog.ArchitectureTests.BaseTest</c> verbatim except for the namespace + assembly
-/// anchors. Inventory's M8 milestone introduces the same Mono.Cecil-backed IL-scanning rules
+/// anchors. Inventory's milestone introduces the same Mono.Cecil-backed IL-scanning rules
 /// (no static UtcNow, only-throws, does-not-throw, handler-returns-result) so the rule set is
 /// portable across BCs.
 /// </remarks>

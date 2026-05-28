@@ -16,7 +16,7 @@ using AvroConfirmReservationCommand = Inventory.Reservations.ConfirmReservationC
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M5 acceptance for <see cref="ConfirmReservationCommandKafkaHandler"/>.
+/// Acceptance for <see cref="ConfirmReservationCommandKafkaHandler"/>.
 /// Drives an Avro <see cref="AvroConfirmReservationCommand"/> through the
 /// handler and asserts the audit row flips to <c>Confirmed</c>, OnHand
 /// decrements, and the external <c>ReservationConfirmedEvent</c> lands in

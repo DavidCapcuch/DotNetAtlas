@@ -17,7 +17,7 @@ using Platform.CQRS;
 namespace Inventory.IntegrationTests.BackgroundJobs;
 
 /// <summary>
-/// M6 acceptance for <see cref="ReservationExpiryWorker"/>. Drives a single
+/// Acceptance for <see cref="ReservationExpiryWorker"/>. Drives a single
 /// <c>ProcessExpiredReservationsAsync</c> tick (bypassing the
 /// <see cref="Microsoft.Extensions.Hosting.BackgroundService"/> loop) under a
 /// local <see cref="FakeTimeProvider"/> so the audit-row scan

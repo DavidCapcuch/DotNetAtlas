@@ -7,7 +7,7 @@ namespace Catalog.ArchitectureTests.BoundedContext;
 /// <c>Catalog.Application</c> to another BC's domain or application assemblies. Cross-BC
 /// integration only happens via Avro events through the inbox/outbox or HTTP ACL adapters in
 /// Infrastructure. Catalog.Infrastructure intentionally consumes <c>Avro/Inventory/Stock/StockLevelChanged</c>
-/// via <c>Platform.SchemaRegistry.Contracts</c> (M4.2 inbox), so the rule is scoped to Domain +
+/// via <c>Platform.SchemaRegistry.Contracts</c> (the inbox), so the rule is scoped to Domain +
 /// Application only.
 /// </summary>
 public class CrossBcReferenceTests : BaseTest

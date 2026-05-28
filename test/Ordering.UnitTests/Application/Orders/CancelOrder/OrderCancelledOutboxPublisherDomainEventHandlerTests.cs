@@ -14,7 +14,7 @@ namespace Ordering.UnitTests.Application.Orders.CancelOrder;
 /// <see cref="OrderCancelledDomainEvent"/> emitted by Ordering carries
 /// the order's Items, TotalAmount, Currency, and BillingAddress through
 /// the outbox publisher onto the wire alongside the original Reason /
-/// AtStatus delta payload. Invoicing's M8 credit-note path depends on this.
+/// AtStatus delta payload. Invoicing's credit-note path depends on this.
 /// </summary>
 public class OrderCancelledOutboxPublisherDomainEventHandlerTests : HandlerTestBase
 {

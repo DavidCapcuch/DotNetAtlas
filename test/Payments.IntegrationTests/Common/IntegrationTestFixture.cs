@@ -39,7 +39,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// <see cref="FakeKafkaMessageContext"/>; the KafkaFlow bus itself is not started (the
 /// <c>!IsTesting()</c> guard in <c>Program.cs</c> short-circuits the
 /// <c>app.Services.CreateKafkaBus().StartAsync()</c> call so no Kafka container is needed in
-/// this BC). End-to-end Avro byte-level fidelity lives in the docker-compose smoke (M9).
+/// this BC). End-to-end Avro byte-level fidelity lives in the docker-compose smoke.
 /// </remarks>
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>

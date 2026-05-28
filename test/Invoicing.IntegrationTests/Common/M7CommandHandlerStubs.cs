@@ -7,12 +7,12 @@ using Platform.CQRS;
 namespace Invoicing.IntegrationTests.Common;
 
 /// <summary>
-/// No-op stubs for the M7 command handlers, used by the M6 projection tests so they can
-/// keep asserting the projection-layer behaviour in isolation. The real M7 handlers run
+/// No-op stubs for the command handlers, used by the projection tests so they can
+/// keep asserting the projection-layer behaviour in isolation. The real handlers run
 /// inside the inbox transaction in production (see <c>OrderConfirmedInvoiceProjectionKafkaHandler</c>),
-/// but the M6 tests inject these stubs to keep their assertions on
+/// but the tests inject these stubs to keep their assertions on
 /// <c>pending_invoices.IssuedInvoiceId IS NULL</c> / <c>pending_credit_notes.IssuedCreditNoteId IS NULL</c>
-/// stable. M7's own integration tests exercise the full flow with the real handler.
+/// stable. own integration tests exercise the full flow with the real handler.
 /// </summary>
 internal static class M7CommandHandlerStubs
 {

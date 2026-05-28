@@ -35,7 +35,7 @@ public abstract class BaseTest
     /// Walks the type and every nested compiler-generated type. Required so IL-scanning
     /// rules see async state machines (<c>&lt;HandleAsync&gt;d__N::MoveNext</c>), iterator
     /// state machines, and lambda closures (<c>&lt;&gt;c__DisplayClass*</c>). Without this,
-    /// async methods' IL is invisible — and every M7 command handler is async.
+    /// async methods' IL is invisible — and every command handler is async.
     /// </summary>
     /// <remarks>
     /// Internal (not private) so <c>NoForbiddenActivityTagKeysRule</c> in <c>Rules/</c> —

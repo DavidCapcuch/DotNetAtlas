@@ -10,7 +10,7 @@ namespace Ordering.UnitTests.Application.Common;
 /// Minimal test-only implementation of <see cref="IOrderingDbContext"/> over
 /// EF Core InMemory. The production <c>OrderingDbContext</c> (with PII
 /// <c>_enc</c> columns, SmartEnum conversions, value-object OwnsOne mappings)
-/// lives in the Infrastructure layer (M4).
+/// lives in the Infrastructure layer.
 /// </summary>
 /// <remarks>
 /// EF Core InMemory stores tracked entities by reference, so we do not need

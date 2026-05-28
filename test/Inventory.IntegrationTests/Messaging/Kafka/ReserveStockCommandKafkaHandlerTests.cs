@@ -13,12 +13,12 @@ using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M5 acceptance for <see cref="ReserveStockCommandKafkaHandler"/>. The
+/// Acceptance for <see cref="ReserveStockCommandKafkaHandler"/>. The
 /// Kafka handler is invoked directly with a synthetic
 /// <see cref="FakeKafkaMessageContext"/> and an Avro
 /// <see cref="AvroReserveStockCommand"/>; assertions cover the mapped
 /// application command's side effects (event-store + projections + outbox)
-/// — same observable surface as the M4 application-handler tests, but
+/// — same observable surface as the application-handler tests, but
 /// driven through the Avro→app-command translation path.
 /// </summary>
 [Collection<IntegrationTestCollection>]

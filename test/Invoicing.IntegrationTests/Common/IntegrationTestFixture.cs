@@ -35,13 +35,13 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// <summary>
 /// FastEndpoints <see cref="AppFixture{TEntryPoint}"/> for the Invoicing host. Boots the real
 /// <c>Invoicing.Api</c> composition root inside <c>UseEnvironment("Testing")</c>, swaps in test
-/// doubles for the M3/M4/M7 external adapters (<see cref="IPdfGenerator"/>,
+/// doubles for the external adapters (<see cref="IPdfGenerator"/>,
 /// <see cref="IBlobStore"/>, <see cref="ITransactionalOutbox{TContext}"/>), and points
 /// <see cref="ConnectionStringsOptions.Invoicing"/> at a throwaway Postgres container whose
 /// schema is materialised by the same idempotent V*.sql scripts Flyway runs in compose
 /// (#269). Tests resolve handlers from <see cref="Services"/> and invoke them directly;
 /// Kafka consumers are skipped (Program.cs guards <c>CreateKafkaBus().StartAsync()</c> with
-/// <c>!app.Environment.IsTesting()</c>) and the M5 <see cref="EmailNotificationSentEventKafkaHandler"/>
+/// <c>!app.Environment.IsTesting()</c>) and the <see cref="EmailNotificationSentEventKafkaHandler"/>
 /// is invoked synchronously via <c>TestKafkaMessageContext</c> instead of through a real broker.
 /// </summary>
 [DisableWafCache]
@@ -49,7 +49,7 @@ public class IntegrationTestFixture : AppFixture<Program>
 {
     /// <summary>
     /// Fixed "now" used by the projection-payload JSON the seed helpers persist (the
-    /// shape mirrors what the M6 producer-side handlers write — <c>ConfirmedAtUtc</c>,
+    /// shape mirrors what the producer-side handlers write — <c>ConfirmedAtUtc</c>,
     /// <c>CapturedAtUtc</c>, etc.). This is a date constant, NOT an injected clock: per
     /// ADR-0015 line 104 the Generic Host registers <see cref="TimeProvider.System"/>;
     /// tests construct <see cref="FakeTimeProvider"/> locally where determinism matters.

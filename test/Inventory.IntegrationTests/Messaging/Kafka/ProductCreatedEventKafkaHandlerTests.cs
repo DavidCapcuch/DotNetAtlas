@@ -10,7 +10,7 @@ using AvroProductStatus = Catalog.Products.ProductStatus;
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M5 acceptance for <see cref="ProductCreatedEventKafkaHandler"/>. The
+/// Acceptance for <see cref="ProductCreatedEventKafkaHandler"/>. The
 /// first delivery initializes a fresh event-sourced stream
 /// (<c>StockItemInitializedEvent</c> at version 1); a duplicate delivery is
 /// a no-op (Application-layer guard <c>Version &gt; 0</c> returns

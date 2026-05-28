@@ -12,7 +12,7 @@ using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M5 acceptance for the
+/// Acceptance for the
 /// <see cref="SagaCommandHandlerBase{TAvroCommand}"/> contract — exercises
 /// the three observable failure modes the wrapper must distinguish:
 /// (1) <see cref="FluentResults.Result.Fail(FluentResults.IError)"/> with a

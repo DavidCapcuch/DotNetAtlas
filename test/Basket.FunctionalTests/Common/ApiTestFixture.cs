@@ -49,7 +49,7 @@ public class ApiTestFixture : AppFixture<Program>
     /// Test-controlled <see cref="IProductCatalogQueryPort"/>. Tests call
     /// <c>fixture.Catalog</c> to stub Catalog responses without spinning a real Catalog
     /// service. WireMock'd HTTP would exercise the adapter end-to-end — that's a
-    /// proposed M9 follow-up.
+    /// proposed Follow-up.
     /// </summary>
     public IProductCatalogQueryPort Catalog { get; } = Substitute.For<IProductCatalogQueryPort>();
 

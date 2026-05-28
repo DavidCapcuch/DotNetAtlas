@@ -13,10 +13,10 @@ namespace Ordering.IntegrationTests.Orders.GetOrdersByBuyer;
 /// Integration tests for <see cref="GetOrdersByBuyerQueryHandler"/>'s
 /// SQL-side projection to <see cref="OrderSummaryDto"/>
 /// (<c>use-cases.md § 3.4.2</c>). EF Core's InMemory provider cannot
-/// translate the conditional projection on the owned <c>Shipment</c> VO
-/// nor the <c>?? → COALESCE</c> chain for
-/// <c>LastStatusChangeAtUtc</c> — so these run against the real Postgres
-/// container (ADR-0021).
+/// translate the conditional projection on the owned <c>Shipment</c>,
+/// <c>Cancellation</c>, and <c>Failure</c> VOs nor the
+/// <c>?? → COALESCE</c> chain for <c>LastStatusChangeAtUtc</c> — so
+/// these run against the real Postgres container (ADR-0021).
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class GetOrdersByBuyerQueryHandlerTests
@@ -153,6 +153,8 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
     [InlineData(LifecycleState.Confirmed)]
     [InlineData(LifecycleState.Shipped)]
     [InlineData(LifecycleState.Delivered)]
+    [InlineData(LifecycleState.Failed)]
+    [InlineData(LifecycleState.Cancelled)]
     public async Task Handle_LastStatusChangeAtUtc_picks_most_recent_lifecycle_timestamp(LifecycleState target)
     {
         var buyerId = Guid.CreateVersion7();
@@ -168,6 +170,45 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         result.Value.Items.Should().ContainSingle();
         result.Value.Items[0].LastStatusChangeAtUtc.Should().Be(expected);
         result.Value.Items[0].Status.Should().Be(ExpectedStatus(target).Name);
+    }
+
+    /// <summary>
+    /// A Created-then-Cancelled order has no happy-path lifecycle timestamps
+    /// set apart from <c>CreatedAtUtc</c>. The row must still surface the
+    /// cancellation timestamp — the field is named <c>LastStatusChange</c>,
+    /// and cancellation is the most recent status change. This pins the
+    /// regression: the original COALESCE chain excluded
+    /// <c>Cancellation.CancelledAtUtc</c> and fell through to
+    /// <c>CreatedAtUtc</c>, hiding the cancellation from the buyer's list view.
+    /// </summary>
+    [Fact]
+    public async Task Handle_LastStatusChangeAtUtc_uses_CancelledAtUtc_when_order_cancelled_directly_from_Created()
+    {
+        var buyerId = Guid.CreateVersion7();
+        var ct = TestContext.Current.CancellationToken;
+        var fakeTime = new FakeTimeProvider(
+            new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero));
+
+        Order seeded;
+        using (var seedScope = _fixture.CreateScope())
+        {
+            var dbContext = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
+            var seed = new OrderSeed(dbContext, fakeTime);
+            seeded = await seed.CreateOrderAsync(buyerId: buyerId, cancellationToken: ct);
+
+            fakeTime.Advance(TimeSpan.FromMinutes(1));
+            seeded.Cancel("test cancellation", fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+            await dbContext.SaveChangesAsync(ct);
+        }
+
+        var result = await ExecuteHandlerAsync(buyerId, ct);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle();
+        var dto = result.Value.Items[0];
+        dto.Status.Should().Be(OrderStatus.Cancelled.Name);
+        dto.LastStatusChangeAtUtc.Should().Be(seeded.Cancellation!.CancelledAtUtc);
+        dto.LastStatusChangeAtUtc.Should().NotBe(seeded.CreatedAtUtc);
     }
 
     private async Task<FluentResults.Result<GetOrdersByBuyerResponse>> ExecuteHandlerAsync(
@@ -223,6 +264,17 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
             return order;
         }
 
+        // Terminal failure branches off after StockReserved — exercises the
+        // case where both StockReservedAtUtc and Failure.FailedAtUtc are set
+        // and the COALESCE chain must prefer the latter.
+        if (target == LifecycleState.Failed)
+        {
+            fakeTime.Advance(TimeSpan.FromMinutes(1));
+            order.Fail("TEST_FAIL", "test failure", fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
+            await dbContext.SaveChangesAsync(ct);
+            return order;
+        }
+
         fakeTime.Advance(TimeSpan.FromMinutes(1));
         order.MarkPaymentCompleted(Guid.CreateVersion7(), fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         if (target == LifecycleState.PaymentCompleted)
@@ -235,6 +287,18 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         order.Confirm(fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
         if (target == LifecycleState.Confirmed)
         {
+            await dbContext.SaveChangesAsync(ct);
+            return order;
+        }
+
+        // Terminal cancellation branches off after Confirmed — Confirmed→Cancelled
+        // is the richest pre-terminal happy-path (I-12 blocks cancellation once
+        // Shipped), so this exercises the COALESCE preferring CancelledAtUtc over
+        // ConfirmedAtUtc + every earlier happy-path timestamp.
+        if (target == LifecycleState.Cancelled)
+        {
+            fakeTime.Advance(TimeSpan.FromMinutes(1));
+            order.Cancel("test cancellation", fakeTime.GetUtcNow()).IsSuccess.Should().BeTrue();
             await dbContext.SaveChangesAsync(ct);
             return order;
         }
@@ -262,6 +326,8 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
             LifecycleState.Confirmed => order.ConfirmedAtUtc!.Value,
             LifecycleState.Shipped => order.Shipment!.ShippedAtUtc,
             LifecycleState.Delivered => order.DeliveredAtUtc!.Value,
+            LifecycleState.Failed => order.Failure!.FailedAtUtc,
+            LifecycleState.Cancelled => order.Cancellation!.CancelledAtUtc,
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
         };
 
@@ -274,6 +340,8 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
             LifecycleState.Confirmed => OrderStatus.Confirmed,
             LifecycleState.Shipped => OrderStatus.Shipped,
             LifecycleState.Delivered => OrderStatus.Delivered,
+            LifecycleState.Failed => OrderStatus.Failed,
+            LifecycleState.Cancelled => OrderStatus.Cancelled,
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
         };
 
@@ -285,5 +353,7 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         Confirmed,
         Shipped,
         Delivered,
+        Failed,
+        Cancelled,
     }
 }

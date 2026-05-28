@@ -11,7 +11,7 @@ using Platform.SharedKernel.Errors;
 namespace Inventory.IntegrationTests.Application;
 
 /// <summary>
-/// M7 acceptance for <see cref="GetStockLevelByProductIdQueryHandler"/>. Proves
+/// Acceptance for <see cref="GetStockLevelByProductIdQueryHandler"/>. Proves
 /// the read-side returns the projection row when present and a typed
 /// <see cref="NotFoundError"/> when absent.
 /// </summary>

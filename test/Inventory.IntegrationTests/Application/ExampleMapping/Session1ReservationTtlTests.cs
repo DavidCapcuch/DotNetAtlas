@@ -17,13 +17,13 @@ using Platform.CQRS;
 namespace Inventory.IntegrationTests.Application.ExampleMapping;
 
 /// <summary>
-/// M9 acceptance for the gap scenarios in
+/// Acceptance for the gap scenarios in
 /// <c>docs/bc-design/example-mapping/inventory.md</c> § Session 1
 /// (Reservation TTL auto-release).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Session 1 examples already covered prior to M9:
+/// Session 1 examples already covered earlier:
 /// </para>
 /// <list type="bullet">
 /// <item><description>
@@ -38,7 +38,7 @@ namespace Inventory.IntegrationTests.Application.ExampleMapping;
 /// </description></item>
 /// </list>
 /// <para>
-/// This file fills the M9 gaps: <b>1.3</b> (confirm arriving after the reservation
+/// This file fills the gaps: <b>1.3</b> (confirm arriving after the reservation
 /// has already been released by the worker) and <b>1.4</b> (a duplicate release
 /// command after a previous Expiry release — no second event, no second outbox
 /// row).

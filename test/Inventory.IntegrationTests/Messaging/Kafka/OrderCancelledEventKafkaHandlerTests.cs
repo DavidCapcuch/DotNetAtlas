@@ -15,7 +15,7 @@ using AvroOrderStatusAtTransition = Ordering.Orders.OrderStatusAtTransition;
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M5 acceptance for <see cref="OrderCancelledEventKafkaHandler"/>. The
+/// Acceptance for <see cref="OrderCancelledEventKafkaHandler"/>. The
 /// non-trivial fan-out path: an <c>OrderCancelledEvent</c> with two Active
 /// reservations on different products fans out into two
 /// <c>ReleaseReservationCommand</c>s with

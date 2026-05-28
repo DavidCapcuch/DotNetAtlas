@@ -11,7 +11,7 @@ using AvroOrderFailedEvent = Ordering.Orders.OrderFailedEvent;
 namespace Ordering.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M7 acceptance for <see cref="MarkOrderFailedCommandKafkaHandler"/>.
+/// Acceptance for <see cref="MarkOrderFailedCommandKafkaHandler"/>.
 /// Per <c>example-mapping/ordering.md</c> Session 1 R4, <c>Failed</c> is
 /// reachable from <c>{Created, StockReserved, PaymentCompleted}</c> but
 /// <b>not</b> from <c>Confirmed</c> (by then both stock and payment are

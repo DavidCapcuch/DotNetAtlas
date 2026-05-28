@@ -9,7 +9,7 @@ using Platform.SharedKernel.ValueObjects;
 namespace Payments.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Smoke tests for the M5 <see cref="PaymentRepository"/> tracking split (#251).
+/// Smoke tests for the <see cref="PaymentRepository"/> tracking split (#251).
 /// Verifies that <see cref="IPaymentRepository.GetByIdForUpdateAsync"/> attaches the aggregate
 /// to the DbContext change tracker (write-side handlers depend on this for mutation flushes),
 /// while <see cref="IPaymentRepository.GetByIdAsNoTrackingAsync"/> returns the entity detached

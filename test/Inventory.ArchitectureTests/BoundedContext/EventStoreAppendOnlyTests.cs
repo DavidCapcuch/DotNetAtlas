@@ -13,7 +13,7 @@ namespace Inventory.ArchitectureTests.BoundedContext;
 /// Version)</c>) and projection rebuild rely.
 /// </summary>
 /// <remarks>
-/// Pinned by M2 carry-forward — see <c>inventory.md:118</c> "Architecture-test for
+/// Pinned carry-forward — see <c>inventory.md:118</c> "Architecture-test for
 /// 'append-only on stock_events'". The rule covers BOTH the port (<see cref="IEventStore"/>
 /// in Inventory.Application) and the implementation (<see cref="EventStoreRepository"/> in
 /// Inventory.Infrastructure) — a future contributor adding a mutating method to either

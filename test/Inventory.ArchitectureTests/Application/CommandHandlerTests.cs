@@ -5,7 +5,7 @@ namespace Inventory.ArchitectureTests.Application;
 
 /// <summary>
 /// Command handlers are named <c>*CommandHandler</c> and sealed (each handler encapsulates
-/// one use case). Inventory has six command handlers as of M7: <c>InitializeStockItem</c>,
+/// one use case). Inventory has six command handlers: <c>InitializeStockItem</c>,
 /// <c>ReceiveStock</c>, <c>AdjustStock</c>, <c>ReserveStock</c>, <c>ConfirmReservation</c>,
 /// <c>ReleaseReservation</c>.
 /// </summary>

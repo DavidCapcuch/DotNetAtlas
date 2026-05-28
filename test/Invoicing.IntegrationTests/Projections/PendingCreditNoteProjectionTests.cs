@@ -30,7 +30,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// As of Wave 1.6 / ADR-0020 the consumed Avro <c>OrderCancelledEvent</c> is
 /// a Summary Event — Items, TotalAmount, Currency, BillingAddress all travel
 /// with it and are persisted into <c>pending_credit_notes.OrderPayload</c>
-/// for M8 to read. Each test asserts the round-trip through the jsonb column.
+/// to read. Each test asserts the round-trip through the jsonb column.
 /// </remarks>
 [Collection<IntegrationTestCollection>]
 public sealed class PendingCreditNoteProjectionTests
@@ -426,7 +426,7 @@ public sealed class PendingCreditNoteProjectionTests
     /// <summary>
     /// Mirror of the anonymous DTO emitted by
     /// <see cref="OrderCancelledCreditNoteProjectionKafkaHandler.SerializePayload"/>.
-    /// Lives here (not in production code) because M8 will introduce its own
+    /// Lives here (not in production code) because will introduce its own
     /// strongly-typed reader; this test-only DTO documents the wire contract
     /// the projection currently produces.
     /// </summary>

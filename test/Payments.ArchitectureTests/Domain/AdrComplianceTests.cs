@@ -4,7 +4,7 @@ namespace Payments.ArchitectureTests.Domain;
 
 /// <summary>
 /// Locks ADR compliance that the compiler does not enforce on its own.
-/// Covers the two M7-explicit Payments deliverables: ADR-0015 no-static-UtcNow and ADR-0011
+/// Covers the two explicit Payments deliverables: ADR-0015 no-static-UtcNow and ADR-0011
 /// no-cardholder-data field names.
 /// </summary>
 public class AdrComplianceTests : BaseTest

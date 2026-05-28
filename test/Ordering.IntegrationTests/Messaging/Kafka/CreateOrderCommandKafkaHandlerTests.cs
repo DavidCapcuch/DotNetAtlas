@@ -15,14 +15,14 @@ using AvroOrderCreatedEvent = Ordering.Orders.OrderCreatedEvent;
 namespace Ordering.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// M7 acceptance for <see cref="CreateOrderCommandKafkaHandler"/> — drives
+/// Acceptance for <see cref="CreateOrderCommandKafkaHandler"/> — drives
 /// the Kafka handler directly with a synthetic
 /// <see cref="FakeKafkaMessageContext"/> and an Avro
 /// <see cref="AvroCreateOrderCommand"/>; assertions cover the mapped
 /// application command's side effects (Order persisted via
 /// <see cref="OrderingDbContext"/> + <c>OrderCreatedEvent</c> captured by
 /// the <see cref="FakeOutboxWriter"/>).
-/// Mirrors Inventory's M5 precedent at
+/// Mirrors Inventory's precedent at
 /// <c>test/Inventory.IntegrationTests/Messaging/Kafka/ReserveStockCommandKafkaHandlerTests.cs</c>.
 /// </summary>
 [Collection<IntegrationTestCollection>]

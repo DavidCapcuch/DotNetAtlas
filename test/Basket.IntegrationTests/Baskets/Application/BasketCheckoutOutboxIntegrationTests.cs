@@ -21,7 +21,7 @@ using BasketAggregate = Basket.Domain.Baskets.Basket;
 namespace Basket.IntegrationTests.Baskets.Application;
 
 /// <summary>
-/// Outbox integration test for M4. Exercises the whole in-process pipeline —
+/// Outbox integration test. Exercises the whole in-process pipeline —
 /// <see cref="CheckoutBasketCommand"/> dispatched through the real
 /// <c>AddApplication()</c> DI container (validation + tracing + logging + metrics
 /// behaviors, CQRS handler, domain-event dispatcher, outbox publisher handler,
@@ -32,9 +32,9 @@ namespace Basket.IntegrationTests.Baskets.Application;
 /// <remarks>
 /// The transactional outbox is stubbed with NSubstitute rather than a real
 /// PostgreSQL / EF Core context: the <c>BasketDbContext</c> concrete class is a
-/// deliverable of milestone M6, and a DB-backed version of this test belongs
+/// deliverable, and a DB-backed version of this test belongs
 /// there. The present test is scoped to "the Application pipeline wires end-to-end
-/// and passes the right arguments to the outbox contract" — everything M4 owns.
+/// and passes the right arguments to the outbox contract" — everything this test owns.
 /// </remarks>
 public sealed class BasketCheckoutOutboxIntegrationTests : IDisposable
 {

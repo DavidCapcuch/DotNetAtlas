@@ -7,18 +7,18 @@ namespace Inventory.ArchitectureTests.Application;
 /// <summary>
 /// The result-pattern split is architecturally enforced for Inventory:
 /// <list type="bullet">
-///   <item>The <c>StockItem</c> aggregate only ever throws <see cref="DataIntegrityException"/>
-///     (bug-class violations: unknown reservation, re-init, negative stock). Business-expected
-///     failures — <c>InsufficientStock</c>, <c>ReservationNotActive</c> — flow through
-///     <c>Result.Fail</c> with an <c>InventoryErrors</c> factory error per error-taxonomy.md § 3.4.</item>
-///   <item>Command/query handlers never raw-throw <see cref="ArgumentException"/> /
-///     <see cref="InvalidOperationException"/> / <see cref="ArgumentNullException"/> — those
-///     would surface as 500s on saga-command Kafka consumers (which would then DLT the message)
-///     instead of being expressible as a <c>Result.Fail</c> + outbox <c>StockReservationFailedEvent</c>.</item>
-///   <item>Every handler <c>HandleAsync</c> returns <c>Task&lt;Result&gt;</c> /
-///     <c>Task&lt;Result&lt;T&gt;&gt;</c>.</item>
+/// <item>The <c>StockItem</c> aggregate only ever throws <see cref="DataIntegrityException"/>
+/// (bug-class violations: unknown reservation, re-init, negative stock). Business-expected
+/// failures — <c>InsufficientStock</c>, <c>ReservationNotActive</c> — flow through
+/// <c>Result.Fail</c> with an <c>InventoryErrors</c> factory error per error-taxonomy.md § 3.4.</item>
+/// <item>Command/query handlers never raw-throw <see cref="ArgumentException"/> /
+/// <see cref="InvalidOperationException"/> / <see cref="ArgumentNullException"/> — those
+/// would surface as 500s on saga-command Kafka consumers (which would then DLT the message)
+/// instead of being expressible as a <c>Result.Fail</c> + outbox <c>StockReservationFailedEvent</c>.</item>
+/// <item>Every handler <c>HandleAsync</c> returns <c>Task&lt;Result&gt;</c> /
+/// <c>Task&lt;Result&lt;T&gt;&gt;</c>.</item>
 /// </list>
-/// Pinned by <c>inventory.md</c> M2 carry-forward "ReserveStockCommandHandler doesn't throw"
+/// Pinned by <c>inventory.md</c> carry-forward "ReserveStockCommandHandler doesn't throw"
 /// — InsufficientStock is BUSINESS-EXPECTED and must flow through Result.
 /// </summary>
 public class ResultPatternTests : BaseTest

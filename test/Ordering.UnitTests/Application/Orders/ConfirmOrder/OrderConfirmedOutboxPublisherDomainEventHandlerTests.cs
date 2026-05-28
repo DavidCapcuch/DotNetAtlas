@@ -13,7 +13,7 @@ namespace Ordering.UnitTests.Application.Orders.ConfirmOrder;
 /// Confirms the Wave 1.5 / ADR-0020 Summary-Event contract: every
 /// <see cref="OrderConfirmedDomainEvent"/> emitted by Ordering carries
 /// the order's Items, TotalAmount, Currency, and BillingAddress through
-/// the outbox publisher onto the wire. Invoicing M7 depends on this.
+/// the outbox publisher onto the wire. Invoicing depends on this.
 /// </summary>
 public class OrderConfirmedOutboxPublisherDomainEventHandlerTests : HandlerTestBase
 {

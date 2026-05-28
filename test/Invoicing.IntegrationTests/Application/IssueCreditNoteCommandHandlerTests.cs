@@ -20,8 +20,8 @@ using Xunit;
 namespace Invoicing.IntegrationTests.Application;
 
 /// <summary>
-/// M7 integration tests for <c>IssueCreditNoteCommandHandler</c>. Each test seeds a
-/// pre-issued <see cref="Invoice"/> via the M7 invoice handler (so the prerequisite
+/// Integration tests for <c>IssueCreditNoteCommandHandler</c>. Each test seeds a
+/// pre-issued <see cref="Invoice"/> via the invoice handler (so the prerequisite
 /// state is built through real production code), then drives the credit-note flow.
 /// Covers example-mapping § 3.1 (happy path) and § 3.3 (cancelled-invoice rejected).
 /// </summary>

@@ -18,7 +18,7 @@ using AvroPaymentCapturedEvent = Payments.Transactions.PaymentCapturedEvent;
 namespace Invoicing.IntegrationTests.Projections;
 
 /// <summary>
-/// Integration tests for the M6 invoice-side enrichment projection. Cover the
+/// Integration tests for the invoice-side enrichment projection. Cover the
 /// three convergence sessions from <c>example-mapping/invoicing.md § 1</c>:
 /// order-first (1.1), payment-first (1.2), duplicate-order idempotency (1.3).
 /// Handlers are exercised directly with an NSubstitute <c>IMessageContext</c>;
@@ -29,7 +29,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// As of Wave 1.5 / ADR-0020 the consumed Avro <c>OrderConfirmedEvent</c> is
 /// a Summary Event — Items, TotalAmount, Currency, BillingAddress all travel
 /// with it and are persisted into <c>pending_invoices.OrderPayload</c> for
-/// M7 to read. Each test asserts the round-trip through the jsonb column.
+/// to read. Each test asserts the round-trip through the jsonb column.
 /// </remarks>
 [Collection<IntegrationTestCollection>]
 public sealed class PendingInvoiceProjectionTests
@@ -377,7 +377,7 @@ public sealed class PendingInvoiceProjectionTests
     /// <summary>
     /// Mirror of the anonymous DTO emitted by
     /// <see cref="OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload"/>.
-    /// Lives here (not in production code) because M7 will introduce its own
+    /// Lives here (not in production code) because will introduce its own
     /// strongly-typed reader; this test-only DTO documents the wire contract
     /// the projection currently produces.
     /// </summary>

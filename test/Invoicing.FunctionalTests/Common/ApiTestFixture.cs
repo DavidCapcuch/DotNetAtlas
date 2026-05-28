@@ -32,7 +32,7 @@ internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// Flyway runs in compose (#269) — Integration and Functional fixtures share one source
 /// of truth instead of diverging on EnsureCreatedAsync vs MigrateAsync.
 /// Forces <c>ASPNETCORE_ENVIRONMENT=Testing</c> so the host skips the Kafka enrichment
-/// consumers, replaces <see cref="IBlobStore"/> with an NSubstitute fake (M3's Azurite
+/// consumers, replaces <see cref="IBlobStore"/> with an NSubstitute fake (Azurite
 /// roundtrip is exercised by the integration suite), and replaces the schema-registry-backed
 /// <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/> so seeded
 /// <c>Invoice.Issue</c> domain events do not blow up reaching for a non-existent registry.
@@ -58,8 +58,8 @@ public class ApiTestFixture : AppFixture<Program>
 
     /// <summary>
     /// NSubstitute fake for <see cref="IBlobStore"/> — returns a deterministic SAS URL on
-    /// <c>GetSasUrlAsync</c> so M8 query handlers can exercise the URL-minting code path
-    /// without standing up Azurite. The real adapter is exercised by the M3 integration
+    /// <c>GetSasUrlAsync</c> so query handlers can exercise the URL-minting code path
+    /// without standing up Azurite. The real adapter is exercised by the integration
     /// tests in <c>AzuriteFixture</c>.
     /// </summary>
     public IBlobStore BlobStoreSubstitute { get; } = BuildBlobStoreStub();

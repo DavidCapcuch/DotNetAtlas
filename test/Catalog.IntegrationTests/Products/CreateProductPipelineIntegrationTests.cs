@@ -17,7 +17,7 @@ namespace Catalog.IntegrationTests.Products;
 /// teaching story (catalog.md § 9): a single <c>SaveChangesAsync</c> commits the
 /// <c>Product</c> aggregate write, the <c>product_search_view</c> projection upsert,
 /// AND the outbox row atomically. Hits the real <see cref="CatalogDbContext"/> on a
-/// Postgres Testcontainer with all the M4.1 EF mappings (OwnsOne VOs, owned image
+/// Postgres Testcontainer with all the EF mappings (OwnsOne VOs, owned image
 /// collection, Money + currency converter, jsonb columns, xmin concurrency) exercised
 /// end-to-end.
 /// </summary>
