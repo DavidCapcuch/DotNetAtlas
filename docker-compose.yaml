@@ -620,6 +620,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
       keycloak:
