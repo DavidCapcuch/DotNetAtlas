@@ -26,8 +26,10 @@ public sealed class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, 
     {
         // SQL-side projection (ADR-0021 / #277): only the columns the response uses
         // travel from DB. Optional VOs are flat nullable columns on `ordering.orders`
-        // and translate cleanly under conditional projection (EF Core 10) — same idiom
-        // GetOrdersByBuyerQueryHandler uses; keep the two shapes in sync.
+        // and translate cleanly under conditional projection (EF Core 10). This handler
+        // returns the full order shape; the buyer-list endpoint deliberately returns a
+        // narrower summary (use-cases.md § 3.4.2), so the two projections are not kept
+        // in sync — they are intentionally divergent.
         var response = await _dbContext.Orders
             .AsNoTracking()
             .Where(o => o.Id == query.OrderId)
