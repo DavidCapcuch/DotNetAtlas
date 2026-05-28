@@ -107,13 +107,13 @@ Use the `correlation_id` as the **trace id** in Jaeger / Tempo. Look for:
     --max-messages 50 \
     --property print.key=true | grep '{correlation_id}'
   ```
-- Are **refund commands in DLQ**? Same command against `payments.commands.dlq`.
+- Are **refund commands in DLQ**? Same command against `payments.payment-commands.dlq`.
 
 ### Step 3 — Classify the root cause
 
 | Symptom | Root cause | Go to |
 |---------|-----------|-------|
-| Refund command in `payments.commands.dlq` | Payment gateway outage or gateway-client bug | § 4.1 |
+| Refund command in `payments.payment-commands.dlq` | Payment gateway outage or gateway-client bug | § 4.1 |
 | Release command in `inventory.reservation-commands.dlq` | Inventory consumer bug or Inventory DB outage | § 4.2 |
 | `ReservationExpiryWorker` already expired reservations during compensation | TTL raced with refund — reservations are already `Released` with `ReleaseReason='Expiry'` | § 4.3 |
 | Kafka consumer lag on `saga-checkout` | Saga worker OOM, crash-looping, or restarting | § 4.4 |
@@ -146,13 +146,13 @@ Paste output into the incident thread — post-mortem reviewers will need it.
 
 ### 4.1 Payment gateway outage
 
-Context: refund commands are piling up in `payments.commands.dlq`; gateway returns 5xx or timeouts.
+Context: refund commands are piling up in `payments.payment-commands.dlq`; gateway returns 5xx or timeouts.
 
 1. Confirm gateway has recovered — synthetic test against Payments health probe.
 2. Replay refund commands from DLQ:
    ```bash
    # Internal tool — replays DLQ messages to the live topic in batches
-   ops-replay --source payments.commands.dlq --dest payments.commands \
+   ops-replay --source payments.payment-commands.dlq --dest payments.payment-commands \
               --correlation-ids correlation-ids.txt --batch 50
    ```
 3. Watch `payments.payment_transactions.status` flip from `Captured` → `Refunded` for the affected orders.
@@ -292,7 +292,7 @@ Run this checklist quarterly; items that fail become tickets.
 - [ ] Chaos testing: inject Payments/Inventory outage mid-checkout during a monthly load test; confirm saga enters `CompensationStuck` only when expected and recovers cleanly.
 - [ ] Kafka consumer lag on `saga-checkout`, `inventory-reservations`, `payments-payments` is monitored continuously with paging thresholds.
 - [ ] `saga_checkout_stuck_total` counter dashboard widget is **always visible** on the eShop main dashboard.
-- [ ] DLQ depth alerts exist for `inventory.reservation-commands.dlq` and `payments.commands.dlq` with 10-minute thresholds.
+- [ ] DLQ depth alerts exist for `inventory.reservation-commands.dlq` and `payments.payment-commands.dlq` with 10-minute thresholds.
 - [ ] `CompensationTimeout` default (300s) is reviewed against observed p99 compensation duration — if p99 > 150s, revisit; consider lowering timeout or fixing tail-latency.
 - [ ] `ReservationExpiryWorker` TTL (15 min) is comfortably longer than `CompensationTimeout` × 2 — otherwise § 4.3 races become the norm.
 - [ ] Runbook (this document) is linked from the PagerDuty incident body via the alert's `runbook` annotation.

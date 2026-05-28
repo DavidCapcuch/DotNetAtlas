@@ -27,7 +27,7 @@ Every external event carries an `*AtUtc` / `OccurredOnUtc` field with `logicalTy
 Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 
 - Event logs (business moments): `catalog.products`, `ordering.orders`, `inventory.reservations`.
-- Command streams (imperative intent): `{...}.{...}-commands`, e.g. `payments.commands`, `inventory.reservation-commands`.
+- Command streams (imperative intent): `{...}.{...}-commands`, e.g. `payments.payment-commands`, `inventory.reservation-commands`.
 
 **Partitioning key rule:** the stable business identity that preserves the right invariant.
 - Per-aggregate ordering → aggregate id. Examples: `catalog.products` keyed by `ProductId`, `ordering.orders` keyed by `OrderId`.
@@ -47,10 +47,10 @@ Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D-1 | **One `ordering.order-commands` topic** for saga→Ordering instead of per-command topics | Matches `payments.commands` precedent; saga already fan-outs by command type via MassTransit consumer type-routing. |
+| D-1 | **One `ordering.order-commands` topic** for saga→Ordering instead of per-command topics | Matches `payments.payment-commands` precedent; saga already fan-outs by command type via MassTransit consumer type-routing. |
 | D-2 | **One `inventory.reservation-commands` topic** for saga→Inventory | Same rationale as D-1. Keeps saga surface uniform. |
 | D-3 | **One `ReserveStockCommand` per order line item** (Option A in Agent-5 prompt) | Matches Inventory's per-`ProductId` stream model (ADR-0006); gives natural per-item failure granularity; saga fan-in by `OrderId` correlates N responses. |
-| D-4 | **No dedicated `checkout.commands` topic** | Saga publishes imperative intent to `ordering.order-commands`, `inventory.reservation-commands`, and `payments.commands`. A checkout-specific topic would duplicate infrastructure for no new semantics. |
+| D-4 | **No dedicated `checkout.commands` topic** | Saga publishes imperative intent to `ordering.order-commands`, `inventory.reservation-commands`, and `payments.payment-commands`. A checkout-specific topic would duplicate infrastructure for no new semantics. |
 | D-5 | **Notifications continues consuming business events directly** (not a `notification.commands` fan-out) | Matches existing Weather→Notifications pattern. `notification.commands` topic stays reserved for explicit SendEmail commands; Ordering emits `ordering.orders` and Notifications subscribes. |
 | D-6 | **Outbox-relay is a separate container per service schema** | Follows the `outbox-relay`, `outbox-relay-saga`, `outbox-relay-ordering` precedent already in `docker-compose.yaml`. Each service gets its own relay with its own `OutboxRelay__SchemaName` binding. See § 6. |
 | D-7 | **Weather-remnant fully decommissioned pre-dispatch** | The `services/Order/` project, `AlertSubscription*Saga` sagas, and Kafka topic `order.alert-subscriptions` were deleted. Ordering is greenfield; no legacy topic coexistence remains. |
@@ -71,10 +71,10 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `ProductCreatedEvent` | `catalog.products` | `Catalog.Products` | Catalog | Inventory (init stream), BFF (cache warm) | `inventory-stock-init`, `bff-product-cache` | `ProductId` | `ProductCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductCreatedEvent.avsc` |
 | `ProductDiscontinuedEvent` | `catalog.products` | `Catalog.Products` | Catalog | Basket (flag stale snapshots; on-demand in v1), BFF (cache invalidate) | `basket-catalog-invalidation` (future), `bff-product-cache` | `ProductId` | `ProductDiscontinuedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductDiscontinuedEvent.avsc` |
 | `ProductPriceChanged` | `catalog.products` | `Catalog.Products` | Catalog | BFF (cache invalidate); Basket consumes on-demand only in v1 | `bff-product-cache` | `ProductId` | `ProductPriceChangedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductPriceChanged.avsc` |
-| `CapturePaymentCommand` | `payments.commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-capture` | `CorrelationId` | saga transition | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/CapturePaymentCommand.avsc` (existing) |
-| `AuthorizePaymentCommand` | `payments.commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-authorize` | `CorrelationId` | saga transition | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/AuthorizePaymentCommand.avsc` (existing) |
-| `RequestRefundCommand` | `payments.commands` | `Payments.Transactions` | PaymentProcessingSaga (Checkout saga compensation path) | Payments | `payments-payment-refund` | `CorrelationId` | Checkout saga compensation after cancel-post-capture | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/RequestRefundCommand.avsc` (existing) |
-| `VoidPaymentCommand` | `payments.commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-void` | `CorrelationId` | saga compensation pre-capture | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/VoidPaymentCommand.avsc` (existing) |
+| `CapturePaymentCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-capture` | `CorrelationId` | saga transition | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/CapturePaymentCommand.avsc` (existing) |
+| `AuthorizePaymentCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-authorize` | `CorrelationId` | saga transition | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/AuthorizePaymentCommand.avsc` (existing) |
+| `RequestRefundCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga (Checkout saga compensation path) | Payments | `payments-payment-refund` | `CorrelationId` | Checkout saga compensation after cancel-post-capture | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/RequestRefundCommand.avsc` (existing) |
+| `VoidPaymentCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-void` | `CorrelationId` | saga compensation pre-capture | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/VoidPaymentCommand.avsc` (existing) |
 | `PaymentAuthorizationFailedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `payment-saga-auth-failed` | `CorrelationId` | Payments auth failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentAuthorizationFailedEvent.avsc` (existing) |
 | `PaymentAuthorizedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `payment-saga-auth` | `CorrelationId` | Payments auth success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentAuthorizedEvent.avsc` (existing) |
 | `PaymentCaptureFailedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `payment-saga-capture-failed` | `CorrelationId` | Payments capture failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCaptureFailedEvent.avsc` (existing) |
@@ -108,7 +108,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 
 ## 3. Kafka Topics
 
-New topics introduced by this document. Existing topics (`notification.commands`, `healthchecks`) are **not** duplicated here. Topics `payments.transactions` + `payments.commands` are **renamed** from pre-eShop `payments.transactions` / `payments.commands` in Wave 0.
+New topics introduced by this document. Existing topics (`notification.commands`, `healthchecks`) are **not** duplicated here. The Payments BC publishes lifecycle events to `payments.transactions` and consumes saga-issued commands on `payments.payment-commands` (canonical names per [kafka-topology.md](../kafka-topology.md)).
 
 | Topic | Partitions | Retention | Key | Purpose | Events |
 |-------|-----------|-----------|-----|---------|--------|
@@ -120,8 +120,8 @@ New topics introduced by this document. Existing topics (`notification.commands`
 | `inventory.stock-events` | 3 | Infinite (audit) | `ProductId` | Stock-level threshold-crossing signals to Catalog | `StockLevelChanged` |
 | `ordering.order-commands` | 3 | 7 days (delete) | `OrderId` (or `CorrelationId` for `CreateOrderCommand` which has no `OrderId` yet) | Saga-issued imperative intent to Ordering | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
 | `ordering.orders` | 3 | Infinite (audit) | `OrderId` | Order lifecycle events — Checkout saga / Notifications / BFF downstream | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
-| `payments.transactions` | 3 | Infinite (audit) | `CorrelationId` | Payment lifecycle events — Checkout saga / Notifications / Invoicing downstream. Renamed from `payments.transactions` in Wave 0. | `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` |
-| `payments.commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. Renamed from `payments.commands` in Wave 0. | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
+| `payments.transactions` | 3 | Infinite (audit) | `CorrelationId` | Payment lifecycle events — Checkout saga / Notifications / Invoicing downstream. | `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` |
+| `payments.payment-commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. Canonical name per [kafka-topology.md](../kafka-topology.md). | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
 | `invoicing.invoices` | 3 | **10 years (EU VAT)** | `BuyerId` | Invoice + credit note lifecycle. Retention reflects legal record-keeping norm (Czech Republic, Germany, France, Slovakia: 10-year). PII policy per ADR-0011 applies. | `InvoiceIssued`, `InvoiceDelivered`, `InvoiceCancelled`, `CreditNoteIssued` |
 
 **Total new topics: 11.** The `notification.commands` topic already exists.

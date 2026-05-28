@@ -14,7 +14,7 @@ Two structural differences across topics shape the choice:
 
 1. **Event-log topics** (`catalog.products`, `ordering.orders`, `inventory.*`, `basket.sessions`, `payments.transactions`) have **infinite retention** per the audit-trail requirement documented in [ADR-0006](0006-event-sourcing-for-inventory.md) and events-catalog.md D-8. A consumer that backfills from offset 0 after a schema has gone through N non-breaking changes must still deserialize every historical message correctly.
 
-2. **Command topics** (`ordering.order-commands`, `inventory.reservation-commands`, `payments.commands`) carry short-lived imperative intent (7-day retention) but have BOTH producers and consumers evolving independently. The Checkout saga may deploy a new command schema before Ordering / Inventory upgrades, or vice versa. Both sides must tolerate each other's version drift.
+2. **Command topics** (`ordering.order-commands`, `inventory.reservation-commands`, `payments.payment-commands`) carry short-lived imperative intent (7-day retention) but have BOTH producers and consumers evolving independently. The Checkout saga may deploy a new command schema before Ordering / Inventory upgrades, or vice versa. Both sides must tolerate each other's version drift.
 
 This ADR specifies the per-topic-category compatibility policy and the breaking-change process.
 
@@ -64,7 +64,7 @@ This ADR specifies the per-topic-category compatibility policy and the breaking-
 - **Event-log topics** → `FORWARD_TRANSITIVE`
   - Applies to: `catalog.products`, `catalog.categories`, `basket.sessions`, `ordering.orders`, `inventory.stock-events`, `inventory.reservations`, `payments.transactions`.
 - **Command topics** → `FULL_TRANSITIVE`
-  - Applies to: `ordering.order-commands`, `inventory.reservation-commands`, `payments.commands`.
+  - Applies to: `ordering.order-commands`, `inventory.reservation-commands`, `payments.payment-commands`.
 - **Subject naming strategy**: **Record Name Strategy** (already in use by `UniversalAvroSerializer` — see [Platform.Avro.UniversalSerDes](../../platform/Platform.Avro.UniversalSerDes/)). Subject = `{Namespace}.{RecordName}`, e.g., `Catalog.Products.ProductCreatedEvent`.
 
 ## Rationale

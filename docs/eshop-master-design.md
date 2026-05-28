@@ -126,7 +126,7 @@ The aggregate's `SaveChangesAsync()` persists domain state + outbox message in a
 - Publishing raw `*DomainEvent` directly to Kafka (no enrichment, no contract stability).
 - Requiring downstream consumers to aggregate multiple events to reconstruct state.
 - Breaking external event schema without a new version + deprecation plan.
-- Using external events as commands (if exactly one known consumer must act, use an HTTP command or a command-topic instead — see `payments.commands`, `inventory.reservation-commands`, `ordering.order-commands` pattern).
+- Using external events as commands (if exactly one known consumer must act, use an HTTP command or a command-topic instead — see `payments.payment-commands`, `inventory.reservation-commands`, `ordering.order-commands` pattern).
 
 ### 3.5 Is it an event, or a command?
 
@@ -149,7 +149,7 @@ Canonical examples in this solution:
 - `OrderConfirmedEvent` → **event**: Notifications, BFF cache invalidator, and CheckoutSaga all react independently.
 - `ReserveStockCommand` → **command**: the CheckoutSaga needs the specific response (`StockReservedEvent` or `StockReservationFailedEvent`) to drive its state machine.
 
-**Known misnamed events in Payments** (open for redesign by implementation agents): several existing Payments events — `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentCapturedEvent`, `PaymentVoidedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCaptureFailedEvent` — have exactly one known consumer (PaymentProcessingSaga), which per this test classifies them as **commands**. They are retained with `*Event` naming for continuity with the pre-eShop saga codebase, but this is a known debt. The **Checkout Saga agent** (and any future Payments agent) has explicit authority to classify each per § 3.5 and propose renames + topic moves (e.g., `PaymentRequestedEvent` → `RequestPaymentCommand` on `payments.commands`). Proposals are surfaced in the session summary and require user approval before implementation — the rename spans `Platform.SchemaRegistry.Contracts` and downstream subscribers. Events with ≥ 2 genuine consumers (`PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` — consumed by Checkout saga + Notifications) are correctly classified and stay as events.
+**Known misnamed events in Payments** (open for redesign by implementation agents): several existing Payments events — `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentCapturedEvent`, `PaymentVoidedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCaptureFailedEvent` — have exactly one known consumer (PaymentProcessingSaga), which per this test classifies them as **commands**. They are retained with `*Event` naming for continuity with the pre-eShop saga codebase, but this is a known debt. The **Checkout Saga agent** (and any future Payments agent) has explicit authority to classify each per § 3.5 and propose renames + topic moves (e.g., `PaymentRequestedEvent` → `RequestPaymentCommand` on `payments.payment-commands`). Proposals are surfaced in the session summary and require user approval before implementation — the rename spans `Platform.SchemaRegistry.Contracts` and downstream subscribers. Events with ≥ 2 genuine consumers (`PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` — consumed by Checkout saga + Notifications) are correctly classified and stay as events.
 
 ### 3.6 External event authoring checklist
 
@@ -173,7 +173,7 @@ The article distinguishes **module-scope** vs **system-scope** channels:
 **Current state (v1).** Every Kafka topic in the eShop solution is **system-scope / external** — our internal events never cross a process boundary (they are in-process `IDomainEventHandler<T>` dispatches per § 3.1). Consequently we default to unsuffixed names following the pattern `{domain}.{aggregate}[.{kind}]`:
 
 - `catalog.products`, `ordering.orders`, `inventory.reservations` — business-moment event logs (external events, stable contracts)
-- `ordering.order-commands`, `inventory.reservation-commands`, `payments.commands` — imperative intent (commands, 7-day retention)
+- `ordering.order-commands`, `inventory.reservation-commands`, `payments.payment-commands` — imperative intent (commands, 7-day retention)
 - `basket.sessions` — session hand-off
 
 This matches the codebase convention (`payments.transactions`, `catalog.products`, etc.) and keeps Kafka's tree flat.
@@ -238,7 +238,7 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | Inventory | CheckoutSaga | Saga event | Kafka (`inventory.reservations`) | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent` |
 | CheckoutSaga | PaymentProcessingSaga | Async trigger | Kafka (`payments.transactions`) | `PaymentRequestedEvent` |
 | PaymentProcessingSaga | CheckoutSaga | Saga event | Kafka (`payments.transactions`) | `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` |
-| PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand` (existing) |
+| PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand` (existing) |
 | Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChanged` (crosses 0↔positive) |
 | Ordering | Notifications | Published Language (async) | Kafka (`ordering.orders`) | Order lifecycle events |
 
@@ -306,7 +306,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **SmartEnum:** `PaymentStatus` (Requested → Authorized → Captured → Completed; off-ramps Failed / Voided / Refunded); `FailureReason` (GatewayDeclined / GatewayTimeout / InsufficientFunds / FraudSuspected / Cancelled / Unknown).
 **Internal events (9):** `PaymentRequestedDomainEvent`, `PaymentAuthorized/AuthorizationFailed`, `PaymentCaptured/CaptureFailed`, `PaymentCompleted`, `PaymentRefunded`, `PaymentVoided`, `PaymentFailedDomainEvent`.
 **External events (9) on `payments.transactions`:** `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent`.
-**External commands (4) on `payments.commands`:** `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand`.
+**External commands (4) on `payments.payment-commands`:** `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand`.
 **Pattern:** Saga sub-orchestration — `PaymentProcessingSaga` (under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`) is the sole caller of Payments commands; Checkout saga delegates via `PaymentRequestedEvent`. PCI scope minimization: only gateway-issued tokens stored, no PAN/CVV.
 **Integration:** `IPaymentGateway` port with stub adapter (`StubPaymentGateway`) for reference solution; swap to real gateway (Stripe/Adyen/Braintree) via DI in production.
 **Folder:** `services/Payments/` (renamed from `services/Payments/` in Wave 0).
@@ -342,7 +342,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 | `inventory.reservations` | 6 | Infinite (audit) | Reservation lifecycle (6 partitions for saga fan-out) |
 | `inventory.reservation-commands` | 3 | 7 days | Saga → Inventory commands |
 | `payments.transactions` | 3 | Infinite (audit) | Payment lifecycle events (renamed from `payments.payments` in Wave 0) |
-| `payments.commands` | 3 | 7 days | Saga → Payments commands (renamed from `payments.commands` in Wave 0) |
+| `payments.payment-commands` | 3 | 7 days | Saga → Payments commands (canonical name per [kafka-topology.md](kafka-topology.md)) |
 | `invoicing.invoices` | 3 | 10 years (EU VAT) | Invoice + credit note lifecycle — retention reflects legal requirement |
 
 **Reuses existing:** `notification.commands`.
