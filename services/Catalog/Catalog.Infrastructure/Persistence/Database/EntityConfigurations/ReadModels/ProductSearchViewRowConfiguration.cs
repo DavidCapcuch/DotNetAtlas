@@ -90,15 +90,16 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
 
         builder.Property(r => r.IsSellable)
             .HasDefaultValue(false)
-            .HasComment("Computed flag — wired up by the StockLevelChanged Kafka inbox consumer (M4.2).");
+            .HasComment("Computed flag — wired up by the StockLevelChanged Kafka inbox consumer.");
 
         builder.Property(r => r.CreatedAtUtc);
         builder.Property(r => r.LastUpdatedAtUtc);
 
         builder.Property(r => r.CorrelationId)
             .HasComment(
-                "Originating HTTP correlation id (ADR-0008). M4 reserves the column; "
-                + "the API layer wires HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] in M6.")
+                "Originating HTTP correlation id (ADR-0008). Populated from "
+                + "HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] by the API layer, "
+                + "or Guid.Empty when no HTTP pipeline is in play.")
             .HasDefaultValue(Guid.Empty);
     }
 }

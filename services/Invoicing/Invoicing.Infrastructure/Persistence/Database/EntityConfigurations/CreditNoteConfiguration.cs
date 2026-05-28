@@ -79,7 +79,7 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
         builder.HasIndex(cn => cn.BuyerId).HasDatabaseName("IX_CreditNotes_BuyerId");
 
         builder.Property(cn => cn.CorrelationId)
-            .HasComment("Cancellation flow correlation id; used as M7 idempotency key.");
+            .HasComment("Cancellation flow correlation id; used as idempotency key.");
         builder.HasIndex(cn => cn.CorrelationId)
             .IsUnique()
             .HasDatabaseName("UX_CreditNotes_CorrelationId");

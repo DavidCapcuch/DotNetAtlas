@@ -15,7 +15,7 @@ internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<Pen
     {
         builder.ToTable("pending_invoices", t => t.HasComment(
             "Async-enrichment buffer: collects OrderConfirmedEvent + PaymentCapturedEvent "
-            + "halves keyed on CorrelationId until M7's IssueInvoiceCommandHandler converts "
+            + "halves keyed on CorrelationId until IssueInvoiceCommandHandler converts "
             + "the converged row into an Invoice aggregate."));
 
         builder.HasKey(r => r.CorrelationId);
@@ -31,15 +31,15 @@ internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<Pen
             .HasComment("PaymentCapturedEvent.PaymentTransactionId; null until the payment half arrives.");
 
         builder.Property(r => r.BuyerId)
-            .HasComment("OrderConfirmedEvent.BuyerId; M7's outbox publisher uses this as the partition key on invoicing.invoices.");
+            .HasComment("OrderConfirmedEvent.BuyerId; the outbox publisher uses this as the partition key on invoicing.invoices.");
 
         builder.Property(r => r.OrderPayload)
             .HasColumnType("jsonb")
-            .HasComment("PII: full OrderConfirmedEvent serialised to JSON for M7 hydration.");
+            .HasComment("PII: full OrderConfirmedEvent serialised to JSON for issuance-time hydration.");
 
         builder.Property(r => r.PaymentPayload)
             .HasColumnType("jsonb")
-            .HasComment("PII: full PaymentCapturedEvent serialised to JSON for M7 hydration.");
+            .HasComment("PII: full PaymentCapturedEvent serialised to JSON for issuance-time hydration.");
 
         builder.Property(r => r.FirstSeenAtUtc)
             .IsRequired()
@@ -49,13 +49,13 @@ internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<Pen
             .HasComment("Set when both halves are present.");
 
         builder.Property(r => r.IssuedInvoiceId)
-            .HasComment("Set by M7's IssueInvoiceCommandHandler atomically with the Invoice aggregate insert.");
+            .HasComment("Set by IssueInvoiceCommandHandler atomically with the Invoice aggregate insert.");
 
-        // M7 will scan for ready-but-unissued rows on this index.
+        // Scan for ready-but-unissued rows uses this index.
         builder.HasIndex(r => new { r.CompletedAtUtc, r.IssuedInvoiceId })
             .HasDatabaseName("ix_pending_invoices_ready");
 
-        // M7's GET /invoices/by-order/{orderId} short-path may key by OrderId before the aggregate is queryable.
+        // GET /invoices/by-order/{orderId} short-path may key by OrderId before the aggregate is queryable.
         builder.HasIndex(r => r.OrderId)
             .HasDatabaseName("ix_pending_invoices_order_id");
     }
