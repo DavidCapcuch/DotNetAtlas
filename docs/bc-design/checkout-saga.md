@@ -516,7 +516,7 @@ public static class CheckoutSagaDependencyInjection
             kafkaConfigurator.TopicEndpoint<Inventory.Reservations.ReservationConfirmedEvent>(/* ... */);
 
             kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentCompletedEvent>(
-                kafkaOptions.Topics.PaymentsPayments,
+                kafkaOptions.Topics.PaymentsTransactions,
                 kafkaOptions.ConsumerGroups.CheckoutSaga, /* ... */);
 
             kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentFailedEvent>(/* ... */);
