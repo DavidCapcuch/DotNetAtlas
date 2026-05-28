@@ -22,7 +22,7 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// Factory-side invariants (I-6..I-9) surface as <see cref="DataIntegrityException"/>
 /// from <c>Order.CreateFromBasket</c> — they are bug-class (the validator
 /// should have caught every known user-error shape before the handler).
-/// These exceptions bubble up and are routed to DLT by M4's Kafka middleware.
+/// These exceptions bubble up and are routed to DLT by the Kafka middleware.
 /// </remarks>
 public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, Guid>
 {

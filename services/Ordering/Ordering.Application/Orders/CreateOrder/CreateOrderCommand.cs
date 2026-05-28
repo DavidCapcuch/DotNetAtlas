@@ -6,7 +6,7 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// Saga-issued command to create a new <c>Order</c> from a frozen basket
 /// snapshot at checkout time. Originates from the Checkout saga's
 /// <c>CreateOrderCommand</c> Avro message on <c>ordering.order-commands</c>;
-/// M4's Kafka consumer translates the Avro record to this internal DTO and
+/// the Kafka consumer translates the Avro record to this internal DTO and
 /// dispatches via <see cref="ICommand{TResponse}"/>.
 /// </summary>
 /// <remarks>

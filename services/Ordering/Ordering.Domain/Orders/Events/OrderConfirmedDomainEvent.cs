@@ -8,7 +8,7 @@ namespace Ordering.Domain.Orders.Events;
 /// Raised by <c>Order.Confirm</c>. Drives the external <c>OrderConfirmedEvent</c>
 /// outbox publisher — Notifications renders buyer-facing confirmation emails,
 /// BFF invalidates order cache, the Checkout saga advances to complete, and
-/// Invoicing M7 reads the embedded summary to issue the invoice.
+/// Invoicing reads the embedded summary to issue the invoice.
 /// </summary>
 /// <remarks>
 /// As of Wave 1.5 / ADR-0020 this is a Summary Event: it carries the order's

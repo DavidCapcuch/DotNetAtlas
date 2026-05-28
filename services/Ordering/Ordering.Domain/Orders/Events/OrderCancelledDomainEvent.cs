@@ -9,7 +9,7 @@ namespace Ordering.Domain.Orders.Events;
 /// outbox publisher — the Checkout saga inspects <see cref="AtStatus"/> to
 /// dispatch the correct compensation pair (release stock at Inventory,
 /// refund at Payments) per <c>ordering.md § 7</c>; Invoicing's credit-note
-/// projection captures the embedded summary fields for M8 issuance.
+/// projection captures the embedded summary fields for credit-note issuance.
 /// </summary>
 /// <remarks>
 /// As of Wave 1.6 / ADR-0020 this is a Summary Event: it carries the order's
