@@ -36,14 +36,9 @@ try
 
     var app = builder.Build();
 
-    if (app.Environment.IsProduction())
-    {
-        app.UseExceptionHandler();
-    }
-    else
-    {
-        app.UseDeveloperExceptionPage();
-    }
+    // Platform.ServiceDefaults.AddServiceDefaults registers the catch-all
+    // PlatformExceptionHandler and prepends UseExceptionHandler via IStartupFilter,
+    // so no per-host wiring is needed here.
 
     app.UseStatusCodePages();
 
