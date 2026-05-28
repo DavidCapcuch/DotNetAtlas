@@ -88,12 +88,12 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 - **Token acquisition flow (outbound HTTP):**
   1. `ClientCredentialsTokenHandler` (in `Platform.ServiceDefaults`, new class) intercepts every outgoing HttpClient request.
   2. Checks in-memory cache keyed `(target-service, scope)` for a valid token.
-  3. If absent / expiring within 30s, POST to `{keycloak}/realms/eshop/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`, `audience=<target-service>`.
+  3. If absent / expiring within 30s, POST to `{keycloak}/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`, `audience=<target-service>`.
   4. Caches token; attaches `Authorization: Bearer <token>` to the outbound request.
   5. On 401 from target, invalidates cache and retries once (handles signing-key rotation edge).
 
 - **Token validation (inbound HTTP):**
-  - Per-service ASP.NET `AddJwtBearer` config: `Authority = {keycloak}/realms/eshop`, `Audience = <this-service>`, `TokenValidationParameters.ValidateIssuer = true`, `ValidateAudience = true`, clock skew 5 min.
+  - Per-service ASP.NET `AddJwtBearer` config: `Authority = {keycloak}/realms/dotnetatlas`, `Audience = <this-service>`, `TokenValidationParameters.ValidateIssuer = true`, `ValidateAudience = true`, clock skew 5 min.
   - **(Amended 2026-05-27)** `ValidAudience` is no longer derived implicitly from `ServiceAuthOptions.ServiceName`. Each BC pins it explicitly under `Authentication:JwtBearer:TokenValidationParameters:ValidAudience` in `appsettings.json`. See [the amendment below](#amendment-2026-05-27--fail-closed-audience-contract).
   - Scope-based authorization via `RequireClaim("scope", "catalog.read")`-style policies, or FastEndpoints' `Policies(...)` / `Permissions(...)`.
 
