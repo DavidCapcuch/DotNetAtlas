@@ -69,7 +69,40 @@ public static class WebApplicationBuilderExtensions
             options.ValidateOnBuild = !isClusterEnvironment;
         });
 
+        AssertAllowedHostsPinnedInDeployedEnvironment(builder);
+
         return builder;
+    }
+
+    /// <summary>
+    /// Fails closed when a deployed environment has not pinned <c>AllowedHosts</c> to a
+    /// non-wildcard, non-empty value. Mirrors the <c>ValidAudience</c> contract in
+    /// <see cref="Auth.JwtBearerConfigurator"/>: the base <c>appsettings.json</c> files in
+    /// this repo deliberately do NOT carry an <c>AllowedHosts</c> key, so each deployed
+    /// environment must pin a real host list via <c>ASPNETCORE_ALLOWEDHOSTS</c> or an
+    /// <c>appsettings.&lt;Env&gt;.json</c> overlay.
+    /// </summary>
+    /// <remarks>
+    /// <c>Microsoft.AspNetCore.HostFiltering</c> defaults to "accept all" when the key is
+    /// missing or set to <c>"*"</c> — silently permissive. Catching the misconfiguration at
+    /// builder time produces a loud startup failure instead of a security hole.
+    /// </remarks>
+    private static void AssertAllowedHostsPinnedInDeployedEnvironment(WebApplicationBuilder builder)
+    {
+        if (!builder.Environment.IsDeployedEnvironment())
+        {
+            return;
+        }
+
+        var allowedHosts = builder.Configuration["AllowedHosts"];
+        if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts == "*")
+        {
+            throw new InvalidOperationException(
+                "AllowedHosts must be pinned to a non-wildcard, non-empty value in deployed environments. " +
+                "Set ASPNETCORE_ALLOWEDHOSTS=<host1>;<host2> or pin under an " +
+                "appsettings.<Env>.json overlay. Wildcard '*' and null/empty are rejected — " +
+                "they leave Host-header validation silently permissive.");
+        }
     }
 
     /// <summary>
