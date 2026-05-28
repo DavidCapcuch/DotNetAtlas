@@ -8,7 +8,7 @@ namespace Basket.FunctionalTests.Common.TestClientInfrastructure;
 /// Builds claims for Basket's regular-user persona (Basket only carries a
 /// single authenticated archetype) and delegates signing to
 /// <see cref="FakeTokenBuilder"/>. Includes an explicit JWT <c>sub</c> claim
-/// so <c>Basket.Api.Common.Extensions.ClaimsPrincipalExtensions.GetUserIdFromSubClaim</c>
+/// so <c>Basket.Api.Common.ClaimsPrincipalExtensions.GetUserIdFromSubClaim</c>
 /// can read the user id without relying on .NET's
 /// <see cref="ClaimTypes.NameIdentifier"/> aliasing.
 /// </summary>

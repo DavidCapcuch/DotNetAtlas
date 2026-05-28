@@ -1,5 +1,5 @@
 using System.Net;
-using Basket.Api.Common.Extensions;
+using Basket.Api.Common;
 using Basket.Application.Baskets.Clear;
 using FastEndpoints;
 using Platform.Api.Extensions;
