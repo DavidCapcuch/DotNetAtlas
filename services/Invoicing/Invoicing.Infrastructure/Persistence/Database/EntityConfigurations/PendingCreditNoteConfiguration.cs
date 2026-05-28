@@ -15,7 +15,7 @@ internal sealed class PendingCreditNoteConfiguration : IEntityTypeConfiguration<
     {
         builder.ToTable("pending_credit_notes", t => t.HasComment(
             "Async-enrichment buffer: collects OrderCancelledEvent + PaymentRefundedEvent "
-            + "halves keyed on CorrelationId until M7's IssueCreditNoteCommandHandler converts "
+            + "halves keyed on CorrelationId until IssueCreditNoteCommandHandler converts "
             + "the converged row into a CreditNote aggregate."));
 
         builder.HasKey(r => r.CorrelationId);
@@ -31,15 +31,15 @@ internal sealed class PendingCreditNoteConfiguration : IEntityTypeConfiguration<
             .HasComment("PaymentRefundedEvent.PaymentTransactionId — the original captured payment, not the refund txn id.");
 
         builder.Property(r => r.BuyerId)
-            .HasComment("OrderCancelledEvent.BuyerId; M7's outbox publisher uses this as the partition key.");
+            .HasComment("OrderCancelledEvent.BuyerId; the outbox publisher uses this as the partition key.");
 
         builder.Property(r => r.OrderPayload)
             .HasColumnType("jsonb")
-            .HasComment("PII: full OrderCancelledEvent serialised to JSON for M7 hydration.");
+            .HasComment("PII: full OrderCancelledEvent serialised to JSON for issuance-time hydration.");
 
         builder.Property(r => r.PaymentPayload)
             .HasColumnType("jsonb")
-            .HasComment("Full PaymentRefundedEvent serialised to JSON for M7 hydration.");
+            .HasComment("Full PaymentRefundedEvent serialised to JSON for issuance-time hydration.");
 
         builder.Property(r => r.FirstSeenAtUtc)
             .IsRequired()
@@ -49,7 +49,7 @@ internal sealed class PendingCreditNoteConfiguration : IEntityTypeConfiguration<
             .HasComment("Set when both halves are present.");
 
         builder.Property(r => r.IssuedCreditNoteId)
-            .HasComment("Set by M7's IssueCreditNoteCommandHandler atomically with the CreditNote aggregate insert.");
+            .HasComment("Set by IssueCreditNoteCommandHandler atomically with the CreditNote aggregate insert.");
 
         builder.HasIndex(r => new { r.CompletedAtUtc, r.IssuedCreditNoteId })
             .HasDatabaseName("ix_pending_credit_notes_ready");
