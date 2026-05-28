@@ -73,7 +73,7 @@ public class ProductCatalogHttpAdapterTests
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            result.HasError<ValidationError>(e => e.ErrorCode == "Basket.ProductNotFound")
+            result.HasError<NotFoundError>(e => e.ErrorCode == "Basket.ProductNotFound")
                 .Should().BeTrue();
         }
     }
@@ -329,7 +329,7 @@ public class ProductCatalogHttpAdapterTests
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            result.HasError<ValidationError>(e => e.ErrorCode == "Basket.CatalogUnavailable")
+            result.HasError<ServiceUnavailableError>(e => e.ErrorCode == "Basket.CatalogUnavailable")
                 .Should().BeTrue();
         }
     }

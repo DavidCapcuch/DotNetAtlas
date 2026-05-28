@@ -97,7 +97,7 @@ public class RefreshBasketPricesCommandHandlerTests
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            result.Errors[0].Should().BeOfType<ValidationError>()
+            result.Errors[0].Should().BeOfType<ServiceUnavailableError>()
                 .Which.ErrorCode.Should().Be("Basket.CatalogUnavailable");
             await _repo.DidNotReceive().SaveAsync(
                 Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>());

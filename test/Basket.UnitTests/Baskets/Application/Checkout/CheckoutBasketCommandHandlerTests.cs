@@ -117,7 +117,7 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            result.Errors[0].Should().BeOfType<ValidationError>()
+            result.Errors[0].Should().BeOfType<ConflictError>()
                 .Which.ErrorCode.Should().Be("Basket.Empty");
             await _outbox.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
             await _repo.DidNotReceive().SaveAsync(
@@ -141,7 +141,7 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         using (new AssertionScope())
         {
             result.Should().BeFailure();
-            result.Errors[0].Should().BeOfType<ValidationError>()
+            result.Errors[0].Should().BeOfType<ConflictError>()
                 .Which.ErrorCode.Should().Be("Basket.Empty");
             await _repo.DidNotReceive().SaveAsync(
                 Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
@@ -193,7 +193,7 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
             {
                 saveCalls++;
                 return saveCalls == 1
-                    ? Result.Fail(new BasketConcurrencyError(userId, Expected: 1, Actual: 2))
+                    ? Result.Fail(new BasketConcurrencyError(userId, expected: 1, actual: 2))
                     : Result.Ok();
             });
         _outbox.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);

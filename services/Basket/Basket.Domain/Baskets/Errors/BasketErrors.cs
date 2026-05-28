@@ -3,25 +3,25 @@ using Platform.SharedKernel.Errors;
 namespace Basket.Domain.Baskets.Errors;
 
 /// <summary>
-/// User-actionable validation errors raised by the Basket aggregate. Each
-/// factory returns a <see cref="ValidationError"/> whose error code is the
-/// single source of truth consumed by callers, tests, and the HTTP
-/// problem-details pipeline. ACL adapter failures (catalog availability,
-/// product existence) live in
+/// Aggregate-rule errors raised by the Basket aggregate. Each factory returns
+/// the canonical <see cref="DomainError"/> subclass whose error code is the
+/// single source of truth consumed by callers, tests, and the
+/// Platform.Api problem-details dispatch. ACL adapter failures (catalog
+/// availability, product existence) live in
 /// <c>Basket.Application.Baskets.Common.Errors.BasketAclErrors</c>.
 /// </summary>
 public static class BasketErrors
 {
-    public static ValidationError EmptyBasket()
-        => new ValidationError(
-            propertyName: "Basket",
-            errorMessage: "Basket must contain at least one item to checkout.",
+    public static ConflictError EmptyBasket()
+        => new ConflictError(
+            entityName: "Basket",
+            message: "Basket must contain at least one item to checkout.",
             errorCode: "Basket.Empty");
 
-    public static ValidationError MaxItemsReached(int max)
-        => new ValidationError(
-            propertyName: "Items",
-            errorMessage: $"Basket cannot hold more than {max} items.",
+    public static ConflictError MaxItemsReached(int max)
+        => new ConflictError(
+            entityName: "Basket",
+            message: $"Basket cannot hold more than {max} items.",
             errorCode: "Basket.MaxItemsReached");
 
     public static ValidationError InvalidQuantity()
@@ -36,17 +36,18 @@ public static class BasketErrors
             errorMessage: "All basket items must share the same currency.",
             errorCode: "Basket.CurrencyMismatch");
 
-    public static ValidationError ItemNotFound(Guid productId)
-        => new ValidationError(
-            propertyName: "ProductId",
-            errorMessage: $"Product '{productId}' is not in the basket.",
+    public static NotFoundError ItemNotFound(Guid productId)
+        => new NotFoundError(
+            entityName: "BasketItem",
+            id: productId,
             errorCode: "Basket.ItemNotFound");
 
     /// <summary>
     /// Raised when a persisted basket state cannot be rehydrated — e.g. its stored
     /// currency code is no longer present in the <c>CurrencyCode</c> SmartEnum.
-    /// Treated as a transient infrastructure-class failure (503 at the API
-    /// boundary) so callers can retry or fall back rather than surface a 5xx.
+    /// Persistent data-integrity failure, not a transient outage; surfaced as
+    /// 422 (<see cref="ValidationError"/>) so clients distinguish it from the
+    /// transient 503 emitted by ACL-layer <c>CatalogUnavailable</c>.
     /// </summary>
     public static ValidationError Corruption(Guid userId)
         => new ValidationError(

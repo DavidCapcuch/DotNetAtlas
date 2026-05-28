@@ -708,5 +708,5 @@ public class BasketTests
         => BasketAggregate.Create(Guid.CreateVersion7(), UtcNow);
 
     private static string ErrorCodeOf(FluentResults.ResultBase result)
-        => ((ValidationError)result.Errors[0]).ErrorCode;
+        => ((DomainError)result.Errors[0]).ErrorCode;
 }
