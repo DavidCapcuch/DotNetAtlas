@@ -65,26 +65,35 @@ public class PaymentsErrorsTests
     }
 
     [Fact]
-    public void GatewayDeclinedError_WithGatewayCode_FormatsMessage()
+    public void GatewayDeclinedError_WithGatewayCode_FormatsMessageAndInheritsConflictError()
     {
         var error = new GatewayDeclinedError("insufficient_funds", "insufficient_funds");
 
         using (new AssertionScope())
         {
-            error.Message.Should().Be("Payment gateway declined: insufficient_funds (insufficient_funds).");
-            error.Metadata["ErrorCode"].Should().Be("Payments.GatewayDeclined");
+            error.Should().BeAssignableTo<ConflictError>();
+            error.EntityName.Should().Be("Payment");
+            error.ErrorCode.Should().Be("Payments.GatewayDeclined");
+            error.Reason.Should().Be("insufficient_funds");
+            error.GatewayCode.Should().Be("insufficient_funds");
+            error.Message.Should().Contain("Payment gateway declined: insufficient_funds (insufficient_funds).");
         }
     }
 
     [Fact]
-    public void GatewayDeclinedError_WithoutGatewayCode_FormatsMessage()
+    public void GatewayDeclinedError_WithoutGatewayCode_FormatsMessageAndInheritsConflictError()
     {
-        var error = new GatewayDeclinedError("insufficient_funds", GatewayCode: null);
+        var error = new GatewayDeclinedError("insufficient_funds", gatewayCode: null);
 
         using (new AssertionScope())
         {
-            error.Message.Should().Be("Payment gateway declined: insufficient_funds");
-            error.Metadata["ErrorCode"].Should().Be("Payments.GatewayDeclined");
+            error.Should().BeAssignableTo<ConflictError>();
+            error.EntityName.Should().Be("Payment");
+            error.ErrorCode.Should().Be("Payments.GatewayDeclined");
+            error.Reason.Should().Be("insufficient_funds");
+            error.GatewayCode.Should().BeNull();
+            error.Message.Should().Contain("Payment gateway declined: insufficient_funds")
+                .And.NotContain("(");
         }
     }
 }
