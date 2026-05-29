@@ -41,7 +41,13 @@ internal static class FastEndpointsDependencyInjection
             config.Endpoints.RoutePrefix = "api";
         });
 
-        if (!app.Environment.IsProduction())
+        // Swagger UI is exposed only on the developer tier (laptop dotnet run +
+        // docker-compose). Any deployed cluster (Dev / Staging / Production)
+        // suppresses it — under the post-#213 env taxonomy, "Development" is the
+        // sole developer-facing environment name, so gating on IsDevelopment()
+        // (rather than the broader !IsProduction()) prevents Swagger from leaking
+        // schema / endpoint details in non-prod deployed clusters.
+        if (app.Environment.IsDevelopment())
         {
             app.UseSwaggerGen();
         }
