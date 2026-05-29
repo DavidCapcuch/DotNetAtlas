@@ -219,21 +219,9 @@
     {
       "name": "notifications.commands.send",
       "protocol": "openid-connect",
-      "description": "Publish SendEmailNotificationCommand to notification.commands via outbox.",
+      "description": "Publish SendEmailNotificationCommand to notification.commands via outbox. Kafka-publish intent only — Notifications has no token-authenticated HTTP resource, so no audience mapper.",
       "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
-      "protocolMappers": [
-        {
-          "name": "audience-notifications-service",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "notifications-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     }
   ],
   "users": [
@@ -496,26 +484,6 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": []
-    },
-    {
-      "clientId": "checkout-saga",
-      "name": "Checkout Saga",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "dev-checkout-saga-secret-rotate-in-prod",
-      "clientAuthenticatorType": "client-secret",
-      "serviceAccountsEnabled": true,
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "implicitFlowEnabled": false,
-      "redirectUris": [],
-      "webOrigins": [],
-      "defaultClientScopes": [],
-      "optionalClientScopes": [
-        "notifications.commands.send"
-      ],
       "protocolMappers": []
     },
     {
