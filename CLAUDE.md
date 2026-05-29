@@ -38,30 +38,6 @@ dotnet format style --no-restore --verify-no-changes
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts
 - **Avro C# bindings (`.cs` files next to `.avsc`):** never hand-edit. They are regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen). Run after every `.avsc` edit; commit both the `.avsc` and the regenerated `.cs` together. If avrogen isn't installed the script `dotnet tool install`s it on first run.
-- **Platform.SharedKernel contract changes:** any edit that adds or modifies `required` members, base-class signatures, or other compile-time contracts on shared-kernel types MUST be verified with `dotnet build -m` solution-wide before commit. Slice builds (Domain-only / one-BC-only) do not surface CS9035 violations in downstream BC trees and have historically broken the build (see #138 / commit 8616fe1).
-
-## Testcontainers + corporate proxy on Windows
-
-If `dotnet test` against any `*.IntegrationTests` project fails inside the fixture constructor with:
-
-```
-DockerUnavailableException : Failed to connect to Docker endpoint at 'npipe://./pipe/docker_engine'.
-... System.InvalidOperationException : This operation is not supported for a relative URI.
-```
-
-— even though `docker info` works in the same shell — the cause is `HTTP_PROXY` / `HTTPS_PROXY` set by the corporate environment: the `npipe://` URI cannot be parsed by `HttpClient`'s env-proxy resolver, and Docker.DotNet routes the named-pipe call through that resolver.
-
-Two workarounds, in preferred order:
-
-```bash
-# A) RECOMMENDED — strip the proxy from the invocation entirely. 100% reliable on corporate-proxy hosts where option B (NO_PROXY='*') actually fails: the npipe:// URI is parsed by HttpClient's env-proxy resolver BEFORE NO_PROXY is consulted, so the relative-URI exception still fires.
-unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy && dotnet test path/to/IntegrationTests.csproj
-
-# B) ALTERNATIVE — per-command bypass; only works on hosts where NO_PROXY is honoured by HttpClient ahead of the env-proxy resolver. Use when other commands in the same shell still need the proxy.
-NO_PROXY='*' dotnet test path/to/IntegrationTests.csproj
-```
-
-Shell state does not persist between separate `Bash` tool calls (each invocation re-sources the user profile), so the bypass must be chained into every `dotnet test` command — not run as a standalone setup step.
 
 ## Agent skills
 
