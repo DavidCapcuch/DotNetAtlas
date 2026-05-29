@@ -1,6 +1,6 @@
 # Service-to-Service Auth — Client ↔ Scope Matrix
 
-Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 8 service clients defined in [realm-export.json](realm-export.json).
+Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 7 service clients defined in [realm-export.json](realm-export.json).
 
 ## Conventions
 
@@ -60,26 +60,19 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 |---|---|
 | `invoicing.read` | Read invoice and credit-note details; download invoice PDF. |
 
-### Notifications (1)
-
-| Scope | Description |
-|---|---|
-| `notifications.commands.send` | Publish `SendEmailNotificationCommand` to `notification.commands` (via outbox publisher, not direct Kafka produce). |
-
-**Total: 10 scopes.**
+**Total: 9 scopes.**
 
 ---
 
 ## 2. Per-service blocks
 
-Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient: false`, and only the client-credentials grant (standard/direct-access/implicit flows disabled).
+Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient: false`, and only the client-credentials grant (standard/direct-access/implicit flows disabled).
 
 ### `catalog-service`
 
 - **Audience:** `catalog-service`
-- **Outbound (acquirable via `optionalClientScopes`):** `catalog.write`, `notifications.commands.send`
+- **Outbound (acquirable via `optionalClientScopes`):** `catalog.write`
   - `catalog.write` — reserved for administrative write paths that treat Catalog's own API as a service callee.
-  - `notifications.commands.send` — Catalog publishes notifications (e.g., new-product announcements) via outbox.
 - **Inbound (must validate on `AddJwtBearer`):** `catalog.read`, `catalog.write`
   - Any service calling `GET /api/v1/catalog/...` with a service-account token must present `catalog.read`; admin/write endpoints require `catalog.write`.
 - **Cross-refs:** `bff.md §3.1` (BFF → Catalog reads), `basket.md` (Basket ACL → Catalog).
@@ -87,9 +80,8 @@ Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient
 ### `basket-service`
 
 - **Audience:** `basket-service`
-- **Outbound:** `catalog.read`, `notifications.commands.send`
+- **Outbound:** `catalog.read`
   - `catalog.read` — Basket's `IProductCatalogQueryPort` ACL adapter reads product snapshots from Catalog.
-  - `notifications.commands.send` — Basket publishes abandoned-cart notifications via outbox.
 - **Inbound:** `basket.read`, `basket.write`
   - BFF reads sessions via `basket.read`; BFF mutates (add/remove/checkout) via `basket.write`.
 - **Cross-refs:** `bff.md §3.2`, `basket.md`.
@@ -97,8 +89,7 @@ Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient
 ### `ordering-service`
 
 - **Audience:** `ordering-service`
-- **Outbound:** `notifications.commands.send`
-  - Ordering publishes order-state-change notifications via outbox.
+- **Outbound:** none — order-state-change notifications are published via the Kafka outbox (no service token).
 - **Inbound:** `ordering.read`
   - BFF reads orders via `ordering.read`. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
 - **Cross-refs:** `bff.md §3.3`, `events-catalog.md §2` (Ordering Commands).
@@ -106,8 +97,7 @@ Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient
 ### `inventory-service`
 
 - **Audience:** `inventory-service`
-- **Outbound:** `notifications.commands.send`
-  - Inventory publishes low-stock notifications via outbox.
+- **Outbound:** none — low-stock notifications are published via the Kafka outbox (no service token).
 - **Inbound:** `inventory.read`, `inventory.commands.reserve`
   - BFF reads stock via `inventory.read`. `inventory.commands.reserve` gates the admin `Receive` / `Adjust` HTTP endpoints (see [`InventoryAuthorizationPolicies`](../../services/Inventory/Inventory.Api/Common/Authorization/InventoryAuthorizationPolicies.cs)). Saga reservation commands enter via Kafka on `inventory.reservation-commands`; no application-layer scope check on that path.
 - **Cross-refs:** `bff.md §3.1/3.3`, `events-catalog.md §2` (Inventory Reservation Commands).
@@ -115,8 +105,7 @@ Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient
 ### `payments-service`
 
 - **Audience:** `payments-service`
-- **Outbound:** `notifications.commands.send`
-  - Payments publishes payment-failure / refund-issued notifications via outbox.
+- **Outbound:** none — payment-failure / refund-issued notifications are published via the Kafka outbox (no service token).
 - **Inbound:** `payments.read`
   - Payments has no admin HTTP write surface in v1. Saga payment commands enter via Kafka on `payments.commands`; no application-layer scope check on that path.
 - **Cross-refs:** `events-catalog.md §2` (Payments Commands), ADR-0005 (payments webhook if present).
@@ -124,26 +113,16 @@ Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient
 ### `invoicing-service`
 
 - **Audience:** `invoicing-service`
-- **Outbound:** `notifications.commands.send`
-  - Invoicing publishes invoice-issued / credit-note-issued notifications via outbox.
+- **Outbound:** none — invoice-issued / credit-note-issued notifications are published via the Kafka outbox (no service token).
 - **Inbound:** `invoicing.read`
   - Only HTTP reads (invoice detail, PDF download). Invoicing is projection-driven — it consumes `OrderConfirmedEvent` + `PaymentCapturedEvent` from Kafka event topics and does not require per-BC read scopes.
 - **Cross-refs:** `invoicing.md §8`, ADR-0017/0018/0019.
 
-### `notifications-service`
-
-- **Audience:** `notifications-service`
-- **Outbound:** `notifications.commands.send`
-  - Pervasive-publisher pattern. Notifications may re-publish retries or test notifications via its own outbox.
-- **Inbound:** `notifications.commands.send`
-  - All `SendEmailNotificationCommand` messages on `notification.commands` carry this scope; the notifications consumer middleware validates it before dispatching to the handler.
-- **Cross-refs:** `events-catalog.md §2` (notifications), `notification.commands` topic in compose.
-
 ### `bff`
 
 - **Audience:** none — BFF validates user JWTs, not service tokens, so it is never a resource server (no self-audience mapper since 2026-05-27). Its outbound tokens are audienced for the **callee** BC via the requested scope (e.g. `catalog.read` → `aud: catalog-service`).
-- **Outbound:** 7 scopes — every cross-BC read + `basket.write`:
-  - `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read`, `notifications.commands.send`
+- **Outbound:** 6 scopes — every cross-BC read + `basket.write`:
+  - `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read`
   - The BFF is the sole HTTP caller of the six BCs in the system.
 - **Inbound:** none — user-facing only; inbound requests carry user JWTs (validated against `dotnetatlas` realm user-auth, not service-auth).
 - **Cross-refs:** `bff.md §3.1–3.4`.
@@ -186,7 +165,6 @@ Services read their own secret from the env-var pattern:
 | `inventory-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__INVENTORY` | ″ |
 | `payments-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__PAYMENTS` | ″ |
 | `invoicing-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__INVOICING` | ″ |
-| `notifications-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__NOTIFICATIONS` | ″ |
 | `bff` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BFF` | ″ |
 
 Wave 0 **M7** wires these env-vars into per-service `appsettings.*.json` + compose `environment` blocks.
@@ -225,12 +203,12 @@ TOKEN=$(curl -s -X POST http://localhost:9011/realms/master/protocol/openid-conn
 # List all clients — expect 11 realm-declared (plus Keycloak builtins: account, admin-cli, broker, realm-management, security-admin-console)
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','notifications-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
+  | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
 
 # List all client scopes — expect the 10 declared scopes plus Keycloak defaults
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.commands.reserve','payments.read','invoicing.read','notifications.commands.send'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
+  | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.commands.reserve','payments.read','invoicing.read'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
 
 # Service-account token for catalog-service with scope catalog.write
 curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token \

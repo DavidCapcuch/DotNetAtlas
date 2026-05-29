@@ -80,9 +80,9 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 ## Implementation Notes
 
 - **Realm setup** (in `keycloak/realm-export.json`):
-  - One client per HTTP-callable service: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `notifications-service`, `bff`. (The Checkout saga has no Keycloak client — it coordinates BCs via Kafka commands, which carry no service token.)
+  - One client per HTTP-callable service: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `bff`. (The Checkout saga and Notifications worker have no Keycloak client — they have no inbound HTTP and interact only over Kafka, which carries no service token.)
   - Each client has `serviceAccountsEnabled: true`, `publicClient: false`, client-secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`.
-  - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.read`, `inventory.commands.reserve`, `notifications.commands.send`, etc.
+  - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.read`, `inventory.commands.reserve`, etc.
   - Service-to-scope matrix is documented in `keycloak/service-scope-matrix.md` (co-authored with this ADR).
 
 - **Token acquisition flow (outbound HTTP):**
@@ -159,7 +159,6 @@ Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; t
 | `inventory.read`, `inventory.commands.reserve` | `inventory-service` |
 | `payments.read` | `payments-service` |
 | `invoicing.read` | `invoicing-service` |
-| `notifications.commands.send` | `notifications-service` |
 
 So a caller requesting `catalog.read` gets `aud: catalog-service` regardless of which client it is — exactly what catalog-service validates. Requesting multiple scopes yields a multi-valued `aud` array (one entry per resource). A token with no resource scope carries no `aud` and is valid at no resource (fail-closed).
 
