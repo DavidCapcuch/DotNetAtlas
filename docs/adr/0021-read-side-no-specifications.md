@@ -8,6 +8,11 @@ Accepted (2026-05-25)
 > ADR-0022 adds the write-side adoption criteria and, applying them, deleted the pure-PK specs
 > `OrderByIdSpec` and `InvoiceByIdSpec` (now inlined at their call sites). The "Specs that survive"
 > list below is updated accordingly; the read-side decision and rationale here are unchanged.
+>
+> **Enforcement removed (2026-05-29).** The per-BC `QueryHandlerSpecificationTests` NetArchTest
+> mandated below (Ordering + Invoicing) was deleted as overkill for a reference solution. The
+> read-side convention stands but is now documentation-only, not CI-enforced — references to the
+> arch-test in the body below are historical.
 
 ## Context
 
@@ -30,7 +35,7 @@ There is also a model-purity argument independent of perf: the four invoice/cred
 1. **Wire-cost transparency on the read path** — the projection shape is the load-bearing decision for a query handler. Hiding it behind a spec turns "what does this endpoint actually return?" from a one-screen reading into a multi-file trace.
 2. **CQRS read/write decoupling** — the read model and write model must be free to evolve independently. A spec consumed by both creates an implicit contract that a change to either side can silently break.
 3. **Code locality** — filter + ordering + paging + projection live in the same `Select(...)` chain when inlined. Splitting them across `Where`-in-a-spec + `Select`-in-a-handler scatters the read shape across two files.
-4. **Arch-test enforceability** — `NotHaveDependencyOnAny("Ardalis.Specification")` scoped to `*QueryHandler` is a four-line static rule (per [QueryHandlerSpecificationTests.cs](../../test/Ordering.ArchitectureTests/Application/QueryHandlerSpecificationTests.cs) / sibling). A "specs are only used carefully on read paths" rule is unenforceable in code review.
+4. **Arch-test enforceability** — `NotHaveDependencyOnAny("Ardalis.Specification")` scoped to `*QueryHandler` was a four-line static rule (the `QueryHandlerSpecificationTests` fact, since removed — see the status note). A "specs are only used carefully on read paths" rule is unenforceable in code review.
 5. **DRY-on-read-side is overstated** — in practice, read-side `Where` predicates rarely repeat across handlers. The supposed sharing benefit of specs (a single source of truth for "find by id") does not survive contact with response-shaping requirements.
 
 ## Considered Options
@@ -78,7 +83,7 @@ We will adopt **Option 2**:
 
 > **CQRS query handlers (`*QueryHandler`) must not depend on `Ardalis.Specification`.** They use inline LINQ with SQL-side `Select` projection. `Ardalis.Specification` is reserved for command-handler aggregate loading and for read-stores in the infrastructure layer where the `Include` graph is genuinely shared.
 
-The rule is per-BC: each BC that exposes a CQRS read path adds a NetArchTest fact in its `*.ArchitectureTests` project asserting `Types.That().HaveNameEndingWith("QueryHandler").Should().NotHaveDependencyOnAny("Ardalis.Specification")`. CI fails on violation. See [Ordering's fact](../../test/Ordering.ArchitectureTests/Application/QueryHandlerSpecificationTests.cs) and [Invoicing's sibling](../../test/Invoicing.ArchitectureTests/Application/QueryHandlerSpecificationTests.cs).
+The rule was originally pinned per-BC with a NetArchTest fact asserting `Types.That().HaveNameEndingWith("QueryHandler").Should().NotHaveDependencyOnAny("Ardalis.Specification")`. _(Those `QueryHandlerSpecificationTests` facts for Ordering and Invoicing were later removed as overkill — see the status note at the top. The convention is now documentation-only.)_
 
 ## Rationale
 
