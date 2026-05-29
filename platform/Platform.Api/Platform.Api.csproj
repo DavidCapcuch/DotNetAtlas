@@ -8,6 +8,7 @@
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
 
         <PackageReference Include="FastEndpoints"/>
+        <PackageReference Include="FastEndpoints.Swagger"/>
         <PackageReference Include="FluentResults"/>
         <PackageReference Include="FluentValidation"/>
 
