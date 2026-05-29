@@ -15,7 +15,10 @@ internal static class FastEndpointsDependencyInjection
                 configuration,
                 "Inventory API",
                 "v1",
-                "Inventory API for DotNet Atlas - Made with ❤️, Powered by ☕");
+                "Inventory API for DotNet Atlas - Made with ❤️, Powered by ☕\n\n"
+                + "Event-sourced stock authority with admin-only HTTP surface. "
+                + "Saga lifecycle (Reserve / Confirm / Release) is Kafka-driven; "
+                + "only Receive / Adjust / read endpoints are exposed here.");
 
         return services;
     }
@@ -38,7 +41,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UsePlatformAuthSwaggerGen(app.Configuration);
+            app.UsePlatformAuthSwaggerGen();
         }
 
         return app;

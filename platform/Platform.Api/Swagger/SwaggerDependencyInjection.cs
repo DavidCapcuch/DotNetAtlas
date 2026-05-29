@@ -68,7 +68,10 @@ public static class SwaggerDependencyInjection
                     new AuthDescriptionOperationProcessor(
                         options.Services.GetRequiredService<IAuthorizationPolicyProvider>()));
 
-                var authority = configuration[$"{SwaggerConfigSections.JwtBearerConfigSection}:Authority"]!;
+                var authority = configuration[$"{SwaggerConfigSections.JwtBearerConfigSection}:Authority"]
+                    ?? throw new InvalidOperationException(
+                        $"'{SwaggerConfigSections.JwtBearerConfigSection}:Authority' must be configured "
+                        + "for the Swagger OAuth2 flow.");
                 var tokenUrl = $"{authority}/protocol/openid-connect/token";
                 var authorizationUrl = $"{authority}/protocol/openid-connect/auth";
 
@@ -86,8 +89,9 @@ public static class SwaggerDependencyInjection
                         },
                     },
                     Flow = OpenApiOAuth2Flow.AccessCode,
-                    Description = @"IMPORTANT NOTE: If you do not specify any scope in the authentication request
-                        then generated access token gets all scopes the specified client_id is authorized for.",
+                    Description =
+                        "IMPORTANT NOTE: If you do not specify any scope in the authentication request, "
+                        + "the generated access token gets all scopes the specified client_id is authorized for.",
                 });
             };
         });
@@ -101,12 +105,13 @@ public static class SwaggerDependencyInjection
     /// shipped to the browser.
     /// </summary>
     /// <param name="app">The application builder.</param>
-    /// <param name="configuration">App configuration; the Swagger client id is read from it.</param>
     /// <returns>The same <paramref name="app"/> instance for chaining.</returns>
-    public static IApplicationBuilder UsePlatformAuthSwaggerGen(
-        this IApplicationBuilder app,
-        IConfiguration configuration)
+    public static IApplicationBuilder UsePlatformAuthSwaggerGen(this IApplicationBuilder app)
     {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var configuration = app.ApplicationServices.GetRequiredService<IConfiguration>();
+
         app.UseSwaggerGen(null, uiSettings =>
         {
             uiSettings.ConfigureDefaults();
@@ -115,8 +120,10 @@ public static class SwaggerDependencyInjection
             // Swagger uses a dedicated public Keycloak client (see realm-export.json ->
             // "dotnetatlas-swagger") with PKCE. No ClientSecret is shipped to the browser
             // because the confidential service-client secret must never leak into JS bundles.
-            var swaggerClientId = configuration[
-                $"{SwaggerConfigSections.SwaggerClientConfigSection}:ClientId"]!;
+            var swaggerClientId = configuration[$"{SwaggerConfigSections.SwaggerClientConfigSection}:ClientId"]
+                ?? throw new InvalidOperationException(
+                    $"'{SwaggerConfigSections.SwaggerClientConfigSection}:ClientId' must be configured "
+                    + "for the Swagger OAuth2 UI.");
 
             uiSettings.OAuth2Client = new OAuth2ClientSettings
             {

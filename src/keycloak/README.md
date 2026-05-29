@@ -29,6 +29,14 @@ docker compose --profile full up -d keycloak
 | `dotnetatlas-swagger` | Public | Swagger UI PKCE flow for Weather **and** the 6 bounded-context APIs. No secret shipped to the browser. Audience mappers stamp a multi-valued `aud` (`e9fdb985-…` + `{basket,catalog,inventory,invoicing,ordering,payments}-service`) so one token is accepted by every BC. |
 | `{basket,catalog,inventory,invoicing,ordering,payments}-service` | Confidential | Per-BC service clients (client-credentials). Each BC validates `aud` against its own `{bc}-service` id. |
 
+> **On the Swagger token's broad audience.** `dotnetatlas-swagger` stamps *every* BC
+> audience onto *every* token it issues, so a single dev login is accepted by all six
+> BCs at once — convenient for Try-it-out across services. This is a deliberate dev-only
+> widening: a production-grade per-call audience would instead come from requesting the
+> specific resource scope (e.g. `catalog.read`, whose mapper stamps only `catalog-service`).
+> It is acceptable here only because this is a public, browser-only tooling client with no
+> service privileges; never mirror this broad-audience pattern onto a real service client.
+
 ROPC (Resource Owner Password Credentials) is disabled on every client in this
 realm. `.http` files under `requests/` use JetBrains' built-in OAuth 2.0 token
 helper - the first request against a file that references
