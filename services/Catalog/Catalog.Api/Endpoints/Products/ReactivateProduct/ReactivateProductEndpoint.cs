@@ -20,7 +20,7 @@ internal sealed class ReactivateProductEndpoint : Endpoint<ReactivateProductRequ
         Post("{id:guid}/reactivate");
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         // No .Idempotency() — ADR-0013 makes this optional and reactivation is a low-volume
         // admin operation. Re-issuing returns the same 409 ("not discontinued") on the second
         // call, which is harmless.

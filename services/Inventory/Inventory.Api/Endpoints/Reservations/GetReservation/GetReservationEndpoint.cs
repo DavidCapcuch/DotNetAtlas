@@ -27,7 +27,7 @@ internal sealed class GetReservationEndpoint : Endpoint<GetReservationRequest, R
         Get("reservations/{reservationId:guid}");
         Version(1);
         Group<InventoryGroup>();
-        Policies(InventoryAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s => s.Summary = "Returns the reservation_audit row for a ReservationId.");
         Description(b =>
         {

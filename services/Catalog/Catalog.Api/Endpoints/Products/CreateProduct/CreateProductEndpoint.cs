@@ -20,7 +20,7 @@ internal sealed class CreateProductEndpoint : Endpoint<CreateProductRequest, Cre
         Post(string.Empty);
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Idempotency();
         Summary(s =>
         {

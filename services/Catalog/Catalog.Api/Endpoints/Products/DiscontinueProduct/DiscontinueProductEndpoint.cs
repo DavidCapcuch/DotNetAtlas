@@ -20,7 +20,7 @@ internal sealed class DiscontinueProductEndpoint : Endpoint<DiscontinueProductRe
         Post("{id:guid}/discontinue");
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Idempotency();
         Summary(s =>
         {

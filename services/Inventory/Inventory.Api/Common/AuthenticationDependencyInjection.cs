@@ -1,5 +1,6 @@
 using Inventory.Api.Common.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults;
@@ -51,10 +52,46 @@ internal static class AuthenticationDependencyInjection
                 });
         }
 
-        services.AddAuthorization(options => options.AddInventoryScopePolicies());
+        // Reads are delegated service-to-service access (scope only); writes are
+        // human-admin Receive / Adjust hardened with the admin role AND the write
+        // scope (defense in depth). A token carrying inventory.write also satisfies
+        // the read policy.
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AuthPolicies.ReadPolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(ctx => HasAnyScope(ctx, Scopes.InventoryRead, Scopes.InventoryWrite));
+            })
+            .AddPolicy(AuthPolicies.WritePolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(Roles.Admin);
+                policy.RequireAssertion(ctx => HasAnyScope(ctx, Scopes.InventoryWrite));
+            });
+
         services.AddHttpContextAccessor();
 
         return services;
+    }
+
+    // Keycloak emits scopes as a single space-separated `scope` claim (RFC 6749).
+    private static bool HasAnyScope(AuthorizationHandlerContext ctx, params string[] required)
+    {
+        foreach (var claim in ctx.User.FindAll("scope"))
+        {
+            foreach (var scope in claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                foreach (var needle in required)
+                {
+                    if (string.Equals(scope, needle, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private const string JwtBearerConfigSection = "Authentication:JwtBearer";

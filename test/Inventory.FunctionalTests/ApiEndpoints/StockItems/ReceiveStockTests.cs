@@ -38,6 +38,20 @@ public sealed class ReceiveStockTests : BaseApiTest
     }
 
     [Fact]
+    public async Task WhenWriteScopeButNotAdmin_Returns403()
+    {
+        // Defense-in-depth: WritePolicy requires the admin role AND the inventory.write
+        // scope. A token holding the scope but lacking the role must still be rejected —
+        // this pins the role half so it can't be silently dropped.
+        var productId = Guid.CreateVersion7();
+
+        var response = await Fixture.HttpClientRegistry.WriteScopeNoAdminClient
+            .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/receive", BuildBody(productId, 5), TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task WhenCommandsScope_AndStreamInitialised_Returns200WithSnapshot()
     {
         var productId = Guid.CreateVersion7();

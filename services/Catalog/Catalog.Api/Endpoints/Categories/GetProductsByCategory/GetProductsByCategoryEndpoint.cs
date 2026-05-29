@@ -22,7 +22,7 @@ internal sealed class GetProductsByCategoryEndpoint : Endpoint<GetProductsByCate
         Get("{id:guid}/products");
         Version(1);
         Group<CategoriesGroup>();
-        Policies(CatalogAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s =>
         {
             s.Summary = "Paginated products within a category. includeDescendants=true matches by category-path prefix.";

@@ -20,7 +20,7 @@ internal sealed class ReparentCategoryEndpoint : Endpoint<ReparentCategoryReques
         Put("{id:guid}/reparent");
         Version(1);
         Group<CategoriesGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Summary(s =>
         {
             s.Summary = "Reparent a category. Cycle-detected (422) and self-parent (422) guarded by Application layer.";

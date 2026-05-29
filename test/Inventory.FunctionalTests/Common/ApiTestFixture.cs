@@ -29,7 +29,7 @@ internal sealed class FunctionalTestCollection : TestCollection<ApiTestFixture>;
 /// applies the committed <c>V*.sql</c> migrations via Evolve, and disables
 /// JWT signature validation so <see cref="FakeTokenCreator"/> can mint
 /// unsigned tokens with a <c>scope</c> claim that drives
-/// <see cref="Inventory.Api.Common.Authorization.InventoryAuthorizationPolicies"/>.
+/// <see cref="Inventory.Api.Common.Authorization.AuthPolicies"/>.
 /// </summary>
 /// <remarks>
 /// <para>

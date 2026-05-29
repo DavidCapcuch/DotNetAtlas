@@ -21,7 +21,7 @@ internal sealed class CreateCategoryEndpoint : Endpoint<CreateCategoryRequest, C
         Post(string.Empty);
         Version(1);
         Group<CategoriesGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Idempotency();
         Summary(s =>
         {

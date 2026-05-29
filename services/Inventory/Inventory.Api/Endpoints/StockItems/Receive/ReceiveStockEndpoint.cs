@@ -25,7 +25,7 @@ internal sealed class ReceiveStockEndpoint : Endpoint<ReceiveStockRequest, Stock
         Post("stock-items/{productId:guid}/receive");
         Version(1);
         Group<InventoryGroup>();
-        Policies(InventoryAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Summary(s =>
         {
             s.Summary = "Records an inbound stock movement for the given ProductId.";

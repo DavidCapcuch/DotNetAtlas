@@ -25,7 +25,7 @@ internal sealed class SearchProductsEndpoint : Endpoint<SearchProductsRequest, S
         Get(string.Empty);
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s =>
         {
             s.Summary =

@@ -29,7 +29,7 @@ internal sealed class SearchAdminProductsEndpoint
         Get(string.Empty);
         Version(1);
         Group<AdminProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Summary(s =>
         {
             s.Summary =
