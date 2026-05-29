@@ -21,13 +21,24 @@ internal sealed class GetStockLevelByProductIdQueryHandler
         GetStockLevelByProductIdQuery query,
         CancellationToken ct)
     {
-        var row = await _db.CurrentStockLevels
+        var response = await _db.CurrentStockLevels
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.ProductId == query.ProductId, ct)
+            .Where(r => r.ProductId == query.ProductId)
+            .TagWith(nameof(GetStockLevelByProductIdQueryHandler))
+            .Select(r => new StockLevelResponse
+            {
+                ProductId = r.ProductId,
+                OnHand = r.OnHand,
+                Reserved = r.Reserved,
+                Available = r.Available,
+                LastUpdatedUtc = r.LastUpdatedUtc,
+                LastVersion = r.LastVersion,
+            })
+            .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
-        return row is null
+        return response is null
             ? Result.Fail<StockLevelResponse>(InventoryErrors.StockItemNotFound(query.ProductId))
-            : Result.Ok(row.ToStockLevelResponse());
+            : Result.Ok(response);
     }
 }

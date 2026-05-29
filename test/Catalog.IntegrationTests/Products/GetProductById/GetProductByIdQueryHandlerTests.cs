@@ -1,26 +1,30 @@
 using Catalog.Application.Products.CreateProduct;
 using Catalog.Application.Products.GetProductById;
-using Catalog.UnitTests.Common;
+using Catalog.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 
-namespace Catalog.UnitTests.Products.GetProductById;
+namespace Catalog.IntegrationTests.Products.GetProductById;
 
-public class GetProductByIdQueryHandlerTests
+[Collection<IntegrationTestCollection>]
+public sealed class GetProductByIdQueryHandlerTests : BaseIntegrationTest
 {
+    public GetProductByIdQueryHandlerTests(IntegrationTestFixture app)
+        : base(app)
+    {
+    }
+
     [Fact]
     public async Task Given_ExistingRow_When_Querying_Then_ReturnsDetailResponse()
     {
-        await using var db = FakeCatalogDbContext.Create();
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var row = ProductSearchViewRowBuilder.Active()
             .WithImages(new ImageReferenceDto { Url = "https://cdn.example.com/a.jpg", AltText = "a", DisplayOrder = 0 });
-        db.ProductSearchView.Add(row);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await seeder.SeedRowsAsync(ct, row);
 
-        var handler = new GetProductByIdQueryHandler(db);
+        var handler = new GetProductByIdQueryHandler(CatalogDbContext);
 
-        var result = await handler.HandleAsync(
-            new GetProductByIdQuery { ProductId = row.ProductId },
-            TestContext.Current.CancellationToken);
+        var result = await handler.HandleAsync(new GetProductByIdQuery { ProductId = row.ProductId }, ct);
 
         using (new AssertionScope())
         {
@@ -35,12 +39,10 @@ public class GetProductByIdQueryHandlerTests
     [Fact]
     public async Task Given_MissingRow_When_Querying_Then_FailsNotFound()
     {
-        await using var db = FakeCatalogDbContext.Create();
-        var handler = new GetProductByIdQueryHandler(db);
+        var ct = TestContext.Current.CancellationToken;
+        var handler = new GetProductByIdQueryHandler(CatalogDbContext);
 
-        var result = await handler.HandleAsync(
-            new GetProductByIdQuery { ProductId = Guid.CreateVersion7() },
-            TestContext.Current.CancellationToken);
+        var result = await handler.HandleAsync(new GetProductByIdQuery { ProductId = Guid.CreateVersion7() }, ct);
 
         result.Should().BeFailure();
     }

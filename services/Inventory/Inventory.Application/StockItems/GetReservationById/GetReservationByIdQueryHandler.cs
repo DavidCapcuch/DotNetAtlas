@@ -21,13 +21,27 @@ internal sealed class GetReservationByIdQueryHandler
         GetReservationByIdQuery query,
         CancellationToken ct)
     {
-        var row = await _db.ReservationAudit
+        var response = await _db.ReservationAudit
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.ReservationId == query.ReservationId, ct)
+            .Where(r => r.ReservationId == query.ReservationId)
+            .TagWith(nameof(GetReservationByIdQueryHandler))
+            .Select(r => new ReservationAuditResponse
+            {
+                ReservationId = r.ReservationId,
+                ProductId = r.ProductId,
+                OrderId = r.OrderId,
+                Quantity = r.Quantity,
+                Status = r.Status,
+                ReservedAtUtc = r.ReservedAtUtc,
+                ExpiresAtUtc = r.ExpiresAtUtc,
+                ResolvedAtUtc = r.ResolvedAtUtc,
+                ReleaseReason = r.ReleaseReason,
+            })
+            .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
-        return row is null
+        return response is null
             ? Result.Fail<ReservationAuditResponse>(InventoryErrors.ReservationNotFound(query.ReservationId))
-            : Result.Ok(row.ToReservationAuditResponse());
+            : Result.Ok(response);
     }
 }

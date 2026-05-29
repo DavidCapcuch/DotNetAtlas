@@ -24,15 +24,16 @@ public sealed class GetCategoryTreeQueryHandler
         string? rootPath = null;
         if (query.RootCategoryId.HasValue)
         {
-            var root = await _db.Categories
+            rootPath = await _db.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == query.RootCategoryId.Value, ct);
-            if (root is null)
+                .Where(c => c.Id == query.RootCategoryId.Value)
+                .TagWith(nameof(GetCategoryTreeQueryHandler))
+                .Select(c => c.Path.Value)
+                .FirstOrDefaultAsync(ct);
+            if (rootPath is null)
             {
                 return Result.Ok(new GetCategoryTreeResponse { Nodes = Array.Empty<CategoryTreeNode>() });
             }
-
-            rootPath = root.Path.Value;
         }
 
         IQueryable<Category> categoryQuery = _db.Categories.AsNoTracking();
@@ -48,6 +49,8 @@ public sealed class GetCategoryTreeQueryHandler
 
         var categories = await categoryQuery
             .OrderBy(c => c.Path.Value)
+            .TagWith(nameof(GetCategoryTreeQueryHandler))
+            .Select(c => new CategoryNodeRow(c.Id, c.Name, c.Path.Value, c.ParentCategoryId))
             .ToListAsync(ct);
 
         // CAT-RV-H06 (Wave-1 closeout): without this filter the GROUP BY scanned every
@@ -71,9 +74,9 @@ public sealed class GetCategoryTreeQueryHandler
         {
             CategoryId = c.Id,
             Name = c.Name,
-            Path = c.Path.Value,
+            Path = c.Path,
             ParentCategoryId = c.ParentCategoryId,
-            Depth = CountSegments(c.Path.Value),
+            Depth = CountSegments(c.Path),
             ProductCount = countByCategoryId.GetValueOrDefault(c.Id),
         }).ToList();
 
@@ -90,4 +93,7 @@ public sealed class GetCategoryTreeQueryHandler
         // Materialized path shape: "/a/b/c" -> depth 3 (three segments).
         return path.Count(c => c == '/');
     }
+
+    /// <summary>SQL-side projection of the category columns the tree response needs.</summary>
+    private sealed record CategoryNodeRow(Guid Id, string Name, string Path, Guid? ParentCategoryId);
 }

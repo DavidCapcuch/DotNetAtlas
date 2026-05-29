@@ -20,13 +20,13 @@ public sealed class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQue
     {
         var row = await _db.ProductSearchView
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.ProductId == query.ProductId, ct);
+            .Where(r => r.ProductId == query.ProductId)
+            .TagWith(nameof(GetProductByIdQueryHandler))
+            .Select(ProductDetailRow.Projection)
+            .FirstOrDefaultAsync(ct);
 
-        if (row is null)
-        {
-            return Result.Fail<GetProductByIdResponse>(ProductErrors.NotFound(query.ProductId));
-        }
-
-        return Result.Ok(ProductSearchViewMapper.ToDetailResponse(row));
+        return row is null
+            ? Result.Fail<GetProductByIdResponse>(ProductErrors.NotFound(query.ProductId))
+            : Result.Ok(row.ToResponse());
     }
 }
