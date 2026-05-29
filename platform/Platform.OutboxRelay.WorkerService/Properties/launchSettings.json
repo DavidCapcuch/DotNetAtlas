@@ -1,12 +1,15 @@
 {
+  "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "Platform.OutboxRelay.WorkerService.Local": {
+    "Platform.OutboxRelay.WorkerService": {
       "commandName": "Project",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
+      "launchUrl": "api/healthz",
+      "applicationUrl": "http://localhost:5108",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "applicationUrl": "https://localhost:65409;http://localhost:65410"
+      }
     }
   }
 }

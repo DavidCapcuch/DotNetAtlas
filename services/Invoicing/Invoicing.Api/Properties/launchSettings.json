@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "SagaOrchestrators": {
+    "Invoicing.Api": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "launchUrl": "api/healthz",
-      "applicationUrl": "http://localhost:5107",
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5103",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
