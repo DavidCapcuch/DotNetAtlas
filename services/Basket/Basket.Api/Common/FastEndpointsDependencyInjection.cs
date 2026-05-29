@@ -15,7 +15,8 @@ internal static class FastEndpointsDependencyInjection
                 configuration,
                 "Basket API",
                 "v1",
-                "Basket API for DotNet Atlas - Made with ❤️, Powered by ☕");
+                "Basket API for DotNet Atlas - Made with ❤️, Powered by ☕\n\n"
+                + "Redis-backed basket aggregate with anti-corruption layer to Catalog.");
 
         return services;
     }
@@ -38,7 +39,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UsePlatformAuthSwaggerGen(app.Configuration);
+            app.UsePlatformAuthSwaggerGen();
         }
 
         return app;

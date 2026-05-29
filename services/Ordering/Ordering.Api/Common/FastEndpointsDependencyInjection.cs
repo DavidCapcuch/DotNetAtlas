@@ -14,7 +14,9 @@ internal static class FastEndpointsDependencyInjection
                 configuration,
                 "Ordering API",
                 "v1",
-                "Ordering API for DotNet Atlas - Made with ❤️, Powered by ☕");
+                "Ordering API for DotNet Atlas - Made with ❤️, Powered by ☕\n\n"
+                + "Order lifecycle authority. Accepts and orchestrates orders, "
+                + "and publishes order events via the transactional outbox.");
 
         return services;
     }
@@ -44,7 +46,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UsePlatformAuthSwaggerGen(app.Configuration);
+            app.UsePlatformAuthSwaggerGen();
         }
 
         return app;

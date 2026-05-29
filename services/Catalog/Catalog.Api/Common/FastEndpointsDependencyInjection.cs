@@ -15,7 +15,9 @@ internal static class FastEndpointsDependencyInjection
                 configuration,
                 "Catalog API",
                 "v1",
-                "Catalog API for DotNet Atlas - Made with ❤️, Powered by ☕");
+                "Catalog API for DotNet Atlas - Made with ❤️, Powered by ☕\n\n"
+                + "Product-information authority. CQRS read-projection backed by Postgres; "
+                + "publishes catalog events via the transactional outbox.");
 
         return services;
     }
@@ -38,7 +40,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UsePlatformAuthSwaggerGen(app.Configuration);
+            app.UsePlatformAuthSwaggerGen();
         }
 
         return app;

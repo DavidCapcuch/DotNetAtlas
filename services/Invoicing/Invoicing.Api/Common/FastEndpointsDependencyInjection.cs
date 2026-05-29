@@ -14,7 +14,9 @@ internal static class FastEndpointsDependencyInjection
                 configuration,
                 "Invoicing API",
                 "v1",
-                "Invoicing API for DotNet Atlas - Made with ❤️, Powered by ☕");
+                "Invoicing API for DotNet Atlas - Made with ❤️, Powered by ☕\n\n"
+                + "Invoice authority. Projects Ordering and Payments events into invoices, "
+                + "renders PDF documents to blob storage, and notifies buyers via email and the buyer portal.");
 
         return services;
     }
@@ -44,7 +46,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UsePlatformAuthSwaggerGen(app.Configuration);
+            app.UsePlatformAuthSwaggerGen();
         }
 
         return app;

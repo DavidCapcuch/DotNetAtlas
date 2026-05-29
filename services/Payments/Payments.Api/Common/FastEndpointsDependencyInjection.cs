@@ -14,7 +14,10 @@ internal static class FastEndpointsDependencyInjection
                 configuration,
                 "Payments API",
                 "v1",
-                "Payments API for DotNet Atlas - Made with ❤️, Powered by ☕");
+                "Payments API for DotNet Atlas - Made with ❤️, Powered by ☕\n\n"
+                + "Payment-transaction authority with an admin/internal HTTP surface. "
+                + "Payment processing is Kafka-driven (payment-commands); "
+                + "publishes transaction events via the transactional outbox.");
 
         return services;
     }
@@ -44,7 +47,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UsePlatformAuthSwaggerGen(app.Configuration);
+            app.UsePlatformAuthSwaggerGen();
         }
 
         return app;
