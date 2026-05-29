@@ -49,61 +49,191 @@
       "name": "catalog.read",
       "protocol": "openid-connect",
       "description": "Read product and category metadata.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-catalog-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "catalog-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "catalog.write",
       "protocol": "openid-connect",
       "description": "Create or update products and categories.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-catalog-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "catalog-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "basket.read",
       "protocol": "openid-connect",
       "description": "Read basket contents.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-basket-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "basket-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "basket.write",
       "protocol": "openid-connect",
       "description": "Mutate basket (add, remove, change quantity, checkout).",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-basket-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "basket-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "ordering.read",
       "protocol": "openid-connect",
       "description": "Read order details and status.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-ordering-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "ordering-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "inventory.read",
       "protocol": "openid-connect",
       "description": "Read stock levels and reservation status.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-inventory-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "inventory-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "inventory.commands.reserve",
       "protocol": "openid-connect",
       "description": "Publish ReserveStockCommand to inventory.reservation-commands.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-inventory-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "inventory-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "payments.read",
       "protocol": "openid-connect",
       "description": "Read payment transaction status.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-payments-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "payments-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "invoicing.read",
       "protocol": "openid-connect",
       "description": "Read invoice and credit-note details; download invoice PDF.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-invoicing-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "invoicing-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "notifications.commands.send",
       "protocol": "openid-connect",
       "description": "Publish SendEmailNotificationCommand to notification.commands via outbox.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" }
+      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "audience-notifications-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "notifications-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -276,19 +406,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["catalog.write", "notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "catalog-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "basket-service",
@@ -306,19 +424,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["catalog.read", "notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "basket-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "ordering-service",
@@ -336,19 +442,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "ordering-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "inventory-service",
@@ -366,19 +460,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "inventory-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "payments-service",
@@ -396,19 +478,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "payments-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "invoicing-service",
@@ -426,19 +496,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "invoicing-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "checkout-saga",
@@ -458,19 +516,7 @@
       "optionalClientScopes": [
         "notifications.commands.send"
       ],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "checkout-saga",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "notifications-service",
@@ -488,19 +534,7 @@
       "webOrigins": [],
       "defaultClientScopes": [],
       "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "notifications-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     },
     {
       "clientId": "bff",
@@ -526,19 +560,7 @@
         "invoicing.read",
         "notifications.commands.send"
       ],
-      "protocolMappers": [
-        {
-          "name": "audience-self",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "bff",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
+      "protocolMappers": []
     }
   ]
 }

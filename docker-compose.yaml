@@ -975,12 +975,14 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
     volumes:
-      # Each BC client in realm-export.json carries an `audience-self` protocol mapper
-      # (oidc-audience-mapper emitting `aud: "<clientId>"`). DO NOT delete them as
-      # "boilerplate" — Keycloak's `client_credentials` default does NOT include the
-      # requesting client's own ID in the `aud` claim. Without the mapper, tokens are
-      # issued with NO `aud` at all, and every BC's `ValidateAudience=true` validator
-      # rejects them silently. Verified empirically against Keycloak 26.3 on 2026-05-27.
+      # Each resource CLIENT SCOPE in realm-export.json (catalog.read, basket.write, …)
+      # carries an `oidc-audience-mapper` that stamps `aud: "<owning-service>"` onto any
+      # token requesting that scope (RFC 9068/8707: audience = the resource being called).
+      # DO NOT delete those scope mappers — Keycloak's `client_credentials` default emits
+      # NO `aud` claim, so without them every BC's `ValidateAudience=true` validator rejects
+      # silently. Service clients deliberately have NO per-client audience mapper: a caller's
+      # token must be audienced for the CALLEE (from the scope), never for itself. Verified
+      # empirically against Keycloak 26.3 on 2026-05-27 (basket+catalog.read → aud catalog-service).
       - ./src/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "9011:8080"

@@ -145,9 +145,27 @@ Creating a `ServiceAuth` section without a matching `AddServiceAuth(...)` call i
 
 Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; the **booleans** are not.
 
-### Keycloak `audience-self` mappers are load-bearing
+### Keycloak audience lives on the client SCOPE, not the caller (corrected 2026-05-27)
 
-Each BC client in `keycloak/realm-export.json` carries an `oidc-audience-mapper` named `audience-self` that emits `aud: "<clientId>"`. **Do not delete them as boilerplate.** Empirically verified against Keycloak 26.3 on 2026-05-27: Keycloak's `client_credentials` grant by default does NOT include the requesting client's own ID in the `aud` claim. Without the mapper, tokens are issued with **no `aud` claim at all**, and every BC's `ValidateAudience=true` validator rejects them silently. A warning comment sits above the realm-export mount in `docker-compose.yaml`.
+**Principle (RFC 9068 / RFC 8707):** an access token's `aud` claim identifies the **resource being called** (the callee), and each resource server validates that its own name is in `aud`. The audience is therefore a property of *what you're accessing*, not *who you are*.
+
+**Implementation:** each resource **client scope** in `keycloak/realm-export.json` carries an `oidc-audience-mapper` stamping the owning service as the audience:
+
+| Scope | `aud` added |
+|---|---|
+| `catalog.read`, `catalog.write` | `catalog-service` |
+| `basket.read`, `basket.write` | `basket-service` |
+| `ordering.read` | `ordering-service` |
+| `inventory.read`, `inventory.commands.reserve` | `inventory-service` |
+| `payments.read` | `payments-service` |
+| `invoicing.read` | `invoicing-service` |
+| `notifications.commands.send` | `notifications-service` |
+
+So a caller requesting `catalog.read` gets `aud: catalog-service` regardless of which client it is — exactly what catalog-service validates. Requesting multiple scopes yields a multi-valued `aud` array (one entry per resource). A token with no resource scope carries no `aud` and is valid at no resource (fail-closed).
+
+**Service clients carry NO per-client audience mapper.** The earlier design stamped every client with an `audience-self` mapper emitting `aud: "<own-clientId>"`. That was wrong for callers: a token basket sent to catalog carried `aud: basket-service`, which catalog-service rejects. Removing `audience-self` and moving audience to the scope fixes the latent cross-service breakage (verified 2026-05-27: `basket-service` + `catalog.read` → `aud: catalog-service`). The only clients that still self-audience are the user-facing app client (`e9fdb985…`) and Swagger UI — there the app *is* the resource the user token targets.
+
+**Do not delete the scope-level audience mappers, and do not re-add per-client `audience-self`.** Keycloak's `client_credentials` grant emits no `aud` by default; without the scope mapper a token reaches a resource with no audience and `ValidateAudience=true` rejects it silently. A warning comment sits above the realm-export mount in `docker-compose.yaml`.
 
 ### Test framework no longer masks misconfiguration
 

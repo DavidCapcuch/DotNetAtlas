@@ -7,7 +7,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 - **Realm:** `dotnetatlas` (NOT `eshop` — see drift note below).
 - **Issuer / Authority:** `http://localhost:9011/realms/dotnetatlas` (local dev).
 - **Scope naming:** dot-separated, `<bc>.<verb>` or `<bc>.commands.<verb>`. Scopes gate inbound HTTP endpoints (e.g. `inventory.commands.reserve` gates the Inventory `Receive`/`Adjust` admin endpoints; `catalog.write` gates Catalog mutations). Kafka command topics have no application-layer scope check — the trust boundary is the docker network per ADR-0009.
-- **Audience:** every service client has an `audience-self` OIDC mapper so service-account tokens carry `"aud": "<own-clientId>"`. Inbound validation in each service enforces `Audience = <this-service>` (ADR-0010 L99).
+- **Audience (RFC 9068/8707 — audience = the resource being called):** each resource **client scope** carries an `oidc-audience-mapper` stamping the owning service, so a token requesting `catalog.read` gets `"aud": "catalog-service"` no matter which client requested it; multiple scopes yield a multi-valued `aud` array. Each service validates `Audience = <this-service>` inbound. Service clients have **no** per-client `audience-self` mapper — a caller's token must be audienced for the callee, not itself (corrected 2026-05-27; see ADR-0010 §"Keycloak audience lives on the client SCOPE"). Only the user-facing app client + Swagger self-audience (`e9fdb985…`), since there the app is the resource.
 - **Token endpoint:** `POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`.
 - **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §3.
 
@@ -132,7 +132,7 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 ### `checkout-saga`
 
-- **Audience:** `checkout-saga` (vestigial; kept for symmetry)
+- **Audience:** none — no inbound HTTP surface, and (since 2026-05-27) no self-audience mapper. Kafka command topics carry no service-token auth (trust boundary = the deployment network), so this client is not exercised at runtime.
 - **Outbound:** `notifications.commands.send`
   - The saga publishes notifications via outbox (e.g. saga-stuck operator alerts). All saga-driven orchestration commands flow over Kafka command topics, which carry no application-layer auth in this reference profile.
 - **Inbound:** none — the saga has no inbound HTTP surface.
@@ -149,7 +149,7 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 ### `bff`
 
-- **Audience:** `bff` (vestigial — BFF validates user JWTs, not service-auth)
+- **Audience:** none — BFF validates user JWTs, not service tokens, so it is never a resource server (no self-audience mapper since 2026-05-27). Its outbound tokens are audienced for the **callee** BC via the requested scope (e.g. `catalog.read` → `aud: catalog-service`).
 - **Outbound:** 7 scopes — every cross-BC read + `basket.write`:
   - `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read`, `notifications.commands.send`
   - The BFF is the sole HTTP caller of the six BCs in the system.
@@ -250,7 +250,7 @@ curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect
   | python -c "import sys,json,base64;t=json.load(sys.stdin)['access_token'];p=t.split('.')[1];p+='='*(4-len(p)%4);d=json.loads(base64.urlsafe_b64decode(p));print('azp',d.get('azp'),'aud',d.get('aud'),'scope',d.get('scope'))"
 ```
 
-Expected result on the last check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `audience-self` mapper fired.
+Expected result on the last check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `catalog.write` scope's `audience-catalog-service` mapper fired. (Cross-service check: mint as `basket-service` with `scope=catalog.read` → `aud catalog-service`, proving the audience follows the scope/callee, not the caller.)
 
 ---
 
