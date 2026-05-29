@@ -64,6 +64,8 @@ try
 
     app.UseInventoryFastEndpoints();
 
+    app.MapRazorPages();
+
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 

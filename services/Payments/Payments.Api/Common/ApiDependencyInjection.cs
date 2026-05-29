@@ -20,6 +20,8 @@ internal static class ApiDependencyInjection
 
         services.AddProblemDetails();
 
+        services.AddRazorPages();
+
         return services;
     }
 }

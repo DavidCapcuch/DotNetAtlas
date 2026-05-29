@@ -24,6 +24,8 @@ internal static class ApiDependencyInjection
 
         services.AddIdempotencyKeyOutputCache(configuration, serviceName: "basket-service");
 
+        services.AddRazorPages();
+
         return services;
     }
 }

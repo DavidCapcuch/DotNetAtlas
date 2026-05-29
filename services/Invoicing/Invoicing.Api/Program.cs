@@ -57,6 +57,8 @@ try
 
     app.UseInvoicingFastEndpoints();
 
+    app.MapRazorPages();
+
     app.MapPlatformHealthCheckEndpoints();
 
     await app.MigrateOnStartupIfDevelopmentAsync<InvoicingDbContext>();

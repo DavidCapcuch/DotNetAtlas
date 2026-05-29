@@ -51,6 +51,8 @@ try
 
     app.UseBasketFastEndpoints();
 
+    app.MapRazorPages();
+
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
 

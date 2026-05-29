@@ -57,6 +57,8 @@ try
 
     app.UseOrderingFastEndpoints();
 
+    app.MapRazorPages();
+
     app.MapPlatformHealthCheckEndpoints();
 
     await app.MigrateOnStartupIfDevelopmentAsync<OrderingDbContext>();

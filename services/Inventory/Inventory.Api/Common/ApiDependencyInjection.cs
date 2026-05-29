@@ -30,6 +30,8 @@ internal static class ApiDependencyInjection
 
         services.AddIdempotencyKeyOutputCache(configuration, serviceName: "inventory-service");
 
+        services.AddRazorPages();
+
         return services;
     }
 }
