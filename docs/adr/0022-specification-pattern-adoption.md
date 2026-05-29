@@ -106,13 +106,12 @@ name (e.g. tracing a saga's idempotency check under Kafka redelivery) pays for i
 
 ### Enforcement boundary
 
-ADR-0021's `QueryHandlerSpecificationTests` arch-test (query handlers must not reference
-`Ardalis.Specification`) exists only in **Ordering** and **Invoicing** — it was a partial rollout.
-This ADR documents the convention but **does not** add that arch-test to Catalog / Inventory /
-Payments. For a reference solution, the read-side convention is already documented and the
-remaining BCs either have no read-side spec usage or no specs at all; a blanket arch-test rollout
-would be lock-in for its own sake. A future contributor introducing a read-side spec in those BCs
-should add the fact at that time.
+ADR-0021 originally pinned its read-side rule with a per-BC `QueryHandlerSpecificationTests`
+NetArchTest, present only in **Ordering** and **Invoicing** (a partial rollout). For a reference
+solution that automated enforcement is overkill, so this change **removes** those two arch-tests
+rather than extending them: the "specs are write-side only" rule now lives purely in ADR-0021 and
+this ADR as a documented convention. A future contributor who wants CI enforcement can reinstate
+the four-line fact across the BCs at that time.
 
 ## Related Decisions
 
