@@ -25,8 +25,9 @@ docker compose --profile full up -d keycloak
 
 | Client ID | Type | Purpose |
 |---|---|---|
-| `e9fdb985-9173-4e01-9d73-ac2d60d1dc8e` | Confidential | Backend API OIDC login + token exchange. Authorization Code + PKCE only; ROPC disabled. |
-| `dotnetatlas-swagger` | Public | Swagger UI PKCE flow. No secret shipped to the browser. |
+| `e9fdb985-9173-4e01-9d73-ac2d60d1dc8e` | Confidential | Backend API (Weather) OIDC login + token exchange. Authorization Code + PKCE only; ROPC disabled. |
+| `dotnetatlas-swagger` | Public | Swagger UI PKCE flow for Weather **and** the 6 bounded-context APIs. No secret shipped to the browser. Audience mappers stamp a multi-valued `aud` (`e9fdb985-…` + `{basket,catalog,inventory,invoicing,ordering,payments}-service`) so one token is accepted by every BC. |
+| `{basket,catalog,inventory,invoicing,ordering,payments}-service` | Confidential | Per-BC service clients (client-credentials). Each BC validates `aud` against its own `{bc}-service` id. |
 
 ROPC (Resource Owner Password Credentials) is disabled on every client in this
 realm. `.http` files under `requests/` use JetBrains' built-in OAuth 2.0 token

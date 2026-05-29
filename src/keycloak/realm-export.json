@@ -332,11 +332,35 @@
       "redirectUris": [
         "http://localhost:5159/swagger/oauth2-redirect.html",
         "https://localhost:7095/swagger/oauth2-redirect.html",
-        "http://localhost:63342/rest/oauth2/callback"
+        "http://localhost:63342/rest/oauth2/callback",
+        "http://localhost:5100/swagger/oauth2-redirect.html",
+        "http://localhost:5101/swagger/oauth2-redirect.html",
+        "http://localhost:5102/swagger/oauth2-redirect.html",
+        "http://localhost:5103/swagger/oauth2-redirect.html",
+        "http://localhost:5105/swagger/oauth2-redirect.html",
+        "http://localhost:5106/swagger/oauth2-redirect.html",
+        "http://localhost:8100/swagger/oauth2-redirect.html",
+        "http://localhost:8101/swagger/oauth2-redirect.html",
+        "http://localhost:8102/swagger/oauth2-redirect.html",
+        "http://localhost:8104/swagger/oauth2-redirect.html",
+        "http://localhost:8105/swagger/oauth2-redirect.html",
+        "http://localhost:8106/swagger/oauth2-redirect.html"
       ],
       "webOrigins": [
         "http://localhost:5159",
-        "https://localhost:7095"
+        "https://localhost:7095",
+        "http://localhost:5100",
+        "http://localhost:5101",
+        "http://localhost:5102",
+        "http://localhost:5103",
+        "http://localhost:5105",
+        "http://localhost:5106",
+        "http://localhost:8100",
+        "http://localhost:8101",
+        "http://localhost:8102",
+        "http://localhost:8104",
+        "http://localhost:8105",
+        "http://localhost:8106"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
@@ -365,6 +389,72 @@
           "consentRequired": false,
           "config": {
             "included.client.audience": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-basket",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "basket-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-catalog",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "catalog-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-inventory",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "inventory-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-invoicing",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "invoicing-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-ordering",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "ordering-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-payments",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "payments-service",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }
