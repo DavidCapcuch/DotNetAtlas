@@ -24,6 +24,7 @@ internal sealed class GetPaymentsByOrderQueryHandler : IQueryHandler<GetPayments
             .AsNoTracking()
             .Where(t => t.OrderId == query.OrderId)
             .OrderBy(t => t.Id)
+            .TagWith(nameof(GetPaymentsByOrderQueryHandler))
             .ToListAsync(ct);
 
         return Result.Ok(new GetPaymentsByOrderResponse

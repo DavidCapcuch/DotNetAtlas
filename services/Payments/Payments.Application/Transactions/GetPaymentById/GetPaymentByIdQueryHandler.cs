@@ -22,6 +22,7 @@ internal sealed class GetPaymentByIdQueryHandler : IQueryHandler<GetPaymentByIdQ
         // Read-side PK lookup (ADR-0021/0022): inline LINQ, AsNoTracking, no spec.
         var tx = await _dbContext.Transactions
             .AsNoTracking()
+            .TagWith(nameof(GetPaymentByIdQueryHandler))
             .FirstOrDefaultAsync(t => t.Id == query.PaymentId, ct);
         if (tx is null)
         {
