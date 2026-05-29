@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
     <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="NSubstitute.Analyzers.CSharp">
             <PrivateAssets>all</PrivateAssets>

@@ -1,4 +1,3 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6,7 +5,6 @@ using Ordering.Application.Common.Data;
 using Ordering.Application.Orders.CreateOrder;
 using Ordering.Domain.Baskets;
 using Ordering.Domain.Orders;
-using Ordering.Domain.Orders.Specifications;
 using Ordering.Infrastructure.Persistence.Database;
 using Ordering.IntegrationTests.Common;
 using Platform.SharedKernel.ValueObjects;
@@ -78,11 +76,11 @@ public sealed class OrderPersistenceTests
         using var readScope = _fixture.CreateScope();
         var readContext = readScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
+        // PK lookup (ADR-0022): inline LINQ, no spec. The owned OrderItem collection
+        // auto-loads with the root, so no .Include is needed to assert the round-trip below.
         var loaded = await readContext.Orders
-            .WithSpecification(new OrderByIdSpec(order.Id))
-            .Include(o => o.Items)
             .AsNoTracking()
-            .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == order.Id, TestContext.Current.CancellationToken);
 
         loaded.Should().NotBeNull();
         loaded!.BuyerId.Should().Be(buyerId);

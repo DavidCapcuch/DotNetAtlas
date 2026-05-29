@@ -7,9 +7,9 @@ namespace Invoicing.ArchitectureTests.Application;
 /// <c>Ardalis.Specification</c>. Specs don't carry the SQL-side <c>Select</c> projection
 /// that read paths need most, and sharing specs between read- and write-side handlers
 /// couples the two models against the spirit of CQRS. The rule is scoped to
-/// <c>*QueryHandler</c> types only — command handlers (e.g.
-/// <c>ResendInvoiceCommandHandler</c> using <c>InvoiceByIdSpec</c>) and infrastructure
-/// read-stores remain free to use specs for write-side aggregate loading.
+/// <c>*QueryHandler</c> types only — command handlers and infrastructure read-stores
+/// remain free to use specs for write-side aggregate loading (per ADR-0022, only when the
+/// predicate carries a business name; pure PK lookups are inline LINQ).
 /// </summary>
 public sealed class QueryHandlerSpecificationTests : BaseTest
 {

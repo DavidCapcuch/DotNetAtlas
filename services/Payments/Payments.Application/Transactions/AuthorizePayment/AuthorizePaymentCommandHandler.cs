@@ -1,4 +1,5 @@
 using FluentResults;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Payments.Application.Abstractions;
 using Payments.Application.Common.Data;
@@ -46,7 +47,7 @@ namespace Payments.Application.Transactions.AuthorizePayment;
 /// </remarks>
 internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<AuthorizePaymentCommand, Guid>
 {
-    private readonly IPaymentRepository _repository;
+    private readonly IPaymentsDbContext _dbContext;
     private readonly IPaymentGateway _gateway;
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
     private readonly IDomainEventDispatcher _dispatcher;
@@ -54,14 +55,14 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
     private readonly ILogger<AuthorizePaymentCommandHandler> _logger;
 
     public AuthorizePaymentCommandHandler(
-        IPaymentRepository repository,
+        IPaymentsDbContext dbContext,
         IPaymentGateway gateway,
         ITransactionalOutbox<IPaymentsDbContext> outbox,
         IDomainEventDispatcher dispatcher,
         TimeProvider timeProvider,
         ILogger<AuthorizePaymentCommandHandler> logger)
     {
-        _repository = repository;
+        _dbContext = dbContext;
         _gateway = gateway;
         _outbox = outbox;
         _dispatcher = dispatcher;
@@ -73,7 +74,10 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var existing = await _repository.GetByIdForUpdateAsync(command.PaymentId, ct);
+        // PK lookup (ADR-0022): inline LINQ, tracked for mutation. No spec — the predicate has
+        // no business name and PaymentTransaction has no child collections to include.
+        var existing = await _dbContext.Transactions
+            .FirstOrDefaultAsync(t => t.Id == command.PaymentId, ct);
 
         PaymentTransaction tx;
         if (existing is null)
@@ -98,7 +102,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             }
 
             tx = createResult.Value;
-            _repository.Add(tx);
+            _dbContext.Transactions.Add(tx);
 
             // H-3: persist the Requested aggregate + inbox-dedup row BEFORE the gateway call.
             // PaymentRequestedDomainEvent has no Payments-side outbox publisher by design (the
