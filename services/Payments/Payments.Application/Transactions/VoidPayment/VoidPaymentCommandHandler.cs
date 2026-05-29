@@ -1,8 +1,11 @@
+using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Payments.Application.Abstractions;
 using Payments.Application.Common.Data;
 using Payments.Domain.Errors;
+using Payments.Domain.Transactions.Specifications;
 using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -20,7 +23,7 @@ namespace Payments.Application.Transactions.VoidPayment;
 /// </summary>
 internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCommand>
 {
-    private readonly IPaymentRepository _repository;
+    private readonly IPaymentsDbContext _dbContext;
     private readonly IPaymentGateway _gateway;
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
     private readonly IDomainEventDispatcher _dispatcher;
@@ -28,14 +31,14 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
     private readonly ILogger<VoidPaymentCommandHandler> _logger;
 
     public VoidPaymentCommandHandler(
-        IPaymentRepository repository,
+        IPaymentsDbContext dbContext,
         IPaymentGateway gateway,
         ITransactionalOutbox<IPaymentsDbContext> outbox,
         IDomainEventDispatcher dispatcher,
         TimeProvider timeProvider,
         ILogger<VoidPaymentCommandHandler> logger)
     {
-        _repository = repository;
+        _dbContext = dbContext;
         _gateway = gateway;
         _outbox = outbox;
         _dispatcher = dispatcher;
@@ -50,7 +53,9 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
         // Post-cross-cutting wave1-followup #255: see analogous comment in
         // CapturePaymentCommandHandler. AvroVoidPaymentCommand does not carry PaymentTransactionId,
         // so we resolve the aggregate via the unique correlation_id index.
-        var tx = await _repository.GetByCorrelationIdForUpdateAsync(command.CorrelationId, ct);
+        var tx = await _dbContext.Transactions
+            .WithSpecification(new PaymentByCorrelationIdSpec(command.CorrelationId))
+            .FirstOrDefaultAsync(ct);
         if (tx is null)
         {
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));

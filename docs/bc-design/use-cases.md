@@ -829,7 +829,7 @@ The following commands are **not** exposed via HTTP. Four of them enter the serv
   - `OrderId` — NotEmpty.
   - `ReservationId` — NotEmpty.
 - **Flow:**
-  1. Load order by id via `OrderByIdSpec(orderId)`. If missing, return `Result.Fail(OrderingErrors.NotFound)` (saga should not have advanced).
+  1. Load order by id (inline `.Where(o => o.Id == orderId)` — pure PK lookup, no spec per [ADR-0022](../adr/0022-specification-pattern-adoption.md)). If missing, return `Result.Fail(OrderingErrors.NotFound)` (saga should not have advanced).
   2. Call `order.MarkStockReserved(reservationId, utcNow)` — precondition throws if `!Status.CanTransitionTo(StockReserved)` (this is a bug if it happens — surfaces via DLT).
   3. `SaveChangesAsync`.
 - **Emits internal event(s):** `OrderStockReservedDomainEvent` (audit-only — no outbox publisher; saga already knows from Inventory's own event).
@@ -930,7 +930,7 @@ These commands enter via HTTP; the buyer or admin initiates them through the BFF
   - `Reason` — NotEmpty; MaximumLength(500).
   - `BuyerId` — NotEmpty.
 - **Flow:**
-  1. Load order via `OrderByIdSpec(orderId)`; if missing → `Result.Fail(OrderingErrors.NotFound)`.
+  1. Load order by id (inline `.Where(o => o.Id == orderId)` — pure PK lookup, no spec per [ADR-0022](../adr/0022-specification-pattern-adoption.md)); if missing → `Result.Fail(OrderingErrors.NotFound)`.
   2. Authorization check: if `!command.IsAdmin && order.BuyerId != command.BuyerId` → return `Result.Fail(OrderingErrors.NotFound)` (don't leak existence of other buyers' orders).
   3. Call `order.Cancel(reason, utcNow)` — returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status))` if already terminal or shipped.
   4. `SaveChangesAsync`.

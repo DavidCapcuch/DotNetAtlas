@@ -1,4 +1,5 @@
 using FluentResults;
+using Microsoft.EntityFrameworkCore;
 using Payments.Application.Common.Data;
 using Payments.Application.Transactions;
 using Platform.CQRS;
@@ -7,18 +8,23 @@ namespace Payments.Application.Transactions.GetPaymentsByOrder;
 
 internal sealed class GetPaymentsByOrderQueryHandler : IQueryHandler<GetPaymentsByOrderQuery, GetPaymentsByOrderResponse>
 {
-    private readonly IPaymentRepository _repository;
+    private readonly IPaymentsDbContext _dbContext;
 
-    public GetPaymentsByOrderQueryHandler(IPaymentRepository repository)
+    public GetPaymentsByOrderQueryHandler(IPaymentsDbContext dbContext)
     {
-        _repository = repository;
+        _dbContext = dbContext;
     }
 
     public async Task<Result<GetPaymentsByOrderResponse>> HandleAsync(GetPaymentsByOrderQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var rows = await _repository.GetByOrderIdAsync(query.OrderId, ct);
+        // Read-side list query (ADR-0021/0022): inline LINQ, AsNoTracking, deterministic order.
+        var rows = await _dbContext.Transactions
+            .AsNoTracking()
+            .Where(t => t.OrderId == query.OrderId)
+            .OrderBy(t => t.Id)
+            .ToListAsync(ct);
 
         return Result.Ok(new GetPaymentsByOrderResponse
         {

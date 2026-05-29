@@ -7,7 +7,6 @@ using Payments.Application.Common.Data;
 using Payments.Infrastructure.Common.Config;
 using Payments.Infrastructure.Persistence.Database;
 using Payments.Infrastructure.Persistence.Database.Interceptors;
-using Payments.Infrastructure.Persistence.Repositories;
 
 namespace Payments.Infrastructure.Common;
 
@@ -75,7 +74,6 @@ internal static class PersistenceDependencyInjection
                 sp.GetRequiredService<DispatchDomainEventsInterceptor>()));
 
         services.AddScoped<IPaymentsDbContext>(sp => sp.GetRequiredService<PaymentsDbContext>());
-        services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         return services;
     }

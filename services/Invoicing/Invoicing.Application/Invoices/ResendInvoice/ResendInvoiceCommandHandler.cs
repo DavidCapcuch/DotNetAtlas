@@ -1,8 +1,6 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Invoicing.Application.Common.Data;
 using Invoicing.Domain.Common.Errors;
-using Invoicing.Domain.Invoices.Specifications;
 using Invoicing.Domain.Invoices.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -53,10 +51,12 @@ internal sealed class ResendInvoiceCommandHandler : ICommandHandler<ResendInvoic
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        // Pure PK lookup (ADR-0022): no business name and no include-shape — the owned
+        // invoice_lines / invoice_vat_lines collections auto-load — so this is inline LINQ
+        // rather than a spec. AsNoTracking because the resend is read-only (status check).
         var invoice = await _dbContext.Invoices
             .AsNoTracking()
-            .WithSpecification(new InvoiceByIdSpec(command.InvoiceId))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(i => i.Id == command.InvoiceId, ct);
 
         if (invoice is null)
         {

@@ -4,10 +4,14 @@
 
 Accepted (2026-05-25)
 
+> **Partially revisited by [ADR-0022](0022-specification-pattern-adoption.md) (2026-05-29).**
+> ADR-0022 adds the write-side adoption criteria and, applying them, deleted the pure-PK specs
+> `OrderByIdSpec` and `InvoiceByIdSpec` (now inlined at their call sites). The "Specs that survive"
+> list below is updated accordingly; the read-side decision and rationale here are unchanged.
+
 ## Context
 
-The codebase uses `Ardalis.Specification` to factor reusable `Where / Include / OrderBy` predicates into single-purpose specification classes (e.g.
-[OrderByIdSpec](../../services/Ordering/Ordering.Domain/Orders/Specifications/OrderByIdSpec.cs),
+The codebase uses `Ardalis.Specification` to factor reusable `Where / Include / OrderBy` predicates into single-purpose specification classes (e.g. `OrderByIdSpec`,
 [OrderByCorrelationIdSpec](../../services/Ordering/Ordering.Domain/Orders/Specifications/OrderByCorrelationIdSpec.cs)).
 The original intent was DRY: command handlers that load an aggregate by id and read handlers that fetch the same aggregate for projection could share one spec.
 
@@ -119,9 +123,14 @@ This preserves the SQL-side-projection contract (no full-aggregate materialisati
 
 ### Specs that survive (still used by write side)
 
-- [`OrderByIdSpec`](../../services/Ordering/Ordering.Domain/Orders/Specifications/OrderByIdSpec.cs) — 7 write-side handlers (`Cancel`, `Confirm`, `MarkOrder*`) + an integration test.
+> Updated per [ADR-0022](0022-specification-pattern-adoption.md): the two pure-PK specs were
+> deleted and inlined; the business-named `OrderByCorrelationIdSpec` survives and
+> `PaymentByCorrelationIdSpec` was added on the same criterion.
+
 - [`OrderByCorrelationIdSpec`](../../services/Ordering/Ordering.Domain/Orders/Specifications/OrderByCorrelationIdSpec.cs) — `CreateOrderCommandHandler` (idempotency check).
-- [`InvoiceByIdSpec`](../../services/Invoicing/Invoicing.Domain/Invoices/Specifications/InvoiceByIdSpec.cs) — `ResendInvoiceCommandHandler`.
+- [`PaymentByCorrelationIdSpec`](../../services/Payments/Payments.Domain/Transactions/Specifications/PaymentByCorrelationIdSpec.cs) — Capture / Void / RequestRefund handlers (saga idempotency).
+- ~~`OrderByIdSpec`~~ — deleted (ADR-0022); the 7 write-side handlers now load by primary key inline.
+- ~~`InvoiceByIdSpec`~~ — deleted (ADR-0022); `ResendInvoiceCommandHandler` now loads by primary key inline.
 
 ### Out of scope for this ADR
 

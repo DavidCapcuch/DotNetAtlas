@@ -1,10 +1,8 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Ordering.Application.Common.Data;
 using Ordering.Domain.Errors;
-using Ordering.Domain.Orders.Specifications;
 using Platform.CQRS;
 
 namespace Ordering.Application.Orders.MarkOrderStockReserved;
@@ -34,8 +32,7 @@ public sealed class MarkOrderStockReservedCommandHandler : ICommandHandler<MarkO
     public async Task<Result> HandleAsync(MarkOrderStockReservedCommand command, CancellationToken ct)
     {
         var order = await _dbContext.Orders
-            .WithSpecification(new OrderByIdSpec(command.OrderId))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(o => o.Id == command.OrderId, ct);
         if (order is null)
         {
             return Result.Fail(OrderingErrors.OrderNotFound(command.OrderId));
