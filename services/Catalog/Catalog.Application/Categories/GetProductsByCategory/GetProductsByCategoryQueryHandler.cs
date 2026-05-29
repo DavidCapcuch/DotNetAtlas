@@ -1,6 +1,5 @@
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
-using Catalog.Application.Products.CreateProduct;
 using Catalog.Application.Products.SearchProducts;
 using Catalog.Domain.Products.ValueObjects;
 using FluentResults;
@@ -29,17 +28,19 @@ public sealed class GetProductsByCategoryQueryHandler
 
         if (query.IncludeDescendants)
         {
-            var category = await _db.Categories
+            var pathPrefix = await _db.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == query.CategoryId, ct);
-            if (category is null)
+                .Where(c => c.Id == query.CategoryId)
+                .TagWith(nameof(GetProductsByCategoryQueryHandler))
+                .Select(c => c.Path.Value)
+                .FirstOrDefaultAsync(ct);
+            if (pathPrefix is null)
             {
                 return Result.Ok(EmptyPage(query));
             }
 
             // Segment-bounded prefix match to avoid sibling leaks
             // (e.g. "/electronics" must not match "/electronics-toys").
-            var pathPrefix = category.Path.Value;
             var pathPrefixWithSeparator = pathPrefix + "/";
             queryable = queryable.Where(r =>
                 r.CategoryPath == pathPrefix || r.CategoryPath.StartsWith(pathPrefixWithSeparator));
@@ -55,9 +56,11 @@ public sealed class GetProductsByCategoryQueryHandler
             .OrderBy(r => r.Name).ThenBy(r => r.ProductId)
             .Skip((query.PageNumber - 1) * query.PageSize)
             .Take(query.PageSize)
+            .TagWith(nameof(GetProductsByCategoryQueryHandler))
+            .Select(ProductSearchResultRow.Projection)
             .ToListAsync(ct);
 
-        var items = rows.Select(ToResultItem).ToList();
+        var items = rows.Select(r => r.ToResultItem()).ToList();
 
         return Result.Ok(new SearchProductsResponse
         {
@@ -66,23 +69,6 @@ public sealed class GetProductsByCategoryQueryHandler
             PageSize = query.PageSize,
             Items = items,
         });
-    }
-
-    private static SearchProductsResultItem ToResultItem(ProductSearchViewRow row)
-    {
-        var images = ProductSearchViewMapper.DeserializeImages(row.ImagesJson);
-        var primaryUrl = images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.Url;
-        return new SearchProductsResultItem
-        {
-            ProductId = row.ProductId,
-            Sku = row.Sku,
-            Name = row.Name,
-            CategoryBreadcrumb = row.CategoryBreadcrumb,
-            BrandName = row.BrandName,
-            Price = new MoneyDto { Amount = row.PriceAmount, Currency = row.PriceCurrency },
-            Status = row.Status,
-            PrimaryImageUrl = primaryUrl,
-        };
     }
 
     private static SearchProductsResponse EmptyPage(GetProductsByCategoryQuery query) => new()

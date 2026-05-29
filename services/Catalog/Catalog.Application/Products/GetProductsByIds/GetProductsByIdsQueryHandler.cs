@@ -25,9 +25,11 @@ public sealed class GetProductsByIdsQueryHandler
         var rows = await _db.ProductSearchView
             .AsNoTracking()
             .Where(r => requestedIds.Contains(r.ProductId))
+            .TagWith(nameof(GetProductsByIdsQueryHandler))
+            .Select(ProductDetailRow.Projection)
             .ToListAsync(ct);
 
-        var products = rows.Select(ProductSearchViewMapper.ToDetailResponse).ToList();
+        var products = rows.Select(r => r.ToResponse()).ToList();
         var foundIds = products.Select(p => p.ProductId).ToHashSet();
         var missing = requestedIds.Where(id => !foundIds.Contains(id)).ToList();
 

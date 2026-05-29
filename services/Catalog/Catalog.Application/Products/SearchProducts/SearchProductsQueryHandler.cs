@@ -1,7 +1,6 @@
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.FeatureFlags;
 using Catalog.Application.Common.ReadModels;
-using Catalog.Application.Products.CreateProduct;
 using Catalog.Domain.Products.ValueObjects;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
@@ -101,9 +100,11 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
             .OrderBy(r => r.PriceAmount).ThenBy(r => r.ProductId)
             .Skip((query.PageNumber - 1) * query.PageSize)
             .Take(query.PageSize)
+            .TagWith(nameof(SearchProductsQueryHandler))
+            .Select(ProductSearchResultRow.Projection)
             .ToListAsync(ct);
 
-        var items = rows.Select(ToResultItem).ToList();
+        var items = rows.Select(r => r.ToResultItem()).ToList();
 
         return Result.Ok(new SearchProductsResponse
         {
@@ -112,23 +113,5 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
             PageSize = query.PageSize,
             Items = items,
         });
-    }
-
-    private static SearchProductsResultItem ToResultItem(ProductSearchViewRow row)
-    {
-        var images = ProductSearchViewMapper.DeserializeImages(row.ImagesJson);
-        var primaryUrl = images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.Url;
-
-        return new SearchProductsResultItem
-        {
-            ProductId = row.ProductId,
-            Sku = row.Sku,
-            Name = row.Name,
-            CategoryBreadcrumb = row.CategoryBreadcrumb,
-            BrandName = row.BrandName,
-            Price = new MoneyDto { Amount = row.PriceAmount, Currency = row.PriceCurrency },
-            Status = row.Status,
-            PrimaryImageUrl = primaryUrl,
-        };
     }
 }

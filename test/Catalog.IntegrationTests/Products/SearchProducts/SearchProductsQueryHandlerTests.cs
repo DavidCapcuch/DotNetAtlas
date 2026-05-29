@@ -1,14 +1,21 @@
 using Catalog.Application.Common.FeatureFlags;
+using Catalog.Application.Common.ReadModels;
 using Catalog.Application.Products.SearchProducts;
-using Catalog.UnitTests.Common;
+using Catalog.IntegrationTests.Common;
 using FluentResults.Extensions.FluentAssertions;
 using NSubstitute;
 using OpenFeature;
 
-namespace Catalog.UnitTests.Products.SearchProducts;
+namespace Catalog.IntegrationTests.Products.SearchProducts;
 
-public class SearchProductsQueryHandlerTests
+[Collection<IntegrationTestCollection>]
+public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 {
+    public SearchProductsQueryHandlerTests(IntegrationTestFixture app)
+        : base(app)
+    {
+    }
+
     private static IFeatureClient FlagClient(bool showDiscontinued)
     {
         var client = Substitute.For<IFeatureClient>();
@@ -25,17 +32,17 @@ public class SearchProductsQueryHandlerTests
     [Fact]
     public async Task Given_FlagFalse_When_Searching_Then_HidesDiscontinued()
     {
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active("ACT-1", amount: 1m),
             ProductSearchViewRowBuilder.Discontinued("DIS-1"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { PageNumber = 1, PageSize = 10 }, ct);
 
         using (new AssertionScope())
         {
@@ -48,17 +55,17 @@ public class SearchProductsQueryHandlerTests
     [Fact]
     public async Task Given_FlagTrue_When_Searching_Then_IncludesDiscontinued()
     {
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active("ACT-1", amount: 1m),
             ProductSearchViewRowBuilder.Discontinued("DIS-1"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: true));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: true));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { PageNumber = 1, PageSize = 10 }, ct);
 
         using (new AssertionScope())
         {
@@ -71,18 +78,18 @@ public class SearchProductsQueryHandlerTests
     [Fact]
     public async Task Given_ExplicitStatusFilter_When_Searching_Then_FlagIgnored()
     {
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active("ACT-1", amount: 1m),
             ProductSearchViewRowBuilder.Discontinued("DIS-1"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Flag is false, but query explicitly asks for Discontinued.
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { Status = "Discontinued", PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { Status = "Discontinued", PageNumber = 1, PageSize = 10 }, ct);
 
         using (new AssertionScope())
         {
@@ -95,17 +102,17 @@ public class SearchProductsQueryHandlerTests
     [Fact]
     public async Task Given_CategoryPathPrefix_When_Searching_Then_FiltersByPrefix()
     {
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active("A", categoryPath: "/electronics/laptops"),
             ProductSearchViewRowBuilder.Active("B", categoryPath: "/books"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 }, ct);
 
         result.Should().BeSuccess();
         result.Value.Items.Should().ContainSingle().Which.Sku.Should().Be("A");
@@ -115,18 +122,18 @@ public class SearchProductsQueryHandlerTests
     public async Task Given_CategoryPathPrefix_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
     {
         // "/electronics" must match itself and its descendants, but NOT "/electronics-toys".
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active("EXACT", categoryPath: "/electronics"),
             ProductSearchViewRowBuilder.Active("CHILD", categoryPath: "/electronics/laptops"),
             ProductSearchViewRowBuilder.Active("SIBLING", categoryPath: "/electronics-toys"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 }, ct);
 
         result.Should().BeSuccess();
         result.Value.Items.Select(i => i.Sku).Should().BeEquivalentTo(["EXACT", "CHILD"]);
@@ -135,14 +142,15 @@ public class SearchProductsQueryHandlerTests
     [Fact]
     public async Task Given_PriceRange_When_Searching_Then_FiltersInclusive()
     {
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active("LOW", amount: 1m),
             ProductSearchViewRowBuilder.Active("MID", amount: 5m),
             ProductSearchViewRowBuilder.Active("HIGH", amount: 10m));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
             new SearchProductsQuery
@@ -153,7 +161,7 @@ public class SearchProductsQueryHandlerTests
                 PageNumber = 1,
                 PageSize = 10,
             },
-            TestContext.Current.CancellationToken);
+            ct);
 
         result.Should().BeSuccess();
         result.Value.Items.Should().ContainSingle().Which.Sku.Should().Be("MID");
@@ -165,18 +173,18 @@ public class SearchProductsQueryHandlerTests
         // Per CAT-SEC-001 / CAT-RV-H03: user-supplied "%" must be a literal, not a wildcard.
         // Three rows differ only by name; query Text="a%b" must match only the row with that
         // literal substring, not the broader rows that "%a%b%" would otherwise gobble up.
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active(sku: "PCT-1", name: "a%b"),
             ProductSearchViewRowBuilder.Active(sku: "PCT-2", name: "aXb"),
             ProductSearchViewRowBuilder.Active(sku: "PCT-3", name: "abc"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { Text = "a%b", PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { Text = "a%b", PageNumber = 1, PageSize = 10 }, ct);
 
         using (new AssertionScope())
         {
@@ -189,17 +197,17 @@ public class SearchProductsQueryHandlerTests
     public async Task Given_TextContainsLiteralUnderscore_When_Searching_Then_UnderscoreIsNotTreatedAsWildcard()
     {
         // Per CAT-SEC-001 / CAT-RV-H03: user-supplied "_" must be a literal, not a single-char wildcard.
-        await using var db = FakeCatalogDbContext.Create();
-        db.ProductSearchView.AddRange(
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        await seeder.SeedRowsAsync(
+            ct,
             ProductSearchViewRowBuilder.Active(sku: "UND-1", name: "a_b"),
             ProductSearchViewRowBuilder.Active(sku: "UND-2", name: "aXb"));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { Text = "a_b", PageNumber = 1, PageSize = 10 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { Text = "a_b", PageNumber = 1, PageSize = 10 }, ct);
 
         using (new AssertionScope())
         {
@@ -211,19 +219,20 @@ public class SearchProductsQueryHandlerTests
     [Fact]
     public async Task Given_Paging_When_Searching_Then_ReturnsCorrectSliceAndTotal()
     {
-        await using var db = FakeCatalogDbContext.Create();
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(CatalogDbContext);
+        var rows = new List<ProductSearchViewRow>();
         for (var i = 0; i < 5; i++)
         {
-            db.ProductSearchView.Add(ProductSearchViewRowBuilder.Active($"SKU-{i}", amount: i + 1));
+            rows.Add(ProductSearchViewRowBuilder.Active($"SKU-{i}", amount: i + 1));
         }
 
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await seeder.SeedRowsAsync(ct, rows.ToArray());
 
-        var handler = new SearchProductsQueryHandler(db, FlagClient(showDiscontinued: false));
+        var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
         var result = await handler.HandleAsync(
-            new SearchProductsQuery { PageNumber = 2, PageSize = 2 },
-            TestContext.Current.CancellationToken);
+            new SearchProductsQuery { PageNumber = 2, PageSize = 2 }, ct);
 
         using (new AssertionScope())
         {
