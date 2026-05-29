@@ -25,7 +25,7 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
         Post("stock-items/{productId:guid}/adjust");
         Version(1);
         Group<InventoryGroup>();
-        Policies(InventoryAuthorizationPolicies.CommandsPolicy);
+        Policies(InventoryAuthorizationPolicies.WritePolicy);
         Idempotency(opts =>
         {
             // ADR-0013: 24h TTL, header `Idempotency-Key`, redis-cache backing
@@ -43,7 +43,7 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
                 "Admin endpoint. Appends a StockAdjustedEvent and returns the " +
                 "post-mutation projection snapshot. Idempotency-Key header (24h " +
                 "TTL) deduplicates retries per ADR-0013. Requires the " +
-                "inventory.commands.reserve scope.";
+                "inventory.write scope.";
         });
         Description(b =>
         {
