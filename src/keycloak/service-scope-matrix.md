@@ -1,6 +1,6 @@
 # Service-to-Service Auth — Client ↔ Scope Matrix
 
-Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 9 service clients defined in [realm-export.json](realm-export.json).
+Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 8 service clients defined in [realm-export.json](realm-export.json).
 
 ## Conventions
 
@@ -72,7 +72,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 
 ## 2. Per-service blocks
 
-Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient: false`, and only the client-credentials grant (standard/direct-access/implicit flows disabled).
+Each of the 8 service clients uses `serviceAccountsEnabled: true`, `publicClient: false`, and only the client-credentials grant (standard/direct-access/implicit flows disabled).
 
 ### `catalog-service`
 
@@ -130,14 +130,6 @@ Each of the 9 service clients uses `serviceAccountsEnabled: true`, `publicClient
   - Only HTTP reads (invoice detail, PDF download). Invoicing is projection-driven — it consumes `OrderConfirmedEvent` + `PaymentCapturedEvent` from Kafka event topics and does not require per-BC read scopes.
 - **Cross-refs:** `invoicing.md §8`, ADR-0017/0018/0019.
 
-### `checkout-saga`
-
-- **Audience:** none — no inbound HTTP surface, and (since 2026-05-27) no self-audience mapper. Kafka command topics carry no service-token auth (trust boundary = the deployment network), so this client is not exercised at runtime.
-- **Outbound:** `notifications.commands.send`
-  - The saga publishes notifications via outbox (e.g. saga-stuck operator alerts). All saga-driven orchestration commands flow over Kafka command topics, which carry no application-layer auth in this reference profile.
-- **Inbound:** none — the saga has no inbound HTTP surface.
-- **Cross-refs:** ADR-0004 (Checkout Saga Topology), `saga-stuck-runbook.md`.
-
 ### `notifications-service`
 
 - **Audience:** `notifications-service`
@@ -194,7 +186,6 @@ Services read their own secret from the env-var pattern:
 | `inventory-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__INVENTORY` | ″ |
 | `payments-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__PAYMENTS` | ″ |
 | `invoicing-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__INVOICING` | ″ |
-| `checkout-saga` | `KEYCLOAK__SERVICE_CLIENT_SECRET__CHECKOUT_SAGA` | ″ |
 | `notifications-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__NOTIFICATIONS` | ″ |
 | `bff` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BFF` | ″ |
 
@@ -234,7 +225,7 @@ TOKEN=$(curl -s -X POST http://localhost:9011/realms/master/protocol/openid-conn
 # List all clients — expect 11 realm-declared (plus Keycloak builtins: account, admin-cli, broker, realm-management, security-admin-console)
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','checkout-saga','notifications-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
+  | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','notifications-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
 
 # List all client scopes — expect the 10 declared scopes plus Keycloak defaults
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
