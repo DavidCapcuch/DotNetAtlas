@@ -19,7 +19,7 @@ try
 
     builder.AddServiceDefaults(options =>
     {
-        options.ServiceName = "Ordering.Api";
+        options.ServiceName = "Ordering";
     });
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
@@ -45,21 +45,21 @@ try
 
     app.UseCorrelationId();
 
-    app.UseRouting();
-
     // Order matters: OutputCache reads must happen before authn so cached
     // responses can short-circuit (FastEndpoints' .Idempotency() filter
     // sits inside the endpoint pipeline, but AddIdempotencyKeyOutputCache
     // wires the underlying IOutputCacheStore which UseOutputCache attaches).
-    app.UseOutputCache();
-    app.UseAuthentication();
-    app.UseAuthorization();
+    app.UseRouting()
+        .UseOutputCache()
+        .UseAuthentication()
+        .UseAuthorization();
 
     app.UseOrderingFastEndpoints();
 
     app.MapRazorPages();
 
     app.MapPlatformHealthCheckEndpoints();
+    app.UsePlatformHealthChecksPrometheusExporter();
 
     await app.MigrateOnStartupIfDevelopmentAsync<OrderingDbContext>();
 

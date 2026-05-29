@@ -20,7 +20,7 @@ internal sealed class GetCategoryTreeEndpoint : Endpoint<GetCategoryTreeRequest,
         Get("tree");
         Version(1);
         Group<CategoriesGroup>();
-        Policies(CatalogAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s =>
         {
             s.Summary = "Fetch the category taxonomy. Pass rootCategoryId for a subtree.";

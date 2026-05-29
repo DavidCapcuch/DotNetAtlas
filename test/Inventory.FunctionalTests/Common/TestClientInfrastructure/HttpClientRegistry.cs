@@ -11,6 +11,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     private readonly HttpClient _nonAuthClient;
     private readonly HttpClient _readOnlyClient;
     private readonly HttpClient _commandsClient;
+    private readonly HttpClient _writeScopeNoAdminClient;
 
     public HttpClientRegistry(AppFixture<TEntryPoint> appFixture, FakeTokenCreator tokenCreator)
     {
@@ -19,6 +20,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
         _nonAuthClient = CreateClientFor(ClientType.NonAuth);
         _readOnlyClient = CreateClientFor(ClientType.ReadOnly);
         _commandsClient = CreateClientFor(ClientType.Commands);
+        _writeScopeNoAdminClient = CreateClientFor(ClientType.WriteScopeNoAdmin);
     }
 
     /// <summary>Bare client; no Authorization header. Drives the 401 branch.</summary>
@@ -27,8 +29,11 @@ public sealed class HttpClientRegistry<TEntryPoint>
     /// <summary>JWT carries only <c>inventory.read</c>. Drives the 403 branch on admin POSTs.</summary>
     public HttpClient ReadOnlyClient => _readOnlyClient;
 
-    /// <summary>JWT carries <c>inventory.write</c>. Drives the success path on every endpoint.</summary>
+    /// <summary>JWT carries the <c>admin</c> role + <c>inventory.write</c> scope. Drives the success path on every endpoint.</summary>
     public HttpClient CommandsClient => _commandsClient;
+
+    /// <summary>JWT carries the <c>inventory.write</c> scope but NOT the <c>admin</c> role. Drives the 403 branch on write endpoints (proves WritePolicy's role half).</summary>
+    public HttpClient WriteScopeNoAdminClient => _writeScopeNoAdminClient;
 
     /// <summary>Per-test client carrying a specific <c>Idempotency-Key</c> header.</summary>
     public HttpClient CommandsClientWithIdempotencyKey(string idempotencyKey)
@@ -54,7 +59,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     /// </remarks>
     public void SetTraceParent(string? traceParent)
     {
-        foreach (var client in new[] { _nonAuthClient, _readOnlyClient, _commandsClient })
+        foreach (var client in new[] { _nonAuthClient, _readOnlyClient, _commandsClient, _writeScopeNoAdminClient })
         {
             client.DefaultRequestHeaders.Remove("traceparent");
             client.DefaultRequestHeaders.Add("traceparent", traceParent);

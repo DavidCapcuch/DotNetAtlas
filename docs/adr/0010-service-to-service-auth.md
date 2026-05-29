@@ -62,7 +62,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 - Same Keycloak, same terminology as user auth — lower cognitive load.
 - Tokens carry `azp` (calling service identity) which feeds audit columns (e.g., `admin_audit.actor_service_id`).
-- Scopes enforce least privilege on HTTP: a caller lacking the required scope is rejected by the BC's `AddJwtBearer` policy (e.g. only callers with `inventory.write` can hit the Inventory `Receive`/`Adjust` admin endpoints).
+- Scopes enforce least privilege on HTTP: a caller lacking the required scope is rejected by the BC's `AddJwtBearer` policy (e.g. only callers with the `admin` role AND the `inventory.write` scope can hit the Inventory `Receive`/`Adjust` admin endpoints).
 - New services adopt with `builder.Services.AddServiceAuth("catalog-service").WithScopes("inventory.read")` in `Platform.ServiceDefaults`.
 - Tokens are short-lived (≤ 5 min by default); revocation happens naturally via expiry.
 
@@ -98,7 +98,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
   - Scope-based authorization via `RequireClaim("scope", "catalog.read")`-style policies, or FastEndpoints' `Policies(...)` / `Permissions(...)`.
 
 - **Scope enforcement on inbound HTTP (where it does belong):**
-  - The HTTP-side `AddJwtBearer` validation above already enforces audience + issuer per service. Scope policies (`RequireClaim("scope", "inventory.write")`-style) gate admin endpoints inside each service. This is the only layer where service-to-service tokens need application-level inspection, because admin commands enter via HTTP, not Kafka.
+  - The HTTP-side `AddJwtBearer` validation above already enforces audience + issuer per service. Scope policies (`RequireClaim("scope", "inventory.write")`-style) — often combined with a `RequireRole("admin")` for human-admin endpoints (Payments and Inventory's write gate use **role AND scope**, defense-in-depth) — guard admin endpoints inside each service. This is the only layer where service-to-service tokens need application-level inspection, because admin commands enter via HTTP, not Kafka.
   - **Platform helper (Wave 1.5 cross-cutting):** `Platform.ServiceDefaults.Auth.ScopePolicyExtensions.RequireScope(string scope)` is the canonical way for a BC `AuthorizationPolicyBuilder` to enforce a scope claim. It composes `RequireAuthenticatedUser()` + `RequireClaim("scope", scope)` and validates input. Existing v1 BCs (Invoicing, Payments, Ordering) currently use `RequireRole(Roles.<Admin|Buyer>)` mapped from Keycloak realm roles — a transitional posture flagged in the Wave 1 closeouts. The v2 hardening pass migrates each admin/buyer policy to `RequireScope("<service>.<verb>")` using this helper; per-BC migration is tracked on the issue tracker under label `platform/wave1-followup`.
 
 - **Observability:**

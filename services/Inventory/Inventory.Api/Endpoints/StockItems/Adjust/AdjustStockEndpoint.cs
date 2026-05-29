@@ -25,7 +25,7 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
         Post("stock-items/{productId:guid}/adjust");
         Version(1);
         Group<InventoryGroup>();
-        Policies(InventoryAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Idempotency(opts =>
         {
             // ADR-0013: 24h TTL, header `Idempotency-Key`, redis-cache backing

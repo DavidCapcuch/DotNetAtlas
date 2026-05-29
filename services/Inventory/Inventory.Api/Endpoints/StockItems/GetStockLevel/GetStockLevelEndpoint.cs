@@ -22,7 +22,7 @@ internal sealed class GetStockLevelEndpoint : Endpoint<GetStockLevelRequest, Sto
         Get("stock-items/{productId:guid}");
         Version(1);
         Group<InventoryGroup>();
-        Policies(InventoryAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s => s.Summary = "Returns the current stock-level snapshot for a ProductId.");
         Description(b =>
         {

@@ -19,7 +19,7 @@ try
 
     builder.AddServiceDefaults(options =>
     {
-        options.ServiceName = "Payments.Api";
+        options.ServiceName = "Payments";
     });
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
@@ -45,16 +45,16 @@ try
 
     app.UseCorrelationId();
 
-    app.UseRouting();
-
-    app.UseAuthentication();
-    app.UseAuthorization();
+    app.UseRouting()
+        .UseAuthentication()
+        .UseAuthorization();
 
     app.UsePaymentsFastEndpoints();
 
     app.MapRazorPages();
 
     app.MapPlatformHealthCheckEndpoints();
+    app.UsePlatformHealthChecksPrometheusExporter();
 
     await app.MigrateOnStartupIfDevelopmentAsync<PaymentsDbContext>();
 

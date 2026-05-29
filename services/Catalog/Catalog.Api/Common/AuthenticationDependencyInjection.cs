@@ -1,5 +1,6 @@
 using Catalog.Api.Common.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults;
@@ -48,12 +49,44 @@ internal static class AuthenticationDependencyInjection
                 });
         }
 
-        services.AddAuthorization(options => options.AddCatalogScopePolicies());
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AuthPolicies.ReadPolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(ctx => HasAnyScope(ctx, Scopes.CatalogRead, Scopes.CatalogWrite));
+            })
+            .AddPolicy(AuthPolicies.WritePolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(ctx => HasAnyScope(ctx, Scopes.CatalogWrite));
+            });
+
         services.AddHttpContextAccessor();
 
         services.AddServiceAuth(serviceName: "catalog-service");
 
         return services;
+    }
+
+    // Keycloak emits scopes as a single space-separated `scope` claim (RFC 6749).
+    // Read is implied by write; write requires the write scope.
+    private static bool HasAnyScope(AuthorizationHandlerContext ctx, params string[] required)
+    {
+        foreach (var claim in ctx.User.FindAll("scope"))
+        {
+            foreach (var scope in claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                foreach (var needle in required)
+                {
+                    if (string.Equals(scope, needle, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private const string JwtBearerConfigSection = "Authentication:JwtBearer";

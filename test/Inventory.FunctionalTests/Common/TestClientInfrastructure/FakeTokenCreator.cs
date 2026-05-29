@@ -6,9 +6,11 @@ using Platform.Test.Framework.Auth;
 namespace Inventory.FunctionalTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Maps a <see cref="ClientType"/> to the space-separated <c>scope</c> claim
-/// that <see cref="InventoryAuthorizationPolicies.HasAnyScope"/> reads, then
-/// delegates signing to <see cref="FakeTokenBuilder"/>.
+/// Maps a <see cref="ClientType"/> to the claim set the Inventory authorization
+/// policies expect — the space-separated <c>scope</c> claim that
+/// <see cref="AuthPolicies"/> reads, plus the flat realm-role
+/// claim (<see cref="ClaimTypes.Role"/>) that <c>WritePolicy</c>'s
+/// <c>RequireRole</c> reads — then delegates signing to <see cref="FakeTokenBuilder"/>.
 /// </summary>
 public sealed class FakeTokenCreator
 {
@@ -23,14 +25,19 @@ public sealed class FakeTokenCreator
     {
         return clientType switch
         {
-            ClientType.ReadOnly => CreateScopedToken(InventoryAuthorizationPolicies.ReadScope),
-            ClientType.Commands => CreateScopedToken(InventoryAuthorizationPolicies.WriteScope),
+            // Service-to-service read (e.g. BFF): inventory.read scope, no role.
+            ClientType.ReadOnly => CreateToken(Scopes.InventoryRead, roles: []),
+            // Admin happy path: admin role AND inventory.write scope — satisfies WritePolicy.
+            ClientType.Commands => CreateToken(Scopes.InventoryWrite, roles: [Roles.Admin]),
+            // Defense-in-depth negative: inventory.write scope but NO admin role — must be
+            // rejected by WritePolicy's RequireRole half (proves the role gate, not just the scope).
+            ClientType.WriteScopeNoAdmin => CreateToken(Scopes.InventoryWrite, roles: []),
             _ => throw new ArgumentOutOfRangeException(nameof(clientType),
                 $"{clientType} has no associated token; callers should skip CreateToken for NonAuth."),
         };
     }
 
-    private string CreateScopedToken(string scope)
+    private string CreateToken(string scope, string[] roles)
     {
         var claims = new List<Claim>
         {
@@ -40,6 +47,11 @@ public sealed class FakeTokenCreator
             // the policy-side scope parser is exercised against realistic input.
             new("scope", $"openid profile {scope}"),
         };
+
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         return FakeTokenBuilder.SignToken(_signer, claims);
     }

@@ -19,7 +19,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 
 ## 1. Scope catalog
 
-10 scopes are defined in the top-level `clientScopes` block of `realm-export.json`. All use `protocol: openid-connect`, `display.on.consent.screen: false`, `include.in.token.scope: true`.
+9 scopes are defined in the top-level `clientScopes` block of `realm-export.json`. All use `protocol: openid-connect`, `display.on.consent.screen: false`, `include.in.token.scope: true`.
 
 ### Catalog (2)
 
@@ -46,7 +46,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 | Scope | Description |
 |---|---|
 | `inventory.read` | Read stock levels and reservation status. |
-| `inventory.write` | Gates the Inventory `Receive` / `Adjust` admin HTTP endpoints. |
+| `inventory.write` | Scope half of the Inventory `Receive` / `Adjust` admin write gate — required **alongside** the `admin` realm role (defense-in-depth). |
 
 ### Payments (1)
 
@@ -98,8 +98,8 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 - **Audience:** `inventory-service`
 - **Outbound:** none — low-stock notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `inventory.read`, `inventory.write`
-  - BFF reads stock via `inventory.read`. `inventory.write` gates the admin `Receive` / `Adjust` HTTP endpoints (see [`InventoryAuthorizationPolicies`](../../services/Inventory/Inventory.Api/Common/Authorization/InventoryAuthorizationPolicies.cs)). Saga reservation commands enter via Kafka on `inventory.reservation-commands`; no application-layer scope check on that path.
+- **Inbound:** `inventory.read` (reads); **`admin` role + `inventory.write` scope** (writes)
+  - BFF reads stock via `inventory.read`. The admin `Receive` / `Adjust` endpoints require the **`admin` realm role AND the `inventory.write` scope** (defense-in-depth, mirroring `PaymentsAdmin`; see [`AuthPolicies`](../../services/Inventory/Inventory.Api/Common/Authorization/AuthPolicies.cs)). An admin obtains the scope by requesting `inventory.write` through the `dotnetatlas-swagger` client; the role gate blocks non-admins. Saga reservation commands enter via Kafka on `inventory.reservation-commands`; no application-layer scope check on that path.
 - **Cross-refs:** `bff.md §3.1/3.3`, `events-catalog.md §2` (Inventory Reservation Commands).
 
 ### `payments-service`

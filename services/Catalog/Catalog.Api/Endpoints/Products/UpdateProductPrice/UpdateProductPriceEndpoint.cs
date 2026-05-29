@@ -20,7 +20,7 @@ internal sealed class UpdateProductPriceEndpoint : Endpoint<UpdateProductPriceRe
         Put("{id:guid}/price");
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Summary(s =>
         {
             s.Summary = "Update a product's price. Publishes ProductPriceChanged on change; no-op on identical price.";

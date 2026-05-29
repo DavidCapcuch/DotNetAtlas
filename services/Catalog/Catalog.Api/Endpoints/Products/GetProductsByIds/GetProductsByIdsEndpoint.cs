@@ -25,7 +25,7 @@ internal sealed class GetProductsByIdsEndpoint : Endpoint<GetProductsByIdsReques
         Get("by-ids");
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s =>
         {
             s.Summary = "Bulk product lookup. Partial-tolerant; max 100 IDs per call.";

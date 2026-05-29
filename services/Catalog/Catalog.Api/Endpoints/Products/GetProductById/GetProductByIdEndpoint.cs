@@ -20,7 +20,7 @@ internal sealed class GetProductByIdEndpoint : Endpoint<GetProductByIdRequest, G
         Get("{id:guid}");
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.ReadPolicy);
+        Policies(AuthPolicies.ReadPolicy);
         Summary(s =>
         {
             s.Summary = "Fetch a single product's full detail view (read from product_search_view projection).";

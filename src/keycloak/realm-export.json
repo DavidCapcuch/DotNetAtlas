@@ -162,7 +162,7 @@
     {
       "name": "inventory.write",
       "protocol": "openid-connect",
-      "description": "Mutate stock — gates the Inventory Receive / Adjust admin HTTP endpoints (InventoryAuthorizationPolicies).",
+      "description": "Mutate stock — gates the Inventory Receive / Adjust admin HTTP endpoints (AuthPolicies.WritePolicy).",
       "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
       "protocolMappers": [
         {
@@ -366,7 +366,7 @@
         "pkce.code.challenge.method": "S256"
       },
       "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
-      "optionalClientScopes": ["offline_access"],
+      "optionalClientScopes": ["offline_access", "inventory.write"],
       "protocolMappers": [
         {
           "name": "roles-flat",

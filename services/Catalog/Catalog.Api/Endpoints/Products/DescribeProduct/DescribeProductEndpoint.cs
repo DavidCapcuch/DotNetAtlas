@@ -20,7 +20,7 @@ internal sealed class DescribeProductEndpoint : Endpoint<DescribeProductRequest>
         Put("{id:guid}/description");
         Version(1);
         Group<ProductsGroup>();
-        Policies(CatalogAuthorizationPolicies.WritePolicy);
+        Policies(AuthPolicies.WritePolicy);
         Summary(s =>
         {
             s.Summary = "Overwrite a product's description. 409 on discontinued; 422 on invalid description.";
