@@ -459,6 +459,10 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      # Pin the in-container HTTP port. Laptop `dotnet run` instead uses each project's
+      # launchSettings port (5100-5106), so every BC can run side by side without all
+      # collapsing onto one port. Containers reach each other on 8080; the host sees 810x.
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Catalog=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - Kafka__Brokers__0=broker:9092
@@ -506,6 +510,7 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Ordering=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - Kafka__Brokers__0=broker:9092
@@ -555,6 +560,7 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Invoicing=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - ConnectionStrings__AzureStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
@@ -597,6 +603,7 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Notifications=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - Kafka__Brokers__0=broker:9092
       - Kafka__SchemaRegistry__Url=http://schema-registry:8081
@@ -645,6 +652,7 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Basket=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       # Basket BC isolates two Redis instances per ADR-0016: redis-basket is the authoritative
       # aggregate store (AOF, noeviction); redis-cache backs idempotency-key OutputCache (allkeys-lru).
@@ -695,6 +703,7 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Inventory=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
       - Kafka__Brokers__0=broker:9092
@@ -737,6 +746,7 @@ services:
       - "localhost:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
       - ConnectionStrings__Payments=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD};Include Error Detail=true
       - Kafka__Brokers__0=broker:9092
       - Kafka__SchemaRegistry__Url=http://schema-registry:8081
