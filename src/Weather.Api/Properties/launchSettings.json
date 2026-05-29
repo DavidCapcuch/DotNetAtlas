@@ -1,19 +1,21 @@
-﻿{
+{
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "Weather.Api.Local.Http": {
+    "Weather.Api.Http": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
+      "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5159",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "Weather.Api.Local.Https": {
+    "Weather.Api.Https": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
+      "launchUrl": "swagger",
       "applicationUrl": "https://weather.dev.localhost:7095",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
