@@ -111,7 +111,7 @@ Ordering-specific triggers:
 Concrete deliverables. Extends `_shared.md § 12`.
 
 - [ ] 4-layer solution structure scaffolded under `services/Ordering/`, `.slnx` updated, `dotnet build -m` green
-- [ ] 6 external Avro events + 4 saga-command schemas + 8 internal `*DomainEvent` records + 4 outbox publishers + 4 saga-command Kafka consumers (with inbox dedup; **no** per-message `X-Service-Token` validation per ADR-0010 lines 102-106 — see this prompt's `<applicable_adrs>` ADR-0010 entry)
+- [ ] 6 external Avro events + 4 saga-command schemas + 8 internal `*DomainEvent` records + 4 outbox publishers + 4 saga-command Kafka consumers (with inbox dedup; **no** per-message `X-Service-Token` validation per ADR-0010 — see this prompt's `<applicable_adrs>` ADR-0010 entry)
 - [ ] Admin HTTP endpoints under `/api/v1/ordering/` — `MarkOrderShipped`, `MarkOrderDelivered`, `Cancel` + authorization policies + `.Idempotency()` on cancel
 - [ ] Queries: `GetOrderById` (with buyer-or-admin authorization check), `GetOrdersByBuyer` (paginated)
 - [ ] Appendix B decisions all documented in session summary
