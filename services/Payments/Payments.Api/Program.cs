@@ -52,6 +52,8 @@ try
 
     app.UsePaymentsFastEndpoints();
 
+    app.MapRazorPages();
+
     app.MapPlatformHealthCheckEndpoints();
 
     await app.MigrateOnStartupIfDevelopmentAsync<PaymentsDbContext>();

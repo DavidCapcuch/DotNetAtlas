@@ -23,6 +23,8 @@ internal static class ApiDependencyInjection
 
         services.AddIdempotencyKeyOutputCache(configuration, serviceName: "catalog-service");
 
+        services.AddRazorPages();
+
         return services;
     }
 }

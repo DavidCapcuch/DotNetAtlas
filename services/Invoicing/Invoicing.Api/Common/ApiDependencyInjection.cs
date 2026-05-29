@@ -38,6 +38,8 @@ internal static class ApiDependencyInjection
         services.AddIdempotency();
         services.AddIdempotencyKeyOutputCache(configuration, ServiceName);
 
+        services.AddRazorPages();
+
         return services;
     }
 }

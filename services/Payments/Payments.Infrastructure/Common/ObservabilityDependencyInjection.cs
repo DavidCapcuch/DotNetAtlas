@@ -1,9 +1,9 @@
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Payments.Infrastructure.Common.Observability;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Pii;
 
@@ -15,16 +15,6 @@ namespace Payments.Infrastructure.Common;
 /// </summary>
 public static class ObservabilityDependencyInjection
 {
-    /// <summary>
-    /// Application name used for telemetry identification. Matches the
-    /// docker-compose <c>OTEL_SERVICE_NAME=Payments</c> override and the
-    /// natural BC name; consistent across appsettings, code, and runtime env.
-    /// </summary>
-    private const string AppName = "Payments";
-
-    private static readonly string Version =
-        typeof(ObservabilityDependencyInjection).Assembly.GetName().Version!.ToString();
-
     /// <summary>
     /// Configures OpenTelemetry distributed tracing and metrics for Payments.
     /// Sets up instrumentation for ASP.NET Core, HTTP clients (payment-gateway
@@ -47,11 +37,11 @@ public static class ObservabilityDependencyInjection
         var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(oltpExporterEndpoint))
         {
-            var serviceName = configuration["OTEL_SERVICE_NAME"] ?? AppName;
+            var serviceName = configuration["OTEL_SERVICE_NAME"] ?? ApplicationInfo.AppName;
 
             var otel = services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource
-                    .AddService(serviceName: serviceName, serviceVersion: Version)
+                    .AddService(serviceName: serviceName, serviceVersion: ApplicationInfo.Version)
                     .AddContainerDetector()
                     .AddHostDetector())
                 .WithTracing(tracing =>

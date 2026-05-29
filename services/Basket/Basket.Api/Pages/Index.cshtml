@@ -1,0 +1,46 @@
+@page
+@model Basket.Api.Pages.IndexModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width"/>
+    <title>@Model.Title</title>
+</head>
+<body>
+<h1>@Model.Title</h1>
+<h3>Deployment: @Model.Env.EnvironmentName</h3>
+
+@if (!Model.Env.IsProduction())
+{
+    <h3><a href="/swagger" target="_blank" rel="noopener noreferrer">Swagger</a></h3>
+}
+<h3><a href="/api/healthz" target="_blank" rel="noopener noreferrer">Liveness</a></h3>
+<h3><a href="/api/readiness" target="_blank" rel="noopener noreferrer">Readiness</a></h3>
+
+@if (Model.Env.IsDevelopment())
+{
+    <h3 style="opacity: 0.7;">Dev account: dev@dotnetatlas.com / 123456789</h3>
+    <br/>
+    <h2>Docker compose services:</h2>
+    <h3><a href="http://localhost:5341/#/events?range=3h" target="_blank" rel="noopener noreferrer">Seq</a></h3>
+    <h3><a href="http://localhost:3000/dashboards" target="_blank" rel="noopener noreferrer">Grafana</a></h3>
+    <h3><a href="http://localhost:16686/jaeger/ui/search" target="_blank" rel="noopener noreferrer">Jaeger</a></h3>
+    <h3><a href="http://localhost:9000/ui/local/topic"
+           target="_blank" rel="noopener noreferrer">AKHQ</a></h3>
+    <h3>
+        <a href="http://localhost:5540/484a0520-f569-45ea-a027-909b81903784/browser" target="_blank"
+           rel="noopener noreferrer">
+            Redis Insight
+        </a>
+        (connect to "redis12346:6379" - db 0)
+    </h3>
+    <h3><a href="http://localhost:9090/query" target="_blank" rel="noopener noreferrer">Prometheus</a></h3>
+}
+
+</body>
+</html>

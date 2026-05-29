@@ -1,4 +1,4 @@
-using System.Reflection;
+using Catalog.Infrastructure.Common.Observability;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
@@ -15,17 +15,6 @@ namespace Catalog.Infrastructure.Common;
 /// </summary>
 public static class ObservabilityDependencyInjection
 {
-    /// <summary>
-    /// Application name used for telemetry identification when
-    /// <c>OTEL_SERVICE_NAME</c> is not set in configuration. Matches the
-    /// docker-compose <c>OTEL_SERVICE_NAME=Catalog</c> override and the
-    /// natural BC name.
-    /// </summary>
-    private const string AppName = "Catalog";
-
-    private static readonly string Version =
-        typeof(ObservabilityDependencyInjection).Assembly.GetName().Version!.ToString();
-
     /// <summary>
     /// Configures OpenTelemetry distributed tracing and metrics for Catalog.
     /// Sets up instrumentation for ASP.NET Core, HTTP clients, EF Core, and
@@ -48,11 +37,11 @@ public static class ObservabilityDependencyInjection
         var oltpExporterEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(oltpExporterEndpoint))
         {
-            var serviceName = configuration["OTEL_SERVICE_NAME"] ?? AppName;
+            var serviceName = configuration["OTEL_SERVICE_NAME"] ?? ApplicationInfo.AppName;
 
             services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource
-                    .AddService(serviceName: serviceName, serviceVersion: Version)
+                    .AddService(serviceName: serviceName, serviceVersion: ApplicationInfo.Version)
                     .AddContainerDetector()
                     .AddHostDetector())
                 .WithTracing(tracing =>
