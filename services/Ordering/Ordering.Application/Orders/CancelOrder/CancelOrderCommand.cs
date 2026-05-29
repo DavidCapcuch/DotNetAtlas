@@ -19,8 +19,9 @@ namespace Ordering.Application.Orders.CancelOrder;
 /// </item>
 /// <item>
 /// Saga compensation: <c>IsAdmin=true</c>, <c>BuyerId=Guid.Empty</c>.
-/// The saga is a trusted privileged caller; topic ACL is the
-/// authorisation boundary (ADR-0010).
+/// The saga is a trusted privileged caller; saga-issued commands are not
+/// separately authorised at the message layer — the trust boundary is the
+/// deployment network (ADR-0010).
 /// </item>
 /// </list>
 /// </summary>
