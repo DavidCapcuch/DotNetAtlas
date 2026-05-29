@@ -52,6 +52,8 @@ public static class SwaggerDependencyInjection
 
         services.SwaggerDocument(options =>
         {
+            // ADR-0012: endpoints declare Version(1); without an explicit cap FastEndpoints
+            // excludes all versioned endpoints from the document (default 0), leaving paths empty.
             options.MaxEndpointVersion = 1;
             options.ShortSchemaNames = true;
             options.RemoveEmptyRequestSchema = true;

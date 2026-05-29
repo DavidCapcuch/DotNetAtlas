@@ -1,26 +1,21 @@
 using FastEndpoints;
-using FastEndpoints.Swagger;
+using Platform.Api.Swagger;
 
 namespace Basket.Api.Common;
 
 internal static class FastEndpointsDependencyInjection
 {
     internal static IServiceCollection AddBasketFastEndpoints(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services
             .AddFastEndpoints()
-            .SwaggerDocument(o =>
-            {
-                o.MaxEndpointVersion = 1;
-                o.DocumentSettings = s =>
-                {
-                    s.Title = "Basket API";
-                    s.Version = "v1";
-                    s.Description =
-                        "Redis-backed basket aggregate with anti-corruption layer to Catalog. ";
-                };
-            });
+            .AddPlatformAuthSwaggerDocument(
+                configuration,
+                "Basket API",
+                "v1",
+                "Basket API for DotNet Atlas - Made with ❤️, Powered by ☕");
 
         return services;
     }
@@ -43,7 +38,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UseSwaggerGen();
+            app.UsePlatformAuthSwaggerGen(app.Configuration);
         }
 
         return app;

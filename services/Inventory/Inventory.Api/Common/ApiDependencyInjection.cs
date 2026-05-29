@@ -22,7 +22,7 @@ internal static class ApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddInventoryFastEndpoints();
+        services.AddInventoryFastEndpoints(configuration);
 
         services.AddInventoryCors(configuration);
 

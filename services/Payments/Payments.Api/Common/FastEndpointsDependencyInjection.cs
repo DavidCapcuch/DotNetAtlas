@@ -1,25 +1,20 @@
 using FastEndpoints;
-using FastEndpoints.Swagger;
+using Platform.Api.Swagger;
 
 namespace Payments.Api.Common;
 
 internal static class FastEndpointsDependencyInjection
 {
-    internal static IServiceCollection AddPaymentsFastEndpoints(this IServiceCollection services)
+    internal static IServiceCollection AddPaymentsFastEndpoints(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddFastEndpoints()
-            .SwaggerDocument(o =>
-            {
-                // ADR-0012: every endpoint declares Version(1); without an explicit cap,
-                // FastEndpoints excludes all versioned endpoints from the OpenAPI doc
-                // (default MaxEndpointVersion = 0), leaving `paths` empty.
-                o.MaxEndpointVersion = 1;
-                o.DocumentSettings = s =>
-                {
-                    s.Title = "Payments API";
-                    s.Version = "v1";
-                };
-            });
+            .AddPlatformAuthSwaggerDocument(
+                configuration,
+                "Payments API",
+                "v1",
+                "Payments API for DotNet Atlas - Made with ❤️, Powered by ☕");
 
         return services;
     }
@@ -49,7 +44,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UseSwaggerGen();
+            app.UsePlatformAuthSwaggerGen(app.Configuration);
         }
 
         return app;
