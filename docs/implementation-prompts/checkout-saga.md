@@ -19,7 +19,7 @@ You implement the **Checkout saga** in `saga/SagaOrchestrators/Checkout/`. This 
 
 <prerequisites>
 - **Wave 1 BCs scaffolded** (Catalog, Basket, Ordering, Inventory, Payments, Invoicing). At minimum their Avro schemas registered — the saga consumes events + publishes commands against all of them.
-- Wave 0 platform prep merged. Specifically: `Platform.ServiceDefaults` has correlation-id + service-auth (crucial — saga publishes commands on multiple command topics); Keycloak `checkout-saga` service client with scopes `ordering.commands.*`, `inventory.commands.*`, `payments.commands.*`.
+- Wave 0 platform prep merged. Specifically: `Platform.ServiceDefaults` has correlation-id propagation (crucial — the workflow `CorrelationId` rides on every saga-published command header per ADR-0008). The saga publishes commands over **Kafka, not HTTP**, so it does not use `AddServiceAuth(...)`; Kafka command topics carry no service-token auth — the trust boundary is the deployment network (ADR-0010).
 </prerequisites>
 
 <role_in_system>
@@ -74,7 +74,7 @@ You own these. Justify each in your session summary.
 Cross-cutting decisions to apply:
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — saga state's `CorrelationId` is the workflow correlation id; every outbound command carries it in the Kafka header; every inbound response event is correlated by `CorrelationId` (not `OrderId`, which arrives only after `OrderCreated`)
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — saga publishes commands on Kafka in v1 with **no per-message `X-Service-Token` header** ([ADR-0010 lines 102-106](../adr/0010-service-to-service-auth.md:102) explicitly forbid the application-layer pattern: "wrong layer regardless of v1/v2"). v1 trust boundary = the docker network (PLAINTEXT broker per ADR-0009). Production hardening = enable broker SASL/OAUTHBEARER + per-service Kafka topic ACLs; the Keycloak `checkout-saga` client + scopes are still defined so the v2 broker-level ACL pairs are ready.
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — saga publishes commands on Kafka with **no per-message `X-Service-Token` header** (the application-layer per-message pattern was rejected as the wrong layer). Kafka command topics carry no service-token auth — the trust boundary is the deployment network (ADR-0009 reference profile).
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — addresses transit through saga state (`BasketCheckoutInitiatedEvent` carries shipping/billing addresses); **persist the addresses ONLY for the duration the saga needs them** — on `Confirmed` or terminal-failure, null out the address columns in `saga_checkout_states` (don't keep PII beyond workflow lifetime); OTEL allowlist forbids tagging spans with address fields; `correlation.id` is allowlisted
 - [ADR-0014](../adr/0014-feature-flags-openfeature.md) — **explicit consumer of `checkout.payment-then-stock` flag** — reads via `IFeatureClient` at the initial transition guard; default OFF (ADR-0004 locks stock-then-payment as v1 default); flag ON demonstrates the alternative topology without changing the ADR decision
 - [ADR-0015](../adr/0015-time-timezone-policy.md) — saga state timestamps `DateTimeOffset`; MassTransit scheduler timeouts use injected BCL `TimeProvider.GetUtcNow()` where possible (MassTransit's own scheduler uses `DateTime.UtcNow` internally — acceptable; your saga's own timestamp columns use `DateTimeOffset`)
@@ -126,7 +126,7 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (no `services/` folder
 - [ ] `SagaTestHarness<CheckoutSagaState>` tests: happy path + each compensation branch + multi-item fan-out + timeout firing
 - [ ] Integration test (Testcontainers) runs end-to-end: `POST /api/v1/bff/checkout` (simulated) → saga reaches `Confirmed`
 - [ ] Saga state persists + resumes across container restart (kill container mid-flow, verify state restored)
-- [ ] Every outbound command carries correlation-id in Kafka headers (per ADR-0008). **No** `X-Service-Token` Kafka header — see this prompt's `<applicable_adrs>` ADR-0010 entry; v1 = PLAINTEXT, production = broker SASL/OAUTHBEARER + ACLs.
+- [ ] Every outbound command carries correlation-id in Kafka headers (per ADR-0008). **No** `X-Service-Token` Kafka header — see this prompt's `<applicable_adrs>` ADR-0010 entry; Kafka command topics carry no service-token auth (trust boundary = the deployment network).
 - [ ] Addresses nulled out in `saga_checkout_states` on terminal (Confirmed / Failed / Compensated / CompensationStuck) per ADR-0011 retention rule
 - [ ] `checkout.payment-then-stock` flag read via `IFeatureClient`; OFF path (default) verified; ON path stubbed + marked experimental
 - [ ] `SagaOptions.Checkout` configured in all 3 appsettings files
@@ -220,7 +220,7 @@ Use the template in `_template.md § session_summary`, plus saga-specifics:
 - Runbook verification: does `CompensationStuck` emit enough context for investigation?
 - Payments event-named-commands proposal table (if you surfaced one for user review)
 - ADR-0008 correlation roundtrip — evidence saga correlates across every event/command
-- ADR-0010 service-auth — confirm **no** `X-Service-Token` Kafka header is emitted (per ADR lines 102-106); Keycloak `checkout-saga` client + scopes defined for v2 broker-level ACLs but not validated at the application layer in v1
+- ADR-0010 service-auth — confirm **no** `X-Service-Token` Kafka header is emitted; Kafka command topics carry no service-token auth (trust boundary = the deployment network)
 - ADR-0011 PII retention — addresses nulled on terminal; integration test verified
 - ADR-0014 feature-flag — both flag states tested
 

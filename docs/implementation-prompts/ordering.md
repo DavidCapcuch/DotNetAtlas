@@ -70,7 +70,7 @@ You own these. Justify each in your session summary.
 Cross-cutting decisions to apply:
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — every saga-command handler reads `CorrelationId` from the Kafka header; persists into `ordering.orders.correlation_id` column; outbox publisher copies into emitted Avro events
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin HTTP endpoints (scope `ordering.commands.*`); **saga-command Kafka consumers do NOT do per-message token validation in v1** (broker-level SASL/OAUTHBEARER + topic ACLs are the production layer; v1 docker-compose runs Kafka PLAINTEXT per ADR-0009 reference profile); no outbound HTTP from Ordering in v1
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — inbound JWT validation for admin HTTP endpoints (scope `ordering.commands.*`); **saga-command Kafka consumers do NOT do per-message token validation** (Kafka command topics carry no service-token auth; trust boundary = the deployment network per ADR-0009 reference profile); no outbound HTTP from Ordering in v1
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — `ShippingAddress` + `BillingAddress` are PII; columns named `*_enc` per the convention (V1 stores plaintext; v2 will encrypt with per-buyer DEK); arch test forbids logging `Address`-typed parameters; OTEL allowlist forbids tagging spans with address fields
 - [ADR-0012](../adr/0012-api-versioning.md) — admin routes under `/api/v1/ordering/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — apply FastEndpoints `.Idempotency()` to `POST /api/v1/ordering/orders/{id}/cancel` (admin double-click guard) backed by `redis-cache`

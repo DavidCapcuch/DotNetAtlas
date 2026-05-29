@@ -140,7 +140,7 @@ Cross-cutting decisions that drive Wave 0 directly. Read each, then apply.
 
 - [ADR-0008](../adr/0008-correlation-id-propagation.md) — implement the middleware + DelegatingHandler + Kafka header propagation; this is the bulk of the `Platform.ServiceDefaults` work
 - [ADR-0009](../adr/0009-reference-solution-target-profile.md) — informs partition counts (3/6), retention windows, single-AZ posture; do not over-engineer for HA
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — Keycloak realm clients + scopes + `ClientCredentialsTokenHandler`; **ADR-0009 says SASL/OAUTHBEARER on Kafka is out of scope for v1** — do not enable broker-level auth
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — Keycloak realm clients + scopes + `ClientCredentialsTokenHandler`; **Kafka command topics carry no service-token auth (trust boundary = the deployment network per ADR-0009)** — no message-level or transport broker auth
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — wire the OTEL allowlist processor + Serilog `[PII]` destructuring policy into `Platform.ServiceDefaults`
 - [ADR-0012](../adr/0012-api-versioning.md) — no Wave 0 implementation work, but document the convention so Wave 1 prompts pick it up
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — register `Microsoft.AspNetCore.OutputCaching.StackExchangeRedis` package + helper extension; BCs opt-in per endpoint
