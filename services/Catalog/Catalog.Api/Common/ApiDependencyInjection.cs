@@ -15,7 +15,7 @@ internal static class ApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddCatalogFastEndpoints();
+        services.AddCatalogFastEndpoints(configuration);
 
         services.AddCatalogCors(configuration);
 

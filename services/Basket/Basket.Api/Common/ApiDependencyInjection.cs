@@ -16,7 +16,7 @@ internal static class ApiDependencyInjection
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        services.AddBasketFastEndpoints();
+        services.AddBasketFastEndpoints(configuration);
 
         services.AddBasketCors(configuration, environment);
 

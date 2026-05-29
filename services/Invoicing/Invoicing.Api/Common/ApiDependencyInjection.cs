@@ -26,7 +26,7 @@ internal static class ApiDependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddInvoicingFastEndpoints();
+        services.AddInvoicingFastEndpoints(configuration);
 
         services.AddProblemDetails();
 

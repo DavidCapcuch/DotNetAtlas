@@ -9,11 +9,14 @@ namespace Payments.Api.Common;
 /// </summary>
 internal static class ApiDependencyInjection
 {
-    internal static IServiceCollection AddPresentation(this IServiceCollection services)
+    internal static IServiceCollection AddPresentation(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddPaymentsFastEndpoints();
+        services.AddPaymentsFastEndpoints(configuration);
 
         services.AddProblemDetails();
 

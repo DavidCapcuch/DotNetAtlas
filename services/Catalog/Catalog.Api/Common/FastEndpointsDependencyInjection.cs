@@ -1,27 +1,21 @@
 using FastEndpoints;
-using FastEndpoints.Swagger;
+using Platform.Api.Swagger;
 
 namespace Catalog.Api.Common;
 
 internal static class FastEndpointsDependencyInjection
 {
     internal static IServiceCollection AddCatalogFastEndpoints(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services
             .AddFastEndpoints()
-            .SwaggerDocument(o =>
-            {
-                o.MaxEndpointVersion = 1;
-                o.DocumentSettings = s =>
-                {
-                    s.Title = "Catalog API";
-                    s.Version = "v1";
-                    s.Description =
-                        "Product-information authority. CQRS read-projection backed by Postgres; " +
-                        "publishes catalog events via the transactional outbox.";
-                };
-            });
+            .AddPlatformAuthSwaggerDocument(
+                configuration,
+                "Catalog API",
+                "v1",
+                "Catalog API for DotNet Atlas - Made with ❤️, Powered by ☕");
 
         return services;
     }
@@ -44,7 +38,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UseSwaggerGen();
+            app.UsePlatformAuthSwaggerGen(app.Configuration);
         }
 
         return app;

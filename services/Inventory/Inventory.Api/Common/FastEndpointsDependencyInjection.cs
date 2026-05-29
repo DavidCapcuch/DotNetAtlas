@@ -1,28 +1,21 @@
 using FastEndpoints;
-using FastEndpoints.Swagger;
+using Platform.Api.Swagger;
 
 namespace Inventory.Api.Common;
 
 internal static class FastEndpointsDependencyInjection
 {
     internal static IServiceCollection AddInventoryFastEndpoints(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services
             .AddFastEndpoints()
-            .SwaggerDocument(o =>
-            {
-                o.MaxEndpointVersion = 1;
-                o.DocumentSettings = s =>
-                {
-                    s.Title = "Inventory API";
-                    s.Version = "v1";
-                    s.Description =
-                        "Event-sourced stock authority with admin-only HTTP surface. " +
-                        "Saga lifecycle (Reserve / Confirm / Release) is Kafka-driven; " +
-                        "only Receive / Adjust / read endpoints are exposed here.";
-                };
-            });
+            .AddPlatformAuthSwaggerDocument(
+                configuration,
+                "Inventory API",
+                "v1",
+                "Inventory API for DotNet Atlas - Made with ❤️, Powered by ☕");
 
         return services;
     }
@@ -45,7 +38,7 @@ internal static class FastEndpointsDependencyInjection
 
         if (!app.Environment.IsProduction())
         {
-            app.UseSwaggerGen();
+            app.UsePlatformAuthSwaggerGen(app.Configuration);
         }
 
         return app;
