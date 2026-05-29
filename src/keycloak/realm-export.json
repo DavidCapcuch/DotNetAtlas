@@ -215,13 +215,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "notifications.commands.send",
-      "protocol": "openid-connect",
-      "description": "Publish SendEmailNotificationCommand to notification.commands via outbox. Kafka-publish intent only — Notifications has no token-authenticated HTTP resource, so no audience mapper.",
-      "attributes": { "display.on.consent.screen": "false", "include.in.token.scope": "true" },
-      "protocolMappers": []
     }
   ],
   "users": [
@@ -393,7 +386,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": ["catalog.write", "notifications.commands.send"],
+      "optionalClientScopes": ["catalog.write"],
       "protocolMappers": []
     },
     {
@@ -411,7 +404,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": ["catalog.read", "notifications.commands.send"],
+      "optionalClientScopes": ["catalog.read"],
       "protocolMappers": []
     },
     {
@@ -429,7 +422,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": ["notifications.commands.send"],
+      "optionalClientScopes": [],
       "protocolMappers": []
     },
     {
@@ -447,7 +440,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": ["notifications.commands.send"],
+      "optionalClientScopes": [],
       "protocolMappers": []
     },
     {
@@ -465,7 +458,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": ["notifications.commands.send"],
+      "optionalClientScopes": [],
       "protocolMappers": []
     },
     {
@@ -483,25 +476,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": ["notifications.commands.send"],
-      "protocolMappers": []
-    },
-    {
-      "clientId": "notifications-service",
-      "name": "Notifications Service",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "dev-notifications-service-secret-rotate-in-prod",
-      "clientAuthenticatorType": "client-secret",
-      "serviceAccountsEnabled": true,
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "implicitFlowEnabled": false,
-      "redirectUris": [],
-      "webOrigins": [],
-      "defaultClientScopes": [],
-      "optionalClientScopes": ["notifications.commands.send"],
+      "optionalClientScopes": [],
       "protocolMappers": []
     },
     {
@@ -525,8 +500,7 @@
         "basket.write",
         "ordering.read",
         "inventory.read",
-        "invoicing.read",
-        "notifications.commands.send"
+        "invoicing.read"
       ],
       "protocolMappers": []
     }

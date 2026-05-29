@@ -91,7 +91,7 @@ Azurite + nginx-cdn per ADR-0017:
 - `platform/Platform.SchemaRegistry.Contracts/Avro/{Catalog,Basket,Ordering,Inventory,Payments,Invoicing}/`
 
 **Keycloak realm config** (`src/keycloak/realm-export.json`) per ADR-0010:
-- 9 service clients: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `checkout-saga`, `notifications-service`, `bff` — each `serviceAccountsEnabled: true`, `publicClient: false`
+- 7 service clients: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `bff` — each `serviceAccountsEnabled: true`, `publicClient: false`
 - Scopes per the matrix (documented in `src/keycloak/service-scope-matrix.md` — co-author this companion doc)
 
 **Feature-flag file** (`flags.json` at repo root) seeded with the 3 flags from ADR-0014 — mounted into each service container at `/app/flags.json`.
