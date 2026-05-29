@@ -25,16 +25,14 @@ internal sealed class ReceiveStockEndpoint : Endpoint<ReceiveStockRequest, Stock
         Post("stock-items/{productId:guid}/receive");
         Version(1);
         Group<InventoryGroup>();
-        Policies(InventoryAuthorizationPolicies.CommandsPolicy);
+        Policies(InventoryAuthorizationPolicies.WritePolicy);
         Summary(s =>
         {
             s.Summary = "Records an inbound stock movement for the given ProductId.";
             s.Description =
                 "Admin endpoint. Appends a StockReceivedEvent to the stream and " +
                 "returns the post-mutation projection snapshot. Requires the " +
-                "inventory.commands.reserve scope (per inventory.md M1 design " +
-                "decision — admin write actions reuse the saga reserve scope " +
-                "in v1).";
+                "inventory.write scope.";
         });
         Description(b =>
         {

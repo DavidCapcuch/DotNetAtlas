@@ -6,7 +6,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 
 - **Realm:** `dotnetatlas` (NOT `eshop` — see drift note below).
 - **Issuer / Authority:** `http://localhost:9011/realms/dotnetatlas` (local dev).
-- **Scope naming:** dot-separated, `<bc>.<verb>` or `<bc>.commands.<verb>`. Scopes gate inbound HTTP endpoints (e.g. `inventory.commands.reserve` gates the Inventory `Receive`/`Adjust` admin endpoints; `catalog.write` gates Catalog mutations). Kafka command topics have no application-layer scope check — the trust boundary is the docker network per ADR-0009.
+- **Scope naming:** dot-separated, `<bc>.<verb>` (e.g. `catalog.read`, `inventory.write`). Scopes gate inbound HTTP endpoints (e.g. `inventory.write` gates the Inventory `Receive`/`Adjust` admin endpoints; `catalog.write` gates Catalog mutations). Kafka command topics have no application-layer scope check — the trust boundary is the docker network per ADR-0009.
 - **Audience (RFC 9068/8707 — audience = the resource being called):** each resource **client scope** carries an `oidc-audience-mapper` stamping the owning service, so a token requesting `catalog.read` gets `"aud": "catalog-service"` no matter which client requested it; multiple scopes yield a multi-valued `aud` array. Each service validates `Audience = <this-service>` inbound. Service clients have **no** per-client `audience-self` mapper — a caller's token must be audienced for the callee, not itself (corrected 2026-05-27; see ADR-0010 §"Keycloak audience lives on the client SCOPE"). Only the user-facing app client + Swagger self-audience (`e9fdb985…`), since there the app is the resource.
 - **Token endpoint:** `POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`.
 - **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §3.
@@ -46,7 +46,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 | Scope | Description |
 |---|---|
 | `inventory.read` | Read stock levels and reservation status. |
-| `inventory.commands.reserve` | Gates the Inventory `Receive` / `Adjust` admin HTTP endpoints. |
+| `inventory.write` | Gates the Inventory `Receive` / `Adjust` admin HTTP endpoints. |
 
 ### Payments (1)
 
@@ -98,8 +98,8 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 - **Audience:** `inventory-service`
 - **Outbound:** none — low-stock notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `inventory.read`, `inventory.commands.reserve`
-  - BFF reads stock via `inventory.read`. `inventory.commands.reserve` gates the admin `Receive` / `Adjust` HTTP endpoints (see [`InventoryAuthorizationPolicies`](../../services/Inventory/Inventory.Api/Common/Authorization/InventoryAuthorizationPolicies.cs)). Saga reservation commands enter via Kafka on `inventory.reservation-commands`; no application-layer scope check on that path.
+- **Inbound:** `inventory.read`, `inventory.write`
+  - BFF reads stock via `inventory.read`. `inventory.write` gates the admin `Receive` / `Adjust` HTTP endpoints (see [`InventoryAuthorizationPolicies`](../../services/Inventory/Inventory.Api/Common/Authorization/InventoryAuthorizationPolicies.cs)). Saga reservation commands enter via Kafka on `inventory.reservation-commands`; no application-layer scope check on that path.
 - **Cross-refs:** `bff.md §3.1/3.3`, `events-catalog.md §2` (Inventory Reservation Commands).
 
 ### `payments-service`
@@ -208,7 +208,7 @@ curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients" \
 # List all client scopes — expect the 10 declared scopes plus Keycloak defaults
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.commands.reserve','payments.read','invoicing.read'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
+  | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.write','payments.read','invoicing.read'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
 
 # Service-account token for catalog-service with scope catalog.write
 curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token \

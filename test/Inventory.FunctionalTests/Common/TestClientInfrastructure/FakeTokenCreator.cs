@@ -24,7 +24,7 @@ public sealed class FakeTokenCreator
         return clientType switch
         {
             ClientType.ReadOnly => CreateScopedToken(InventoryAuthorizationPolicies.ReadScope),
-            ClientType.Commands => CreateScopedToken(InventoryAuthorizationPolicies.CommandsScope),
+            ClientType.Commands => CreateScopedToken(InventoryAuthorizationPolicies.WriteScope),
             _ => throw new ArgumentOutOfRangeException(nameof(clientType),
                 $"{clientType} has no associated token; callers should skip CreateToken for NonAuth."),
         };

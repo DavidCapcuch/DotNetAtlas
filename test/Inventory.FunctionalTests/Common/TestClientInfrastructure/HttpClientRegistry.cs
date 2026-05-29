@@ -27,7 +27,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     /// <summary>JWT carries only <c>inventory.read</c>. Drives the 403 branch on admin POSTs.</summary>
     public HttpClient ReadOnlyClient => _readOnlyClient;
 
-    /// <summary>JWT carries <c>inventory.commands.reserve</c>. Drives the success path on every endpoint.</summary>
+    /// <summary>JWT carries <c>inventory.write</c>. Drives the success path on every endpoint.</summary>
     public HttpClient CommandsClient => _commandsClient;
 
     /// <summary>Per-test client carrying a specific <c>Idempotency-Key</c> header.</summary>

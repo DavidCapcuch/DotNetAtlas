@@ -12,6 +12,6 @@ public enum ClientType
     /// <summary>JWT carries only the <c>inventory.read</c> scope — read endpoints succeed; write endpoints 403.</summary>
     ReadOnly,
 
-    /// <summary>JWT carries the <c>inventory.commands.reserve</c> scope — admin write endpoints succeed; read endpoints also succeed via the Commands→Read hierarchy.</summary>
+    /// <summary>JWT carries the <c>inventory.write</c> scope — admin write endpoints succeed; read endpoints also succeed via the write→read hierarchy.</summary>
     Commands,
 }
