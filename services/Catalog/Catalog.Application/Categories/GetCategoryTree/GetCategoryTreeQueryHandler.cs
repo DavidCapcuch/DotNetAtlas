@@ -27,7 +27,7 @@ public sealed class GetCategoryTreeQueryHandler
             rootPath = await _db.Categories
                 .AsNoTracking()
                 .Where(c => c.Id == query.RootCategoryId.Value)
-                .TagWith(nameof(GetCategoryTreeQueryHandler))
+                .TagWith($"{nameof(GetCategoryTreeQueryHandler)}:RootPath")
                 .Select(c => c.Path.Value)
                 .FirstOrDefaultAsync(ct);
             if (rootPath is null)
@@ -66,6 +66,7 @@ public sealed class GetCategoryTreeQueryHandler
                 .Where(r => r.Status == activeName && loadedCategoryIds.Contains(r.CategoryId))
                 .GroupBy(r => r.CategoryId)
                 .Select(g => KeyValuePair.Create(g.Key, g.Count()))
+                .TagWith($"{nameof(GetCategoryTreeQueryHandler)}:Count")
                 .ToListAsync(ct);
 
         var countByCategoryId = counts.ToDictionary(x => x.Key, x => x.Value);

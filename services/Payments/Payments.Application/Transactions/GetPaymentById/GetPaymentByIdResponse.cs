@@ -4,7 +4,7 @@ namespace Payments.Application.Transactions.GetPaymentById;
 /// Admin-facing read DTO for a single <see cref="Payments.Domain.Transactions.PaymentTransaction"/>.
 /// Sensitive token fields (<c>PaymentMethodId</c>, <c>GatewayTransactionId</c>) are masked
 /// to last-4 in the response per ADR-0011 (see
-/// <see cref="PaymentTransactionResponseMapper"/>). Underlying <c>*_enc</c> columns remain
+/// <see cref="PaymentTransactionRow"/>). Underlying <c>*_enc</c> columns remain
 /// v1 plaintext on disk; full crypto-shredding lands with v2 DEK encryption.
 /// </summary>
 public sealed record GetPaymentByIdResponse

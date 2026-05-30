@@ -19,16 +19,19 @@ internal sealed class GetPaymentByIdQueryHandler : IQueryHandler<GetPaymentByIdQ
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        // Read-side PK lookup (ADR-0021/0022): inline LINQ, AsNoTracking, no spec.
-        var tx = await _dbContext.Transactions
+        // Read-side PK lookup (ADR-0021/0022): inline LINQ, AsNoTracking, no spec,
+        // SQL-side projection so the full aggregate is never materialised.
+        var row = await _dbContext.Transactions
             .AsNoTracking()
+            .Where(t => t.Id == query.PaymentId)
             .TagWith(nameof(GetPaymentByIdQueryHandler))
-            .FirstOrDefaultAsync(t => t.Id == query.PaymentId, ct);
-        if (tx is null)
+            .Select(PaymentTransactionRow.Projection)
+            .FirstOrDefaultAsync(ct);
+        if (row is null)
         {
             return Result.Fail<GetPaymentByIdResponse>(PaymentsErrors.PaymentNotFound(query.PaymentId));
         }
 
-        return Result.Ok(tx.ToResponse());
+        return Result.Ok(row.ToResponse());
     }
 }
