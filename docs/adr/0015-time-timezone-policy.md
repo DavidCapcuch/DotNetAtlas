@@ -26,9 +26,9 @@ A reference solution with event sourcing (Inventory), 10-year invoicing retentio
 
 ## Considered Options
 
-### Option 1: `DateTimeOffset` + `timestamptz` + `TimeProvider` abstraction, Avro `timestamp-micros` (UTC-normalized)
+### Option 1: `DateTimeOffset` + `timestamptz` + `TimeProvider` abstraction, Avro `timestamp-millis` (UTC-normalized)
 
-Domain uses `DateTimeOffset` (offset preserved in-process, written with offset to Postgres `timestamptz`). Domain never calls `DateTimeOffset.UtcNow` directly — injects the BCL `System.TimeProvider` (since .NET 8) and calls `TimeProvider.GetUtcNow()`. Tests inject `Microsoft.Extensions.Time.Testing.FakeTimeProvider` for determinism. Avro encodes event timestamps as `{"type": "long", "logicalType": "timestamp-micros"}`, which is UTC-epoch-microseconds.
+Domain uses `DateTimeOffset` (offset preserved in-process, written with offset to Postgres `timestamptz`). Domain never calls `DateTimeOffset.UtcNow` directly — injects the BCL `System.TimeProvider` (since .NET 8) and calls `TimeProvider.GetUtcNow()`. Tests inject `Microsoft.Extensions.Time.Testing.FakeTimeProvider` for determinism. Avro encodes event timestamps as `{"type": "long", "logicalType": "timestamp-millis"}`, which is UTC-epoch-milliseconds.
 
 ### Option 2: `DateTime` with `Kind=Utc` + Postgres `timestamp` + ambient UTC convention
 
@@ -50,11 +50,11 @@ No DateTime type; every timestamp is a `long` millisecond/microsecond epoch.
 | 2. Testability | `FakeTimeProvider` is first-party BCL tooling | `DateTime.UtcNow` is static; shimming requires `System.Fakes` or hand-written wrappers | NodaTime's `IClock` mockable | Handwritten epoch clock |
 | 3. .NET + Postgres best practice | Yes — MS-recommended default for multi-zone data | Common but not best-practice for Postgres (which has `timestamptz`) | Niche; power-user | Not idiomatic in .NET |
 | 4. Zero ambiguity | Offset makes it explicit | Relies on convention | Explicit | Explicit but loses human readability |
-| 5. Avro compatibility | `timestamp-micros` is standard | Same | Convert at boundary | `long` — trivial but loses logical-type tooling |
+| 5. Avro compatibility | `timestamp-millis` is standard + matches Kafka's native message-timestamp unit | Same | Convert at boundary | `long` — trivial but loses logical-type tooling |
 
 ## Decision
 
-We will use **Option 1: `DateTimeOffset` for in-process timestamps + `timestamptz` in Postgres + the BCL `System.TimeProvider` abstraction (since .NET 8) + Avro `timestamp-micros` (UTC-normalized) for event timestamps**. Architecture tests forbid direct `DateTime.UtcNow` / `DateTimeOffset.Now` / `DateTime.Now` calls in domain code.
+We will use **Option 1: `DateTimeOffset` for in-process timestamps + `timestamptz` in Postgres + the BCL `System.TimeProvider` abstraction (since .NET 8) + Avro `timestamp-millis` (UTC-normalized) for event timestamps**. Architecture tests forbid direct `DateTime.UtcNow` / `DateTimeOffset.Now` / `DateTime.Now` calls in domain code.
 
 ## Rationale
 
@@ -62,7 +62,13 @@ We will use **Option 1: `DateTimeOffset` for in-process timestamps + `timestampt
 
 `TimeProvider` is the small but load-bearing piece. Every domain type that tests time-dependent behavior (reservation TTL, saga timeouts, gap-free sequence year rollover) needs deterministic "now". The BCL ships `TimeProvider.System` in production and `FakeTimeProvider` (in `Microsoft.Extensions.TimeProvider.Testing`) for unit tests. Architecture tests enforce the injection discipline; domain code that calls `DateTimeOffset.UtcNow` fails the build.
 
-Avro's `timestamp-micros` normalizes to UTC for the wire — events are persisted for 10 years and the offset at which they were produced is an in-process concern, not a business fact. This aligns with Kafka Streams, Flink, and most modern Avro consumers.
+**Avro `timestamp-millis` over `timestamp-micros`.** Both are standard Avro logical types annotating a `long`, and both normalize to a UTC instant on the wire — event-log topics are retained indefinitely (`retention.ms=-1`) and the offset at which they were produced is an in-process concern, not a business fact. The precision is the real decision, and it turns on two questions: does sub-millisecond precision carry meaning here, and can every consumer in the pipeline preserve it? For this system both answers are "no", and that makes millis the correct default:
+
+- **It matches the transport.** Kafka's own message timestamp (KIP-32) is an `int64` of milliseconds since the Unix epoch. Using millis for payload timestamps keeps the payload unit identical to the broker / `ConsumerRecord` metadata unit — no silent unit-switching between envelope and body.
+- **It matches the narrowest consumer.** Kafka Connect and ksqlDB model timestamps at millisecond precision (Connect's logical type is backed by `java.util.Date`) and *truncate* micros/nanos. Choosing micros plants a silent-corruption trap the day someone adds a JDBC/S3 sink connector; millis is the unit the whole Kafka tooling ecosystem carries without loss.
+- **The extra precision is not meaningful here.** These are business events — order placed, payment captured, stock reserved, invoice issued. Intra-millisecond ordering is resolved by event sequence/version and aggregate stream order, never by wall-clock precision.
+
+The honest tradeoff favoring micros: the in-process types carry more than millis — `DateTimeOffset` has 100-ns ticks and Postgres `timestamptz` stores microseconds — so the millis wire contract is the narrowest link in the chain, and a consumer that re-persists a Kafka timestamp into its own `timestamptz` keeps only millisecond precision. The unit to revisit *toward* is micros, and the trigger is concrete: a microsecond-precision analytics sink (Spark, Flink, Iceberg/Parquet — all µs-native by default). Absent such a consumer, micros is precision the pipeline cannot carry end-to-end. And because event topics are `FORWARD_TRANSITIVE` ([ADR-0007](0007-avro-compatibility-modes.md)), moving to micros later is a deliberate breaking change via a new schema subject — never an in-place logical-type edit, which Avro/Registry would accept (both are physically `long`) while silently reinterpreting every historical millisecond value as microseconds (1000× wrong).
 
 Option 2's `DateTime.UtcNow` is a common trap; it silently drops offset and makes tests flaky. Option 3 (NodaTime) is superior in some respects but brings a dependency and a parallel type system most .NET teams have never seen. Option 4 is defensible for extreme-scale systems but hostile to debugging and logs.
 
@@ -72,7 +78,7 @@ Option 2's `DateTime.UtcNow` is a common trap; it silently drops offset and make
 
 - Round-trips HTTP → DB → Kafka → DB preserve offset. Read-side projections don't need to "guess UTC".
 - `FakeTimeProvider` makes TTL / timeout tests deterministic — reservation-expiry tests can call `timeProvider.Advance(TimeSpan.FromMinutes(16))` without async waits.
-- Avro `timestamp-micros` standard means future consumers (Kafka Streams, Spark, Snowpipe) interpret timestamps without custom converters.
+- Avro `timestamp-millis` matches Kafka's own message-timestamp unit and the millisecond precision Kafka Connect and ksqlDB support natively — consumers interpret timestamps without custom converters or precision truncation.
 - Architecture test catches the most common mistake (`DateTime.UtcNow` in domain) before it lands.
 - Logs and traces show offset — operators don't have to mentally convert.
 
@@ -86,7 +92,7 @@ Option 2's `DateTime.UtcNow` is a common trap; it silently drops offset and make
 
 - **Mixed timezone display in UI** — the BFF may want to display local-time based on buyer locale. That's a presentation-layer concern; domain timestamps remain UTC-offset. BFF handles localization.
 - **Daylight-saving transitions** — CET → CEST rollover. DateTimeOffset handles this correctly because offset is explicit (+01:00 vs +02:00).
-- **Sub-microsecond precision loss** — `timestamp-micros` truncates to microseconds. .NET's `DateTimeOffset` has 100-ns precision; we lose two digits. Acceptable for audit/events.
+- **Sub-millisecond precision loss** — `timestamp-millis` truncates to milliseconds. .NET's `DateTimeOffset` (100-ns ticks) and Postgres `timestamptz` (microseconds) both carry more, so the wire contract is the narrowest link. Acceptable because business/audit events carry no sub-millisecond meaning and intra-millisecond ordering is resolved by event sequence/version, not wall-clock. Revisit toward `timestamp-micros` only if a microsecond-precision analytics sink (Spark/Iceberg/Parquet) is added downstream.
 
 ## Implementation Notes
 
@@ -163,10 +169,10 @@ Applied once per BC's DbContext via a shared base class in `Platform.ReliableMes
 All new `.avsc` files use:
 
 ```json
-{"name": "OccurredAtUtc", "type": {"type": "long", "logicalType": "timestamp-micros"}}
+{"name": "OccurredAtUtc", "type": {"type": "long", "logicalType": "timestamp-millis"}}
 ```
 
-The `UniversalSerDes` platform library handles `DateTimeOffset` → `long` conversion (epoch microseconds). On deserialisation, offset is reconstructed as `TimeSpan.Zero` (UTC) — consumers needing local time handle conversion at the presentation layer.
+The conversion is **schema-driven**, not performed by `UniversalSerDes`: that platform library is a thin pass-through over the Confluent `AvroSerializer`/`AvroDeserializer` and contains no timestamp math. The application-layer mapper converts the domain `DateTimeOffset` to a UTC `DateTime` (`occurredOnUtc.UtcDateTime`); Apache.Avro's `timestamp-millis` logical type then encodes that `DateTime` to a `long` of epoch milliseconds. Decoding is the exact inverse — the same schema yields a `DateTime` with `Kind=Utc`, which consumer adapters wrap back into a `DateTimeOffset` at offset 0 (`TimeSpan.Zero`). Consumers needing local time convert at the presentation layer.
 
 ### JSON serialization
 
@@ -175,7 +181,7 @@ The `UniversalSerDes` platform library handles `DateTimeOffset` → `long` conve
 ### Logging & tracing
 
 - Serilog renders `DateTimeOffset` in ISO 8601 with offset.
-- OTel span timestamps are UTC microseconds per OpenTelemetry spec — unchanged.
+- OTel span timestamps are UTC nanoseconds per OpenTelemetry spec — unchanged.
 
 ### DB column audit
 
@@ -186,5 +192,5 @@ Audit that every `*_at` / `*_utc` column in Postgres schemas is `timestamp with 
 - [ADR-0008: Correlation-ID Propagation](0008-correlation-id-propagation.md) — correlation columns pair with `*_at` timestamps; both use `timestamptz`
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — single-region simplifies the timezone story
 - [ADR-0006: Event Sourcing for Inventory](0006-event-sourcing-for-inventory.md) — event-stream `OccurredAtUtc` column uses this policy
-- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — `timestamp-micros` is the sanctioned logical type
+- [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — governs how these timestamp fields may evolve (`FORWARD_TRANSITIVE` on event topics); changing an existing field's logical type is a breaking change requiring a new subject
 - [ADR-0011: PII Handling & GDPR](0011-pii-handling-gdpr.md) — timestamps are not PII and not encrypted
