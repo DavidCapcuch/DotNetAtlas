@@ -18,7 +18,7 @@ internal static class ApiDependencyInjection
     /// <c>ServiceAuth.ClientId</c> + <c>ClientSecret</c> entries in <c>appsettings.json</c>
     /// are pre-provisioned for the day Inventory grows an outbound HTTP client.
     /// </remarks>
-    public static IServiceCollection AddPresentation(
+    public static IServiceCollection AddApi(
         this IServiceCollection services,
         IConfiguration configuration)
     {

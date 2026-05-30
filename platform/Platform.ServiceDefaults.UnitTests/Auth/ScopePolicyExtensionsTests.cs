@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.ServiceDefaults.Auth;
 
@@ -9,33 +8,12 @@ namespace Platform.ServiceDefaults.UnitTests.Auth;
 public class ScopePolicyExtensionsTests
 {
     [Fact]
-    public void RequireScope_BuildsPolicy_WithScopeClaimRequirement()
+    public async Task RequireAnyScope_SucceedsWhenSpaceSeparatedClaimContainsScope()
     {
-        var policy = new AuthorizationPolicyBuilder()
-            .RequireScope("catalog.read")
-            .Build();
+        var svc = BuildAuthorizationService(p => p.RequireAnyScope("catalog.read"));
 
-        policy.Requirements.OfType<ClaimsAuthorizationRequirement>()
-            .Should().ContainSingle(r =>
-                r.ClaimType == ScopePolicyExtensions.ScopeClaimType &&
-                r.AllowedValues!.Contains("catalog.read"));
-    }
-
-    [Fact]
-    public async Task RequireScope_AuthorizationHandler_SucceedsWhenScopeMatches()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        var sp = services
-            .AddAuthorizationBuilder()
-            .AddPolicy("test", p => p.RequireScope("catalog.read"))
-            .Services
-            .BuildServiceProvider();
-        var svc = sp.GetRequiredService<IAuthorizationService>();
-
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-            claims: new[] { new Claim(ScopePolicyExtensions.ScopeClaimType, "catalog.read") },
-            authenticationType: "Bearer"));
+        // Realistic Keycloak shape: a single space-separated `scope` claim.
+        var principal = PrincipalWithScopeClaims("openid profile catalog.read");
 
         var result = await svc.AuthorizeAsync(principal, resource: null, policyName: "test");
 
@@ -43,20 +21,37 @@ public class ScopePolicyExtensionsTests
     }
 
     [Fact]
-    public async Task RequireScope_AuthorizationHandler_FailsWhenScopeMissing()
+    public async Task RequireAnyScope_SucceedsWhenAnyOfTheRequiredScopesPresent()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        var sp = services
-            .AddAuthorizationBuilder()
-            .AddPolicy("test", p => p.RequireScope("catalog.read"))
-            .Services
-            .BuildServiceProvider();
-        var svc = sp.GetRequiredService<IAuthorizationService>();
+        // read-or-write hierarchy: the write scope satisfies a read policy.
+        var svc = BuildAuthorizationService(p => p.RequireAnyScope("catalog.read", "catalog.write"));
 
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-            claims: new[] { new Claim(ScopePolicyExtensions.ScopeClaimType, "catalog.write") },
-            authenticationType: "Bearer"));
+        var principal = PrincipalWithScopeClaims("openid catalog.write");
+
+        var result = await svc.AuthorizeAsync(principal, resource: null, policyName: "test");
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RequireAnyScope_SucceedsWhenScopesSplitAcrossMultipleClaims()
+    {
+        var svc = BuildAuthorizationService(p => p.RequireAnyScope("catalog.write"));
+
+        // RFC 8693-styled IdP: one `scope` claim per scope.
+        var principal = PrincipalWithScopeClaims("openid", "profile", "catalog.write");
+
+        var result = await svc.AuthorizeAsync(principal, resource: null, policyName: "test");
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RequireAnyScope_FailsWhenNoRequiredScopePresent()
+    {
+        var svc = BuildAuthorizationService(p => p.RequireAnyScope("catalog.read", "catalog.write"));
+
+        var principal = PrincipalWithScopeClaims("openid profile inventory.read");
 
         var result = await svc.AuthorizeAsync(principal, resource: null, policyName: "test");
 
@@ -64,16 +59,9 @@ public class ScopePolicyExtensionsTests
     }
 
     [Fact]
-    public async Task RequireScope_AuthorizationHandler_FailsWhenUnauthenticated()
+    public async Task RequireAnyScope_FailsWhenUnauthenticated()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        var sp = services
-            .AddAuthorizationBuilder()
-            .AddPolicy("test", p => p.RequireScope("catalog.read"))
-            .Services
-            .BuildServiceProvider();
-        var svc = sp.GetRequiredService<IAuthorizationService>();
+        var svc = BuildAuthorizationService(p => p.RequireAnyScope("catalog.read"));
 
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
 
@@ -83,31 +71,47 @@ public class ScopePolicyExtensionsTests
     }
 
     [Fact]
-    public void RequireScope_NullScope_Throws()
+    public void RequireAnyScope_NoScopes_Throws()
     {
         var builder = new AuthorizationPolicyBuilder();
-        builder.Invoking(b => b.RequireScope(null!)).Should().Throw<ArgumentException>();
+        builder.Invoking(b => b.RequireAnyScope()).Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RequireAnyScope_NullOrBlankScope_Throws(string? scope)
+    {
+        var builder = new AuthorizationPolicyBuilder();
+        builder.Invoking(b => b.RequireAnyScope("catalog.read", scope!))
+            .Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void RequireScope_EmptyScope_Throws()
-    {
-        var builder = new AuthorizationPolicyBuilder();
-        builder.Invoking(b => b.RequireScope(string.Empty)).Should().Throw<ArgumentException>();
-    }
-
-    [Fact]
-    public void RequireScope_WhitespaceScope_Throws()
-    {
-        var builder = new AuthorizationPolicyBuilder();
-        builder.Invoking(b => b.RequireScope("   ")).Should().Throw<ArgumentException>();
-    }
-
-    [Fact]
-    public void RequireScope_NullBuilder_Throws()
+    public void RequireAnyScope_NullBuilder_Throws()
     {
         AuthorizationPolicyBuilder builder = null!;
-        Action act = () => builder.RequireScope("catalog.read");
+        Action act = () => builder.RequireAnyScope("catalog.read");
         act.Should().Throw<ArgumentNullException>();
+    }
+
+    private static IAuthorizationService BuildAuthorizationService(Action<AuthorizationPolicyBuilder> configure)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var sp = services
+            .AddAuthorizationBuilder()
+            .AddPolicy("test", configure)
+            .Services
+            .BuildServiceProvider();
+        return sp.GetRequiredService<IAuthorizationService>();
+    }
+
+    private static ClaimsPrincipal PrincipalWithScopeClaims(params string[] scopeClaimValues)
+    {
+        var claims = scopeClaimValues
+            .Select(value => new Claim(ScopePolicyExtensions.ScopeClaimType, value));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "Bearer"));
     }
 }

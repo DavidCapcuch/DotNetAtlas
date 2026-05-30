@@ -33,8 +33,8 @@ the conventions so future BCs stop guessing.
 | F4 | `UseOutputCache` absent in Payments | **INTENTIONAL** | [Payments ApiDependencyInjection.cs:7](../../services/Payments/Payments.Api/Common/ApiDependencyInjection.cs:7): *"ADR-0013's idempotency-key output cache is intentionally NOT wired"* — no state-changing HTTP endpoints in v1. Invoicing/Ordering wire it for their idempotent mutations. |
 | F5 | Host service-name token inconsistent | **DRIFT → FIXED** | `options.ServiceName` was `"Invoicing.Api"`/`"Ordering.Api"`/`"Payments.Api"` but the OTel resource `service.name` (via `ApplicationInfo.AppName`) and docker-compose `OTEL_SERVICE_NAME` were the bare BC name — logs disagreed with traces. Now bare everywhere ([Invoicing P.cs:22](../../services/Invoicing/Invoicing.Api/Program.cs:22), [Ordering P.cs:22](../../services/Ordering/Ordering.Api/Program.cs:22), [Payments P.cs:22](../../services/Payments/Payments.Api/Program.cs:22)). `ServiceName` feeds Serilog enrichment → OTLP `service.name`. |
 | F6 | Fluent-chain vs statement middleware style | **DRIFT → FIXED** | Invoicing/Ordering/Payments used separate `app.Use*()` statements; normalized to the v1 fluent chain off `app.UseRouting()` ([Basket P.cs:46-50](../../services/Basket/Basket.Api/Program.cs:46) reference; [Invoicing P.cs:52-55](../../services/Invoicing/Invoicing.Api/Program.cs:52), [Payments P.cs:48-50](../../services/Payments/Payments.Api/Program.cs:48)). Behavior-identical; the "OutputCache before authn" comment moved above the chain. |
-| F7 | Authz policy structure split | **DRIFT → FIXED** | Catalog & Inventory used dedicated `*AuthorizationPolicies` extension classes plus a speculative `["scope","scp"]` multi-IdP predicate. Normalized to the inline pattern Payments already used: `AddAuthorizationBuilder().AddPolicy(...)` in `AuthenticationDependencyInjection.cs`, name/scope/role constants in `AuthPolicies.cs`/`Scopes.cs`/`Roles.cs`, single `scope` claim. Scope semantics preserved exactly. ([Catalog DI L52-62](../../services/Catalog/Catalog.Api/Common/AuthenticationDependencyInjection.cs:52), [Inventory DI L59-70](../../services/Inventory/Inventory.Api/Common/AuthenticationDependencyInjection.cs:59).) |
-| F8 | `AddServiceAuth` present only in Basket/Catalog/Ordering | **INTENTIONAL** | Inventory/Invoicing/Payments `AuthenticationDependencyInjection.cs` each document *"v1 has no outbound HTTP calls so AddServiceAuth is intentionally not wired"* ([Inventory L17](../../services/Inventory/Inventory.Api/Common/AuthenticationDependencyInjection.cs:17), [Invoicing L18](../../services/Invoicing/Invoicing.Api/Common/AuthenticationDependencyInjection.cs:18), [Payments L19](../../services/Payments/Payments.Api/Common/AuthenticationDependencyInjection.cs:19)); their appsettings omit the `ServiceAuth` section accordingly. Tracks BCs with outbound BC calls. |
+| F7 | Authz policy structure split | **DRIFT → FIXED** | Catalog & Inventory used dedicated `*AuthorizationPolicies` extension classes plus a speculative `["scope","scp"]` multi-IdP predicate. Normalized to inline `AddAuthorizationBuilder().AddPolicy(...)` registration with constants in `AuthPolicies.cs`/`Scopes.cs`/`Roles.cs`. The space-separated `scope`-claim parsing — first duplicated inline across three BCs — was then consolidated into the platform helper [`ScopePolicyExtensions.RequireAnyScope(params string[])`](../../platform/Platform.ServiceDefaults/Auth/ScopePolicyExtensions.cs), now shared by Catalog/Inventory/Payments. (This replaced an unused, broken `RequireScope` that used `RequireClaim` exact-match and never matched a real Keycloak token.) Scope semantics preserved exactly. |
+| F8 | Host-level `AddServiceAuth` registration | **DRIFT → FIXED** | Only Basket makes outbound BC calls (its `IProductCatalogQueryPort` ACL → Catalog, via `IHttpClientBuilder.AddServiceAuth(scope)`). Catalog and Ordering registered the host-level `AddServiceAuth` speculatively — neither has any outbound HTTP call (their notifications/saga commands flow over the Kafka outbox, no service token), the same "register for the day we might need it" smell as the `scp` predicate. Dropped both (host registration + the `ServiceAuth` appsettings section); now Basket-only. Inventory/Invoicing/Payments already correctly omitted it and document why. |
 
 ### Authorization semantics preserved (F7 detail)
 
@@ -59,13 +59,24 @@ routing, authentication + authorization, FastEndpoints, health-check mapping, **
 health exporter** (`UsePlatformHealthChecksPrometheusExporter()` right after
 `MapPlatformHealthCheckEndpoints()`), dev-only migration on startup.
 
+**API composition** — each BC's API-layer wiring is a single `services.AddApi(IConfiguration)`
+extension in `<BC>.Api/Common/ApiDependencyInjection.cs` (named for the `.Api` project; uniform
+`(configuration)` signature — no `IHostEnvironment` parameter, since environment-specific concerns
+like the CORS guard live in their own validators, below).
+
 **Conditional by BC type** — each omission carries a one-line rationale comment in
 `ApiDependencyInjection.cs` / `AuthenticationDependencyInjection.cs`:
-- **CORS** → browser-facing BCs only (per-BC `CorsOptions` policy). Admin/internal APIs omit it.
+- **CORS** → browser-facing BCs only (per-BC `CorsOptions` + a co-located
+  `IValidateOptions<T>` validator wired via `AddOptionsWithValidateOnStart`; the validator injects
+  `IHostEnvironment` and fails fast on wildcard+credentials in any environment and
+  localhost+credentials once deployed). Admin/internal APIs omit CORS entirely. Browser-facing BCs
+  keep prod-safe origins in base `appsettings.json` and overlay localhost in
+  `appsettings.Development.json`.
 - **Idempotency output cache** (`UseOutputCache`, ADR-0013) → BCs with idempotent
   state-changing endpoints. BCs with no mutating HTTP surface omit it.
-- **`AddServiceAuth`** → BCs that make outbound HTTP calls to other BCs. BCs with no
-  outbound calls omit it (and omit the `ServiceAuth` appsettings section).
+- **`AddServiceAuth`** → BCs that make outbound HTTP calls to other BCs (only Basket today). BCs
+  with no outbound calls omit it (and omit the `ServiceAuth` appsettings section) — registering it
+  "for symmetry" is drift, not foresight.
 
 **Observability identity** — one token per BC, equal everywhere:
 `options.ServiceName` = OTel `service.name` = `ApplicationInfo.AppName` =
@@ -74,10 +85,13 @@ Every BC exposes `public static ApplicationInfo` (`AppName` + assembly `Version`
 
 **Authorization wiring** — registered inline in `AuthenticationDependencyInjection.cs` via
 `AddAuthorizationBuilder().AddPolicy(...)`; policy-name / scope / role constants live in
-`AuthPolicies.cs` / `Scopes.cs` / `Roles.cs`; **no** dedicated policy-helper classes; read the
-single space-separated `scope` claim only (Keycloak, RFC 6749); **no** speculative multi-IdP
-claim handling. Reads are satisfied by the read **or** write scope; writes that need a human
-operator add `RequireRole(Roles.Admin)` on top of the write scope (defense-in-depth).
+`AuthPolicies.cs` / `Scopes.cs` / `Roles.cs` (no dedicated per-BC policy-helper classes). Scope
+checks go through the shared platform helper
+[`RequireAnyScope(...)`](../../platform/Platform.ServiceDefaults/Auth/ScopePolicyExtensions.cs) —
+it splits the single space-separated `scope` claim (Keycloak, RFC 6749; also tolerates
+one-claim-per-scope IdPs) and matches **any** supplied scope, so reads are satisfied by the read
+**or** write scope. Writes that need a human operator stack `RequireRole(Roles.Admin)` on top
+(defense-in-depth). No speculative multi-IdP claim handling.
 
 ## Cross-references
 

@@ -1,6 +1,5 @@
 using Catalog.Api.Common.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults;
@@ -11,11 +10,12 @@ namespace Catalog.Api.Common;
 internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/>,
+    /// Configures inbound JWT-bearer authentication via <see cref="JwtBearerConfigurator"/> and
     /// registers the Catalog scope-policy pair (<c>CatalogReadScope</c> / <c>CatalogWriteScope</c>)
-    /// per ADR-0010, and wires the outbound service-auth host registration so Catalog can call
-    /// other BCs with a client-credentials token (registered for symmetry even though Catalog has
-    /// no outbound BC calls today).
+    /// per ADR-0010. Catalog v1 has no outbound HTTP calls to other BCs, so the outbound
+    /// service-auth host registration (<c>AddServiceAuth</c>) is intentionally not wired and there
+    /// is no <c>ServiceAuth</c> section in <c>appsettings.json</c>. When Catalog grows an outbound
+    /// BC client, add a <c>ServiceAuth</c> section + <c>services.AddServiceAuth(...)</c> here.
     /// </summary>
     /// <remarks>
     /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
@@ -49,44 +49,18 @@ internal static class AuthenticationDependencyInjection
                 });
         }
 
+        // Reads are satisfied by either scope (service-to-service); writes require the
+        // write scope. RequireAnyScope adds RequireAuthenticatedUser + the space-separated
+        // scope-claim assertion (Platform.ServiceDefaults.Auth, ADR-0010).
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.ReadPolicy, policy =>
-            {
-                policy.RequireAuthenticatedUser();
-                policy.RequireAssertion(ctx => HasAnyScope(ctx, Scopes.CatalogRead, Scopes.CatalogWrite));
-            })
+                policy.RequireAnyScope(Scopes.CatalogRead, Scopes.CatalogWrite))
             .AddPolicy(AuthPolicies.WritePolicy, policy =>
-            {
-                policy.RequireAuthenticatedUser();
-                policy.RequireAssertion(ctx => HasAnyScope(ctx, Scopes.CatalogWrite));
-            });
+                policy.RequireAnyScope(Scopes.CatalogWrite));
 
         services.AddHttpContextAccessor();
 
-        services.AddServiceAuth(serviceName: "catalog-service");
-
         return services;
-    }
-
-    // Keycloak emits scopes as a single space-separated `scope` claim (RFC 6749).
-    // Read is implied by write; write requires the write scope.
-    private static bool HasAnyScope(AuthorizationHandlerContext ctx, params string[] required)
-    {
-        foreach (var claim in ctx.User.FindAll("scope"))
-        {
-            foreach (var scope in claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            {
-                foreach (var needle in required)
-                {
-                    if (string.Equals(scope, needle, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
     }
 
     private const string JwtBearerConfigSection = "Authentication:JwtBearer";

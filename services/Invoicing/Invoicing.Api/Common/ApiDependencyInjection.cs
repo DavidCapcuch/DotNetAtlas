@@ -19,7 +19,7 @@ internal static class ApiDependencyInjection
     /// </summary>
     internal const string ServiceName = "invoicing-service";
 
-    internal static IServiceCollection AddPresentation(
+    internal static IServiceCollection AddApi(
         this IServiceCollection services,
         IConfiguration configuration)
     {

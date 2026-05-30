@@ -1,4 +1,5 @@
 using Catalog.Api.Common.Config;
+using Microsoft.Extensions.Options;
 
 namespace Catalog.Api.Common;
 
@@ -8,21 +9,15 @@ internal static class CorsDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Invariants (wildcard/localhost + credentials) are enforced at startup by
+        // CatalogCorsOptionsValidator via ValidateOnStart — see CatalogCorsOptions.cs.
         services.AddOptionsWithValidateOnStart<CatalogCorsOptions>()
             .BindConfiguration(CatalogCorsOptions.Section)
             .ValidateDataAnnotations();
+        services.AddSingleton<IValidateOptions<CatalogCorsOptions>, CatalogCorsOptionsValidator>();
 
         var corsOptions =
             configuration.GetRequiredSection(CatalogCorsOptions.Section).Get<CatalogCorsOptions>()!;
-
-        // Fail fast — ASP.NET throws on first preflight when wildcard origin is mixed with
-        // credentials. Surfacing it at startup beats a runtime CORS rejection in browsers.
-        if (corsOptions.AllowedOrigins.Contains("*") && corsOptions.AllowCredentials)
-        {
-            throw new InvalidOperationException(
-                $"CORS configuration error in section '{CatalogCorsOptions.Section}': " +
-                "AllowedOrigins=\"*\" cannot be combined with AllowCredentials=true.");
-        }
 
         services.AddCors(options =>
         {

@@ -27,7 +27,7 @@ try
     builder.Services.AddFeatureFlags(builder.Configuration);
 
     builder.Services
-        .AddPresentation(builder.Configuration)
+        .AddApi(builder.Configuration)
         .AddCatalogAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);

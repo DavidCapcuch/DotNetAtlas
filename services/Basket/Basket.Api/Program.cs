@@ -23,7 +23,7 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
-        .AddPresentation(builder.Configuration, builder.Environment)
+        .AddApi(builder.Configuration)
         .AddBasketAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);

@@ -4,11 +4,10 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Ordering.Api.Common;
 
 /// <summary>
-/// Wires the presentation layer for Ordering: FastEndpoints + Swagger, ProblemDetails,
+/// Wires the API layer for Ordering: FastEndpoints + Swagger, ProblemDetails,
 /// and the Idempotency-Key output cache (ADR-0013, backed by <c>redis-cache</c>).
-/// Authentication + outbound service-auth registration live in
-/// <see cref="AuthenticationDependencyInjection"/> and are wired explicitly from Program.cs.
-/// Ordering is an admin/internal API — no CORS is wired.
+/// Authentication lives in <see cref="AuthenticationDependencyInjection"/> and is wired
+/// explicitly from Program.cs. Ordering is an admin/internal API — no CORS is wired.
 /// </summary>
 internal static class ApiDependencyInjection
 {
@@ -20,7 +19,7 @@ internal static class ApiDependencyInjection
     /// </summary>
     internal const string ServiceName = "ordering-service";
 
-    internal static IServiceCollection AddPresentation(
+    internal static IServiceCollection AddApi(
         this IServiceCollection services,
         IConfiguration configuration)
     {

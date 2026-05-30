@@ -19,9 +19,12 @@ namespace Ordering.Api.Common;
 internal static class AuthenticationDependencyInjection
 {
     /// <summary>
-    /// Registers JWT bearer authentication (via the platform configurator), the outbound
-    /// service-auth host registration (ADR-0010, used by saga command publishers), and the
-    /// <see cref="AuthPolicies.OrderingAdmin"/> policy.
+    /// Registers JWT bearer authentication (via the platform configurator) and the
+    /// <see cref="AuthPolicies.OrderingAdmin"/> policy. Ordering v1 has no outbound HTTP
+    /// calls — its saga commands and notifications flow over the Kafka outbox (no service
+    /// token) — so the outbound service-auth host registration (<c>AddServiceAuth</c>) is
+    /// intentionally not wired and there is no <c>ServiceAuth</c> section in
+    /// <c>appsettings.json</c>.
     /// </summary>
     /// <remarks>
     /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
@@ -42,7 +45,6 @@ internal static class AuthenticationDependencyInjection
         {
             configuration.Bind(JwtBearerConfigSection, options);
         });
-        services.AddServiceAuth(serviceName: "ordering-service");
 
         if (environment.IsDeployedEnvironment())
         {
