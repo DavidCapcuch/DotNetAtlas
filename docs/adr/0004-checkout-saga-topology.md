@@ -206,4 +206,4 @@ Compensation paths are explicit and vary by failure point: failures before captu
 - [ADR-0001: Centralized Saga Orchestration](0001-centralized-saga-orchestration.md) — parent decision; this ADR extends it to the Checkout saga and preserves the same placement philosophy, folder convention, persistence story, and sub-saga layering.
 - [ADR-0003: Basket as Technical BC](0003-basket-as-technical-bc.md) — defines `BasketCheckoutInitiatedEvent`, the trigger event for this saga.
 - [ADR-0005: Customer Data in Ordering](0005-customer-data-in-ordering.md) — the Checkout saga does NOT carry customer profile data; it flows through Basket → Order per ADR-0005's placement rule.
-- [Kafka topology](../kafka-topology.md) — per-topic retention/partition/compat classification for every topic the saga consumes or publishes to (`basket.sessions`, `ordering.*`, `inventory.*`, `payments.*`, `checkout.sagas`).
+- [Events catalog § 3 — Kafka topics](../bc-design/events-catalog.md) — per-topic retention/partition/key/producer/consumer classification for every topic the saga consumes or publishes to (`basket.sessions`, `ordering.*`, `inventory.*`, `payments.*`, `checkout.sagas`).
