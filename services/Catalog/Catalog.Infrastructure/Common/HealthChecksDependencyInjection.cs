@@ -13,23 +13,17 @@ namespace Catalog.Infrastructure.Common;
 
 /// <summary>
 /// Readiness-probe surface — Self, <see cref="CatalogDbContext"/> (Postgres write
-/// store + atomic projection per ADR-0001 + ADR-0016), the Kafka cluster (outbox relay
-/// publishes + the inbound <c>StockLevelChanged</c> consumer), <c>redis-cache</c>
-/// (idempotency-key output cache per ADR-0013 + ADR-0016), and the Confluent Schema
-/// Registry (Avro publish path per ADR-0007).
+/// store + atomic projection per ADR-0001 + ADR-0016), <c>redis-cache</c> (the
+/// idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every idempotent write
+/// and fail-closed when down), and the Kafka cluster (outbox relay publishes + the
+/// in-process inbound <c>StockLevelChanged</c> consumer). The Schema Registry is
+/// deliberately NOT a readiness probe: the Avro serializer/deserializer contact it only
+/// cold-cache (schema-IDs are cached after first use on both the produce and consume
+/// paths), so steady-state operation survives an SR outage — SR is a boot-ordering
+/// dependency (compose <c>depends_on</c>), like Keycloak, not a readiness gate.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
-    /// <summary>
-    /// Confluent Schema Registry health probe. <c>GET /subjects</c> is the
-    /// documented REST endpoint — returns 200 + a JSON array even when no subjects
-    /// are registered. We do not validate the body; reachability + 200 is enough.
-    /// Confluent's <c>schema-registry</c> service in <c>docker-compose.yaml</c> uses
-    /// the same path for its container-level <c>healthcheck</c>, so any drift in SR
-    /// versions is caught uniformly.
-    /// </summary>
-    private const string SchemaRegistryHealthPath = "/subjects";
-
     internal static IServiceCollection AddCatalogHealthChecks(
         this IServiceCollection services,
         ConfigurationManager configuration)
@@ -55,10 +49,6 @@ internal static class HealthChecksDependencyInjection
                 $"is not configured. Required by the Catalog health-checks slice " +
                 $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
-        var schemaRegistryUri = new Uri(
-            new Uri(kafkaOptions.SchemaRegistry.Url),
-            SchemaRegistryHealthPath);
-
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
@@ -79,13 +69,7 @@ internal static class HealthChecksDependencyInjection
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.KafkaTimeout)
-            .AddUrlGroup(
-                schemaRegistryUri,
-                name: "schema-registry",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.SchemaRegistryTimeout);
+                timeout: timeouts.KafkaTimeout);
 
         return services;
     }

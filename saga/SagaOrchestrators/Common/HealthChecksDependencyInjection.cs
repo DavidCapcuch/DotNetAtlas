@@ -18,6 +18,11 @@ namespace SagaOrchestrators.Common;
 /// Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
 /// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
 /// parameter, so the DB readiness probe runs under EF's command-timeout default.
+/// The Schema Registry is deliberately NOT a readiness probe: the saga's Avro
+/// serializer/deserializer contact it only cold-cache (schema-IDs are cached after first
+/// use on both the consume and produce paths), so steady-state orchestration survives an
+/// SR outage — SR is a boot-ordering dependency (compose <c>depends_on</c>), like
+/// Keycloak, not a readiness gate.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {

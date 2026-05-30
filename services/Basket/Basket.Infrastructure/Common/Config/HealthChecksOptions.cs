@@ -9,7 +9,10 @@ namespace Basket.Infrastructure.Common.Config;
 /// and the Catalog M10 precedent: <c>AddDbContextCheck</c> does not expose a direct
 /// timeout parameter, so no DB timeout is carried here. Operators who need a DB-level
 /// readiness timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
-/// <c>EfCoreOptions</c>.
+/// <c>EfCoreOptions</c>. No <c>KafkaTimeout</c> — Basket has no in-process Kafka client and
+/// deliberately does not probe the broker (publish is 100% outbox + <c>outbox-relay-basket</c>,
+/// which owns broker readiness). <see cref="RedisTimeout"/> is shared by the redis-basket and
+/// redis-cache probes.
 /// </summary>
 public sealed class HealthChecksOptions
 {
@@ -18,10 +21,6 @@ public sealed class HealthChecksOptions
     [Required]
     [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
     public required TimeSpan SelfTimeout { get; set; }
-
-    [Required]
-    [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
-    public required TimeSpan KafkaTimeout { get; set; }
 
     [Required]
     [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]

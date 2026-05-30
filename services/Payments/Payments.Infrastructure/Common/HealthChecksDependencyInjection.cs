@@ -13,11 +13,15 @@ namespace Payments.Infrastructure.Common;
 
 /// <summary>
 /// Health-check surface for the Payments service — Self, <see cref="PaymentsDbContext"/>,
-/// and Kafka. Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
-/// <c>AddDbContextCheck</c> does not expose a direct timeout parameter, so the DB readiness
-/// probe runs under EF's command-timeout default (operators who need a tighter DB-level
-/// timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
-/// <c>EfCoreOptions</c>).
+/// and Kafka (the in-process payment-commands consumer). Per-probe timeouts come from
+/// <see cref="HealthChecksOptions"/>; <c>AddDbContextCheck</c> does not expose a direct
+/// timeout parameter, so the DB readiness probe runs under EF's command-timeout default
+/// (operators who need a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire
+/// <c>CommandTimeout</c> into <c>EfCoreOptions</c>). No Redis check — Payments has no
+/// idempotency cache layer. The Schema Registry is deliberately NOT a readiness probe: the
+/// Avro serializer/deserializer contact it only cold-cache (schema-IDs are cached after
+/// first use), so steady-state operation survives an SR outage — SR is a boot-ordering
+/// dependency (compose <c>depends_on</c>), like Keycloak, not a readiness gate.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {

@@ -20,4 +20,8 @@ public sealed class HealthChecksOptions
     [Required]
     [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
     public required TimeSpan KafkaTimeout { get; set; }
+
+    [Required]
+    [Range(typeof(TimeSpan), "00:00:01", "00:01:00")]
+    public required TimeSpan RedisTimeout { get; set; }
 }
