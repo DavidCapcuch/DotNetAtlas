@@ -181,3 +181,75 @@ This amendment caught Inventory's silent breakage during its own implementation:
 ### Out of scope (deferred)
 
 - Worker BCs (`Notifications`, `OutboxRelay`, `SagaOrchestrators`) have no inbound HTTP audience to validate today. `SagaOrchestrators` has a seeded `ServiceAuth` section pre-provisioned for the deferred outbound-auth wiring; per the rule above this section should be removed and re-added together with the `AddServiceAuth(...)` call when the outbound path lands.
+
+## Amendment 2026-05-30 — Role vs scope canonical model
+
+### Context
+
+The Implementation Notes above named **role AND scope** as the defense-in-depth gate for
+human-admin endpoints (Payments, Inventory) and flagged Ordering/Invoicing's `RequireRole`-only
+posture as a transitional state to be migrated to scopes "in v2". In practice the gates had
+drifted into three different shapes with two reachability holes:
+
+- **Catalog** gated admin writes on the `catalog.write` scope **only** (no role) — a leaked
+  service token could mutate the catalog with no human-admin identity.
+- **Payments** required `admin` role AND `payments.read`, but `payments.read` was granted to no
+  client, so the admin endpoints were unreachable through real Keycloak (closed except via test
+  fakes).
+- The `dotnetatlas-swagger` client — the human-admin entry point — held only
+  `[offline_access, inventory.write]`, so a human admin could not obtain `catalog.write` or
+  `payments.read` to exercise those admin endpoints.
+
+### Decision (amendment)
+
+Codify a single rule and stop treating "migrate everything to scopes" as the end state:
+
+- **Roles = *who the human is*** (admin RBAC). **Scopes = *what a service may do*** (service-to-
+  service delegation; the scope also stamps the callee audience per the 2026-05-27 amendment).
+- **Use role + scope (defense-in-depth) only where a real service-delegation scope exists** for
+  that BC's write surface. The scope half adds value precisely because it both proves explicit
+  write-capability elevation *and* carries the resource audience.
+- **Pure human-admin endpoints with no service-delegation dimension stay role-only.** Ordering's
+  ship/deliver and Invoicing's resend have no service caller (their state changes arrive over
+  Kafka), so inventing `ordering.write` / `invoicing.write` scopes that only the swagger client
+  would ever request would be "provisioned-for-someday" dead config. **This supersedes the
+  Implementation-Notes line that planned a v2 scope migration for Ordering/Invoicing** — role-only
+  *is* the canonical shape for pure human-admin endpoints.
+- **Reads stay scope-only.** BFF-consumed reads are service delegation; we do **not** add an
+  `admin` role branch to read policies. Because the write scope implies read (`RequireAnyScope`
+  lists both), an admin holding the write scope still satisfies the read policy without a role
+  branch.
+- **Human admins obtain scopes through the `dotnetatlas-swagger` client** (`optionalClientScopes`).
+  The role gate still blocks non-admins, so granting an admin scope to the swagger client does not
+  weaken the gate — a non-admin requesting the scope still fails the role check.
+
+### Canonical per-BC gate table
+
+| BC | Admin write/mutating endpoints | Gate | Reads |
+|---|---|---|---|
+| Catalog | CreateProduct, UpdateProductPrice, Discontinue, Reactivate, CreateCategory, ReparentCategory, SearchAdminProducts, DescribeProduct | **role + `catalog.write`** | `catalog.read`\|`catalog.write` (scope) |
+| Inventory | Receive, Adjust | role + `inventory.write` | `inventory.read`\|`inventory.write` (scope) |
+| Payments | GetPaymentById, GetPaymentsByOrder (human-admin reads) | role + `payments.read` | — (only the admin reads) |
+| Ordering | MarkOrderShipped, MarkOrderDelivered | **role-only** | handler-enforced (buyer-self OR admin) |
+| Invoicing | ResendInvoice | **role-only** | handler-enforced (buyer-self OR admin) |
+| Basket | — (no admin surface) | authenticated user (self) | self |
+
+### How human admins obtain admin scopes
+
+The `dotnetatlas-swagger` client's `optionalClientScopes` is the canonical source of admin scopes
+for a human operator: `[offline_access, inventory.write, catalog.write, payments.read]`. A human
+admin authenticates through Swagger (authorization-code + PKCE), requests the scope(s) for the
+endpoint(s) they need, and the realm stamps the matching resource audience on the token. Only the
+admin scopes are provisioned — read scopes (`catalog.read`, `inventory.read`, …) are **not** added,
+because those are service-delegation scopes the BFF carries, and an admin holding the write scope
+already satisfies the corresponding read policy.
+
+### Consequences
+
+- One mental model: grep a BC's `AuthenticationDependencyInjection.cs` — `RequireRole` alone →
+  pure human-admin; `RequireRole` + `RequireAnyScope` → human-admin with a service-delegation
+  dimension; `RequireAnyScope` alone → service-to-service read.
+- Every human-admin endpoint is reachable by an `admin` user through the swagger client, and every
+  role gate is pinned by a negative test (correct scope / authenticated non-admin → 403).
+- The `service-scope-matrix.md` companion documents the swagger client's admin-scope provisioning
+  and Payments' human-admin reachability alongside the seven service clients.

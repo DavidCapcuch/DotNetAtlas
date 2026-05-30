@@ -73,8 +73,8 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Audience:** `catalog-service`
 - **Outbound (acquirable via `optionalClientScopes`):** `catalog.write`
   - `catalog.write` — reserved for administrative write paths that treat Catalog's own API as a service callee.
-- **Inbound (must validate on `AddJwtBearer`):** `catalog.read`, `catalog.write`
-  - Any service calling `GET /api/v1/catalog/...` with a service-account token must present `catalog.read`; admin/write endpoints require `catalog.write`.
+- **Inbound (must validate on `AddJwtBearer`):** `catalog.read` (reads); **`admin` role + `catalog.write` scope** (writes)
+  - Any service calling `GET /api/v1/catalog/...` with a service-account token must present `catalog.read` (a token bearing `catalog.write` also satisfies the read policy). The admin write/mutation endpoints (CreateProduct, UpdateProductPrice, Discontinue, Reactivate, CreateCategory, ReparentCategory, admin product search, DescribeProduct) require the **`admin` realm role AND the `catalog.write` scope** (defense-in-depth, mirroring `inventory-service`; see [`AuthPolicies`](../../services/Catalog/Catalog.Api/Common/Authorization/AuthPolicies.cs)). An admin obtains the scope by requesting `catalog.write` through the `dotnetatlas-swagger` client; the role gate blocks non-admins.
 - **Cross-refs:** `bff.md §3.1` (BFF → Catalog reads), `basket.md` (Basket ACL → Catalog).
 
 ### `basket-service`
@@ -90,8 +90,8 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 - **Audience:** `ordering-service`
 - **Outbound:** none — order-state-change notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `ordering.read`
-  - BFF reads orders via `ordering.read`. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
+- **Inbound:** `ordering.read` (reads); **`admin` role only** (admin writes)
+  - BFF reads orders via `ordering.read`. The admin endpoints (MarkOrderShipped, MarkOrderDelivered) are **role-only** — they are pure human-admin actions with no service-delegation dimension, so no `ordering.write` scope is defined (ADR-0010 §"Role vs scope canonical model"). An admin reaches them with the `admin` role obtained through the `dotnetatlas-swagger` client. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
 - **Cross-refs:** `bff.md §3.3`, `events-catalog.md §2` (Ordering Commands).
 
 ### `inventory-service`
@@ -106,16 +106,16 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 - **Audience:** `payments-service`
 - **Outbound:** none — payment-failure / refund-issued notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `payments.read`
-  - Payments has no admin HTTP write surface in v1. Saga payment commands enter via Kafka on `payments.commands`; no application-layer scope check on that path.
+- **Inbound:** **`admin` role + `payments.read` scope** (human-admin reads)
+  - Payments exposes human-admin HTTP **read** endpoints — `GET /api/v1/payments/{id}` and `GET /api/v1/payments?orderId=...` — gated on the **`admin` realm role AND the `payments.read` scope** (defense-in-depth; see [`AuthPolicies`](../../services/Payments/Payments.Api/Common/Authorization/AuthPolicies.cs)). No service calls Payments over HTTP — the BFF does not depend on Payments and payment commands arrive via Kafka on `payments.commands` (no application-layer scope check on that path). The human admin obtains `payments.read` through the `dotnetatlas-swagger` client; the role gate blocks non-admins. Payments has no HTTP **write** surface in v1.
 - **Cross-refs:** `events-catalog.md §2` (Payments Commands), ADR-0005 (payments webhook if present).
 
 ### `invoicing-service`
 
 - **Audience:** `invoicing-service`
 - **Outbound:** none — invoice-issued / credit-note-issued notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `invoicing.read`
-  - Only HTTP reads (invoice detail, PDF download). Invoicing is projection-driven — it consumes `OrderConfirmedEvent` + `PaymentCapturedEvent` from Kafka event topics and does not require per-BC read scopes.
+- **Inbound:** `invoicing.read` (reads); **`admin` role only** (admin resend)
+  - HTTP reads (invoice detail, PDF download) plus one admin action, ResendInvoice, which is **role-only** — a pure human-admin action with no service-delegation dimension, so no `invoicing.write` scope is defined (ADR-0010 §"Role vs scope canonical model"). An admin reaches it with the `admin` role obtained through the `dotnetatlas-swagger` client. Invoicing is projection-driven — it consumes `OrderConfirmedEvent` + `PaymentCapturedEvent` from Kafka event topics and does not require per-BC read scopes.
 - **Cross-refs:** `invoicing.md §8`, ADR-0017/0018/0019.
 
 ### `bff`
@@ -123,9 +123,30 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Audience:** none — BFF validates user JWTs, not service tokens, so it is never a resource server (no self-audience mapper since 2026-05-27). Its outbound tokens are audienced for the **callee** BC via the requested scope (e.g. `catalog.read` → `aud: catalog-service`).
 - **Outbound:** 6 scopes — every cross-BC read + `basket.write`:
   - `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read`
-  - The BFF is the sole HTTP caller of the six BCs in the system.
+  - The BFF is the primary HTTP caller of the five BCs it fronts (Catalog, Basket, Ordering, Inventory, Invoicing); it does **not** call Payments over HTTP (payment commands/results are async via Kafka). Catalog has one other service-to-service caller — `basket-service`'s ACL adapter reads product snapshots via `catalog.read`.
 - **Inbound:** none — user-facing only; inbound requests carry user JWTs (validated against `dotnetatlas` realm user-auth, not service-auth).
 - **Cross-refs:** `bff.md §3.1–3.4`.
+
+### `dotnetatlas-swagger` (human admin — NOT a service client)
+
+The Swagger UI client (`publicClient: true`, authorization-code + PKCE) is the canonical way a
+**human admin** acquires admin scopes — it is not a `client_credentials` service client. Its
+`optionalClientScopes` carries exactly the admin scopes a human operator needs to exercise the
+role + scope admin endpoints:
+
+- **`optionalClientScopes`:** `offline_access`, `inventory.write`, `catalog.write`, `payments.read`
+  - `inventory.write` → Inventory `Receive` / `Adjust` (with the `admin` role).
+  - `catalog.write` → Catalog admin write/mutation endpoints (with the `admin` role).
+  - `payments.read` → Payments admin read endpoints (with the `admin` role).
+- **Why no read scopes** (`catalog.read`, `inventory.read`, `ordering.read`, `invoicing.read`,
+  `basket.*`): those are service-delegation scopes carried by the BFF, not the human admin. An
+  admin holding the write scope already satisfies the corresponding read policy (write implies
+  read), and role-only admin endpoints (Ordering, Invoicing) need no scope at all. Adding read
+  scopes here would be provisioned-for-convenience dead config (ADR-0010 §"Role vs scope
+  canonical model").
+- **Audience:** the swagger client has per-client `oidc-audience-mapper`s for every BC (a dev-only
+  convenience so one login works across services); the role gate, not the audience, is what blocks
+  non-admins from admin endpoints.
 
 ---
 
