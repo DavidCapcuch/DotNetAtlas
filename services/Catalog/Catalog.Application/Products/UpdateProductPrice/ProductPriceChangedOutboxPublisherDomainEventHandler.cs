@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
-using AvroProductPriceChanged = Catalog.Products.ProductPriceChanged;
+using AvroProductPriceChanged = Catalog.Products.ProductPriceChangedEvent;
 
 namespace Catalog.Application.Products.UpdateProductPrice;
 
@@ -36,7 +36,7 @@ public sealed class ProductPriceChangedOutboxPublisherDomainEventHandler
         var product = await _db.Products.FindAsync([domainEvent.ProductId], ct)
             ?? throw new DataIntegrityException(
                 "Catalog.OutboxMissingProduct",
-                $"Product '{domainEvent.ProductId}' not found when publishing ProductPriceChanged.");
+                $"Product '{domainEvent.ProductId}' not found when publishing ProductPriceChangedEvent.");
 
         var avro = new AvroProductPriceChanged
         {
@@ -51,7 +51,7 @@ public sealed class ProductPriceChangedOutboxPublisherDomainEventHandler
         _outbox.AddOutboxMessage(_topics.CatalogProducts, product.Id.ToString(), avro);
 
         _logger.LogDebug(
-            "Enqueued ProductPriceChanged for {ProductId} on topic {Topic}",
+            "Enqueued ProductPriceChangedEvent for {ProductId} on topic {Topic}",
             product.Id, _topics.CatalogProducts);
     }
 }

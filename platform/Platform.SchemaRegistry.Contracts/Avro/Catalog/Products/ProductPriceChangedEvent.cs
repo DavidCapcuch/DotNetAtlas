@@ -17,9 +17,9 @@ namespace Catalog.Products
 	/// Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-	public partial class ProductPriceChanged : global::Avro.Specific.ISpecificRecord
+	public partial class ProductPriceChangedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ProductPriceChanged"",""doc"":""Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot."",""namespace"":""Catalog.Products"",""fields"":[{""name"":""ProductId"",""doc"":""Unique identifier of the product whose price changed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Sku"",""doc"":""Business key of the product (denormalized for consumer convenience)."",""type"":""string""},{""name"":""OldPriceAmount"",""doc"":""Price amount before the change."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""NewPriceAmount"",""doc"":""Price amount after the change."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code. Same for old and new (Catalog does not support currency swap on a product)."",""type"":""string""},{""name"":""ChangedAtUtc"",""doc"":""UTC timestamp when the price change was recorded."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ProductPriceChangedEvent"",""doc"":""Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot."",""namespace"":""Catalog.Products"",""fields"":[{""name"":""ProductId"",""doc"":""Unique identifier of the product whose price changed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Sku"",""doc"":""Business key of the product (denormalized for consumer convenience)."",""type"":""string""},{""name"":""OldPriceAmount"",""doc"":""Price amount before the change."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""NewPriceAmount"",""doc"":""Price amount after the change."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code. Same for old and new (Catalog does not support currency swap on a product)."",""type"":""string""},{""name"":""ChangedAtUtc"",""doc"":""UTC timestamp when the price change was recorded."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Unique identifier of the product whose price changed.
 		/// </summary>
@@ -48,7 +48,7 @@ namespace Catalog.Products
 		{
 			get
 			{
-				return ProductPriceChanged._SCHEMA;
+				return ProductPriceChangedEvent._SCHEMA;
 			}
 		}
 		/// <summary>

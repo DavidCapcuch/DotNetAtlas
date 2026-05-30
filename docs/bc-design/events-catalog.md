@@ -70,7 +70,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `CategoryCreatedEvent` | `catalog.categories` | `Catalog.Categories` | Catalog | BFF (cache warm), Search indexer (v2) | `bff-category-tree`, (future) | `CategoryId` | `CategoryCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Categories/CategoryCreatedEvent.avsc` |
 | `ProductCreatedEvent` | `catalog.products` | `Catalog.Products` | Catalog | Inventory (init stream), BFF (cache warm) | `inventory-stock-init`, `bff-product-cache` | `ProductId` | `ProductCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductCreatedEvent.avsc` |
 | `ProductDiscontinuedEvent` | `catalog.products` | `Catalog.Products` | Catalog | Basket (flag stale snapshots; on-demand in v1), BFF (cache invalidate) | `basket-catalog-invalidation` (future), `bff-product-cache` | `ProductId` | `ProductDiscontinuedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductDiscontinuedEvent.avsc` |
-| `ProductPriceChanged` | `catalog.products` | `Catalog.Products` | Catalog | BFF (cache invalidate); Basket consumes on-demand only in v1 | `bff-product-cache` | `ProductId` | `ProductPriceChangedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductPriceChanged.avsc` |
+| `ProductPriceChangedEvent` | `catalog.products` | `Catalog.Products` | Catalog | BFF (cache invalidate); Basket consumes on-demand only in v1 | `bff-product-cache` | `ProductId` | `ProductPriceChangedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductPriceChangedEvent.avsc` |
 | `CapturePaymentCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-capture` | `CorrelationId` | saga transition | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/CapturePaymentCommand.avsc` (existing) |
 | `AuthorizePaymentCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga | Payments | `payments-payment-authorize` | `CorrelationId` | saga transition | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/AuthorizePaymentCommand.avsc` (existing) |
 | `RequestRefundCommand` | `payments.payment-commands` | `Payments.Transactions` | PaymentProcessingSaga (Checkout saga compensation path) | Payments | `payments-payment-refund` | `CorrelationId` | Checkout saga compensation after cancel-post-capture | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/RequestRefundCommand.avsc` (existing) |
@@ -108,21 +108,21 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 
 ## 3. Kafka Topics
 
-New topics introduced by this document. Existing topics (`notifications.email-commands`, `healthchecks`) are **not** duplicated here. The Payments BC publishes lifecycle events to `payments.transactions` and consumes saga-issued commands on `payments.payment-commands` (canonical names per [kafka-topology.md](../kafka-topology.md)).
+New topics introduced by this document. Existing topics (`notifications.email-commands`, `healthchecks`) are **not** duplicated here. The Payments BC publishes lifecycle events to `payments.transactions` and consumes saga-issued commands on `payments.payment-commands` (canonical names defined in the table below).
 
 | Topic | Partitions | Retention | Key | Purpose | Events |
 |-------|-----------|-----------|-----|---------|--------|
 | `basket.sessions` | 3 | 30 days (delete) | `UserId` | Basket checkout hand-off to Checkout saga. Ephemeral by design (D-8). | `BasketCheckoutInitiatedEvent` |
 | `catalog.categories` | 3 | Infinite (audit) | `CategoryId` | Category taxonomy events — BFF/search downstream | `CategoryCreatedEvent` |
-| `catalog.products` | 3 | Infinite (audit) | `ProductId` | Product lifecycle events — Inventory/BFF/Basket downstream | `ProductCreatedEvent`, `ProductPriceChanged`, `ProductDiscontinuedEvent` |
+| `catalog.products` | 3 | Infinite (audit) | `ProductId` | Product lifecycle events — Inventory/BFF/Basket downstream | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` |
 | `inventory.reservation-commands` | 3 | 7 days (delete) | `CorrelationId` | Saga-issued imperative intent to Inventory | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
 | `inventory.reservations` | 6 | Infinite (audit) | `OrderId` | Reservation lifecycle — Checkout saga / Notifications downstream. 6 partitions because saga traffic is the heaviest on this topic (one command per order line). | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
 | `inventory.stock-events` | 3 | Infinite (audit) | `ProductId` | Stock-level threshold-crossing signals to Catalog | `StockLevelChanged` |
 | `ordering.order-commands` | 3 | 7 days (delete) | `OrderId` (or `CorrelationId` for `CreateOrderCommand` which has no `OrderId` yet) | Saga-issued imperative intent to Ordering | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
 | `ordering.orders` | 3 | Infinite (audit) | `OrderId` | Order lifecycle events — Checkout saga / Notifications / BFF downstream | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
 | `payments.transactions` | 3 | Infinite (audit) | `CorrelationId` | Payment lifecycle events — Checkout saga / Notifications / Invoicing downstream. | `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` |
-| `payments.payment-commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. Canonical name per [kafka-topology.md](../kafka-topology.md). | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
-| `invoicing.invoices` | 3 | **10 years (EU VAT)** | `BuyerId` | Invoice + credit note lifecycle. Retention reflects legal record-keeping norm (Czech Republic, Germany, France, Slovakia: 10-year). PII policy per ADR-0011 applies. | `InvoiceIssued`, `InvoiceDelivered`, `InvoiceCancelled`, `CreditNoteIssued` |
+| `payments.payment-commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
+| `invoicing.invoices` | 3 | **10 years (EU VAT)** | `BuyerId` | Invoice + credit note lifecycle. Retention reflects legal record-keeping norm (Czech Republic, Germany, France, Slovakia: 10-year). PII policy per ADR-0011 applies. | `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent` |
 
 **Total new topics: 11.** The `notifications.email-commands` topic already exists.
 
@@ -294,14 +294,14 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 }
 ```
 
-#### 5.1.2 `ProductPriceChanged.avsc`
+#### 5.1.2 `ProductPriceChangedEvent.avsc`
 
-**Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductPriceChanged.avsc`
+**Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductPriceChangedEvent.avsc`
 
 ```json
 {
     "type": "record",
-    "name": "ProductPriceChanged",
+    "name": "ProductPriceChangedEvent",
     "namespace": "Catalog.Products",
     "doc": "Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot.",
     "fields": [
@@ -2018,7 +2018,7 @@ Inbox dedupe-key is the Kafka message-id header; Idempotency contract per-comman
   - `Inventory.Reservations.ConfirmReservationCommand`
   - `Inventory.Reservations.ReleaseReservationCommand`
 
-Inventory does **not** consume `ProductPriceChanged` or `ProductDiscontinuedEvent` in v1 — those are non-stock-lifecycle events that do not affect the event-sourced stream.
+Inventory does **not** consume `ProductPriceChangedEvent` or `ProductDiscontinuedEvent` in v1 — those are non-stock-lifecycle events that do not affect the event-sourced stream.
 
 **Registration:**
 ```csharp
@@ -2083,7 +2083,7 @@ Recommended default from this document: **yes, register inbox** so cache-invalid
 services.AddInbox<BffDbContext>();
 .AddInbox(
     typeof(ProductCreatedEvent),
-    typeof(ProductPriceChanged),
+    typeof(ProductPriceChangedEvent),
     typeof(ProductDiscontinuedEvent),
     typeof(CategoryCreatedEvent),
     typeof(OrderCreatedEvent),
@@ -2102,7 +2102,7 @@ services.AddInbox<BffDbContext>();
 | Inventory | `catalog.products`, `inventory.reservation-commands` | `ProductCreatedEvent`, `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
 | Checkout saga | `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions` | MassTransit handles (no `AddInbox(typeof(...))`) |
 | Notifications | `ordering.orders` (NEW) + existing | `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` + existing |
-| BFF | `catalog.products`, `catalog.categories`, `ordering.orders` | `ProductCreatedEvent`, `ProductPriceChanged`, `ProductDiscontinuedEvent`, `CategoryCreatedEvent`, `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
+| BFF | `catalog.products`, `catalog.categories`, `ordering.orders` | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent`, `CategoryCreatedEvent`, `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
 
 ---
 

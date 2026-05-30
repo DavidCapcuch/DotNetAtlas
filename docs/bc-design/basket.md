@@ -540,7 +540,7 @@ Location: `Basket.Infrastructure.ExternalServices`.
 
 ### 9.5 What the ACL does NOT do
 
-- It does not subscribe to Catalog's Kafka events (e.g., `ProductPriceChanged`). Basket deliberately does not auto-update snapshots on price changes — that is the whole point of the frozen-pricing contract.
+- It does not subscribe to Catalog's Kafka events (e.g., `ProductPriceChangedEvent`). Basket deliberately does not auto-update snapshots on price changes — that is the whole point of the frozen-pricing contract.
 - It does not cache Catalog responses on the Basket side. Catalog owns its own caching; Basket pays one HTTP hop per `AddItem` and one batched hop per refresh. Adding a Basket-side read-through cache here would obscure the freshness contract and create stale-snapshot debugging pain.
 - It does not translate user-facing strings (Basket has no UI concerns).
 

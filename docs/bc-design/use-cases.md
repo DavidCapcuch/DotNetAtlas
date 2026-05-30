@@ -161,7 +161,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   4. `await _dbContext.SaveChangesAsync(ct);`.
 - **Emits internal event(s):** `ProductPriceChangedDomainEvent` (if price actually changed; no-op otherwise). Handler fan-out:
   - `ProductPriceChangedProjectionDomainEventHandler` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
-  - `ProductOutboxPublisherDomainEventHandler` — writes `ProductPriceChanged` (Avro) to outbox for topic `catalog.products`.
+  - `ProductOutboxPublisherDomainEventHandler` — writes `ProductPriceChangedEvent` (Avro) to outbox for topic `catalog.products`.
 
 #### 1.1.3 `DescribeProductCommand`
 

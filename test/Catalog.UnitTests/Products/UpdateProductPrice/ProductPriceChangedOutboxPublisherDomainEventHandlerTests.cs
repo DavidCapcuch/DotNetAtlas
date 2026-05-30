@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.ValueObjects;
-using AvroProductPriceChanged = Catalog.Products.ProductPriceChanged;
+using AvroProductPriceChanged = Catalog.Products.ProductPriceChangedEvent;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;
 

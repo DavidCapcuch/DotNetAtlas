@@ -29,7 +29,7 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 | `Description` | `ProductDescription` (VO) | Max 4000 chars. Empty string allowed. |
 | `CategoryId` | `Guid` | Non-empty. Must reference an existing `Category.Id` (application-level referential check on write, DB FK on `product_search_view`). |
 | `Brand` | `BrandName` (VO) | Non-empty, max 100 chars. |
-| `Price` | `Money` (VO) | `Amount > 0`, ISO 4217 `Currency`. Pattern mirrors `Money` (planned: `Platform.SharedKernel.ValueObjects.Money`). |
+| `Price` | `Money` (VO) | `Amount > 0`, ISO 4217 `Currency`. Uses shared-kernel `Platform.SharedKernel.ValueObjects.Money`. |
 | `Status` | `ProductStatus` (SmartEnum) | `Active` (1), `Discontinued` (2). See transition matrix below. |
 | `Dimensions` | `Dimensions?` (VO, nullable) | Optional. Present for physical goods; null for digital/service products. |
 | `Images` | `IReadOnlyCollection<ImageReference>` | Ordered by `DisplayOrder`. May be empty. At most one image with `DisplayOrder == 0` (the "primary"). |
@@ -332,7 +332,7 @@ Per [master design § 3.3](../eshop-master-design.md), every external event is p
 }
 ```
 
-#### ProductPriceChanged
+#### ProductPriceChangedEvent
 - **Triggered by:** `ProductPriceChangedDomainEvent`
 - **Topic:** `catalog.products`
 - **Key:** `ProductId`
@@ -343,7 +343,7 @@ Per [master design § 3.3](../eshop-master-design.md), every external event is p
 ```json
 {
     "type": "record",
-    "name": "ProductPriceChanged",
+    "name": "ProductPriceChangedEvent",
     "namespace": "Catalog.Products",
     "doc": "Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot.",
     "fields": [
@@ -500,7 +500,7 @@ Per [master design § 3.3](../eshop-master-design.md), every external event is p
 }
 ```
 
-> **Deliberately NOT emitted externally (v1):** `ProductDescribedDomainEvent`, `ProductReactivatedDomainEvent`, `CategoryReparentedDomainEvent`. These are either informational to internal projections only (description changes; reactivation is rare and covered by a subsequent `ProductPriceChanged` or manual publish) or — in the case of reparenting — a heavier event that Stage 2 may introduce once cross-BC consumers actually need it. Adding them later is non-breaking.
+> **Deliberately NOT emitted externally (v1):** `ProductDescribedDomainEvent`, `ProductReactivatedDomainEvent`, `CategoryReparentedDomainEvent`. These are either informational to internal projections only (description changes; reactivation is rare and covered by a subsequent `ProductPriceChangedEvent` or manual publish) or — in the case of reparenting — a heavier event that Stage 2 may introduce once cross-BC consumers actually need it. Adding them later is non-breaking.
 
 ### Pattern Showcase: CQRS Read Projection
 
@@ -590,7 +590,7 @@ This is the single performance layer for Catalog reads — per the success crite
 ### Integration Points
 
 **Consumers of Catalog external events:**
-- **Basket** (general-plan context map: "Catalog → Basket: Anti-Corruption Layer") — consumes `ProductPriceChanged` and `ProductDiscontinuedEvent` to flag stale basket-line snapshots. Because Basket is Redis-backed and ephemeral, v1 implementations may rely on on-demand refresh at checkout instead of eager consumption; that tactical choice is Basket's to make, not Catalog's.
+- **Basket** (general-plan context map: "Catalog → Basket: Anti-Corruption Layer") — consumes `ProductPriceChangedEvent` and `ProductDiscontinuedEvent` to flag stale basket-line snapshots. Because Basket is Redis-backed and ephemeral, v1 implementations may rely on on-demand refresh at checkout instead of eager consumption; that tactical choice is Basket's to make, not Catalog's.
 - **Inventory** (general-plan: "Inventory → Catalog: Events — stock changes update product availability", reversed for initialization) — consumes `ProductCreatedEvent` on `catalog.products` to initialize stock items at zero availability for the new product. Inventory's own events flow back the other way but do **not** mutate Catalog; Catalog remains the product-information authority.
 - **EShop.BFF** — prefers synchronous HTTP query (`GET /api/catalog/products/{id}` and `/api/catalog/products/search`) for consumer-facing reads. Optional future: subscribe to `catalog.products` to warm a local cache.
 - **Ordering** — does **not** consume Catalog events directly in v1. Ordering receives already-snapshotted product data in `OrderCreated` events from the Checkout saga; see [ADR-0005 — Customer Data in Ordering](../adr/0005-customer-data-in-ordering.md) for the snapshot pattern extension to product data.

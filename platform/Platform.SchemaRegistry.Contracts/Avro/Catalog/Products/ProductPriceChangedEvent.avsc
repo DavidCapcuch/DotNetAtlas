@@ -1,6 +1,6 @@
 {
     "type": "record",
-    "name": "ProductPriceChanged",
+    "name": "ProductPriceChangedEvent",
     "namespace": "Catalog.Products",
     "doc": "Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot.",
     "fields": [

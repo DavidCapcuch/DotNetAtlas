@@ -44,7 +44,7 @@ public class UpdateProductPriceTests : BaseApiTest
 
             var priceChangedRows = await DbContext.Set<OutboxMessage>()
                 .Where(m => m.KafkaKey == productId.ToString()
-                            && m.Type!.Contains("ProductPriceChanged"))
+                            && m.Type == typeof(Catalog.Products.ProductPriceChangedEvent).FullName)
                 .CountAsync(TestContext.Current.CancellationToken);
             priceChangedRows.Should().Be(1);
         }

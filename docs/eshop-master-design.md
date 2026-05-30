@@ -95,7 +95,7 @@ Source: [event-driven.io — Internal and external events](https://event-driven.
 | Kind | C# name suffix | Avro schema | Avro namespace | Transport |
 |------|----------------|-------------|----------------|-----------|
 | Internal domain event | `{State}DomainEvent` (e.g., `ProductPriceChangedDomainEvent`) | **none** | — | in-process dispatcher |
-| External summary event | `{BusinessMoment}Event` (e.g., `ProductPriceChanged`) | `.avsc` under `platform/Platform.SchemaRegistry.Contracts/Avro/{Domain}/{Aggregate}/` | `{Domain}.{Aggregate}` (e.g., `Catalog.Products`) | Kafka via transactional outbox |
+| External summary event | `{BusinessMoment}Event` (e.g., `ProductPriceChangedEvent`) | `.avsc` under `platform/Platform.SchemaRegistry.Contracts/Avro/{Domain}/{Aggregate}/` | `{Domain}.{Aggregate}` (e.g., `Catalog.Products`) | Kafka via transactional outbox |
 | Saga-issued command | `{Verb}{Target}Command` (e.g., `ReserveStockCommand`) | `.avsc` under same path | `{Domain}.{Aggregate}` | Kafka via transactional outbox |
 
 Kafka topic convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited, hyphens for multi-word. Examples: `catalog.products`, `ordering.order-commands`, `inventory.reservation-commands`.
@@ -265,7 +265,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Value objects:** `Sku`, `Money`, `ProductName`, `ProductDescription`, `Dimensions`, `CategoryPath`, `ImageReference`, `BrandName`.
 **SmartEnums:** `ProductStatus` (Draft → Active → Discontinued, with `Reactivate(adminReactivation: true)` back-edge).
 **Internal events (8):** `ProductCreated/PriceChanged/Described/Activated/Discontinued/Reactivated/DomainEvent`, `CategoryCreated/ReparentedDomainEvent`.
-**External events (4):** `ProductCreatedEvent`, `ProductPriceChanged`, `ProductDiscontinuedEvent` on `catalog.products`; `CategoryCreatedEvent` on `catalog.categories`.
+**External events (4):** `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` on `catalog.products`; `CategoryCreatedEvent` on `catalog.categories`.
 **Pattern:** CQRS read projection — `ProductSearchView` denormalized table built by per-event `*ProjectionDomainEventHandler` classes (one per Catalog domain event) in the same transaction as the write-model save.
 
 ### 5.2 Basket → [bc-design/basket.md](bc-design/basket.md)
@@ -316,8 +316,8 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Aggregates:** `Invoice` (4-state FSM: Draft → Issued → Delivered → Archived; Cancelled off-ramp) + `CreditNote` (3-state: Issued → Delivered → Archived).
 **Value objects:** `InvoiceNumber` (format `INV-YYYY-NNNNNN`), `CreditNoteNumber` (format `CN-YYYY-NNNNNN`), `InvoiceLine`, `VatLine`, `VatRate`, `PdfBlobRef`, `CancellationInfo`.
 **SmartEnums:** `InvoiceStatus`, `CreditNoteStatus`, `DeliveryChannel` (Email, None v1; TaxAuthorityWebhook + PostalMail v2 slots), `CreditNoteReason`.
-**Internal events (7):** `InvoiceCreated`, `InvoiceIssued`, `InvoiceDeliveryRequested`, `InvoiceDelivered`, `InvoiceCancelled`, `CreditNoteCreated`, `CreditNoteIssuedDomainEvent`.
-**External events (4) on `invoicing.invoices`:** `InvoiceIssued`, `InvoiceDelivered`, `InvoiceCancelled`, `CreditNoteIssued`. **10-year retention** (EU VAT norm).
+**Internal events (7):** `InvoiceCreatedDomainEvent`, `InvoiceIssuedDomainEvent`, `InvoiceDeliveryRequestedDomainEvent`, `InvoiceDeliveredDomainEvent`, `InvoiceCancelledDomainEvent`, `CreditNoteCreatedDomainEvent`, `CreditNoteIssuedDomainEvent`.
+**External events (4) on `invoicing.invoices`:** `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent`. **10-year retention** (EU VAT norm).
 **Pattern:** **Async multi-source convergent enrichment** — `pending_invoices` projection buffers `OrderConfirmedEvent` + `PaymentCapturedEvent`; when both halves arrive, `IssueInvoiceCommand` fires (aggregate created, number allocated via gap-free Postgres allocator, PDF generated via QuestPDF, uploaded to Azurite/Azure Blob, outbox row written). Credit notes mirror with `OrderCancelledEvent` + `PaymentRefundedEvent`. No saga — projection + idempotent command handler is simpler than multi-step orchestration.
 **Patterns showcased:** document generation + write-once blob storage; legal retention; gap-free numeric sequencing (transactional allocator); idempotent external re-emission (delivery-attempt log); convergent enrichment without sagas.
 **Infrastructure:** Azurite (local Azure Blob emulator) + nginx-cdn (local CDN emulation) for PDF delivery; Azure SAS URLs (10-minute TTL). Aspire AppHost: `AddAzureStorage("storage").RunAsEmulator()` swaps to real Azure Blob Storage in production.
@@ -331,19 +331,16 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 ### 6.1 New Kafka Topics (summary)
 
-| Topic | Partitions | Retention | Purpose |
-|-------|-----------|-----------|---------|
-| `catalog.products` | 3 | Infinite (audit) | Product lifecycle external events |
-| `catalog.categories` | 3 | Infinite (audit) | Category taxonomy events |
-| `basket.sessions` | 3 | 30 days | Basket → Checkout saga hand-off |
-| `ordering.orders` | 3 | Infinite (audit) | Order lifecycle external events |
-| `ordering.order-commands` | 3 | 7 days | Saga → Ordering commands |
-| `inventory.stock-events` | 3 | Infinite (audit) | Stock-level threshold-crossing signals |
-| `inventory.reservations` | 6 | Infinite (audit) | Reservation lifecycle (6 partitions for saga fan-out) |
-| `inventory.reservation-commands` | 3 | 7 days | Saga → Inventory commands |
-| `payments.transactions` | 3 | Infinite (audit) | Payment lifecycle events (renamed from `payments.payments` in Wave 0) |
-| `payments.payment-commands` | 3 | 7 days | Saga → Payments commands (canonical name per [kafka-topology.md](kafka-topology.md)) |
-| `invoicing.invoices` | 3 | 10 years (EU VAT) | Invoice + credit note lifecycle — retention reflects legal requirement |
+> **Canonical registry:** [`bc-design/events-catalog.md § 3`](bc-design/events-catalog.md) — partitions, retention, keys, purpose, and event list per topic. This section names only the new topics; details live in the canonical registry and must not be duplicated here.
+
+11 new topics across the new BCs:
+
+- **Catalog:** `catalog.products`, `catalog.categories`
+- **Basket:** `basket.sessions`
+- **Ordering:** `ordering.orders`, `ordering.order-commands`
+- **Inventory:** `inventory.stock-events`, `inventory.reservations`, `inventory.reservation-commands`
+- **Payments:** `payments.transactions`, `payments.payment-commands`
+- **Invoicing:** `invoicing.invoices`
 
 **Reuses existing:** `notifications.email-commands`.
 
@@ -693,7 +690,7 @@ Deferred bounded contexts (explicitly NOT in v1):
 - **Reviews / Ratings** — product feedback.
 - **Recommendations** — "customers also bought" analytics.
 - **Promotions / Discounts / Coupons** — v1 uses Catalog's flat price per [ADR-0002](adr/0002-pricing-in-catalog.md); dynamic pricing deferred.
-- **Pricing BC extraction** — if segmentation/promotions appear, Catalog's `ProductPriceChanged` is the seam for extraction; ADR-0002 preserves this.
+- **Pricing BC extraction** — if segmentation/promotions appear, Catalog's `ProductPriceChangedEvent` is the seam for extraction; ADR-0002 preserves this.
 
 ---
 
