@@ -49,14 +49,19 @@ internal static class AuthenticationDependencyInjection
                 });
         }
 
-        // Reads are satisfied by either scope (service-to-service); writes require the
-        // write scope. RequireAnyScope adds RequireAuthenticatedUser + the space-separated
-        // scope-claim assertion (Platform.ServiceDefaults.Auth, ADR-0010).
+        // Reads are delegated service-to-service access (scope only); writes are
+        // human-admin product / category mutations hardened with the admin role AND
+        // the write scope (defense in depth). A token carrying catalog.write also
+        // satisfies the read policy. RequireAnyScope adds RequireAuthenticatedUser +
+        // the space-separated scope-claim assertion (Platform.ServiceDefaults.Auth, ADR-0010).
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.ReadPolicy, policy =>
                 policy.RequireAnyScope(Scopes.CatalogRead, Scopes.CatalogWrite))
             .AddPolicy(AuthPolicies.WritePolicy, policy =>
-                policy.RequireAnyScope(Scopes.CatalogWrite));
+            {
+                policy.RequireRole(Roles.Admin);
+                policy.RequireAnyScope(Scopes.CatalogWrite);
+            });
 
         services.AddHttpContextAccessor();
 

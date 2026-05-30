@@ -12,6 +12,7 @@ public sealed class FakeTokenCreator
 {
     public const string CatalogReadScope = "catalog.read";
     public const string CatalogWriteScope = "catalog.write";
+    public const string AdminRole = "admin";
 
     private readonly FakeTokenSigner _signer;
 
@@ -25,13 +26,14 @@ public sealed class FakeTokenCreator
         return clientType switch
         {
             ClientType.NonAuth => string.Empty,
-            ClientType.ReadOnly => Build(scope: CatalogReadScope),
-            ClientType.WriteAdmin => Build(scope: $"{CatalogReadScope} {CatalogWriteScope}"),
+            ClientType.ReadOnly => Build(scope: CatalogReadScope, roles: []),
+            ClientType.WriteAdmin => Build(scope: $"{CatalogReadScope} {CatalogWriteScope}", roles: [AdminRole]),
+            ClientType.WriteScopeNoAdmin => Build(scope: $"{CatalogReadScope} {CatalogWriteScope}", roles: []),
             _ => throw new ArgumentOutOfRangeException(nameof(clientType)),
         };
     }
 
-    private string Build(string scope)
+    private string Build(string scope, string[] roles)
     {
         var subject = Guid.CreateVersion7().ToString();
         var claims = new List<Claim>
@@ -41,6 +43,11 @@ public sealed class FakeTokenCreator
             new(ClaimTypes.Name, $"catalog-tester-{subject}@dotnetatlas.test"),
             new("scope", scope),
         };
+
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         return FakeTokenBuilder.SignToken(_signer, claims);
     }

@@ -16,6 +16,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
     private readonly HttpClient _nonAuthClient;
     private readonly HttpClient _readClient;
     private readonly HttpClient _writeClient;
+    private readonly HttpClient _writeScopeNoAdminClient;
 
     public HttpClientRegistry(AppFixture<TEntryPoint> appFixture, FakeTokenCreator tokenCreator)
     {
@@ -24,6 +25,7 @@ public sealed class HttpClientRegistry<TEntryPoint>
         _nonAuthClient = Build(ClientType.NonAuth);
         _readClient = Build(ClientType.ReadOnly);
         _writeClient = Build(ClientType.WriteAdmin);
+        _writeScopeNoAdminClient = Build(ClientType.WriteScopeNoAdmin);
     }
 
     public HttpClient NonAuthClient => _nonAuthClient;
@@ -31,6 +33,12 @@ public sealed class HttpClientRegistry<TEntryPoint>
     public HttpClient ReadClient => _readClient;
 
     public HttpClient WriteClient => _writeClient;
+
+    /// <summary>
+    /// Token holds <c>catalog.write</c> but not the <c>admin</c> role — exercises the role half
+    /// of the defense-in-depth write gate (must be rejected with 403).
+    /// </summary>
+    public HttpClient WriteScopeNoAdminClient => _writeScopeNoAdminClient;
 
     /// <summary>
     /// Builds a fresh <see cref="HttpClient"/> for the given <paramref name="clientType"/>,

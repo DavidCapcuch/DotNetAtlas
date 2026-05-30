@@ -41,6 +41,19 @@ public class JwtScopeAuthorizationTests : BaseApiTest
     }
 
     [Fact]
+    public async Task WhenWriteScopeButNotAdmin_Returns403()
+    {
+        // Defense-in-depth: WritePolicy requires the admin role AND the catalog.write
+        // scope. A token holding the scope but lacking the role must still be rejected —
+        // this pins the role half so it can't be silently dropped.
+        var response = await HttpClientRegistry.WriteScopeNoAdminClient
+            .POSTAsync<CreateCategoryEndpoint, CreateCategoryRequest>(
+                CatalogTestData.ValidCreateCategoryRequest());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task WhenNonAuthHitsWriteEndpoint_Returns401()
     {
         var response = await HttpClientRegistry.NonAuthClient
