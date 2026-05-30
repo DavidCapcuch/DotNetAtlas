@@ -19,7 +19,7 @@ namespace Catalog.Infrastructure.Common;
 /// </description></item>
 /// <item><description>
 /// <see cref="MessagingDependencyInjection.AddKafkaMessaging"/> — KafkaFlow cluster
-/// with the <c>StockLevelChanged</c> inbox consumer, transactional outbox + DLT producer,
+/// with the <c>StockLevelChangedEvent</c> inbox consumer, transactional outbox + DLT producer,
 /// and correlation-id propagation middleware.
 /// </description></item>
 /// <item><description>

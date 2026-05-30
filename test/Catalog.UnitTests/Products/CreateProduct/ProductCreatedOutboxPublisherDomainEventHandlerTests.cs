@@ -19,7 +19,7 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
     {
         CatalogProducts = "catalog.products",
         CatalogCategories = "catalog.categories",
-        StockLevelChanged = "inventory.stock-events",
+        StockLevelChangedEvent = "inventory.stock-events",
         DltTopicSuffix = ".DLT",
     };
 

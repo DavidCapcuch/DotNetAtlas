@@ -6,9 +6,9 @@ using Microsoft.Extensions.Logging;
 namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 
 /// <summary>
-/// Inbound Kafka adapter for Inventory's <see cref="StockLevelChanged"/> events. Translates the
+/// Inbound Kafka adapter for Inventory's <see cref="StockLevelChangedEvent"/> events. Translates the
 /// Avro message into a call into the Application-layer
-/// <see cref="IStockLevelChangedProjector"/>; the projection write itself lives in
+/// <see cref="IStockLevelChangedEventProjector"/>; the projection write itself lives in
 /// Catalog.Application so architecture-tests.md § 2.1 holds across the Kafka-delivered,
 /// inbox-deduped path.
 /// </summary>
@@ -18,21 +18,21 @@ namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 /// — the same MessageId arriving twice is processed exactly once.
 /// </para>
 /// </remarks>
-internal sealed class StockLevelChangedKafkaHandler : IMessageHandler<StockLevelChanged>
+internal sealed class StockLevelChangedEventKafkaHandler : IMessageHandler<StockLevelChangedEvent>
 {
     // Combine WorkerStopped with a per-message budget so a slow Postgres query during a
     // Kafka rebalance can't hold the partition until the worker stops — misbehaving
     // messages then starve other partitions.
     internal static readonly TimeSpan PerMessageBudget = TimeSpan.FromSeconds(30);
 
-    private readonly IStockLevelChangedProjector _projector;
+    private readonly IStockLevelChangedEventProjector _projector;
 
-    public StockLevelChangedKafkaHandler(IStockLevelChangedProjector projector)
+    public StockLevelChangedEventKafkaHandler(IStockLevelChangedEventProjector projector)
     {
         _projector = projector;
     }
 
-    public async Task Handle(IMessageContext context, StockLevelChanged message)
+    public async Task Handle(IMessageContext context, StockLevelChangedEvent message)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);

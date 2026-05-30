@@ -14,7 +14,7 @@ namespace Inventory.Application.StockItems;
 /// <summary>
 /// Maintains <c>inventory.current_stock_levels</c> — the hot-path projection
 /// described in <c>inventory.md</c> § 9.1 — and emits the threshold-crossing
-/// external <c>StockLevelChanged</c> event when <c>Available</c> transitions
+/// external <c>StockLevelChangedEvent</c> when <c>Available</c> transitions
 /// between zero and positive.
 /// </summary>
 /// <remarks>
@@ -33,7 +33,7 @@ namespace Inventory.Application.StockItems;
 /// from the event stream or enumerate prior events.
 /// </para>
 /// <para>
-/// Per <c>inventory.md</c> § 6.1 the external <c>StockLevelChanged</c> fires
+/// Per <c>inventory.md</c> § 6.1 the external <c>StockLevelChangedEvent</c> fires
 /// ONLY on <c>0 &lt;-&gt; positive</c> transitions, not on every stock movement.
 /// </para>
 /// </remarks>
@@ -90,7 +90,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         row.OnHand += domainEvent.Quantity;
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
-        MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
+        MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
     }
 
     public async Task Handle(StockReservedDomainEvent domainEvent, CancellationToken ct)
@@ -101,7 +101,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         row.Reserved += domainEvent.Quantity;
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
-        MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
+        MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
     }
 
     public async Task Handle(ReservationConfirmedDomainEvent domainEvent, CancellationToken ct)
@@ -112,13 +112,13 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
 
         // Confirm: stock physically leaves. OnHand -= qty AND Reserved -= qty.
         // Net Available (= OnHand - Reserved) is unchanged by this event alone,
-        // so MaybeEmitStockLevelChanged will typically be a no-op here; kept
+        // so MaybeEmitStockLevelChangedEvent will typically be a no-op here; kept
         // for completeness in case future invariants change.
         row.OnHand -= qty;
         row.Reserved -= qty;
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
-        MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
+        MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
     }
 
     public async Task Handle(ReservationReleasedDomainEvent domainEvent, CancellationToken ct)
@@ -130,7 +130,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         row.Reserved -= qty;
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
-        MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
+        MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
     }
 
     public async Task Handle(StockAdjustedDomainEvent domainEvent, CancellationToken ct)
@@ -141,7 +141,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         row.OnHand += domainEvent.Delta;
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
-        MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
+        MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
     }
 
     private async Task<CurrentStockLevelRow> LoadAsync(Guid productId, CancellationToken ct)
@@ -191,7 +191,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         // Defensive: the aggregate enforces Available >= 0, but a future
         // projection-rebuild from a corrupted stream (or a yet-unwritten
         // projection-replay job) could produce a negative Available and
-        // MaybeEmitStockLevelChanged would then misclassify a -1 -> 0
+        // MaybeEmitStockLevelChangedEvent would then misclassify a -1 -> 0
         // transition as "back in stock". Fail loud rather than silently
         // emit a wrong threshold event.
         if (row.Available < 0)
@@ -202,7 +202,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         }
     }
 
-    private void MaybeEmitStockLevelChanged(CurrentStockLevelRow row, int previousAvailable, DateTimeOffset occurredOnUtc)
+    private void MaybeEmitStockLevelChangedEvent(CurrentStockLevelRow row, int previousAvailable, DateTimeOffset occurredOnUtc)
     {
         var wasZero = previousAvailable == 0;
         var isZero = row.Available == 0;
@@ -212,14 +212,14 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
             return;
         }
 
-        var avro = row.ToStockLevelChanged(occurredOnUtc);
+        var avro = row.ToStockLevelChangedEvent(occurredOnUtc);
         _outbox.AddOutboxMessage(
             _topics.InventoryStockEvents,
             row.ProductId.ToString(),
             avro);
 
         _logger.LogDebug(
-            "Queued StockLevelChanged for Product {ProductId} (Available {Previous} -> {Current})",
+            "Queued StockLevelChangedEvent for Product {ProductId} (Available {Previous} -> {Current})",
             row.ProductId, previousAvailable, row.Available);
     }
 }

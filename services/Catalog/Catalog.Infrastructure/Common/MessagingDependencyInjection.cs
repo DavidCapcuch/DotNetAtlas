@@ -22,7 +22,7 @@ namespace Catalog.Infrastructure.Common;
 /// <summary>
 /// DI wiring for Kafka — outbox serialization (Catalog publishes via the transactional
 /// outbox + <c>outbox-relay-catalog</c> per ADR-0001, no Kafka producers in v1) and the
-/// inbound <c>StockLevelChanged</c> consumer.
+/// inbound <c>StockLevelChangedEvent</c> consumer.
 /// </summary>
 internal static class MessagingDependencyInjection
 {
@@ -39,7 +39,7 @@ internal static class MessagingDependencyInjection
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
-        // The Application-layer StockLevelChangedProjectionHandler takes TimeProvider; pin the
+        // The Application-layer StockLevelChangedEventProjectionHandler takes TimeProvider; pin the
         // singleton registration here so it doesn't depend on AddInbox<>()'s side-effect.
         services.TryAddSingleton(TimeProvider.System);
 
@@ -51,8 +51,8 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<StockLevelChangedConsumerOptions>()
-            .BindConfiguration(StockLevelChangedConsumerOptions.Section)
+        services.AddOptionsWithValidateOnStart<StockLevelChangedEventConsumerOptions>()
+            .BindConfiguration(StockLevelChangedEventConsumerOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
@@ -60,8 +60,8 @@ internal static class MessagingDependencyInjection
             .Get<KafkaOptions>()!;
 
         var consumerOptions = configuration
-            .GetRequiredSection(StockLevelChangedConsumerOptions.Section)
-            .Get<StockLevelChangedConsumerOptions>()!;
+            .GetRequiredSection(StockLevelChangedEventConsumerOptions.Section)
+            .Get<StockLevelChangedEventConsumerOptions>()!;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
@@ -94,10 +94,10 @@ internal static class MessagingDependencyInjection
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
-                        .AddInbox(typeof(StockLevelChanged))
+                        .AddInbox(typeof(StockLevelChangedEvent))
                         .AddTypedHandlers(handlers => handlers
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
-                            .AddHandler<StockLevelChangedKafkaHandler>())
+                            .AddHandler<StockLevelChangedEventKafkaHandler>())
                     )
                 ))
             .UseMicrosoftLog()

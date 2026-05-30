@@ -21,7 +21,7 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 | `catalog.products` | 3 | -1 | event-log | Source of truth for product master data; Inventory rebuilds from this on bootstrap. |
 | `catalog.categories` | 3 | -1 | event-log | Category master data; same replay-rebuild contract. |
 | `ordering.orders` | 3 | -1 | event-log | Order summary events (`OrderConfirmedEvent`, `OrderCancelledEvent`); Invoicing projects from these. |
-| `inventory.stock-events` | 3 | -1 | event-log | `StockLevelChanged` threshold-crossing events; Catalog consumes. Event-sourced per ADR-0006. |
+| `inventory.stock-events` | 3 | -1 | event-log | `StockLevelChangedEvent` threshold-crossing events; Catalog consumes. Event-sourced per ADR-0006. |
 | `inventory.reservations` | **6** | -1 | event-log | Reservation events; co-partitioned by `OrderId` (6 partitions for cross-order parallelism). Consumed by Checkout saga. |
 | `payments.transactions` | 3 | -1 | event-log | `PaymentAuthorized/Captured/Refunded/Voided` events; Invoicing + saga consume. |
 | `basket.sessions` | 3 | 2592000000 | saga-state | `BasketCheckoutInitiatedEvent` and per-session lifecycle; 30d forensic window. |

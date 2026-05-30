@@ -239,7 +239,7 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | CheckoutSaga | PaymentProcessingSaga | Async trigger | Kafka (`payments.transactions`) | `PaymentRequestedEvent` |
 | PaymentProcessingSaga | CheckoutSaga | Saga event | Kafka (`payments.transactions`) | `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` |
 | PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand` (existing) |
-| Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChanged` (crosses 0↔positive) |
+| Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChangedEvent` (crosses 0↔positive) |
 | Ordering | Notifications | Published Language (async) | Kafka (`ordering.orders`) | Order lifecycle events |
 
 ### 4.3 BC Classification
@@ -296,7 +296,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Value objects:** `Quantity`, `ReservationId`, `ReservationInfo`, `StockItemSnapshot`.
 **Event store schema:** `inventory.stock_events (StreamId, Version, EventType, Payload, OccurredAtUtc, AppendedAtUtc, CorrelationId)` with PK `(StreamId, Version)`.
 **Read projections:** `inventory.current_stock_levels` and `inventory.reservation_audit` built by in-process `IDomainEventHandler` upserts in the same transaction as event append.
-**External events (5):** `StockLevelChanged` on `inventory.stock-events`; `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` on `inventory.reservations`.
+**External events (5):** `StockLevelChangedEvent` on `inventory.stock-events`; `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` on `inventory.reservations`.
 **Pattern:** Full Event Sourcing ([ADR-0006](adr/0006-event-sourcing-for-inventory.md)). Aggregate rehydrates from stream; commands append events; projections catch up asynchronously within same transaction. Reservation TTL = 15 min, background `ReservationExpiryWorker` publishes `ReservationReleasedEvent(reason: Expiry)`.
 
 ### 5.5 Payments → [bc-design/payments.md](bc-design/payments.md)

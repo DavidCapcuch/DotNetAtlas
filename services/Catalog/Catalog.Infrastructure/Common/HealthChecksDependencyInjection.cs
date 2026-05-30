@@ -16,7 +16,7 @@ namespace Catalog.Infrastructure.Common;
 /// store + atomic projection per ADR-0001 + ADR-0016), <c>redis-cache</c> (the
 /// idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every idempotent write
 /// and fail-closed when down), and the Kafka cluster (outbox relay publishes + the
-/// in-process inbound <c>StockLevelChanged</c> consumer). The Schema Registry is
+/// in-process inbound <c>StockLevelChangedEvent</c> consumer). The Schema Registry is
 /// deliberately NOT a readiness probe: the Avro serializer/deserializer contact it only
 /// cold-cache (schema-IDs are cached after first use on both the produce and consume
 /// paths), so steady-state operation survives an SR outage — SR is a boot-ordering

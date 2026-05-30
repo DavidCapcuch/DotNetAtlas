@@ -6,7 +6,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Catalog.UnitTests.Products.UpdateProductSellability;
 
-public class StockLevelChangedProjectionHandlerTests
+public class StockLevelChangedEventProjectionHandlerTests
 {
     private static readonly DateTimeOffset Now =
         new(2026, 5, 23, 10, 0, 0, TimeSpan.Zero);
@@ -16,8 +16,8 @@ public class StockLevelChangedProjectionHandlerTests
     {
         // Arrange — no projection row for the productId; handler logs Information and returns.
         await using var db = FakeCatalogDbContext.Create();
-        var handler = new StockLevelChangedProjectionHandler(
-            db, new FakeTimeProvider(Now), NullLogger<StockLevelChangedProjectionHandler>.Instance);
+        var handler = new StockLevelChangedEventProjectionHandler(
+            db, new FakeTimeProvider(Now), NullLogger<StockLevelChangedEventProjectionHandler>.Instance);
 
         // Act
         await handler.HandleAsync(
@@ -38,8 +38,8 @@ public class StockLevelChangedProjectionHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var time = new FakeTimeProvider(Now);
-        var handler = new StockLevelChangedProjectionHandler(
-            db, time, NullLogger<StockLevelChangedProjectionHandler>.Instance);
+        var handler = new StockLevelChangedEventProjectionHandler(
+            db, time, NullLogger<StockLevelChangedEventProjectionHandler>.Instance);
 
         // Act
         await handler.HandleAsync(row.ProductId, newAvailable: 7, TestContext.Current.CancellationToken);
@@ -64,8 +64,8 @@ public class StockLevelChangedProjectionHandlerTests
         db.ProductSearchView.Add(row);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new StockLevelChangedProjectionHandler(
-            db, new FakeTimeProvider(Now), NullLogger<StockLevelChangedProjectionHandler>.Instance);
+        var handler = new StockLevelChangedEventProjectionHandler(
+            db, new FakeTimeProvider(Now), NullLogger<StockLevelChangedEventProjectionHandler>.Instance);
 
         // Act
         await handler.HandleAsync(row.ProductId, newAvailable: 100, TestContext.Current.CancellationToken);
@@ -85,8 +85,8 @@ public class StockLevelChangedProjectionHandlerTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var time = new FakeTimeProvider(Now);
-        var handler = new StockLevelChangedProjectionHandler(
-            db, time, NullLogger<StockLevelChangedProjectionHandler>.Instance);
+        var handler = new StockLevelChangedEventProjectionHandler(
+            db, time, NullLogger<StockLevelChangedEventProjectionHandler>.Instance);
 
         // Act
         await handler.HandleAsync(row.ProductId, newAvailable: 0, TestContext.Current.CancellationToken);
@@ -110,8 +110,8 @@ public class StockLevelChangedProjectionHandlerTests
         db.ProductSearchView.Add(row);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var handler = new StockLevelChangedProjectionHandler(
-            db, new FakeTimeProvider(Now), NullLogger<StockLevelChangedProjectionHandler>.Instance);
+        var handler = new StockLevelChangedEventProjectionHandler(
+            db, new FakeTimeProvider(Now), NullLogger<StockLevelChangedEventProjectionHandler>.Instance);
 
         // Act
         await handler.HandleAsync(row.ProductId, newAvailable: 12, TestContext.Current.CancellationToken);

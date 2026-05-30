@@ -2,14 +2,14 @@ namespace Catalog.Application.Products.UpdateProductSellability;
 
 /// <summary>
 /// Application-layer port consumed by Infrastructure Kafka adapters that handle Inventory's
-/// <c>StockLevelChanged</c> events. The implementation
-/// (<see cref="StockLevelChangedProjectionHandler"/>) lives in Catalog.Application so
+/// <c>StockLevelChangedEvent</c> events. The implementation
+/// (<see cref="StockLevelChangedEventProjectionHandler"/>) lives in Catalog.Application so
 /// architecture-tests.md § 2.1 ("projection writes only in *ProjectionHandler") holds across
 /// the inbox-driven cross-BC path as well (CAT-ARCH-C02 / #174). The interface is named with a
 /// <c>Projector</c> suffix rather than <c>ProjectionHandler</c> to keep the architecture-tests
 /// rule "*ProjectionHandler types must be sealed" applicable only to concrete classes.
 /// </summary>
-public interface IStockLevelChangedProjector
+public interface IStockLevelChangedEventProjector
 {
     /// <summary>
     /// Recomputes <c>IsSellable</c> on the <c>product_search_view</c> row for

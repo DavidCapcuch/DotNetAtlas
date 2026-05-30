@@ -31,7 +31,7 @@ public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
             {
                 CatalogProducts = "catalog.products",
                 CatalogCategories = "catalog.categories",
-                StockLevelChanged = "inventory.stock-events",
+                StockLevelChangedEvent = "inventory.stock-events",
                 DltTopicSuffix = ".DLT",
             }),
             NullLogger<ProductDiscontinuedOutboxPublisherDomainEventHandler>.Instance);

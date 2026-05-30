@@ -223,7 +223,7 @@ The decision boundary "ship snapshots OR shorten retention" stays open in v1 on 
 - **Outbox:** cross-service events (`inventory.stock-events`, `inventory.reservations`) are written to the existing `Platform.Outbox` table in the same transaction and relayed to Kafka by the existing `Platform.OutboxRelay`. Reuses the proven infrastructure — nothing bespoke.
 - **Kafka topics:** `inventory.stock-events` (3 partitions, key = `ProductId`, consumed by Catalog) and `inventory.reservations` (6 partitions, key = `OrderId` to co-partition reservation events per order, consumed by the checkout saga). Configured in `docker-compose.yaml`.
 - **Schema Registry:** all external Avro events stored at `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/*.avsc` and `.../Inventory/Reservations/*.avsc`. No JSON or Protobuf on the cross-service wire — Avro only per the messaging constraint.
-- **Event filtering at the wire:** not every ES event becomes an external event. `StockLevelChanged` is emitted only on threshold crossings (0 ↔ positive) — raw arithmetic does not flood the bus.
+- **Event filtering at the wire:** not every ES event becomes an external event. `StockLevelChangedEvent` is emitted only on threshold crossings (0 ↔ positive) — raw arithmetic does not flood the bus.
 
 ### Future work (deliberately deferred)
 

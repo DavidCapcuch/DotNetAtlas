@@ -24,7 +24,7 @@
 | Category | Hierarchical classification aggregate — tree structure, max depth 5. Products reference one category by id. |
 | Sku | Stock Keeping Unit — business-level product code, 1–32 chars, normalized uppercase. Unique across Catalog. |
 | ProductStatus | SmartEnum: `Draft → Active → Discontinued` (with `Reactivate` back-edge to `Active`, admin-only). |
-| IsSellable | Derived flag on the `product_search_view` projection: `Status == Active AND available_stock > 0`. Updated by consuming Inventory's `StockLevelChanged`. |
+| IsSellable | Derived flag on the `product_search_view` projection: `Status == Active AND available_stock > 0`. Updated by consuming Inventory's `StockLevelChangedEvent`. |
 | ProductSearchView | Denormalized read-side projection (CQRS) built in-process by per-event `*ProjectionDomainEventHandler` classes within the same DB transaction as the write-model save. |
 | Reactivation | Explicit admin action to move a product back from `Discontinued` to `Active`. Requires the `AuthPolicies.CatalogAdmin` claim. |
 
@@ -75,7 +75,7 @@
 | Available | Derived: `OnHand - Reserved`. Must stay ≥ 0 (enforced by the aggregate). |
 | Reservation | A hold on stock for a specific `OrderId`. 15-minute default TTL. Lifecycle: `Active → Confirmed` OR `Active → Released(Compensation/Expiry/Cancellation)`. |
 | ReservationExpiryWorker | Background worker that publishes `ReservationReleasedEvent(reason=Expiry)` for reservations past TTL. |
-| Threshold-crossing | The rule that `StockLevelChanged` is emitted only when `Available` crosses `0 ↔ positive`, not on every arithmetic change. Prevents bus spam. |
+| Threshold-crossing | The rule that `StockLevelChangedEvent` is emitted only when `Available` crosses `0 ↔ positive`, not on every arithmetic change. Prevents bus spam. |
 | Projection | Read-side denormalized view built from the event stream: `inventory.current_stock_levels`, `inventory.reservation_audit`. Upserted in the same transaction as event append. |
 
 ---
@@ -124,7 +124,7 @@
 | Money | Value object: decimal amount + ISO 4217 currency code. Shared-kernel in `Platform.SharedKernel.ValueObjects.Money`. |
 | Address | Value object: `Street1`, `Street2?`, `City`, `State?`, `PostalCode`, `CountryCode` (ISO 3166-1 alpha-2). |
 | Correlation ID | UUID v7 shared across all events in a single business workflow (one checkout → one order → one payment → one invoice). Threaded through Kafka headers, HTTP `X-Correlation-Id`, span attributes, DB audit columns. |
-| External event | Enriched summary event published to Kafka with an Avro contract. Naming: `{BusinessMoment}Event` (e.g. `ProductCreatedEvent`, `OrderShippedEvent`). The pre-existing `StockLevelChanged` schema retains the no-suffix name for historical reasons; all other event schemas use the `Event` suffix and new additions MUST follow that convention. |
+| External event | Enriched summary event published to Kafka with an Avro contract. Naming: `{BusinessMoment}Event` (e.g. `ProductCreatedEvent`, `OrderShippedEvent`, `StockLevelChangedEvent`). All event schemas use the `Event` suffix; the convention is enforced at infrastructure bootstrap (see [bc-design/conventions.md § 1.1](bc-design/conventions.md)). |
 | Internal (domain) event | In-process event raised by an aggregate and dispatched via `IDomainEventHandler<T>`. Naming: `{State}DomainEvent`. Never published to Kafka directly. |
 | Command (Kafka) | Imperative intent published on a `{domain}.{aggregate}-commands` topic — exactly one known consumer, specific response expected. Avro namespace `{Domain}.{Aggregate}`. |
 | Outbox | Transactional outbox table (`{schema}.outbox_messages`) — domain write + outbox insert in one transaction; relay worker dequeues to Kafka. |

@@ -4,7 +4,7 @@ namespace Catalog.Application.Common.Messaging;
 
 /// <summary>
 /// Kafka topic names for Catalog outbox publishing AND for the inbound
-/// <c>StockLevelChanged</c> consumer. Bound to configuration section
+/// <c>StockLevelChangedEvent</c> consumer. Bound to configuration section
 /// <c>CatalogTopics</c>.
 /// </summary>
 public sealed class TopicsOptions
@@ -30,12 +30,12 @@ public sealed class TopicsOptions
     public required string CatalogCategories { get; set; }
 
     /// <summary>
-    /// Inbound topic for <c>Inventory.Stock.StockLevelChanged</c>. Owned by Inventory;
+    /// Inbound topic for <c>Inventory.Stock.StockLevelChangedEvent</c>. Owned by Inventory;
     /// Catalog consumes via the <c>catalog-stock-level-watcher</c> consumer group.
     /// </summary>
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
-    public required string StockLevelChanged { get; set; }
+    public required string StockLevelChangedEvent { get; set; }
 
     /// <summary>
     /// Suffix appended to a topic name for its dead-letter sibling (KafkaFlow DLT

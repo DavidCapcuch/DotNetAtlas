@@ -116,7 +116,7 @@ The concurrency model: reservations append at `Version+1` based on state observe
 A Kafka-published Avro-serialized event designed for cross-service consumption. Namespaced under `Inventory.Stock` or `Inventory.Reservations`. Emitted via the transactional outbox from in-process handlers subscribed to ES events. Distinct from ES events — external events are the **contract**, ES events are the **truth**.
 
 ### Threshold crossing
-The rule that governs when `StockLevelChanged` is emitted: only on `Available` crossing `0 ↔ positive`, not on every arithmetic change. Prevents bus spam; downstream consumers (Catalog's `IsSellable`) only care about sell/no-sell state, not every integer tick.
+The rule that governs when `StockLevelChangedEvent` is emitted: only on `Available` crossing `0 ↔ positive`, not on every arithmetic change. Prevents bus spam; downstream consumers (Catalog's `IsSellable`) only care about sell/no-sell state, not every integer tick.
 
 ### Compensation
 The saga's act of reversing a previously completed step. In Inventory's vocabulary, compensation = `ReleaseReservationCommand` with `ReleaseReason=Compensation`. Produces an auditable event (not a silent rollback) so the event stream always tells the truth about what happened and why.

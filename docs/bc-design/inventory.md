@@ -251,7 +251,7 @@ Per § 3 of the master design, cross-service topics carry enriched summary event
 
 **Schema Registry path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/*.avsc` and `.../Inventory/Reservations/*.avsc`.
 
-### 6.1 `StockLevelChanged` — Topic `inventory.stock-events`
+### 6.1 `StockLevelChangedEvent` — Topic `inventory.stock-events`
 
 **Triggering rule (NOT one-per-ES-event):** Only fire when `Available` crosses a meaningful threshold — specifically `0 ↔ positive`. Raw stock arithmetic should not flood the bus; downstream consumers (Catalog) only care about "is this sellable yes/no" and (in future) "low-stock threshold crossed."
 
@@ -265,12 +265,12 @@ Per § 3 of the master design, cross-service topics carry enriched summary event
 
 **Consumer:** Catalog (updates `IsSellable` projection).
 
-**Avro schema (`Inventory.Stock.StockLevelChanged.avsc`):**
+**Avro schema (`Inventory.Stock.StockLevelChangedEvent.avsc`):**
 
 ```json
 {
   "type": "record",
-  "name": "StockLevelChanged",
+  "name": "StockLevelChangedEvent",
   "namespace": "Inventory.Stock",
   "doc": "Emitted when a StockItem's availability crosses a business-meaningful threshold (e.g., zero to positive or positive to zero). Not emitted on every stock change.",
   "fields": [
@@ -424,7 +424,7 @@ Emitted 1:1 with internal `ReservationConfirmedDomainEvent` (ES).
 | `OrderId` | `uuid` | |
 | `ConfirmedAtUtc` | `timestamp-millis` | |
 
-**Consumer:** Notifications (optional — "your order is being prepared" fulfillment signal). Checkout saga already knows the result from the command return; this event is primarily informational for downstream services.
+**Consumer:** None in v1. (A "your order is being prepared" buyer notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` from a dedicated outbox publisher; not wired in v1. The Checkout saga already knows the result from the command return.)
 
 **Avro schema (`Inventory.Reservations.ReservationConfirmedEvent.avsc`):**
 
@@ -524,11 +524,11 @@ Each command appends exactly one ES event — see § 5 (each subsection's **Trig
 | Command | Trigger | External event side-effects |
 |---------|---------|-----------------------------|
 | `InitializeStockItemCommand` | Inbox consumer: Catalog's `ProductCreatedEvent` | (none by default) |
-| `ReceiveStockCommand` | Admin/ops API call | `StockLevelChanged` iff threshold crossed |
-| `ReserveStockCommand` | Checkout saga | `StockReservedEvent` (success) OR `StockReservationFailedEvent` (insufficient stock) + `StockLevelChanged` if it crosses zero |
-| `ConfirmReservationCommand` | Checkout saga (after payment) | `ReservationConfirmedEvent` + `StockLevelChanged` if threshold crossed |
-| `ReleaseReservationCommand` | Checkout saga compensation OR `ReservationExpiryWorker` OR admin cancel | `ReservationReleasedEvent` + `StockLevelChanged` if it goes back to positive |
-| `AdjustStockCommand` | Admin/ops API call | `StockLevelChanged` if threshold crossed |
+| `ReceiveStockCommand` | Admin/ops API call | `StockLevelChangedEvent` iff threshold crossed |
+| `ReserveStockCommand` | Checkout saga | `StockReservedEvent` (success) OR `StockReservationFailedEvent` (insufficient stock) + `StockLevelChangedEvent` if it crosses zero |
+| `ConfirmReservationCommand` | Checkout saga (after payment) | `ReservationConfirmedEvent` + `StockLevelChangedEvent` if threshold crossed |
+| `ReleaseReservationCommand` | Checkout saga compensation OR `ReservationExpiryWorker` OR admin cancel | `ReservationReleasedEvent` + `StockLevelChangedEvent` if it goes back to positive |
+| `AdjustStockCommand` | Admin/ops API call | `StockLevelChangedEvent` if threshold crossed |
 
 `ReserveStockCommand` is the only command that can return `Result.Fail(InsufficientStockError)` — all others either succeed or throw a `DataIntegrityException` (bug: saga issuing a release for an unknown reservation, admin adjusting to negative, etc.).
 
@@ -726,9 +726,9 @@ Inventory does NOT consume any other cross-service events in v1. It is a downstr
 
 | Consumer | Events | Purpose |
 |----------|--------|---------|
-| **Catalog** | `StockLevelChanged` | Update `IsSellable` / availability projection for product cards. Relationship pattern: Catalog is **downstream, OHS-consumer** of Inventory's stock-level topic. |
+| **Catalog** | `StockLevelChangedEvent` | Update `IsSellable` / availability projection for product cards. Relationship pattern: Catalog is **downstream, OHS-consumer** of Inventory's stock-level topic. |
 | **Checkout saga** | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent` | Drives the reserve → pay → confirm OR compensate path. Relationship pattern: Saga is **Customer** of Inventory's reservation topic (Inventory is Supplier). Saga conforms to Inventory's schema. |
-| **Notifications** (optional) | `ReservationConfirmedEvent` | "Your order is being prepared" notification. Not a hard dependency for v1. |
+| **Notifications** (deferred) | (none in v1) | "Your order is being prepared" notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` rather than have Notifications subscribe to `inventory.reservations`. Not wired in v1. |
 
 ### 12.3 Context map relationships
 
@@ -916,7 +916,7 @@ Scenario: Concurrent reservations resolve by optimistic conflict
 
 - **Snapshots** (§ 8.2) — not v1.
 - **Multi-warehouse / location-aware stock** — v1 has one logical warehouse per `ProductId`. Future would introduce `LocationId` into the stream.
-- **Low-stock threshold events** — the `StockLevelChanged` schema is ready but only fires on 0 ↔ positive threshold in v1. Configurable per-SKU thresholds are v2.
+- **Low-stock threshold events** — the `StockLevelChangedEvent` schema is ready but only fires on 0 ↔ positive threshold in v1. Configurable per-SKU thresholds are v2.
 - **Batch reservations** (one command reserves across multiple products) — v1 issues one command per product; the saga fans in. Transactional atomicity across streams is NOT guaranteed — by design, to showcase saga-style compensation.
 - **GDPR / PII tombstoning on the event store** — Inventory events carry no PII beyond user GUIDs; if needed, crypto-shredding is the v2 approach.
 

@@ -368,6 +368,8 @@ services:
     depends_on:
       schema-registry:
         condition: service_healthy
+    volumes:
+      - ./platform/Platform.SchemaRegistry.Contracts/Avro:/avro:ro
     entrypoint: /bin/sh
     command:
       - -eu
@@ -377,15 +379,23 @@ services:
         CT='Content-Type: application/vnd.schemaregistry.v1+json'
         # Global fallback
         curl -fsS -X PUT "$$SR/config" -H "$$CT" -d '{"compatibility":"FORWARD_TRANSITIVE"}'
-        # Event-log topics → FORWARD_TRANSITIVE
-        EVENT_SUBJECTS="Catalog.Products.ProductCreatedEvent Catalog.Products.ProductPriceChangedEvent Catalog.Products.ProductDescribedEvent Catalog.Products.ProductActivatedEvent Catalog.Products.ProductDiscontinuedEvent Catalog.Products.ProductReactivatedEvent Catalog.Categories.CategoryCreatedEvent Catalog.Categories.CategoryReparentedEvent Basket.Sessions.BasketCheckoutInitiatedEvent Ordering.Orders.OrderCreatedEvent Ordering.Orders.OrderConfirmedEvent Ordering.Orders.OrderShippedEvent Ordering.Orders.OrderDeliveredEvent Ordering.Orders.OrderCancelledEvent Ordering.Orders.OrderFailedEvent Inventory.StockItems.StockReceivedEvent Inventory.StockItems.StockAdjustedEvent Inventory.StockItems.ReservationConfirmedEvent Inventory.StockItems.ReservationReleasedEvent Payments.Transactions.PaymentAuthorizedEvent Payments.Transactions.PaymentCapturedEvent Payments.Transactions.PaymentFailedEvent Payments.Transactions.PaymentRefundedEvent Invoicing.Invoices.InvoiceIssuedEvent Invoicing.Invoices.InvoiceDeliveredEvent"
-        # Command topics → FULL_TRANSITIVE
-        COMMAND_SUBJECTS="Ordering.Orders.OrderCommand Inventory.StockItems.ReservationCommand Payments.Transactions.PaymentCommand"
-        for s in $$EVENT_SUBJECTS; do
-          curl -fsS -X PUT "$$SR/config/$$s" -H "$$CT" -d '{"compatibility":"FORWARD_TRANSITIVE"}' || echo "warn: $$s not yet registered"
-        done
-        for s in $$COMMAND_SUBJECTS; do
-          curl -fsS -X PUT "$$SR/config/$$s" -H "$$CT" -d '{"compatibility":"FULL_TRANSITIVE"}' || echo "warn: $$s not yet registered"
+        # Discover subjects from /avro mount:
+        #   subject = {dir-relative-path-with-dots}.{filename-without-ext} (matches RecordNameStrategy)
+        #   classification by filename suffix: *Event.avsc → FORWARD_TRANSITIVE, *Command.avsc → FULL_TRANSITIVE
+        #   Any .avsc not matching the convention fails the bootstrap loudly (no silent skip).
+        find /avro -name '*.avsc' | sort | while read -r f; do
+          rel="$${f#/avro/}"
+          subject="$$(printf '%s' "$$rel" | sed -e 's|/|.|g' -e 's|\.avsc$$||')"
+          case "$$f" in
+            *Event.avsc)   mode='FORWARD_TRANSITIVE' ;;
+            *Command.avsc) mode='FULL_TRANSITIVE'    ;;
+            *)
+              echo "ERROR: $$f has no Event/Command suffix — refusing to register"
+              exit 1
+              ;;
+          esac
+          curl -fsS -X PUT "$$SR/config/$$subject" -H "$$CT" -d "{\"compatibility\":\"$$mode\"}" \
+            || echo "warn: $$subject not yet registered"
         done
         echo "compat bootstrap complete"
 

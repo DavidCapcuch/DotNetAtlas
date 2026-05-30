@@ -43,7 +43,7 @@ public sealed class ProductSearchViewRow
 
     /// <summary>
     /// True iff the product is sellable right now. Derived from <c>Status == Active</c> plus
-    /// stock level from Inventory (via the <c>StockLevelChanged</c> consumer).
+    /// stock level from Inventory (via the <c>StockLevelChangedEvent</c> consumer).
     /// </summary>
     public bool IsSellable { get; set; }
 
