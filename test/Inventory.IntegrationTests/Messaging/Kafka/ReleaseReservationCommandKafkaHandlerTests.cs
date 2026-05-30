@@ -87,7 +87,7 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegration
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().ContainSingle()
             .Which.TopicName.Should().Be("inventory.reservations");

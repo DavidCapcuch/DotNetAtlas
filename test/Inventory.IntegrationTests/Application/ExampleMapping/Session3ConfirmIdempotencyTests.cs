@@ -223,7 +223,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             .AsNoTracking()
             .CountAsync(
                 m => m.KafkaKey == orderId.ToString()
-                    && m.Type == "Inventory.Reservations.ReservationConfirmedEvent",
+                    && m.Type == typeof(Inventory.Reservations.ReservationConfirmedEvent).FullName,
                 TestContext.Current.CancellationToken);
         confirmedOutboxCount.Should().Be(0);
 
@@ -361,7 +361,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             .AsNoTracking()
             .CountAsync(
                 m => m.KafkaKey == orderId.ToString()
-                    && m.Type == "Inventory.Reservations.ReservationConfirmedEvent",
+                    && m.Type == typeof(Inventory.Reservations.ReservationConfirmedEvent).FullName,
                 TestContext.Current.CancellationToken);
     }
 

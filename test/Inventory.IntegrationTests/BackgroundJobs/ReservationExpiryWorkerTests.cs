@@ -67,7 +67,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().ContainSingle()
             .Which.TopicName.Should().Be("inventory.reservations");
@@ -112,7 +112,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => orderIdStrings.Contains(m.KafkaKey)
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().HaveCount(3);
     }
@@ -160,7 +160,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == freshOrderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().BeEmpty();
     }
@@ -209,7 +209,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().ContainSingle("the original Compensation release; no Expiry release");
     }
@@ -257,7 +257,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
         var releasedRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         releasedRows.Should().BeEmpty();
     }

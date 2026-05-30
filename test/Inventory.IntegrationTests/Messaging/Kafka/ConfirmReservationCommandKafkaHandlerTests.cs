@@ -84,7 +84,7 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationConfirmedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationConfirmedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().ContainSingle()
             .Which.TopicName.Should().Be("inventory.reservations");
@@ -136,7 +136,7 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
         var confirmedRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationConfirmedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationConfirmedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         confirmedRows.Should().BeEmpty(
             "the wrapper threw before the staged outbox row could commit");

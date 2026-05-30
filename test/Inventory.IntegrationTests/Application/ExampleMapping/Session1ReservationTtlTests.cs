@@ -153,8 +153,8 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
             .Select(m => m.Type)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxTypes.Should().Equal(
-            "Inventory.Reservations.StockReservedEvent",
-            "Inventory.Reservations.ReservationReleasedEvent");
+            typeof(Inventory.Reservations.StockReservedEvent).FullName,
+            typeof(Inventory.Reservations.ReservationReleasedEvent).FullName);
     }
 
     /// <summary>
@@ -264,7 +264,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
             .AsNoTracking()
             .CountAsync(
                 m => m.KafkaKey == orderId.ToString()
-                    && m.Type == "Inventory.Reservations.ReservationReleasedEvent",
+                    && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName,
                 TestContext.Current.CancellationToken);
     }
 }
