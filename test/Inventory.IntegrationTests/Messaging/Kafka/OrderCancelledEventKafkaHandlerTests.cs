@@ -99,7 +99,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
         var releasedOutboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
-                && m.Type == "Inventory.Reservations.ReservationReleasedEvent")
+                && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         releasedOutboxRows.Should().HaveCount(2);
         releasedOutboxRows.Should().AllSatisfy(m =>
