@@ -56,7 +56,7 @@ Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 | D-7 | **Weather-remnant fully decommissioned pre-dispatch** | The `services/Order/` project, `AlertSubscription*Saga` sagas, and Kafka topic `order.alert-subscriptions` were deleted. Ordering is greenfield; no legacy topic coexistence remains. |
 | D-8 | **Basket sessions topic retains events for 30 days**; all other event-log topics use `compact + delete` (infinite retention) to preserve audit trail | Basket is ephemeral by definition. Order/Inventory events feed compliance audit; deleting them defeats the audit-trail purpose of § 2 of `inventory.md`. |
 | D-9 | **Command topics retain 7 days** | Commands are transient intent; after 7 days a replay is not operationally useful and keeping them consumes broker disk needlessly. |
-| D-10 | **`notifications.email-commands` already exists and is reused** | It is registered in the current `docker-compose.yaml` line 243. No new topic needed for Notifications. |
+| D-10 | **`notifications.email-commands` is reused, not duplicated** | The topic is registered in the `kafka-create-topic` block of `docker-compose.yaml`. No new topic needed for Notifications. |
 
 ---
 
