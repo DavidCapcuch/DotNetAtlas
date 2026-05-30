@@ -38,9 +38,9 @@ the conventions so future BCs stop guessing.
 
 ### Authorization semantics preserved (F7 detail)
 
-The refactor was strictly structural. The enforced behavior per BC is unchanged:
+The refactor was strictly structural — behavior was unchanged *at the time of this audit*:
 
-| BC | Read policy | Write policy |
+| BC | Read policy | Write policy (at audit time) |
 |---|---|---|
 | **Catalog** | `catalog.read` OR `catalog.write` | `catalog.write` scope (no role) |
 | **Inventory** | `inventory.read` OR `inventory.write` | `admin` realm role **AND** `inventory.write` scope (defense-in-depth, mirrors `PaymentsAdmin`) |
@@ -48,6 +48,12 @@ The refactor was strictly structural. The enforced behavior per BC is unchanged:
 > Note: the original plan referenced Inventory scopes as `inventory.commands.reserve` — that
 > was a stale snapshot. The live code uses `inventory.read` / `inventory.write` with an `admin`
 > role gate on writes, and the refactor preserved exactly that.
+
+> **Superseded (2026-05-30):** Catalog admin writes were subsequently hardened to **`admin` role
+> AND `catalog.write`** (defense-in-depth, matching Inventory), and the role-vs-scope model was
+> codified repo-wide. The authoritative per-BC gate table now lives in
+> [ADR-0010 §Role vs scope canonical model](../adr/0010-service-to-service-auth.md#amendment-2026-05-30--role-vs-scope-canonical-model)
+> — refer there, not this audit snapshot, for current authorization behavior.
 
 ## Conventions going forward
 
