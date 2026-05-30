@@ -41,7 +41,7 @@ public sealed class CompensationTimeoutActivity
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
-            activity.SetTag(SagaActivityTags.ErrorCode, "COMPENSATION_TIMEOUT");
+            activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.CompensationTimeout);
             activity.SetTag(CheckoutSagaActivityTags.LastState, lastState);
         }
 

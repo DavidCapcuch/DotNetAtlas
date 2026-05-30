@@ -36,7 +36,7 @@ public sealed class PaymentTimeoutCheckoutActivity
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
-            activity.SetTag(SagaActivityTags.ErrorCode, "PAYMENT_TIMEOUT");
+            activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.PaymentTimeout);
         }
 
         CheckoutSagaMetrics.RecordPaymentTimeout();

@@ -34,7 +34,7 @@ public sealed class OrderCreationTimeoutActivity
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
-            activity.SetTag(SagaActivityTags.ErrorCode, "ORDER_CREATION_TIMEOUT");
+            activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.OrderCreationTimeout);
         }
 
         CheckoutSagaMetrics.RecordOrderCreationTimeout();
