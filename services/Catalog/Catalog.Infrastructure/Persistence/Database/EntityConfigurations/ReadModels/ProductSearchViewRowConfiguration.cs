@@ -90,7 +90,7 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
 
         builder.Property(r => r.IsSellable)
             .HasDefaultValue(false)
-            .HasComment("Computed flag — wired up by the StockLevelChanged Kafka inbox consumer.");
+            .HasComment("Computed flag — wired up by the StockLevelChangedEvent Kafka inbox consumer.");
 
         builder.Property(r => r.CreatedAtUtc);
         builder.Property(r => r.LastUpdatedAtUtc);

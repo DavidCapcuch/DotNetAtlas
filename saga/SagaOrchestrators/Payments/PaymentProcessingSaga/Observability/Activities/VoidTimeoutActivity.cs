@@ -44,10 +44,10 @@ public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessin
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.VoidTimeout);
-            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "void");
+            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, PaymentSagaActivityTags.TimeoutStages.Void);
         }
 
-        PaymentProcessingSagaMetrics.RecordSagaTimeout("void", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout(PaymentSagaActivityTags.TimeoutStages.Void, duration);
 
         _logger.LogError(
             "{SagaType} {CorrelationId} void timed out for user {UserId}. Manual intervention required",

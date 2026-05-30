@@ -149,7 +149,9 @@ Canonical examples in this solution:
 - `OrderConfirmedEvent` → **event**: Notifications, BFF cache invalidator, and CheckoutSaga all react independently.
 - `ReserveStockCommand` → **command**: the CheckoutSaga needs the specific response (`StockReservedEvent` or `StockReservationFailedEvent`) to drive its state machine.
 
-**Known misnamed events in Payments** (open for redesign by implementation agents): several existing Payments events — `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentCapturedEvent`, `PaymentVoidedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCaptureFailedEvent` — have exactly one known consumer (PaymentProcessingSaga), which per this test classifies them as **commands**. They are retained with `*Event` naming for continuity with the pre-eShop saga codebase, but this is a known debt. The **Checkout Saga agent** (and any future Payments agent) has explicit authority to classify each per § 3.5 and propose renames + topic moves (e.g., `PaymentRequestedEvent` → `RequestPaymentCommand` on `payments.payment-commands`). Proposals are surfaced in the session summary and require user approval before implementation — the rename spans `Platform.SchemaRegistry.Contracts` and downstream subscribers. Events with ≥ 2 genuine consumers (`PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` — consumed by Checkout saga + Notifications) are correctly classified and stay as events.
+**Important — apply the spirit, not just the letter.** The decision-table row "consumer count: exactly one known → command" is a useful summary but lossy. The article quoted above requires both parts: *specific logic at the consumer* **AND** *guaranteed feedback to the producer*. A past-tense fact published fire-and-forget is an event even if exactly one consumer happens to react today. See [ADR-0023](adr/0023-payments-event-vs-command-classification.md) for the worked example.
+
+**Payments classification (resolved per [ADR-0023](adr/0023-payments-event-vs-command-classification.md), 2026-05-30):** of the nine messages on the `payments.transactions` / `payments.payment-commands` topics, exactly one — what was `PaymentRequestedEvent` — has been renamed to `RequestPaymentCommand` and moved to `payments.payment-commands`. The Checkout saga publishes it and *blocks* on the matching `PaymentCompletedEvent` / `PaymentFailedEvent` reply (90 s timeout drives compensation) — the textbook "guaranteed feedback" pattern, so the command-shape is correct. The remaining seven Payments messages stay event-named: `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCaptureFailedEvent`, `PaymentVoidedEvent` (Payments-BC-produced facts), and `PaymentCompletedEvent`, `PaymentFailedEvent` (PaymentProcessingSaga-produced terminals) — their producers don't await any reply, so the 2-part test classifies them as events even with one consumer today. `PaymentCapturedEvent` and `PaymentRefundedEvent` already have ≥ 2 real consumers (Invoicing joins the saga in both cases) and need no action.
 
 ### 3.6 External event authoring checklist
 
@@ -236,7 +238,7 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | Ordering | CheckoutSaga | Saga event | Kafka (`ordering.orders`) | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
 | CheckoutSaga | Inventory | Saga command | Kafka (`inventory.reservation-commands`) | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
 | Inventory | CheckoutSaga | Saga event | Kafka (`inventory.reservations`) | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent` |
-| CheckoutSaga | PaymentProcessingSaga | Async trigger | Kafka (`payments.transactions`) | `PaymentRequestedEvent` |
+| CheckoutSaga | PaymentProcessingSaga | Async saga sub-orchestration trigger | Kafka (`payments.payment-commands`) | `RequestPaymentCommand` (renamed from `PaymentRequestedEvent` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md)) |
 | PaymentProcessingSaga | CheckoutSaga | Saga event | Kafka (`payments.transactions`) | `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` |
 | PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand` (existing) |
 | Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChangedEvent` (crosses 0↔positive) |
@@ -305,9 +307,9 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Value objects:** `Money`, `PaymentMethodId`, `GatewayResponseCode`, `FailureInfo`.
 **SmartEnum:** `PaymentStatus` (Requested → Authorized → Captured → Completed; off-ramps Failed / Voided / Refunded); `FailureReason` (GatewayDeclined / GatewayTimeout / InsufficientFunds / FraudSuspected / Cancelled / Unknown).
 **Internal events (9):** `PaymentRequestedDomainEvent`, `PaymentAuthorized/AuthorizationFailed`, `PaymentCaptured/CaptureFailed`, `PaymentCompleted`, `PaymentRefunded`, `PaymentVoided`, `PaymentFailedDomainEvent`.
-**External events (9) on `payments.transactions`:** `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent`.
-**External commands (4) on `payments.payment-commands`:** `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand`.
-**Pattern:** Saga sub-orchestration — `PaymentProcessingSaga` (under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`) is the sole caller of Payments commands; Checkout saga delegates via `PaymentRequestedEvent`. PCI scope minimization: only gateway-issued tokens stored, no PAN/CVV.
+**External events (8) on `payments.transactions`:** `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent`. (`PaymentRequestedEvent` was renamed to `RequestPaymentCommand` and moved to `payments.payment-commands` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md).)
+**External commands (5) on `payments.payment-commands`:** `RequestPaymentCommand` (Checkout-saga → PaymentProcessingSaga), `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` (PaymentProcessingSaga → Payments).
+**Pattern:** Saga sub-orchestration — `PaymentProcessingSaga` (under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`) is the sole caller of Payments commands; Checkout saga delegates via `RequestPaymentCommand` and awaits guaranteed feedback (`PaymentCompletedEvent` / `PaymentFailedEvent`) to drive its FSM. PCI scope minimization: only gateway-issued tokens stored, no PAN/CVV.
 **Integration:** `IPaymentGateway` port with stub adapter (`StubPaymentGateway`) for reference solution; swap to real gateway (Stripe/Adyen/Braintree) via DI in production.
 **Folder:** `services/Payments/` (renamed from `services/Payments/` in Wave 0).
 
@@ -331,9 +333,13 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 ### 6.1 New Kafka Topics (summary)
 
-> **Canonical registry:** [`bc-design/events-catalog.md § 3`](bc-design/events-catalog.md) — partitions, retention, keys, purpose, and event list per topic. This section names only the new topics; details live in the canonical registry and must not be duplicated here.
+> **Canonical registries:**
+> - [kafka-topology.md](kafka-topology.md) — topology (partitions, retention, class, key, rationale) per topic.
+> - [bc-design/events-catalog.md § 3](bc-design/events-catalog.md) — inverse view (each topic → events flowing through it).
+>
+> This section is a per-BC quick reference; topology and event-mapping detail live in the canonical registries.
 
-11 new topics across the new BCs:
+12 new topics across the new BCs:
 
 - **Catalog:** `catalog.products`, `catalog.categories`
 - **Basket:** `basket.sessions`
@@ -341,6 +347,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 - **Inventory:** `inventory.stock-events`, `inventory.reservations`, `inventory.reservation-commands`
 - **Payments:** `payments.transactions`, `payments.payment-commands`
 - **Invoicing:** `invoicing.invoices`
+- **Notifications:** `notifications.email-events` (new; outbound delivery confirmations)
 
 **Reuses existing:** `notifications.email-commands`.
 
@@ -705,6 +712,9 @@ Deferred bounded contexts (explicitly NOT in v1):
 | [0005](adr/0005-customer-data-in-ordering.md) | Customer Data in Ordering | Accepted (2026-04-18) |
 | [0006](adr/0006-event-sourcing-for-inventory.md) | Event Sourcing for Inventory | Accepted (2026-04-18) |
 | [0007](adr/0007-avro-compatibility-modes.md) | Avro Schema Compatibility Modes | Accepted (2026-04-18) |
+| [0023](adr/0023-payments-event-vs-command-classification.md) | Payments Event-vs-Command Classification | Accepted (2026-05-30) |
+
+(ADRs 0008–0022 listed at [adr/README.md](adr/README.md); only the directly-master-design-related ADRs appear here.)
 
 ---
 

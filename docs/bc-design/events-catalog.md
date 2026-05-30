@@ -109,39 +109,25 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 
 ## 3. Kafka Topics
 
-New topics introduced by this document. Existing topics (`notifications.email-commands`, `healthchecks`) are **not** duplicated here. The Payments BC publishes lifecycle events to `payments.transactions` and consumes saga-issued commands on `payments.payment-commands` (canonical names defined in the table below).
+> **Topology (partitions, retention, class, key, rationale) is canonical in [kafka-topology.md](../../kafka-topology.md).** This section provides the inverse view of § 2 — each topic mapped to the events/commands that flow through it.
 
-| Topic | Partitions | Retention | Key | Purpose | Events |
-|-------|-----------|-----------|-----|---------|--------|
-| `basket.sessions` | 3 | 30 days (delete) | `UserId` | Basket checkout hand-off to Checkout saga. Ephemeral by design (D-8). | `BasketCheckoutInitiatedEvent` |
-| `catalog.categories` | 3 | Infinite (audit) | `CategoryId` | Category taxonomy events — BFF/search downstream | `CategoryCreatedEvent` |
-| `catalog.products` | 3 | Infinite (audit) | `ProductId` | Product lifecycle events — Inventory/BFF/Basket downstream | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` |
-| `inventory.reservation-commands` | 3 | 7 days (delete) | `CorrelationId` | Saga-issued imperative intent to Inventory | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
-| `inventory.reservations` | 6 | Infinite (audit) | `OrderId` | Reservation lifecycle — Checkout saga downstream (Notifications is command-driven per D-5, NOT subscribed here). 6 partitions because saga traffic is the heaviest on this topic (one command per order line). | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
-| `inventory.stock-events` | 3 | Infinite (audit) | `ProductId` | Stock-level threshold-crossing signals to Catalog | `StockLevelChangedEvent` |
-| `ordering.order-commands` | 3 | 7 days (delete) | `OrderId` (or `CorrelationId` for `CreateOrderCommand` which has no `OrderId` yet) | Saga-issued imperative intent to Ordering | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
-| `ordering.orders` | 3 | Infinite (audit) | `OrderId` | Order lifecycle events — Checkout saga / BFF downstream (Notifications is command-driven per D-5, NOT subscribed here) | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
-| `payments.transactions` | 3 | Infinite (audit) | `CorrelationId` | Payment lifecycle events — Checkout saga / Invoicing downstream (Notifications is command-driven per D-5, NOT subscribed here). | `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` |
-| `payments.payment-commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
-| `invoicing.invoices` | 3 | **10 years (EU VAT)** | `BuyerId` | Invoice + credit note lifecycle. Retention reflects legal record-keeping norm (Czech Republic, Germany, France, Slovakia: 10-year). PII policy per ADR-0011 applies. | `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent` |
-| `notifications.email-events` | 3 | Infinite (audit) | `UserId` | Delivery confirmations from Notifications. Carry-through `IdempotencyKey` lets producing BCs correlate back to their original outbox row. | `EmailNotificationSentEvent` |
+| Topic | Events / Commands |
+|-------|-------------------|
+| `basket.sessions` | `BasketCheckoutInitiatedEvent` |
+| `catalog.categories` | `CategoryCreatedEvent` |
+| `catalog.products` | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` |
+| `inventory.reservation-commands` | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
+| `inventory.reservations` | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
+| `inventory.stock-events` | `StockLevelChangedEvent` |
+| `ordering.order-commands` | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
+| `ordering.orders` | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
+| `payments.transactions` | `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` (`RequestPaymentCommand` was renamed from `PaymentRequestedEvent` and moved to `payments.payment-commands` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)) |
+| `payments.payment-commands` | `RequestPaymentCommand` (Checkout saga → PaymentProcessingSaga), `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` (PaymentProcessingSaga → Payments) |
+| `invoicing.invoices` | `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent` |
+| `notifications.email-commands` | `SendEmailNotificationCommand` |
+| `notifications.email-events` | `EmailNotificationSentEvent` |
 
-**Total new topics: 12.** The `notifications.email-commands` topic already exists.
-
-### 3.1 Why these partition counts
-
-| Topic | Partition choice | Reasoning |
-|-------|------------------|-----------|
-| All 3-partition topics | 3 | Baseline v1 choice matching existing weather/payments topics; enough parallelism for demo-scale; easy to increase pre-GA |
-| `inventory.reservations` = 6 | 6 | Order with N line items produces N `ReserveStockCommand` → N `StockReservedEvent`/`StockReservationFailedEvent` → N `ConfirmReservationCommand` → N `ReservationConfirmedEvent`. For even a modest 10 orders/sec with 5 items/order that's 200+ messages/sec on this topic. 2× headroom over the default. Keyed by `OrderId` so per-order ordering stays intact even with the higher fan-out. |
-
-### 3.2 Why these retention choices
-
-- **Event-log topics (infinite retention):** the master-design § 3 discipline and the ES-for-Inventory rationale (ADR-0006 § "Auditability as a first-class requirement") both depend on retained history. Compaction with no delete-retention preserves the latest per-key; but we want the full history, so we use `retention.ms=-1` (infinite).
-- **Command topics (7 days):** commands are short-lived intent. A 7-day window covers saga retry exhaustion + forensic debugging. After that, a command that wasn't acted on is by definition stale.
-- **Basket (30 days):** matches the Basket aggregate TTL (`basket.md § 5.3`). A checkout event older than its own basket window is inconsistent anyway.
-
-### 3.3 Consumer groups
+### 3.1 Consumer groups
 
 Consumer groups are named by **consumer intent**, not by producer. Rationale: a single service may consume one topic for multiple purposes (e.g., BFF consumes `catalog.products` both to warm cache AND to invalidate it), and each purpose needs its own offset. Naming scheme: `{service}-{intent}`.
 
@@ -372,7 +358,7 @@ The following schemas **already exist** in the repository and are **not** re-aut
 
 | Schema file | Purpose in eShop |
 |-------------|------------------|
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRequestedEvent.avsc` | Produced by Checkout saga → PaymentProcessingSaga |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/RequestPaymentCommand.avsc` | Produced by Checkout saga → PaymentProcessingSaga on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)) |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/AuthorizePaymentCommand.avsc` | PaymentProcessingSaga → Payments (unchanged for Checkout) |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/CapturePaymentCommand.avsc` | PaymentProcessingSaga → Payments (unchanged for Checkout) |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/VoidPaymentCommand.avsc` | PaymentProcessingSaga compensation (saga-pre-capture path) |
@@ -391,7 +377,7 @@ The following schemas **already exist** in the repository and are **not** re-aut
 
 ---
 
-### 5.7 Invoicing External Events
+### 5.8 Invoicing External Events
 
 Wave 1 shipped 3 of 4 LOCKED Invoicing Avro schemas. The 4th (`InvoiceDeliveredEvent.avsc`) is a disclosed carry-forward — see Invoicing-followups [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123); deferral rationale is "no consumer ready" (Notifications email + BFF cache are placeholders for Wave 2). The runtime path is gated: `IssueInvoiceCommandHandler` hard-codes `DeliveryChannel.None` so production never raises `InvoiceDeliveredDomainEvent`.
 

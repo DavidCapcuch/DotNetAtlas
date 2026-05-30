@@ -37,4 +37,17 @@ public static class PaymentSagaActivityTags
     /// The stage at which a timeout occurred (e.g., "authorization", "capture").
     /// </summary>
     public const string TimeoutStage = "saga.timeout_stage";
+
+    /// <summary>
+    /// Permitted values for the <see cref="TimeoutStage"/> tag and for the
+    /// <c>stage</c> dimension of <c>PaymentProcessingSagaMetrics.RecordSagaTimeout</c>.
+    /// Kept colocated with the tag key so trace and metric label cardinality stay in lockstep.
+    /// </summary>
+    public static class TimeoutStages
+    {
+        public const string Authorization = "authorization";
+        public const string Capture = "capture";
+        public const string Void = "void";
+        public const string Refund = "refund";
+    }
 }
