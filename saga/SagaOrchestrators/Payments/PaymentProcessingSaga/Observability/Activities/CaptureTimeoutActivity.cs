@@ -45,10 +45,10 @@ public sealed class CaptureTimeoutActivity : IStateMachineActivity<PaymentProces
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.CaptureTimeout);
-            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "capture");
+            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, PaymentSagaActivityTags.TimeoutStages.Capture);
         }
 
-        PaymentProcessingSagaMetrics.RecordSagaTimeout("capture", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout(PaymentSagaActivityTags.TimeoutStages.Capture, duration);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} capture timed out for user {UserId}",

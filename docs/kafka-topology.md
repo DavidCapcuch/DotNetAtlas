@@ -6,10 +6,10 @@ Reference for the Kafka topics defined in `docker-compose.yaml` (kafka-create-to
 
 | Class | Retention (ms) | Compat (per ADR-0007) | Rationale |
 |-------|---------------:|-----------------------|-----------|
-| **Event log** | `-1` (infinite) | `BACKWARD` | Downstream BCs **replay-rebuild** projections from these topics. Truncation would silently break new consumers. |
-| **Saga state** | `2592000000` (30d) | `FORWARD` | Run-history of in-flight + recently terminal sagas; 30d is long enough for offline forensics and short enough to bound storage. |
-| **Command** | `604800000` (7d) | `BACKWARD` | Transient intent. A command not consumed within a week is a runbook event, not a replay candidate. |
-| **Audit** | `315360000000` (10y) | `BACKWARD` | Regulatory retention. Used for invoicing/financial trails that must survive long after the operational system retains them elsewhere. |
+| **Event log** | `-1` (infinite) | `FORWARD_TRANSITIVE` | Downstream BCs **replay-rebuild** projections from these topics. Truncation would silently break new consumers. FORWARD_TRANSITIVE lets producers add fields without breaking historical consumers, transitively across all versions. |
+| **Saga state** | `2592000000` (30d) | `FORWARD_TRANSITIVE` | Run-history of in-flight + recently terminal sagas; 30d is long enough for offline forensics and short enough to bound storage. Same producer-additive evolution shape as event-log. |
+| **Command** | `604800000` (7d) | `FULL_TRANSITIVE` | Transient intent. Consumer and producer can deploy in either order, so compat must work in both directions. A command not consumed within a week is a runbook event, not a replay candidate. |
+| **Audit** | `315360000000` (10y) | `FORWARD_TRANSITIVE` | Regulatory retention. Used for invoicing/financial trails that must survive long after the operational system retains them elsewhere. |
 | **Health probe** | default (~7d) | n/a | Single-partition liveness signal. Not a business topic. |
 
 Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies. Treated as **command** class in this taxonomy.
@@ -29,7 +29,8 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 | `ordering.order-commands` | 3 | 604800000 | command | Saga → Ordering commands (`CreateOrder`, `ConfirmOrder`, `CancelOrder`, `MarkOrderFailed`). |
 | `inventory.reservation-commands` | 3 | 604800000 | command | Saga → Inventory commands (`ReserveStock`, `ConfirmReservation`, `ReleaseReservation`). |
 | `payments.payment-commands` | 3 | 604800000 | command | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
-| `notifications.email-commands` | 3 | 604800000 | command | Outbound email intent. |
+| `notifications.email-commands` | 3 | 604800000 | command | Inbound email intent — producing BCs emit `SendEmailNotificationCommand` here with a deterministic `IdempotencyKey`. See [notifications.md § 2](bc-design/notifications.md). |
+| `notifications.email-events` | 3 | -1 | event-log | `EmailNotificationSentEvent` delivery confirmations from Notifications; carry-through `IdempotencyKey` lets producing BCs correlate back to their original outbox row. |
 | `invoicing.invoices` | 3 | 315360000000 | audit | Invoice issuance events; 10-year regulatory retention. |
 | `healthchecks` | **1** | default (~7d) | health-probe | Liveness signal only; single partition is correct. |
 
@@ -38,14 +39,14 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 - **Replication factor** is `1` everywhere because the reference compose is a single-broker dev setup. Production raises this to `3` with `min.insync.replicas=2`.
 - **`min.insync.replicas=1`** is set explicitly on every topic to make the single-broker config legible; production override per environment.
 - **Partition count** defaults to `3` (matches saga + outbox-relay parallelism). `inventory.reservations` raises to `6` to scale per-`OrderId` consumer parallelism; `healthchecks` drops to `1` because order doesn't matter.
-- **Compatibility mode** is governed by Schema Registry per ADR-0007 and is not set on the broker; it's enforced when registering schemas in `Platform.SchemaRegistry.Contracts`.
+- **Compatibility mode** is governed by Schema Registry per ADR-0007 and is not set on the broker; it's bootstrapped by `schema-registry-init` in `docker-compose.yaml`, which walks `platform/Platform.SchemaRegistry.Contracts/Avro/**` and dispatches by filename suffix (`*Event.avsc` → `FORWARD_TRANSITIVE`, `*Command.avsc` → `FULL_TRANSITIVE`). Any `.avsc` lacking either suffix fails the bootstrap loudly — convention is machine-enforced.
 
 ## Adding a new topic
 
 1. Decide the class. If unsure between event-log and command, default to **command** unless downstream BCs need to replay-rebuild from it.
 2. Add the `kafka-topics --create …` line in `docker-compose.yaml` (kafka-create-topic init block) following the class's partition/retention defaults.
 3. Update the table in this file.
-4. If event-log: register the Avro schema under `platform/Platform.SchemaRegistry.Contracts/Avro/<Owner>/<Aggregate>/` with `BACKWARD` compatibility per ADR-0007.
+4. Register the Avro schema under `platform/Platform.SchemaRegistry.Contracts/Avro/<Owner>/<Aggregate>/` with the `Event` or `Command` filename suffix. The dynamic `schema-registry-init` script picks up the new schema automatically; no list to update.
 
 ## Related decisions
 

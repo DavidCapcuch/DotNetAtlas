@@ -46,10 +46,10 @@ public sealed class
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.AuthorizationTimeout);
-            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "authorization");
+            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, PaymentSagaActivityTags.TimeoutStages.Authorization);
         }
 
-        PaymentProcessingSagaMetrics.RecordSagaTimeout("authorization", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout(PaymentSagaActivityTags.TimeoutStages.Authorization, duration);
 
         _logger.LogWarning(
             "{SagaType} {CorrelationId} authorization timed out for user {UserId}",

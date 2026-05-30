@@ -34,7 +34,7 @@ internal sealed class CurrentStockLevelRowConfiguration : IEntityTypeConfigurati
             .HasComment("OnHand - Reserved after the last applied event. Materialised for indexable reads.");
 
         builder.Property(r => r.PreviousAvailable)
-            .HasComment("Available BEFORE the last applied event; enables StockLevelChanged threshold detection without state replay.");
+            .HasComment("Available BEFORE the last applied event; enables StockLevelChangedEvent threshold detection without state replay.");
 
         builder.Property(r => r.LastUpdatedUtc)
             .HasComment("= OccurredOnUtc of the last applied event.");

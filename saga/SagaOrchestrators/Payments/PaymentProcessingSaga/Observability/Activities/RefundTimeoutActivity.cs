@@ -45,10 +45,10 @@ public sealed class RefundTimeoutActivity : IStateMachineActivity<PaymentProcess
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.RefundTimeout);
-            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "refund");
+            activity.SetTag(PaymentSagaActivityTags.TimeoutStage, PaymentSagaActivityTags.TimeoutStages.Refund);
         }
 
-        PaymentProcessingSagaMetrics.RecordSagaTimeout("refund", duration);
+        PaymentProcessingSagaMetrics.RecordSagaTimeout(PaymentSagaActivityTags.TimeoutStages.Refund, duration);
 
         _logger.LogError(
             "{SagaType} {CorrelationId} refund timed out for user {UserId}. Manual intervention required",
