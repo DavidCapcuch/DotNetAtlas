@@ -45,6 +45,7 @@ public sealed class
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
+            activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.AuthorizationTimeout);
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "authorization");
         }
 

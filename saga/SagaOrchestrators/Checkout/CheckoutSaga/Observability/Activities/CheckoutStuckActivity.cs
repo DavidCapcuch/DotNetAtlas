@@ -31,7 +31,7 @@ public sealed class CheckoutStuckActivity
     {
         var saga = context.Saga;
         var lastState = saga.CurrentState;
-        var errorCode = saga.ErrorCode ?? "COMPENSATION_TIMEOUT";
+        var errorCode = saga.ErrorCode ?? CheckoutSagaErrorCodes.CompensationTimeout;
 
         using var activity =
             CheckoutSagaActivitySource.StartActivity(nameof(CheckoutStuckActivity), saga.CorrelationId);

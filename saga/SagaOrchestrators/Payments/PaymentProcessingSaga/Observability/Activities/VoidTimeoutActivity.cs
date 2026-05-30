@@ -43,6 +43,7 @@ public sealed class VoidTimeoutActivity : IStateMachineActivity<PaymentProcessin
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
+            activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.VoidTimeout);
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "void");
         }
 

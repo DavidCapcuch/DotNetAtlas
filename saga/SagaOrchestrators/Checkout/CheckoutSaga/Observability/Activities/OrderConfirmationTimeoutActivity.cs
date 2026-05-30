@@ -35,7 +35,7 @@ public sealed class OrderConfirmationTimeoutActivity
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
-            activity.SetTag(SagaActivityTags.ErrorCode, "CONFIRMATION_TIMEOUT");
+            activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.ConfirmationTimeout);
             if (saga.OrderId is { } orderId)
             {
                 activity.SetTag(CheckoutSagaActivityTags.OrderId, orderId.ToString());

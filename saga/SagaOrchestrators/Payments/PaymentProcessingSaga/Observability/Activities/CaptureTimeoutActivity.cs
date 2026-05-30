@@ -44,6 +44,7 @@ public sealed class CaptureTimeoutActivity : IStateMachineActivity<PaymentProces
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
+            activity.SetTag(SagaActivityTags.ErrorCode, PaymentProcessingSagaErrorCodes.CaptureTimeout);
             activity.SetTag(PaymentSagaActivityTags.TimeoutStage, "capture");
         }
 

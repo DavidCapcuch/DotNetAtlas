@@ -35,7 +35,7 @@ public sealed class
         {
             activity.SetTag(CheckoutSagaActivityTags.OrderId, saga.OrderId?.ToString() ?? string.Empty);
             activity.SetTag(CheckoutSagaActivityTags.ProductId, message.ProductId.ToString());
-            activity.SetTag(SagaActivityTags.ErrorCode, "STOCK_UNAVAILABLE");
+            activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.StockUnavailable);
         }
 
         CheckoutSagaMetrics.RecordStockReservationFailed("Unavailable");
