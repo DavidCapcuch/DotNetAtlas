@@ -31,7 +31,7 @@ internal sealed class StockEventRowConfiguration : IEntityTypeConfiguration<Stoc
         builder.Property(r => r.EventType)
             .IsRequired()
             .HasMaxLength(128)
-            .HasComment("CLR-type name discriminator (e.g. \"StockReservedEvent\") used by the deserializer.");
+            .HasComment("CLR-type name discriminator (e.g. \"StockReservedDomainEvent\") used by the deserializer.");
 
         builder.Property(r => r.Payload)
             .IsRequired()

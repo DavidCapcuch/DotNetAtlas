@@ -24,11 +24,11 @@ namespace Inventory.Application.StockItems;
 /// <remarks>
 /// <para>
 /// Events handled (all in <c>Inventory.Domain.StockItems.Events</c>):
-/// <c>StockReservedEvent</c> → INSERT audit row, emit external
+/// <c>StockReservedDomainEvent</c> → INSERT audit row, emit external
 /// <see cref="Inventory.Reservations.StockReservedEvent"/>;
-/// <c>ReservationConfirmedEvent</c> → UPDATE status=Confirmed, emit external
+/// <c>ReservationConfirmedDomainEvent</c> → UPDATE status=Confirmed, emit external
 /// <see cref="Inventory.Reservations.ReservationConfirmedEvent"/>;
-/// <c>ReservationReleasedEvent</c> → UPDATE status=Released, emit external
+/// <c>ReservationReleasedDomainEvent</c> → UPDATE status=Released, emit external
 /// <see cref="Inventory.Reservations.ReservationReleasedEvent"/>.
 /// </para>
 /// <para>
@@ -37,9 +37,9 @@ namespace Inventory.Application.StockItems;
 /// </para>
 /// </remarks>
 internal sealed class ReservationLifecycleDomainEventHandler :
-    IDomainEventHandler<StockReservedEvent>,
-    IDomainEventHandler<ReservationConfirmedEvent>,
-    IDomainEventHandler<ReservationReleasedEvent>
+    IDomainEventHandler<StockReservedDomainEvent>,
+    IDomainEventHandler<ReservationConfirmedDomainEvent>,
+    IDomainEventHandler<ReservationReleasedDomainEvent>
 {
     private readonly IInventoryDbContext _db;
     private readonly ITransactionalOutbox<IInventoryDbContext> _outbox;
@@ -58,7 +58,7 @@ internal sealed class ReservationLifecycleDomainEventHandler :
         _logger = logger;
     }
 
-    public Task Handle(StockReservedEvent domainEvent, CancellationToken ct)
+    public Task Handle(StockReservedDomainEvent domainEvent, CancellationToken ct)
     {
         var row = new ReservationAuditRow
         {
@@ -82,13 +82,13 @@ internal sealed class ReservationLifecycleDomainEventHandler :
             avro);
 
         _logger.LogDebug(
-            "Queued StockReservedEvent for Order {OrderId} Reservation {ReservationId} ({Quantity} units)",
+            "Queued external StockReservedEvent for Order {OrderId} Reservation {ReservationId} ({Quantity} units)",
             domainEvent.OrderId, domainEvent.ReservationId, domainEvent.Quantity);
 
         return Task.CompletedTask;
     }
 
-    public async Task Handle(ReservationConfirmedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(ReservationConfirmedDomainEvent domainEvent, CancellationToken ct)
     {
         var audit = await LoadAuditAsync(domainEvent.ReservationId, ct).ConfigureAwait(false);
 
@@ -102,11 +102,11 @@ internal sealed class ReservationLifecycleDomainEventHandler :
             avro);
 
         _logger.LogDebug(
-            "Queued ReservationConfirmedEvent for Order {OrderId} Reservation {ReservationId}",
+            "Queued external ReservationConfirmedEvent for Order {OrderId} Reservation {ReservationId}",
             audit.OrderId, domainEvent.ReservationId);
     }
 
-    public async Task Handle(ReservationReleasedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(ReservationReleasedDomainEvent domainEvent, CancellationToken ct)
     {
         var audit = await LoadAuditAsync(domainEvent.ReservationId, ct).ConfigureAwait(false);
 
@@ -121,7 +121,7 @@ internal sealed class ReservationLifecycleDomainEventHandler :
             avro);
 
         _logger.LogDebug(
-            "Queued ReservationReleasedEvent for Order {OrderId} Reservation {ReservationId} (reason={Reason})",
+            "Queued external ReservationReleasedEvent for Order {OrderId} Reservation {ReservationId} (reason={Reason})",
             audit.OrderId, domainEvent.ReservationId, domainEvent.ReleaseReason);
     }
 
@@ -131,6 +131,6 @@ internal sealed class ReservationLifecycleDomainEventHandler :
 
         return audit ?? throw new DataIntegrityException(
             "Inventory.ReservationAuditRowMissing",
-            $"reservation_audit row for Reservation {reservationId} is missing; StockReservedEvent must precede confirm/release for the same reservation.");
+            $"reservation_audit row for Reservation {reservationId} is missing; StockReservedDomainEvent must precede confirm/release for the same reservation.");
     }
 }

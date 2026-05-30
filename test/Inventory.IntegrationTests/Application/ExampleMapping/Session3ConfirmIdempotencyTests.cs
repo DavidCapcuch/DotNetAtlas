@@ -88,7 +88,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             onHand: 10,
             timeToLive: ReservationTtl);
 
-        // First confirm: real ReservationConfirmedEvent + outbox row.
+        // First confirm: real ReservationConfirmedDomainEvent + outbox row.
         using (var firstScope = Fixture.CreateScope())
         {
             var confirmHandler = firstScope.ServiceProvider
@@ -137,7 +137,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
 
         // No second event, no second outbox row, projection unchanged.
         var confirmedEventCountAfterSecond = await CountConfirmedEventsAsync(productId);
-        confirmedEventCountAfterSecond.Should().Be(1, "the duplicate Confirm must NOT append a second ReservationConfirmedEvent");
+        confirmedEventCountAfterSecond.Should().Be(1, "the duplicate Confirm must NOT append a second ReservationConfirmedDomainEvent");
 
         var confirmedOutboxCountAfterSecond = await CountConfirmedOutboxRowsAsync(orderId);
         confirmedOutboxCountAfterSecond.Should().Be(1, "the duplicate Confirm must NOT enqueue a second external ReservationConfirmedEvent");
@@ -210,11 +210,11 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
-        // No ReservationConfirmedEvent on the stream.
+        // No ReservationConfirmedDomainEvent on the stream.
         var confirmedCount = await db.StockEvents
             .AsNoTracking()
             .CountAsync(
-                e => e.StreamId == productId && e.EventType == nameof(ReservationConfirmedEvent),
+                e => e.StreamId == productId && e.EventType == nameof(ReservationConfirmedDomainEvent),
                 TestContext.Current.CancellationToken);
         confirmedCount.Should().Be(0);
 
@@ -249,8 +249,8 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
     /// </summary>
     /// <remarks>
     /// Tested at the <see cref="EventStoreRepository"/> level — same precedent
-    /// as Session 2.3. Helpers for intercepted DbContext + competing-row
-    /// insert are copied locally per the plan.
+    /// as Session 2.3. Intercepted-DbContext + competing-row insert helpers
+    /// live on <see cref="EventStoreTestExtensions"/>.
     /// </remarks>
     [Fact]
     public async Task Example3_4_ConfirmVsExpiryRace_LoserObservesTerminalAndFails()
@@ -286,8 +286,8 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         }
 
         // Build the competing event: the expiry worker wins and appends
-        // ReservationReleasedEvent(Expiry) at V=4.
-        var competingReleasedEvent = new ReservationReleasedEvent
+        // ReservationReleasedDomainEvent(Expiry) at V=4.
+        var competingReleasedEvent = new ReservationReleasedDomainEvent
         {
             ProductId = productId,
             ReservationId = reservationId,
@@ -297,13 +297,13 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         };
 
         var interceptor = new OneShotConflictInterceptor(
-            ct => InsertCompetingRowAsync(productId, version: 4, @event: competingReleasedEvent, ct),
+            ct => Fixture.InsertEventStoreRowAsync(productId, version: 4, @event: competingReleasedEvent, ct),
             fireCount: 1);
 
-        await using var raceCtx = CreateInterceptedDbContext(interceptor);
+        await using var raceCtx = Fixture.CreateInterceptedDbContext(interceptor);
         var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
 
-        // Act: the loser (Confirm) attempts to append ReservationConfirmedEvent
+        // Act: the loser (Confirm) attempts to append ReservationConfirmedDomainEvent
         // at V=4. The interceptor injects the competing release row; the
         // SaveChanges hits UniqueConstraintException, ChangeTracker is
         // cleared, the next iteration rehydrates at V=4 and sees Status=
@@ -323,7 +323,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
                 "after the competing release wins at V=4, the retried Confirm rehydrates and sees the terminal Released status");
 
         // Verify: exactly four rows on the stream — Init, Receive, Reserve,
-        // ReservationReleased. NO ReservationConfirmedEvent at any version.
+        // ReservationReleased. NO ReservationConfirmedDomainEvent at any version.
         using var verifyScope = Fixture.CreateScope();
         var verifyCtx = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var rows = await verifyCtx.StockEvents
@@ -334,11 +334,11 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             .ToListAsync(TestContext.Current.CancellationToken);
 
         rows.Should().HaveCount(4);
-        rows[0].EventType.Should().Be(nameof(StockItemInitializedEvent));
-        rows[1].EventType.Should().Be(nameof(StockReceivedEvent));
-        rows[2].EventType.Should().Be(nameof(StockReservedEvent));
+        rows[0].EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
+        rows[1].EventType.Should().Be(nameof(StockReceivedDomainEvent));
+        rows[2].EventType.Should().Be(nameof(StockReservedDomainEvent));
         rows[3].Version.Should().Be(4);
-        rows[3].EventType.Should().Be(nameof(ReservationReleasedEvent),
+        rows[3].EventType.Should().Be(nameof(ReservationReleasedDomainEvent),
             "exactly one resolution event for R3 — the competing release that won the version race");
     }
 
@@ -349,7 +349,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         return await db.StockEvents
             .AsNoTracking()
             .CountAsync(
-                e => e.StreamId == productId && e.EventType == nameof(ReservationConfirmedEvent),
+                e => e.StreamId == productId && e.EventType == nameof(ReservationConfirmedDomainEvent),
                 TestContext.Current.CancellationToken);
     }
 
@@ -373,42 +373,5 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             .AsNoTracking()
             .FirstAsync(r => r.ProductId == productId, TestContext.Current.CancellationToken);
         return (row.OnHand, row.Reserved, row.Available);
-    }
-
-    // ---- helpers (precedent: EventStoreRepositoryTests.cs:318, 331) ----
-
-    private InventoryDbContext CreateInterceptedDbContext(OneShotConflictInterceptor interceptor)
-    {
-        var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(Fixture.ConnectionString, npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor()
-            .AddInterceptors(interceptor)
-            .Options;
-
-        return new InventoryDbContext(options);
-    }
-
-    private async Task InsertCompetingRowAsync(
-        Guid streamId,
-        int version,
-        DomainEvent @event,
-        CancellationToken ct)
-    {
-        using var scope = Fixture.CreateScope();
-        var ctx = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var (eventType, payload) = StockEventSerializer.Serialize(@event);
-        var row = StockEventRow.Create(
-            streamId: streamId,
-            version: version,
-            eventType: eventType,
-            payload: payload,
-            occurredAtUtc: @event.OccurredOnUtc,
-            correlationId: null);
-
-        ctx.StockEvents.Add(row);
-        await ctx.SaveChangesAsync(ct);
     }
 }

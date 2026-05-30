@@ -8,7 +8,7 @@ namespace Inventory.Application.StockItems.InitializeStockItem;
 /// <summary>
 /// Handles <see cref="InitializeStockItemCommand"/>. Delegates to
 /// <see cref="IEventStore.AppendAsync"/> which rehydrates the stream, invokes
-/// <c>aggregate.Initialize</c>, and commits the <c>StockItemInitializedEvent</c>
+/// <c>aggregate.Initialize</c>, and commits the <c>StockItemInitializedDomainEvent</c>
 /// + projection upsert in one transaction. If the stream is already initialized
 /// (<c>Version &gt; 0</c>), returns <see cref="Result.Ok"/> without appending —
 /// idempotent against Catalog re-delivery.

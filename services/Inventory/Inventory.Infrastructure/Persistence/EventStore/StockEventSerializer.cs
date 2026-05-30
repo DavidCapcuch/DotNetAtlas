@@ -26,17 +26,17 @@ internal static class StockEventSerializer
     private static readonly Dictionary<string, Type> EventTypeRegistry =
         new(StringComparer.Ordinal)
         {
-            [nameof(StockItemInitializedEvent)] = typeof(StockItemInitializedEvent),
-            [nameof(StockReceivedEvent)] = typeof(StockReceivedEvent),
-            [nameof(StockReservedEvent)] = typeof(StockReservedEvent),
-            [nameof(ReservationConfirmedEvent)] = typeof(ReservationConfirmedEvent),
-            [nameof(ReservationReleasedEvent)] = typeof(ReservationReleasedEvent),
-            [nameof(StockAdjustedEvent)] = typeof(StockAdjustedEvent),
+            [nameof(StockItemInitializedDomainEvent)] = typeof(StockItemInitializedDomainEvent),
+            [nameof(StockReceivedDomainEvent)] = typeof(StockReceivedDomainEvent),
+            [nameof(StockReservedDomainEvent)] = typeof(StockReservedDomainEvent),
+            [nameof(ReservationConfirmedDomainEvent)] = typeof(ReservationConfirmedDomainEvent),
+            [nameof(ReservationReleasedDomainEvent)] = typeof(ReservationReleasedDomainEvent),
+            [nameof(StockAdjustedDomainEvent)] = typeof(StockAdjustedDomainEvent),
         };
 
     /// <summary>
     /// Serializes a domain event into its <c>(EventType, Payload)</c> pair.
-    /// The event type name is the CLR type name (e.g. <c>"StockReservedEvent"</c>);
+    /// The event type name is the CLR type name (e.g. <c>"StockReservedDomainEvent"</c>);
     /// the payload is a JSON document stored in the <c>jsonb</c> column.
     /// </summary>
     internal static (string EventType, string Payload) Serialize(DomainEvent @event)

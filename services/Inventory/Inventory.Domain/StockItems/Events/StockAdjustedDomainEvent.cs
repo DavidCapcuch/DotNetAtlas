@@ -10,7 +10,7 @@ namespace Inventory.Domain.StockItems.Events;
 /// <c>(OnHand + Delta) &gt;= 0</c> AND <c>(OnHand + Delta) - Reserved &gt;= 0</c> —
 /// cannot adjust stock below zero or below the currently-reserved amount.
 /// </remarks>
-public sealed record StockAdjustedEvent : DomainEvent
+public sealed record StockAdjustedDomainEvent : DomainEvent
 {
     public required Guid ProductId { get; init; }
 

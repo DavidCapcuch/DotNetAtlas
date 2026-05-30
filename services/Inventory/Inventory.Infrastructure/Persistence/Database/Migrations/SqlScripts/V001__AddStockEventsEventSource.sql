@@ -36,7 +36,7 @@ BEGIN
     COMMENT ON TABLE inventory.stock_events IS 'Append-only event store for StockItem aggregates (ADR-0006). One row per internal ES event; composite PK (StreamId, Version) is the optimistic-concurrency mechanism.';
     COMMENT ON COLUMN inventory.stock_events.stream_id IS 'Stream identity = ProductId. One stream per StockItem.';
     COMMENT ON COLUMN inventory.stock_events.version IS 'Monotonic 1-based version per stream. Enforced by PK.';
-    COMMENT ON COLUMN inventory.stock_events.event_type IS 'CLR-type name discriminator (e.g. "StockReservedEvent") used by the deserializer.';
+    COMMENT ON COLUMN inventory.stock_events.event_type IS 'CLR-type name discriminator (e.g. "StockReservedDomainEvent") used by the deserializer.';
     COMMENT ON COLUMN inventory.stock_events.payload IS 'JSON-serialized internal event; stored as jsonb for legibility and indexability.';
     COMMENT ON COLUMN inventory.stock_events.occurred_at_utc IS 'UTC timestamp the domain event was produced; copied from event.OccurredOnUtc for temporal queries.';
     COMMENT ON COLUMN inventory.stock_events.appended_at_utc IS 'DB-side insert timestamp; distinguishes domain time from persisted time during replay/tests.';

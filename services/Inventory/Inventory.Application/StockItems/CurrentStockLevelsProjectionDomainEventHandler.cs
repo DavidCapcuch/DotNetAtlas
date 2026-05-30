@@ -38,12 +38,12 @@ namespace Inventory.Application.StockItems;
 /// </para>
 /// </remarks>
 internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
-    IDomainEventHandler<StockItemInitializedEvent>,
-    IDomainEventHandler<StockReceivedEvent>,
-    IDomainEventHandler<StockReservedEvent>,
-    IDomainEventHandler<ReservationConfirmedEvent>,
-    IDomainEventHandler<ReservationReleasedEvent>,
-    IDomainEventHandler<StockAdjustedEvent>
+    IDomainEventHandler<StockItemInitializedDomainEvent>,
+    IDomainEventHandler<StockReceivedDomainEvent>,
+    IDomainEventHandler<StockReservedDomainEvent>,
+    IDomainEventHandler<ReservationConfirmedDomainEvent>,
+    IDomainEventHandler<ReservationReleasedDomainEvent>,
+    IDomainEventHandler<StockAdjustedDomainEvent>
 {
     private readonly IInventoryDbContext _db;
     private readonly ITransactionalOutbox<IInventoryDbContext> _outbox;
@@ -62,7 +62,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         _logger = logger;
     }
 
-    public Task Handle(StockItemInitializedEvent domainEvent, CancellationToken ct)
+    public Task Handle(StockItemInitializedDomainEvent domainEvent, CancellationToken ct)
     {
         // First event on a brand-new stream — insert a zeroed row. No threshold
         // fires here: the row goes to Available=0 from "no row" (never
@@ -82,7 +82,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         return Task.CompletedTask;
     }
 
-    public async Task Handle(StockReceivedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(StockReceivedDomainEvent domainEvent, CancellationToken ct)
     {
         var row = await LoadAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
         var prev = row.Available;
@@ -93,7 +93,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
     }
 
-    public async Task Handle(StockReservedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(StockReservedDomainEvent domainEvent, CancellationToken ct)
     {
         var row = await LoadAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
         var prev = row.Available;
@@ -104,7 +104,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
     }
 
-    public async Task Handle(ReservationConfirmedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(ReservationConfirmedDomainEvent domainEvent, CancellationToken ct)
     {
         var row = await LoadAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
         var prev = row.Available;
@@ -121,7 +121,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
     }
 
-    public async Task Handle(ReservationReleasedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(ReservationReleasedDomainEvent domainEvent, CancellationToken ct)
     {
         var row = await LoadAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
         var prev = row.Available;
@@ -133,7 +133,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         MaybeEmitStockLevelChanged(row, prev, domainEvent.OccurredOnUtc);
     }
 
-    public async Task Handle(StockAdjustedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(StockAdjustedDomainEvent domainEvent, CancellationToken ct)
     {
         var row = await LoadAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
         var prev = row.Available;
@@ -150,11 +150,11 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         if (row is null)
         {
             _logger.LogError(
-                "Projection row missing for Product {ProductId} — StockItemInitializedEvent must precede every other ES event for this stream",
+                "Projection row missing for Product {ProductId} — StockItemInitializedDomainEvent must precede every other ES event for this stream",
                 productId);
             throw new DataIntegrityException(
                 "Inventory.ProjectionRowMissing",
-                $"current_stock_levels row for Product {productId} is missing; StockItemInitializedEvent must precede every other ES event.");
+                $"current_stock_levels row for Product {productId} is missing; StockItemInitializedDomainEvent must precede every other ES event.");
         }
 
         return row;
@@ -162,7 +162,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
 
     private async Task<int> LookupReservationQuantityAsync(Guid reservationId, CancellationToken ct)
     {
-        // The audit row was committed during the initial StockReservedEvent's
+        // The audit row was committed during the initial StockReservedDomainEvent's
         // transaction — by the time confirm / release lands, it is visible via
         // the current DbContext's FindAsync (hitting the DB, as this handler
         // runs on a fresh scoped DbContext that didn't see the earlier insert
@@ -171,11 +171,11 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         if (audit is null)
         {
             _logger.LogError(
-                "Reservation audit row missing for Reservation {ReservationId} — StockReservedEvent must precede confirm/release for the same reservation",
+                "Reservation audit row missing for Reservation {ReservationId} — StockReservedDomainEvent must precede confirm/release for the same reservation",
                 reservationId);
             throw new DataIntegrityException(
                 "Inventory.ReservationAuditRowMissing",
-                $"reservation_audit row for Reservation {reservationId} is missing; StockReservedEvent must precede confirm/release for the same reservation.");
+                $"reservation_audit row for Reservation {reservationId} is missing; StockReservedDomainEvent must precede confirm/release for the same reservation.");
         }
 
         return audit.Quantity;

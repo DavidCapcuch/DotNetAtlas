@@ -42,7 +42,7 @@ public class StockItemTests
             item.Reserved.Should().Be(0);
             item.Available.Should().Be(0);
             item.Reservations.Should().BeEmpty();
-            item.PopDomainEvents().Should().ContainSingle().Which.Should().BeOfType<StockItemInitializedEvent>();
+            item.PopDomainEvents().Should().ContainSingle().Which.Should().BeOfType<StockItemInitializedDomainEvent>();
         }
     }
 
@@ -96,7 +96,7 @@ public class StockItemTests
             item.Available.Should().Be(10);
             item.Version.Should().Be(2);
             var evt = item.PopDomainEvents().Should().ContainSingle()
-                .Which.Should().BeOfType<StockReceivedEvent>().Subject;
+                .Which.Should().BeOfType<StockReceivedDomainEvent>().Subject;
             evt.Quantity.Should().Be(10);
             evt.Source.Should().Be("receiving-dock");
         }
@@ -159,7 +159,7 @@ public class StockItemTests
             item.Reservations[rid].Status.Should().Be(ReservationStatus.Active);
             item.Reservations[rid].OrderId.Should().Be(orderId);
             var evt = item.PopDomainEvents().Should().ContainSingle()
-                .Which.Should().BeOfType<StockReservedEvent>().Subject;
+                .Which.Should().BeOfType<StockReservedDomainEvent>().Subject;
             evt.ReservationId.Should().Be(rid.Value);
             evt.Quantity.Should().Be(7);
             evt.ExpiresAtUtc.Should().Be(T0 + DefaultTtl);
@@ -295,7 +295,7 @@ public class StockItemTests
             item.Available.Should().Be(7);
             item.Reservations[rid].Status.Should().Be(ReservationStatus.Confirmed);
             var evt = item.PopDomainEvents().Should().ContainSingle()
-                .Which.Should().BeOfType<ReservationConfirmedEvent>().Subject;
+                .Which.Should().BeOfType<ReservationConfirmedDomainEvent>().Subject;
             evt.ReservationId.Should().Be(rid.Value);
             evt.ConfirmedAtUtc.Should().Be(confirmedAt);
         }
@@ -405,7 +405,7 @@ public class StockItemTests
             item.Available.Should().Be(10);
             item.Reservations[rid].Status.Should().Be(ReservationStatus.Released);
             var evt = item.PopDomainEvents().Should().ContainSingle()
-                .Which.Should().BeOfType<ReservationReleasedEvent>().Subject;
+                .Which.Should().BeOfType<ReservationReleasedDomainEvent>().Subject;
             evt.ReleaseReason.Should().Be(reason);
             evt.ReleasedAtUtc.Should().Be(T0);
         }
@@ -491,7 +491,7 @@ public class StockItemTests
             item.OnHand.Should().Be(15);
             item.Available.Should().Be(15);
             var evt = item.PopDomainEvents().Should().ContainSingle()
-                .Which.Should().BeOfType<StockAdjustedEvent>().Subject;
+                .Which.Should().BeOfType<StockAdjustedDomainEvent>().Subject;
             evt.Delta.Should().Be(5);
             evt.Reason.Should().Be("recount");
         }

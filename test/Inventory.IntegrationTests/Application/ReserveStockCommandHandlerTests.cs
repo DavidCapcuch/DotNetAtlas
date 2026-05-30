@@ -6,6 +6,7 @@ using Inventory.Application.StockItems.InitializeStockItem;
 using Inventory.Application.StockItems.ReceiveStock;
 using Inventory.Application.StockItems.ReserveStock;
 using Inventory.Domain.StockItems.Errors;
+using Inventory.Domain.StockItems.Events;
 using Inventory.Domain.StockItems.ValueObjects;
 using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
@@ -180,7 +181,7 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
 
         var reserveRow = await db.StockEvents
             .AsNoTracking()
-            .Where(r => r.StreamId == productId && r.EventType == "StockReservedEvent")
+            .Where(r => r.StreamId == productId && r.EventType == nameof(StockReservedDomainEvent))
             .OrderByDescending(r => r.Version)
             .FirstAsync(TestContext.Current.CancellationToken);
 

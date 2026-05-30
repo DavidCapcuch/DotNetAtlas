@@ -40,7 +40,7 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
         {
             s.Summary = "Records a signed correction to OnHand for the given ProductId.";
             s.Description =
-                "Admin endpoint. Appends a StockAdjustedEvent and returns the " +
+                "Admin endpoint. Appends a StockAdjustedDomainEvent and returns the " +
                 "post-mutation projection snapshot. Idempotency-Key header (24h " +
                 "TTL) deduplicates retries per ADR-0013. Requires the " +
                 "inventory.write scope.";

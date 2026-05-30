@@ -62,7 +62,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
     /// the saga's confirm command arrives at T0+17m (delayed by retries).
     /// Verify R4: aggregate sees <c>Status=Released</c>, returns
     /// <c>Result.Fail(ReservationNotActiveError)</c>, no
-    /// <c>ReservationConfirmedEvent</c> appended, no external event published.
+    /// <c>ReservationConfirmedDomainEvent</c> appended, no external event published.
     /// </summary>
     [Fact]
     public async Task Example1_3_ConfirmAfterExpiryRelease_FailsWithReservationNotActive()
@@ -81,7 +81,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
             onHand: 2,
             timeToLive: ReservationTtl);
 
-        // Simulate the worker's release: write a real ReservationReleasedEvent
+        // Simulate the worker's release: write a real ReservationReleasedDomainEvent
         // with reason=Expiry to the stream via the production handler. After
         // this, the aggregate's Reservations[R3].Status == Released.
         using (var releaseScope = Fixture.CreateScope())
@@ -131,10 +131,10 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
             .Select(e => e.EventType)
             .ToListAsync(TestContext.Current.CancellationToken);
         eventTypes.Should().Equal(
-            nameof(StockItemInitializedEvent),
-            nameof(StockReceivedEvent),
-            nameof(StockReservedEvent),
-            nameof(ReservationReleasedEvent));
+            nameof(StockItemInitializedDomainEvent),
+            nameof(StockReceivedDomainEvent),
+            nameof(StockReservedDomainEvent),
+            nameof(ReservationReleasedDomainEvent));
 
         var audit = await db.ReservationAudit
             .AsNoTracking()
@@ -143,7 +143,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
         audit.ReleaseReason.Should().Be(ReleaseReason.Expiry);
 
         // Outbox holds the original Reserve event + the Released(Expiry)
-        // event. NO ReservationConfirmedEvent — the failed Confirm published
+        // event. NO ReservationConfirmedDomainEvent — the failed Confirm published
         // nothing.
         var outboxTypes = await db.OutboxMessages
             .AsNoTracking()
@@ -190,7 +190,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
             onHand: 1,
             timeToLive: ReservationTtl);
 
-        // First release: fires the real ReservationReleasedEvent + outbox row.
+        // First release: fires the real ReservationReleasedDomainEvent + outbox row.
         using (var firstScope = Fixture.CreateScope())
         {
             var releaseHandler = firstScope.ServiceProvider
@@ -238,7 +238,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
 
         // No second event appended.
         var releasedEventCountAfterSecond = await CountReleasedEventsAsync(productId);
-        releasedEventCountAfterSecond.Should().Be(1, "the duplicate release must NOT append a second ReservationReleasedEvent");
+        releasedEventCountAfterSecond.Should().Be(1, "the duplicate release must NOT append a second ReservationReleasedDomainEvent");
 
         // No second external event queued on the outbox.
         var releasedOutboxCountAfterSecond = await CountReleasedOutboxRowsAsync(orderId);
@@ -252,7 +252,7 @@ public sealed class Session1ReservationTtlTests : BaseIntegrationTest
         return await db.StockEvents
             .AsNoTracking()
             .CountAsync(
-                e => e.StreamId == productId && e.EventType == nameof(ReservationReleasedEvent),
+                e => e.StreamId == productId && e.EventType == nameof(ReservationReleasedDomainEvent),
                 TestContext.Current.CancellationToken);
     }
 

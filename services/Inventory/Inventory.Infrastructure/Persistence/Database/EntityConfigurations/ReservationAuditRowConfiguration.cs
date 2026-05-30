@@ -15,7 +15,7 @@ internal sealed class ReservationAuditRowConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<ReservationAuditRow> builder)
     {
         builder.ToTable("reservation_audit", t => t.HasComment(
-            "Per-reservation lifecycle projection. Inserted on StockReservedEvent, "
+            "Per-reservation lifecycle projection. Inserted on StockReservedDomainEvent, "
             + "terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on "
             + "Confirmed / Released. Ops + expiry-worker query surface."));
 

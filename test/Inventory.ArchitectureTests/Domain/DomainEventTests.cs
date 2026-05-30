@@ -5,27 +5,23 @@ namespace Inventory.ArchitectureTests.Domain;
 
 /// <summary>
 /// Internal ES domain events (the six events that make up <c>StockItem</c>'s stream) are
-/// sealed records, end in <c>Event</c> (not <c>DomainEvent</c> — Inventory's convention
-/// per <c>inventory.md</c> § 5 + the <c>StockEventSerializer</c> discriminator), and live
-/// under <c>Inventory.Domain.StockItems.Events</c>.
+/// sealed records, end in <c>DomainEvent</c> (the cross-BC convention), and live under
+/// <c>Inventory.Domain.StockItems.Events</c>.
 /// </summary>
 public class DomainEventTests : BaseTest
 {
     [Fact]
-    public void DomainEvents_Should_HaveNameEndingWith_Event()
+    public void DomainEvents_Should_HaveNameEndingWith_DomainEvent()
     {
         var result = Types.InAssembly(DomainAssembly)
             .That()
             .Inherit<DomainEvent>()
             .Should()
-            .HaveNameEndingWith("Event")
+            .HaveNameEndingWith("DomainEvent")
             .GetResult();
 
         result.FailingTypes.Should().BeEmpty(
-            "Inventory's ES events follow the '*Event' naming convention (per inventory.md § 5 — " +
-            "StockItemInitializedEvent, StockReservedEvent, ReservationConfirmedEvent, " +
-            "ReservationReleasedEvent, StockReceivedEvent, StockAdjustedEvent). The suffix is the " +
-            "discriminator the StockEventSerializer round-trips through the jsonb event-store payload.");
+            "domain events follow the cross-BC '*DomainEvent' naming convention.");
     }
 
     [Fact]

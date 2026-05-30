@@ -30,7 +30,7 @@ internal sealed class ReceiveStockEndpoint : Endpoint<ReceiveStockRequest, Stock
         {
             s.Summary = "Records an inbound stock movement for the given ProductId.";
             s.Description =
-                "Admin endpoint. Appends a StockReceivedEvent to the stream and " +
+                "Admin endpoint. Appends a StockReceivedDomainEvent to the stream and " +
                 "returns the post-mutation projection snapshot. Requires the " +
                 "inventory.write scope.";
         });

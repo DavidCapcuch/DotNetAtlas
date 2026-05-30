@@ -83,7 +83,7 @@ public sealed class AdjustStockTests : BaseApiTest
     {
         // M9 attempted strengthening (carried from M7 → M8 → M9 per
         // inventory.md:516-518):
-        // (1) Strengthen the replay assertion: count `StockAdjustedEvent`
+        // (1) Strengthen the replay assertion: count `StockAdjustedDomainEvent`
         //     rows in `stock_events` before/after each POST and assert the
         //     second POST does NOT append a second event.
         // (2) Inspect Redis after the first POST: assert at least one Redis
@@ -222,7 +222,7 @@ public sealed class AdjustStockTests : BaseApiTest
         return await db.StockEvents
             .AsNoTracking()
             .CountAsync(
-                e => e.StreamId == productId && e.EventType == nameof(Inventory.Domain.StockItems.Events.StockAdjustedEvent),
+                e => e.StreamId == productId && e.EventType == nameof(Inventory.Domain.StockItems.Events.StockAdjustedDomainEvent),
                 TestContext.Current.CancellationToken);
     }
 }

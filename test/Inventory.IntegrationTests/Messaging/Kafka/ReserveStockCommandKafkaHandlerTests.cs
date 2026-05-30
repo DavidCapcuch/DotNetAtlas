@@ -1,6 +1,7 @@
 using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.InitializeStockItem;
 using Inventory.Application.StockItems.ReceiveStock;
+using Inventory.Domain.StockItems.Events;
 using Inventory.Domain.StockItems.ValueObjects;
 using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 using Inventory.Infrastructure.Persistence.Database;
@@ -76,7 +77,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
 
         var reserveRow = await db.StockEvents
             .AsNoTracking()
-            .Where(r => r.StreamId == productId && r.EventType == "StockReservedEvent")
+            .Where(r => r.StreamId == productId && r.EventType == nameof(StockReservedDomainEvent))
             .OrderByDescending(r => r.Version)
             .FirstAsync(TestContext.Current.CancellationToken);
         reserveRow.CorrelationId.Should().Be(correlationId);

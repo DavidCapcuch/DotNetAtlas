@@ -86,9 +86,9 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
         rows.Should().HaveCount(2);
         rows[0].Version.Should().Be(1);
-        rows[0].EventType.Should().Be(nameof(StockItemInitializedEvent));
+        rows[0].EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
         rows[1].Version.Should().Be(2);
-        rows[1].EventType.Should().Be(nameof(StockReceivedEvent));
+        rows[1].EventType.Should().Be(nameof(StockReceivedDomainEvent));
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         // stage a competing V=2 row (simulating a racing writer), then releases
         // control. The repo's own SaveChangesAsync collides on PK, detaches,
         // retries against the now-V=2 state, and commits at V=3.
-        var competingEvent = new StockReceivedEvent
+        var competingEvent = new StockReceivedDomainEvent
         {
             ProductId = productId,
             Quantity = 5,
@@ -177,10 +177,10 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         };
 
         var interceptor = new OneShotConflictInterceptor(
-            ct => InsertRowAsync(productId, version: 2, @event: competingEvent, ct),
+            ct => Fixture.InsertEventStoreRowAsync(productId, version: 2, @event: competingEvent, ct),
             fireCount: 1);
 
-        await using var raceCtx = CreateInterceptedDbContext(interceptor);
+        await using var raceCtx = Fixture.CreateInterceptedDbContext(interceptor);
         var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
 
         var result = await raceRepo.AppendAsync(
@@ -232,7 +232,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
             async ct =>
             {
                 competingVersion++;
-                var @event = new StockReceivedEvent
+                var @event = new StockReceivedDomainEvent
                 {
                     ProductId = productId,
                     Quantity = 1,
@@ -240,11 +240,11 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
                     ReceivedByUserId = null,
                     OccurredOnUtc = UtcNow,
                 };
-                await InsertRowAsync(productId, competingVersion, @event, ct);
+                await Fixture.InsertEventStoreRowAsync(productId, competingVersion, @event, ct);
             },
             fireCount: 2);
 
-        await using var raceCtx = CreateInterceptedDbContext(interceptor);
+        await using var raceCtx = Fixture.CreateInterceptedDbContext(interceptor);
         var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
 
         var result = await raceRepo.AppendAsync(
@@ -309,42 +309,5 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
         // Only the setup events (Init + Receive) — no reservation row.
         rowCount.Should().Be(2);
-    }
-
-    // --- helpers ---
-
-    private InventoryDbContext CreateInterceptedDbContext(OneShotConflictInterceptor interceptor)
-    {
-        var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(Fixture.ConnectionString, npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor()
-            .AddInterceptors(interceptor)
-            .Options;
-
-        return new InventoryDbContext(options);
-    }
-
-    private async Task InsertRowAsync(
-        Guid streamId,
-        int version,
-        DomainEvent @event,
-        CancellationToken ct)
-    {
-        using var scope = Fixture.CreateScope();
-        var ctx = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var (eventType, payload) = StockEventSerializer.Serialize(@event);
-        var row = StockEventRow.Create(
-            streamId: streamId,
-            version: version,
-            eventType: eventType,
-            payload: payload,
-            occurredAtUtc: @event.OccurredOnUtc,
-            correlationId: null);
-
-        ctx.StockEvents.Add(row);
-        await ctx.SaveChangesAsync(ct);
     }
 }

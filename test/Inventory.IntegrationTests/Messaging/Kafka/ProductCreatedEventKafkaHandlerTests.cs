@@ -1,4 +1,5 @@
 using Avro;
+using Inventory.Domain.StockItems.Events;
 using Inventory.Infrastructure.Messaging.Kafka.StockInit;
 using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
@@ -13,7 +14,7 @@ namespace Inventory.IntegrationTests.Messaging.Kafka;
 /// <summary>
 /// Acceptance for <see cref="ProductCreatedEventKafkaHandler"/>. The
 /// first delivery initializes a fresh event-sourced stream
-/// (<c>StockItemInitializedEvent</c> at version 1); a duplicate delivery is
+/// (<c>StockItemInitializedDomainEvent</c> at version 1); a duplicate delivery is
 /// a no-op (Application-layer guard <c>Version &gt; 0</c> returns
 /// <c>Result.Ok</c> without appending).
 /// </summary>
@@ -51,7 +52,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests : BaseIntegrationTest
             .OrderBy(r => r.Version)
             .ToListAsync(TestContext.Current.CancellationToken);
         streamRows.Should().ContainSingle()
-            .Which.EventType.Should().Be("StockItemInitializedEvent");
+            .Which.EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
 
         var levels = await db.CurrentStockLevels
             .AsNoTracking()

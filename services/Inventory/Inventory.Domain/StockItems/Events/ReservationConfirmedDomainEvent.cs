@@ -10,7 +10,7 @@ namespace Inventory.Domain.StockItems.Events;
 /// <c>OnHand -= Q, Reserved -= Q</c>; reservation transitions Active → Confirmed.
 /// <c>Available</c> is mathematically unchanged because both operands drop equally.
 /// </remarks>
-public sealed record ReservationConfirmedEvent : DomainEvent
+public sealed record ReservationConfirmedDomainEvent : DomainEvent
 {
     public required Guid ProductId { get; init; }
 
