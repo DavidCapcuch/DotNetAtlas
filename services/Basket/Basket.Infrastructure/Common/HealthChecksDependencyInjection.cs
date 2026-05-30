@@ -1,28 +1,34 @@
 using Basket.Infrastructure.Common.Config;
-using Basket.Infrastructure.Messaging.Kafka.Config;
 using Basket.Infrastructure.Persistence.Database;
-using Confluent.Kafka;
 using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.ServiceDefaults.Config;
+using Platform.ServiceDefaults.Idempotency;
 
 namespace Basket.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface — self, <see cref="BasketDbContext"/>
-/// (the SQL outbox/inbox side-car), <c>redis-basket</c> (the aggregate primary
-/// store, per ADR-0016), and Kafka. The redis-cache instance used by
-/// FastEndpoints idempotency is wired at the host level alongside the
-/// idempotency middleware itself; only <c>redis-basket</c> is registered here.
+/// Health-check surface — Self, <see cref="BasketDbContext"/> (the SQL outbox/inbox
+/// side-car), <c>redis-basket</c> (the aggregate primary store, per ADR-0016), and
+/// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on
+/// every idempotent write and fail-closed when down). Both Redis instances are isolated
+/// per ADR-0016 and share one <see cref="HealthChecksOptions.RedisTimeout"/>.
 /// Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
 /// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
-/// parameter, so the DB readiness probe runs under EF's command-timeout
-/// default (mirrors Catalog's M10 decision — operators who need a tighter
-/// DB-level timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c>
-/// into <c>EfCoreOptions</c>).
+/// parameter, so the DB readiness probe runs under EF's command-timeout default
+/// (mirrors Catalog's M10 decision — operators who need a tighter DB-level timeout
+/// switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into <c>EfCoreOptions</c>).
+/// Two dependencies are deliberately NOT readiness probes: (1) the Kafka broker — Basket
+/// has no in-process Kafka client (publish is 100% through the transactional outbox +
+/// <c>outbox-relay-basket</c>; <c>OutboxWriter</c> only writes to the DB), so a broker
+/// outage does not break any Basket HTTP path — checkout still commits to the outbox —
+/// and broker health is owned by the relay's own readiness probe; (2) the Schema Registry —
+/// the Avro serializer contacts it only cold-cache (schema-IDs are cached after first use),
+/// so steady-state HTTP writes survive an SR outage. Both are boot-ordering dependencies
+/// (compose <c>depends_on</c>), like Keycloak, not readiness gates.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
@@ -38,17 +44,18 @@ internal static class HealthChecksDependencyInjection
             .GetRequiredSection(HealthChecksOptions.Section)
             .Get<HealthChecksOptions>()!;
 
-        var kafkaOptions = configuration
-            .GetRequiredSection(KafkaOptions.Section)
-            .Get<KafkaOptions>()!;
-
-        var producerConfig = new ProducerConfig { BootstrapServers = kafkaOptions.BrokersFlat };
-
         var redisBasketConnectionString =
             configuration.GetConnectionString("Redis:Basket")
             ?? throw new InvalidOperationException(
                 "Connection string 'Redis:Basket' is not configured. " +
                 "Required by the Basket health-checks slice (redis-basket per ADR-0016).");
+
+        var redisCacheConnectionString =
+            configuration.GetConnectionString(IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName)
+            ?? throw new InvalidOperationException(
+                $"Connection string 'ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}' " +
+                $"is not configured. Required by the Basket health-checks slice " +
+                $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
         services.AddHealthChecks()
             .AddApplicationStatus(
@@ -65,12 +72,12 @@ internal static class HealthChecksDependencyInjection
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeouts.RedisTimeout)
-            .AddKafka(
-                producerConfig,
-                name: "Kafka",
+            .AddRedis(
+                redisCacheConnectionString,
+                name: "redis-cache",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.KafkaTimeout);
+                timeout: timeouts.RedisTimeout);
 
         return services;
     }

@@ -8,17 +8,22 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.ServiceDefaults.Config;
+using Platform.ServiceDefaults.Idempotency;
 
 namespace Inventory.Infrastructure.Common;
 
 /// <summary>
 /// Health-check surface for the Inventory service — Self, <see cref="InventoryDbContext"/>,
-/// and Kafka. Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
+/// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every
+/// idempotent write and fail-closed when down), and Kafka (the in-process reservation /
+/// stock-init consumers). Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
 /// <c>AddDbContextCheck</c> does not expose a direct timeout parameter, so the DB readiness
 /// probe runs under EF's command-timeout default (operators who need a tighter DB-level
 /// timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
-/// <c>EfCoreOptions</c>). No Redis check — the redis-cache idempotency store is shared
-/// infra, monitored at the platform level.
+/// <c>EfCoreOptions</c>). The Schema Registry is deliberately NOT a readiness probe: the Avro
+/// serializer/deserializer contact it only cold-cache (schema-IDs are cached after first use),
+/// so steady-state HTTP writes survive an SR outage — SR is a boot-ordering dependency
+/// (compose <c>depends_on</c>), like Keycloak, not a readiness gate.
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
@@ -40,6 +45,13 @@ internal static class HealthChecksDependencyInjection
 
         var producerConfig = new ProducerConfig { BootstrapServers = kafkaOptions.BrokersFlat };
 
+        var redisCacheConnectionString =
+            configuration.GetConnectionString(IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName)
+            ?? throw new InvalidOperationException(
+                $"Connection string 'ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}' " +
+                $"is not configured. Required by the Inventory health-checks slice " +
+                $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
+
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
@@ -49,6 +61,12 @@ internal static class HealthChecksDependencyInjection
                 name: "Inventory DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy)
+            .AddRedis(
+                redisCacheConnectionString,
+                name: "redis-cache",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
+                failureStatus: HealthStatus.Unhealthy,
+                timeout: timeouts.RedisTimeout)
             .AddKafka(
                 producerConfig,
                 name: "Kafka",

@@ -41,16 +41,6 @@
           "StackExchange.Redis": "2.7.4"
         }
       },
-      "AspNetCore.HealthChecks.Uris": {
-        "type": "Direct",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "XYdNlA437KeF8p9qOpZFyNqAN+c0FXt/JjTvzH/Qans0q0O3pPE8KPnn39ucQQjR/Roum1vLTP3kXiUs8VHyuA==",
-        "dependencies": {
-          "Microsoft.Extensions.Diagnostics.HealthChecks": "8.0.11",
-          "Microsoft.Extensions.Http": "8.0.0"
-        }
-      },
       "EFCore.NamingConventions": {
         "type": "Direct",
         "requested": "[10.0.1, )",
