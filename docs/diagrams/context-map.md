@@ -35,7 +35,7 @@ flowchart LR
 
     Basket -.->|ACL snapshot| Catalog
     Catalog -.->|ProductCreated| Inventory
-    Inventory -.->|StockLevelChanged| Catalog
+    Inventory -.->|StockLevelChangedEvent| Catalog
 
     Basket ==>|BasketCheckoutInitiated| CheckoutSaga
     CheckoutSaga ==>|CreateOrder / Confirm / Cancel cmd| Ordering
@@ -74,7 +74,7 @@ flowchart LR
 | BFF → services | Customer/Supplier (HTTP) |
 | Basket → Catalog | **Anti-Corruption Layer** (Basket copies into `ProductSnapshot`) |
 | Catalog → Inventory | **Published Language** (`ProductCreatedEvent`) |
-| Inventory → Catalog | **Published Language** (`StockLevelChanged` on threshold crossing) |
+| Inventory → Catalog | **Published Language** (`StockLevelChangedEvent` on threshold crossing) |
 | Basket ↔ CheckoutSaga | Saga trigger |
 | CheckoutSaga ↔ {Ordering, Inventory, PaymentSaga} | **Saga orchestration** (commands out, events in) |
 | Ordering → Notifications | **Published Language** (order lifecycle events) |

@@ -7,21 +7,21 @@ namespace Catalog.Application.Products.UpdateProductSellability;
 
 /// <summary>
 /// Owns the <c>product_search_view.IsSellable</c> projection update driven by Inventory's
-/// <c>StockLevelChanged</c> events. Inbound Kafka adapters in Catalog.Infrastructure are thin
+/// <c>StockLevelChangedEvent</c> events. Inbound Kafka adapters in Catalog.Infrastructure are thin
 /// translators — the projection write lives here in Application so architecture-tests.md § 2.1
 /// ("projection writes only in *ProjectionHandler") holds across the cross-BC inbox path too,
 /// not just the in-process domain-event path (CAT-ARCH-C02 / #174).
 /// </summary>
-public sealed class StockLevelChangedProjectionHandler : IStockLevelChangedProjector
+public sealed class StockLevelChangedEventProjectionHandler : IStockLevelChangedEventProjector
 {
     private readonly ICatalogDbContext _db;
     private readonly TimeProvider _timeProvider;
-    private readonly ILogger<StockLevelChangedProjectionHandler> _logger;
+    private readonly ILogger<StockLevelChangedEventProjectionHandler> _logger;
 
-    public StockLevelChangedProjectionHandler(
+    public StockLevelChangedEventProjectionHandler(
         ICatalogDbContext db,
         TimeProvider timeProvider,
-        ILogger<StockLevelChangedProjectionHandler> logger)
+        ILogger<StockLevelChangedEventProjectionHandler> logger)
     {
         _db = db;
         _timeProvider = timeProvider;
@@ -39,7 +39,7 @@ public sealed class StockLevelChangedProjectionHandler : IStockLevelChangedProje
             // later creates the row via ProductCreatedDomainEvent, IsSellable defaults from the
             // aggregate status and will be corrected the next time stock crosses a threshold.
             _logger.LogInformation(
-                "StockLevelChanged for unknown ProductId {ProductId}; "
+                "StockLevelChangedEvent for unknown ProductId {ProductId}; "
                 + "Catalog has not yet projected this product. Skipping.",
                 productId);
             return;

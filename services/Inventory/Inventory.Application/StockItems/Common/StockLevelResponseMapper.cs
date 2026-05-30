@@ -5,7 +5,7 @@ namespace Inventory.Application.StockItems.Common;
 /// <summary>
 /// Read-model row → public response DTO. Hand-written extension method matches
 /// the existing internal-event mapper style used elsewhere in this layer
-/// (<c>StockLevelChangedMapper</c>, <c>StockReservedMapper</c>).
+/// (<c>StockLevelChangedEventMapper</c>, <c>StockReservedMapper</c>).
 /// </summary>
 internal static class StockLevelResponseMapper
 {

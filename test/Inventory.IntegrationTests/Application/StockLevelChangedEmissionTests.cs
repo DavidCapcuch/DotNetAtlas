@@ -60,7 +60,7 @@ public sealed class StockLevelChangedEmissionTests : BaseIntegrationTest
             .AsNoTracking()
             .Where(m => m.KafkaKey == productId.ToString()
                 && m.TopicName == "inventory.stock-events"
-                && m.Type == typeof(Inventory.Stock.StockLevelChanged).FullName)
+                && m.Type == typeof(Inventory.Stock.StockLevelChangedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
 
         stockEventOutboxRows.Should().HaveCount(2,

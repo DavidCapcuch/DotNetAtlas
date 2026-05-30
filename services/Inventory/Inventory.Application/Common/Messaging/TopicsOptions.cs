@@ -11,7 +11,7 @@ namespace Inventory.Application.Common.Messaging;
 /// Inventory publishes to two topics per <c>events-catalog.md</c> § 3:
 /// <list type="bullet">
 /// <item><c>inventory.stock-events</c> — threshold-crossing
-/// <c>StockLevelChanged</c> signals (keyed by ProductId).</item>
+/// <c>StockLevelChangedEvent</c> signals (keyed by ProductId).</item>
 /// <item><c>inventory.reservations</c> — full reservation lifecycle
 /// (keyed by OrderId).</item>
 /// </list>
@@ -24,7 +24,7 @@ public sealed class TopicsOptions
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>
-    /// Topic for <c>StockLevelChanged</c> (threshold-crossing signals). Keyed
+    /// Topic for <c>StockLevelChangedEvent</c> (threshold-crossing signals). Keyed
     /// by <c>ProductId</c>; consumed by Catalog's IsSellable projection and
     /// future low-stock alerting.
     /// </summary>

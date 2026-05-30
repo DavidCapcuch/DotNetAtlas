@@ -18,7 +18,7 @@
 | Application query (CQRS) | `Get{Target}Query`, `Search{Target}Query`, `List{Target}Query` | **No** | `Platform.CQRS` mediator | [use-cases.md](use-cases.md) |
 | Domain event handler | `{InternalDomainEvent}{Role}DomainEventHandler` (e.g., `ProductPriceChangedProjectionDomainEventHandler`, `ProductPriceChangedOutboxPublisherDomainEventHandler`) — the "U-D" suffix rule | — | — | [architecture-tests.md § 1.3](architecture-tests.md) |
 
-**Historical exception:** `Inventory.Stock.StockLevelChanged` retains the no-`Event`-suffix name for legacy reasons. **All other external events MUST end in `Event`**; new schemas that omit the suffix are rejected at review.
+**All external events MUST end in `Event`.** No exceptions: the convention is also enforced at infrastructure bootstrap — `docker-compose.yaml`'s `schema-registry-init` service walks `platform/Platform.SchemaRegistry.Contracts/Avro/**` and refuses to start if a `.avsc` filename lacks either the `Event` or `Command` suffix (rather than silently warning).
 
 ### 1.2 Schema namespaces and file layout
 

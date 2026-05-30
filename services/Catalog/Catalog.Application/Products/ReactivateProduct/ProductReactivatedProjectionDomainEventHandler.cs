@@ -35,7 +35,7 @@ public sealed class ProductReactivatedProjectionDomainEventHandler
         row.Status = ProductStatus.Active.Name;
 
         // IsSellable mirrors Product.Status.IsSellable at this point; the cross-BC stock input
-        // (via StockLevelChanged from Inventory) arrives in M4 and may later gate this to false.
+        // (via StockLevelChangedEvent from Inventory) arrives in M4 and may later gate this to false.
         row.IsSellable = ProductStatus.Active.IsSellable;
         row.LastUpdatedAtUtc = domainEvent.OccurredOnUtc;
     }

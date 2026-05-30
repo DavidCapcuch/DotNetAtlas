@@ -12,7 +12,7 @@ namespace Inventory.Application.Common.Messaging;
 public static class KafkaTopicNames
 {
     /// <summary>
-    /// <c>inventory.stock-events</c> — threshold-crossing <c>StockLevelChanged</c>
+    /// <c>inventory.stock-events</c> — threshold-crossing <c>StockLevelChangedEvent</c>
     /// signals, keyed by ProductId, 3 partitions, retention.ms=-1 (infinite).
     /// </summary>
     public const string InventoryStockEvents = "inventory.stock-events";

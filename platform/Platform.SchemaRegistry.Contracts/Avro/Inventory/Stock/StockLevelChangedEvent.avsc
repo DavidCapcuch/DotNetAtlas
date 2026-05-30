@@ -1,6 +1,6 @@
 {
     "type": "record",
-    "name": "StockLevelChanged",
+    "name": "StockLevelChangedEvent",
     "namespace": "Inventory.Stock",
     "doc": "Emitted when a StockItem's availability crosses a business-meaningful threshold (0 to positive or positive to 0). Not emitted on every stock change.",
     "fields": [

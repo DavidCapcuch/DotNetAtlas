@@ -100,7 +100,7 @@ Each client resolves the resilience pipeline by name (`"catalog"`, `"basket"`, `
 | `catalog.products` | `ProductPriceChangedEvent` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
 | `catalog.products` | `ProductDiscontinuedEvent` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
 | `catalog.categories` | `CategoryCreatedEvent` | `CategoryEventCacheInvalidator` | `RemoveByTagAsync("home-page")` (category tree changed). |
-| `inventory.stock-events` | `StockLevelChanged` | `StockEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
+| `inventory.stock-events` | `StockLevelChangedEvent` | `StockEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
 | `inventory.reservations` | `StockReservedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` | `StockEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` (Available changed). |
 | `ordering.orders` | `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` | `OrderEventCacheInvalidator` | `RemoveByTagAsync("order-{OrderId}")` + `RemoveByTagAsync("order-history-{BuyerId}")`. |
 | `basket.sessions` | `BasketCheckoutInitiatedEvent` | `BasketEventCacheInvalidator` | `RemoveByTagAsync("basket-bff-{UserId}")` (basket has been converted to an order — aggressively clear the BFF's basket cache). |
@@ -229,7 +229,7 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
   | Network unavailable | Serve from cache unconditionally with `HasStaleData = true`. If no cache, 503. | `X-BFF-Stale: true`. |
 - **Cache invalidation hooks (external Kafka events):**
   - `catalog.products` topic: on `ProductPriceChangedEvent` or `ProductDiscontinuedEvent` with matching `ProductId` → `RemoveByTagAsync("product-{ProductId}")`.
-  - `inventory.stock-events` topic: on `StockLevelChanged` → `RemoveByTagAsync("product-{ProductId}")`.
+  - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("product-{ProductId}")`.
   - `inventory.reservations` topic: on `StockReservedEvent` / `ReservationConfirmedEvent` / `ReservationReleasedEvent` → `RemoveByTagAsync("product-{ProductId}")` (because `Available` shifted).
 
 ### 3.2 `GET /api/bff/basket`
@@ -468,7 +468,7 @@ Public landing page — featured products + full category tree + stock highlight
 - **Cache invalidation hooks:**
   - `catalog.products` topic: on `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → `RemoveByTagAsync("home-page")`.
   - `catalog.categories` topic: on `CategoryCreatedEvent` → `RemoveByTagAsync("home-page")`.
-  - `inventory.stock-events` topic: on `StockLevelChanged` → `RemoveByTagAsync("home-page")` — only when the product is in the featured set. v1 simplification: always invalidate on any stock event; accepts occasional over-invalidation to keep the handler simple. v2 would maintain a "featured-products-now" set and filter.
+  - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("home-page")` — only when the product is in the featured set. v1 simplification: always invalidate on any stock event; accepts occasional over-invalidation to keep the handler simple. v2 would maintain a "featured-products-now" set and filter.
 
 ---
 

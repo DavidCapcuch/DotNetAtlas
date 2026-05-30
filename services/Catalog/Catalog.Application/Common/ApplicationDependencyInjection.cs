@@ -37,7 +37,7 @@ public static class ApplicationDependencyInjection
 
             services.AddScoped<ICategoryAncestryService, CategoryAncestryService>();
             services.AddScoped<ICategoryPathService, CategoryPathService>();
-            services.AddScoped<IStockLevelChangedProjector, StockLevelChangedProjectionHandler>();
+            services.AddScoped<IStockLevelChangedEventProjector, StockLevelChangedEventProjectionHandler>();
 
             services.AddCqrsHandlerBehaviors();
 
