@@ -133,7 +133,7 @@ public sealed class CreateProductPipelineIntegrationTests : BaseIntegrationTest
             // Outbox — exactly one row, on the products topic, with the Avro CLR type name.
             outboxRows.Should().ContainSingle()
                 .Which.TopicName.Should().Be("catalog.products");
-            outboxRows[0].Type.Should().EndWith("ProductCreatedEvent");
+            outboxRows[0].Type.Should().Be(typeof(Catalog.Products.ProductCreatedEvent).FullName);
         }
     }
 }
