@@ -100,7 +100,7 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
                 "ADR-0007 + events-catalog.md § 5.2 lock the topic name");
             rows[0].KafkaKey.Should().Be(userId.ToString(),
                 "Kafka key partitions on user so a single user's events stay ordered");
-            rows[0].Type.Should().Be("Basket.Sessions.BasketCheckoutInitiatedEvent",
+            rows[0].Type.Should().Be(typeof(Basket.Sessions.BasketCheckoutInitiatedEvent).FullName,
                 "the CLR FullName of the Avro contract from Platform.SchemaRegistry.Contracts");
         }
 
