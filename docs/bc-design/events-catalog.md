@@ -51,7 +51,7 @@ Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 | D-2 | **One `inventory.reservation-commands` topic** for saga→Inventory | Same rationale as D-1. Keeps saga surface uniform. |
 | D-3 | **One `ReserveStockCommand` per order line item** (Option A in Agent-5 prompt) | Matches Inventory's per-`ProductId` stream model (ADR-0006); gives natural per-item failure granularity; saga fan-in by `OrderId` correlates N responses. |
 | D-4 | **No dedicated `checkout.commands` topic** | Saga publishes imperative intent to `ordering.order-commands`, `inventory.reservation-commands`, and `payments.payment-commands`. A checkout-specific topic would duplicate infrastructure for no new semantics. |
-| D-5 | **Notifications continues consuming business events directly** (not a `notifications.email-commands` fan-out) | Matches existing Weather→Notifications pattern. `notifications.email-commands` topic stays reserved for explicit SendEmail commands; Ordering emits `ordering.orders` and Notifications subscribes. |
+| D-5 | **Notifications is command-driven, NOT event-subscribed** (decision reversed from earlier intent) | Implementation lands on the command-driven pattern: producer BCs emit `SendEmailNotificationCommand` on `notifications.email-commands` with deterministic idempotency keys; Notifications routes/renders/sends and emits `EmailNotificationSentEvent` on `notifications.email-events`. Editorial control stays in the producing BC; channel routing stays local to Notifications. Notifications does NOT subscribe to `ordering.orders` / `inventory.reservations` / `payments.transactions` / `invoicing.invoices`. Full rationale: [notifications.md § 2](notifications.md). |
 | D-6 | **Outbox-relay is a separate container per service schema** | Follows the `outbox-relay`, `outbox-relay-saga`, `outbox-relay-ordering` precedent already in `docker-compose.yaml`. Each service gets its own relay with its own `OutboxRelay__SchemaName` binding. See § 6. |
 | D-7 | **Weather-remnant fully decommissioned pre-dispatch** | The `services/Order/` project, `AlertSubscription*Saga` sagas, and Kafka topic `order.alert-subscriptions` were deleted. Ordering is greenfield; no legacy topic coexistence remains. |
 | D-8 | **Basket sessions topic retains events for 30 days**; all other event-log topics use `compact + delete` (infinite retention) to preserve audit trail | Basket is ephemeral by definition. Order/Inventory events feed compliance audit; deleting them defeats the audit-trail purpose of § 2 of `inventory.md`. |
@@ -81,24 +81,25 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `PaymentCapturedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `payment-saga-capture` | `CorrelationId` | Payments capture success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCapturedEvent.avsc` (existing) |
 | `PaymentCompletedEvent` | `payments.transactions` | `Payments.Transactions` | PaymentProcessingSaga | **Checkout saga** | `checkout-saga` | `CorrelationId` | Payment saga completion | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCompletedEvent.avsc` (existing) |
 | `PaymentFailedEvent` | `payments.transactions` | `Payments.Transactions` | PaymentProcessingSaga | **Checkout saga** | `checkout-saga` | `CorrelationId` | Payment saga failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentFailedEvent.avsc` (existing) |
-| `PaymentRefundedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | Checkout saga (cancel-post-capture path), Notifications | `checkout-saga`, `notifications` | `CorrelationId` | Payments refund success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRefundedEvent.avsc` (existing) |
+| `PaymentRefundedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | Checkout saga (cancel-post-capture path), Invoicing (credit-note trigger) — Notifications via command-driven path only (see D-5) | `checkout-saga`, `invoicing` | `CorrelationId` | Payments refund success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRefundedEvent.avsc` (existing) |
 | `PaymentRequestedEvent` | `payments.transactions` | `Payments.Transactions` | Checkout saga | PaymentProcessingSaga | `payment-saga` | `CorrelationId` | Checkout saga step | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRequestedEvent.avsc` (existing) |
 | `PaymentVoidedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `payment-saga-void` | `CorrelationId` | Payments void success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentVoidedEvent.avsc` (existing) |
-| `StockLevelChanged` | `inventory.stock-events` | `Inventory.Stock` | Inventory | Catalog (IsSellable projection) | `catalog-stock-level` | `ProductId` | Availability crosses 0↔positive | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/StockLevelChanged.avsc` |
-| `ReservationConfirmedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Notifications (optional), Checkout saga (informational) | `notifications`, `checkout-saga` | `OrderId` | `ReservationConfirmedDomainEvent` (ES internal) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationConfirmedEvent.avsc` |
+| `StockLevelChangedEvent` | `inventory.stock-events` | `Inventory.Stock` | Inventory | Catalog (IsSellable projection) | `catalog-stock-level` | `ProductId` | Availability crosses 0↔positive | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/StockLevelChangedEvent.avsc` |
+| `ReservationConfirmedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga (informational) — Notifications via command-driven path only (see D-5) | `checkout-saga` | `OrderId` | `ReservationConfirmedDomainEvent` (ES internal) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationConfirmedEvent.avsc` |
 | `ReservationReleasedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga (compensation confirmation) | `checkout-saga` | `OrderId` | `ReservationReleasedDomainEvent` (ES internal) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationReleasedEvent.avsc` |
 | `StockReservationFailedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga (triggers compensation) | `checkout-saga` | `OrderId` | `ReserveStockCommand` failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/StockReservationFailedEvent.avsc` |
 | `StockReservedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga | `checkout-saga` | `OrderId` | `StockReservedDomainEvent` (ES internal) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/StockReservedEvent.avsc` |
 | `ConfirmReservationCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga | Inventory | `inventory-reservation-commands` | `CorrelationId` | saga step (after payment) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ConfirmReservationCommand.avsc` |
 | `ReleaseReservationCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga (compensation) / Ops | Inventory | `inventory-reservation-commands` | `CorrelationId` | saga compensation / admin cancel | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReleaseReservationCommand.avsc` |
 | `ReserveStockCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga | Inventory | `inventory-reservation-commands` | `CorrelationId` | saga step (after order created) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReserveStockCommand.avsc` |
-| `SendEmailNotificationCommand` | `notifications.email-commands` | `Notifications.Email` | Notifications templates emitted by multiple services (existing pattern) | Notifications | `notifications-email` | `UserId` | various | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` (existing) |
-| `OrderCancelledEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications, Inventory (release if still reserved), Payments (refund if captured), BFF (cache invalidate), Checkout saga (compensation confirmation) | `notifications`, `inventory-stock-init` (reuses group? — see § 7), `checkout-saga`, `bff-order-cache`, `payments-refund-gateway` | `OrderId` | `OrderCancelledDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc` |
-| `OrderConfirmedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications, BFF (cache invalidate), Checkout saga (terminal success) | `notifications`, `bff-order-cache`, `checkout-saga` | `OrderId` | `OrderConfirmedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc` |
+| `SendEmailNotificationCommand` | `notifications.email-commands` | `Notifications.Email` | Producing BCs (v1: Invoicing only — `InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler`) | Notifications | `notification-group` | `UserId` | producer-driven (e.g. `InvoiceIssuedDomainEvent` → `InvoiceDeliveryRequestedDomainEvent` in Invoicing) | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` |
+| `EmailNotificationSentEvent` | `notifications.email-events` | `Notifications.Email` | Notifications | Invoicing (v1: `EmailNotificationSentEventKafkaHandler` drives `Issued → Delivered`). Open to other BCs that need delivery-confirmation feedback. | `invoicing-email-delivery` | `UserId` | gateway-acceptance success in `SendEmailNotificationCommandKafkaHandler` | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/EmailNotificationSentEvent.avsc` |
+| `OrderCancelledEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Inventory (release if still reserved), Payments (refund if captured), BFF (cache invalidate), Checkout saga (compensation confirmation) — Notifications via command-driven path only (see D-5) | `inventory-stock-init` (reuses group? — see § 7), `checkout-saga`, `bff-order-cache`, `payments-refund-gateway` | `OrderId` | `OrderCancelledDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc` |
+| `OrderConfirmedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate), Checkout saga (terminal success) — Notifications via command-driven path only (see D-5) | `bff-order-cache`, `checkout-saga` | `OrderId` | `OrderConfirmedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc` |
 | `OrderCreatedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Checkout saga (drives next step: reserve stock), BFF (cache populate) | `checkout-saga`, `bff-order-cache` | `OrderId` | `OrderCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCreatedEvent.avsc` |
-| `OrderDeliveredEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications | `notifications` | `OrderId` | `OrderDeliveredDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderDeliveredEvent.avsc` |
-| `OrderFailedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications, BFF (cache invalidate), Checkout saga (terminal failure) | `notifications`, `bff-order-cache`, `checkout-saga` | `OrderId` | `OrderFailedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderFailedEvent.avsc` |
-| `OrderShippedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications | `notifications` | `OrderId` | `OrderShippedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderShippedEvent.avsc` |
+| `OrderDeliveredEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | (no v1 consumer — Notifications via command-driven path only, see D-5) | — | `OrderId` | `OrderDeliveredDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderDeliveredEvent.avsc` |
+| `OrderFailedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate), Checkout saga (terminal failure) — Notifications via command-driven path only (see D-5) | `bff-order-cache`, `checkout-saga` | `OrderId` | `OrderFailedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderFailedEvent.avsc` |
+| `OrderShippedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | (no v1 consumer — Notifications via command-driven path only, see D-5) | — | `OrderId` | `OrderShippedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderShippedEvent.avsc` |
 | `CancelOrderCommand` | `ordering.order-commands` | `Ordering.Orders` | Checkout saga (compensation) | Ordering | `ordering-order-commands` | `OrderId` | saga compensation | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/CancelOrderCommand.avsc` |
 | `ConfirmOrderCommand` | `ordering.order-commands` | `Ordering.Orders` | Checkout saga | Ordering | `ordering-order-commands` | `OrderId` | saga step (after all greens) | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/ConfirmOrderCommand.avsc` |
 | `CreateOrderCommand` | `ordering.order-commands` | `Ordering.Orders` | Checkout saga | Ordering | `ordering-order-commands` | `CorrelationId` | saga step (after basket checkout) | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/CreateOrderCommand.avsc` |
@@ -116,15 +117,16 @@ New topics introduced by this document. Existing topics (`notifications.email-co
 | `catalog.categories` | 3 | Infinite (audit) | `CategoryId` | Category taxonomy events — BFF/search downstream | `CategoryCreatedEvent` |
 | `catalog.products` | 3 | Infinite (audit) | `ProductId` | Product lifecycle events — Inventory/BFF/Basket downstream | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` |
 | `inventory.reservation-commands` | 3 | 7 days (delete) | `CorrelationId` | Saga-issued imperative intent to Inventory | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
-| `inventory.reservations` | 6 | Infinite (audit) | `OrderId` | Reservation lifecycle — Checkout saga / Notifications downstream. 6 partitions because saga traffic is the heaviest on this topic (one command per order line). | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
-| `inventory.stock-events` | 3 | Infinite (audit) | `ProductId` | Stock-level threshold-crossing signals to Catalog | `StockLevelChanged` |
+| `inventory.reservations` | 6 | Infinite (audit) | `OrderId` | Reservation lifecycle — Checkout saga downstream (Notifications is command-driven per D-5, NOT subscribed here). 6 partitions because saga traffic is the heaviest on this topic (one command per order line). | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
+| `inventory.stock-events` | 3 | Infinite (audit) | `ProductId` | Stock-level threshold-crossing signals to Catalog | `StockLevelChangedEvent` |
 | `ordering.order-commands` | 3 | 7 days (delete) | `OrderId` (or `CorrelationId` for `CreateOrderCommand` which has no `OrderId` yet) | Saga-issued imperative intent to Ordering | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
-| `ordering.orders` | 3 | Infinite (audit) | `OrderId` | Order lifecycle events — Checkout saga / Notifications / BFF downstream | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
-| `payments.transactions` | 3 | Infinite (audit) | `CorrelationId` | Payment lifecycle events — Checkout saga / Notifications / Invoicing downstream. | `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` |
+| `ordering.orders` | 3 | Infinite (audit) | `OrderId` | Order lifecycle events — Checkout saga / BFF downstream (Notifications is command-driven per D-5, NOT subscribed here) | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
+| `payments.transactions` | 3 | Infinite (audit) | `CorrelationId` | Payment lifecycle events — Checkout saga / Invoicing downstream (Notifications is command-driven per D-5, NOT subscribed here). | `PaymentRequestedEvent`, `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` |
 | `payments.payment-commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
 | `invoicing.invoices` | 3 | **10 years (EU VAT)** | `BuyerId` | Invoice + credit note lifecycle. Retention reflects legal record-keeping norm (Czech Republic, Germany, France, Slovakia: 10-year). PII policy per ADR-0011 applies. | `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent` |
+| `notifications.email-events` | 3 | Infinite (audit) | `UserId` | Delivery confirmations from Notifications. Carry-through `IdempotencyKey` lets producing BCs correlate back to their original outbox row. | `EmailNotificationSentEvent` |
 
-**Total new topics: 11.** The `notifications.email-commands` topic already exists.
+**Total new topics: 12.** The `notifications.email-commands` topic already exists.
 
 ### 3.1 Why these partition counts
 
@@ -145,10 +147,10 @@ Consumer groups are named by **consumer intent**, not by producer. Rationale: a 
 
 Examples from § 2:
 - `checkout-saga` — the Checkout saga state machine's consumer group. One offset across all topics it consumes.
-- `notifications` — the Notifications service's consumer group (single, per service, since notifications render from events directly).
+- `notification-group` — the Notifications service's sole consumer group for the inbound `notifications.email-commands` topic. Notifications has NO consumer group on any per-BC event topic — see D-5 + [notifications.md § 2](notifications.md).
 - `bff-product-cache`, `bff-order-cache`, `bff-category-tree` — distinct groups per cache domain inside the BFF.
 - `inventory-stock-init` — the Inventory consumer that turns `ProductCreatedEvent` into an `InitializeStockItemCommand`.
-- `catalog-stock-level` — the Catalog consumer that turns `StockLevelChanged` into an `IsSellable` projection update.
+- `catalog-stock-level` — the Catalog consumer that turns `StockLevelChangedEvent` into an `IsSellable` projection update.
 
 ---
 
@@ -198,7 +200,9 @@ The final `"` closes the multi-line bash command. Implementation agents: when in
 
 ## 5. Avro Schemas
 
-Every schema listed below is the **complete** content of the `.avsc` file to be materialized. Implementation agents copy the JSON verbatim (no transformation) into the indicated file path. Schemas in § 5.1 – 5.4 were already specified in Stage 1 outputs and are reproduced verbatim. Schemas in § 5.5 – 5.6 are **new**, introduced by this document.
+**Schema bodies are NOT reproduced here — the `.avsc` files are the single source of truth.** Each subsection below names the schema and points at its path under `platform/Platform.SchemaRegistry.Contracts/Avro/**`. To inspect or modify a schema, edit the `.avsc` directly; the C# binding is regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1` (see [conventions.md § 3](conventions.md)).
+
+Where a schema has non-trivial cross-cutting semantics (Summary Event flag, shared enum re-declaration, FORWARD_TRANSITIVE notes that aren't visible from the JSON alone), the prose callout sits next to the path reference.
 
 ### 5.1 Catalog External Events
 
@@ -206,248 +210,25 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductCreatedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ProductCreatedEvent",
-    "namespace": "Catalog.Products",
-    "doc": "Event emitted when a new product is created in the Catalog. Enriched summary carrying all information downstream services need to initialize their own projections without calling back into Catalog.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the product aggregate."
-        },
-        {
-            "name": "Sku",
-            "type": "string",
-            "doc": "Business key for the product (1-32 chars, alphanumeric + dashes, uppercase)."
-        },
-        {
-            "name": "Name",
-            "type": "string",
-            "doc": "Product display name (max 200 chars)."
-        },
-        {
-            "name": "Description",
-            "type": "string",
-            "doc": "Product description truncated to 1000 chars for transport. Consumers requiring full text must fetch via Catalog query API."
-        },
-        {
-            "name": "CategoryId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Identifier of the category to which the product is assigned."
-        },
-        {
-            "name": "CategoryPath",
-            "type": "string",
-            "doc": "Materialized category path (e.g., '/electronics/computers/laptops'). Enables prefix filtering downstream without a Catalog lookup."
-        },
-        {
-            "name": "BrandName",
-            "type": "string",
-            "doc": "Brand name (max 100 chars)."
-        },
-        {
-            "name": "PriceAmount",
-            "type": {
-                "type": "bytes",
-                "logicalType": "decimal",
-                "precision": 19,
-                "scale": 4
-            },
-            "doc": "Product price amount."
-        },
-        {
-            "name": "PriceCurrency",
-            "type": "string",
-            "doc": "ISO 4217 currency code (e.g., 'USD', 'EUR')."
-        },
-        {
-            "name": "Status",
-            "type": {
-                "type": "enum",
-                "name": "ProductStatus",
-                "symbols": [
-                    "Draft",
-                    "Active",
-                    "Discontinued"
-                ]
-            },
-            "doc": "Product lifecycle status at the time of the event."
-        },
-        {
-            "name": "CreatedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the product was created."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.1.2 `ProductPriceChangedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductPriceChangedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ProductPriceChangedEvent",
-    "namespace": "Catalog.Products",
-    "doc": "Event emitted when a product's price is changed. Carries both old and new price so downstream consumers can detect magnitude of change without a prior snapshot.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the product whose price changed."
-        },
-        {
-            "name": "Sku",
-            "type": "string",
-            "doc": "Business key of the product (denormalized for consumer convenience)."
-        },
-        {
-            "name": "OldPriceAmount",
-            "type": {
-                "type": "bytes",
-                "logicalType": "decimal",
-                "precision": 19,
-                "scale": 4
-            },
-            "doc": "Price amount before the change."
-        },
-        {
-            "name": "NewPriceAmount",
-            "type": {
-                "type": "bytes",
-                "logicalType": "decimal",
-                "precision": 19,
-                "scale": 4
-            },
-            "doc": "Price amount after the change."
-        },
-        {
-            "name": "Currency",
-            "type": "string",
-            "doc": "ISO 4217 currency code. Same for old and new (Catalog does not support currency swap on a product)."
-        },
-        {
-            "name": "ChangedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the price change was recorded."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.1.3 `ProductDiscontinuedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductDiscontinuedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ProductDiscontinuedEvent",
-    "namespace": "Catalog.Products",
-    "doc": "Event emitted when a product is moved to the Discontinued status. Downstream services should stop offering this product for new purchases.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the product that was discontinued."
-        },
-        {
-            "name": "Sku",
-            "type": "string",
-            "doc": "Business key of the product (denormalized for consumer convenience)."
-        },
-        {
-            "name": "Reason",
-            "type": "string",
-            "doc": "Free-text reason supplied by the operator (non-empty). Informational only."
-        },
-        {
-            "name": "DiscontinuedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the product was discontinued."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.1.4 `CategoryCreatedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Categories/CategoryCreatedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "CategoryCreatedEvent",
-    "namespace": "Catalog.Categories",
-    "doc": "Event emitted when a new category node is created in the Catalog taxonomy.",
-    "fields": [
-        {
-            "name": "CategoryId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the category."
-        },
-        {
-            "name": "Name",
-            "type": "string",
-            "doc": "Category display name (max 100 chars)."
-        },
-        {
-            "name": "ParentCategoryId",
-            "type": [
-                "null",
-                {
-                    "type": "string",
-                    "logicalType": "uuid"
-                }
-            ],
-            "default": null,
-            "doc": "Optional identifier of the parent category. Null for root nodes."
-        },
-        {
-            "name": "Path",
-            "type": "string",
-            "doc": "Materialized path of this category (e.g., '/electronics/computers'). Depth 1 to 5 segments."
-        },
-        {
-            "name": "CreatedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the category was created."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 ### 5.2 Basket External Events
 
@@ -455,149 +236,7 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "BasketCheckoutInitiatedEvent",
-    "namespace": "Basket.Sessions",
-    "doc": "Emitted when a user checks out their basket. Triggers the Checkout Saga. The basket is deleted from Redis after this event is written to the outbox.",
-    "fields": [
-        {
-            "name": "BasketCorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Correlation identifier for the checkout flow. Becomes the CorrelationId of the downstream Checkout Saga state machine. Generated when CheckoutBasketCommand is invoked."
-        },
-        {
-            "name": "UserId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Identifier of the user whose basket is being checked out. Also the Kafka message key for partitioning."
-        },
-        {
-            "name": "Items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "BasketCheckoutItem",
-                    "namespace": "Basket.Sessions",
-                    "doc": "One line of the basket at the moment of checkout. Prices reflect the snapshot captured at add-time (or at the last explicit refresh).",
-                    "fields": [
-                        {
-                            "name": "ProductId",
-                            "type": {
-                                "type": "string",
-                                "logicalType": "uuid"
-                            },
-                            "doc": "Catalog Product identifier. Consumers use this to reserve stock and to load authoritative product data."
-                        },
-                        {
-                            "name": "Sku",
-                            "type": "string",
-                            "doc": "Catalog SKU at the time of checkout. Copied from the snapshot for consumer convenience."
-                        },
-                        {
-                            "name": "Name",
-                            "type": "string",
-                            "doc": "Product name at the time of checkout. Copied from the snapshot for order history/display."
-                        },
-                        {
-                            "name": "UnitPriceAmount",
-                            "type": {
-                                "type": "bytes",
-                                "logicalType": "decimal",
-                                "precision": 19,
-                                "scale": 4
-                            },
-                            "doc": "Snapshot unit price amount. Decimal 19,4 matches the Catalog price precision."
-                        },
-                        {
-                            "name": "UnitPriceCurrency",
-                            "type": "string",
-                            "doc": "ISO 4217 currency code of UnitPriceAmount. Uniform across all items (enforced by the Basket aggregate invariant)."
-                        },
-                        {
-                            "name": "Quantity",
-                            "type": "int",
-                            "doc": "Number of units of this product in the basket. Always >= 1."
-                        },
-                        {
-                            "name": "LineTotal",
-                            "type": {
-                                "type": "bytes",
-                                "logicalType": "decimal",
-                                "precision": 19,
-                                "scale": 4
-                            },
-                            "doc": "UnitPriceAmount * Quantity, pre-computed for consumer convenience. Equals the domain value of the line at checkout."
-                        }
-                    ]
-                }
-            },
-            "doc": "All line items of the basket at the moment of checkout. Never empty (empty-basket checkout is rejected at the aggregate)."
-        },
-        {
-            "name": "TotalAmount",
-            "type": {
-                "type": "bytes",
-                "logicalType": "decimal",
-                "precision": 19,
-                "scale": 4
-            },
-            "doc": "Sum of all LineTotal values. Pre-computed so consumers do not have to re-sum; they SHOULD re-verify."
-        },
-        {
-            "name": "Currency",
-            "type": "string",
-            "doc": "ISO 4217 currency code for TotalAmount. Equals all item UnitPriceCurrency values."
-        },
-        {
-            "name": "ShippingAddress",
-            "type": {
-                "type": "record",
-                "name": "CheckoutAddress",
-                "namespace": "Basket.Sessions",
-                "doc": "Postal address supplied at checkout. Basket is a pass-through: it does not validate deeply (only non-empty + ISO country code) and does not persist addresses beyond this event. The Ordering service re-snapshots this into the Order aggregate.",
-                "fields": [
-                    { "name": "Street1", "type": "string", "doc": "Primary street line." },
-                    { "name": "Street2", "type": ["null", "string"], "default": null, "doc": "Optional second street line (apartment, suite, etc.)." },
-                    { "name": "City", "type": "string", "doc": "City name." },
-                    { "name": "State", "type": ["null", "string"], "default": null, "doc": "Optional state/province/region. Null for countries without this concept." },
-                    { "name": "PostalCode", "type": "string", "doc": "Postal or ZIP code." },
-                    { "name": "CountryCode", "type": "string", "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')." }
-                ]
-            },
-            "doc": "Shipping address collected by the BFF/client at checkout time and passed through the CheckoutBasketCommand. Basket does NOT own addresses; it carries this payload to the saga unchanged."
-        },
-        {
-            "name": "BillingAddress",
-            "type": "Basket.Sessions.CheckoutAddress",
-            "doc": "Billing address. Same shape as ShippingAddress; may be identical to it."
-        },
-        {
-            "name": "PaymentMethodId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Reference to a saved payment method in the Payments service. Collected at checkout by the BFF/client; passed through unchanged. Validation is delegated to Payments during payment."
-        },
-        {
-            "name": "InitiatedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the CheckoutBasketCommand was handled and the domain event was raised."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 ### 5.3 Ordering External Events
 
@@ -607,128 +246,7 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCreatedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "OrderCreatedEvent",
-    "namespace": "Ordering.Orders",
-    "doc": "Emitted when a new Order is created from a Basket checkout. Starts the Checkout saga instance.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "User who placed the order (JWT sub)."
-        },
-        {
-            "name": "Items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "OrderItemCreated",
-                    "namespace": "Ordering.Orders",
-                    "fields": [
-                        {
-                            "name": "ProductId",
-                            "type": {
-                                "type": "string",
-                                "logicalType": "uuid"
-                            },
-                            "doc": "Catalog product identifier for this line."
-                        },
-                        {
-                            "name": "Sku",
-                            "type": "string",
-                            "doc": "Catalog SKU snapshot at order creation time."
-                        },
-                        {
-                            "name": "Name",
-                            "type": "string",
-                            "doc": "Product display name snapshot at order creation time."
-                        },
-                        {
-                            "name": "Quantity",
-                            "type": "int",
-                            "doc": "Quantity of this line (>= 1)."
-                        },
-                        {
-                            "name": "UnitPriceAmount",
-                            "type": {
-                                "type": "bytes",
-                                "logicalType": "decimal",
-                                "precision": 19,
-                                "scale": 4
-                            },
-                            "doc": "Per-unit price amount."
-                        },
-                        {
-                            "name": "LineTotalAmount",
-                            "type": {
-                                "type": "bytes",
-                                "logicalType": "decimal",
-                                "precision": 19,
-                                "scale": 4
-                            },
-                            "doc": "UnitPriceAmount * Quantity, pre-computed."
-                        }
-                    ]
-                }
-            },
-            "doc": "Order line items with frozen product snapshots and prices."
-        },
-        {
-            "name": "TotalAmount",
-            "type": {
-                "type": "bytes",
-                "logicalType": "decimal",
-                "precision": 19,
-                "scale": 4
-            },
-            "doc": "Total order amount (sum of LineTotalAmount)."
-        },
-        {
-            "name": "Currency",
-            "type": "string",
-            "doc": "ISO 4217 currency code shared by all items."
-        },
-        {
-            "name": "PaymentMethodId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Payments-side payment method reference."
-        },
-        {
-            "name": "CreatedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the order was created."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.3.2 `OrderConfirmedEvent.avsc`
 
@@ -736,104 +254,7 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 > **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's full state at the confirmation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) so Invoicing's issuance handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them.
 
-```json
-{
-    "type": "record",
-    "name": "OrderConfirmedEvent",
-    "namespace": "Ordering.Orders",
-    "doc": "Summary Event (per ADR-0020) emitted when the Order is confirmed (stock reserved AND payment captured). Carries the full aggregate snapshot — Items, TotalAmount, Currency, BillingAddress — so downstream consumers (notably Invoicing under 10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production producers always populate them.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order that was confirmed."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Consumers can correlate this event with the saga run."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "User who placed the order."
-        },
-        {
-            "name": "ConfirmedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the order was confirmed."
-        },
-        {
-            "name": "Items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "OrderItemConfirmed",
-                    "namespace": "Ordering.Orders",
-                    "doc": "One confirmed-order line. Mirrors the OrderItemCreated shape from OrderCreatedEvent.avsc (different name to avoid Avro record-name collision in namespace 'Ordering.Orders'). Frozen at confirmation per Order invariant I-2.",
-                    "fields": [
-                        { "name": "ProductId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "Catalog product identifier for this line." },
-                        { "name": "Sku", "type": "string", "doc": "Catalog SKU snapshot at order creation time." },
-                        { "name": "Name", "type": "string", "doc": "Product display name snapshot at order creation time." },
-                        { "name": "Quantity", "type": "int", "doc": "Quantity of this line (>= 1)." },
-                        { "name": "UnitPriceAmount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 }, "doc": "Per-unit price amount." },
-                        { "name": "LineTotalAmount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 }, "doc": "UnitPriceAmount * Quantity, pre-computed." }
-                    ]
-                }
-            },
-            "default": [],
-            "doc": "Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 schema; production producers always populate at least one item per Order invariant I-7."
-        },
-        {
-            "name": "TotalAmount",
-            "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 } ],
-            "default": null,
-            "doc": "Total order amount (sum of OrderItemConfirmed.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate."
-        },
-        {
-            "name": "Currency",
-            "type": [ "null", "string" ],
-            "default": null,
-            "doc": "ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate."
-        },
-        {
-            "name": "BillingAddress",
-            "type": [
-                "null",
-                {
-                    "type": "record",
-                    "name": "OrderBillingAddress",
-                    "namespace": "Ordering.Orders",
-                    "doc": "Snapshot of the buyer's billing address at confirmation time. Field shape is identical to Basket.Sessions.CheckoutAddress; defined locally because avrogen processes each .avsc file in isolation and a cross-file reference would emit a class collision (see ADR-0020).",
-                    "fields": [
-                        { "name": "Street1", "type": "string", "doc": "Primary street line." },
-                        { "name": "Street2", "type": [ "null", "string" ], "default": null, "doc": "Optional second street line (apartment, suite, etc.)." },
-                        { "name": "City", "type": "string", "doc": "City name." },
-                        { "name": "State", "type": [ "null", "string" ], "default": null, "doc": "Optional state/province/region. Null for countries without this concept." },
-                        { "name": "PostalCode", "type": "string", "doc": "Postal or ZIP code." },
-                        { "name": "CountryCode", "type": "string", "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')." }
-                    ]
-                }
-            ],
-            "default": null,
-            "doc": "Buyer's billing address snapshot. Consumed by Invoicing for invoice generation."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.3.3 `OrderCancelledEvent.avsc`
 
@@ -841,555 +262,57 @@ Every schema listed below is the **complete** content of the `.avsc` file to be 
 
 > **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's state at the cancellation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) alongside the original `Reason` / `AtStatus` delta payload, so Invoicing's credit-note handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them. Compensation consumers (Inventory, Payments, Notifications, BFF, checkout saga) keep reading only the `Reason` / `AtStatus` fields they already used.
 
-```json
-{
-    "type": "record",
-    "name": "OrderCancelledEvent",
-    "namespace": "Ordering.Orders",
-    "doc": "Summary Event (per ADR-0020) emitted when the Order is cancelled. Carries the aggregate snapshot at the cancellation transition — Items, TotalAmount, Currency, BillingAddress — so downstream consumers (notably Invoicing's credit-note path under 10-year retention) can rebuild state without an HTTP round-trip back to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per ADR-0007; production producers always populate them. Downstream compensation consumers (Inventory release, Payments refund, Notifications, BFF cache, checkout saga) continue to read only the Reason / AtStatus delta payload they already used.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order that was cancelled."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Used by the saga to correlate compensation flows."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "User who placed the order."
-        },
-        {
-            "name": "Reason",
-            "type": "string",
-            "doc": "Human- or system-assigned cancellation reason."
-        },
-        {
-            "name": "AtStatus",
-            "type": {
-                "type": "enum",
-                "name": "OrderStatusAtTransition",
-                "namespace": "Ordering.Orders",
-                "symbols": [
-                    "Created",
-                    "StockReserved",
-                    "PaymentCompleted",
-                    "Confirmed"
-                ]
-            },
-            "doc": "OrderStatus just before cancellation. Informs consumers what compensation to perform (release stock, refund, etc.)."
-        },
-        {
-            "name": "CancelledAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the order was cancelled."
-        },
-        {
-            "name": "Items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "OrderItemCancelled",
-                    "namespace": "Ordering.Orders",
-                    "doc": "One cancelled-order line. Mirrors the OrderItemConfirmed shape from OrderConfirmedEvent.avsc (different name to avoid an avrogen per-file class collision in namespace 'Ordering.Orders' — see ADR-0020 § Implementation Notes). Frozen at cancellation per Order invariant I-2.",
-                    "fields": [
-                        { "name": "ProductId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "Catalog product identifier for this line." },
-                        { "name": "Sku", "type": "string", "doc": "Catalog SKU snapshot at order creation time." },
-                        { "name": "Name", "type": "string", "doc": "Product display name snapshot at order creation time." },
-                        { "name": "Quantity", "type": "int", "doc": "Quantity of this line (>= 1)." },
-                        { "name": "UnitPriceAmount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 }, "doc": "Per-unit price amount." },
-                        { "name": "LineTotalAmount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 }, "doc": "UnitPriceAmount * Quantity, pre-computed." }
-                    ]
-                }
-            },
-            "default": [],
-            "doc": "Order line items with frozen product snapshots and prices. Empty default exists for FORWARD_TRANSITIVE compatibility with the v1 (pre-Wave-1.6) schema; production producers always populate at least one item per Order invariant I-7."
-        },
-        {
-            "name": "TotalAmount",
-            "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 } ],
-            "default": null,
-            "doc": "Total order amount (sum of OrderItemCancelled.LineTotalAmount). Nullable union for FORWARD_TRANSITIVE compatibility with the v1 schema (Avro decimal defaults are encoding-fragile per ADR-0020); production producers always populate."
-        },
-        {
-            "name": "Currency",
-            "type": [ "null", "string" ],
-            "default": null,
-            "doc": "ISO 4217 currency code shared by all items. Nullable union covaries with TotalAmount; production producers always populate."
-        },
-        {
-            "name": "BillingAddress",
-            "type": [
-                "null",
-                {
-                    "type": "record",
-                    "name": "OrderCancellationBillingAddress",
-                    "namespace": "Ordering.Orders",
-                    "doc": "Snapshot of the buyer's billing address at cancellation time. Field shape is identical to Basket.Sessions.CheckoutAddress and Wave 1.5's Ordering.Orders.OrderBillingAddress; defined locally because avrogen processes each .avsc file in isolation and a cross-file reference would emit a class collision (see ADR-0020).",
-                    "fields": [
-                        { "name": "Street1", "type": "string", "doc": "Primary street line." },
-                        { "name": "Street2", "type": [ "null", "string" ], "default": null, "doc": "Optional second street line (apartment, suite, etc.)." },
-                        { "name": "City", "type": "string", "doc": "City name." },
-                        { "name": "State", "type": [ "null", "string" ], "default": null, "doc": "Optional state/province/region. Null for countries without this concept." },
-                        { "name": "PostalCode", "type": "string", "doc": "Postal or ZIP code." },
-                        { "name": "CountryCode", "type": "string", "doc": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'CZ')." }
-                    ]
-                }
-            ],
-            "default": null,
-            "doc": "Buyer's billing address snapshot. Consumed by Invoicing for credit-note generation."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.3.4 `OrderShippedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderShippedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "OrderShippedEvent",
-    "namespace": "Ordering.Orders",
-    "doc": "Emitted when the Order is handed to a carrier with a tracking number.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order that was shipped."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id (carried post-saga for forensic continuity; saga itself is finalised by this point)."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "User who placed the order."
-        },
-        {
-            "name": "Carrier",
-            "type": "string",
-            "doc": "Shipping carrier name (e.g., 'FedEx', 'DHL', 'UPS')."
-        },
-        {
-            "name": "TrackingNumber",
-            "type": "string",
-            "doc": "Carrier-assigned tracking number."
-        },
-        {
-            "name": "ShippedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the order was shipped."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.3.5 `OrderDeliveredEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderDeliveredEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "OrderDeliveredEvent",
-    "namespace": "Ordering.Orders",
-    "doc": "Emitted when the carrier confirms delivery. Terminal happy-path event for the order lifecycle.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order that was delivered."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "User who placed the order."
-        },
-        {
-            "name": "DeliveredAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the order was delivered."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.3.6 `OrderFailedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderFailedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "OrderFailedEvent",
-    "namespace": "Ordering.Orders",
-    "doc": "Emitted when the Order transitions to a terminal Failed state. Downstream consumers notify the buyer and reverse any applied compensations.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order that failed."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "User who placed the order."
-        },
-        {
-            "name": "ErrorCode",
-            "type": "string",
-            "doc": "Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."
-        },
-        {
-            "name": "ErrorMessage",
-            "type": "string",
-            "doc": "Human-readable error message."
-        },
-        {
-            "name": "AtStatus",
-            "type": {
-                "type": "enum",
-                "name": "OrderStatusAtTransition",
-                "symbols": [
-                    "Created",
-                    "StockReserved",
-                    "PaymentCompleted",
-                    "Confirmed"
-                ]
-            },
-            "doc": "OrderStatus just before failure."
-        },
-        {
-            "name": "FailedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the order failed."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 ### 5.4 Inventory External Events
 
-#### 5.4.1 `StockLevelChanged.avsc`
+#### 5.4.1 `StockLevelChangedEvent.avsc`
 
-**Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/StockLevelChanged.avsc`
+**Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/StockLevelChangedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "StockLevelChanged",
-    "namespace": "Inventory.Stock",
-    "doc": "Emitted when a StockItem's availability crosses a business-meaningful threshold (e.g., zero to positive or positive to zero). Not emitted on every stock change.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product whose stock level changed. Shared key with Catalog."
-        },
-        {
-            "name": "NewOnHand",
-            "type": "int",
-            "doc": "Total physical units on hand after the change."
-        },
-        {
-            "name": "NewReserved",
-            "type": "int",
-            "doc": "Units currently reserved across all active reservations after the change."
-        },
-        {
-            "name": "NewAvailable",
-            "type": "int",
-            "doc": "Units a new reservation could still claim (OnHand - Reserved) after the change."
-        },
-        {
-            "name": "ChangedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp of the triggering event."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.4.2 `StockReservedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/StockReservedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "StockReservedEvent",
-    "namespace": "Inventory.Reservations",
-    "doc": "Emitted when units have been successfully reserved for an order. Consumed by the checkout saga as the positive outcome of ReserveStockCommand. The reservation is time-bounded by ExpiresAtUtc.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product that was reserved. Shared key with Catalog."
-        },
-        {
-            "name": "ReservationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique id of this reservation. Used by ConfirmReservationCommand and ReleaseReservationCommand."
-        },
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Owning order (saga correlation id). Enables fan-in of multiple line-item reservations per order."
-        },
-        {
-            "name": "Quantity",
-            "type": "int",
-            "doc": "Units reserved."
-        },
-        {
-            "name": "ExpiresAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp after which the reservation is automatically released by the TTL worker unless confirmed or explicitly released."
-        },
-        {
-            "name": "ReservedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the reservation was created."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.4.3 `StockReservationFailedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/StockReservationFailedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "StockReservationFailedEvent",
-    "namespace": "Inventory.Reservations",
-    "doc": "Emitted when a reservation request cannot be fulfilled because Available < RequestedQuantity. Consumed by the checkout saga to trigger compensation. No corresponding ES event (failed reservations do not mutate the aggregate).",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product for which the reservation failed."
-        },
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Owning order (saga correlation id)."
-        },
-        {
-            "name": "RequestedQuantity",
-            "type": "int",
-            "doc": "Units the saga attempted to reserve."
-        },
-        {
-            "name": "AvailableQuantity",
-            "type": "int",
-            "doc": "Units actually available at the time of rejection (OnHand - Reserved). Included so the saga/UI can report the shortfall precisely."
-        },
-        {
-            "name": "FailedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the reservation attempt was rejected."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.4.4 `ReservationConfirmedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationConfirmedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ReservationConfirmedEvent",
-    "namespace": "Inventory.Reservations",
-    "doc": "Emitted when a reservation is confirmed (stock physically committed to the order). OnHand is decremented by Quantity as part of the same transaction.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product whose reservation was confirmed."
-        },
-        {
-            "name": "ReservationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Reservation that was confirmed."
-        },
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Owning order."
-        },
-        {
-            "name": "ConfirmedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp of confirmation."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.4.5 `ReservationReleasedEvent.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationReleasedEvent.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ReservationReleasedEvent",
-    "namespace": "Inventory.Reservations",
-    "doc": "Emitted when a reservation is released without being shipped. ReleaseReason distinguishes deliberate compensation (saga rollback), automatic expiry (TTL worker), and explicit customer/operator cancellation.",
-    "fields": [
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product whose reservation was released."
-        },
-        {
-            "name": "ReservationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Reservation that was released."
-        },
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Owning order."
-        },
-        {
-            "name": "ReleaseReason",
-            "type": {
-                "type": "enum",
-                "name": "ReleaseReason",
-                "symbols": [
-                    "Compensation",
-                    "Expiry",
-                    "Cancellation"
-                ]
-            },
-            "doc": "Compensation = saga rollback. Expiry = TTL worker auto-release. Cancellation = customer or ops explicit action."
-        },
-        {
-            "name": "ReleasedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp of release."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 ### 5.5 Saga-to-Ordering Commands
 
@@ -1399,288 +322,25 @@ These four commands are published by the Checkout saga to `ordering.order-comman
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/CreateOrderCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "CreateOrderCommand",
-    "namespace": "Ordering.Orders",
-    "doc": "Command issued by the Checkout saga to create a new Order from a BasketSnapshot. Ordering responds by persisting the Order aggregate and publishing OrderCreatedEvent. The saga correlates the resulting OrderCreatedEvent by CorrelationId.",
-    "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Becomes Order.CorrelationId. Primary saga correlation key."
-        },
-        {
-            "name": "BuyerId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "JWT sub claim of the buyer. Captured by the saga at basket-checkout time."
-        },
-        {
-            "name": "Items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "CreateOrderItem",
-                    "namespace": "Ordering.Orders",
-                    "doc": "One line of the order at creation time. Prices are frozen at checkout.",
-                    "fields": [
-                        {
-                            "name": "ProductId",
-                            "type": {
-                                "type": "string",
-                                "logicalType": "uuid"
-                            },
-                            "doc": "Catalog product identifier."
-                        },
-                        {
-                            "name": "Sku",
-                            "type": "string",
-                            "doc": "Catalog SKU snapshot."
-                        },
-                        {
-                            "name": "Name",
-                            "type": "string",
-                            "doc": "Product display name snapshot."
-                        },
-                        {
-                            "name": "UnitPriceAmount",
-                            "type": {
-                                "type": "bytes",
-                                "logicalType": "decimal",
-                                "precision": 19,
-                                "scale": 4
-                            },
-                            "doc": "Per-unit price at checkout."
-                        },
-                        {
-                            "name": "UnitPriceCurrency",
-                            "type": "string",
-                            "doc": "ISO 4217 currency code. Uniform across all items."
-                        },
-                        {
-                            "name": "Quantity",
-                            "type": "int",
-                            "doc": "Quantity of units (>= 1)."
-                        }
-                    ]
-                }
-            },
-            "doc": "Order line items. Non-empty; rejected by the Order aggregate factory if empty."
-        },
-        {
-            "name": "ShippingAddress",
-            "type": {
-                "type": "record",
-                "name": "OrderAddress",
-                "namespace": "Ordering.Orders",
-                "doc": "Postal address for shipping or billing.",
-                "fields": [
-                    {
-                        "name": "Street1",
-                        "type": "string",
-                        "doc": "Primary street line (max 200 chars, required)."
-                    },
-                    {
-                        "name": "Street2",
-                        "type": [
-                            "null",
-                            "string"
-                        ],
-                        "default": null,
-                        "doc": "Secondary street line (max 200 chars, optional)."
-                    },
-                    {
-                        "name": "City",
-                        "type": "string",
-                        "doc": "City (max 100 chars, required)."
-                    },
-                    {
-                        "name": "State",
-                        "type": [
-                            "null",
-                            "string"
-                        ],
-                        "default": null,
-                        "doc": "State or province (max 100 chars, optional for countries that do not use one)."
-                    },
-                    {
-                        "name": "PostalCode",
-                        "type": "string",
-                        "doc": "Postal or ZIP code (max 20 chars, required)."
-                    },
-                    {
-                        "name": "CountryCode",
-                        "type": "string",
-                        "doc": "ISO 3166-1 alpha-2 country code (exactly 2 uppercase letters, required)."
-                    }
-                ]
-            },
-            "doc": "Address to ship the order to."
-        },
-        {
-            "name": "BillingAddress",
-            "type": "Ordering.Orders.OrderAddress",
-            "doc": "Address for billing. Same shape as ShippingAddress; reuses the OrderAddress record."
-        },
-        {
-            "name": "PaymentMethodId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Payments-side payment method reference. Opaque to Ordering."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the saga issued the CreateOrderCommand."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.5.2 `ConfirmOrderCommand.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/ConfirmOrderCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ConfirmOrderCommand",
-    "namespace": "Ordering.Orders",
-    "doc": "Command issued by the Checkout saga to confirm an Order after stock reservation and payment have both succeeded. Ordering transitions PaymentCompleted -> Confirmed and emits OrderConfirmedEvent.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order to confirm. Also the Kafka message key."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the saga issued the command."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.5.3 `CancelOrderCommand.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/CancelOrderCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "CancelOrderCommand",
-    "namespace": "Ordering.Orders",
-    "doc": "Command issued by the Checkout saga (or ops tooling) to cancel an Order. Ordering transitions to Cancelled and emits OrderCancelledEvent, which downstream consumers use to release stock and refund if captured.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order to cancel. Also the Kafka message key."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Present for admin-driven cancellations too (null-sentinel omitted for v1)."
-        },
-        {
-            "name": "Reason",
-            "type": "string",
-            "doc": "Human- or system-assigned cancellation reason (max 500 chars). Propagates to OrderCancelledEvent.Reason."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the cancellation was requested."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.5.4 `MarkOrderFailedCommand.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/MarkOrderFailedCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "MarkOrderFailedCommand",
-    "namespace": "Ordering.Orders",
-    "doc": "Command issued by the Checkout saga to mark an Order as terminally Failed when a saga step times out or cannot be completed (e.g., stock reservation failed, payment failed). Ordering transitions to Failed and emits OrderFailedEvent.",
-    "fields": [
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Unique identifier of the Order to fail. Also the Kafka message key."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
-            "name": "ErrorCode",
-            "type": "string",
-            "doc": "Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."
-        },
-        {
-            "name": "ErrorMessage",
-            "type": "string",
-            "doc": "Human-readable error message. Propagates to OrderFailedEvent.ErrorMessage."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the saga issued the command."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 ### 5.6 Saga-to-Inventory Commands
 
@@ -1692,168 +352,19 @@ Three commands published by the Checkout saga to `inventory.reservation-commands
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReserveStockCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ReserveStockCommand",
-    "namespace": "Inventory.Reservations",
-    "doc": "Command issued by the Checkout saga to reserve N units of one product for an order. The saga issues one command per line item; Inventory responds asynchronously with StockReservedEvent on success or StockReservationFailedEvent on failure.",
-    "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Also the Kafka message key."
-        },
-        {
-            "name": "OrderId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Order for which stock is being reserved. Used by Inventory to tag the reservation."
-        },
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product to reserve. Keys the event-sourced stream in Inventory."
-        },
-        {
-            "name": "ReservationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Saga-generated reservation id (GUIDv7). Becomes the ReservationId on StockReservedEvent / ReservationConfirmedEvent / ReservationReleasedEvent."
-        },
-        {
-            "name": "Quantity",
-            "type": "int",
-            "doc": "Units to reserve (>= 1)."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the saga issued the command."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.6.2 `ConfirmReservationCommand.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ConfirmReservationCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ConfirmReservationCommand",
-    "namespace": "Inventory.Reservations",
-    "doc": "Command issued by the Checkout saga to confirm a reservation after payment has been captured. Inventory physically decrements OnHand by Quantity and emits ReservationConfirmedEvent. Idempotent on ReservationId.",
-    "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Also the Kafka message key."
-        },
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product whose reservation to confirm. Keys the event-sourced stream."
-        },
-        {
-            "name": "ReservationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Reservation to confirm. Must refer to an Active reservation; confirming a non-Active reservation is a bug (DataIntegrityException)."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the saga issued the command."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 #### 5.6.3 `ReleaseReservationCommand.avsc`
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReleaseReservationCommand.avsc`
 
-```json
-{
-    "type": "record",
-    "name": "ReleaseReservationCommand",
-    "namespace": "Inventory.Reservations",
-    "doc": "Command to release an Active reservation without confirming it (saga compensation, TTL expiry, or admin cancel). Inventory emits ReservationReleasedEvent with the specified ReleaseReason.",
-    "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id (or internally generated for TTL expiry / admin flows). Also the Kafka message key."
-        },
-        {
-            "name": "ProductId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Product whose reservation to release."
-        },
-        {
-            "name": "ReservationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Reservation to release. Must refer to an Active reservation."
-        },
-        {
-            "name": "ReleaseReason",
-            "type": {
-                "type": "enum",
-                "name": "ReleaseReason",
-                "symbols": [
-                    "Compensation",
-                    "Expiry",
-                    "Cancellation"
-                ]
-            },
-            "doc": "Compensation = saga rollback; Expiry = TTL worker auto-release; Cancellation = explicit customer/ops action. Propagates to ReservationReleasedEvent.ReleaseReason."
-        },
-        {
-            "name": "RequestedAtUtc",
-            "type": {
-                "type": "long",
-                "logicalType": "timestamp-millis"
-            },
-            "doc": "UTC timestamp when the saga issued the command."
-        }
-    ]
-}
-```
+<!-- Schema body: see .avsc path above (single source of truth). -->
 
 ### 5.7 Existing Reused Events (reference only)
 
@@ -1872,7 +383,7 @@ The following schemas **already exist** in the repository and are **not** re-aut
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCaptureFailedEvent.avsc` | Payments → PaymentProcessingSaga (unchanged) |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCompletedEvent.avsc` | PaymentProcessingSaga → **Checkout saga** (main success signal) |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentFailedEvent.avsc` | PaymentProcessingSaga → **Checkout saga** (failure signal) |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRefundedEvent.avsc` | Payments → Checkout saga (cancel-post-capture confirmation) + Notifications |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRefundedEvent.avsc` | Payments → Checkout saga (cancel-post-capture confirmation) + Invoicing (credit-note trigger). Notifications via command-driven path only (D-5). |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentVoidedEvent.avsc` | Payments → PaymentProcessingSaga (unchanged) |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` | Multiple services → Notifications (existing pattern; Checkout-related emails use the same template-commanded pattern) |
 
@@ -1886,9 +397,9 @@ Wave 1 shipped 3 of 4 LOCKED Invoicing Avro schemas. The 4th (`InvoiceDeliveredE
 
 | File | Producer → Consumers |
 |---|---|
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceIssuedEvent.avsc` | Invoicing → Notifications (email), BFF (invoice cache) |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceCancelledEvent.avsc` | Invoicing → Notifications, BFF (cache invalidate) |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → Notifications, BFF |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceIssuedEvent.avsc` | Invoicing → BFF (invoice cache). Buyer email flows via Invoicing's outbox publisher emitting `SendEmailNotificationCommand` (NOT a Notifications subscription to this topic) — see D-5. |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceCancelledEvent.avsc` | Invoicing → BFF (cache invalidate). Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | **DEFERRED (Wave 2)** — see [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123) |
 
 All four target the `invoicing.invoices` topic (10-year retention, partition key `BuyerId`) per § 3 + § 4. Compatibility mode at the registry is `FORWARD_TRANSITIVE` (per-subject configured by the `schema-registry-init` companion service — see `cross-cutting-followups.md` H-1).
@@ -1964,7 +475,7 @@ Each service registers the message types it will dedupe in `services.AddInbox(..
 **Topics consumed:** `inventory.stock-events`
 
 **Message types to dedupe:**
-- `Inventory.StockEvents.StockLevelChangedEvent` — handled by [`StockLevelChangedKafkaHandler`](../../services/Catalog/Catalog.Infrastructure/Messaging/Kafka/StockEvents/StockLevelChangedKafkaHandler.cs), which dispatches to `Catalog.Application.Products.UpdateProductSellability.StockLevelChangedProjectionHandler` to flip `ProductSearchViewRow.IsSellable` based on `Available > 0`. See [catalog.md § Sellability projection](catalog.md).
+- `Inventory.Stock.StockLevelChangedEvent` — handled by [`StockLevelChangedEventKafkaHandler`](../../services/Catalog/Catalog.Infrastructure/Messaging/Kafka/StockEvents/StockLevelChangedEventKafkaHandler.cs), which dispatches to `Catalog.Application.Products.UpdateProductSellability.StockLevelChangedEventProjectionHandler` to flip `ProductSearchViewRow.IsSellable` based on `Available > 0`. See [catalog.md § Sellability projection](catalog.md).
 
 **Registration:**
 ```csharp
@@ -2046,30 +557,20 @@ Consumer-registration pattern inside `CheckoutSagaDependencyInjection` mirrors t
 
 ### 7.6 Notifications Service
 
-**Topics consumed:** `ordering.orders` (new), plus existing `notifications.email-commands` self-consumer for SendEmail dispatch.
+**Topics consumed:** `notifications.email-commands` only — the inbound `SendEmailNotificationCommand` queue. Notifications does NOT subscribe to per-BC topics (`ordering.orders`, `inventory.reservations`, `payments.transactions`, `invoicing.invoices`). The command-driven pattern (per D-5 + [notifications.md § 2](notifications.md)) inverts the integration: producer BCs own the editorial decision ("should we email this buyer?") and emit `SendEmailNotificationCommand` with a deterministic `IdempotencyKey`; Notifications only renders/sends/confirms.
 
-**Message types to dedupe** (new for eShop):
-- `Ordering.Orders.OrderConfirmedEvent`
-- `Ordering.Orders.OrderShippedEvent`
-- `Ordering.Orders.OrderDeliveredEvent`
-- `Ordering.Orders.OrderCancelledEvent`
-- `Ordering.Orders.OrderFailedEvent`
-- (Optional) `Inventory.Reservations.ReservationConfirmedEvent` — "your order is being prepared" email. Decision: **defer** — requires the Notifications template library to know how to render reservation-confirmation messages, which is out of scope for v1 per `inventory.md § 6.4`.
+**Topics published:** `notifications.email-events` — `EmailNotificationSentEvent` per successful gateway send, key = `UserId`, infinite retention. The carry-through `IdempotencyKey` lets producing BCs correlate back to their original outbox row (e.g., Invoicing's `EmailNotificationSentEventKafkaHandler` consumes this to transition `Issued → Delivered`).
 
-Notifications **already** subscribes to existing Weather/Order events via its current inbox registration. The new registrations to add:
+**Message types to dedupe** (inbox key = producer-supplied `IdempotencyKey`):
+- `Notifications.Email.SendEmailNotificationCommand` — the sole inbound contract.
 
+**Registration:**
 ```csharp
 services.AddInbox<NotificationsDbContext>();
-// consumer for ordering.orders:
-.AddInbox(
-    typeof(OrderConfirmedEvent),
-    typeof(OrderShippedEvent),
-    typeof(OrderDeliveredEvent),
-    typeof(OrderCancelledEvent),
-    typeof(OrderFailedEvent))
+.AddInbox(typeof(SendEmailNotificationCommand))
 ```
 
-Notifications renders email via the existing template mechanism; each order event maps to a template id like `ordering.order-confirmed`, `ordering.order-shipped`, etc. — the template catalog is Notifications' own concern and out of scope for this document.
+**Template catalog (v1):** exactly one template — `invoicing.invoice-delivered`, producer = Invoicing's `InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler`. Future templates added by the producing BC follow the `{bounded-context}.{notification-type}` naming convention (per `notifications.md § 3.3`). Other BCs that want notifications (Ordering for confirmation/shipping/delivery, Inventory for "preparing", Payments for refund confirmation) would each add their own outbox publisher emitting `SendEmailNotificationCommand` — none ship in v1.
 
 ### 7.7 BFF
 
@@ -2101,7 +602,7 @@ services.AddInbox<BffDbContext>();
 | Ordering | `ordering.order-commands` | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
 | Inventory | `catalog.products`, `inventory.reservation-commands` | `ProductCreatedEvent`, `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
 | Checkout saga | `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions` | MassTransit handles (no `AddInbox(typeof(...))`) |
-| Notifications | `ordering.orders` (NEW) + existing | `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` + existing |
+| Notifications | `notifications.email-commands` (only) | `SendEmailNotificationCommand` — per D-5 + [notifications.md § 2](notifications.md). No subscriptions to per-BC event topics. |
 | BFF | `catalog.products`, `catalog.categories`, `ordering.orders` | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent`, `CategoryCreatedEvent`, `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
 
 ---

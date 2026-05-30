@@ -24,9 +24,9 @@ Invoicing is the **authority for fiscal records** — it produces legally-bindin
   - `PaymentCapturedEvent` (Payments) — payment-side half
   - `OrderCancelledEvent` (Ordering) + `PaymentRefundedEvent` (Payments) — credit-note triggers
 - **Downstream (publishes):**
-  - `InvoiceIssuedEvent` — consumed by Notifications (email to buyer with PDF URL)
-  - `InvoiceDeliveredEvent` — delivery confirmation; consumer-less by default, available for analytics
-  - `InvoiceCancelledEvent` + `CreditNoteIssuedEvent` — consumed by Notifications
+  - `InvoiceIssuedEvent` — Invoicing-internal trigger for `InvoiceDeliveryRequestedDomainEventHandler` to emit `SendEmailNotificationCommand` on `notifications.email-commands` (the command-driven Notifications pattern in [notifications.md § 2](notifications.md)). Notifications does NOT subscribe to `invoicing.invoices`.
+  - `InvoiceDeliveredEvent` — published after Invoicing consumes `EmailNotificationSentEvent` back from Notifications and transitions `Issued → Delivered`. Consumer-less by default; available for analytics.
+  - `InvoiceCancelledEvent` + `CreditNoteIssuedEvent` — no Notifications wiring in v1 (would follow the same command-driven pattern as `InvoiceIssuedEvent` if buyer emails for cancellations/credit notes are added).
 
 **Why event-driven, not saga-orchestrated?** Invoice issuance is a **convergent enrichment** — two independent events (order + payment) must both arrive before the invoice can be issued. This is a natural fit for an inbox-backed projection that buffers partial state. Invoicing has no multi-step distributed transaction of its own; a saga would be over-engineered.
 
@@ -139,10 +139,10 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
-| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | Notifications (email with PDF URL), BFF (cache warm) |
+| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | BFF (cache warm). Invoice-delivery email flows via the command-driven pattern (Invoicing → `SendEmailNotificationCommand` → Notifications), NOT a Notifications subscription to this topic — see [notifications.md § 2](notifications.md). |
 | `InvoiceDeliveredEvent` | `InvoiceDeliveredDomainEvent` | BFF (cache invalidate for "my invoices" page) |
-| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | Notifications, BFF |
-| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | Notifications (email with PDF URL), BFF |
+| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
+| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
 
 **Schema compatibility:** FORWARD_TRANSITIVE.
 
@@ -285,7 +285,7 @@ Table `invoicing.invoice_delivery_log`:
 | `Outcome` | `text` | `delivered`, `bounced`, `failed` |
 | `Detail` | `text` | Free-form (bounce reason, etc.) |
 
-`ResendInvoiceCommandHandler` selects `MAX(Attempt)` for `(InvoiceId, Channel)` and inserts `Attempt = max + 1`. The outbox row key uses `(InvoiceId, Channel, Attempt)` to dedup at the Notifications consumer.
+`ResendInvoiceCommandHandler` selects `MAX(Attempt)` for `(InvoiceId, Channel)` and inserts `Attempt = max + 1`. The `SendEmailNotificationCommand`'s `IdempotencyKey` carries `(InvoiceId, Channel, Attempt)` to dedup at the Notifications inbox (per [notifications.md § 4.2](notifications.md)).
 
 ---
 
@@ -383,8 +383,13 @@ Ordering                 Payments
 └───────────┬──────────────────┘
             │
             ▼
-   InvoiceIssuedEvent  ──▶  Notifications (email with PDF URL)
-                       ──▶  BFF (cache warm)
+   InvoiceIssuedEvent  ──▶  BFF (cache warm)
+   InvoiceDeliveryRequestedDomainEvent
+        ──▶  SendEmailNotificationCommand  ──▶  Notifications  ──▶  EmailNotificationSentEvent
+                                                                          │
+                                                                          ▼
+                                                                   Invoicing transitions
+                                                                   Issued → Delivered
 ```
 
 Cancellation:
@@ -396,7 +401,8 @@ Ordering (OrderCancelled) + Payments (PaymentRefunded)
                 ▼
       IssueCreditNoteCommand
                 ▼
-      CreditNoteIssuedEvent ──▶ Notifications
+      CreditNoteIssuedEvent ──▶ BFF (cache invalidate)
+                            (no Notifications wiring in v1)
 ```
 
 ---
