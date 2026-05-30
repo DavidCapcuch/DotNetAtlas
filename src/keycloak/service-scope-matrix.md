@@ -221,12 +221,12 @@ TOKEN=$(curl -s -X POST http://localhost:9011/realms/master/protocol/openid-conn
   -d 'client_id=admin-cli' -d 'username=admin' -d 'password=admin' -d 'grant_type=password' \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
-# List all clients — expect 11 realm-declared (plus Keycloak builtins: account, admin-cli, broker, realm-management, security-admin-console)
+# List all clients — expect 9 realm-declared (plus Keycloak builtins: account, admin-cli, broker, realm-management, security-admin-console)
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients" \
   -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
 
-# List all client scopes — expect the 10 declared scopes plus Keycloak defaults
+# List all client scopes — expect the 9 declared scopes plus Keycloak defaults
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
   -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.write','payments.read','invoicing.read'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
