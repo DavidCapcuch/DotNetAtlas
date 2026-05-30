@@ -100,10 +100,13 @@ public static class JwtBearerConfigurator
                 // would tell IsInRole to look for a "roles"-typed claim that
                 // the inbound mapping has already removed.
                 //
-                // The contract is pinned by Ordering.FunctionalTests
+                // The contract is pinned at this layer by
+                // Platform.ServiceDefaults.UnitTests.Auth.JwtBearerConfiguratorTests
+                // (validates a flat-"roles"-only token through these very options) and
+                // end-to-end by Ordering.FunctionalTests
                 // MarkOrderShippedTests.WhenTokenCarriesOnlyKeycloakFlatRolesClaim_AdminAuthSucceeds.
                 // If a future ASP.NET Core flips MapInboundClaims=false by
-                // default, or someone overrides it here, that test fails
+                // default, or someone overrides it here, those tests fail
                 // loudly — re-enable the mapping or wire an OnTokenValidated
                 // transformer; do not set RoleClaimType.
                 jwt.TokenValidationParameters = new TokenValidationParameters
