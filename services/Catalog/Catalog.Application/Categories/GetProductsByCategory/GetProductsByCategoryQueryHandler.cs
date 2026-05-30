@@ -31,7 +31,7 @@ public sealed class GetProductsByCategoryQueryHandler
             var pathPrefix = await _db.Categories
                 .AsNoTracking()
                 .Where(c => c.Id == query.CategoryId)
-                .TagWith(nameof(GetProductsByCategoryQueryHandler))
+                .TagWith($"{nameof(GetProductsByCategoryQueryHandler)}:CategoryPath")
                 .Select(c => c.Path.Value)
                 .FirstOrDefaultAsync(ct);
             if (pathPrefix is null)
@@ -50,7 +50,9 @@ public sealed class GetProductsByCategoryQueryHandler
             queryable = queryable.Where(r => r.CategoryId == query.CategoryId);
         }
 
-        var total = await queryable.CountAsync(ct);
+        var total = await queryable
+            .TagWith($"{nameof(GetProductsByCategoryQueryHandler)}:Count")
+            .CountAsync(ct);
 
         var rows = await queryable
             .OrderBy(r => r.Name).ThenBy(r => r.ProductId)

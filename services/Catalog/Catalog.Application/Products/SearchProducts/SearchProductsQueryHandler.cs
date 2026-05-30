@@ -94,7 +94,9 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
             queryable = queryable.Where(r => r.PriceAmount <= query.MaxPrice!.Value);
         }
 
-        var total = await queryable.CountAsync(ct);
+        var total = await queryable
+            .TagWith($"{nameof(SearchProductsQueryHandler)}:Count")
+            .CountAsync(ct);
 
         var rows = await queryable
             .OrderBy(r => r.PriceAmount).ThenBy(r => r.ProductId)
