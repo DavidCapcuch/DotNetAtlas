@@ -4,7 +4,7 @@
 > **Scope:** Payment transaction lifecycle — authorize, capture, refund, void. Integrates with a payment gateway (stubbed for the reference solution).
 > **Pattern showcased:** **Saga sub-orchestration** — `PaymentProcessingSaga` is a standalone orchestrator the Checkout saga delegates to via `PaymentRequestedEvent`. Also: **PCI scope minimization** — cardholder data (PAN, CVV) never enters our services; Payments holds gateway-issued `PaymentTransactionId` tokens only.
 > **Storage:** PostgreSQL, schema `payments`.
-> **Folder:** `services/Payments/` (renamed from `services/Payments/` in Wave 0).
+> **Folder:** `services/Payments/` (renamed from `services/Finance/` in Wave 0).
 
 ---
 
@@ -157,11 +157,10 @@ Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Nev
 
 **Topic:** `payments.transactions` — infinite retention (audit), partition key `CorrelationId`.
 
-> **Producer note:** `PaymentRequestedEvent` is the saga's *invocation* of the Payments sub-orchestration — per [`events-catalog.md § 2`](events-catalog.md) line 85 (`Producer = Checkout saga`) it is produced by Checkout / `PaymentProcessingSaga`, not by Payments. The Payments BC only owns the internal `PaymentRequestedDomainEvent` (raised when its own aggregate is created); it has no outbound publisher for `PaymentRequestedEvent`. The table row below is included for completeness so readers can trace the saga → Payments flow on a single page.
+The table below lists events Payments **produces** (via outbox → Kafka). The upstream `PaymentRequestedEvent` that *invokes* the Payments sub-orchestration is produced by Checkout / `PaymentProcessingSaga` — not by Payments — and is documented in [events-catalog.md § 2](events-catalog.md). Payments owns only the internal `PaymentRequestedDomainEvent` (raised when its own aggregate is created); there is no outbound `PaymentRequestedEvent` publisher in this BC.
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
-| `PaymentRequestedEvent` | Checkout saga / `PaymentProcessingSaga` (NOT Payments — see note above) | PaymentProcessingSaga |
 | `PaymentAuthorizedEvent` | `PaymentAuthorizedDomainEvent` | PaymentProcessingSaga |
 | `PaymentAuthorizationFailedEvent` | `PaymentAuthorizationFailedDomainEvent` | PaymentProcessingSaga |
 | `PaymentCapturedEvent` | `PaymentCapturedDomainEvent` | PaymentProcessingSaga, **Invoicing** (enrichment trigger) |
@@ -179,7 +178,7 @@ Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Nev
 
 ## 7. Commands (Avro) + Command Topic
 
-**Topic:** `payments.payment-commands` — 7-day retention, partition key `CorrelationId`. Canonical name per [kafka-topology.md](../kafka-topology.md).
+**Topic:** `payments.payment-commands` — 7-day retention, partition key `CorrelationId`. Canonical name per [events-catalog.md § 3](events-catalog.md).
 
 | Command | Producer | Consumer | Trigger |
 |---|---|---|---|

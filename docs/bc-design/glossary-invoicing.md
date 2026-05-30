@@ -27,7 +27,7 @@
 | Term | Definition |
 |------|------------|
 | **Draft** | Transient state: the aggregate exists but `InvoiceNumber` not yet allocated and PDF not yet stored. Brief window within a single command handler; rare to observe in production. Retained as a state so partial failures (PDF generated but blob upload failed) are resumable. |
-| **Issued** | Terminal happy state: number allocated, PDF stored, aggregate persisted. `InvoiceIssued` event fired. |
+| **Issued** | Terminal happy state: number allocated, PDF stored, aggregate persisted. `InvoiceIssuedEvent` fired. |
 | **Delivered** | Follow-on state: delivery channel confirmed receipt (email accepted by SMTP, or tax-authority ACK in v2). Does not affect legal validity — issuance is the legal moment. |
 | **Archived** | V1 equivalent to `Delivered` + passage of time. Reserved for a v2 archival process that moves PDFs to cold storage after N years. |
 | **Cancelled** | Off-ramp: the invoice is reversed by issuing a CreditNote. Requires `CancellationInfo.CreditNoteId` to be populated — an invoice cannot be cancelled without a corresponding credit note. |

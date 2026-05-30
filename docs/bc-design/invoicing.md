@@ -125,7 +125,7 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 - `InvoiceCreatedDomainEvent` — aggregate created in `Draft`
 - `InvoiceIssuedDomainEvent` — aggregate → `Issued` (number allocated, PDF stored)
-- `InvoiceDeliveryRequestedDomainEvent` — used internally to trigger the delivery side-effect via outbox (SendEmailNotificationCommand)
+- `InvoiceDeliveryRequestedDomainEvent` — used internally to trigger the delivery side-effect via outbox (`SendEmailNotificationCommand` to `notifications.email-commands`; receiving end documented in [notifications.md](notifications.md))
 - `InvoiceDeliveredDomainEvent` — delivery confirmed
 - `InvoiceCancelledDomainEvent` — aggregate → `Cancelled`
 - `CreditNoteCreatedDomainEvent` — a new credit note was created against an invoice
@@ -139,10 +139,10 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
-| `InvoiceIssued` | `InvoiceIssuedDomainEvent` | Notifications (email with PDF URL), BFF (cache warm) |
-| `InvoiceDelivered` | `InvoiceDeliveredDomainEvent` | BFF (cache invalidate for "my invoices" page) |
-| `InvoiceCancelled` | `InvoiceCancelledDomainEvent` | Notifications, BFF |
-| `CreditNoteIssued` | `CreditNoteIssuedDomainEvent` | Notifications (email with PDF URL), BFF |
+| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | Notifications (email with PDF URL), BFF (cache warm) |
+| `InvoiceDeliveredEvent` | `InvoiceDeliveredDomainEvent` | BFF (cache invalidate for "my invoices" page) |
+| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | Notifications, BFF |
+| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | Notifications (email with PDF URL), BFF |
 
 **Schema compatibility:** FORWARD_TRANSITIVE.
 
@@ -383,8 +383,8 @@ Ordering                 Payments
 └───────────┬──────────────────┘
             │
             ▼
-   InvoiceIssued  ──▶  Notifications (email with PDF URL)
-                  ──▶  BFF (cache warm)
+   InvoiceIssuedEvent  ──▶  Notifications (email with PDF URL)
+                       ──▶  BFF (cache warm)
 ```
 
 Cancellation:
@@ -396,7 +396,7 @@ Ordering (OrderCancelled) + Payments (PaymentRefunded)
                 ▼
       IssueCreditNoteCommand
                 ▼
-      CreditNoteIssued ──▶ Notifications
+      CreditNoteIssuedEvent ──▶ Notifications
 ```
 
 ---
