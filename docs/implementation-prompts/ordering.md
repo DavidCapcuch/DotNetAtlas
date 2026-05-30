@@ -121,17 +121,7 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] Correlation-id propagation: Kafka header → handler → DB column → outbox row → emitted event Avro header (integration test)
 - [ ] Integration tests cover all sessions in `example-mapping/ordering.md` + admin-cancel idempotency
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] **F6 — `ProductSnapshot.CapturedAtUtc` chain** (audit-trail invariant, see `test/Ordering.ArchitectureTests/ProductSnapshotContractTests.cs` skipped tests). Implementation chain (all required to unskip):
-    1. Add `CapturedAtUtc` field to `BasketCheckoutItem` in `platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc` (FORWARD_TRANSITIVE compat per ADR-0007 — nullable + default).
-    2. Re-run avrogen; propagate via Basket's `BasketCheckoutInitiatedMapper`.
-    3. Add `CapturedAtUtc` to `CreateOrderCommand.OrderItemInput`; thread through saga's `CreateOrderConsumer`.
-    4. Add `CapturedAtUtc` to `Ordering.Domain.Baskets.BasketSnapshotItem`.
-    5. Add `CapturedAtUtc` to `Ordering.Domain.Orders.ValueObjects.ProductSnapshot` (required init prop + `Create` validation).
-    6. Update `Order.CreateFromBasket` to forward the per-item timestamp.
-    7. EF mapping: add a `product_captured_at_utc` column on the owned `ProductSnapshot` in `OrderConfiguration.cs`. **User generates the migration** (CLAUDE.md rule).
-    8. Update unit + integration + functional tests to construct snapshots with timestamps.
-    9. Add `Basket.Domain` to `test/Ordering.ArchitectureTests/Ordering.ArchitectureTests.csproj` `ProjectReference` list.
-    10. Remove `Skip` on `ProductSnapshotContractTests` — both facts must pass.
+- [x] **F6 — `ProductSnapshot.CapturedAtUtc` chain** — closed **wontfix** (#243). The Ordering-side column would be write-only (no consumer); stale-price/promo-lock prevention belongs upstream in Basket, tracked as #284.
 - [ ] Peer-review chain (`_shared.md § 11`) executed; HIGH findings fixed
 </dod>
 
