@@ -11,7 +11,7 @@ namespace Inventory.Domain.StockItems.Events;
 /// reservation transitions Active → Released. <c>OnHand</c> is unchanged — stock
 /// returns to availability for other reservations.
 /// </remarks>
-public sealed record ReservationReleasedEvent : DomainEvent
+public sealed record ReservationReleasedDomainEvent : DomainEvent
 {
     public required Guid ProductId { get; init; }
 

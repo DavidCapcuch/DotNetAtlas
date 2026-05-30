@@ -5,7 +5,7 @@ namespace Inventory.Application.StockItems.ReserveStock;
 /// <summary>
 /// Places a time-bounded hold of <see cref="Quantity"/> units against an order.
 /// Issued by the Checkout saga (one per order line item). On success appends
-/// <c>StockReservedEvent</c> to the stream + emits the external Avro
+/// <c>StockReservedDomainEvent</c> to the stream + emits the external Avro
 /// <c>StockReservedEvent</c> to the outbox. On <c>Available &lt; Quantity</c>
 /// no event is appended and an external <c>StockReservationFailedEvent</c> is
 /// emitted to the outbox via the handler — never a throw

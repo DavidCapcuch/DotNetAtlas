@@ -68,10 +68,10 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
     /// <summary>
     /// Example 2.3 of <c>docs/bc-design/example-mapping/inventory.md</c>: two
     /// reserves race on the last 7 units. The "loser" rehydrates at V=2,
-    /// computes Available=7≥5, and tries to append <c>StockReservedEvent</c>
+    /// computes Available=7≥5, and tries to append <c>StockReservedDomainEvent</c>
     /// at V=3. Meanwhile the "winner" beat us to V=3 (simulated here via
     /// <see cref="OneShotConflictInterceptor"/> injecting a competing
-    /// <c>StockReservedEvent(qty=5)</c>). Verify R5: the loser's
+    /// <c>StockReservedDomainEvent(qty=5)</c>). Verify R5: the loser's
     /// <see cref="EventStoreRepository.AppendAsync"/> hits
     /// <c>UniqueConstraintException</c>, retries exactly once, re-rehydrates
     /// at V=3 (Available=2), discovers <c>2 &lt; 5</c>, and returns
@@ -80,12 +80,10 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
     /// </summary>
     /// <remarks>
     /// Pattern mirrors
-    /// <c>EventStoreRepositoryTests.AppendAsync_ConcurrencyConflict_RetriesOnceAndSucceeds</c>
-    /// (precedent at <c>test/Inventory.IntegrationTests/Persistence/EventStoreRepositoryTests.cs:152</c>);
-    /// the helper methods <c>CreateInterceptedDbContext</c> and
-    /// <c>InsertCompetingRowAsync</c> are copied locally (rather than extracted
-    /// to <c>Common/</c>) to keep this change inside its own file boundary —
-    /// see plan §Out-of-scope. Application-level outbox emission of
+    /// <c>EventStoreRepositoryTests.AppendAsync_ConcurrencyConflict_RetriesOnceAndSucceeds</c>;
+    /// the intercepted-DbContext + competing-row insert helpers live on
+    /// <see cref="EventStoreTestExtensions"/> so all three concurrency tests
+    /// in this BC share the same plumbing. Application-level outbox emission of
     /// <c>StockReservationFailedEvent</c> on this fail path is covered by
     /// <c>ReserveStockCommandHandlerTests.InsufficientStock_EmitsFailureEventAndAppendsNoStockEvent</c>.
     /// </remarks>
@@ -118,7 +116,7 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
         }
 
         // Build the competing event: the "winner" reserves 5 units at V=3.
-        var winningReservedEvent = new StockReservedEvent
+        var winningReservedEvent = new StockReservedDomainEvent
         {
             ProductId = productId,
             ReservationId = winningReservationId,
@@ -129,10 +127,10 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
         };
 
         var interceptor = new OneShotConflictInterceptor(
-            ct => InsertCompetingRowAsync(productId, version: 3, @event: winningReservedEvent, ct),
+            ct => Fixture.InsertEventStoreRowAsync(productId, version: 3, @event: winningReservedEvent, ct),
             fireCount: 1);
 
-        await using var raceCtx = CreateInterceptedDbContext(interceptor);
+        await using var raceCtx = Fixture.CreateInterceptedDbContext(interceptor);
         var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
 
         // Act: the "loser" attempts to reserve 5 units. First attempt collides
@@ -168,9 +166,9 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
             .ToListAsync(TestContext.Current.CancellationToken);
 
         rows.Should().HaveCount(3);
-        rows[0].EventType.Should().Be(nameof(StockItemInitializedEvent));
-        rows[1].EventType.Should().Be(nameof(StockReceivedEvent));
-        rows[2].EventType.Should().Be(nameof(StockReservedEvent));
+        rows[0].EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
+        rows[1].EventType.Should().Be(nameof(StockReceivedDomainEvent));
+        rows[2].EventType.Should().Be(nameof(StockReservedDomainEvent));
         rows[2].Version.Should().Be(3);
     }
 
@@ -181,7 +179,7 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
     /// <c>ReserveStockCommand(qty=5)</c>. Verify R6: the reserve handler
     /// rehydrates the stream (sees the freshly-appended Receive event at V=2,
     /// OnHand=10), evaluates <c>Available = 10 ≥ 5</c>, and appends
-    /// <c>StockReservedEvent</c> at V=3 — proving rehydration is the
+    /// <c>StockReservedDomainEvent</c> at V=3 — proving rehydration is the
     /// authoritative read path, not the projection table (which may lag).
     /// </summary>
     /// <remarks>
@@ -263,7 +261,7 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
             .ToListAsync(TestContext.Current.CancellationToken);
         rows.Should().HaveCount(3);
         rows[2].Version.Should().Be(3);
-        rows[2].EventType.Should().Be("StockReservedEvent");
+        rows[2].EventType.Should().Be(nameof(StockReservedDomainEvent));
 
         var levels = await db.CurrentStockLevels
             .AsNoTracking()
@@ -271,42 +269,5 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
         levels.OnHand.Should().Be(10);
         levels.Reserved.Should().Be(5);
         levels.Available.Should().Be(5);
-    }
-
-    // ---- helpers (precedent: EventStoreRepositoryTests.cs:318, 331) ----
-
-    private InventoryDbContext CreateInterceptedDbContext(OneShotConflictInterceptor interceptor)
-    {
-        var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(Fixture.ConnectionString, npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", InventoryDbContext.DefaultSchemaName))
-            .UseSnakeCaseNamingConvention()
-            .UseExceptionProcessor()
-            .AddInterceptors(interceptor)
-            .Options;
-
-        return new InventoryDbContext(options);
-    }
-
-    private async Task InsertCompetingRowAsync(
-        Guid streamId,
-        int version,
-        DomainEvent @event,
-        CancellationToken ct)
-    {
-        using var scope = Fixture.CreateScope();
-        var ctx = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var (eventType, payload) = StockEventSerializer.Serialize(@event);
-        var row = StockEventRow.Create(
-            streamId: streamId,
-            version: version,
-            eventType: eventType,
-            payload: payload,
-            occurredAtUtc: @event.OccurredOnUtc,
-            correlationId: null);
-
-        ctx.StockEvents.Add(row);
-        await ctx.SaveChangesAsync(ct);
     }
 }

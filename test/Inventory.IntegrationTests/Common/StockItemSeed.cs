@@ -57,7 +57,7 @@ public sealed class StockItemSeed
         _fixture = fixture;
     }
 
-    /// <summary>Initializes a fresh stream (the V1 <c>StockItemInitializedEvent</c>).</summary>
+    /// <summary>Initializes a fresh stream (the V1 <c>StockItemInitializedDomainEvent</c>).</summary>
     public async Task InitializeAsync(Guid productId, DateTimeOffset occurredOnUtc, CancellationToken ct)
     {
         using var scope = _fixture.CreateScope();
@@ -97,7 +97,7 @@ public sealed class StockItemSeed
             ct)).Should().BeSuccess();
     }
 
-    /// <summary>Reserves stock — appends <c>StockReservedEvent</c> and the audit row.</summary>
+    /// <summary>Reserves stock — appends <c>StockReservedDomainEvent</c> and the audit row.</summary>
     public async Task ReserveAsync(
         Guid productId,
         Guid reservationId,
@@ -124,7 +124,7 @@ public sealed class StockItemSeed
             ct)).Should().BeSuccess();
     }
 
-    /// <summary>Releases an active reservation — appends <c>ReservationReleasedEvent</c>.</summary>
+    /// <summary>Releases an active reservation — appends <c>ReservationReleasedDomainEvent</c>.</summary>
     public async Task ReleaseAsync(
         Guid productId,
         Guid reservationId,

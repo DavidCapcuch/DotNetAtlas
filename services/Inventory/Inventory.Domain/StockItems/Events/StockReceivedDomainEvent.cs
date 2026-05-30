@@ -8,7 +8,7 @@ namespace Inventory.Domain.StockItems.Events;
 /// <remarks>
 /// ES event (persistence model). Reducer: <c>OnHand += Quantity</c>.
 /// </remarks>
-public sealed record StockReceivedEvent : DomainEvent
+public sealed record StockReceivedDomainEvent : DomainEvent
 {
     public required Guid ProductId { get; init; }
 

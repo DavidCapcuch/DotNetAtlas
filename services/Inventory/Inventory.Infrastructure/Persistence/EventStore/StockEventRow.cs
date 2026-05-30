@@ -25,7 +25,7 @@ internal sealed class StockEventRow
     /// <summary>Monotonic 1-based per stream. Enforced by <c>PK(StreamId, Version)</c>.</summary>
     public int Version { get; private set; }
 
-    /// <summary>The Avro-style record name (e.g. <c>"StockReservedEvent"</c>) used by the deserializer.</summary>
+    /// <summary>The CLR-type discriminator (e.g. <c>"StockReservedDomainEvent"</c>) used by the deserializer.</summary>
     public string EventType { get; private set; }
 
     /// <summary>JSON-serialized event payload; stored in a <c>jsonb</c> column.</summary>

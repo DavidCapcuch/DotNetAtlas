@@ -1,16 +1,16 @@
-using InternalStockReservedEvent = Inventory.Domain.StockItems.Events.StockReservedEvent;
+using Inventory.Domain.StockItems.Events;
 
 namespace Inventory.Application.StockItems.ReserveStock;
 
 /// <summary>
-/// Maps internal <see cref="InternalStockReservedEvent"/> → external Avro
+/// Maps internal <see cref="StockReservedDomainEvent"/> → external Avro
 /// <see cref="Inventory.Reservations.StockReservedEvent"/>. 1:1 projection —
 /// all fields already carry through on the internal event.
 /// </summary>
 internal static class StockReservedMapper
 {
     public static Inventory.Reservations.StockReservedEvent ToStockReservedEvent(
-        this InternalStockReservedEvent source) =>
+        this StockReservedDomainEvent source) =>
         new()
         {
             ProductId = source.ProductId,

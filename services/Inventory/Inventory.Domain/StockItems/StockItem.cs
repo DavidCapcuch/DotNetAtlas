@@ -15,7 +15,7 @@ namespace Inventory.Domain.StockItems;
 /// no snapshot is persisted.
 /// </summary>
 /// <remarks>
-/// Command methods produce exactly one <c>*Event</c>, add it to the domain-event list
+/// Command methods produce exactly one <c>*DomainEvent</c>, add it to the domain-event list
 /// via <see cref="AggregateRoot{TId}.AddDomainEvent(DomainEvent)"/>, and mutate
 /// state through the same <c>Apply</c> reducer used by <see cref="Fold"/>. In-memory
 /// state and the emitted event stream stay in sync by construction.
@@ -85,7 +85,7 @@ public sealed class StockItem : AggregateRoot<Guid>
             "Inventory.StreamAlreadyInitialized",
             $"Stream {Id} is already initialized at version {Version}."));
 
-        Raise(new StockItemInitializedEvent
+        Raise(new StockItemInitializedDomainEvent
         {
             ProductId = productId,
             OccurredOnUtc = occurredOnUtc,
@@ -109,7 +109,7 @@ public sealed class StockItem : AggregateRoot<Guid>
             "Inventory.QuantityMustBePositive",
             $"ReceiveStock quantity must be positive; got {quantity}."));
 
-        Raise(new StockReceivedEvent
+        Raise(new StockReceivedDomainEvent
         {
             ProductId = Id,
             Quantity = quantity,
@@ -160,7 +160,7 @@ public sealed class StockItem : AggregateRoot<Guid>
                 InventoryErrors.InsufficientStock(Id, quantity, Available));
         }
 
-        Raise(new StockReservedEvent
+        Raise(new StockReservedDomainEvent
         {
             ProductId = Id,
             ReservationId = reservationId.Value,
@@ -208,7 +208,7 @@ public sealed class StockItem : AggregateRoot<Guid>
                 break;
         }
 
-        Raise(new ReservationConfirmedEvent
+        Raise(new ReservationConfirmedDomainEvent
         {
             ProductId = Id,
             ReservationId = reservationId.Value,
@@ -259,7 +259,7 @@ public sealed class StockItem : AggregateRoot<Guid>
                 break;
         }
 
-        Raise(new ReservationReleasedEvent
+        Raise(new ReservationReleasedDomainEvent
         {
             ProductId = Id,
             ReservationId = reservationId.Value,
@@ -300,7 +300,7 @@ public sealed class StockItem : AggregateRoot<Guid>
             "Inventory.AdjustmentBelowReservations",
             $"AdjustStock would drive Available below zero on stream {Id}: OnHand would be {projectedOnHand}, Reserved is {Reserved}."));
 
-        Raise(new StockAdjustedEvent
+        Raise(new StockAdjustedDomainEvent
         {
             ProductId = Id,
             Delta = delta,
@@ -327,22 +327,22 @@ public sealed class StockItem : AggregateRoot<Guid>
     {
         switch (@event)
         {
-            case StockItemInitializedEvent e:
+            case StockItemInitializedDomainEvent e:
                 ApplyInitialized(e);
                 break;
-            case StockReceivedEvent e:
+            case StockReceivedDomainEvent e:
                 ApplyReceived(e);
                 break;
-            case StockReservedEvent e:
+            case StockReservedDomainEvent e:
                 ApplyReserved(e);
                 break;
-            case ReservationConfirmedEvent e:
+            case ReservationConfirmedDomainEvent e:
                 ApplyConfirmed(e);
                 break;
-            case ReservationReleasedEvent e:
+            case ReservationReleasedDomainEvent e:
                 ApplyReleased(e);
                 break;
-            case StockAdjustedEvent e:
+            case StockAdjustedDomainEvent e:
                 ApplyAdjusted(e);
                 break;
             default:
@@ -354,11 +354,11 @@ public sealed class StockItem : AggregateRoot<Guid>
         Version++;
     }
 
-    private void ApplyInitialized(StockItemInitializedEvent e)
+    private void ApplyInitialized(StockItemInitializedDomainEvent e)
     {
         Throw.If(Version != 0, new DataIntegrityException(
             "Inventory.StreamAlreadyInitialized",
-            $"StockItemInitializedEvent applied to stream {Id} already at version {Version}."));
+            $"StockItemInitializedDomainEvent applied to stream {Id} already at version {Version}."));
 
         Id = e.ProductId;
         OnHand = 0;
@@ -366,25 +366,25 @@ public sealed class StockItem : AggregateRoot<Guid>
         _reservations.Clear();
     }
 
-    private void ApplyReceived(StockReceivedEvent e)
+    private void ApplyReceived(StockReceivedDomainEvent e)
     {
-        EnsureAppliedToInitialized(nameof(StockReceivedEvent));
+        EnsureAppliedToInitialized(nameof(StockReceivedDomainEvent));
         OnHand += e.Quantity;
     }
 
-    private void ApplyReserved(StockReservedEvent e)
+    private void ApplyReserved(StockReservedDomainEvent e)
     {
-        EnsureAppliedToInitialized(nameof(StockReservedEvent));
+        EnsureAppliedToInitialized(nameof(StockReservedDomainEvent));
 
         var ridResult = ReservationId.Create(e.ReservationId);
         Throw.If(ridResult.IsFailed, new DataIntegrityException(
             "Inventory.ReservationIdInvalid",
-            $"StockReservedEvent on stream {Id} carries invalid ReservationId {e.ReservationId}."));
+            $"StockReservedDomainEvent on stream {Id} carries invalid ReservationId {e.ReservationId}."));
         var rid = ridResult.Value;
 
         Throw.If(_reservations.ContainsKey(rid), new DataIntegrityException(
             "Inventory.ReservationAlreadyExists",
-            $"StockReservedEvent on stream {Id} duplicates ReservationId {rid}."));
+            $"StockReservedDomainEvent on stream {Id} duplicates ReservationId {rid}."));
 
         Reserved += e.Quantity;
         _reservations[rid] = ReservationInfo.Create(
@@ -397,62 +397,62 @@ public sealed class StockItem : AggregateRoot<Guid>
             status: ReservationStatus.Active);
     }
 
-    private void ApplyConfirmed(ReservationConfirmedEvent e)
+    private void ApplyConfirmed(ReservationConfirmedDomainEvent e)
     {
-        EnsureAppliedToInitialized(nameof(ReservationConfirmedEvent));
+        EnsureAppliedToInitialized(nameof(ReservationConfirmedDomainEvent));
 
-        var rid = ReservationIdOrThrow(e.ReservationId, nameof(ReservationConfirmedEvent));
+        var rid = ReservationIdOrThrow(e.ReservationId, nameof(ReservationConfirmedDomainEvent));
 
         if (!_reservations.TryGetValue(rid, out var reservation))
         {
             throw new DataIntegrityException(
                 "Inventory.ReservationUnknown",
-                $"ReservationConfirmedEvent on stream {Id} references unknown ReservationId {rid}.");
+                $"ReservationConfirmedDomainEvent on stream {Id} references unknown ReservationId {rid}.");
         }
 
         Throw.If(reservation.Status != ReservationStatus.Active, new DataIntegrityException(
             "Inventory.ReservationNotActive",
-            $"ReservationConfirmedEvent on stream {Id} targets reservation {rid} in status {reservation.Status}."));
+            $"ReservationConfirmedDomainEvent on stream {Id} targets reservation {rid} in status {reservation.Status}."));
 
         OnHand -= reservation.Quantity;
         Reserved -= reservation.Quantity;
         _reservations[rid] = reservation with { Status = ReservationStatus.Confirmed };
     }
 
-    private void ApplyReleased(ReservationReleasedEvent e)
+    private void ApplyReleased(ReservationReleasedDomainEvent e)
     {
-        EnsureAppliedToInitialized(nameof(ReservationReleasedEvent));
+        EnsureAppliedToInitialized(nameof(ReservationReleasedDomainEvent));
 
-        var rid = ReservationIdOrThrow(e.ReservationId, nameof(ReservationReleasedEvent));
+        var rid = ReservationIdOrThrow(e.ReservationId, nameof(ReservationReleasedDomainEvent));
 
         if (!_reservations.TryGetValue(rid, out var reservation))
         {
             throw new DataIntegrityException(
                 "Inventory.ReservationUnknown",
-                $"ReservationReleasedEvent on stream {Id} references unknown ReservationId {rid}.");
+                $"ReservationReleasedDomainEvent on stream {Id} references unknown ReservationId {rid}.");
         }
 
         Throw.If(reservation.Status != ReservationStatus.Active, new DataIntegrityException(
             "Inventory.ReservationNotActive",
-            $"ReservationReleasedEvent on stream {Id} targets reservation {rid} in status {reservation.Status}."));
+            $"ReservationReleasedDomainEvent on stream {Id} targets reservation {rid} in status {reservation.Status}."));
 
         Reserved -= reservation.Quantity;
         _reservations[rid] = reservation with { Status = ReservationStatus.Released };
     }
 
-    private void ApplyAdjusted(StockAdjustedEvent e)
+    private void ApplyAdjusted(StockAdjustedDomainEvent e)
     {
-        EnsureAppliedToInitialized(nameof(StockAdjustedEvent));
+        EnsureAppliedToInitialized(nameof(StockAdjustedDomainEvent));
 
         var projectedOnHand = OnHand + e.Delta;
 
         Throw.If(projectedOnHand < 0, new DataIntegrityException(
             "Inventory.AdjustmentBelowZero",
-            $"StockAdjustedEvent on stream {Id} would drive OnHand below zero: {OnHand} + {e.Delta}."));
+            $"StockAdjustedDomainEvent on stream {Id} would drive OnHand below zero: {OnHand} + {e.Delta}."));
 
         Throw.If(projectedOnHand - Reserved < 0, new DataIntegrityException(
             "Inventory.AdjustmentBelowReservations",
-            $"StockAdjustedEvent on stream {Id} would drive Available below zero."));
+            $"StockAdjustedDomainEvent on stream {Id} would drive Available below zero."));
 
         OnHand = projectedOnHand;
     }
@@ -470,7 +470,7 @@ public sealed class StockItem : AggregateRoot<Guid>
     {
         Throw.If(Version == 0, new DataIntegrityException(
             "Inventory.StreamNotInitialized",
-            $"{eventTypeName} applied to stream {Id} before StockItemInitializedEvent."));
+            $"{eventTypeName} applied to stream {Id} before StockItemInitializedDomainEvent."));
     }
 
     private ReservationId ReservationIdOrThrow(Guid value, string eventTypeName)

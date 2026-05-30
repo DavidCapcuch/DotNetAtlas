@@ -84,7 +84,7 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                 {
                     table.PrimaryKey("pk_reservation_audit", x => x.reservation_id);
                 },
-                comment: "Per-reservation lifecycle projection. Inserted on StockReservedEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.");
+                comment: "Per-reservation lifecycle projection. Inserted on StockReservedDomainEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.");
 
             migrationBuilder.CreateIndex(
                 name: "ix_current_stock_levels_available_low",

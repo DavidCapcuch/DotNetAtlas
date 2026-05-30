@@ -40,7 +40,7 @@ public class StockItemFoldTests
         var productId = Guid.CreateVersion7();
         var events = new DomainEvent[]
         {
-            new StockItemInitializedEvent { ProductId = productId, OccurredOnUtc = T0 },
+            new StockItemInitializedDomainEvent { ProductId = productId, OccurredOnUtc = T0 },
         };
 
         // Act
@@ -68,8 +68,8 @@ public class StockItemFoldTests
 
         var events = new DomainEvent[]
         {
-            new StockItemInitializedEvent { ProductId = productId, OccurredOnUtc = T0 },
-            new StockReceivedEvent
+            new StockItemInitializedDomainEvent { ProductId = productId, OccurredOnUtc = T0 },
+            new StockReceivedDomainEvent
             {
                 ProductId = productId,
                 Quantity = 10,
@@ -77,7 +77,7 @@ public class StockItemFoldTests
                 ReceivedByUserId = null,
                 OccurredOnUtc = T0.AddMinutes(1),
             },
-            new StockReservedEvent
+            new StockReservedDomainEvent
             {
                 ProductId = productId,
                 ReservationId = reservationId,
@@ -86,14 +86,14 @@ public class StockItemFoldTests
                 ExpiresAtUtc = expires,
                 OccurredOnUtc = T0.AddMinutes(2),
             },
-            new ReservationConfirmedEvent
+            new ReservationConfirmedDomainEvent
             {
                 ProductId = productId,
                 ReservationId = reservationId,
                 ConfirmedAtUtc = T0.AddMinutes(3),
                 OccurredOnUtc = T0.AddMinutes(3),
             },
-            new StockAdjustedEvent
+            new StockAdjustedDomainEvent
             {
                 ProductId = productId,
                 Delta = +5,
@@ -187,8 +187,8 @@ public class StockItemFoldTests
         var rid2 = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
 
-        yield return new StockItemInitializedEvent { ProductId = productId, OccurredOnUtc = T0 };
-        yield return new StockReceivedEvent
+        yield return new StockItemInitializedDomainEvent { ProductId = productId, OccurredOnUtc = T0 };
+        yield return new StockReceivedDomainEvent
         {
             ProductId = productId,
             Quantity = 15,
@@ -196,7 +196,7 @@ public class StockItemFoldTests
             ReceivedByUserId = null,
             OccurredOnUtc = T0.AddSeconds(10),
         };
-        yield return new StockReservedEvent
+        yield return new StockReservedDomainEvent
         {
             ProductId = productId,
             ReservationId = rid1,
@@ -205,7 +205,7 @@ public class StockItemFoldTests
             ExpiresAtUtc = T0.AddMinutes(15),
             OccurredOnUtc = T0.AddSeconds(20),
         };
-        yield return new StockReservedEvent
+        yield return new StockReservedDomainEvent
         {
             ProductId = productId,
             ReservationId = rid2,
@@ -214,14 +214,14 @@ public class StockItemFoldTests
             ExpiresAtUtc = T0.AddMinutes(15),
             OccurredOnUtc = T0.AddSeconds(30),
         };
-        yield return new ReservationConfirmedEvent
+        yield return new ReservationConfirmedDomainEvent
         {
             ProductId = productId,
             ReservationId = rid1,
             ConfirmedAtUtc = T0.AddSeconds(40),
             OccurredOnUtc = T0.AddSeconds(40),
         };
-        yield return new ReservationReleasedEvent
+        yield return new ReservationReleasedDomainEvent
         {
             ProductId = productId,
             ReservationId = rid2,

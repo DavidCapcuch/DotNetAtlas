@@ -76,7 +76,7 @@ BEGIN
         release_reason character varying(16),
         CONSTRAINT pk_reservation_audit PRIMARY KEY (reservation_id)
     );
-    COMMENT ON TABLE inventory.reservation_audit IS 'Per-reservation lifecycle projection. Inserted on StockReservedEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.';
+    COMMENT ON TABLE inventory.reservation_audit IS 'Per-reservation lifecycle projection. Inserted on StockReservedDomainEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.';
     COMMENT ON COLUMN inventory.reservation_audit.reservation_id IS 'Saga-supplied reservation id (GUIDv7).';
     COMMENT ON COLUMN inventory.reservation_audit.product_id IS 'Stream id joining back to inventory.current_stock_levels.ProductId.';
     COMMENT ON COLUMN inventory.reservation_audit.order_id IS 'Owning order. Fan-in key for saga correlation.';

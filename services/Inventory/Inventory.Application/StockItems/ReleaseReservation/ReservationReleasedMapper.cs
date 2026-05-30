@@ -1,13 +1,13 @@
 using Inventory.Application.Common.ReadModels;
+using Inventory.Domain.StockItems.Events;
 using Inventory.Reservations;
 using Platform.SharedKernel.Exceptions;
 using DomainReleaseReason = Inventory.Domain.StockItems.ValueObjects.ReleaseReason;
-using InternalReservationReleasedEvent = Inventory.Domain.StockItems.Events.ReservationReleasedEvent;
 
 namespace Inventory.Application.StockItems.ReleaseReservation;
 
 /// <summary>
-/// Maps internal <see cref="InternalReservationReleasedEvent"/> + the
+/// Maps internal <see cref="ReservationReleasedDomainEvent"/> + the
 /// <see cref="ReservationAuditRow"/> → external Avro
 /// <see cref="Inventory.Reservations.ReservationReleasedEvent"/>. The internal
 /// event carries the domain <c>ReleaseReason</c> enum; this mapper converts
@@ -16,7 +16,7 @@ namespace Inventory.Application.StockItems.ReleaseReservation;
 internal static class ReservationReleasedMapper
 {
     public static Inventory.Reservations.ReservationReleasedEvent ToReservationReleasedEvent(
-        this InternalReservationReleasedEvent source,
+        this ReservationReleasedDomainEvent source,
         ReservationAuditRow audit) =>
         new()
         {

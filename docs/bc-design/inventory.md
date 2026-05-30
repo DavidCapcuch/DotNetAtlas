@@ -70,19 +70,19 @@ The "when NOT to use ES" side of this decision is called out in § 9 (Pattern Sh
 4. Cannot confirm a reservation that is not `Active`.
 5. Cannot release a reservation that is not `Active`.
 6. Cannot confirm or release a `ReservationId` unknown to the stream.
-7. A `StockItem` can only be initialized once (second `StockItemInitializedEvent` in a stream is a bug).
+7. A `StockItem` can only be initialized once (second `StockItemInitializedDomainEvent` in a stream is a bug).
 8. Events are append-only; historical events are never modified or deleted.
 
 **Public API (command surface):**
 
 | Method | Preconditions | Emitted Event | Next State |
 |--------|---------------|---------------|------------|
-| `Initialize(ProductId)` | `Version == 0` | `StockItemInitializedEvent` | `OnHand=0, Reserved=0, Version=1`. |
-| `ReceiveStock(qty, source, userId?)` | `Version >= 1`, `qty > 0` | `StockReceivedEvent` | `OnHand += qty`. |
-| `Reserve(reservationId, qty, orderId, ttl)` | `Version >= 1`, `qty > 0`, `Available >= qty`, `!Reservations.ContainsKey(reservationId)` | `StockReservedEvent` | `Reserved += qty`; reservation added as `Active`. Returns `Result.Fail(InsufficientStockError)` on precondition miss (no event, no state change). |
-| `ConfirmReservation(reservationId)` | reservation is `Active` | `ReservationConfirmedEvent` | `Reserved -= qty`, `OnHand -= qty`; reservation -> `Confirmed`. |
-| `ReleaseReservation(reservationId, reason)` | reservation is `Active` | `ReservationReleasedEvent` | `Reserved -= qty`; reservation -> `Released`. |
-| `AdjustStock(delta, reason, userId?)` | `OnHand + delta >= 0` AND `(OnHand + delta) - Reserved >= 0` | `StockAdjustedEvent` | `OnHand += delta` (delta is signed). |
+| `Initialize(ProductId)` | `Version == 0` | `StockItemInitializedDomainEvent` | `OnHand=0, Reserved=0, Version=1`. |
+| `ReceiveStock(qty, source, userId?)` | `Version >= 1`, `qty > 0` | `StockReceivedDomainEvent` | `OnHand += qty`. |
+| `Reserve(reservationId, qty, orderId, ttl)` | `Version >= 1`, `qty > 0`, `Available >= qty`, `!Reservations.ContainsKey(reservationId)` | `StockReservedDomainEvent` | `Reserved += qty`; reservation added as `Active`. Returns `Result.Fail(InsufficientStockError)` on precondition miss (no event, no state change). |
+| `ConfirmReservation(reservationId)` | reservation is `Active` | `ReservationConfirmedDomainEvent` | `Reserved -= qty`, `OnHand -= qty`; reservation -> `Confirmed`. |
+| `ReleaseReservation(reservationId, reason)` | reservation is `Active` | `ReservationReleasedDomainEvent` | `Reserved -= qty`; reservation -> `Released`. |
+| `AdjustStock(delta, reason, userId?)` | `OnHand + delta >= 0` AND `(OnHand + delta) - Reserved >= 0` | `StockAdjustedDomainEvent` | `OnHand += delta` (delta is signed). |
 
 The aggregate does NOT expose setters. External callers go through commands handled in `Inventory.Application`.
 
@@ -103,7 +103,7 @@ The aggregate does NOT expose setters. External callers go through commands hand
 | `ReservationId` | `record ReservationId(Guid Value)` | Strong-typed wrapper with equality and `ToString` — distinguishes from `OrderId` at call sites. Created by the saga; supplied on `ReserveStockCommand`. |
 | `ReservationInfo` | `record ReservationInfo(ReservationId ReservationId, Guid ProductId, int Quantity, Guid OrderId, DateTimeOffset ReservedAtUtc, DateTimeOffset ExpiresAtUtc, ReservationStatus Status)` | In-memory on the rehydrated aggregate. Immutable; produced during event folding. |
 | `ReservationStatus` | `enum { Active, Confirmed, Released }` | Drives state transitions on `ConfirmReservation` / `ReleaseReservation`. |
-| `ReleaseReason` | `enum { Compensation, Expiry, Cancellation }` | Carried on `ReservationReleasedEvent` and `ReleaseReservationCommand`. Critical for ops/auditing — a release is never "just a release." |
+| `ReleaseReason` | `enum { Compensation, Expiry, Cancellation }` | Carried on `ReservationReleasedDomainEvent` and `ReleaseReservationCommand`. Critical for ops/auditing — a release is never "just a release." |
 | `StockSource` | `string` wrapper (e.g., `"receiving-dock"`, `"returns"`, `"transfer-in"`) | Light enum-like token; free-form for the v1 reference. |
 | `StockItemSnapshot` | `record StockItemSnapshot(Guid ProductId, int OnHand, int Reserved, int Available, int Version)` | Read-only projection DTO for queries that don't need the full reservation list. Also the shape returned by `GetStockLevelQuery`. |
 
@@ -113,11 +113,9 @@ The aggregate does NOT expose setters. External callers go through commands hand
 
 These records are **both** the aggregate's persistence format AND its in-process domain events. They are stored as rows in `inventory.stock_events` (the write model — these ARE the aggregate state) AND dispatched through `IDomainEventHandler<T>` to update projections and to trigger external-event publication.
 
-**Naming convention (this BC only):** ES events use the suffix `Event` — not `DomainEvent` — because they are also the persistence model. They inherit from `DomainEvent` base class (so the existing dispatch pipeline picks them up). See § "Conventions" in the design brief.
+All fields carry `OccurredOnUtc` via the base class. Suffix is `*DomainEvent`, matching the cross-BC convention. The CLR simple name is the discriminator persisted in `inventory.stock_events.event_type` and round-tripped by `StockEventSerializer.EventTypeRegistry`.
 
-All fields carry `OccurredOnUtc` via the base class.
-
-### 5.1 `StockItemInitializedEvent`
+### 5.1 `StockItemInitializedDomainEvent`
 
 **Purpose:** Bootstraps a new stream when a product is first referenced.
 
@@ -128,12 +126,12 @@ All fields carry `OccurredOnUtc` via the base class.
 
 **Reducer** (state before → event → state after):
 ```
-{ Version=0 } --StockItemInitializedEvent--> { OnHand=0, Reserved=0, Reservations={}, Version=1 }
+{ Version=0 } --StockItemInitializedDomainEvent--> { OnHand=0, Reserved=0, Reservations={}, Version=1 }
 ```
 
 **Triggered by:** `InitializeStockItemCommand` (fired from inbox consumer on Catalog's `ProductCreatedEvent`).
 
-### 5.2 `StockReceivedEvent`
+### 5.2 `StockReceivedDomainEvent`
 
 **Purpose:** Records an inbound stock movement (supplier delivery, return).
 
@@ -147,10 +145,12 @@ All fields carry `OccurredOnUtc` via the base class.
 
 **Reducer:**
 ```
-{ OnHand=O, Reserved=R, Version=V } --StockReceivedEvent(qty=Q)--> { OnHand=O+Q, Reserved=R, Version=V+1 }
+{ OnHand=O, Reserved=R, Version=V } --StockReceivedDomainEvent(qty=Q)--> { OnHand=O+Q, Reserved=R, Version=V+1 }
 ```
 
-### 5.3 `StockReservedEvent`
+**Triggered by:** `ReceiveStockCommand` (admin / ops API).
+
+### 5.3 `StockReservedDomainEvent`
 
 **Purpose:** Records a successful hold of N units against an order.
 
@@ -165,13 +165,15 @@ All fields carry `OccurredOnUtc` via the base class.
 
 **Reducer:**
 ```
-{ OnHand=O, Reserved=R, Reservations=... } --StockReservedEvent(rid, qty=Q, orderId=OID, exp=E)-->
+{ OnHand=O, Reserved=R, Reservations=... } --StockReservedDomainEvent(rid, qty=Q, orderId=OID, exp=E)-->
 { OnHand=O, Reserved=R+Q, Reservations=...∪{ rid → Active(Q, OID, E) } }
 ```
 
 **Precondition (command handler):** `O - R >= Q` AND `rid` is not already in `Reservations`.
 
-### 5.4 `ReservationConfirmedEvent`
+**Triggered by:** `ReserveStockCommand` (Checkout saga, one per order line item). On precondition miss the aggregate returns `Result.Fail(InsufficientStockError)` and no ES event is appended.
+
+### 5.4 `ReservationConfirmedDomainEvent`
 
 **Purpose:** Finalizes a reservation — stock physically leaves the warehouse.
 
@@ -183,13 +185,15 @@ All fields carry `OccurredOnUtc` via the base class.
 
 **Reducer** (let `Q` be the reservation's quantity):
 ```
-{ OnHand=O, Reserved=R, rid → Active(Q,...) } --ReservationConfirmedEvent(rid)-->
+{ OnHand=O, Reserved=R, rid → Active(Q,...) } --ReservationConfirmedDomainEvent(rid)-->
 { OnHand=O-Q, Reserved=R-Q, rid → Confirmed(Q,...) }
 ```
 
 **Precondition:** `Reservations[rid].Status == Active`.
 
-### 5.5 `ReservationReleasedEvent`
+**Triggered by:** `ConfirmReservationCommand` (Checkout saga, after payment success).
+
+### 5.5 `ReservationReleasedDomainEvent`
 
 **Purpose:** Drops a reservation without shipping — compensation, expiry, or cancellation.
 
@@ -202,13 +206,15 @@ All fields carry `OccurredOnUtc` via the base class.
 
 **Reducer:**
 ```
-{ OnHand=O, Reserved=R, rid → Active(Q,...) } --ReservationReleasedEvent(rid, reason)-->
+{ OnHand=O, Reserved=R, rid → Active(Q,...) } --ReservationReleasedDomainEvent(rid, reason)-->
 { OnHand=O, Reserved=R-Q, rid → Released(Q,...) }
 ```
 
 **Precondition:** `Reservations[rid].Status == Active`.
 
-### 5.6 `StockAdjustedEvent`
+**Triggered by:** `ReleaseReservationCommand` (Checkout saga compensation, `ReservationExpiryWorker` on TTL expiry, or admin cancel).
+
+### 5.6 `StockAdjustedDomainEvent`
 
 **Purpose:** Admin correction — damage write-off, recount, transfer-out. Signed delta.
 
@@ -222,10 +228,12 @@ All fields carry `OccurredOnUtc` via the base class.
 
 **Reducer:**
 ```
-{ OnHand=O, Reserved=R } --StockAdjustedEvent(delta=D)--> { OnHand=O+D, Reserved=R }
+{ OnHand=O, Reserved=R } --StockAdjustedDomainEvent(delta=D)--> { OnHand=O+D, Reserved=R }
 ```
 
 **Precondition:** `O + D >= 0` AND `(O + D) - R >= 0` — cannot adjust stock below reservations.
+
+**Triggered by:** `AdjustStockCommand` (admin / ops API).
 
 ---
 
@@ -297,7 +305,7 @@ Per § 3 of the master design, cross-service topics carry enriched summary event
 
 ### 6.2 `StockReservedEvent` (external) — Topic `inventory.reservations`
 
-Emitted 1:1 with internal `StockReservedEvent` (ES). This is the positive outcome of a `ReserveStockCommand` — the checkout saga consumes it to advance to the payment step.
+Emitted 1:1 with internal `StockReservedDomainEvent` (ES). This is the positive outcome of a `ReserveStockCommand` — the checkout saga consumes it to advance to the payment step.
 
 | Avro field | Type | Notes |
 |------------|------|-------|
@@ -407,7 +415,7 @@ Emitted when `ReserveStockCommand` returns a failure (insufficient stock). There
 
 ### 6.4 `ReservationConfirmedEvent` (external) — Topic `inventory.reservations`
 
-Emitted 1:1 with internal `ReservationConfirmedEvent` (ES).
+Emitted 1:1 with internal `ReservationConfirmedDomainEvent` (ES).
 
 | Avro field | Type | Notes |
 |------------|------|-------|
@@ -453,7 +461,7 @@ Emitted 1:1 with internal `ReservationConfirmedEvent` (ES).
 
 ### 6.5 `ReservationReleasedEvent` (external) — Topic `inventory.reservations`
 
-Emitted 1:1 with internal `ReservationReleasedEvent` (ES). Carries the reason so consumers distinguish genuine compensation from timeout expiry.
+Emitted 1:1 with internal `ReservationReleasedDomainEvent` (ES). Carries the reason so consumers distinguish genuine compensation from timeout expiry.
 
 | Avro field | Type | Notes |
 |------------|------|-------|
@@ -509,16 +517,18 @@ Emitted 1:1 with internal `ReservationReleasedEvent` (ES). Carries the reason so
 
 ---
 
-## 7. Commands (shapes detailed in Stage 2 — Use Case Catalog)
+## 7. Commands (shapes detailed in [use-cases.md](./use-cases.md))
 
-| Command | Trigger | Emits ES event | Emits external event |
-|---------|---------|----------------|----------------------|
-| `InitializeStockItemCommand` | Inbox consumer: Catalog's `ProductCreatedEvent` | `StockItemInitializedEvent` | (none by default) |
-| `ReceiveStockCommand` | Admin/ops API call | `StockReceivedEvent` | `StockLevelChanged` iff threshold crossed |
-| `ReserveStockCommand` | Checkout saga | `StockReservedEvent` (on success) | `StockReservedEvent` (success) OR `StockReservationFailedEvent` (insufficient stock) + `StockLevelChanged` if it crosses zero |
-| `ConfirmReservationCommand` | Checkout saga (after payment) | `ReservationConfirmedEvent` | `ReservationConfirmedEvent` (external) + `StockLevelChanged` if threshold crossed |
-| `ReleaseReservationCommand` | Checkout saga compensation OR `ReservationExpiryWorker` OR admin cancel | `ReservationReleasedEvent` | `ReservationReleasedEvent` (external) + `StockLevelChanged` if it goes back to positive |
-| `AdjustStockCommand` | Admin/ops API call | `StockAdjustedEvent` | `StockLevelChanged` if threshold crossed |
+Each command appends exactly one ES event — see § 5 (each subsection's **Triggered by:** line names its command) for the event details, fields, and reducer. This table summarises trigger source + the conditional external-event side-effects from § 6.
+
+| Command | Trigger | External event side-effects |
+|---------|---------|-----------------------------|
+| `InitializeStockItemCommand` | Inbox consumer: Catalog's `ProductCreatedEvent` | (none by default) |
+| `ReceiveStockCommand` | Admin/ops API call | `StockLevelChanged` iff threshold crossed |
+| `ReserveStockCommand` | Checkout saga | `StockReservedEvent` (success) OR `StockReservationFailedEvent` (insufficient stock) + `StockLevelChanged` if it crosses zero |
+| `ConfirmReservationCommand` | Checkout saga (after payment) | `ReservationConfirmedEvent` + `StockLevelChanged` if threshold crossed |
+| `ReleaseReservationCommand` | Checkout saga compensation OR `ReservationExpiryWorker` OR admin cancel | `ReservationReleasedEvent` + `StockLevelChanged` if it goes back to positive |
+| `AdjustStockCommand` | Admin/ops API call | `StockLevelChanged` if threshold crossed |
 
 `ReserveStockCommand` is the only command that can return `Result.Fail(InsufficientStockError)` — all others either succeed or throw a `DataIntegrityException` (bug: saga issuing a release for an unknown reservation, admin adjusting to negative, etc.).
 
@@ -534,7 +544,7 @@ Schema `inventory` in the shared PostgreSQL database (same DB as projections —
 |--------|------|-------------|-------|
 | `StreamId` | `uuid` | NOT NULL | = `ProductId`. One stream per StockItem. |
 | `Version` | `int` | NOT NULL | Monotonic per stream, 1-based. Enforced by UNIQUE `(StreamId, Version)`. |
-| `EventType` | `text` | NOT NULL | Discriminator — the Avro-style record name (e.g., `"StockReservedEvent"`). Used by the deserializer to pick the target record type. |
+| `EventType` | `text` | NOT NULL | Discriminator — the Avro-style record name (e.g., `"StockReservedDomainEvent"`). Used by the deserializer to pick the target record type. |
 | `Payload` | `jsonb` | NOT NULL | Serialized internal event (MemoryPack-encoded bytes round-tripped through base64 or native `bytea` — for v1 reference: serialize internal record to JSON in jsonb column for legibility during debugging). Contains everything: the event-specific fields AND `OccurredOnUtc`. |
 | `OccurredAtUtc` | `timestamptz` | NOT NULL | Copy of `event.OccurredOnUtc` — promoted to a column for efficient temporal queries (`WHERE OccurredAtUtc < @time`). |
 | `AppendedAtUtc` | `timestamptz` | NOT NULL DEFAULT `now()` | DB-side insert timestamp. Differs from `OccurredAtUtc` when an event is backdated (e.g., replayed during tests). |
@@ -592,12 +602,12 @@ Each projection is updated by an in-process `IDomainEventHandler<T>` that subscr
 | `LastVersion` | `int` NOT NULL | Stream version of the last applied event — lets the handler detect out-of-order or duplicate applies and skip them idempotently. |
 
 **Updated by:** Every ES event (upsert).
-- `StockItemInitializedEvent` → INSERT row with zeros.
-- `StockReceivedEvent` → `OnHand += qty`.
-- `StockReservedEvent` → `Reserved += qty`.
-- `ReservationConfirmedEvent` → `OnHand -= qty`, `Reserved -= qty`.
-- `ReservationReleasedEvent` → `Reserved -= qty`.
-- `StockAdjustedEvent` → `OnHand += delta`.
+- `StockItemInitializedDomainEvent` → INSERT row with zeros.
+- `StockReceivedDomainEvent` → `OnHand += qty`.
+- `StockReservedDomainEvent` → `Reserved += qty`.
+- `ReservationConfirmedDomainEvent` → `OnHand -= qty`, `Reserved -= qty`.
+- `ReservationReleasedDomainEvent` → `Reserved -= qty`.
+- `StockAdjustedDomainEvent` → `OnHand += delta`.
 Always set `LastUpdatedUtc = event.OccurredAtUtc`, `LastVersion = event.Version`.
 
 **Query:** `GetStockLevelQuery(ProductId) : StockLevelDto` — returns `StockItemSnapshot` value object.
@@ -623,9 +633,9 @@ Always set `LastUpdatedUtc = event.OccurredAtUtc`, `LastVersion = event.Version`
 | `ReleaseReason` | `text` NULL | Only populated when Status = Released. |
 
 **Updated by:**
-- `StockReservedEvent` → INSERT row with `Status='Active'`.
-- `ReservationConfirmedEvent` → UPDATE `Status='Confirmed', ResolvedAtUtc=event.OccurredAtUtc`.
-- `ReservationReleasedEvent` → UPDATE `Status='Released', ResolvedAtUtc=event.OccurredAtUtc, ReleaseReason=event.ReleaseReason`.
+- `StockReservedDomainEvent` → INSERT row with `Status='Active'`.
+- `ReservationConfirmedDomainEvent` → UPDATE `Status='Confirmed', ResolvedAtUtc=event.OccurredAtUtc`.
+- `ReservationReleasedDomainEvent` → UPDATE `Status='Released', ResolvedAtUtc=event.OccurredAtUtc, ReleaseReason=event.ReleaseReason`.
 
 **Queries:**
 - `GetReservationByIdQuery(ReservationId) : ReservationDto`.
@@ -678,7 +688,7 @@ If a single SKU receives heavy concurrent reservation traffic (flash sale, limit
 
 ## 11. Reservation TTL Policy
 
-Reservations are **time-bounded**. The default TTL is **15 minutes** from `ReservedAtUtc`. The TTL is enforced by a dedicated background worker, not by a DB trigger — because expiry MUST produce a real `ReservationReleasedEvent` so there are no silent state changes.
+Reservations are **time-bounded**. The default TTL is **15 minutes** from `ReservedAtUtc`. The TTL is enforced by a dedicated background worker, not by a DB trigger — because expiry MUST produce a real `ReservationReleasedDomainEvent` so there are no silent state changes.
 
 ### 11.1 `ReservationExpiryWorker` (hosted service in `Inventory.Infrastructure`)
 
@@ -688,7 +698,7 @@ Reservations are **time-bounded**. The default TTL is **15 minutes** from `Reser
 
 1. Query: `SELECT ReservationId, ProductId FROM inventory.reservation_audit WHERE Status = 'Active' AND ExpiresAtUtc < now() LIMIT 100`.
 2. For each row, issue `ReleaseReservationCommand(ReservationId, ProductId, ReleaseReason.Expiry)` through the normal command pipeline.
-3. The command flows through the aggregate, appends a `ReservationReleasedEvent` (ES) with reason `Expiry`, updates projections, and emits an external `ReservationReleasedEvent` on `inventory.reservations`.
+3. The command flows through the aggregate, appends a `ReservationReleasedDomainEvent` (ES) with reason `Expiry`, updates projections, and emits an external `ReservationReleasedEvent` on `inventory.reservations`.
 
 ### 11.2 Guarantees
 
@@ -698,7 +708,7 @@ Reservations are **time-bounded**. The default TTL is **15 minutes** from `Reser
 
 ### 11.3 TTL configurability
 
-The 15-minute default lives in `InventoryOptions.ReservationTtl` in `appsettings.*.json`. It is the TTL applied at reservation time (not looked up by the worker) — once written into `StockReservedEvent.ExpiresAtUtc`, the reservation's expiry is a fact carried by the event itself, not a moving target.
+The 15-minute default lives in `InventoryOptions.ReservationTtl` in `appsettings.*.json`. It is the TTL applied at reservation time (not looked up by the worker) — once written into `StockReservedDomainEvent.ExpiresAtUtc`, the reservation's expiry is a fact carried by the event itself, not a moving target.
 
 ---
 
@@ -773,7 +783,7 @@ This is the ONLY ES bounded context in the eShop reference. It exists both to de
     │  2. Fold events into a fresh StockItem instance.            │
     │  3. Call aggregate.Reserve(rid, qty, orderId, ttl);         │
     │       → aggregate validates invariants.                     │
-    │       → aggregate produces new StockReservedEvent.          │
+    │       → aggregate produces new StockReservedDomainEvent.          │
     │  4. BEGIN TRANSACTION                                       │
     │     4a. INSERT into inventory.stock_events (V+1, payload)   │
     │         — if UNIQUE(StreamId,Version) fires → retry once.   │
@@ -862,7 +872,7 @@ Scenario: Successful reservation reduces Available
   Given  StockItem(P) has stream: [Initialized, Received(100)]
     And  current state: OnHand=100, Reserved=0, Available=100, Version=2
   When   ReserveStockCommand(P, rid=R1, qty=10, orderId=O1) is handled
-  Then   StockReservedEvent(P, R1, 10, O1, exp=now+15m) is appended at Version=3
+  Then   StockReservedDomainEvent(P, R1, 10, O1, exp=now+15m) is appended at Version=3
     And  current_stock_levels row for P shows OnHand=100, Reserved=10, Available=90
     And  reservation_audit has row (R1, Active, expires=now+15m)
     And  external StockReservedEvent is enqueued on inventory.reservations
@@ -879,7 +889,7 @@ Scenario: Confirmation commits physical stock
   Given  StockItem(P) has stream: [Initialized, Received(50), Reserved(R1, 10, O1)]
     And  reservation R1 is Active
   When   ConfirmReservationCommand(P, R1) is handled
-  Then   ReservationConfirmedEvent is appended
+  Then   ReservationConfirmedDomainEvent is appended
     And  current_stock_levels shows OnHand=40, Reserved=0, Available=40
     And  reservation_audit shows R1 status=Confirmed
 
@@ -887,7 +897,7 @@ Scenario: TTL expiry releases reservation
   Given  reservation R1 on StockItem(P) is Active with ExpiresAtUtc in the past
     And  ReservationExpiryWorker runs its tick
   When   the worker issues ReleaseReservationCommand(P, R1, reason=Expiry)
-  Then   ReservationReleasedEvent(reason=Expiry) is appended
+  Then   ReservationReleasedDomainEvent(reason=Expiry) is appended
     And  external ReservationReleasedEvent with ReleaseReason=Expiry is published
     And  reservation_audit shows R1 status=Released, ReleaseReason=Expiry
 

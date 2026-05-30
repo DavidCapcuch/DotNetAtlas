@@ -55,7 +55,7 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("event_type")
-                        .HasComment("CLR-type name discriminator (e.g. \"StockReservedEvent\") used by the deserializer.");
+                        .HasComment("CLR-type name discriminator (e.g. \"StockReservedDomainEvent\") used by the deserializer.");
 
                     b.Property<DateTimeOffset>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone")

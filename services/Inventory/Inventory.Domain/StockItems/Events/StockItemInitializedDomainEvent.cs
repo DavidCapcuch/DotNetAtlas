@@ -8,12 +8,11 @@ namespace Inventory.Domain.StockItems.Events;
 /// Catalog's <c>ProductCreatedEvent</c>.
 /// </summary>
 /// <remarks>
-/// Event-sourced persistence model AND in-process domain event. Suffix is
-/// intentionally <c>Event</c> (not <c>DomainEvent</c>) because this record is stored
-/// directly in <c>inventory.stock_events</c>. See
-/// <c>docs/bc-design/inventory.md</c> § 5 for reducer semantics.
+/// Event-sourced persistence model AND in-process domain event. Stored directly in
+/// <c>inventory.stock_events</c>; the CLR simple name is the discriminator round-tripped
+/// by <see cref="Inventory.Infrastructure.Persistence.EventStore.StockEventSerializer"/>.
 /// </remarks>
-public sealed record StockItemInitializedEvent : DomainEvent
+public sealed record StockItemInitializedDomainEvent : DomainEvent
 {
     public required Guid ProductId { get; init; }
 }

@@ -13,7 +13,7 @@ namespace Inventory.Application.StockItems.ReserveStock;
 
 /// <summary>
 /// Handles the saga's reservation intent. The success path is standard:
-/// delegate to the event store, let the <c>StockReservedEvent</c> dispatch
+/// delegate to the event store, let the <c>StockReservedDomainEvent</c> dispatch
 /// trigger the projection + outbox publisher handlers.
 /// </summary>
 /// <remarks>

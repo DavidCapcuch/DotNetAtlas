@@ -140,7 +140,7 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
 
                     b.ToTable("reservation_audit", "inventory", t =>
                         {
-                            t.HasComment("Per-reservation lifecycle projection. Inserted on StockReservedEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.");
+                            t.HasComment("Per-reservation lifecycle projection. Inserted on StockReservedDomainEvent, terminal fields (Status, ResolvedAtUtc, ReleaseReason) mutated on Confirmed / Released. Ops + expiry-worker query surface.");
                         });
                 });
 
@@ -173,7 +173,7 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("event_type")
-                        .HasComment("CLR-type name discriminator (e.g. \"StockReservedEvent\") used by the deserializer.");
+                        .HasComment("CLR-type name discriminator (e.g. \"StockReservedDomainEvent\") used by the deserializer.");
 
                     b.Property<DateTimeOffset>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone")

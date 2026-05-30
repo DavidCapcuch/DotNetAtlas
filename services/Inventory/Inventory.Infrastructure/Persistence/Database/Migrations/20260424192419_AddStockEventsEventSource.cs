@@ -21,7 +21,7 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                 {
                     stream_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Stream identity = ProductId. One stream per StockItem."),
                     version = table.Column<int>(type: "integer", nullable: false, comment: "Monotonic 1-based version per stream. Enforced by PK."),
-                    event_type = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false, comment: "CLR-type name discriminator (e.g. \"StockReservedEvent\") used by the deserializer."),
+                    event_type = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false, comment: "CLR-type name discriminator (e.g. \"StockReservedDomainEvent\") used by the deserializer."),
                     payload = table.Column<string>(type: "jsonb", nullable: false, comment: "JSON-serialized internal event; stored as jsonb for legibility and indexability."),
                     occurred_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, comment: "UTC timestamp the domain event was produced; copied from event.OccurredOnUtc for temporal queries."),
                     appended_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()", comment: "DB-side insert timestamp; distinguishes domain time from persisted time during replay/tests."),
