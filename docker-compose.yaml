@@ -300,7 +300,7 @@ services:
       - full
     command: >
       bash -c "
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
+        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic payments.transactions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic healthchecks --partitions 1 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
         /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.categories --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
