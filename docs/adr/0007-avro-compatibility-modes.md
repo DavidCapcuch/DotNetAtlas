@@ -75,7 +75,7 @@ This ADR specifies the per-topic-category compatibility policy and the breaking-
 
 **Record Name Strategy over Topic Name Strategy** is the right choice for two reasons:
 1. It already matches the codebase — `UniversalAvroSerializer` derives subjects from `ISpecificRecord.Schema.Fullname`.
-2. It allows a single record type to travel across multiple topics with one subject (rare but useful — e.g., `SendEmailNotificationCommand` flows from multiple producers into `notification.commands`).
+2. It allows a single record type to travel across multiple topics with one subject (rare but useful — e.g., `SendEmailNotificationCommand` flows from multiple producers into `notifications.email-commands`).
 
 **The decision is enforced at two gates**: Schema Registry rejects incompatible registration at first publish; CI runs a pre-merge `schema-registry-compatibility-check` step that validates every `.avsc` change in a PR against the registry.
 

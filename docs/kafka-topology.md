@@ -30,7 +30,6 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 | `inventory.reservation-commands` | 3 | 604800000 | command | Saga → Inventory commands (`ReserveStock`, `ConfirmReservation`, `ReleaseReservation`). |
 | `payments.payment-commands` | 3 | 604800000 | command | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
 | `notifications.email-commands` | 3 | 604800000 | command | Outbound email intent. |
-| `notification.commands` | 3 | default (7d) | command | Legacy name kept for compat; superseded by `notifications.email-commands`. |
 | `weather.forecast.requests` | 3 | default (7d) | command | Weather sample BC (kept for reference). |
 | `weather.feedbacks` | 3 | default (7d) | command | Weather sample BC. |
 | `weather.alerts` | 3 | default (7d) | command | Weather sample BC. |

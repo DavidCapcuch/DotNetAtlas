@@ -65,7 +65,7 @@ For the eShop solution, we make compatibility decisions per **topic category** (
 - `ordering.order-commands`
 - `inventory.reservation-commands`
 - `payments.payment-commands` (existing — confirm setting during migration)
-- `notification.commands` (existing — confirm setting during migration)
+- `notifications.email-commands` (existing — confirm setting during migration)
 
 **Rationale:** The saga (producer of commands) and the service (consumer of commands) evolve **independently in both directions**. A deployment may ship a new Ordering consumer before the saga redeploys with a new command schema; another deployment may ship a new saga producer before Ordering redeploys. `FULL` requires both directions compatible, so any valid deployment order works. **TRANSITIVE** is again required because command topics retain for 7 days — old saga state (MassTransit persisted state) can re-emit a retry command built against the schema version in effect when the saga instance started, and Ordering (already several versions ahead) must still decode it.
 
@@ -95,7 +95,7 @@ Command schema changes are the most constrained and should be rare; prefer intro
 | `inventory.reservation-commands` | `FULL_TRANSITIVE` | command-topic process |
 | `payments.transactions` (existing) | `FORWARD_TRANSITIVE` (to confirm) | migrate during next change; document current setting first |
 | `payments.payment-commands` (existing) | `FULL_TRANSITIVE` (to confirm) | as above |
-| `notification.commands` (existing) | `FULL_TRANSITIVE` (to confirm) | as above |
+| `notifications.email-commands` (existing) | `FULL_TRANSITIVE` (to confirm) | as above |
 
 ---
 

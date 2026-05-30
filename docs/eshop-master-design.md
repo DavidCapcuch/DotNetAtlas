@@ -345,7 +345,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 | `payments.payment-commands` | 3 | 7 days | Saga → Payments commands (canonical name per [kafka-topology.md](kafka-topology.md)) |
 | `invoicing.invoices` | 3 | 10 years (EU VAT) | Invoice + credit note lifecycle — retention reflects legal requirement |
 
-**Reuses existing:** `notification.commands`.
+**Reuses existing:** `notifications.email-commands`.
 
 ### 6.2 Master Event Table (high-level; full table in events-catalog.md § 2)
 
