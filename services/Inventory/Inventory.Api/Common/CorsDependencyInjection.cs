@@ -1,4 +1,5 @@
 using Inventory.Api.Common.Config;
+using Microsoft.Extensions.Options;
 
 namespace Inventory.Api.Common;
 
@@ -8,23 +9,15 @@ internal static class CorsDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Invariants (wildcard/localhost + credentials) are enforced at startup by
+        // InventoryCorsOptionsValidator via ValidateOnStart — see InventoryCorsOptions.cs.
         services.AddOptionsWithValidateOnStart<InventoryCorsOptions>()
             .BindConfiguration(InventoryCorsOptions.Section)
             .ValidateDataAnnotations();
+        services.AddSingleton<IValidateOptions<InventoryCorsOptions>, InventoryCorsOptionsValidator>();
 
         var corsOptions =
             configuration.GetRequiredSection(InventoryCorsOptions.Section).Get<InventoryCorsOptions>()!;
-
-        // Fail fast if a future ops change crosses the wildcard-with-credentials wire.
-        // ASP.NET will throw "The CORS protocol does not allow specifying a wildcard
-        // (any) origin and credentials at the same time" on the first preflight; we
-        // surface it at startup instead.
-        if (corsOptions.AllowedOrigins.Contains("*") && corsOptions.AllowCredentials)
-        {
-            throw new InvalidOperationException(
-                $"CORS configuration error in section '{InventoryCorsOptions.Section}': " +
-                "AllowedOrigins=\"*\" cannot be combined with AllowCredentials=true.");
-        }
 
         services.AddCors(options =>
         {

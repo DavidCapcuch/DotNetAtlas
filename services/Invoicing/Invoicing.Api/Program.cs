@@ -25,7 +25,7 @@ try
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
     builder.Services
-        .AddPresentation(builder.Configuration)
+        .AddApi(builder.Configuration)
         .AddInvoicingAuthentication(builder.Configuration, builder.Environment)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);

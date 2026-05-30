@@ -57,31 +57,14 @@ internal static class AuthenticationDependencyInjection
                 });
         }
 
+        // Admin-tooling endpoints: admin role AND payments.read scope (defense in depth).
+        // RequireAnyScope adds RequireAuthenticatedUser + the space-separated scope-claim
+        // assertion (Platform.ServiceDefaults.Auth, ADR-0010).
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.PaymentsAdmin, policy =>
             {
-                policy.RequireAuthenticatedUser();
                 policy.RequireRole(Roles.Admin);
-
-                // OAuth2 emits scopes either as a single space-separated `scope`
-                // claim (Keycloak default) or as multiple `scope` claims (RFC 8693
-                // styled servers). Match either shape.
-                policy.RequireAssertion(ctx =>
-                {
-                    foreach (var claim in ctx.User.FindAll("scope"))
-                    {
-                        var scopes = claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        foreach (var scope in scopes)
-                        {
-                            if (string.Equals(scope, Scopes.PaymentsRead, StringComparison.Ordinal))
-                            {
-                                return true;
-                            }
-                        }
-                    }
-
-                    return false;
-                });
+                policy.RequireAnyScope(Scopes.PaymentsRead);
             });
 
         services.AddHttpContextAccessor();
