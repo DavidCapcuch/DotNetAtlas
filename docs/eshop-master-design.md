@@ -292,7 +292,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 ### 5.4 Inventory → [bc-design/inventory.md](bc-design/inventory.md)
 
 **Aggregate:** `StockItem` (keyed by ProductId; state is the fold over the event stream).
-**ES events (6, persisted as write model):** `StockItemInitializedEvent`, `StockReceivedEvent`, `StockReservedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent`, `StockAdjustedEvent`.
+**ES events (6, persisted as write model):** `StockItemInitializedDomainEvent`, `StockReceivedDomainEvent`, `StockReservedDomainEvent`, `ReservationConfirmedDomainEvent`, `ReservationReleasedDomainEvent`, `StockAdjustedDomainEvent`.
 **Value objects:** `Quantity`, `ReservationId`, `ReservationInfo`, `StockItemSnapshot`.
 **Event store schema:** `inventory.stock_events (StreamId, Version, EventType, Payload, OccurredAtUtc, AppendedAtUtc, CorrelationId)` with PK `(StreamId, Version)`.
 **Read projections:** `inventory.current_stock_levels` and `inventory.reservation_audit` built by in-process `IDomainEventHandler` upserts in the same transaction as event append.

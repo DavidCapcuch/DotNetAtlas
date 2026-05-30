@@ -1170,8 +1170,8 @@ public sealed class CreateOrderKafkaHandler
   2. Rehydrate stream: `SELECT ... FROM inventory.stock_events WHERE StreamId = @productId ORDER BY Version ASC`.
   3. If `stockItem.Version > 0` — already initialized. Return `Result.Ok()` (not an error; Catalog retry / re-send).
   4. Call `stockItem.Initialize(productId)`.
-  5. **Transaction:** INSERT `StockItemInitializedEvent` at `Version=1`; UPSERT `inventory.current_stock_levels`; INSERT command inbox row. COMMIT.
-- **Emits internal event(s):** `StockItemInitializedEvent` (ES event, appended to stream, projected by `CurrentStockLevelsProjectionDomainEventHandler`). No external event by default (per `inventory.md` § 7).
+  5. **Transaction:** INSERT `StockItemInitializedDomainEvent` at `Version=1`; UPSERT `inventory.current_stock_levels`; INSERT command inbox row. COMMIT.
+- **Emits internal event(s):** `StockItemInitializedDomainEvent` (ES event, appended to stream, projected by `CurrentStockLevelsProjectionDomainEventHandler`). No external event by default (per `inventory.md` § 7).
 
 #### 4.1.2 `ReserveStockCommand`
 
@@ -1203,9 +1203,9 @@ public sealed class CreateOrderKafkaHandler
   4. If `ReservationId` already in `stockItem.Reservations` → return `Result.Ok()` (idempotent — already reserved).
   5. Call `stockItem.Reserve(reservationId, quantity, orderId, ttl)`.
      - If `Available < quantity` → `Result.Fail(InsufficientStockError(productId, requested, available))`. No ES event appended. **Failure path:** application layer builds `StockReservationFailedEvent` (external Avro) and writes it to outbox; transaction commits (inbox + outbox). Saga observes the external failure.
-  6. Success path: append `StockReservedEvent` at `Version+1`; UPSERT projections; build `StockReservedEvent` (external) + optional `StockLevelChanged` (if `Available` crosses to 0) and write both to outbox.
+  6. Success path: append `StockReservedDomainEvent` at `Version+1`; UPSERT projections; build `StockReservedEvent` (external) + optional `StockLevelChanged` (if `Available` crosses to 0) and write both to outbox.
   7. Concurrency: if INSERT fails with UNIQUE (StreamId, Version) violation → rehydrate + retry once; on second failure return `Result.Fail(ConcurrencyError)` (saga treats as transient).
-- **Emits internal event(s):** `StockReservedEvent` (ES; success) OR none (failure). External events are wired by the handler itself, not a separate outbox publisher — because the failure path has no ES event to react to.
+- **Emits internal event(s):** `StockReservedDomainEvent` (ES; success) OR none (failure). External events are wired by the handler itself, not a separate outbox publisher — because the failure path has no ES event to react to.
 
 #### 4.1.3 `ConfirmReservationCommand`
 
@@ -1228,8 +1228,8 @@ public sealed class CreateOrderKafkaHandler
   1. Idempotency via command inbox.
   2. Rehydrate stream.
   3. Call `stockItem.ConfirmReservation(reservationId)` — throws if not `Active` (bug: saga double-confirmed).
-  4. Append `ReservationConfirmedEvent` at `Version+1`; UPSERT projections (`OnHand -= qty`, `Reserved -= qty`; `reservation_audit.Status = 'Confirmed'`); outbox write for external `ReservationConfirmedEvent` + optional `StockLevelChanged`.
-- **Emits internal event(s):** `ReservationConfirmedEvent` (ES). Fan-out:
+  4. Append `ReservationConfirmedDomainEvent` at `Version+1`; UPSERT projections (`OnHand -= qty`, `Reserved -= qty`; `reservation_audit.Status = 'Confirmed'`); outbox write for external `ReservationConfirmedEvent` + optional `StockLevelChanged`.
+- **Emits internal event(s):** `ReservationConfirmedDomainEvent` (ES). Fan-out:
   - `CurrentStockLevelsProjectionDomainEventHandler` — UPDATE `OnHand`, `Reserved`, `LastUpdatedUtc`, `LastVersion`.
   - `ReservationAuditProjectionHandler` — UPDATE `Status='Confirmed', ResolvedAtUtc`.
   - `ReservationOutboxPublisherDomainEventHandler` — writes external `ReservationConfirmedEvent` (Avro) to outbox (`inventory.reservations`).
@@ -1259,8 +1259,8 @@ public sealed class CreateOrderKafkaHandler
   2. Rehydrate stream.
   3. If reservation not found OR status already `Released` → return `Result.Ok()` (idempotent). Only if status is `Confirmed` return `Result.Fail` (cannot un-confirm; saga bug).
   4. Call `stockItem.ReleaseReservation(reservationId, releaseReason)`.
-  5. Append `ReservationReleasedEvent` at `Version+1`; UPSERT projections; outbox write for external `ReservationReleasedEvent` + optional `StockLevelChanged` (if `Available` crosses back to positive).
-- **Emits internal event(s):** `ReservationReleasedEvent` (ES). Fan-out: same shape as confirmation handler, writing `ReservationReleasedEvent` (external Avro) and conditional `StockLevelChanged`.
+  5. Append `ReservationReleasedDomainEvent` at `Version+1`; UPSERT projections; outbox write for external `ReservationReleasedEvent` + optional `StockLevelChanged` (if `Available` crosses back to positive).
+- **Emits internal event(s):** `ReservationReleasedDomainEvent` (ES). Fan-out: same shape as confirmation handler, writing `ReservationReleasedEvent` (external Avro) and conditional `StockLevelChanged`.
 
 ### 4.2 Commands — HTTP admin/ops
 
@@ -1288,8 +1288,8 @@ public sealed class CreateOrderKafkaHandler
   1. Idempotency via command inbox.
   2. Rehydrate stream; if `Version == 0` → `Result.Fail(StockItemErrors.NotInitialized)`.
   3. Call `stockItem.ReceiveStock(quantity, source, userId)`.
-  4. Append `StockReceivedEvent` at `Version+1`; UPSERT projections; outbox write for `StockLevelChanged` if `Available` crosses from 0 to positive.
-- **Emits internal event(s):** `StockReceivedEvent` (ES). Fan-out:
+  4. Append `StockReceivedDomainEvent` at `Version+1`; UPSERT projections; outbox write for `StockLevelChanged` if `Available` crosses from 0 to positive.
+- **Emits internal event(s):** `StockReceivedDomainEvent` (ES). Fan-out:
   - `CurrentStockLevelsProjectionDomainEventHandler` — UPDATE `OnHand += quantity`.
   - `StockLevelChangedOutboxPublisherDomainEventHandler` — conditional external event on threshold crossing.
 
@@ -1318,8 +1318,8 @@ public sealed class CreateOrderKafkaHandler
   1. Idempotency via command inbox.
   2. Rehydrate stream; 404 if uninitialized.
   3. Call `stockItem.AdjustStock(delta, reason, userId)` — `Result.Fail(StockItemErrors.AdjustmentBelowZero)` if precondition fails.
-  4. Append `StockAdjustedEvent`; UPSERT projections; outbox write for `StockLevelChanged` if threshold crossed.
-- **Emits internal event(s):** `StockAdjustedEvent` (ES). Projection updates `OnHand`. Conditional external event.
+  4. Append `StockAdjustedDomainEvent`; UPSERT projections; outbox write for `StockLevelChanged` if threshold crossed.
+- **Emits internal event(s):** `StockAdjustedDomainEvent` (ES). Projection updates `OnHand`. Conditional external event.
 
 ### 4.3 Saga command intake — plumbing
 

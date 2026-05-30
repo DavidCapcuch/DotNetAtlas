@@ -128,7 +128,7 @@ We will use **Option 1: Full Event Sourcing with projections** for Inventory ONL
 
 **Audit and temporal queries are genuine needs, not hypothetical.** "Show me every movement for SKU X last month" and "what was available at checkout time T" are routine questions in real inventory operations. A fold over the event stream answers both directly. With OLTP we would need to reconstruct this from external archives — more infrastructure, less authoritative, and liable to drift from the write model over time. The event stream IS the audit log, not a derived artifact that might get out of sync.
 
-**Reservation TTL and projection rebuild are clean ES idioms.** The `ReservationExpiryWorker` issues a real `ReleaseReservationCommand` on expiry, producing a durable `ReservationReleasedEvent(reason=Expiry)` — there are no silent state changes (§ 11 of the BC design). When a projection's schema or computation changes, we TRUNCATE it and replay events through the same handler that runs at steady state (§ 9.3 and § 14.3). This is the property that makes ES uniquely valuable: read models are disposable, derived, and evolvable without touching the write model or the aggregate's code.
+**Reservation TTL and projection rebuild are clean ES idioms.** The `ReservationExpiryWorker` issues a real `ReleaseReservationCommand` on expiry, producing a durable `ReservationReleasedDomainEvent(reason=Expiry)` — there are no silent state changes (§ 11 of the BC design). When a projection's schema or computation changes, we TRUNCATE it and replay events through the same handler that runs at steady state (§ 9.3 and § 14.3). This is the property that makes ES uniquely valuable: read models are disposable, derived, and evolvable without touching the write model or the aggregate's code.
 
 **No new infrastructure is introduced.** The event store is a Postgres table in the same database as projections and the outbox. There is no EventStoreDB, no Kafka-as-source-of-truth, no dual-write problem between an event store and a relational projection. Everything — event append, projection upsert, outbox insert — lives in one Postgres transaction. This keeps the operational surface area of the solution small, and it means an engineer debugging an incident can use familiar tools (`psql`, standard backups, standard migrations) while still benefiting from ES semantics.
 
@@ -140,7 +140,7 @@ We will use **Option 1: Full Event Sourcing with projections** for Inventory ONL
 - Temporal queries ("what was available at 3pm?") are answered by folding events with `OccurredAtUtc <= T`
 - Projections are rebuildable after schema or logic changes without touching the write model or the aggregate
 - New projection types (analytics, low-stock alerting, per-warehouse views) can be added later by subscribing the same event stream — no aggregate changes required
-- Saga compensation is explicit in the event model: a `ReservationReleasedEvent(reason=Compensation)` is distinguishable from `reason=Expiry` and `reason=Cancellation`, and each consumer can route accordingly
+- Saga compensation is explicit in the event model: a `ReservationReleasedDomainEvent(reason=Compensation)` is distinguishable from `reason=Expiry` and `reason=Cancellation`, and each consumer can route accordingly
 - No dual-write problem: the event store, projections, and outbox all live in one Postgres transaction (see `inventory.md` § 14.1)
 - Forces developers to learn append-only reasoning, a transferable skill even for non-ES domains
 
