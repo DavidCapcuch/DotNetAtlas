@@ -97,7 +97,7 @@ Each client resolves the resilience pipeline by name (`"catalog"`, `"basket"`, `
 | Topic | External event type | Handler | FusionCache invalidation action |
 |-------|--------------------|---------|--------------------------------|
 | `catalog.products` | `ProductCreatedEvent` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("home-page")` (new product may be featured). |
-| `catalog.products` | `ProductPriceChanged` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
+| `catalog.products` | `ProductPriceChangedEvent` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
 | `catalog.products` | `ProductDiscontinuedEvent` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
 | `catalog.categories` | `CategoryCreatedEvent` | `CategoryEventCacheInvalidator` | `RemoveByTagAsync("home-page")` (category tree changed). |
 | `inventory.stock-events` | `StockLevelChanged` | `StockEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
@@ -228,7 +228,7 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
   | Catalog circuit open | Serve stale cache or 503. Do not issue call. | `X-BFF-Stale: true` (if stale). |
   | Network unavailable | Serve from cache unconditionally with `HasStaleData = true`. If no cache, 503. | `X-BFF-Stale: true`. |
 - **Cache invalidation hooks (external Kafka events):**
-  - `catalog.products` topic: on `ProductPriceChanged` or `ProductDiscontinuedEvent` with matching `ProductId` → `RemoveByTagAsync("product-{ProductId}")`.
+  - `catalog.products` topic: on `ProductPriceChangedEvent` or `ProductDiscontinuedEvent` with matching `ProductId` → `RemoveByTagAsync("product-{ProductId}")`.
   - `inventory.stock-events` topic: on `StockLevelChanged` → `RemoveByTagAsync("product-{ProductId}")`.
   - `inventory.reservations` topic: on `StockReservedEvent` / `ReservationConfirmedEvent` / `ReservationReleasedEvent` → `RemoveByTagAsync("product-{ProductId}")` (because `Available` shifted).
 
@@ -306,7 +306,7 @@ Authenticated user's current basket enriched with *current* Catalog prices and *
   | Network unavailable | Serve from cache with `HasStaleData = true`. If no cache, 503. | — |
 - **Cache invalidation hooks:**
   - `basket.sessions` topic: on `BasketCheckoutInitiatedEvent` → `RemoveByTagAsync("basket-bff-{UserId}")`. (Other basket mutations don't emit Kafka events; the 15-second TTL is the freshness guarantee for those.)
-  - `catalog.products` topic: on `ProductPriceChanged` → `RemoveByTagAsync("basket-bff-*")` is **too aggressive** (would invalidate every basket on every price change). Instead, `PriceDrifted` is computed freshly on each (non-cached) request. The 15-second TTL absorbs the in-window drift.
+  - `catalog.products` topic: on `ProductPriceChangedEvent` → `RemoveByTagAsync("basket-bff-*")` is **too aggressive** (would invalidate every basket on every price change). Instead, `PriceDrifted` is computed freshly on each (non-cached) request. The 15-second TTL absorbs the in-window drift.
   - `inventory.stock-events`: similarly, per-user basket invalidation on stock events would fan out too broadly. Accepted as stale within TTL.
 
 ### 3.3 `GET /api/bff/order-summary/{orderId}`
@@ -391,7 +391,7 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
   | Network unavailable | Serve from cache with `HasStaleData=true`. If no cache, 503. | — |
 - **Cache invalidation hooks:**
   - `ordering.orders` topic: on `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` → `RemoveByTagAsync("order-{OrderId}")` AND `RemoveByTagAsync("order-history-{BuyerId}")`.
-  - `catalog.products` topic: on `ProductPriceChanged`, `ProductDiscontinuedEvent` → too broad to invalidate every order containing the product. Stale enrichment accepted within TTL.
+  - `catalog.products` topic: on `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → too broad to invalidate every order containing the product. Stale enrichment accepted within TTL.
 
 ### 3.4 `GET /api/bff/home-page`
 
@@ -466,7 +466,7 @@ Public landing page — featured products + full category tree + stock highlight
   | Inventory partial | Items with `MissingProductIds` get `AvailableQty = null`. | — |
   | Network unavailable | Cache-only fallback with `HasStaleData=true`. If no cache, 503. | — |
 - **Cache invalidation hooks:**
-  - `catalog.products` topic: on `ProductCreatedEvent`, `ProductPriceChanged`, `ProductDiscontinuedEvent` → `RemoveByTagAsync("home-page")`.
+  - `catalog.products` topic: on `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → `RemoveByTagAsync("home-page")`.
   - `catalog.categories` topic: on `CategoryCreatedEvent` → `RemoveByTagAsync("home-page")`.
   - `inventory.stock-events` topic: on `StockLevelChanged` → `RemoveByTagAsync("home-page")` — only when the product is in the featured set. v1 simplification: always invalidate on any stock event; accepts occasional over-invalidation to keep the handler simple. v2 would maintain a "featured-products-now" set and filter.
 

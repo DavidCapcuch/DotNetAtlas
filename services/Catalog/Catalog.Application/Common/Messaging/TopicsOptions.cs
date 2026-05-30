@@ -14,7 +14,7 @@ public sealed class TopicsOptions
 
     /// <summary>
     /// Topic for product lifecycle events (infinite retention).
-    /// Published by Catalog: <c>ProductCreatedEvent</c>, <c>ProductPriceChanged</c>,
+    /// Published by Catalog: <c>ProductCreatedEvent</c>, <c>ProductPriceChangedEvent</c>,
     /// <c>ProductDiscontinuedEvent</c>.
     /// </summary>
     [Required]

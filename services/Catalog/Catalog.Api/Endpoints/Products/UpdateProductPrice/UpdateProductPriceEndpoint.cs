@@ -23,7 +23,7 @@ internal sealed class UpdateProductPriceEndpoint : Endpoint<UpdateProductPriceRe
         Policies(AuthPolicies.WritePolicy);
         Summary(s =>
         {
-            s.Summary = "Update a product's price. Publishes ProductPriceChanged on change; no-op on identical price.";
+            s.Summary = "Update a product's price. Publishes ProductPriceChangedEvent on change; no-op on identical price.";
         });
         Description(b =>
         {

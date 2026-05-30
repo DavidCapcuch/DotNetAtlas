@@ -124,7 +124,7 @@
 | Money | Value object: decimal amount + ISO 4217 currency code. Shared-kernel in `Platform.SharedKernel.ValueObjects.Money`. |
 | Address | Value object: `Street1`, `Street2?`, `City`, `State?`, `PostalCode`, `CountryCode` (ISO 3166-1 alpha-2). |
 | Correlation ID | UUID v7 shared across all events in a single business workflow (one checkout → one order → one payment → one invoice). Threaded through Kafka headers, HTTP `X-Correlation-Id`, span attributes, DB audit columns. |
-| External event | Enriched summary event published to Kafka with an Avro contract. Naming: `{BusinessMoment}Event` (or `{BusinessMoment}` with the `Event` suffix dropped where explicitly decided — see `ProductPriceChanged`, `StockLevelChanged`). |
+| External event | Enriched summary event published to Kafka with an Avro contract. Naming: `{BusinessMoment}Event` (e.g. `ProductCreatedEvent`, `OrderShippedEvent`). The pre-existing `StockLevelChanged` schema retains the no-suffix name for historical reasons; all other event schemas use the `Event` suffix and new additions MUST follow that convention. |
 | Internal (domain) event | In-process event raised by an aggregate and dispatched via `IDomainEventHandler<T>`. Naming: `{State}DomainEvent`. Never published to Kafka directly. |
 | Command (Kafka) | Imperative intent published on a `{domain}.{aggregate}-commands` topic — exactly one known consumer, specific response expected. Avro namespace `{Domain}.{Aggregate}`. |
 | Outbox | Transactional outbox table (`{schema}.outbox_messages`) — domain write + outbox insert in one transaction; relay worker dequeues to Kafka. |

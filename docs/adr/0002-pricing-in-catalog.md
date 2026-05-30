@@ -32,7 +32,7 @@ For v1 of the reference solution, we must decide whether to introduce a Pricing 
 1. **Minimize BC count in v1** — the reference solution already introduces 4 new BCs plus a new Checkout saga on top of the existing Weather/Alerts/Order/Payments estate. Adding Pricing nearly doubles the cross-BC coordination surface without teaching a fundamentally new DDD or integration pattern that is not already demonstrated elsewhere in the solution.
 2. **Avoid teaching the wrong pattern** — learners must see *when* Pricing is a genuine BC and when it is not. A premature split in a simple, flat-priced catalog obscures the decision criteria and risks being cargo-culted into future projects where it is equally unjustified.
 3. **Keep critical paths short** — every `AddItemToBasketCommand` and every `Order.CreateFromBasket` is a price touchpoint. An additional synchronous hop to a Pricing service (or an eventually-consistent price book) adds latency, new failure modes, and a snapshot-drift window between Pricing's view and Catalog's view of the same product.
-4. **Keep the option to split later** — Catalog's price is already encapsulated in a `Money` VO and surfaced to the outside world via `ProductPriceChanged` (Avro, topic `catalog.products`). Extracting Pricing later is a targeted refactor behind a stable contract, not a rewrite.
+4. **Keep the option to split later** — Catalog's price is already encapsulated in a `Money` VO and surfaced to the outside world via `ProductPriceChangedEvent` (Avro, topic `catalog.products`). Extracting Pricing later is a targeted refactor behind a stable contract, not a rewrite.
 
 ## Considered Options
 
@@ -41,7 +41,7 @@ For v1 of the reference solution, we must decide whether to introduce a Pricing 
 Price lives on the `Product` aggregate as a `Money` value object — `decimal Amount` (strictly > 0) plus ISO 4217 `Currency`. One price per product, one currency per product, no segmentation, no time-bound promotions.
 
 - **Write path:** pricing changes flow through `Product.UpdatePrice(Money newPrice, DateTimeOffset utcNow)` which raises `ProductPriceChangedDomainEvent` only when the price actually changes (same-value update is a no-op)
-- **Publication:** an outbox publisher translates the internal event into the external Avro `ProductPriceChanged` on topic `catalog.products`
+- **Publication:** an outbox publisher translates the internal event into the external Avro `ProductPriceChangedEvent` on topic `catalog.products`
 - **Read path (downstream):** Basket and Ordering never call a pricing service — they snapshot `Product.Price` at add-time (Basket) and at `CreateFromBasket` time (Ordering)
 - **Read path (Catalog itself):** `product_search_view` carries `PriceAmount` / `PriceCurrency` columns updated by the projection handler in the same transaction as the aggregate save
 
@@ -70,7 +70,7 @@ A compromise between Options 1 and 2.
 | 1. Minimize BC count in v1                   | Pricing folded into Catalog — no new BC | Adds a 5th new BC plus its own storage/outbox/relay | Adds a 5th new BC while still keeping Catalog |
 | 2. Avoid teaching the wrong pattern          | Teaches "only split when segmentation is real"; ADR names the trigger | Risks cargo-culting a split that isn't justified by the v1 domain | Worst of both — learners see complexity without a clear motivating requirement |
 | 3. Keep critical paths short                 | Price is local to Catalog; Basket snapshots via one ACL hop | Extra hop from Basket to Pricing on every add + snapshot drift window | Two hops on every effective-price read; Basket must reason about both sources |
-| 4. Keep the option to split later            | `Money` VO + `ProductPriceChanged` are stable seams ready for extraction | Already split — no migration needed, but the split may never be justified | Split already paid for; extraction in reverse (merge) is unusual and awkward |
+| 4. Keep the option to split later            | `Money` VO + `ProductPriceChangedEvent` are stable seams ready for extraction | Already split — no migration needed, but the split may never be justified | Split already paid for; extraction in reverse (merge) is unusual and awkward |
 
 ## Decision
 
@@ -78,7 +78,7 @@ We will use **Option 1: Price flat inside Catalog** for v1.
 
 ## Rationale
 
-**Option 1 best serves every ranked driver.** It folds pricing into an existing BC (driver 1), presents learners with a simple baseline and a clearly-named trigger for splitting (driver 2), keeps `AddItem` and checkout flows to a single ACL hop against Catalog (driver 3), and leaves a stable `Money` VO plus external `ProductPriceChanged` contract behind which a future Pricing BC can be extracted (driver 4).
+**Option 1 best serves every ranked driver.** It folds pricing into an existing BC (driver 1), presents learners with a simple baseline and a clearly-named trigger for splitting (driver 2), keeps `AddItem` and checkout flows to a single ACL hop against Catalog (driver 3), and leaves a stable `Money` VO plus external `ProductPriceChangedEvent` contract behind which a future Pricing BC can be extracted (driver 4).
 
 Option 2 inverts drivers 1–3 without a compensating domain justification in v1. The reference solution has no B2B segments, no promotional rules, no multi-currency users, and no region/tax variation — the Pricing BC would be a ceremonial shell with a trivial one-price-per-product "rule set". Building it anyway would force learners to carry extra conceptual load to understand a pattern whose motivating requirements have been deliberately engineered out of v1.
 
@@ -86,7 +86,7 @@ Option 3 pays both costs without either benefit. Two services exist, two Kafka t
 
 **This is a conscious simplification, not a general rule.** Real-world eShops outgrow flat Catalog pricing quickly, and the ADR must make that explicit so learners do not generalize "price lives in Catalog" to every system they build. The companion BC design ([`catalog.md § Pattern Showcase: CQRS Read Projection`](../bc-design/catalog.md)) keeps the Catalog pattern focused on its real teaching target — a denormalized read view built from internal domain events — without muddying the lesson with pricing-rule machinery that v1 has no user for.
 
-**The extraction path is preserved, not accidental.** `Money` is already a value object with `Amount > 0` and ISO 4217 currency validation, and it is shared-kernel for Catalog/Basket/Ordering (see [`basket.md § 3.4 Money`](../bc-design/basket.md)). The external `ProductPriceChanged` carries `OldPriceAmount`, `NewPriceAmount`, and `Currency` on topic `catalog.products` — the exact shape a future Pricing BC would need to seed its own store from historical Catalog events. Basket's ACL already copies price into a `ProductSnapshot` rather than holding a live reference to Catalog, so swapping the ACL's source from Catalog to Pricing is a one-class change in `ProductCatalogHttpAdapter`. This is the cheapest possible "open for extension" stance consistent with keeping v1 simple.
+**The extraction path is preserved, not accidental.** `Money` is already a value object with `Amount > 0` and ISO 4217 currency validation, and it is shared-kernel for Catalog/Basket/Ordering (see [`basket.md § 3.4 Money`](../bc-design/basket.md)). The external `ProductPriceChangedEvent` carries `OldPriceAmount`, `NewPriceAmount`, and `Currency` on topic `catalog.products` — the exact shape a future Pricing BC would need to seed its own store from historical Catalog events. Basket's ACL already copies price into a `ProductSnapshot` rather than holding a live reference to Catalog, so swapping the ACL's source from Catalog to Pricing is a one-class change in `ProductCatalogHttpAdapter`. This is the cheapest possible "open for extension" stance consistent with keeping v1 simple.
 
 **Learners see *when* the split becomes justified.** The Negative Consequences and the placeholder future ADR below name the triggers — segmented pricing, time-bound promotions, multi-currency-per-product, or cross-region tax rules. When one of those appears in a real project, the team knows it is time to extract, and the existing contracts tell them where to cut. The reverse — a system that ships with Pricing split from day 1 because "that's what the book says" — has no comparable teaching moment; the extraction decision has been made without ever showing the forces that motivate it.
 
@@ -99,7 +99,7 @@ Option 3 pays both costs without either benefit. Two services exist, two Kafka t
 - Simpler reference implementation — one fewer service to build, one fewer schema registry namespace, one fewer outbox relay worker to deploy and operate
 - No cross-service synchronous call to fetch a price; `AddItemToBasketCommand` stays at one ACL hop to Catalog and is not exposed to a Pricing-service outage as an additional failure mode
 - Clean teaching of Catalog's CQRS read-projection pattern — the `product_search_view` stays focused on search, filter, and display concerns, not on resolving a pricing-rules engine
-- `ProductPriceChanged` is sufficient for Basket's price-drift UX: the BFF (or Basket itself at refresh time) compares the frozen `ProductSnapshot.Price` against the current `Product.Price` and surfaces changes to the user without Basket needing to consume Kafka from Catalog
+- `ProductPriceChangedEvent` is sufficient for Basket's price-drift UX: the BFF (or Basket itself at refresh time) compares the frozen `ProductSnapshot.Price` against the current `Product.Price` and surfaces changes to the user without Basket needing to consume Kafka from Catalog
 - Ordering captures `UnitPrice` on `OrderItem` as a per-line snapshot and is entirely insulated from how pricing is computed upstream — that snapshot boundary survives any future Pricing BC extraction unchanged
 - The Checkout saga (ADR-0001) carries price snapshots end-to-end without needing to touch a pricing service at any step — compensation and retries don't have to reason about "what price was this at the time?"
 
@@ -131,8 +131,8 @@ Option 3 pays both costs without either benefit. Two services exist, two Kafka t
 ### Events
 
 - Internal `ProductPriceChangedDomainEvent` carries `ProductId`, `OldPrice`, `NewPrice`, `OccurredOnUtc` — dispatched in-process to the projection handler
-- External Avro `ProductPriceChanged` on topic `catalog.products` carries `ProductId`, `Sku`, `OldPriceAmount`, `NewPriceAmount`, `Currency`, `ChangedAtUtc` — see [`catalog.md § ProductPriceChanged`](../bc-design/catalog.md) for the full schema
-- Kafka message key for `ProductPriceChanged` is `ProductId` as string — enables per-product ordering within a partition, which is required for "latest price wins" consumer semantics downstream
+- External Avro `ProductPriceChangedEvent` on topic `catalog.products` carries `ProductId`, `Sku`, `OldPriceAmount`, `NewPriceAmount`, `Currency`, `ChangedAtUtc` — see [`catalog.md § ProductPriceChangedEvent`](../bc-design/catalog.md) for the full schema
+- Kafka message key for `ProductPriceChangedEvent` is `ProductId` as string — enables per-product ordering within a partition, which is required for "latest price wins" consumer semantics downstream
 - Publication follows the platform outbox pattern — the outbox row is written in the same DbContext transaction as the aggregate save, and `Catalog.OutboxRelay` relays to Kafka with schema-registry validation
 
 ### Consumers
@@ -140,7 +140,7 @@ Option 3 pays both costs without either benefit. Two services exist, two Kafka t
 - Basket's ACL (`IProductCatalogQueryPort`) continues to return `ProductSnapshot { Sku, Name, Price, CapturedAtUtc }` — no shape change needed if Pricing is later extracted; only the adapter's HTTP target changes
 - Basket may optionally consume `catalog.products` to eagerly flag stale snapshots — v1 defers this in favor of on-demand refresh at checkout (see [`basket.md § 6.3`](../bc-design/basket.md))
 - Ordering's `OrderItem.UnitPrice` remains a frozen per-line snapshot passed in via `Order.CreateFromBasket(BasketSnapshot, ...)`; this boundary survives any future Pricing extraction unchanged
-- BFF invalidates product-detail caches on `ProductPriceChanged` receipt
+- BFF invalidates product-detail caches on `ProductPriceChangedEvent` receipt
 - The Checkout saga never re-reads price — it operates on the snapshot embedded in `BasketCheckoutInitiatedEvent` for the full duration of the flow
 
 ### Read view
