@@ -366,7 +366,7 @@
         "pkce.code.challenge.method": "S256"
       },
       "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
-      "optionalClientScopes": ["offline_access", "inventory.write"],
+      "optionalClientScopes": ["offline_access", "inventory.write", "catalog.write", "payments.read"],
       "protocolMappers": [
         {
           "name": "roles-flat",
