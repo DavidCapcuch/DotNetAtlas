@@ -15,7 +15,7 @@ Payments is the **authority for money movement state** — it is the only BC tha
 - **Upstream:** Checkout saga — publishes `PaymentRequestedEvent` → consumed by `PaymentProcessingSaga`, which calls Payments commands.
 - **Downstream:**
   - **Invoicing** — consumes `PaymentCapturedEvent` to enrich and issue the invoice.
-  - **Notifications** — consumes `PaymentRefundedEvent` to email the buyer a refund confirmation.
+  - **Notifications** — not wired in v1. A refund-confirmation email would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Payments would emit `SendEmailNotificationCommand` on `notifications.email-commands` rather than have Notifications subscribe to `payments.transactions`.
   - **Checkout saga** — consumes `PaymentCompletedEvent` / `PaymentFailedEvent` (terminal signals from the sub-saga) to advance or compensate.
 
 The distinction between Payments and PaymentProcessingSaga is deliberate:
@@ -167,7 +167,7 @@ The table below lists events Payments **produces** (via outbox → Kafka). The u
 | `PaymentCaptureFailedEvent` | `PaymentCaptureFailedDomainEvent` | PaymentProcessingSaga |
 | `PaymentCompletedEvent` | `PaymentCompletedDomainEvent` | Checkout saga (drives `AwaitingConfirmation → Confirmed`) |
 | `PaymentFailedEvent` | `PaymentFailedDomainEvent` | Checkout saga (drives compensation) |
-| `PaymentRefundedEvent` | `PaymentRefundedDomainEvent` | Checkout saga (cancel-post-capture confirmation), Notifications, **Invoicing** (credit-note trigger) |
+| `PaymentRefundedEvent` | `PaymentRefundedDomainEvent` | Checkout saga (cancel-post-capture confirmation), **Invoicing** (credit-note trigger). Refund-confirmation email is deferred (would route as `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md), not as a Notifications subscription to this topic). |
 | `PaymentVoidedEvent` | `PaymentVoidedDomainEvent` | PaymentProcessingSaga |
 
 **Schema compatibility:** FORWARD_TRANSITIVE per [ADR-0007](../adr/0007-avro-compatibility-modes.md).
