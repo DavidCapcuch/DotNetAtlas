@@ -51,12 +51,12 @@ Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 | D-2 | **One `inventory.reservation-commands` topic** for saga→Inventory | Same rationale as D-1. Keeps saga surface uniform. |
 | D-3 | **One `ReserveStockCommand` per order line item** (Option A in Agent-5 prompt) | Matches Inventory's per-`ProductId` stream model (ADR-0006); gives natural per-item failure granularity; saga fan-in by `OrderId` correlates N responses. |
 | D-4 | **No dedicated `checkout.commands` topic** | Saga publishes imperative intent to `ordering.order-commands`, `inventory.reservation-commands`, and `payments.payment-commands`. A checkout-specific topic would duplicate infrastructure for no new semantics. |
-| D-5 | **Notifications continues consuming business events directly** (not a `notification.commands` fan-out) | Matches existing Weather→Notifications pattern. `notification.commands` topic stays reserved for explicit SendEmail commands; Ordering emits `ordering.orders` and Notifications subscribes. |
+| D-5 | **Notifications continues consuming business events directly** (not a `notifications.email-commands` fan-out) | Matches existing Weather→Notifications pattern. `notifications.email-commands` topic stays reserved for explicit SendEmail commands; Ordering emits `ordering.orders` and Notifications subscribes. |
 | D-6 | **Outbox-relay is a separate container per service schema** | Follows the `outbox-relay`, `outbox-relay-saga`, `outbox-relay-ordering` precedent already in `docker-compose.yaml`. Each service gets its own relay with its own `OutboxRelay__SchemaName` binding. See § 6. |
 | D-7 | **Weather-remnant fully decommissioned pre-dispatch** | The `services/Order/` project, `AlertSubscription*Saga` sagas, and Kafka topic `order.alert-subscriptions` were deleted. Ordering is greenfield; no legacy topic coexistence remains. |
 | D-8 | **Basket sessions topic retains events for 30 days**; all other event-log topics use `compact + delete` (infinite retention) to preserve audit trail | Basket is ephemeral by definition. Order/Inventory events feed compliance audit; deleting them defeats the audit-trail purpose of § 2 of `inventory.md`. |
 | D-9 | **Command topics retain 7 days** | Commands are transient intent; after 7 days a replay is not operationally useful and keeping them consumes broker disk needlessly. |
-| D-10 | **`notification.commands` already exists and is reused** | It is registered in the current `docker-compose.yaml` line 243. No new topic needed for Notifications. |
+| D-10 | **`notifications.email-commands` already exists and is reused** | It is registered in the current `docker-compose.yaml` line 243. No new topic needed for Notifications. |
 
 ---
 
@@ -92,7 +92,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `ConfirmReservationCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga | Inventory | `inventory-reservation-commands` | `CorrelationId` | saga step (after payment) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ConfirmReservationCommand.avsc` |
 | `ReleaseReservationCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga (compensation) / Ops | Inventory | `inventory-reservation-commands` | `CorrelationId` | saga compensation / admin cancel | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReleaseReservationCommand.avsc` |
 | `ReserveStockCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga | Inventory | `inventory-reservation-commands` | `CorrelationId` | saga step (after order created) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReserveStockCommand.avsc` |
-| `SendEmailNotificationCommand` | `notification.commands` | `Notifications.Email` | Notifications templates emitted by multiple services (existing pattern) | Notifications | `notifications-email` | `UserId` | various | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` (existing) |
+| `SendEmailNotificationCommand` | `notifications.email-commands` | `Notifications.Email` | Notifications templates emitted by multiple services (existing pattern) | Notifications | `notifications-email` | `UserId` | various | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` (existing) |
 | `OrderCancelledEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications, Inventory (release if still reserved), Payments (refund if captured), BFF (cache invalidate), Checkout saga (compensation confirmation) | `notifications`, `inventory-stock-init` (reuses group? — see § 7), `checkout-saga`, `bff-order-cache`, `payments-refund-gateway` | `OrderId` | `OrderCancelledDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc` |
 | `OrderConfirmedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Notifications, BFF (cache invalidate), Checkout saga (terminal success) | `notifications`, `bff-order-cache`, `checkout-saga` | `OrderId` | `OrderConfirmedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc` |
 | `OrderCreatedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Checkout saga (drives next step: reserve stock), BFF (cache populate) | `checkout-saga`, `bff-order-cache` | `OrderId` | `OrderCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCreatedEvent.avsc` |
@@ -108,7 +108,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 
 ## 3. Kafka Topics
 
-New topics introduced by this document. Existing topics (`notification.commands`, `healthchecks`) are **not** duplicated here. The Payments BC publishes lifecycle events to `payments.transactions` and consumes saga-issued commands on `payments.payment-commands` (canonical names per [kafka-topology.md](../kafka-topology.md)).
+New topics introduced by this document. Existing topics (`notifications.email-commands`, `healthchecks`) are **not** duplicated here. The Payments BC publishes lifecycle events to `payments.transactions` and consumes saga-issued commands on `payments.payment-commands` (canonical names per [kafka-topology.md](../kafka-topology.md)).
 
 | Topic | Partitions | Retention | Key | Purpose | Events |
 |-------|-----------|-----------|-----|---------|--------|
@@ -124,7 +124,7 @@ New topics introduced by this document. Existing topics (`notification.commands`
 | `payments.payment-commands` | 3 | 7 days (delete) | `CorrelationId` | PaymentProcessingSaga → Payments imperative intent. Canonical name per [kafka-topology.md](../kafka-topology.md). | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` |
 | `invoicing.invoices` | 3 | **10 years (EU VAT)** | `BuyerId` | Invoice + credit note lifecycle. Retention reflects legal record-keeping norm (Czech Republic, Germany, France, Slovakia: 10-year). PII policy per ADR-0011 applies. | `InvoiceIssued`, `InvoiceDelivered`, `InvoiceCancelled`, `CreditNoteIssued` |
 
-**Total new topics: 11.** The `notification.commands` topic already exists.
+**Total new topics: 11.** The `notifications.email-commands` topic already exists.
 
 ### 3.1 Why these partition counts
 
@@ -2046,7 +2046,7 @@ Consumer-registration pattern inside `CheckoutSagaDependencyInjection` mirrors t
 
 ### 7.6 Notifications Service
 
-**Topics consumed:** `ordering.orders` (new), plus existing `notification.commands` self-consumer for SendEmail dispatch.
+**Topics consumed:** `ordering.orders` (new), plus existing `notifications.email-commands` self-consumer for SendEmail dispatch.
 
 **Message types to dedupe** (new for eShop):
 - `Ordering.Orders.OrderConfirmedEvent`
