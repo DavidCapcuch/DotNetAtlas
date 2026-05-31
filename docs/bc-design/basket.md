@@ -140,7 +140,7 @@ The linchpin of the ACL: this is what the `IProductCatalogQueryPort` adapter pro
 record BasketTotal(Money Amount)
 ```
 
-Computed from `Items.Sum(i => i.Snapshot.Price.Amount * i.Quantity)`. Not persisted. Returned from `Basket.Total` getter and included in `BasketCheckedOutDomainEvent` and in read DTOs. Empty basket returns `new BasketTotal(Money.Zero(defaultCurrency))` — but for the checkout invariant, an empty basket cannot be checked out at all (see `Checkout` method).
+Computed from `Items.Sum(i => i.Snapshot.Price.Amount * i.Quantity)`. Not persisted. Returned from the nullable `Basket.Total` getter — `null` for an empty basket, since a `BasketTotal` only ever wraps a strictly-positive amount — and included in `BasketCheckedOutDomainEvent` and in read DTOs. An empty basket cannot be checked out at all (see `Checkout` method).
 
 ### 3.4 `Money` — shared across Catalog, Basket, Ordering
 

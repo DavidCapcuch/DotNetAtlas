@@ -15,7 +15,7 @@
 | **PaymentMethodId** | Gateway-issued reference token (not a PAN). Identifies *how* to charge without exposing card details. PCI-scope boundary — this is the highest-sensitivity data Payments holds. |
 | **Gateway** | The external payment processor (Stripe/Adyen/Braintree in production; `StubPaymentGateway` in v1). Abstracted via `IPaymentGateway` port in `Payments.Application`. |
 | **PaymentStatus** | SmartEnum with 7 values: `Requested`, `Authorized`, `Captured`, `Completed`, `Failed`, `Refunded`, `Voided`. Transitions guarded by `CanTransitionTo`. |
-| **FailureInfo** | Value object recording terminal-failure reason, gateway response code, and timestamp. Populated only on `Failed`, `Refunded`, `Voided`. |
+| **FailureInfo** | Value object recording terminal-failure reason, gateway response code, and timestamp. Populated only on the `Failed` transition. |
 | **FailureReason** | SmartEnum categorizing terminal failures: `GatewayDeclined`, `GatewayTimeout`, `InsufficientFunds`, `FraudSuspected`, `Cancelled`, `Unknown`. |
 
 ---
@@ -28,7 +28,7 @@
 | **Capture** | Second gateway call — actually moves money. After capture, reversal requires a refund (heavier operation). In v1 this is done **immediately after authorize** (no delayed-capture flow). |
 | **Refund** | Post-capture reversal. Requires a new gateway call referencing the original `GatewayTransactionId`. Customer-visible; may be taxable. |
 | **Void** | Pre-capture cancellation. Releases the authorization hold without money movement. Cheaper and invisible to the customer. Preferred compensation path when timing permits. |
-| **Terminal state** | `Completed`, `Failed`, `Refunded`, `Voided`. Aggregate rejects further mutations once terminal. |
+| **Terminal state** | `Failed`, `Voided`, `Refunded` — the aggregate rejects all further mutations from these. `Completed` is the happy-path success state but is **not** final: it stays reversible to `Refunded` (cancel-post-capture compensation). |
 | **Compensation path** | Any saga-triggered reversal of a previously successful step. For Payments, the compensation options are `Void` (pre-capture) and `Refund` (post-capture). |
 
 ---
@@ -61,8 +61,8 @@
 | **Transaction** | `PaymentTransaction` aggregate — a payment lifecycle | Ordering: implicit DB transaction scope on `Order`; Inventory: an event-stream append |
 | **CorrelationId** | Links payment to the originating saga | Same across the whole system — shared linkage token |
 | **Amount** | `Money` VO on `PaymentTransaction` — equals the Order total at capture time | Ordering: `Order.Total`; Invoicing: `Invoice.Total` — all three should match for a given CorrelationId |
-| **Status** | `PaymentStatus` — 7-value FSM | Ordering: `OrderStatus` — 8-value FSM; Invoicing: `InvoiceStatus` — 4-value FSM |
-| **Completed** | Terminal success state of the aggregate | Ordering has no `Completed`; its terminal success is `Delivered`. Checkout saga `Confirmed` is the equivalent happy-path terminal |
+| **Status** | `PaymentStatus` — 7-value FSM | Ordering: `OrderStatus` — 8-value FSM; Invoicing: `InvoiceStatus` — 5-value FSM |
+| **Completed** | Happy-path success state; not final — reversible to `Refunded` | Ordering has no `Completed`; its terminal success is `Delivered`. Checkout saga `Confirmed` is the equivalent happy-path terminal |
 | **Gateway** | The external payment processor | No other BC uses this term |
 
 ---

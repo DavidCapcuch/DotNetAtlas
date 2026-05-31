@@ -29,7 +29,7 @@
 | **Draft** | Transient state: the aggregate exists but `InvoiceNumber` not yet allocated and PDF not yet stored. Brief window within a single command handler; rare to observe in production. Retained as a state so partial failures (PDF generated but blob upload failed) are resumable. |
 | **Issued** | Terminal happy state: number allocated, PDF stored, aggregate persisted. `InvoiceIssuedEvent` fired. |
 | **Delivered** | Follow-on state: delivery channel confirmed receipt (email accepted by SMTP — additional channels are planned scope; see [roadmap.md § 2.3 Invoicing](../roadmap.md)). Does not affect legal validity — issuance is the legal moment. |
-| **Archived** | Currently equivalent to `Delivered` + passage of time. Reserved for a planned archival process that moves PDFs to cold storage after N years — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
+| **Archived** | Terminal state reached via `Invoice.Archive()` (`Delivered → Archived`), held for long-term retention. The aggregate transition exists; the background job that drives it and moves PDFs to cold storage after N years is planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
 | **Cancelled** | Off-ramp: the invoice is reversed by issuing a CreditNote. Requires `CancellationInfo.CreditNoteId` to be populated — an invoice cannot be cancelled without a corresponding credit note. |
 
 ---
@@ -49,7 +49,7 @@
 
 | Term | Definition |
 |------|------------|
-| **DeliveryChannel** | SmartEnum: `Email`, `None`. Additional channels (`TaxAuthorityWebhook`, `PostalMail`) are planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
+| **DeliveryChannel** | SmartEnum: `None`, `Email`, `TaxAuthorityWebhook`. v1 delivers on `Email` only; the `TaxAuthorityWebhook` value exists but its delivery behavior — plus a future `PostalMail` channel — is planned scope, see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
 | **DeliveryAttempt** | Monotonic counter per `(InvoiceId, Channel)`. Each resend increments. Recorded in `invoice_delivery_log`. |
 | **SAS URL** (Shared Access Signature) | A time-bounded (10-minute) Azure Blob URL that grants GET access to the PDF without exposing storage account credentials. Served through nginx-cdn locally / Azure Front Door in production for CDN semantics. |
 | **Write-once blob** | The guarantee that once a PDF is uploaded to Azurite/Azure Blob, its content never changes. Enforced by Azure immutable-blob policy (10-year time-based retention). The content hash is stored on the aggregate's `PdfBlobRef`. |
