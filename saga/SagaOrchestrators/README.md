@@ -1,175 +1,98 @@
-# DotNetAtlas.Sagas.WorkerService
+# SagaOrchestrators
 
-A saga orchestration service implementing the **Saga Pattern** for distributed transactions using MassTransit state machines, Kafka messaging, and Entity Framework Core persistence.
+Centralized saga worker hosting the MassTransit state machines that orchestrate cross-BC workflows for the eShop reference solution. Per [ADR-0001](../../docs/adr/0001-centralized-saga-orchestration.md), all sagas in this repo live in this single worker; per BC owns no saga code of its own.
 
-## Overview
+## Hosted sagas
 
-This worker service orchestrates long-running distributed transactions across multiple services. It uses the **orchestration-based saga pattern** to coordinate operations and handle compensation (rollback) when failures occur.
+| State machine | Folder | Responsibility | Companion ADR |
+|---|---|---|---|
+| `CheckoutSaga` | [`Checkout/CheckoutSaga/`](Checkout/CheckoutSaga/) | Orders a basket end-to-end: Basket → Ordering → Inventory → Payments → confirmation, with compensation on any failure. | [ADR-0004](../../docs/adr/0004-checkout-saga-topology.md) |
+| `PaymentProcessingSaga` | [`Payments/PaymentProcessingSaga/`](Payments/PaymentProcessingSaga/) | Drives a single payment lifecycle (authorize → capture → void / refund) for the Payments BC; invoked by `CheckoutSaga` via `RequestPaymentCommand`. | [ADR-0004](../../docs/adr/0004-checkout-saga-topology.md), [ADR-0023](../../docs/adr/0023-payments-event-vs-command-classification.md) |
 
-### Key Features
+## Stack
 
-- **MassTransit State Machines** - Declarative saga orchestration with automatic state persistence
-- **Kafka Integration** - Event-driven messaging with Avro serialization via Schema Registry
-- **Entity Framework Core** - SQL Server-backed saga state persistence with optimistic concurrency
-- **OpenTelemetry** - Full observability with distributed tracing and metrics
-- **Health Checks** - Comprehensive health monitoring including stuck saga detection
+- **MassTransit** `MassTransitStateMachine<TState>` for declarative orchestration with EF Core persistence and optimistic concurrency via `RowVersion`.
+- **PostgreSQL** (`saga` schema) for state — see [`Common/Persistence/Database/`](Common/Persistence/Database/).
+- **KafkaFlow** for inbound consumers and Avro deserialization via the platform's `SchemaRegistry` integration.
+- **OpenTelemetry** activities + metrics — see [`Common/Observability/`](Common/Observability/).
 
-## Architecture
-
-### Project Structure
+## Project layout
 
 ```
-DotNetAtlas.Sagas.WorkerService/
-├── Common/
-│   ├── Config/              # Configuration options (SagaOptions, topics, health checks)
-│   ├── Extensions/          # Host environment extensions
-│   ├── Observability/       # OpenTelemetry instrumentation
-│   └── *.cs                 # DI registration, health checks
-├── Persistence/
-│   └── Database/            # EF Core DbContext and entity mappings
-└── WeatherAlerts/
-    └── PurchaseAlertSubscriptionSaga/
-        ├── Commands/        # Compensation commands
-        ├── Consumers/       # Kafka message consumers
-        ├── Events/          # Internal saga events
-        ├── Observability/   # Saga-specific activities
-        ├── Schedules/       # Timeout schedules
-        └── *.cs             # State machine and state
+SagaOrchestrators/
+├── Checkout/CheckoutSaga/
+│   ├── Consumers/             # Kafka consumers that lift external events into the state machine
+│   ├── InternalSagaEvents/    # MassTransit `Event<T>` definitions for the saga's transitions
+│   ├── Observability/         # CheckoutSagaActivitySource + CheckoutSagaMetrics
+│   └── Schedules/             # Per-step timeout schedules (order creation, stock, payment, confirm, compensation)
+├── Payments/PaymentProcessingSaga/
+│   ├── Consumers/             # Kafka consumers on payments.transactions + payments.payment-commands
+│   ├── InternalSagaEvents/
+│   ├── Observability/         # Activities (PaymentProcessingSagaMetrics lives under Common/)
+│   └── Schedules/             # Authorization / Capture / Void / Refund / SuccessFinalization timeouts
+└── Common/
+    ├── Config/Kafka/          # SagaTopicsOptions, SagaConsumerGroupsOptions, SagaKafkaOptions
+    ├── Observability/         # Shared SagaActivitySource + per-saga metric classes
+    ├── Persistence/Database/  # SagaDbContext, interceptors, EF migrations
+    ├── SagaAbstractions/      # Shared base types used by both state machines
+    └── SagasDependencyInjection/ # MassTransit + KafkaFlow + EF Core wiring
 ```
 
-## Subscription Purchase Saga
+## Consumer groups
 
-The main saga orchestrates the subscription purchase flow between Billing and Weather Alert services.
+Per the one-group-per-service rule in [`events-catalog.md § 3.1`](../../docs/bc-design/events-catalog.md), every BC owns a single Kafka consumer group named `{service}-group`. **Sagas are the documented exception:** each state machine in this worker is its own logical service per ADR-0001 and gets its own group.
 
-### State Diagram
+| Saga | Consumer group | Subscribed topics |
+|---|---|---|
+| `CheckoutSaga` | `saga-checkout` | `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions` |
+| `PaymentProcessingSaga` | `saga-payment-processing` | `payments.transactions`, `payments.payment-commands` (consumes `RequestPaymentCommand`) |
 
-```mermaid
-stateDiagram-v2
-    [*] --> AwaitingActivation : SubscriptionPurchased
-    AwaitingActivation --> ActivationCompleted : SubscriptionActivated
-    AwaitingActivation --> CompensationInProgress : ActivationFailed (compensate)
-    AwaitingActivation --> ActivationFailed : ActivationFailed (no compensate)
-    AwaitingActivation --> ActivationFailed : ActivationTimeout
-    CompensationInProgress --> CompensationCompleted : CompensationCompleted
-    CompensationInProgress --> CompensationFailed : CompensationTimeout
-    ActivationCompleted --> [*]
-    ActivationFailed --> [*]
-    CompensationCompleted --> [*]
-    CompensationFailed --> [*]
-```
-
-### Flow
-
-1. **SubscriptionPurchased** → Billing service publishes event when payment succeeds
-2. **AwaitingActivation** → Saga waits for Weather service to activate subscription
-3. **SubscriptionActivated** → Success path, saga completes
-4. **ActivationFailed** → If compensation needed, triggers refund command
-5. **CompensationCompleted** → Refund processed, saga completes
-
-### Kafka Topics
-
-| Topic | Direction | Purpose |
-|-------|-----------|---------|
-| `billing.subscriptions` | Consume | Subscription purchased/refund completed events |
-| `weather.subscriptions` | Consume | Subscription activated events |
-| `billing.commands` | Produce | Refund request commands (compensation) |
+The two groups share `payments.transactions` but subscribe to disjoint Avro event types — no observable interleaving risk.
 
 ## Configuration
 
-### appsettings.json
+Bound from [`appsettings.json`](appsettings.json) via `Saga`, `Kafka`, `SagaHealthCheck`, and `HealthChecks` sections; all options classes live under [`Common/Config/`](Common/Config/) and validate on start. See the in-tree options classes (`SagaTopicsOptions`, `SagaConsumerGroupsOptions`, `SagaTimeoutsOptions`, `SagaHealthCheckOptions`) for the canonical schemas.
 
-```json
-{
-  "Saga": {
-    "ActivationTimeoutMinutes": 5,
-    "CompensationTimeoutMinutes": 30,
-    "MaxRetryAttempts": 3,
-    "RetryDelaySeconds": 5,
-    "ConcurrencyLimit": 10,
-    "KafkaBootstrapServers": "localhost:9094",
-    "SchemaRegistryUrl": "http://localhost:8081",
-    "Topics": {
-      "BillingSubscriptions": "billing.subscriptions",
-      "WeatherSubscriptions": "weather.subscriptions",
-      "BillingCommands": "billing.commands"
-    },
-    "ConsumerGroup": "saga-orchestrator"
-  }
-}
-```
+## Observability
 
-### Key Options
+### Metrics (OpenTelemetry)
 
-| Option | Description |
-|--------|-------------|
-| `ActivationTimeoutMinutes` | Time to wait for activation before timing out |
-| `CompensationTimeoutMinutes` | Time to wait for refund before marking failed |
-| `ConcurrencyLimit` | Max concurrent saga instances |
-| `MaxRetryAttempts` | Retry attempts for transient failures |
+Emitted by [`PaymentProcessingSagaMetrics`](Common/Observability/Metrics/PaymentProcessingSagaMetrics.cs) and [`CheckoutSagaMetrics`](Checkout/CheckoutSaga/Observability/CheckoutSagaMetrics.cs).
 
-## Health Checks
+Checkout family (`saga.checkout.*`): `initiated`, `confirmed`, `failed`, `compensated`, `stuck`, `stock_reservation_failed`, `payment_failed`, plus per-step timeout counters and per-step duration histograms (`order_creation`, `stock_reservation`, `payment`, `confirmation`, `compensation`, `total`).
 
-The service exposes health check endpoints:
+Payment family (`saga.payments.*`): `started`, `authorizations.{completed,failed}`, `captures.{completed,failed}`, `voids.completed`, `refunds.{requested,completed}`, `completed`, `timedout`, and a `duration` histogram.
 
-- `/health/ready` - Readiness probe
-- `/health/live` - Liveness probe
-- `/health` - Detailed health status
+### Tracing
 
-### Saga Health Check
+[`SagaActivitySource`](Common/Observability/Tracing/SagaActivitySource.cs) hosts the shared `ActivitySource`; per-saga sources (`CheckoutSagaActivitySource`) prefix span names with their saga family. Distributed traces wrap saga lifecycle transitions, Kafka consumer pipelines, and the EF Core save units of work.
 
-Monitors for stuck sagas that exceed the configured threshold:
+### Health checks
 
-```json
-{
-  "SagaHealthCheck": {
-    "StuckSagaThresholdMinutes": 30,
-    "MaxStuckSagasBeforeDegraded": 5,
-    "MaxStuckSagasBeforeUnhealthy": 20
-  }
-}
-```
+Exposed via `/health/ready`, `/health/live`, `/health`. The custom saga health check (see [`Common/Observability/HealthChecks/`](Common/Observability/HealthChecks/)) flags long-running non-terminal states using `SagaHealthCheck:StuckSagaThresholdMinutes` and reports `Degraded` / `Unhealthy` once `Max*` thresholds are crossed.
 
-## Running Locally
-
-### Prerequisites
-
-- .NET 9.0+
-- SQL Server (for saga state persistence)
-- Kafka with Schema Registry
-- Docker (recommended for local dependencies)
-
-### Start the Service
+## Running locally
 
 ```bash
-dotnet run --project saga/DotNetAtlas.Sagas.WorkerService
+docker compose --profile full up -d   # postgres, kafka, schema-registry, ...
+dotnet run --project saga/SagaOrchestrators
 ```
+
+The local connection string in [`appsettings.json`](appsettings.json) points at `postgres5433` (port 5433 → containerized Postgres on 5432) and database `Saga`, matching the compose service. The `Saga` database is created by the platform's per-BC postgres init step.
 
 ## Testing
 
 ```bash
-# Unit tests
-dotnet test saga/DotNetAtlas.Sagas.UnitTests
-
-# Integration tests
-dotnet test saga/DotNetAtlas.Sagas.IntegrationTests
+dotnet test saga/SagaOrchestrators.UnitTests
+dotnet test saga/SagaOrchestrators.IntegrationTests   # Testcontainers — strip HTTP_PROXY on Windows
 ```
 
-## Observability
+Saga state-machine tests use MassTransit's `SagaTestHarness<TState>`; integration tests spin up real Kafka + Postgres + Schema Registry via Testcontainers.
 
-### Metrics
+## Related docs
 
-Custom metrics are exposed via OpenTelemetry:
-
-- `saga.started` - Counter for saga instances started
-- `saga.completed` - Counter for successful completions
-- `saga.compensated` - Counter for compensated sagas
-- `saga.duration` - Histogram of saga durations
-
-### Tracing
-
-Distributed traces include:
-- Saga lifecycle events
-- Kafka message consumption
-- Database operations
-- Compensation flows
-
+- [`docs/bc-design/checkout-saga.md`](../../docs/bc-design/checkout-saga.md) — Checkout saga full state machine, timeouts, compensation matrix.
+- [`docs/bc-design/payments.md`](../../docs/bc-design/payments.md) — Payments BC + PaymentProcessingSaga collaboration.
+- [`docs/bc-design/events-catalog.md`](../../docs/bc-design/events-catalog.md) — authoritative event / topic / consumer-group catalog.
+- [`docs/bc-design/saga-stuck-runbook.md`](../../docs/bc-design/saga-stuck-runbook.md) — ops runbook for stuck sagas.
+- [ADR-0001](../../docs/adr/0001-centralized-saga-orchestration.md), [ADR-0004](../../docs/adr/0004-checkout-saga-topology.md), [ADR-0023](../../docs/adr/0023-payments-event-vs-command-classification.md).
