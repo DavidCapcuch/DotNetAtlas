@@ -17,7 +17,7 @@ namespace Payments.UnitTests.Application;
 public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
 {
     private AuthorizePaymentCommandHandler BuildHandler() =>
-        new(DbContext, Gateway, Outbox, Dispatcher, TimeProvider, NullLogger<AuthorizePaymentCommandHandler>.Instance);
+        new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<AuthorizePaymentCommandHandler>.Instance);
 
     private static AuthorizePaymentCommand BuildCommand(
         decimal amount = 100m,
@@ -49,10 +49,11 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
             DbContext.Transactions.Local.Should().ContainSingle(t =>
                 t.Id == command.PaymentId && t.Status == PaymentStatus.Authorized);
             await Gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-            // ADR-0023 follow-up: PaymentTransaction.Create raises no domain events, so the
-            // first-SaveChanges dispatch loop is a no-op. Only the Authorize transition's event
-            // is dispatched.
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentAuthorizedDomainEvent>(), Arg.Any<CancellationToken>());
+            // Domain-event dispatch is the DispatchDomainEventsInterceptor's job, not the handler's.
+            // The aggregate carries the PaymentAuthorizedDomainEvent through to SaveChanges where
+            // the interceptor pops + dispatches it. Verifying the aggregate raised the event:
+            DbContext.Transactions.Local.Single().PopDomainEvents()
+                .Should().ContainSingle().Which.Should().BeOfType<PaymentAuthorizedDomainEvent>();
             // H-3: two SaveChanges sites — first persists the Requested aggregate before the
             // gateway call (double-charge anchor), second persists the Authorized transition
             // + outbox rows.
@@ -120,8 +121,11 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
         {
             result.Should().BeSuccess();
             DbContext.Transactions.Local.Should().ContainSingle(t => t.Status == PaymentStatus.Failed);
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentAuthorizationFailedDomainEvent>(), Arg.Any<CancellationToken>());
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentFailedDomainEvent>(), Arg.Any<CancellationToken>());
+            // Dispatch is owned by DispatchDomainEventsInterceptor; verify the aggregate raised
+            // both domain events that the interceptor will pop on SaveChanges.
+            var raised = DbContext.Transactions.Local.Single().PopDomainEvents();
+            raised.Should().Contain(e => e is PaymentAuthorizationFailedDomainEvent);
+            raised.Should().Contain(e => e is PaymentFailedDomainEvent);
             // H-3: first SaveChanges persists Requested (before gateway), second persists Failed.
             await Outbox.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
         }

@@ -8,7 +8,6 @@ using Payments.Domain.Transactions;
 using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Payments.Application.Transactions.AuthorizePayment;
@@ -50,7 +49,6 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
     private readonly IPaymentsDbContext _dbContext;
     private readonly IPaymentGateway _gateway;
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly IDomainEventDispatcher _dispatcher;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AuthorizePaymentCommandHandler> _logger;
 
@@ -58,14 +56,12 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
         IPaymentsDbContext dbContext,
         IPaymentGateway gateway,
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IDomainEventDispatcher dispatcher,
         TimeProvider timeProvider,
         ILogger<AuthorizePaymentCommandHandler> logger)
     {
         _dbContext = dbContext;
         _gateway = gateway;
         _outbox = outbox;
-        _dispatcher = dispatcher;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -104,12 +100,10 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             _dbContext.Transactions.Add(tx);
 
             // H-3: persist the Requested aggregate + inbox-dedup row BEFORE the gateway call.
-            // PaymentTransaction.Create raises no domain events (ADR-0023 follow-up — the wire
-            // "requested" signal is RequestPaymentCommand, Checkout-saga-produced; Payments does
-            // not need to publish anything at creation), so there is nothing to dispatch here.
             // If SaveChanges below fails, saga retry re-enters via the `existing is null` branch
             // and re-creates — but the gateway has not been touched yet, so no double-authorize
-            // is possible. The dispatch loop below (post-Authorize) IS load-bearing.
+            // is possible. PaymentTransaction.Create raises no domain events (ADR-0023 follow-up),
+            // so the DispatchDomainEventsInterceptor wired on PaymentsDbContext is a no-op here.
             await _outbox.SaveChangesAsync(ct);
         }
         else
@@ -160,11 +154,14 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             }
         }
 
-        foreach (var domainEvent in tx.PopDomainEvents())
-        {
-            await _dispatcher.DispatchAsync(domainEvent, ct);
-        }
-
+        // Dispatch of PaymentAuthorizedDomainEvent / PaymentAuthorizationFailedDomainEvent /
+        // PaymentFailedDomainEvent is the DispatchDomainEventsInterceptor's job — it fires inside
+        // SavingChangesAsync, walks ChangeTracker.Entries<IAggregateRoot>(), pops their events,
+        // and dispatches them in the same DI scope so outbox publishers' AddOutboxMessage calls
+        // land in the same transaction as the aggregate save (reliable-messaging guarantee).
+        // Handlers must NOT inject IDomainEventDispatcher directly — dispatch is an infrastructure
+        // concern, owned by the interceptor. See services/Payments/Payments.Infrastructure/
+        // Persistence/Database/Interceptors/DispatchDomainEventsInterceptor.cs.
         await _outbox.SaveChangesAsync(ct);
 
         return Result.Ok(tx.Id);
