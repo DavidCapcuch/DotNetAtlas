@@ -393,7 +393,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
     "categoryBreadcrumb": "string (e.g. 'Electronics > Computers > Laptops')",
     "brandName": "string",
     "price": { "amount": "decimal", "currency": "string" },
-    "status": "string (Draft|Active|Discontinued)",
+    "status": "string (Active|Discontinued)",
     "dimensions": { "length": "decimal", "width": "decimal", "height": "decimal", "unit": "string" } | null,
     "images": [ { "url": "string", "altText": "string", "displayOrder": "int" } ],
     "createdAtUtc": "DateTimeOffset",
@@ -417,7 +417,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
     "minPrice": "decimal? (> 0 when provided)",
     "maxPrice": "decimal? (>= minPrice when provided)",
     "currency": "string? (ISO 4217; required when minPrice or maxPrice provided)",
-    "status": "string? (Draft|Active|Discontinued; defaults to Active)",
+    "status": "string? (Active|Discontinued; defaults to Active)",
     "pageNumber": "int (default 1, >= 1)",
     "pageSize": "int (default 20, 1..100)"
   }
