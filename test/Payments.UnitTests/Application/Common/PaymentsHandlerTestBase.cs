@@ -6,20 +6,22 @@ using Payments.Application.Abstractions;
 using Payments.Application.Common.Data;
 using Payments.Domain.Transactions;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.SharedKernel.Base.DomainEvents;
 
 namespace Payments.UnitTests.Application.Common;
 
 /// <summary>
 /// Shared fixture for Payments command-handler unit tests. One instance per test (xUnit
 /// constructs a new test class per fact), giving every test a pristine InMemory database plus
-/// fresh gateway / outbox / dispatcher substitutes.
+/// fresh gateway / outbox substitutes.
 /// </summary>
 /// <remarks>
 /// Replaces the former mocked-repository seam (ADR-0022 removed the hand-rolled persistence
 /// repository): handlers now load the aggregate directly off <see cref="IPaymentsDbContext"/>
 /// (PK lookups inline, CorrelationId via <c>PaymentByCorrelationIdSpec</c>), so tests seed the
-/// <c>Transactions</c> set and let the real InMemory query resolve it.
+/// <c>Transactions</c> set and let the real InMemory query resolve it. Domain-event dispatch is
+/// owned by the persistence-boundary interceptor per ADR-0024, so this fixture intentionally
+/// does NOT carry an <c>IDomainEventDispatcher</c> substitute; tests assert aggregate-raised
+/// events directly via <c>PopDomainEvents()</c>.
 /// </remarks>
 public abstract class PaymentsHandlerTestBase : IDisposable
 {
@@ -35,7 +37,6 @@ public abstract class PaymentsHandlerTestBase : IDisposable
 
         Gateway = Substitute.For<IPaymentGateway>();
         Outbox = Substitute.For<ITransactionalOutbox<IPaymentsDbContext>>();
-        Dispatcher = Substitute.For<IDomainEventDispatcher>();
     }
 
     protected FakeTimeProvider TimeProvider { get; }
@@ -45,8 +46,6 @@ public abstract class PaymentsHandlerTestBase : IDisposable
     protected IPaymentGateway Gateway { get; }
 
     protected ITransactionalOutbox<IPaymentsDbContext> Outbox { get; }
-
-    protected IDomainEventDispatcher Dispatcher { get; }
 
     /// <summary>
     /// Persists an already-built aggregate so a handler's load (tracked, by Id or CorrelationId)

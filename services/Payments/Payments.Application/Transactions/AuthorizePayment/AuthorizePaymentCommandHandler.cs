@@ -102,8 +102,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             // H-3: persist the Requested aggregate + inbox-dedup row BEFORE the gateway call.
             // If SaveChanges below fails, saga retry re-enters via the `existing is null` branch
             // and re-creates — but the gateway has not been touched yet, so no double-authorize
-            // is possible. PaymentTransaction.Create raises no domain events (ADR-0023 follow-up),
-            // so the DispatchDomainEventsInterceptor wired on PaymentsDbContext is a no-op here.
+            // is possible. (Create raises no domain events per ADR-0023 follow-up.)
             await _outbox.SaveChangesAsync(ct);
         }
         else
@@ -154,14 +153,6 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             }
         }
 
-        // Dispatch of PaymentAuthorizedDomainEvent / PaymentAuthorizationFailedDomainEvent /
-        // PaymentFailedDomainEvent is the DispatchDomainEventsInterceptor's job — it fires inside
-        // SavingChangesAsync, walks ChangeTracker.Entries<IAggregateRoot>(), pops their events,
-        // and dispatches them in the same DI scope so outbox publishers' AddOutboxMessage calls
-        // land in the same transaction as the aggregate save (reliable-messaging guarantee).
-        // Handlers must NOT inject IDomainEventDispatcher directly — dispatch is an infrastructure
-        // concern, owned by the interceptor. See services/Payments/Payments.Infrastructure/
-        // Persistence/Database/Interceptors/DispatchDomainEventsInterceptor.cs.
         await _outbox.SaveChangesAsync(ct);
 
         return Result.Ok(tx.Id);

@@ -15,7 +15,7 @@ namespace Payments.UnitTests.Application;
 public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
 {
     private VoidPaymentCommandHandler BuildHandler() =>
-        new(DbContext, Gateway, Outbox, Dispatcher, TimeProvider, NullLogger<VoidPaymentCommandHandler>.Instance);
+        new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<VoidPaymentCommandHandler>.Instance);
 
     private static VoidPaymentCommand BuildCommand(
         Guid? paymentId = null,
@@ -43,7 +43,9 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
         {
             result.Should().BeSuccess();
             existing.Status.Should().Be(PaymentStatus.Voided);
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentVoidedDomainEvent>(), Arg.Any<CancellationToken>());
+            // Dispatch is owned by DispatchDomainEventsInterceptor (ADR-0024); verify the aggregate
+            // raised the event that the interceptor will pop on SaveChanges.
+            existing.PopDomainEvents().Should().ContainSingle().Which.Should().BeOfType<PaymentVoidedDomainEvent>();
             await Outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }

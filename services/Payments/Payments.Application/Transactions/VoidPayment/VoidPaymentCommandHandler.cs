@@ -9,7 +9,6 @@ using Payments.Domain.Transactions.Specifications;
 using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
 
 namespace Payments.Application.Transactions.VoidPayment;
@@ -26,7 +25,6 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
     private readonly IPaymentsDbContext _dbContext;
     private readonly IPaymentGateway _gateway;
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly IDomainEventDispatcher _dispatcher;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<VoidPaymentCommandHandler> _logger;
 
@@ -34,14 +32,12 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
         IPaymentsDbContext dbContext,
         IPaymentGateway gateway,
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IDomainEventDispatcher dispatcher,
         TimeProvider timeProvider,
         ILogger<VoidPaymentCommandHandler> logger)
     {
         _dbContext = dbContext;
         _gateway = gateway;
         _outbox = outbox;
-        _dispatcher = dispatcher;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -114,11 +110,6 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
         if (voidResult.IsFailed)
         {
             return voidResult;
-        }
-
-        foreach (var domainEvent in tx.PopDomainEvents())
-        {
-            await _dispatcher.DispatchAsync(domainEvent, ct);
         }
 
         await _outbox.SaveChangesAsync(ct);

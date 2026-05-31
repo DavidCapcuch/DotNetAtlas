@@ -19,7 +19,7 @@ namespace Payments.UnitTests.Application;
 public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
 {
     private CapturePaymentCommandHandler BuildHandler() =>
-        new(DbContext, Gateway, Outbox, Dispatcher, TimeProvider, NullLogger<CapturePaymentCommandHandler>.Instance);
+        new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<CapturePaymentCommandHandler>.Instance);
 
     private static CapturePaymentCommand BuildCommand(
         Guid? paymentId = null,
@@ -46,8 +46,11 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
         {
             result.Should().BeSuccess();
             existing.Status.Should().Be(PaymentStatus.Completed);
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentCapturedDomainEvent>(), Arg.Any<CancellationToken>());
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentCompletedDomainEvent>(), Arg.Any<CancellationToken>());
+            // Dispatch is owned by DispatchDomainEventsInterceptor (ADR-0024); verify the aggregate
+            // raised both events that the interceptor will pop on SaveChanges.
+            var raised = existing.PopDomainEvents();
+            raised.Should().Contain(e => e is PaymentCapturedDomainEvent);
+            raised.Should().Contain(e => e is PaymentCompletedDomainEvent);
             await Outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }
@@ -67,8 +70,11 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
         {
             result.Should().BeSuccess();
             existing.Status.Should().Be(PaymentStatus.Failed);
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentCaptureFailedDomainEvent>(), Arg.Any<CancellationToken>());
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentFailedDomainEvent>(), Arg.Any<CancellationToken>());
+            // Dispatch is owned by DispatchDomainEventsInterceptor (ADR-0024); verify the aggregate
+            // raised both events that the interceptor will pop on SaveChanges.
+            var raised = existing.PopDomainEvents();
+            raised.Should().Contain(e => e is PaymentCaptureFailedDomainEvent);
+            raised.Should().Contain(e => e is PaymentFailedDomainEvent);
             await Outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }

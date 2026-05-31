@@ -28,6 +28,8 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0020](0020-summary-events.md) | Summary Events for Cross-BC Aggregate Snapshots | Accepted | 2026-05-02 |
 | [0021](0021-read-side-no-specifications.md) | Ardalis.Specification forbidden on CQRS read side | Accepted | 2026-05-25 |
 | [0022](0022-specification-pattern-adoption.md) | Specification pattern adoption criteria | Accepted | 2026-05-29 |
+| [0023](0023-payments-event-vs-command-classification.md) | Payments Event-vs-Command Classification | Accepted | 2026-05-30 |
+| [0024](0024-domain-event-dispatch-in-persistence-interceptor.md) | Domain-event dispatch belongs in the persistence boundary | Accepted | 2026-05-31 |
 
 ## Creating a New ADR
 
