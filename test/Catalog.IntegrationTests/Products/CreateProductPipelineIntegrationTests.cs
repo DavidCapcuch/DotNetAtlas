@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.Core;
+using Platform.Test.Framework.Assertions;
 
 namespace Catalog.IntegrationTests.Products;
 
@@ -133,7 +134,7 @@ public sealed class CreateProductPipelineIntegrationTests : BaseIntegrationTest
             // Outbox — exactly one row, on the products topic, with the Avro CLR type name.
             outboxRows.Should().ContainSingle()
                 .Which.TopicName.Should().Be("catalog.products");
-            outboxRows[0].Type.Should().Be(typeof(Catalog.Products.ProductCreatedEvent).FullName);
+            outboxRows[0].Type.Should().BeMessageType<Catalog.Products.ProductCreatedEvent>();
         }
     }
 }

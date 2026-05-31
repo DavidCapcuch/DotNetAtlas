@@ -1473,7 +1473,6 @@
           "AspNetCore.HealthChecks.ApplicationStatus": "[9.0.0, )",
           "AspNetCore.HealthChecks.Kafka": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
-          "AspNetCore.HealthChecks.Uris": "[9.0.0, )",
           "Catalog.Application": "[1.0.0, )",
           "EFCore.NamingConventions": "[10.0.1, )",
           "EntityFrameworkCore.Exceptions.PostgreSQL": "[10.0.0, )",
@@ -1648,6 +1647,7 @@
       "platform.test.framework": {
         "type": "Project",
         "dependencies": {
+          "AwesomeAssertions": "[9.4.0, )",
           "Confluent.Kafka": "[2.14.0, )",
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )",
           "Evolve": "[3.2.0, )",
@@ -1732,16 +1732,6 @@
         "dependencies": {
           "Microsoft.Extensions.Diagnostics.HealthChecks": "8.0.11",
           "StackExchange.Redis": "2.7.4"
-        }
-      },
-      "AspNetCore.HealthChecks.Uris": {
-        "type": "CentralTransitive",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "XYdNlA437KeF8p9qOpZFyNqAN+c0FXt/JjTvzH/Qans0q0O3pPE8KPnn39ucQQjR/Roum1vLTP3kXiUs8VHyuA==",
-        "dependencies": {
-          "Microsoft.Extensions.Diagnostics.HealthChecks": "8.0.11",
-          "Microsoft.Extensions.Http": "8.0.0"
         }
       },
       "Bogus": {

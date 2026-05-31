@@ -86,9 +86,9 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
         rows.Should().HaveCount(2);
         rows[0].Version.Should().Be(1);
-        rows[0].EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
+        rows[0].EventType.Should().BeEventType<StockItemInitializedDomainEvent>();
         rows[1].Version.Should().Be(2);
-        rows[1].EventType.Should().Be(nameof(StockReceivedDomainEvent));
+        rows[1].EventType.Should().BeEventType<StockReceivedDomainEvent>();
     }
 
     [Fact]

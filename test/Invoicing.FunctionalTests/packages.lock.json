@@ -2660,6 +2660,7 @@
       "platform.test.framework": {
         "type": "Project",
         "dependencies": {
+          "AwesomeAssertions": "[9.4.0, )",
           "Confluent.Kafka": "[2.14.0, )",
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )",
           "Evolve": "[3.2.0, )",
