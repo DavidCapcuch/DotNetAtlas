@@ -13,10 +13,6 @@ public sealed class StockLevelChangedEventConsumerOptions : ConsumerConfig
 {
     public const string Section = "KafkaStockLevelChangedEventConsumer";
 
-    /// <summary>Inbound topic — owned by the Inventory bounded context.</summary>
-    [Required(AllowEmptyStrings = false)]
-    public required string Topic { get; set; }
-
     /// <summary>
     /// Consumer group id. Per the one-group-per-service rule in
     /// <c>events-catalog.md § 3.1</c>, this is <c>catalog-group</c> — the sole
