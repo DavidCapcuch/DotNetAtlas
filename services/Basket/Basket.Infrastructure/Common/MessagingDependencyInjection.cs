@@ -25,7 +25,7 @@ internal static class MessagingDependencyInjection
     /// </summary>
     internal const string KafkaProducerOrigin = "Basket";
 
-    internal static IServiceCollection AddMessaging(
+    internal static IServiceCollection AddKafkaMessaging(
         this IServiceCollection services,
         ConfigurationManager configuration)
     {

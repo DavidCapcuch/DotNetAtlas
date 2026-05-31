@@ -29,7 +29,7 @@ public static class InfrastructureDependencyInjection
         services
             .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
-            .AddMessaging(configuration)
+            .AddKafkaMessaging(configuration)
             .AddInventoryHealthChecks(configuration);
 
         return services;
