@@ -7,6 +7,8 @@ namespace SagaOrchestrators.Common.Config;
 /// </summary>
 public sealed class PaymentProcessingSagaTimeoutOptions
 {
+    public const string Section = $"{SagaOptions.Section}:PaymentProcessingTimeouts";
+
     /// <summary>
     /// Timeout in minutes for payment authorization to complete.
     /// </summary>
