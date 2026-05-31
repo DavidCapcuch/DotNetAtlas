@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-04-18)
+Accepted (2026-04-18) — revised 2026-05-31 to reflect the post-Weather-cleanup eShop topology (the original `AlertSubscriptionPurchaseSaga` / `AlertSubscriptionExtensionSaga` references were dropped in [ADR-0001](0001-centralized-saga-orchestration.md)'s 2026-05-30 revision; only `PaymentProcessingSaga` remained as the sibling state machine). The substantive decisions (Option A reserve-first, Option 1 centralized placement) are unchanged.
 
 ## Context
 
@@ -13,7 +13,7 @@ Two structural decisions shape this saga:
 1. **Step ordering** — should stock be reserved *before* payment is processed, or should payment be taken first?
 2. **Placement** — should the orchestrator live in the centralized saga service (per ADR-0001), or be embedded in one of the participating services?
 
-ADR-0001 accepted centralized saga orchestration as the default topology for distributed transactions in the system (home of `AlertSubscriptionPurchaseSaga`, `AlertSubscriptionExtensionSaga`, and `PaymentProcessingSaga`). This ADR **extends** that decision specifically for the Checkout saga and commits to a step-ordering choice.
+ADR-0001 accepted centralized saga orchestration as the default topology for distributed transactions in the system (home of `PaymentProcessingSaga`, and — once this ADR ships — the Checkout saga). This ADR **extends** that decision specifically for the Checkout saga and commits to a step-ordering choice.
 
 Real-world precedent for step ordering varies:
 
@@ -82,7 +82,7 @@ Cons:
 
 #### Option 1: Centralized in `saga/SagaOrchestrators/Checkout/` (chosen)
 
-Follows ADR-0001. Folder shape mirrors `Orders/AlertSubscriptionPurchaseSaga/` and `Payments/PaymentProcessingSaga/`. Reuses the existing MassTransit state-machine + EF Core (PostgreSQL) + Kafka consumer-adapter pattern; co-deploys with the existing sagas in the `saga` worker.
+Follows ADR-0001. Folder shape mirrors the existing [`saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`](../../saga/SagaOrchestrators/Payments/PaymentProcessingSaga/) — the sibling state machine in the same worker. Reuses the existing MassTransit state-machine + EF Core (PostgreSQL) + Kafka consumer-adapter pattern; co-deploys with the existing sagas in the `saga` worker.
 
 #### Option 2: Embedded in the Ordering service
 
@@ -126,7 +126,7 @@ Cons:
 
 We will use **Option A (reserve stock before payment)** and **Option 1 (centralized in `saga/SagaOrchestrators/Checkout/`)**.
 
-The saga is placed at `saga/SagaOrchestrators/Checkout/CheckoutSaga/`, following the folder convention already established by `Orders/AlertSubscriptionPurchaseSaga/` and `Payments/PaymentProcessingSaga/`. The step order is:
+The saga is placed at [`saga/SagaOrchestrators/Checkout/CheckoutSaga/`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/), following the folder convention already established by the sibling [`Payments/PaymentProcessingSaga/`](../../saga/SagaOrchestrators/Payments/PaymentProcessingSaga/). The step order is:
 
 1. `CreateOrder` — Ordering creates the order in `Created` status.
 2. `ReserveStock` — Inventory reserves stock for each distinct ProductId (fan-out).
@@ -144,9 +144,9 @@ Compensation paths are explicit and vary by failure point: failures before captu
 
 **The parallel "charge and reserve together" option was rejected** because it introduces a consistency problem: if the charge succeeds but the reservation fails (or vice-versa), a non-trivial two-phase commit protocol between Payments and Inventory would be required, and that contradicts the saga pattern's one-step-at-a-time premise. Parallel would also force duplication of compensation logic to handle the "both succeed but confirm fails" case, which is the union of both single-step compensations.
 
-**The existing `PaymentProcessingSaga` is preserved unchanged as a sub-saga.** The Checkout saga delegates payment orchestration by publishing `RequestPaymentCommand`, which triggers `PaymentProcessingSaga` to handle authorize → capture → complete (with void/refund compensation and retry logic). This is the same saga-within-saga pattern that ADR-0001 established for `AlertSubscriptionPurchaseSaga` and `AlertSubscriptionExtensionSaga`, and it means the Checkout saga inherits Payments's orchestration maturity — retry policies, idempotent capture semantics, refund gateway integration — for free. No changes to Payments or `PaymentProcessingSaga` are required to add Checkout.
+**The existing `PaymentProcessingSaga` is preserved unchanged as a sub-saga.** The Checkout saga delegates payment orchestration by publishing `RequestPaymentCommand`, which triggers `PaymentProcessingSaga` to handle authorize → capture → complete (with void/refund compensation and retry logic). This is the same saga-within-saga pattern ADR-0001 already established for `PaymentProcessingSaga`, and it means the Checkout saga inherits Payments's orchestration maturity — retry policies, idempotent capture semantics, refund gateway integration — for free. No changes to Payments or `PaymentProcessingSaga` are required to add Checkout.
 
-**Centralized placement extends ADR-0001's rationale to a saga with no natural owner service.** Where `AlertSubscriptionPurchaseSaga` arguably could have lived in Order (the initiating service), the Checkout saga cannot — Basket, Ordering, Inventory, and Payments all participate equally, and none is a natural host. Embedding it in Ordering would force Ordering to consume Inventory and Payments events (`StockReservedEvent`, `StockReservationFailedEvent`, `PaymentCompletedEvent`, `PaymentRefundedEvent`), inverting the dependency direction ADR-0001 explicitly avoided. The centralized placement also wins on the same drivers ADR-0001 articulated: orchestration ownership, avoidance of cross-service circular dependencies, independent scaling of saga processing load, and centralized observability of the distributed transaction. Inventory's 15-minute reservation TTL caps the worst-case "stock held but payment never completed" window at a bounded, auto-released quantity — the Inventory `ReservationExpiryWorker` cleans up even if the saga itself goes stuck.
+**Centralized placement extends ADR-0001's rationale to a saga with no natural owner service.** The Checkout saga cannot live inside a single participating service — Basket, Ordering, Inventory, and Payments all participate equally, and none is a natural host. Embedding it in Ordering would force Ordering to consume Inventory and Payments events (`StockReservedEvent`, `StockReservationFailedEvent`, `PaymentCompletedEvent`, `PaymentRefundedEvent`), inverting the dependency direction ADR-0001 explicitly avoided. The centralized placement also wins on the same drivers ADR-0001 articulated: orchestration ownership, avoidance of cross-service circular dependencies, independent scaling of saga processing load, and centralized observability of the distributed transaction. Inventory's 15-minute reservation TTL caps the worst-case "stock held but payment never completed" window at a bounded, auto-released quantity — the Inventory `ReservationExpiryWorker` cleans up even if the saga itself goes stuck.
 
 ## Consequences
 
@@ -159,8 +159,8 @@ Compensation paths are explicit and vary by failure point: failures before captu
   - `Compensated` — money moved and was refunded; reached only on confirmation-stage failures.
   - `CompensationStuck` — compensation itself failed; requires ops intervention.
 - **Payment-failure compensation is cheap** — release the stock, cancel the order, emit `CheckoutFailedEvent`. No refund needed because payment was never captured.
-- **Reuses existing saga infrastructure**: MassTransit state machines, EF Core optimistic-concurrency persistence on the shared `saga` PostgreSQL schema, Kafka consumer-adapter pattern, transactional outbox — all of which are already production-hardened for the Weather Alert sagas.
-- **The `PaymentProcessingSaga` sub-saga** keeps refund/capture/retry logic in one place and amortizes it across both the existing Weather Alert Subscription flows and the new eShop flow. No changes to Payments are required.
+- **Reuses existing saga infrastructure**: MassTransit state machines, EF Core optimistic-concurrency persistence on the shared `saga` PostgreSQL schema, Kafka consumer-adapter pattern, transactional outbox — all of which are already exercised by the sibling `PaymentProcessingSaga`.
+- **The `PaymentProcessingSaga` sub-saga** keeps refund/capture/retry logic in one place. Today the Checkout saga is its only caller, but the seam stays open: any future payment-using workflow (subscription billing, refund-as-a-service) would compose against the same sub-saga without re-implementing capture/void/refund orchestration. No changes to Payments are required.
 - **Same deployment unit and operational mental model** as existing sagas — no new infrastructure, dashboards, or health checks to learn. Existing `SagaHealthCheck`, stuck-saga alerts, and OpenTelemetry tracing extend to Checkout with trivial additions.
 - **Onboarding cost is low** because the reserve-first pattern is already the mental model new engineers bring with them from other e-commerce domains.
 
@@ -185,7 +185,7 @@ Compensation paths are explicit and vary by failure point: failures before captu
 - **State persistence**: `saga.checkout_saga_states` (PostgreSQL, optimistic concurrency via `RowVersion`), EF Core mapping, same `saga` schema as existing sagas. Mutable per-saga fields (basket snapshot, reservation tracking) are stored as `jsonb` columns for atomic read-modify-write under a single `RowVersion` check.
 - **CorrelationId**: equals `BasketCheckoutInitiatedEvent.BasketCorrelationId` (UUID v7), immutable after first set. The same value propagates to Ordering's Order aggregate `CorrelationId`, enabling end-to-end trace correlation across Basket → Saga → Ordering → Inventory → Payments.
 - **Consumer group**: `saga-checkout` (one group per saga, per ADR-0001's pattern).
-- **Topics consumed**: `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions`. Kafka consumers use the consumer-adapter pattern: Avro external events are transformed into internal MassTransit saga events via `IPublishEndpoint`, identical to `AlertSubscriptionPurchaseSaga`.
+- **Topics consumed**: `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions`. Kafka consumers use the consumer-adapter pattern: Avro external events are transformed into internal MassTransit saga events via `IPublishEndpoint`, mirroring the sibling `PaymentProcessingSaga`.
 - **Topics published to**: `ordering.order-commands` (`CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand`), `inventory.reservation-commands` (`ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand`), `payments.payment-commands` (`AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand`), plus saga-level terminal events on `checkout.sagas` (`CheckoutCompletedEvent`, `CheckoutFailedEvent`, `CheckoutStuckEvent`). All publications go through the transactional outbox to ensure saga state and message emission are atomically consistent.
 - **Payment orchestration** is delegated to the existing `PaymentProcessingSaga` via `RequestPaymentCommand` — no changes to Payments are required. The sub-saga reports back with `PaymentCompletedEvent` / `PaymentFailedEvent` / `PaymentRefundedEvent`.
 - **Multi-item fan-out** is internal to `AwaitingStockReservation`: one `ReserveStockCommand` per distinct ProductId (summing quantities for duplicated lines), tracked via a `ReservationIdsJson` dictionary with `ExpectedReservations` / `PendingReservations` counters. Completion of the state requires `PendingReservations == 0` and no failures; any failure triggers fan-in release of reservations acquired so far.
