@@ -2,9 +2,9 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Notifications.Application.Common.Data;
+using Notifications.Application.Common.Messaging;
 using Notifications.Application.Email;
 using Notifications.Email;
-using Notifications.Infrastructure.Common.Config;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 

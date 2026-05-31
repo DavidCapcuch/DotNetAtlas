@@ -4,6 +4,7 @@ using KafkaFlow.Retry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Notifications.Application.Common.Messaging;
 using Notifications.Application.Email;
 using Notifications.Email;
 using Notifications.Infrastructure.Common.Config;
