@@ -223,7 +223,7 @@ All live under `Ordering.Domain.Orders.Events`. All inherit `Platform.SharedKern
 
 | Event | Raised by | Payload |
 |-------|-----------|---------|
-| `OrderCreatedDomainEvent` | `CreateFromBasket` factory | `OrderId`, `BuyerId`, `CorrelationId`, `Items` (item-level snapshot inline: `ProductId`, `Sku`, `Name`, `Quantity`, `UnitPriceAmount`, `LineTotalAmount`, `Currency`), `ShippingAddress`, `BillingAddress`, `Total`, `CreatedAtUtc` |
+| `OrderCreatedDomainEvent` | `CreateFromBasket` factory | `OrderId`, `BuyerId`, `CorrelationId`, `PaymentMethodId`, `Items` (item-level snapshot inline: `ProductId`, `Sku`, `Name`, `Quantity`, `UnitPriceAmount`, `LineTotalAmount`; currency travels on `Total`), `ShippingAddress`, `BillingAddress`, `Total`, `CreatedAtUtc` |
 | `OrderStockReservedDomainEvent` | `MarkStockReserved` | `OrderId`, `CorrelationId`, `ReservationId`, `OccurredOnUtc` |
 | `OrderPaymentCompletedDomainEvent` | `MarkPaymentCompleted` | `OrderId`, `CorrelationId`, `PaymentTransactionId`, `OccurredOnUtc` |
 | `OrderConfirmedDomainEvent` | `Confirm` | `OrderId`, `CorrelationId`, `BuyerId`, `Items`, `Total`, `BillingAddress`, `ConfirmedAtUtc`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for Invoicing) |
