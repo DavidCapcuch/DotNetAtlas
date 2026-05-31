@@ -4,19 +4,14 @@ set -e
 echo "Starting DotNetAtlas development environment setup..."
 echo ""
 
-# Restore .NET tools (if any defined in .config/dotnet-tools.json)
+# Restore .NET tools from .config/dotnet-tools.json
+# (includes dotnet-ef, avrogen, reportgenerator, dotnet-stryker — see manifest).
 echo "📦 Restoring .NET tools..."
-dotnet tool restore 2>/dev/null || echo "   No .NET tools manifest found, skipping..."
+dotnet tool restore
 
 # Restore NuGet packages
 echo "📦 Restoring NuGet packages..."
 dotnet restore
-
-# Install Entity Framework Core tools globally if not present
-if ! dotnet ef --version &>/dev/null; then
-    echo "🔧 Installing Entity Framework Core tools..."
-    dotnet tool install --global dotnet-ef
-fi
 
 # Generate development HTTPS certificate
 echo "🔐 Setting up HTTPS development certificate..."
