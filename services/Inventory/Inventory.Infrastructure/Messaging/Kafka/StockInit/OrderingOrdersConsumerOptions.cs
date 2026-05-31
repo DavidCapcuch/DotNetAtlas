@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 
 /// <summary>
-/// Kafka consumer configuration for Ordering's <c>ordering.orders</c> topic.
+/// Kafka consumer configuration for Ordering's <c>TopicsOptions.OrderingOrders</c> topic.
 /// Inventory subscribes to <c>OrderCancelledEvent</c> messages so it can
 /// release any still-Active reservations associated with the order ("release
 /// if still reserved"). Bound from the <c>KafkaOrderingOrdersConsumer</c>

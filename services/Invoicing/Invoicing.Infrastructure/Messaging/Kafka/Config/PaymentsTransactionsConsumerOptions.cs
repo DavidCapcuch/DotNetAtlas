@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Invoicing.Infrastructure.Messaging.Kafka.Config;
 
 /// <summary>
-/// Kafka consumer configuration for the inbound <c>payments.transactions</c>
+/// Kafka consumer configuration for the inbound <c>TopicsOptions.PaymentsTransactions</c>
 /// topic. One consumer instance subscribes; KafkaFlow's
 /// <c>AddTypedHandlers</c> dispatches between
 /// <c>PaymentCapturedInvoiceProjectionKafkaHandler</c> and

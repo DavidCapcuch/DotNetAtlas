@@ -4,10 +4,9 @@ using Confluent.Kafka;
 namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 
 /// <summary>
-/// Kafka consumer configuration for the <c>inventory.reservation-commands</c>
-/// saga-command topic. Bound from the
-/// <c>KafkaReservationCommandsConsumer</c> section. Inherits from
-/// <see cref="ConsumerConfig"/> so broker-level knobs (auto-offset-reset,
+/// Kafka consumer configuration for the <c>TopicsOptions.InventoryReservationCommands</c>
+/// saga-command topic. Bound from the <c>KafkaReservationCommandsConsumer</c> section.
+/// Inherits from <see cref="ConsumerConfig"/> so broker-level knobs (auto-offset-reset,
 /// session-timeout, etc.) are bindable directly.
 /// </summary>
 /// <remarks>

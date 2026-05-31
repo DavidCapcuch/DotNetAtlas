@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 
 /// <summary>
-/// Kafka consumer configuration for Catalog's <c>catalog.products</c> topic.
+/// Kafka consumer configuration for Catalog's <c>TopicsOptions.CatalogProducts</c> topic.
 /// Inventory subscribes to learn about new products and initialize a fresh
 /// event-sourced stream per <c>ProductId</c>. Bound from the
 /// <c>KafkaCatalogProductsConsumer</c> section.

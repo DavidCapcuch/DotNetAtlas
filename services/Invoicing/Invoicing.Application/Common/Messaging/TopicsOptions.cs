@@ -4,16 +4,17 @@ namespace Invoicing.Application.Common.Messaging;
 
 /// <summary>
 /// Kafka topic names for the Invoicing bounded context — both the inbound topics it
-/// subscribes to (Ordering + Payments) and the outbound topic the outbox publishers
-/// emit to (<see cref="Invoices"/>). Bound from configuration section <c>InvoicingTopics</c>
-/// on startup; validated eagerly via <c>AddOptionsWithValidateOnStart</c>.
+/// subscribes to (Ordering + Payments + Notifications) and the outbound topics the outbox
+/// publishers emit to (<see cref="Invoices"/>, <see cref="NotificationsEmailCommands"/>).
+/// Bound from configuration section <c>Topics</c> on startup; registered + validated eagerly
+/// in Infrastructure DI via <c>AddOptionsWithValidateOnStart</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Lives in the Application layer (per <c>_shared.md § 5</c>) so the outbox publisher
+/// The type lives in the Application layer (per <c>_shared.md § 5</c>) so the outbox publisher
 /// domain-event handlers can read it without taking a dependency on Infrastructure-namespace
-/// types. The four enrichment-projection consumers in Infrastructure also bind against
-/// this same options object — there is exactly one source of truth for Invoicing topic names.
+/// types. The Infrastructure-layer Kafka consumers also bind against this same options object
+/// — there is exactly one source of truth for Invoicing topic names.
 /// </para>
 /// <para>
 /// Outbound topic <c>invoicing.invoices</c> has 10-year retention per EU VAT norms (see

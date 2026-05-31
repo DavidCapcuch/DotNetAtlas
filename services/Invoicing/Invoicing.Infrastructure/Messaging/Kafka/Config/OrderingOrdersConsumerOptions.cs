@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Invoicing.Infrastructure.Messaging.Kafka.Config;
 
 /// <summary>
-/// Kafka consumer configuration for the inbound <c>ordering.orders</c> topic.
+/// Kafka consumer configuration for the inbound <c>TopicsOptions.OrderingOrders</c> topic.
 /// One consumer instance subscribes to the topic; KafkaFlow's
 /// <c>AddTypedHandlers</c> dispatches between
 /// <c>OrderConfirmedInvoiceProjectionKafkaHandler</c> and
