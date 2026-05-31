@@ -46,6 +46,22 @@ public static class SagaDependencyInjection
                 .BindConfiguration(SagaTopicsOptions.Section)
                 .ValidateDataAnnotations();
 
+            services.AddOptionsWithValidateOnStart<SagaSchemaRegistryOptions>()
+                .BindConfiguration(SagaSchemaRegistryOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddOptionsWithValidateOnStart<AvroDeserializerOptions>()
+                .BindConfiguration(AvroDeserializerOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
+                .BindConfiguration(AvroSerializerOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddOptionsWithValidateOnStart<SagaConsumerGroupsOptions>()
+                .BindConfiguration(SagaConsumerGroupsOptions.Section)
+                .ValidateDataAnnotations();
+
             var sagaOptions = configuration
                 .GetRequiredSection(SagaOptions.Section)
                 .Get<SagaOptions>()!;
