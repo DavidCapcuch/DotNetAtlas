@@ -1,8 +1,5 @@
 using FluentValidation;
-using Inventory.Application.Common.Messaging;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Platform.CQRS.Common;
 using Platform.SharedKernel.Common;
 
@@ -21,7 +18,7 @@ public static class ApplicationDependencyInjection
     {
         /// <summary>
         /// Registers validators, CQRS handlers + behaviour chain, domain-event
-        /// handlers + dispatcher, and the <see cref="TopicsOptions"/> binding.
+        /// handlers + dispatcher.
         /// Call AFTER <c>AddServiceDefaults</c> and BEFORE the Infrastructure
         /// registrations so the projection handlers and outbox publishers pick
         /// up the concrete <c>IInventoryDbContext</c> / outbox services.
@@ -45,10 +42,6 @@ public static class ApplicationDependencyInjection
             services.AddCqrsMetricsBehavior();
             services.AddCqrsLoggingBehavior();
             services.AddCqrsTracingBehavior();
-
-            services.AddOptionsWithValidateOnStart<TopicsOptions>()
-                .BindConfiguration(TopicsOptions.Section)
-                .ValidateDataAnnotations();
 
             return services;
         }

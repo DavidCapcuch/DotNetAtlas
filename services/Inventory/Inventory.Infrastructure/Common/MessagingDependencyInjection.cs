@@ -46,6 +46,18 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
+            .BindConfiguration(SchemaRegistryOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
+            .BindConfiguration(AvroSerializerOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<ReservationCommandsConsumerOptions>()
             .BindConfiguration(ReservationCommandsConsumerOptions.Section)
             .ValidateDataAnnotations();
@@ -92,7 +104,7 @@ internal static class MessagingDependencyInjection
                 // Group id is inventory-group — Inventory's sole consumer group
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
-                    .Topic(reservationCommandsOptions.Topic)
+                    .Topic(topicsOptions.InventoryReservationCommands)
                     .WithConsumerConfig(reservationCommandsOptions)
                     .WithBufferSize(reservationCommandsOptions.BufferSize)
                     .WithWorkersCount(reservationCommandsOptions.WorkersCount)
@@ -121,7 +133,7 @@ internal static class MessagingDependencyInjection
                 // Group id is inventory-group — Inventory's sole consumer group
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
-                    .Topic(catalogProductsOptions.Topic)
+                    .Topic(topicsOptions.CatalogProducts)
                     .WithConsumerConfig(catalogProductsOptions)
                     .WithBufferSize(catalogProductsOptions.BufferSize)
                     .WithWorkersCount(catalogProductsOptions.WorkersCount)
@@ -144,7 +156,7 @@ internal static class MessagingDependencyInjection
                 // Group id is inventory-group — Inventory's sole consumer group
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
-                    .Topic(orderingOrdersOptions.Topic)
+                    .Topic(topicsOptions.OrderingOrders)
                     .WithConsumerConfig(orderingOrdersOptions)
                     .WithBufferSize(orderingOrdersOptions.BufferSize)
                     .WithWorkersCount(orderingOrdersOptions.WorkersCount)
