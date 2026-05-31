@@ -11,6 +11,8 @@ namespace SagaOrchestrators.Common.Config.Kafka;
 /// </summary>
 public sealed class SagaConsumerGroupsOptions
 {
+    public const string Section = $"{KafkaOptions.Section}:ConsumerGroups";
+
     [Required(AllowEmptyStrings = false)]
     public required string PaymentProcessingSaga { get; set; }
 
