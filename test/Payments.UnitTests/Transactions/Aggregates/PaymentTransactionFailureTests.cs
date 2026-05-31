@@ -18,7 +18,7 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkAuthorizationFailed_FromRequested_TransitionsToFailedAndRaisesBothEventsInOrder()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
         tx.PopDomainEvents();
         var failureInfo = BuildFailureInfo();
 
@@ -106,7 +106,7 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkCaptureFailed_FromRequested_ThrowsDataIntegrityException()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
         tx.PopDomainEvents();
 
         var action = () => tx.MarkCaptureFailed(BuildFailureInfo(), UtcNow);

@@ -26,7 +26,7 @@ public class StubPaymentGatewayTests
     [InlineData(1.99)]
     public async Task AuthorizeAsync_WhenAmountEndsIn99Cents_ReturnsGatewayDeclinedError(decimal amount)
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: amount);
+        var tx = PaymentTransactionFactory.Requested(amount: amount);
 
         var result = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
 
@@ -49,7 +49,7 @@ public class StubPaymentGatewayTests
     [InlineData(0.01)]
     public async Task AuthorizeAsync_WhenAmountIsNormal_ReturnsSuccessWithDeterministicTransactionId(decimal amount)
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: amount);
+        var tx = PaymentTransactionFactory.Requested(amount: amount);
         var expectedId = $"stub-{tx.Id:N}";
 
         var result = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
@@ -68,7 +68,7 @@ public class StubPaymentGatewayTests
     {
         // H-6: ExpiresAtUtc lives on the adapter (real PSPs return their own value); the v1
         // stub reads from TimeProvider so the value is deterministic in tests.
-        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 100m);
+        var tx = PaymentTransactionFactory.Requested(amount: 100m);
 
         var result = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
 
@@ -82,7 +82,7 @@ public class StubPaymentGatewayTests
     [Fact]
     public async Task AuthorizeAsync_DeterministicId_IsStableAcrossCalls()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 50m);
+        var tx = PaymentTransactionFactory.Requested(amount: 50m);
 
         var first = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
         var second = await _sut.AuthorizeAsync(tx, "stub-key", TestContext.Current.CancellationToken);
@@ -111,7 +111,7 @@ public class StubPaymentGatewayTests
     {
         // H-4: a real PSP adapter would reject a blank Idempotency-Key header; the stub mirrors
         // that behaviour so the contract is enforced uniformly across implementations.
-        var tx = PaymentTransactionFactory.Requested(UtcNow, amount: 50m);
+        var tx = PaymentTransactionFactory.Requested(amount: 50m);
 
         var act = async () => await _sut.AuthorizeAsync(tx, key!, TestContext.Current.CancellationToken);
 

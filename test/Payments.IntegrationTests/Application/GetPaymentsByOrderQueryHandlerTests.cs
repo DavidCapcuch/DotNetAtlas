@@ -77,8 +77,7 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
             buyerId: Guid.CreateVersion7(),
             orderId: orderId,
             Money.Create(100m, "USD").Value,
-            paymentMethodId: "tok_visa_4242",
-            DateTimeOffset.UtcNow).Value;
+            paymentMethodId: "tok_visa_4242").Value;
         _ = tx.PopDomainEvents();
 
         dbContext.Transactions.Add(tx);

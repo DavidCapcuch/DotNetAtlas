@@ -15,7 +15,6 @@ internal static class PaymentSeed
 {
     public static async Task<PaymentTransaction> InsertRequestedAsync(
         PaymentsDbContext dbContext,
-        DateTimeOffset utcNow,
         Guid? paymentId = null,
         Guid? orderId = null,
         decimal amount = 49.99m,
@@ -37,8 +36,7 @@ internal static class PaymentSeed
             buyerId: Guid.CreateVersion7(),
             orderId: orderId ?? Guid.CreateVersion7(),
             amount: moneyResult.Value,
-            paymentMethodId: paymentMethodId,
-            utcNow: utcNow);
+            paymentMethodId: paymentMethodId);
 
         if (aggregateResult.IsFailed)
         {

@@ -55,7 +55,7 @@ public class PaymentTransactionVoidTests
     [Fact]
     public void Void_FromRequested_ThrowsDataIntegrityException()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
 
         var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 

@@ -101,8 +101,7 @@ public sealed class GetPaymentByIdQueryHandlerTests
             buyerId: Guid.CreateVersion7(),
             orderId: Guid.CreateVersion7(),
             Money.Create(100m, "USD").Value,
-            paymentMethodId: "tok_visa_4242",
-            utcNow).Value;
+            paymentMethodId: "tok_visa_4242").Value;
         _ = tx.PopDomainEvents();
         tx.Authorize("gw-tx-abc123", GatewayResponseCode.Create("ok", "Approved"), utcNow.AddDays(7), utcNow);
         _ = tx.PopDomainEvents();
@@ -123,8 +122,7 @@ public sealed class GetPaymentByIdQueryHandlerTests
             buyerId: Guid.CreateVersion7(),
             orderId: Guid.CreateVersion7(),
             Money.Create(100m, "USD").Value,
-            paymentMethodId: "tok_visa_4242",
-            utcNow).Value;
+            paymentMethodId: "tok_visa_4242").Value;
         _ = tx.PopDomainEvents();
         tx.MarkAuthorizationFailed(
             FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", utcNow),

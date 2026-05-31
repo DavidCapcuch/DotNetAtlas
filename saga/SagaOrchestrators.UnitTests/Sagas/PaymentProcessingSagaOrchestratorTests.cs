@@ -149,17 +149,21 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+
+        // Wave1-followup #255: PaymentTransactionId is minted by the saga in Initial state and
+        // echoed back by Payments on PaymentCapturedEvent. The saga now throws on mismatch instead
+        // of overwriting, so the test must read the saga's minted value rather than fabricating one.
+        var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(correlationId);
 
         // Act
         var paymentCapturedSagaEvent = new PaymentCapturedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            PaymentTransactionId = sagaMintedPaymentTransactionId,
             AuthorizationId = authorizationId,
             Amount = 9.99m,
             Currency = "USD",
@@ -177,7 +181,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             paymentCompletedSagaState.Should().NotBeNull("Saga should be in PaymentCompleted state");
-            paymentCompletedSagaState.PaymentTransactionId.Should().Be(paymentTransactionId);
+            paymentCompletedSagaState.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
             paymentCompletedSagaState.CapturedAtUtc.Should().NotBeNull();
         }
     }
@@ -188,17 +192,19 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+
+        // Wave1-followup #255: see WhenPaymentCaptured_ShouldTransitionToPaymentCompleted.
+        var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(correlationId);
 
         // Act
         var paymentCapturedSagaEvent = new PaymentCapturedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            PaymentTransactionId = sagaMintedPaymentTransactionId,
             AuthorizationId = authorizationId,
             Amount = 9.99m,
             Currency = "USD",
@@ -217,7 +223,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
                 "PaymentCompletedEvent should be added to the outbox for publishing to Kafka");
             outboxMessages.Should().ContainSingle();
             outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
+            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
         }
     }
 
@@ -339,10 +345,9 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForCapture(correlationId, userId, authorizationId, paymentTransactionId);
+        var paymentTransactionId = await PublishAndWaitForCapture(correlationId, userId, authorizationId);
 
         // Act - request refund
         var paymentRefundRequestedSagaEvent = new PaymentRefundRequestedSagaEvent
@@ -375,10 +380,9 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForCapture(correlationId, userId, authorizationId, paymentTransactionId);
+        var paymentTransactionId = await PublishAndWaitForCapture(correlationId, userId, authorizationId);
 
         // Request refund
         var paymentRefundRequestedSagaEvent = new PaymentRefundRequestedSagaEvent
@@ -668,19 +672,25 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         awaitingCaptureSagaState.Should().NotBeNull("Saga should be in AwaitingCapture state");
     }
 
-    private async Task PublishAndWaitForCapture(
+    /// <summary>
+    /// Drives the saga to <c>PaymentCompleted</c> and returns the saga-minted PaymentTransactionId
+    /// that callers must use for any subsequent event (refund-request, refund-completed). Per
+    /// wave1-followup #255, the saga mints the id in <c>Initial</c> and rejects (throws) any
+    /// inbound <c>PaymentCapturedSagaEvent</c> whose PaymentTransactionId does not match.
+    /// </summary>
+    private async Task<Guid> PublishAndWaitForCapture(
         Guid correlationId,
         Guid userId,
-        string authorizationId,
-        Guid paymentTransactionId)
+        string authorizationId)
     {
         await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+        var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(correlationId);
 
         var paymentCapturedSagaEvent = new PaymentCapturedSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            PaymentTransactionId = sagaMintedPaymentTransactionId,
             AuthorizationId = authorizationId,
             Amount = 9.99m,
             Currency = "USD",
@@ -693,5 +703,23 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var paymentCompletedSagaState = _sagaHarness.Sagas.ContainsInState(
             correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.PaymentCompleted);
         paymentCompletedSagaState.Should().NotBeNull("Saga should be in PaymentCompleted state");
+
+        return sagaMintedPaymentTransactionId;
+    }
+
+    /// <summary>
+    /// Reads the saga's PaymentTransactionId from the in-memory test harness state. The saga
+    /// mints this in <c>Initial</c> (wave1-followup #255); callers need it whenever they
+    /// construct a downstream event whose PaymentTransactionId must echo it back.
+    /// </summary>
+    private Guid GetSagaMintedPaymentTransactionId(Guid correlationId)
+    {
+        var saga = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCapture);
+        saga.Should().NotBeNull("Saga must be in AwaitingCapture to read the minted PaymentTransactionId");
+        return saga.PaymentTransactionId
+            ?? throw new InvalidOperationException(
+                $"Saga {correlationId} reached AwaitingCapture without a minted PaymentTransactionId — "
+                + "wave1-followup #255 invariant violation");
     }
 }

@@ -17,7 +17,7 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_FromRequested_TransitionsToAuthorizedAndRaisesEvent()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
         tx.PopDomainEvents();
 
         var result = tx.Authorize("gw-tx-abc", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
@@ -112,7 +112,7 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_WithEmptyGatewayTransactionId_ThrowsArgumentException()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
 
         var action = () => tx.Authorize("", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 

@@ -86,7 +86,7 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
         // succeeded but the post-gateway SaveChanges failed and rolled back. The Requested
         // aggregate stayed durable (H-3 anchor); saga retry now finds it by PK, skips the
         // Create branch, and proceeds to a single SaveChanges after the gateway.
-        var existing = PaymentTransactionFactory.Requested(TimeProvider.GetUtcNow());
+        var existing = PaymentTransactionFactory.Requested();
         existing.PopDomainEvents();
         await SeedAsync(existing);
         var command = BuildCommand(paymentId: existing.Id);
