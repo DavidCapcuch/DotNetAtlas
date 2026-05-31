@@ -47,6 +47,14 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
+            .BindConfiguration(SchemaRegistryOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
+            .BindConfiguration(AvroSerializerOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<TopicsOptions>()
             .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
@@ -78,7 +86,7 @@ internal static class MessagingDependencyInjection
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
-                    .Topic(consumerOptions.Topic)
+                    .Topic(topicsOptions.InventoryStockEvents)
                     .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
