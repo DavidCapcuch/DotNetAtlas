@@ -2,7 +2,7 @@
 
 > **Status:** Authored 2026-04-19. Extracted from `eshop-master-design.md § 5.5` + [ADR-0001](../adr/0001-centralized-saga-orchestration.md) + [ADR-0004](../adr/0004-checkout-saga-topology.md) to match the chapter structure used by Catalog, Basket, Ordering, Inventory.
 > **Scope:** Payment transaction lifecycle — authorize, capture, refund, void. Integrates with a payment gateway (stubbed for the reference solution).
-> **Pattern showcased:** **Saga sub-orchestration** — `PaymentProcessingSaga` is a standalone orchestrator the Checkout saga delegates to via `PaymentRequestedEvent`. Also: **PCI scope minimization** — cardholder data (PAN, CVV) never enters our services; Payments holds gateway-issued `PaymentTransactionId` tokens only.
+> **Pattern showcased:** **Saga sub-orchestration** — `PaymentProcessingSaga` is a standalone orchestrator the Checkout saga delegates to via `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)). Also: **PCI scope minimization** — cardholder data (PAN, CVV) never enters our services; Payments holds gateway-issued `PaymentTransactionId` tokens only.
 > **Storage:** PostgreSQL, schema `payments`.
 > **Folder:** `services/Payments/` (renamed from `services/Finance/` in Wave 0).
 
@@ -12,7 +12,7 @@
 
 Payments is the **authority for money movement state** — it is the only BC that speaks to the external payment gateway. It receives commands from the Checkout saga (via the `PaymentProcessingSaga` sub-saga) and emits events that drive saga transitions, trigger Invoicing, and notify customers.
 
-- **Upstream:** Checkout saga — publishes `PaymentRequestedEvent` → consumed by `PaymentProcessingSaga`, which calls Payments commands.
+- **Upstream:** Checkout saga — publishes `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)) → consumed by `PaymentProcessingSaga`, which calls Payments commands.
 - **Downstream:**
   - **Invoicing** — consumes `PaymentCapturedEvent` to enrich and issue the invoice.
   - **Notifications** — not wired in v1. A refund-confirmation email would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Payments would emit `SendEmailNotificationCommand` on `notifications.email-commands` rather than have Notifications subscribe to `payments.transactions`.
@@ -309,7 +309,7 @@ Listed so readers don't look for them:
 The Checkout saga's payment step is delegated in full to `PaymentProcessingSaga`:
 
 ```
-Checkout saga   ─PaymentRequestedEvent─▶   PaymentProcessingSaga   ─AuthorizePaymentCommand─▶   Payments BC
+Checkout saga   ─RequestPaymentCommand─▶   PaymentProcessingSaga   ─AuthorizePaymentCommand─▶   Payments BC
                                                     │                                               │
                                                     │   (capture is automatic post-auth)            │
                                                     │                                               │
