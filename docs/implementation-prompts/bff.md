@@ -1,5 +1,7 @@
 # Master System Prompt — Implement the **EShop.BFF**
 
+> **⚠ SUPERSEDED (2026-05-31) — historical wave prompt.** This prompt drove the original BFF implementation and is preserved verbatim. It references the deprecated cache-invalidator group `bff-cache-invalidator`. The current, authoritative consumer-group rule is **one group per service** (`bff-group`) per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md). Use the BC-design docs as ground truth; treat this file as background only.
+
 > Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
 
 <thinking_first>

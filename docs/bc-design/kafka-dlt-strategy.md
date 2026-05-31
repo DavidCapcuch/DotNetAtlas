@@ -182,9 +182,9 @@ The items below are explicit gaps between this design document and the current p
 | F-1 | `DltHeaders` missing `DLT-Consumer-Group` — strictly speaking, the per-consumer-BC suffix in the DLT topic name (§ 1) already disambiguates ownership for the cases that matter today. The header is still nice-to-have for finer-grained scoping if a single BC ever runs multiple consumer groups against the same source topic. | Platform / KafkaFlow DeadLetter maintainer |
 | F-2 | No `kafka.consumer.dlt.messages_total` counter emitted — alert can't fire without metric | Platform / KafkaFlow DeadLetter maintainer |
 | ~~F-3~~ | ~~No bootstrap block creating `<source-topic>.<consumer-bc>.DLT` topics with explicit partition count + 14-day retention.~~ **Resolved** — the 10 per-consumer-BC DLT topics from § 3 are now pre-created by `kafka-create-topic` with 3 partitions (matching source) + 14d retention (`retention.ms=1209600000`) + `min.insync.replicas=1`. See [docker-compose.yaml](../../docker-compose.yaml) `kafka-create-topic` block. | — |
-| F-4 | No `replay-admin-*` operator CLI | Ops / post-v1 |
+| F-4 | No `replay-admin-*` operator CLI | Ops — planned scope, see [roadmap.md § 2.4](../roadmap.md) |
 | F-5 | No `Platform.KafkaFlow.Retry` middleware (mentioned in some early design drafts) — intentionally OMITTED for v1; add only if production pressure requires retry-with-backoff-then-DLT | N/A unless requested |
-| F-6 | Grafana `Kafka Consumer Health` dashboard JSON not checked in (`ops/grafana/kafka-consumer-health.json` referenced but not present) | Ops / post-v1 |
+| F-6 | Grafana `Kafka Consumer Health` dashboard JSON not checked in (`ops/grafana/kafka-consumer-health.json` referenced but not present) | Ops — planned scope, see [roadmap.md § 2.4](../roadmap.md) |
 
 ---
 

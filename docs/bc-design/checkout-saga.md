@@ -580,7 +580,7 @@ kafkaConfigurator.ConfigureCheckoutSagaKafkaConsumers(registrationContext, schem
 
 ### 10.4 Consumer group strategy
 
-- **`saga-checkout`** is a new consumer group. Separate from `saga-alert-subscription-purchase` (existing) because concurrent consumption of `payments.transactions` on two consumer groups is fine (different offsets). This is the pattern ADR-0001 already established.
+- **`saga-checkout`** is the Checkout saga's consumer group. Separate from `saga-payment-processing` (the sibling PaymentProcessingSaga state machine in the same worker) because each MassTransitStateMachine is its own logical service per [ADR-0001](../adr/0001-centralized-saga-orchestration.md) — the documented saga exception to the one-group-per-service rule in [`events-catalog.md § 3.1`](events-catalog.md). The two groups share `payments.transactions` but subscribe to disjoint Avro event types; offsets are independent per `(group, topic, partition)`, so concurrent consumption is fine.
 - **Why a separate Checkout consumer class for Payments events** (`PaymentCompletedCheckoutConsumer` vs existing `PaymentProcessingPaymentCompletedConsumer`): MassTransit's Kafka rider resolves consumers per-topic by type; two consumer classes can coexist on the same topic if registered under different consumer groups. Collapsing them (one class that fans out internally) would reintroduce the cross-saga coupling we're trying to avoid. Keep one consumer class per saga.
 
 ---

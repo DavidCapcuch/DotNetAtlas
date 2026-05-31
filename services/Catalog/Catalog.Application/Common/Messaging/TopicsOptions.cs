@@ -31,7 +31,8 @@ public sealed class TopicsOptions
 
     /// <summary>
     /// Inbound topic for <c>Inventory.Stock.StockLevelChangedEvent</c>. Owned by Inventory;
-    /// Catalog consumes via the <c>catalog-stock-level-watcher</c> consumer group.
+    /// Catalog consumes via the <c>catalog-group</c> consumer group (one-group-per-service
+    /// per <c>events-catalog.md § 3.1</c>).
     /// </summary>
     [Required]
     [Length(1, MaximumKafkaTopicLength)]

@@ -138,7 +138,7 @@
 - **When** `PaymentRefundedEvent(orderId=O1)` arrives WITHOUT a corresponding `OrderCancelledEvent`
 - **Then** `pending_credit_notes` row has one half only
 - **And** `IssueCreditNoteCommand` does NOT fire (waiting for both halves)
-- **Verify** no credit note issued; projection buffers indefinitely (alarms after configurable timeout — v2 feature)
+- **Verify** no credit note issued; projection buffers indefinitely (alarms after configurable timeout — planned scope, see [roadmap.md § 2.3 Invoicing](../../roadmap.md))
 
 ### Example 3.3 — Credit note against already-cancelled invoice is forbidden
 
@@ -149,7 +149,7 @@
 
 ### Questions
 
-- *(empty)* What happens if the buyer cancels pre-capture (void path)? **Decision v1:** no invoice is issued (no `PaymentCapturedEvent`), so no credit note is needed. The pending_invoices row is left dangling; v2 adds a cleanup job.
+- *(empty)* What happens if the buyer cancels pre-capture (void path)? **Decision:** no invoice is issued (no `PaymentCapturedEvent`), so no credit note is needed. The pending_invoices row is left dangling; a planned cleanup job sweeps these — see [roadmap.md § 2.3 Invoicing](../../roadmap.md).
 
 ---
 

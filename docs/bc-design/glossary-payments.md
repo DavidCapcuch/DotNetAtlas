@@ -67,16 +67,18 @@
 
 ---
 
-## Deliberately omitted / deferred to v2
+## Deliberately omitted from current scope
+
+Planned extensions are catalogued in [roadmap.md § 2.3 Payments](../roadmap.md):
 
 | Term | Reason |
 |------|--------|
-| **3DS / Strong Customer Authentication** | Deferred; v1 stub gateway auto-approves without SCA challenge. |
-| **Chargeback** | Post-transaction dispute initiated by the card issuer. Not modelled in v1; could be added as `PaymentDisputedEvent` in v2. |
-| **Partial capture** | V1 captures the full authorized amount in a single step. |
-| **Partial refund** | V1 refunds the full captured amount. Partial refunds are v2 scope. |
+| **3DS / Strong Customer Authentication** | Deferred; stub gateway auto-approves without SCA challenge. |
+| **Chargeback** | Post-transaction dispute initiated by the card issuer. Planned: `PaymentDisputedEvent`. |
+| **Partial capture** | Today captures the full authorized amount in a single step. |
+| **Partial refund** | Today refunds the full captured amount. Partial refunds are planned scope. |
 | **Recurring / subscription billing** | Out of scope — no subscription semantics in the eShop reference. |
-| **Reconciliation** | Nightly ledger-compare with the gateway. Not modelled; events provide the audit trail. |
+| **Reconciliation** | Nightly ledger-compare with the gateway. Planned scope; events provide the audit trail today. |
 
 ---
 

@@ -11,10 +11,11 @@ namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 /// section.
 /// </summary>
 /// <remarks>
-/// Group id is <c>inventory-stock-init</c> — shared with
-/// <see cref="CatalogProductsConsumerOptions"/> per the
-/// <c>events-catalog.md:96</c> + accepted deviation #1 in
-/// <c>docs/implementation-prompts/inventory.md</c>'s wave-progress.
+/// Group id is <c>inventory-group</c> — Inventory's sole consumer group across
+/// every topic it subscribes to. See <c>events-catalog.md § 3.1</c> for the
+/// one-group-per-service rule. Kafka commits offsets per
+/// <c>(group, topic, partition)</c>, so sharing the group id across topics does
+/// not couple their offset cursors.
 /// </remarks>
 public sealed class OrderingOrdersConsumerOptions : ConsumerConfig
 {
@@ -25,8 +26,8 @@ public sealed class OrderingOrdersConsumerOptions : ConsumerConfig
     public required string Topic { get; set; }
 
     /// <summary>
-    /// Shared consumer group id with the Catalog-products consumer
-    /// (<c>inventory-stock-init</c>).
+    /// Inventory's sole consumer group id (<c>inventory-group</c>); shared with
+    /// every other Inventory Kafka consumer per <c>events-catalog.md § 3.1</c>.
     /// </summary>
     [Required(
         ErrorMessage = $"{nameof(GroupId)} for {nameof(OrderingOrdersConsumerOptions)} is missing",

@@ -295,12 +295,14 @@ Full example-mapping sessions in [`example-mapping/payments.md`](example-mapping
 
 Listed so readers don't look for them:
 
+Planned scope is catalogued in [roadmap.md § 2.3 Payments](../roadmap.md):
+
 - **3-D Secure** (SCA) — deferred; all stub authorizations succeed without 3DS step. Real gateway integration would add this.
-- **Partial captures / partial refunds** — single amount per transaction in v1.
+- **Partial captures / partial refunds** — single amount per transaction today.
 - **Multi-currency** — single currency per payment (matches Order-level single-currency constraint).
-- **Chargebacks / disputes** — event hook left open (`PaymentDisputedEvent` could be added in v2); not modelled in v1.
+- **Chargebacks / disputes** — event hook left open (`PaymentDisputedEvent` is planned scope); not modelled today.
 - **Stored payment methods / tokenization vault** — the gateway holds the vault; Payments holds only per-transaction tokens.
-- **Reconciliation jobs** — v2 would run a nightly job comparing gateway ledger to our `payments.transactions` table.
+- **Reconciliation jobs** — planned nightly job comparing gateway ledger to our `payments.transactions` table.
 
 ---
 

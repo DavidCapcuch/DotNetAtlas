@@ -96,4 +96,4 @@ As a **platform operator** I want **abandoned baskets to be automatically purged
 - **Then** Redis evicts `basket:U1` before its 30-day TTL, and on `U1`'s next `AddItemToBasketCommand` a fresh basket is created (no revival, no user-visible error beyond "your items are gone") — this is documented acceptable behavior per ADR-0003.
 
 ### ❓ Questions
-*(None — cart-abandonment re-engagement is explicitly deferred to v2+ per basket.md § 15.)*
+*(None — cart-abandonment re-engagement is planned scope per [basket.md § 15](../basket.md) + [roadmap.md § 2.3 Basket](../../roadmap.md).)*

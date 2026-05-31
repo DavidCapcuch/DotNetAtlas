@@ -62,13 +62,13 @@ As a **platform engineer** I want **the Order lifecycle to advance only along th
 ## Session 2: Cannot cancel after Shipped
 
 ### 📖 Story
-As a **buyer or administrator** I want **the ability to cancel an order up to the point it ships, but not after** so that **the fulfillment pipeline can treat shipped parcels as committed and the Returns/RMA flow (v2) handles post-ship issues separately**.
+As a **buyer or administrator** I want **the ability to cancel an order up to the point it ships, but not after** so that **the fulfillment pipeline can treat shipped parcels as committed and the planned Returns/RMA flow (see [roadmap.md § 2.2](../../roadmap.md)) handles post-ship issues separately**.
 
 ### 📐 Rules
 - **R1** — `Order.Cancel(reason, utcNow)` is allowed only when `Status ∈ {Created, StockReserved, PaymentCompleted, Confirmed}`.
 - **R2** — Calling `Cancel` from `Shipped` or `Delivered` returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))` — this is a user-actionable error (409 Conflict at the HTTP surface), not a bug.
 - **R3** — The business justification: once goods are in a carrier's hands the checkout saga cannot unilaterally recall them; compensation through the saga (refund + release reservation) is no longer a closed loop.
-- **R4** — Post-ship issues (damaged parcel, wrong item, refused delivery) must go through the Returns/RMA flow — explicitly out of scope for v1 (Appendix C).
+- **R4** — Post-ship issues (damaged parcel, wrong item, refused delivery) must go through the Returns/RMA flow — planned scope per [roadmap.md § 2.2](../../roadmap.md).
 - **R5** — A successful `Cancel` raises `OrderCancelledDomainEvent(OrderId, CorrelationId, BuyerId, Reason, AtStatus, CancelledAtUtc)` which is transformed into the external `OrderCancelledEvent` on `ordering.orders`; downstream consumers (Inventory, Payments) perform the compensation dictated by `AtStatus`.
 
 ### 🌱 Examples
@@ -92,7 +92,7 @@ As a **buyer or administrator** I want **the ability to cancel an order up to th
 - **Given** an order `O1` with `Status = Shipped` (parcel handed to `DHL`, tracking `TRK-42`)
 - **When** `order.Cancel(reason="buyer changed mind", utcNow)` is called
 - **Verify** R2, R3, R4
-- **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))`, `Status` remains `Shipped`, and no domain event is raised — the caller must direct the buyer to the Returns flow (v2).
+- **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))`, `Status` remains `Shipped`, and no domain event is raised — the caller must direct the buyer to the planned Returns flow (see [roadmap.md § 2.2](../../roadmap.md)).
 
 #### The one where cancellation is attempted after delivery
 
@@ -102,7 +102,7 @@ As a **buyer or administrator** I want **the ability to cancel an order up to th
 - **Then** the method returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))` (same error — both post-ship states are rejected), `Status` remains `Delivered`.
 
 ### ❓ Questions
-*(None — v1 cancellation policy is explicit: buyers and admins may cancel up to `Confirmed`; everything beyond goes through Returns/RMA in v2.)*
+*(None — cancellation policy is explicit: buyers and admins may cancel up to `Confirmed`; everything beyond goes through Returns/RMA per [roadmap.md § 2.2](../../roadmap.md).)*
 
 ---
 
@@ -115,7 +115,7 @@ As a **platform engineer** I want **the line items, quantities, and unit prices 
 - **R1** — `Order.Items` is a read-only projection of a private list; once `Status` transitions to `StockReserved` (or beyond), no operation may add, remove, or modify any `OrderItem`.
 - **R2** — Any future command that would mutate items while `Status >= StockReserved` must throw `DataIntegrityException` — this is a bug-class guard (I-2 in ordering.md § 3.1), not a user error.
 - **R3** — The business rationale: Inventory's `StockReservedEvent` commits a precise `(ProductId, Quantity)` hold against a `ReservationId`; mutating the Order's items desynchronizes the Inventory reservation from the commercial intent and breaks compensation.
-- **R4** — In v1 there are NO item-mutation commands on the Order aggregate (the Order is built from a `BasketSnapshot` in the factory and then frozen); R1/R2 are a **future-guard** so that any later-added command automatically inherits the invariant.
+- **R4** — Today there are NO item-mutation commands on the Order aggregate (the Order is built from a `BasketSnapshot` in the factory and then frozen); R1/R2 are a **future-guard** so that any later-added command automatically inherits the invariant.
 - **R5** — The addresses, buyer, correlation id, and total are likewise immutable after creation (I-3, I-4, I-5, I-6) for the same synchronization reason.
 
 ### 🌱 Examples
@@ -124,8 +124,8 @@ As a **platform engineer** I want **the line items, quantities, and unit prices 
 
 - **Given** an order `O1` with `Status = Created` and a hypothetical `AddOrderItemCommand(productId=P2, quantity=1)` handler exists
 - **When** the handler invokes a hypothetical `order.AddItem(...)`
-- **Verify** R1 (hypothetically permitted by the invariant — v1 has no such command)
-- **Then** the item is appended; R1 does not forbid it at `Created` since stock is not yet reserved (v1 does not expose this command, so this is a design-consistency check only).
+- **Verify** R1 (hypothetically permitted by the invariant — no such command exists today)
+- **Then** the item is appended; R1 does not forbid it at `Created` since stock is not yet reserved (today's surface does not expose this command, so this is a design-consistency check only).
 
 #### The one where a mutation is attempted after StockReserved
 
@@ -139,7 +139,7 @@ As a **platform engineer** I want **the line items, quantities, and unit prices 
 - **Given** an order `O1` with `Status = Confirmed`, payment captured, reservation confirmed
 - **When** a future `order.ChangeItemQuantity(P1, newQuantity=2)` (hypothetical) is called
 - **Verify** R1, R2, R3
-- **Then** the method throws `DataIntegrityException` — a confirmed order is a signed commercial commitment; modifying items would require coordinated reversals in Inventory and Payments, which is the Returns/RMA concern (v2).
+- **Then** the method throws `DataIntegrityException` — a confirmed order is a signed commercial commitment; modifying items would require coordinated reversals in Inventory and Payments, which is the Returns/RMA concern (planned scope per [roadmap.md § 2.2](../../roadmap.md)).
 
 ### ❓ Questions
-*(None — v1 deliberately omits any item-mutation command so the invariant is trivially satisfied; the examples document the guard that any future command must respect.)*
+*(None — current scope deliberately omits any item-mutation command so the invariant is trivially satisfied; the examples document the guard that any future command must respect.)*

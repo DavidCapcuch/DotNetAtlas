@@ -43,7 +43,7 @@ Implementation-ready architecture specification for the eShop reference solution
 - CI/CD pipeline changes
 - Deployment manifests (Kubernetes, Aspire)
 - Performance/load-testing strategy
-- v2+ bounded contexts (Accounts, Shipping, Returns, Reviews, Promotions — see [Appendix C](#appendix-c))
+- Planned bounded contexts beyond current scope (Accounts, Shipping, Returns, Reviews, Promotions — see [roadmap.md § 2.2](roadmap.md))
 
 ### 1.3 Relationship to Prior Artifacts
 
@@ -317,7 +317,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 **Aggregates:** `Invoice` (4-state FSM: Draft → Issued → Delivered → Archived; Cancelled off-ramp) + `CreditNote` (3-state: Issued → Delivered → Archived).
 **Value objects:** `InvoiceNumber` (format `INV-YYYY-NNNNNN`), `CreditNoteNumber` (format `CN-YYYY-NNNNNN`), `InvoiceLine`, `VatLine`, `VatRate`, `PdfBlobRef`, `CancellationInfo`.
-**SmartEnums:** `InvoiceStatus`, `CreditNoteStatus`, `DeliveryChannel` (Email, None v1; TaxAuthorityWebhook + PostalMail v2 slots), `CreditNoteReason`.
+**SmartEnums:** `InvoiceStatus`, `CreditNoteStatus`, `DeliveryChannel` (`Email`, `None`), `CreditNoteReason`.
 **Internal events (7):** `InvoiceCreatedDomainEvent`, `InvoiceIssuedDomainEvent`, `InvoiceDeliveryRequestedDomainEvent`, `InvoiceDeliveredDomainEvent`, `InvoiceCancelledDomainEvent`, `CreditNoteCreatedDomainEvent`, `CreditNoteIssuedDomainEvent`.
 **External events (4) on `invoicing.invoices`:** `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent`. **10-year retention** (EU VAT norm).
 **Pattern:** **Async multi-source convergent enrichment** — `pending_invoices` projection buffers `OrderConfirmedEvent` + `PaymentCapturedEvent`; when both halves arrive, `IssueInvoiceCommand` fires (aggregate created, number allocated via gap-free Postgres allocator, PDF generated via QuestPDF, uploaded to Azurite/Azure Blob, outbox row written). Credit notes mirror with `OrderCancelledEvent` + `PaymentRefundedEvent`. No saga — projection + idempotent command handler is simpler than multi-step orchestration.
@@ -456,7 +456,7 @@ Per [ADR-0004](adr/0004-checkout-saga-topology.md). Industry-standard UX: reserv
 ### 9.2 Cross-cutting
 
 - **Resilience** (Polly): per-call timeout 2s (batch 10s), retry max 2 (exponential backoff), circuit breaker opens after 5 failures / 10 s, half-opens after 30 s.
-- **Cache invalidation**: BFF subscribes via consumer group `bff-cache-invalidator` to `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`. Translates events to `FusionCache.RemoveByTagAsync(...)`.
+- **Cache invalidation**: BFF subscribes via consumer group `bff-group` (one-group-per-service rule per [events-catalog.md § 3.1](bc-design/events-catalog.md)) to `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`. Translates events to `FusionCache.RemoveByTagAsync(...)`.
 - **Auth pass-through**: `DelegatingHandler` forwards JWT bearer to upstream services.
 - **Observability**: OpenTelemetry traceparent auto-propagated via `HttpClient` instrumentation.
 
@@ -687,17 +687,19 @@ Add to [docker-compose.yaml](../docker-compose.yaml):
 
 ---
 
-## Appendix C — Out of Scope for v1
+## Appendix C — Out of Current Scope
 
-Deferred bounded contexts (explicitly NOT in v1):
+Planned bounded contexts and per-BC features beyond the current scope are catalogued in [roadmap.md](roadmap.md). Highlights:
 
-- **Customer Accounts / User Profiles** — for v1, user data comes from JWT claims and is snapshotted into Order at checkout. See [ADR-0005](adr/0005-customer-data-in-ordering.md).
-- **Shipping / Fulfillment** — post-order carrier integration, tracking, delivery confirmations (beyond manual `MarkOrderShipped`/`MarkOrderDelivered` admin commands).
+- **Customer Accounts / User Profiles** — current scope sources user data from JWT claims and snapshots it into Order at checkout. See [ADR-0005](adr/0005-customer-data-in-ordering.md) for the seam.
+- **Shipping / Fulfillment** — post-order carrier integration, tracking, delivery confirmations (beyond manual `MarkOrderShipped` / `MarkOrderDelivered` admin commands).
 - **Returns / RMA** — post-delivery return flow with refund orchestration.
 - **Reviews / Ratings** — product feedback.
 - **Recommendations** — "customers also bought" analytics.
-- **Promotions / Discounts / Coupons** — v1 uses Catalog's flat price per [ADR-0002](adr/0002-pricing-in-catalog.md); dynamic pricing deferred.
-- **Pricing BC extraction** — if segmentation/promotions appear, Catalog's `ProductPriceChangedEvent` is the seam for extraction; ADR-0002 preserves this.
+- **Promotions / Discounts / Coupons** — current scope uses Catalog's flat price per [ADR-0002](adr/0002-pricing-in-catalog.md); dynamic pricing is the extraction trigger.
+- **Pricing BC extraction** — Catalog's `ProductPriceChangedEvent` is the seam; ADR-0002 preserves the extraction path.
+
+Per-BC features beyond current scope (low-stock thresholds, partial refunds, additional notification channels, etc.) and cross-cutting planned work (crypto-shredding, replay-admin CLI, etc.) are in [roadmap.md § 2.3](roadmap.md) and [§ 2.4](roadmap.md).
 
 ---
 
@@ -803,7 +805,7 @@ No change required; design-intent note added here for implementation agents to r
 
 ### E.7 BFF stale-order cache window
 
-**Clarification:** The BFF's `/api/bff/order-summary/{orderId}` endpoint has a 30 s soft TTL and 5 min fail-safe. During a status transition (e.g., `Confirmed` just emitted), the cache invalidator removes the tag on receipt of `OrderConfirmedEvent`. However, if the BFF enters fail-safe mode due to an Ordering outage immediately after the transition, a client could see a status up to 5 minutes stale. This is **acceptable UX** (bounded staleness vs hard failure). Document this in client-facing API contract. Real-time updates deferred to v2 (WebSocket / SSE).
+**Clarification:** The BFF's `/api/bff/order-summary/{orderId}` endpoint has a 30 s soft TTL and 5 min fail-safe. During a status transition (e.g., `Confirmed` just emitted), the cache invalidator removes the tag on receipt of `OrderConfirmedEvent`. However, if the BFF enters fail-safe mode due to an Ordering outage immediately after the transition, a client could see a status up to 5 minutes stale. This is **acceptable UX** (bounded staleness vs hard failure). Document this in client-facing API contract. Real-time push-based updates are planned scope — see [roadmap.md § 2.3 Ordering](roadmap.md).
 
 ### E.8 Outbox-relay containers
 
@@ -813,9 +815,13 @@ No change required; design-intent note added here for implementation agents to r
 
 **Clarification:** [events-catalog.md § 4](bc-design/events-catalog.md) specifies the authoritative `kafka-topics --create ...` block with explicit `--config retention.ms=...` flags per topic (`-1` for audit-log topics, `604800000` for 7-day commands, `2592000000` for 30-day basket sessions). Implementation agents must copy this block verbatim into [docker-compose.yaml](../docker-compose.yaml) after line 246. Broker default is 7 days; the explicit flags are REQUIRED to preserve audit-trail semantics for event-sourced and compliance-sensitive topics.
 
-### E.10 Consumer-group `inventory-stock-init` reuse
+### E.10 Consumer-group `inventory-stock-init` reuse — RETRACTED
 
-**Clarification:** The master event catalog shows `OrderCancelledEvent` consumed by Inventory with a group name `inventory-stock-init` (reused from `ProductCreatedEvent` subscription). This **should be a distinct group** — e.g., `inventory-order-cancelled` — to avoid one consumer being forced to handle two unrelated message types under the same offset tracking. Implementation agents: create a separate consumer group for the order-cancelled reaction in Inventory.
+**Original clarification (superseded):** Inventory's `OrderCancelledEvent` consumer reused the `inventory-stock-init` group from its `ProductCreatedEvent` subscription; E.10 originally directed implementation agents to split this into a distinct `inventory-order-cancelled` group.
+
+**Retraction (2026-05-31):** Superseded by the one-group-per-service rule codified in [events-catalog.md § 3.1](bc-design/events-catalog.md). Kafka commits offsets per `(group, topic, partition)`, so per-topic offset independence is already preserved inside the single `inventory-group`. Splitting into a second group inside the same service adds rebalance scope and dashboard count without any isolation that the per-topic offset partitioning doesn't already give. Inbox dedup on `MessageId` covers replay-on-rename. The original concern (one consumer handling two unrelated message types under the same offset tracking) was based on a misreading of Kafka offset semantics; the offsets were never shared across topics.
+
+Current Inventory wiring: all three Inventory Kafka consumers (`catalog.products` → stock-init, `ordering.orders` → release-on-cancel, `inventory.reservation-commands` → saga commands) use `GroupId = "inventory-group"` per `services/Inventory/Inventory.Api/appsettings.json`.
 
 ---
 
@@ -823,8 +829,9 @@ No change required; design-intent note added here for implementation agents to r
 
 After applying the fixes in E.1 (structural) and documenting the decisions in E.2–E.10, the design is **APPROVED for implementation** by both reviewers' criteria:
 
-- E.1, E.2, E.10 — resolved gaps (structural change or binding decision)
+- E.1, E.2 — resolved gaps (structural change or binding decision)
 - E.3–E.9 — clarifications without structural change (original design was correct; rationale documented)
+- E.10 — **retracted** on 2026-05-31, superseded by the one-group-per-service rule in [events-catalog.md § 3.1](bc-design/events-catalog.md)
 
 ---
 
@@ -843,7 +850,7 @@ Formal Matt-Wynne-style Example Mapping cards — Story / Rules / Examples / Que
 | Ordering | 3 (Status FSM; Cannot cancel after Shipped; Items locked after StockReserved) | [example-mapping/ordering.md](bc-design/example-mapping/ordering.md) |
 | Inventory | 3 (Reservation TTL auto-release; Cannot oversell; Confirm idempotency) | [example-mapping/inventory.md](bc-design/example-mapping/inventory.md) |
 
-**10 sessions total.** All "Questions" sections are intentionally empty — ground-truth BC chapters and ADRs resolved every design-level question; v2 deferrals are documented in-place rather than as open questions.
+**10 sessions total.** All "Questions" sections are intentionally empty — ground-truth BC chapters and ADRs resolved every design-level question; deferrals are tracked in [roadmap.md](roadmap.md) rather than as open questions.
 
 ### F.2 Error taxonomy (consolidated)
 

@@ -141,7 +141,7 @@ A Phase-2 evolution (template store + Razor/Liquid) is noted in the comment of [
 **Topic:** `notifications.email-commands`
 **Schema:** [`SendEmailNotificationCommand.avsc`](../../platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc)
 **Partition key:** `UserId` (per [events-catalog.md § 2](events-catalog.md))
-**Consumer group:** `notification-group` (from `appsettings.json`)
+**Consumer group:** `notifications-group` (from `appsettings.json` — one-group-per-service rule per [events-catalog.md § 3.1](events-catalog.md))
 **Retention:** 7 days (command topic — [events-catalog.md § 3.2 D-9](events-catalog.md))
 **Avro compatibility:** FULL_TRANSITIVE (default per [ADR-0007](../adr/0007-avro-compatibility-modes.md)).
 
@@ -301,7 +301,7 @@ Listed so readers don't search for them.
 - **User-profile address resolution.** `EmailMessage.ToUserId` is treated as opaque — the mock gateway never resolves it. A real adapter calls a user-profile service or reads from a denormalized read model.
 - **Additional templates.** Today: 1 (`invoicing.invoice-delivered`). All other "Notifications consumes X" references in other BC docs would land here as new templates.
 - **Template registry / external template store.** The renderer is a hardcoded `switch`. A Phase-2 evolution introduces a backing store + a render engine (Razor / Scriban / Liquid).
-- **Other channels — SMS, push, in-app.** Single-channel for v1. The command shape (`SendEmailNotificationCommand`) is deliberately named after its channel, so adding `SendSmsNotificationCommand` on a sibling topic is the v2 path.
+- **Other channels — SMS, push, in-app.** Single-channel today. The command shape (`SendEmailNotificationCommand`) is deliberately named after its channel, so adding `SendSmsNotificationCommand` on a sibling topic is the planned extension path — see [roadmap.md § 2.3 Notifications](../roadmap.md).
 
 **Domain-layer features (currently no aggregate):**
 - **Suppression lists / unsubscribe.** No persistence, no opt-out flow.

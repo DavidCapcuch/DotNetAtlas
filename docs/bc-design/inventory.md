@@ -576,9 +576,9 @@ ORDER BY Version ASC;
 
 Fold the result into a fresh `StockItem` instance by applying each payload through its reducer.
 
-### 8.2 Optional: snapshots (deferred, v2)
+### 8.2 Optional: snapshots (planned scope)
 
-Not included in v1 — every rehydration reads the full stream. For streams expected to grow beyond ~1000 events (high-velocity SKUs), v2 would add `inventory.stock_snapshots (StreamId, Version, SnapshotJson, TakenAtUtc)` and rehydrate as "load latest snapshot + replay events with `Version > snapshot.Version`." Deliberately deferred so the reference solution demonstrates ES in its purest form.
+Not included today — every rehydration reads the full stream. For streams expected to grow beyond ~1000 events (high-velocity SKUs), a planned `inventory.stock_snapshots (StreamId, Version, SnapshotJson, TakenAtUtc)` table would rehydrate as "load latest snapshot + replay events with `Version > snapshot.Version`." Deliberately deferred so the reference solution demonstrates ES in its purest form. See [roadmap.md § 2.3 Inventory](../roadmap.md).
 
 ---
 
@@ -914,11 +914,13 @@ Scenario: Concurrent reservations resolve by optimistic conflict
 
 ## 16. Out of scope / deferred
 
-- **Snapshots** (§ 8.2) — not v1.
-- **Multi-warehouse / location-aware stock** — v1 has one logical warehouse per `ProductId`. Future would introduce `LocationId` into the stream.
-- **Low-stock threshold events** — the `StockLevelChangedEvent` schema is ready but only fires on 0 ↔ positive threshold in v1. Configurable per-SKU thresholds are v2.
-- **Batch reservations** (one command reserves across multiple products) — v1 issues one command per product; the saga fans in. Transactional atomicity across streams is NOT guaranteed — by design, to showcase saga-style compensation.
-- **GDPR / PII tombstoning on the event store** — Inventory events carry no PII beyond user GUIDs; if needed, crypto-shredding is the v2 approach.
+Planned scope is catalogued in [roadmap.md § 2.3 Inventory](../roadmap.md):
+
+- **Snapshots** (§ 8.2) — not in current scope.
+- **Multi-warehouse / location-aware stock** — today one logical warehouse per `ProductId`. The planned extension introduces `LocationId` into the stream.
+- **Low-stock threshold events** — the `StockLevelChangedEvent` schema is ready but only fires on the 0 ↔ positive crossover. Configurable per-SKU thresholds are planned scope.
+- **Batch reservations** (one command reserves across multiple products) — today issues one command per product; the saga fans in. Transactional atomicity across streams is NOT guaranteed — by design, to showcase saga-style compensation.
+- **GDPR / PII tombstoning on the event store** — Inventory events carry no PII beyond user GUIDs; crypto-shredding is the planned mechanism per [ADR-0011](../adr/0011-pii-handling-gdpr.md).
 
 ---
 

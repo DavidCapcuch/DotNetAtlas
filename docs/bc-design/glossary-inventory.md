@@ -81,7 +81,7 @@ The act of reading events from a stream (or across all streams) and feeding them
 A denormalized read model derived from the event stream by an in-process `IDomainEventHandler<T>`. Lives in the `inventory` PostgreSQL schema alongside the event store but in separate tables. Examples: `CurrentStockLevelsView`, `ReservationAuditView`. Projections are **disposable** — if corrupted, they can be truncated and rebuilt by replaying the event stream.
 
 ### Snapshot
-(Deferred to v2.) A stored state snapshot used to accelerate rehydration on long streams — load latest snapshot + replay only events with `Version > snapshot.Version`. Not in v1 because reference simplicity outweighs performance in the baseline showcase.
+(Planned scope — see [roadmap.md § 2.3 Inventory](../roadmap.md).) A stored state snapshot used to accelerate rehydration on long streams — load latest snapshot + replay only events with `Version > snapshot.Version`. Not in current scope because reference simplicity outweighs performance in the baseline showcase.
 
 ---
 
