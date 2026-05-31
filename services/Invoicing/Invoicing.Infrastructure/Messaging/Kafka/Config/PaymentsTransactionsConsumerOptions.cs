@@ -15,10 +15,6 @@ public sealed class PaymentsTransactionsConsumerOptions : ConsumerConfig
 {
     public const string Section = "KafkaPaymentsTransactionsConsumer";
 
-    /// <summary>Inbound topic — owned by the Payments bounded context.</summary>
-    [Required(AllowEmptyStrings = false)]
-    public required string Topic { get; set; }
-
     /// <summary>
     /// Consumer group id. Per the one-group-per-service rule in
     /// <c>events-catalog.md § 3.1</c>, this is <c>invoicing-group</c> — the sole
