@@ -3,16 +3,11 @@ using System.ComponentModel.DataAnnotations;
 namespace Ordering.Application.Common.Messaging;
 
 /// <summary>
-/// Kafka topic names the Ordering Application layer emits to via the outbox.
-/// Bound from configuration section <c>Topics</c> on startup; validated
-/// eagerly via <c>AddOptionsWithValidateOnStart</c>.
+/// Kafka topic names owned by the Ordering bounded context — both outbound
+/// (published via the outbox) and inbound (consumed by the saga-command
+/// consumer). Bound from configuration section <c>Topics</c> on startup;
+/// validated eagerly via <c>AddOptionsWithValidateOnStart</c>.
 /// </summary>
-/// <remarks>
-/// Ordering publishes only to <c>ordering.orders</c> (infinite retention per
-/// events-catalog.md § 5.3). Saga-command topic <c>ordering.order-commands</c>
-/// is consumer-side only — it is not listed here because Application does
-/// not emit to it.
-/// </remarks>
 public sealed class TopicsOptions
 {
     public const string Section = "Topics";
@@ -27,6 +22,15 @@ public sealed class TopicsOptions
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string OrderingOrders { get; set; }
+
+    /// <summary>
+    /// Inbound saga-command topic — owned by Ordering. Carries
+    /// <c>CreateOrderCommand</c> / <c>ConfirmOrderCommand</c> / <c>CancelOrderCommand</c> /
+    /// <c>MarkOrderFailedCommand</c>. Saga is the producer; Ordering is the consumer.
+    /// </summary>
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string OrderCommands { get; set; }
 
     /// <summary>
     /// Suffix appended to topic names to create Dead Letter Topics

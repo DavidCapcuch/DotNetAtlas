@@ -31,6 +31,7 @@ public abstract class HandlerTestBase : IDisposable
         TopicsOptions = Options.Create(new TopicsOptions
         {
             OrderingOrders = "ordering.orders",
+            OrderCommands = "ordering.order-commands",
             DltTopicSuffix = ".DLT",
         });
     }

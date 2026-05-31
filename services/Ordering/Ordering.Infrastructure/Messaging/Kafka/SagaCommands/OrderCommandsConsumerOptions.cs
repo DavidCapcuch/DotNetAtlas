@@ -13,10 +13,6 @@ public sealed class OrderCommandsConsumerOptions : ConsumerConfig
 {
     public const string Section = "KafkaOrderCommandsConsumer";
 
-    /// <summary>Topic carrying saga-issued commands to Ordering.</summary>
-    [Required(AllowEmptyStrings = false)]
-    public required string Topic { get; set; }
-
     /// <summary>Consumer group id for this consumer (idempotent rebalance key).</summary>
     [Required(ErrorMessage = $"{nameof(GroupId)} for {nameof(OrderCommandsConsumerOptions)} is missing",
         AllowEmptyStrings = false)]

@@ -1,6 +1,5 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using Ordering.Application.Common.Messaging;
 using Platform.CQRS.Common;
 using Platform.SharedKernel.Common;
 
@@ -17,8 +16,8 @@ public static class ApplicationDependencyInjection
     extension(IServiceCollection services)
     {
         /// <summary>
-        /// Registers validators, CQRS handlers + behaviour chain, domain-event
-        /// handlers + dispatcher, and the <see cref="TopicsOptions"/> binding.
+        /// Registers validators, CQRS handlers + behaviour chain, and domain-event
+        /// handlers + dispatcher.
         /// Call AFTER <c>AddServiceDefaults</c> and BEFORE the Infrastructure
         /// registrations.
         /// </summary>
@@ -34,10 +33,6 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventDispatcher();
 
             services.AddCqrsHandlerBehaviors();
-
-            services.AddOptionsWithValidateOnStart<TopicsOptions>()
-                .BindConfiguration(TopicsOptions.Section)
-                .ValidateDataAnnotations();
 
             return services;
         }
