@@ -1,14 +1,17 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Notifications.Infrastructure.Common.Config;
+namespace Notifications.Application.Common.Messaging;
 
 /// <summary>
-/// Kafka topic names for outbox publishing.
-/// Used by domain event handlers to specify the target Kafka topic for integration events.
+/// Kafka topic names for the Notifications BC — the inbound command topic consumed by the
+/// <c>KafkaEmailCommandsConsumer</c> (<see cref="EmailCommands"/>) and the outbound
+/// notification-lifecycle topic emitted by the outbox (<see cref="EmailEvents"/>).
+/// Bound from configuration section <see cref="Section"/>.
 /// </summary>
 public sealed class TopicsOptions
 {
     public const string Section = "Topics";
+
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>
