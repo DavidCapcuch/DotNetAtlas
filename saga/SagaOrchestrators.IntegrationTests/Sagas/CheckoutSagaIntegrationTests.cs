@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Ordering.Orders;
 using Payments.Transactions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
+using Platform.Test.Framework.Assertions;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.Snapshots;
 using SagaOrchestrators.IntegrationTests.Common;
@@ -79,8 +80,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.PendingReservations.Should().Be(3);
             persistedState.StockReservationStartedAtUtc.Should().NotBeNull();
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(CreateOrderCommand).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<CreateOrderCommand>(correlationId.ToString());
 
             reserveCommands.Should().HaveCount(3);
             reserveCommands.Select(om => om.KafkaKey)
@@ -185,8 +185,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             trackingAfterFanIn.Values.Should().AllSatisfy(entry =>
                 entry.Status.Should().Be(ReservationStatus.Reserved));
 
-            outboxMessages.Should().ContainSingle(om => om.Type == typeof(RequestPaymentCommand).FullName
-                                                       && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainSingleMessageOfType<RequestPaymentCommand>(correlationId.ToString());
         }
     }
 

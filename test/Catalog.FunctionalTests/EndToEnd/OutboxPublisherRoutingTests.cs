@@ -6,6 +6,7 @@ using Catalog.Products;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.Core;
+using Platform.Test.Framework.Assertions;
 
 namespace Catalog.FunctionalTests.EndToEnd;
 
@@ -52,7 +53,7 @@ public class OutboxPublisherRoutingTests : BaseApiTest
                 .OrderByDescending(m => m.CreatedUtc)
                 .FirstAsync(TestContext.Current.CancellationToken);
 
-            row.Type.Should().Be(typeof(ProductCreatedEvent).FullName);
+            row.Type.Should().BeMessageType<ProductCreatedEvent>();
             row.TopicName.Should().Be("catalog.products");
         }
     }

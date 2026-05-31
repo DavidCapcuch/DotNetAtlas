@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Platform.CQRS;
 using Platform.SharedKernel.ValueObjects;
+using Platform.Test.Framework.Assertions;
 using BasketAggregate = Basket.Domain.Baskets.Basket;
 
 namespace Basket.IntegrationTests.Persistence;
@@ -100,7 +101,7 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
                 "ADR-0007 + events-catalog.md § 5.2 lock the topic name");
             rows[0].KafkaKey.Should().Be(userId.ToString(),
                 "Kafka key partitions on user so a single user's events stay ordered");
-            rows[0].Type.Should().Be(typeof(Basket.Sessions.BasketCheckoutInitiatedEvent).FullName,
+            rows[0].Type.Should().BeMessageType<Basket.Sessions.BasketCheckoutInitiatedEvent>(
                 "the CLR FullName of the Avro contract from Platform.SchemaRegistry.Contracts");
         }
 

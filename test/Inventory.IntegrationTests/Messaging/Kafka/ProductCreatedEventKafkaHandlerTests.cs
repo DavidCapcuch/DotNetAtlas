@@ -52,7 +52,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests : BaseIntegrationTest
             .OrderBy(r => r.Version)
             .ToListAsync(TestContext.Current.CancellationToken);
         streamRows.Should().ContainSingle()
-            .Which.EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
+            .Which.EventType.Should().BeEventType<StockItemInitializedDomainEvent>();
 
         var levels = await db.CurrentStockLevels
             .AsNoTracking()

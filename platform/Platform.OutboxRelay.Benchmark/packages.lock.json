@@ -1610,6 +1610,7 @@
       "platform.test.framework": {
         "type": "Project",
         "dependencies": {
+          "AwesomeAssertions": "[9.4.0, )",
           "Confluent.Kafka": "[2.14.0, )",
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )",
           "Evolve": "[3.2.0, )",
@@ -1772,6 +1773,12 @@
         "dependencies": {
           "AspNetCore.HealthChecks.UI.Core": "9.0.0"
         }
+      },
+      "AwesomeAssertions": {
+        "type": "CentralTransitive",
+        "requested": "[9.4.0, )",
+        "resolved": "9.4.0",
+        "contentHash": "dJxkWiQ8D+xT6Gr2sSL83+Mar+Vpy2JTcUPxFcckpPJ8VYBfSgnk+zqpS6t7kcGnjz8NLyF14qfuoL4bKzzoew=="
       },
       "Confluent.Kafka": {
         "type": "CentralTransitive",

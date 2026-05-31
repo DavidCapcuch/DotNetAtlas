@@ -334,11 +334,11 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             .ToListAsync(TestContext.Current.CancellationToken);
 
         rows.Should().HaveCount(4);
-        rows[0].EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
-        rows[1].EventType.Should().Be(nameof(StockReceivedDomainEvent));
-        rows[2].EventType.Should().Be(nameof(StockReservedDomainEvent));
+        rows[0].EventType.Should().BeEventType<StockItemInitializedDomainEvent>();
+        rows[1].EventType.Should().BeEventType<StockReceivedDomainEvent>();
+        rows[2].EventType.Should().BeEventType<StockReservedDomainEvent>();
         rows[3].Version.Should().Be(4);
-        rows[3].EventType.Should().Be(nameof(ReservationReleasedDomainEvent),
+        rows[3].EventType.Should().BeEventType<ReservationReleasedDomainEvent>(
             "exactly one resolution event for R3 — the competing release that won the version race");
     }
 

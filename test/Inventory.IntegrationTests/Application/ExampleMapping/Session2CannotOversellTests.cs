@@ -166,9 +166,9 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
             .ToListAsync(TestContext.Current.CancellationToken);
 
         rows.Should().HaveCount(3);
-        rows[0].EventType.Should().Be(nameof(StockItemInitializedDomainEvent));
-        rows[1].EventType.Should().Be(nameof(StockReceivedDomainEvent));
-        rows[2].EventType.Should().Be(nameof(StockReservedDomainEvent));
+        rows[0].EventType.Should().BeEventType<StockItemInitializedDomainEvent>();
+        rows[1].EventType.Should().BeEventType<StockReceivedDomainEvent>();
+        rows[2].EventType.Should().BeEventType<StockReservedDomainEvent>();
         rows[2].Version.Should().Be(3);
     }
 
@@ -261,7 +261,7 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
             .ToListAsync(TestContext.Current.CancellationToken);
         rows.Should().HaveCount(3);
         rows[2].Version.Should().Be(3);
-        rows[2].EventType.Should().Be(nameof(StockReservedDomainEvent));
+        rows[2].EventType.Should().BeEventType<StockReservedDomainEvent>();
 
         var levels = await db.CurrentStockLevels
             .AsNoTracking()

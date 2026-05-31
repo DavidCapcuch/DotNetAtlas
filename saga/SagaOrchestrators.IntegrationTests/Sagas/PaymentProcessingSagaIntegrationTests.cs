@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Payments.Transactions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
+using Platform.Test.Framework.Assertions;
 using SagaOrchestrators.IntegrationTests.Common;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
 using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
@@ -52,8 +53,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.Amount.Should().Be(9.99m);
             persistedState.Currency.Should().Be("USD");
             outboxMessages.Should().ContainSingle();
-            outboxMessages.Should().ContainSingle(om => om.Type == typeof(AuthorizePaymentCommand).FullName
-                                                        && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainSingleMessageOfType<AuthorizePaymentCommand>(correlationId.ToString());
         }
     }
 
@@ -104,8 +104,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.AuthorizationId.Should().Be(authorizationId);
             persistedState.CapturedAtUtc.Should().NotBeNull();
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(PaymentCompletedEvent).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<PaymentCompletedEvent>(correlationId.ToString());
         }
     }
 
@@ -242,12 +241,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             stateAfterCapture.CapturedAtUtc.Should().HaveValue();
             stateAfterCapture.CompensationTriggered.Should().BeFalse();
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(AuthorizePaymentCommand).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
-            outboxMessages.Should().Contain(om => om.Type == typeof(CapturePaymentCommand).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
-            outboxMessages.Should().Contain(om => om.Type == typeof(PaymentCompletedEvent).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<AuthorizePaymentCommand>(correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<CapturePaymentCommand>(correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<PaymentCompletedEvent>(correlationId.ToString());
         }
     }
 
@@ -347,10 +343,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
             persistedState.CompensationTriggered.Should().BeTrue();
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(VoidPaymentCommand).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
-            outboxMessages.Should().Contain(om => om.Type == typeof(PaymentFailedEvent).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<VoidPaymentCommand>(correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<PaymentFailedEvent>(correlationId.ToString());
         }
     }
 
@@ -419,8 +413,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.Should().NotBeNull();
             persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.RefundInProgress));
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(RequestRefundCommand).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<RequestRefundCommand>(correlationId.ToString());
         }
     }
 
@@ -484,10 +477,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
             persistedState.CompensationTriggered.Should().BeTrue();
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(VoidPaymentCommand).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
-            outboxMessages.Should().Contain(om => om.Type == typeof(PaymentFailedEvent).FullName
-                                                  && om.KafkaKey == correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<VoidPaymentCommand>(correlationId.ToString());
+            outboxMessages.Should().ContainMessageOfType<PaymentFailedEvent>(correlationId.ToString());
         }
     }
 

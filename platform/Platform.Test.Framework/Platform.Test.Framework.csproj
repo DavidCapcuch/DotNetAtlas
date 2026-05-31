@@ -28,6 +28,9 @@
         <!-- Stubbing for shared test helpers (FakeKafkaMessageContext). -->
         <PackageReference Include="NSubstitute"/>
 
+        <!-- Assertions for shared FluentAssertions-style helpers (Assertions/OutboxMessageAssertions.cs). -->
+        <PackageReference Include="AwesomeAssertions"/>
+
         <!-- OpenTelemetry -->
         <PackageReference Include="OpenTelemetry"/>
     </ItemGroup>
