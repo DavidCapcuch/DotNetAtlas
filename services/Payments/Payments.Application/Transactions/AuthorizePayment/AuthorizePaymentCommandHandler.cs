@@ -106,16 +106,10 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             // H-3: persist the Requested aggregate + inbox-dedup row BEFORE the gateway call.
             // PaymentTransaction.Create raises no domain events (ADR-0023 follow-up — the wire
             // "requested" signal is RequestPaymentCommand, Checkout-saga-produced; Payments does
-            // not need to publish anything at creation), so PopDomainEvents() is a no-op here.
-            // The loop is retained defensively in case a future aggregate change raises a
-            // Created-state event with an in-process handler. If SaveChanges below fails, saga
-            // retry re-enters via the `existing is null` branch and re-creates — but the gateway
-            // has not been touched yet, so no double-authorize is possible.
-            foreach (var domainEvent in tx.PopDomainEvents())
-            {
-                await _dispatcher.DispatchAsync(domainEvent, ct);
-            }
-
+            // not need to publish anything at creation), so there is nothing to dispatch here.
+            // If SaveChanges below fails, saga retry re-enters via the `existing is null` branch
+            // and re-creates — but the gateway has not been touched yet, so no double-authorize
+            // is possible. The dispatch loop below (post-Authorize) IS load-bearing.
             await _outbox.SaveChangesAsync(ct);
         }
         else
