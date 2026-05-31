@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Notifications.Infrastructure.Common.Config;
 
 /// <summary>
-/// Kafka consumer configuration for the inbound <c>notifications.email-commands</c> topic.
+/// Kafka consumer configuration for the inbound <c>TopicsOptions.EmailCommands</c> topic.
 /// Bound from <c>KafkaEmailCommandsConsumer</c>. Inherits from <see cref="ConsumerConfig"/> so
 /// broker-level knobs (auto-offset-reset, session-timeout) are bindable directly.
 /// </summary>

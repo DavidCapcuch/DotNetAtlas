@@ -4,7 +4,7 @@ using Confluent.Kafka;
 namespace Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 
 /// <summary>
-/// Kafka consumer configuration for the <c>ordering.order-commands</c>
+/// Kafka consumer configuration for the <c>TopicsOptions.OrderCommands</c>
 /// saga-command topic. Bound from <c>KafkaOrderCommandsConsumer</c> section.
 /// Inherits from <see cref="ConsumerConfig"/> so broker-level knobs
 /// (auto-offset-reset, session-timeout, etc.) are bindable directly.
