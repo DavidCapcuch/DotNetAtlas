@@ -22,7 +22,7 @@ namespace Catalog.Infrastructure.Common;
 /// <summary>
 /// DI wiring for Kafka — outbox serialization (Catalog publishes via the transactional
 /// outbox + <c>outbox-relay-catalog</c> per ADR-0001, no Kafka producers in v1) and the
-/// inbound <c>StockLevelChangedEvent</c> consumer.
+/// inbound <c>TopicsOptions.InventoryStockEvents</c> consumer.
 /// </summary>
 internal static class MessagingDependencyInjection
 {

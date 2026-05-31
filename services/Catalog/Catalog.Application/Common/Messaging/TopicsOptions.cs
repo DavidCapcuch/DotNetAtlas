@@ -3,13 +3,15 @@ using System.ComponentModel.DataAnnotations;
 namespace Catalog.Application.Common.Messaging;
 
 /// <summary>
-/// Kafka topic names for Catalog outbox publishing AND for the inbound
-/// <c>StockLevelChangedEvent</c> consumer. Bound to configuration section
-/// <c>CatalogTopics</c>.
+/// Kafka topic names for Catalog outbox publishing (<see cref="CatalogProducts"/>,
+/// <see cref="CatalogCategories"/>) AND for the inbound Inventory stock-events topic
+/// (<see cref="InventoryStockEvents"/>). Bound from configuration section
+/// <see cref="Section"/>.
 /// </summary>
 public sealed class TopicsOptions
 {
     public const string Section = "Topics";
+
     private const int MaximumKafkaTopicLength = 249;
 
     /// <summary>

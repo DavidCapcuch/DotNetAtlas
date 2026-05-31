@@ -25,13 +25,15 @@ using AvroPaymentRefundedEvent = Payments.Transactions.PaymentRefundedEvent;
 namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
-/// DI wiring for Kafka — the four enrichment-projection consumers
-/// (<c>OrderConfirmedEvent</c>, <c>OrderCancelledEvent</c>,
-/// <c>PaymentCapturedEvent</c>, <c>PaymentRefundedEvent</c>), the inbox dedup
-/// adapter against <see cref="InvoicingDbContext"/>, and the transactional-outbox
-/// writer + outbox configuration for the issuance command handlers' external
-/// <c>InvoiceIssued</c> / <c>InvoiceCancelled</c> / <c>CreditNoteIssued</c>
-/// publishers.
+/// DI wiring for Kafka — three consumer registrations (<c>TopicsOptions.OrderingOrders</c>,
+/// <c>TopicsOptions.PaymentsTransactions</c>, <c>TopicsOptions.NotificationsEmailEvents</c>)
+/// carrying five typed handlers in total (four enrichment-projection handlers for
+/// <c>OrderConfirmedEvent</c>/<c>OrderCancelledEvent</c>/<c>PaymentCapturedEvent</c>/
+/// <c>PaymentRefundedEvent</c>, plus one email-tracking handler for
+/// <c>EmailNotificationSentEvent</c>), the inbox dedup adapter against
+/// <see cref="InvoicingDbContext"/>, and the transactional-outbox writer + outbox
+/// configuration for the issuance command handlers' external <c>InvoiceIssued</c> /
+/// <c>InvoiceCancelled</c> / <c>CreditNoteIssued</c> publishers.
 /// </summary>
 internal static class MessagingDependencyInjection
 {
