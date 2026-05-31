@@ -68,7 +68,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var reserveCommands = outboxMessages
-            .Where(om => om.Type == typeof(ReserveStockCommand).FullName!)
+            .Where(om => om.Type == typeof(ReserveStockCommand).FullName)
             .ToList();
 
         using (new AssertionScope())
@@ -79,7 +79,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.PendingReservations.Should().Be(3);
             persistedState.StockReservationStartedAtUtc.Should().NotBeNull();
 
-            outboxMessages.Should().Contain(om => om.Type == typeof(CreateOrderCommand).FullName!
+            outboxMessages.Should().Contain(om => om.Type == typeof(CreateOrderCommand).FullName
                                                   && om.KafkaKey == correlationId.ToString());
 
             reserveCommands.Should().HaveCount(3);
@@ -126,7 +126,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var reserveCommands = outboxMessages
-            .Where(om => om.Type == typeof(ReserveStockCommand).FullName!)
+            .Where(om => om.Type == typeof(ReserveStockCommand).FullName)
             .ToList();
 
         using (new AssertionScope())
@@ -185,7 +185,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             trackingAfterFanIn.Values.Should().AllSatisfy(entry =>
                 entry.Status.Should().Be(ReservationStatus.Reserved));
 
-            outboxMessages.Should().ContainSingle(om => om.Type == typeof(RequestPaymentCommand).FullName!
+            outboxMessages.Should().ContainSingle(om => om.Type == typeof(RequestPaymentCommand).FullName
                                                        && om.KafkaKey == correlationId.ToString());
         }
     }
@@ -243,11 +243,11 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var releaseCommands = outboxMessages
-            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName!)
+            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName)
             .ToList();
 
         var cancelCommands = outboxMessages
-            .Where(om => om.Type == typeof(CancelOrderCommand).FullName!)
+            .Where(om => om.Type == typeof(CancelOrderCommand).FullName)
             .ToList();
 
         using (new AssertionScope())
@@ -310,7 +310,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
                 "the duplicate StockReservedEvent is skipped by the Pending-status guard");
 
             outboxMessages
-                .Where(om => om.Type == typeof(RequestPaymentCommand).FullName!
+                .Where(om => om.Type == typeof(RequestPaymentCommand).FullName
                              && om.KafkaKey == correlationId.ToString())
                 .Should().ContainSingle("the AwaitingPayment transition runs exactly once even with duplicate fan-in");
         }

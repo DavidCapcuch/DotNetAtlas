@@ -115,15 +115,15 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var checkoutCompletedRows = outboxMessages
-            .Where(om => om.Type == typeof(CheckoutCompletedEvent).FullName!)
+            .Where(om => om.Type == typeof(CheckoutCompletedEvent).FullName)
             .ToList();
 
         var confirmReservationRows = outboxMessages
-            .Where(om => om.Type == typeof(ConfirmReservationCommand).FullName!)
+            .Where(om => om.Type == typeof(ConfirmReservationCommand).FullName)
             .ToList();
 
         var confirmOrderRows = outboxMessages
-            .Where(om => om.Type == typeof(ConfirmOrderCommand).FullName!)
+            .Where(om => om.Type == typeof(ConfirmOrderCommand).FullName)
             .ToList();
 
         using (new AssertionScope())
