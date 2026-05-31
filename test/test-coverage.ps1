@@ -39,13 +39,12 @@ Write-Host "Code Coverage Report Generator" -ForegroundColor Cyan
 Write-Host "===============================" -ForegroundColor Cyan
 Write-Host "Report Dir: $coverageReportDir`n" -ForegroundColor Gray
 
-# Install reportgenerator if not installed
-$reportGeneratorInstalled = $null -ne (Get-Command reportgenerator -ErrorAction SilentlyContinue)
-if (-not $reportGeneratorInstalled) {
-    Write-Host "[!] ReportGenerator not found. Installing..." -ForegroundColor Yellow
-    dotnet tool install -g dotnet-reportgenerator-globaltool
-    Write-Host "[+] ReportGenerator installed successfully!`n" -ForegroundColor Green
-}
+# Resolve reportgenerator via the repo's local tool manifest
+# (.config/dotnet-tools.json) so every dev/CI machine uses the same pinned
+# version instead of whatever happened to be globally installed.
+Write-Host "[*] Restoring .NET local tools..." -ForegroundColor Yellow
+dotnet tool restore | Out-Null
+Write-Host "[+] Local tools restored.`n" -ForegroundColor Green
 
 # Clean previous coverage results
 if (Test-Path $coverageReportDir) {
@@ -90,7 +89,7 @@ Write-Host "[*] Generating unified coverage report...`n" -ForegroundColor Cyan
 
 $reports = ($coverageFiles -join ";")
 
-reportgenerator `
+dotnet reportgenerator `
     -reports:$reports `
     -targetdir:$coverageReportDir `
     -reporttypes:$ReportTypes `

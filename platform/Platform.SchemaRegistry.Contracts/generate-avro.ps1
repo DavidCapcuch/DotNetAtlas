@@ -48,12 +48,11 @@ Write-Host "Schema namespace: $Namespace" -ForegroundColor Gray
 Write-Host "Output directory: $OutputDir" -ForegroundColor Gray
 Write-Host "Output file: $OutputFile" -ForegroundColor Gray
 
-# Check if avrogen is installed
-if (-not (Get-Command avrogen -ErrorAction SilentlyContinue))
-{
-    Write-Host "Installing Apache.Avro.Tools..." -ForegroundColor Yellow
-    dotnet tool install --global Apache.Avro.Tools --version 1.12.0
-}
+# Resolve avrogen via the repo's local tool manifest (.config/dotnet-tools.json).
+# `dotnet tool restore` is idempotent and keeps every dev/CI machine on the same
+# Apache.Avro.Tools version, so the committed Avro C# bindings never drift across
+# machines.
+dotnet tool restore | Out-Null
 
 Write-Host ""
 Write-Host "Generating C# class for: $SchemaName" -ForegroundColor Cyan
@@ -62,7 +61,7 @@ try
 {
     # avrogen generates output in the directory specified as second parameter
     # We want output in the Avro folder, avrogen will create namespace subdirectories
-    avrogen -s $SchemaPath $OutputDir
+    dotnet avrogen -s $SchemaPath $OutputDir
 
     if (Test-Path $OutputFile)
     {
