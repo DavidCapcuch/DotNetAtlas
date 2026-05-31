@@ -4,6 +4,10 @@
 
 Accepted (2026-05-29)
 
+> **Amended (2026-06-01):** added the "Naming write-side load abstractions" section below — a
+> shape-conditional naming rule refining criterion 1. No code changed; the rule is inert until a
+> non-owned aggregate child exists (the same trigger as criterion 2).
+
 Complements [ADR-0021](0021-read-side-no-specifications.md), which governs the **read** side
 ("query handlers must not depend on `Ardalis.Specification`"). This ADR governs the **write**
 side and the cleanup of specs that did not earn their keep: *when* does loading an aggregate for
@@ -73,6 +77,45 @@ name (e.g. tracing a saga's idempotency check under Kafka redelivery) pays for i
 **Net change:** deleted 2 specs (`OrderByIdSpec`, `InvoiceByIdSpec`), kept 1
 (`OrderByCorrelationIdSpec`), created 1 (`PaymentByCorrelationIdSpec`), deleted the
 `IPaymentRepository`/`PaymentRepository` pair.
+
+## Naming write-side load abstractions
+
+Criterion 1 rejects *structural* predicate names (`ById`) but does not settle how to name the
+specs that survive. A second rule applies to every write-side load abstraction — an
+`Ardalis.Specification` class first, but equally a repository finder
+(`IBasketRepository.GetByUserIdAsync`) or a private `LoadX(...)` helper factored out of a command
+handler.
+
+**Name a write-side load for its use case when — and only when — its load *shape* (the
+`.Include(...)` graph, filter composition, or tracking choice) is sized for one operation's
+invariant checks.** A use-case name (`OrderForCancellationSpec`) commits the class to that shape,
+so reusing it for a differently-shaped load surfaces as a naming mismatch at the import site — the
+read/write coupling [ADR-0021](0021-read-side-no-specifications.md) corrects, caught one level
+earlier. When two operations on one aggregate need different graphs — cancellation must load
+shipments to test "can still cancel?", dispatch must load the delivery address —
+`OrderForCancellationSpec` and `OrderForShipmentDispatchSpec` are two correctly-distinct loads;
+naming both `OrderByIdSpec` would erase *which* shape you get.
+
+**Keep the identity-predicate name (or inline per the rule above) when the load is a bare
+aggregate-identity fetch with a single natural shape reused across operations.** A use-case name
+there is either a lie — `PaymentByCorrelationIdSpec` resolves the aggregate for Capture *and* Void
+*and* RequestRefund, so no single `ForX` name is honest — or pure duplication: N identical
+`Where(x => x.Id == id)` specs differing only in name. `GetByUserIdAsync` loads the basket by its
+identity for six command handlers; `ByCorrelationId` resolves the saga's aggregate by *its*
+ubiquitous-language identity. Both correctly keep their names. Business *filter* names that already
+carry domain meaning and return a set (`OverdueInvoices`, `ActiveReservationsForProduct`) are not
+identity loads and are unaffected — there the predicate *is* the use case.
+
+**This rule is inert today, for the same structural reason criterion 2 is.** The use-case-naming
+branch only fires when an operation-specific `.Include(...)` graph exists — i.e. an aggregate with
+a non-owned `HasMany`/`HasOne` child (criterion 2). Every `services/*` aggregate child is an owned
+type that auto-loads (see Context), so no two write-side loads of the same aggregate diverge in
+shape; every surviving load is a bare-identity or business-filter predicate that keeps its name.
+The convention becomes operative the day a non-owned child is introduced — the same trigger that
+activates criterion 2 — at which point the two loads sized for two operations take `ForUseCase`
+names rather than a shared `ById`. It is **documentation-only**: like ADR-0021's read-side rule,
+it is not arch-test-enforced — a static rule cannot tell whether a `ByX` name *should have been*
+`ForY` without knowing the include-graph divergence it commits to.
 
 ## Examples
 
