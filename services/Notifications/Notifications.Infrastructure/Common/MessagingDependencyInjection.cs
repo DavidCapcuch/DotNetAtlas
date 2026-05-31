@@ -45,16 +45,16 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
             .BindConfiguration(SchemaRegistryOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
             .BindConfiguration(AvroSerializerOptions.Section)
-            .ValidateDataAnnotations();
-
-        services.AddOptionsWithValidateOnStart<TopicsOptions>()
-            .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddOptionsWithValidateOnStart<EmailCommandsConsumerOptions>()

@@ -39,6 +39,10 @@ internal static class MessagingDependencyInjection
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
+        services.AddOptionsWithValidateOnStart<KafkaOptions>()
+            .BindConfiguration(KafkaOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<TopicsOptions>()
             .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
@@ -49,10 +53,6 @@ internal static class MessagingDependencyInjection
 
         services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
             .BindConfiguration(AvroSerializerOptions.Section)
-            .ValidateDataAnnotations();
-
-        services.AddOptionsWithValidateOnStart<KafkaOptions>()
-            .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddOptionsWithValidateOnStart<OrderCommandsConsumerOptions>()

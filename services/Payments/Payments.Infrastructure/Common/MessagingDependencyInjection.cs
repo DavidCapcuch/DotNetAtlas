@@ -43,6 +43,10 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
             .BindConfiguration(SchemaRegistryOptions.Section)
             .ValidateDataAnnotations();
@@ -53,10 +57,6 @@ internal static class MessagingDependencyInjection
 
         services.AddOptionsWithValidateOnStart<PaymentCommandsConsumerOptions>()
             .BindConfiguration(PaymentCommandsConsumerOptions.Section)
-            .ValidateDataAnnotations();
-
-        services.AddOptionsWithValidateOnStart<TopicsOptions>()
-            .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
