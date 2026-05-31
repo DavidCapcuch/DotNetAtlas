@@ -105,19 +105,19 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var releaseCommands = outboxMessages
-            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName!)
+            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName)
             .ToList();
 
         var cancelCommands = outboxMessages
-            .Where(om => om.Type == typeof(CancelOrderCommand).FullName!)
+            .Where(om => om.Type == typeof(CancelOrderCommand).FullName)
             .ToList();
 
         var refundCommands = outboxMessages
-            .Where(om => om.Type == typeof(RequestRefundCommand).FullName!)
+            .Where(om => om.Type == typeof(RequestRefundCommand).FullName)
             .ToList();
 
         var checkoutFailedRows = outboxMessages
-            .Where(om => om.Type == typeof(CheckoutFailedEvent).FullName!)
+            .Where(om => om.Type == typeof(CheckoutFailedEvent).FullName)
             .ToList();
 
         using (new AssertionScope())
@@ -205,19 +205,19 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var refundCommands = outboxMessages
-            .Where(om => om.Type == typeof(RequestRefundCommand).FullName!)
+            .Where(om => om.Type == typeof(RequestRefundCommand).FullName)
             .ToList();
 
         var releaseCommands = outboxMessages
-            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName!)
+            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName)
             .ToList();
 
         var cancelCommands = outboxMessages
-            .Where(om => om.Type == typeof(CancelOrderCommand).FullName!)
+            .Where(om => om.Type == typeof(CancelOrderCommand).FullName)
             .ToList();
 
         var checkoutFailedRows = outboxMessages
-            .Where(om => om.Type == typeof(CheckoutFailedEvent).FullName!)
+            .Where(om => om.Type == typeof(CheckoutFailedEvent).FullName)
             .ToList();
 
         using (new AssertionScope())
@@ -285,7 +285,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var checkoutStuckRows = outboxMessages
-            .Where(om => om.Type == typeof(CheckoutStuckEvent).FullName!)
+            .Where(om => om.Type == typeof(CheckoutStuckEvent).FullName)
             .ToList();
 
         using (new AssertionScope())
@@ -340,15 +340,15 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             .ToListAsync();
 
         var releaseCommands = outboxMessages
-            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName!)
+            .Where(om => om.Type == typeof(ReleaseReservationCommand).FullName)
             .ToList();
 
         var cancelCommands = outboxMessages
-            .Where(om => om.Type == typeof(CancelOrderCommand).FullName!)
+            .Where(om => om.Type == typeof(CancelOrderCommand).FullName)
             .ToList();
 
         var checkoutFailedRows = outboxMessages
-            .Where(om => om.Type == typeof(CheckoutFailedEvent).FullName!)
+            .Where(om => om.Type == typeof(CheckoutFailedEvent).FullName)
             .ToList();
 
         using (new AssertionScope())
