@@ -12,10 +12,6 @@ public sealed class PaymentCommandsConsumerOptions : ConsumerConfig
 {
     public const string Section = "KafkaPaymentCommandsConsumer";
 
-    /// <summary>Topic carrying saga-issued commands to Payments.</summary>
-    [Required(AllowEmptyStrings = false)]
-    public required string Topic { get; set; }
-
     /// <summary>Consumer group id for this consumer (idempotent rebalance key).</summary>
     [Required(ErrorMessage = $"{nameof(GroupId)} for {nameof(PaymentCommandsConsumerOptions)} is missing",
         AllowEmptyStrings = false)]
