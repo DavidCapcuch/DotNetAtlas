@@ -36,7 +36,7 @@ namespace Basket.Infrastructure.Common;
 /// <c>IBasketDbContext</c> application port binding.
 /// </description></item>
 /// <item><description>
-/// <c>AddMessaging</c> — the transactional outbox (publishing
+/// <c>AddKafkaMessaging</c> — the transactional outbox (publishing
 /// <c>BasketCheckoutInitiatedEvent</c> on <c>basket.sessions</c> via
 /// <c>outbox-relay-basket</c>) and the inbox adapter against
 /// <see cref="Persistence.Database.BasketDbContext"/>.
@@ -66,7 +66,7 @@ public static class InfrastructureDependencyInjection
             .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddBasketRedisPersistence(configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
-            .AddMessaging(configuration)
+            .AddKafkaMessaging(configuration)
             .AddBasketCatalogClient(configuration)
             .AddBasketHealthChecks(configuration);
 

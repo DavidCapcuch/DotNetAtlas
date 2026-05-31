@@ -38,7 +38,7 @@ internal static class MessagingDependencyInjection
     /// </summary>
     internal const string KafkaProducerOrigin = "Inventory";
 
-    internal static IServiceCollection AddMessaging(
+    internal static IServiceCollection AddKafkaMessaging(
         this IServiceCollection services,
         ConfigurationManager configuration)
     {
@@ -100,7 +100,7 @@ internal static class MessagingDependencyInjection
                         .AddMiddlewares(m => m
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
-                // Consumer 1: saga commands on inventory.reservation-commands.
+                // Consumer 1: saga commands on TopicsOptions.InventoryReservationCommands.
                 // Group id is inventory-group — Inventory's sole consumer group
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
@@ -129,7 +129,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<ReserveStockCommandKafkaHandler>()
                             .AddHandler<ConfirmReservationCommandKafkaHandler>()
                             .AddHandler<ReleaseReservationCommandKafkaHandler>())))
-                // Consumer 2: Catalog products on catalog.products.
+                // Consumer 2: Catalog products on TopicsOptions.CatalogProducts.
                 // Group id is inventory-group — Inventory's sole consumer group
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
@@ -152,7 +152,7 @@ internal static class MessagingDependencyInjection
                         .AddTypedHandlers(handlers => handlers
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
                             .AddHandler<ProductCreatedEventKafkaHandler>())))
-                // Consumer 3: Ordering orders on ordering.orders.
+                // Consumer 3: Ordering orders on TopicsOptions.OrderingOrders.
                 // Group id is inventory-group — Inventory's sole consumer group
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
