@@ -21,10 +21,6 @@ public sealed class OrderingOrdersConsumerOptions : ConsumerConfig
 {
     public const string Section = "KafkaOrderingOrdersConsumer";
 
-    /// <summary>Ordering's orders topic.</summary>
-    [Required(AllowEmptyStrings = false)]
-    public required string Topic { get; set; }
-
     /// <summary>
     /// Inventory's sole consumer group id (<c>inventory-group</c>); shared with
     /// every other Inventory Kafka consumer per <c>events-catalog.md § 3.1</c>.

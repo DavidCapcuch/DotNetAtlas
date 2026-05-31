@@ -21,10 +21,6 @@ public sealed class ReservationCommandsConsumerOptions : ConsumerConfig
 {
     public const string Section = "KafkaReservationCommandsConsumer";
 
-    /// <summary>Topic carrying saga-issued reservation commands (3 partitions).</summary>
-    [Required(AllowEmptyStrings = false)]
-    public required string Topic { get; set; }
-
     /// <summary>Consumer group id for this consumer (idempotent rebalance key).</summary>
     [Required(
         ErrorMessage = $"{nameof(GroupId)} for {nameof(ReservationCommandsConsumerOptions)} is missing",
