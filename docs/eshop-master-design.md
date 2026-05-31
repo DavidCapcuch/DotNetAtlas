@@ -659,7 +659,7 @@ Standard 4-layer project-reference shape used by every service in the solution:
 
 Mirror existing Weather/Order patterns:
 - `ApplicationDependencyInjection.AddApplication()` — `AddValidatorsFromAssembly`, `AddCqrsHandlersFromAssembly`, `AddDomainEventHandlersFromAssembly`, `AddDomainEventDispatcher`, `AddCqrsHandlerBehaviors` (decorator chain: Tracing → Logging → Metrics → Validation → Handler).
-- `MessagingDependencyInjection.AddMessaging()` — `AddOutbox()` with Avro, `AddInbox<TDbContext>(messageTypes)`, KafkaFlow `.TopicEndpoint(...)` per consumed topic.
+- `MessagingDependencyInjection.AddKafkaMessaging()` — `AddOutbox()` with Avro, `AddInbox<TDbContext>(messageTypes)`, KafkaFlow `.TopicEndpoint(...)` per consumed topic.
 - `ApiDependencyInjection.AddApi()` — FastEndpoints, Swagger, ProblemDetails, CORS.
 
 ### B.4 Test projects
