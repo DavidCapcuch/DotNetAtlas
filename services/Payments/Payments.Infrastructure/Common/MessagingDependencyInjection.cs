@@ -43,6 +43,14 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
+        services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
+            .BindConfiguration(SchemaRegistryOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
+            .BindConfiguration(AvroSerializerOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<PaymentCommandsConsumerOptions>()
             .BindConfiguration(PaymentCommandsConsumerOptions.Section)
             .ValidateDataAnnotations();
@@ -74,7 +82,7 @@ internal static class MessagingDependencyInjection
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
-                    .Topic(consumerOptions.Topic)
+                    .Topic(topicsOptions.PaymentCommands)
                     .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
