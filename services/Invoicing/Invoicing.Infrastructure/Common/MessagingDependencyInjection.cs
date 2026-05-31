@@ -55,10 +55,18 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(KafkaOptions.Section)
             .ValidateDataAnnotations();
 
-        // TopicsOptions registration lives in AddApplication so the outbox publishers
-        // in the Application layer can read it without depending on Infrastructure-
-        // namespace types. Consumer setup below binds it directly from configuration
-        // to extract topic names at startup.
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
+            .BindConfiguration(SchemaRegistryOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
+            .BindConfiguration(AvroSerializerOptions.Section)
+            .ValidateDataAnnotations();
+
         services.AddOptionsWithValidateOnStart<OrderingOrdersConsumerOptions>()
             .BindConfiguration(OrderingOrdersConsumerOptions.Section)
             .ValidateDataAnnotations();
@@ -102,7 +110,7 @@ internal static class MessagingDependencyInjection
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
-                    .Topic(orderingConsumerOptions.Topic)
+                    .Topic(topicsOptions.OrderingOrders)
                     .WithConsumerConfig(orderingConsumerOptions)
                     .WithBufferSize(orderingConsumerOptions.BufferSize)
                     .WithWorkersCount(orderingConsumerOptions.WorkersCount)
@@ -126,7 +134,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<OrderConfirmedInvoiceProjectionKafkaHandler>()
                             .AddHandler<OrderCancelledCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
-                    .Topic(paymentsConsumerOptions.Topic)
+                    .Topic(topicsOptions.PaymentsTransactions)
                     .WithConsumerConfig(paymentsConsumerOptions)
                     .WithBufferSize(paymentsConsumerOptions.BufferSize)
                     .WithWorkersCount(paymentsConsumerOptions.WorkersCount)
@@ -149,7 +157,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<PaymentCapturedInvoiceProjectionKafkaHandler>()
                             .AddHandler<PaymentRefundedCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
-                    .Topic(notificationsEmailEventsConsumerOptions.Topic)
+                    .Topic(topicsOptions.NotificationsEmailEvents)
                     .WithConsumerConfig(notificationsEmailEventsConsumerOptions)
                     .WithBufferSize(notificationsEmailEventsConsumerOptions.BufferSize)
                     .WithWorkersCount(notificationsEmailEventsConsumerOptions.WorkersCount)

@@ -1,5 +1,4 @@
 using FluentValidation;
-using Invoicing.Application.Common.Messaging;
 using Invoicing.Application.Common.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS.Common;
@@ -17,10 +16,8 @@ namespace Invoicing.Application.Common;
 /// Registers FluentValidation validators, CQRS command/query handlers, the
 /// Tracing -> Logging -> Metrics -> Validation behaviour chain, domain-event
 /// handlers + dispatcher (the <c>DispatchDomainEventsInterceptor</c> in Infrastructure
-/// picks up the dispatcher from this composition root), and the
-/// <see cref="TopicsOptions"/> binding. <c>BlobStorageOptions</c> is registered
-/// in Infrastructure (it injects the connection string) and consumed by the command
-/// + query handlers via DI.
+/// picks up the dispatcher from this composition root). <c>TopicsOptions</c> and
+/// <c>BlobStorageOptions</c> are registered in Infrastructure.
 /// </para>
 /// </remarks>
 public static class ApplicationDependencyInjection
@@ -39,10 +36,6 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventDispatcher();
 
             services.AddCqrsHandlerBehaviors();
-
-            services.AddOptionsWithValidateOnStart<TopicsOptions>()
-                .BindConfiguration(TopicsOptions.Section)
-                .ValidateDataAnnotations();
 
             services.AddOptionsWithValidateOnStart<BuyerPortalOptions>()
                 .BindConfiguration(BuyerPortalOptions.Section)
