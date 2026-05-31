@@ -7,28 +7,28 @@
       "commands": [
         "dotnet-stryker"
       ],
-      "rollForward": false
+      "rollForward": true
     },
     "dotnet-ef": {
       "version": "10.0.8",
       "commands": [
         "dotnet-ef"
       ],
-      "rollForward": false
+      "rollForward": true
     },
     "apache.avro.tools": {
       "version": "1.12.1",
       "commands": [
         "avrogen"
       ],
-      "rollForward": false
+      "rollForward": true
     },
     "dotnet-reportgenerator-globaltool": {
       "version": "5.5.1",
       "commands": [
         "reportgenerator"
       ],
-      "rollForward": false
+      "rollForward": true
     }
   }
 }
