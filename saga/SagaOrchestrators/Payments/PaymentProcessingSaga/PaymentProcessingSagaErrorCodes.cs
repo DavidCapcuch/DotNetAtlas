@@ -14,10 +14,12 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 /// saga forwards them unchanged.
 /// </para>
 /// <para>
-/// String values are wire-protocol values: they flow into the persisted
-/// saga state and into the <c>PaymentFailedEvent</c> emitted on the
-/// <c>payments.transactions</c> topic on timeout paths. Treat them as
-/// stable contracts.
+/// String values are wire-protocol values. Every code is persisted to
+/// <c>PaymentProcessingSagaState.ErrorCode</c>; only the <c>CaptureTimeout</c>
+/// path additionally publishes it as <c>PaymentFailedEvent.ErrorCode</c> on
+/// the <c>payments.transactions</c> topic (the <c>AuthorizationTimeout</c>,
+/// <c>VoidTimeout</c>, and <c>RefundTimeout</c> paths stay internal to the
+/// saga). Treat them as stable contracts.
 /// </para>
 /// </remarks>
 public static class PaymentProcessingSagaErrorCodes
