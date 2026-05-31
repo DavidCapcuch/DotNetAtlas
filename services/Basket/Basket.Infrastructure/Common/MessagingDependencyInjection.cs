@@ -1,3 +1,4 @@
+using Basket.Application.Common.Messaging;
 using Basket.Infrastructure.Messaging.Kafka.Config;
 using Basket.Infrastructure.Persistence.Database;
 using Microsoft.Extensions.Configuration;
@@ -30,6 +31,18 @@ internal static class MessagingDependencyInjection
     {
         services.AddOptionsWithValidateOnStart<KafkaOptions>()
             .BindConfiguration(KafkaOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<TopicsOptions>()
+            .BindConfiguration(TopicsOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
+            .BindConfiguration(SchemaRegistryOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
+            .BindConfiguration(AvroSerializerOptions.Section)
             .ValidateDataAnnotations();
 
         services.AddInbox<BasketDbContext>();

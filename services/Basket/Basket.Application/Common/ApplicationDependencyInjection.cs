@@ -1,4 +1,3 @@
-using Basket.Application.Common.Messaging;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS.Common;
@@ -22,7 +21,7 @@ public static class ApplicationDependencyInjection
     {
         /// <summary>
         /// Registers validators, CQRS handlers, domain-event handlers + dispatcher,
-        /// behavior chain, and the bound <see cref="TopicsOptions"/> from configuration.
+        /// and the behavior chain.
         /// </summary>
         public IServiceCollection AddApplication()
         {
@@ -35,18 +34,7 @@ public static class ApplicationDependencyInjection
                 .AddDomainEventHandlersFromAssembly(assembly)
                 .AddDomainEventDispatcher();
 
-            services
-                .AddBasketOptions()
-                .AddCqrsHandlerBehaviors();
-
-            return services;
-        }
-
-        private IServiceCollection AddBasketOptions()
-        {
-            services.AddOptionsWithValidateOnStart<TopicsOptions>()
-                .BindConfiguration(TopicsOptions.Section)
-                .ValidateDataAnnotations();
+            services.AddCqrsHandlerBehaviors();
 
             return services;
         }
