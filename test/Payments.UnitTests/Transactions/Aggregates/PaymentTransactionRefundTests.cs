@@ -64,7 +64,7 @@ public class PaymentTransactionRefundTests
     [Fact]
     public void Refund_FromRequested_ThrowsDataIntegrityException()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
 
         var action = () => tx.Refund("customer_cancelled", PaymentTransactionFactory.SuccessResponse, UtcNow);
 

@@ -63,17 +63,21 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
+
+        // Wave1-followup #255: saga mints PaymentTransactionId in Initial state and rejects (throws)
+        // any inbound PaymentCapturedEvent whose PaymentTransactionId does not match. Tests must
+        // therefore echo back the saga's minted value rather than fabricate a new Guid.
+        var sagaMintedPaymentTransactionId = await ReadSagaMintedPaymentTransactionIdAsync(correlationId);
 
         // Act - Capture the payment
         var capturedEvent = new PaymentCapturedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            PaymentTransactionId = sagaMintedPaymentTransactionId,
             AuthorizationId = authorizationId,
             Amount = 99.99m.ToAvroDecimal(4),
             Currency = "USD",
@@ -96,7 +100,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         {
             persistedState.Should().NotBeNull();
             persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted));
-            persistedState.PaymentTransactionId.Should().Be(paymentTransactionId);
+            persistedState.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
             persistedState.AuthorizationId.Should().Be(authorizationId);
             persistedState.CapturedAtUtc.Should().NotBeNull();
 
@@ -151,7 +155,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var paymentMethodId = $"pm_{Guid.CreateVersion7():N}";
-        var paymentTransactionId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         // Step 1: Initiate payment
@@ -206,11 +209,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         }
 
         // Step 3: Capture payment
+        // Wave1-followup #255: echo saga's minted PaymentTransactionId on the capture event.
+        var sagaMintedPaymentTransactionId = stateAfterAuthorization!.PaymentTransactionId!.Value;
         var capturedEvent = new PaymentCapturedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            PaymentTransactionId = sagaMintedPaymentTransactionId,
             AuthorizationId = authorizationId,
             Amount = 49.99m.ToAvroDecimal(4),
             Currency = "USD",
@@ -233,7 +238,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         {
             stateAfterCapture.Should().NotBeNull();
             stateAfterCapture.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted));
-            stateAfterCapture.PaymentTransactionId.Should().Be(paymentTransactionId);
+            stateAfterCapture.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
             stateAfterCapture.CapturedAtUtc.Should().HaveValue();
             stateAfterCapture.CompensationTriggered.Should().BeFalse();
 
@@ -380,10 +385,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
 
-        // Transition to PaymentCompleted state
-        await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId);
+        // Transition to PaymentCompleted state; helper returns the saga-minted PaymentTransactionId
+        // that must be echoed on the downstream PaymentRefundRequestedSagaEvent (wave1-followup #255).
+        var paymentTransactionId = await TransitionSagaToPaymentCompletedState(correlationId, userId);
 
         // Act - Request refund (internal saga event - no Kafka consumer exists)
         var refundCommand = new PaymentRefundRequestedSagaEvent
@@ -513,9 +518,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var paymentTransactionId = Guid.CreateVersion7();
 
-        await TransitionSagaToRefundInProgressState(correlationId, userId, paymentTransactionId);
+        await TransitionSagaToRefundInProgressState(correlationId, userId);
 
         // Act - Simulate timeout by publishing RefundTimeoutExpired (MassTransit internal)
         var timeoutEvent = new RefundTimeoutExpired
@@ -587,10 +591,14 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
     }
 
-    private async Task TransitionSagaToPaymentCompletedState(
+    /// <summary>
+    /// Drives the saga to <c>PaymentCompleted</c> and returns the saga-minted PaymentTransactionId
+    /// (wave1-followup #255). Callers MUST use this value on any subsequent event whose
+    /// PaymentTransactionId the saga validates (refund-request, refund-completed).
+    /// </summary>
+    private async Task<Guid> TransitionSagaToPaymentCompletedState(
         Guid correlationId,
         Guid userId,
-        Guid paymentTransactionId,
         decimal amount = 99.99m,
         string currency = "USD")
     {
@@ -598,11 +606,12 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId, amount, currency);
 
+        var sagaMintedPaymentTransactionId = await ReadSagaMintedPaymentTransactionIdAsync(correlationId);
         var capturedEvent = new PaymentCapturedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            PaymentTransactionId = sagaMintedPaymentTransactionId,
             AuthorizationId = authorizationId,
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
@@ -612,16 +621,16 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
+        return sagaMintedPaymentTransactionId;
     }
 
     private async Task TransitionSagaToRefundInProgressState(
         Guid correlationId,
         Guid userId,
-        Guid paymentTransactionId,
         decimal amount = 99.99m,
         string currency = "USD")
     {
-        await TransitionSagaToPaymentCompletedState(correlationId, userId, paymentTransactionId, amount, currency);
+        var paymentTransactionId = await TransitionSagaToPaymentCompletedState(correlationId, userId, amount, currency);
 
         // RefundRequested is an internal saga event (no Kafka consumer exists)
         var refundCommand = new PaymentRefundRequestedSagaEvent
@@ -636,5 +645,22 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         await Bus.Publish(refundCommand);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
+    }
+
+    /// <summary>
+    /// Reads the saga's PaymentTransactionId from the persisted state. Must be called after the
+    /// saga has reached at least <c>AwaitingAuthorization</c> (the Initial transition mints it
+    /// per wave1-followup #255). Used by tests that need to echo the value back on a downstream
+    /// event the saga's mismatch-guard would otherwise throw on.
+    /// </summary>
+    private async Task<Guid> ReadSagaMintedPaymentTransactionIdAsync(Guid correlationId)
+    {
+        var state = await SagaDbContext.PaymentProcessingSagaStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+        return state?.PaymentTransactionId
+            ?? throw new InvalidOperationException(
+                $"Saga {correlationId} not found or PaymentTransactionId not minted — "
+                + "wave1-followup #255 invariant violation");
     }
 }

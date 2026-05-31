@@ -110,17 +110,22 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <param name="orderId">Associated Ordering aggregate id.</param>
     /// <param name="amount">Amount to charge (must be positive; enforces I-1 + I-2 through <see cref="Money"/>).</param>
     /// <param name="paymentMethodId">Tokenised payment instrument string (1-64 chars).</param>
-    /// <param name="utcNow">Current UTC time for <see cref="DomainEvent.OccurredOnUtc"/> determinism.</param>
     /// <returns>Ok with the new aggregate, or failure with <see cref="PaymentsErrors.InvalidAmount"/>
     /// / <see cref="PaymentsErrors.InvalidPaymentMethod"/>.</returns>
+    /// <remarks>
+    /// ADR-0023 follow-up: raises no domain events. The aggregate's creation moment is signalled
+    /// to the saga via <c>RequestPaymentCommand</c> (Checkout-saga produced, on
+    /// <c>payments.payment-commands</c>), not via a Payments-internal domain event. No
+    /// timestamp parameter is needed — the mutator methods (<see cref="Authorize"/>,
+    /// <see cref="Capture"/>, etc.) carry their own <c>utcNow</c> for the events they raise.
+    /// </remarks>
     public static Result<PaymentTransaction> Create(
         Guid paymentId,
         Guid correlationId,
         Guid buyerId,
         Guid orderId,
         Money amount,
-        string paymentMethodId,
-        DateTimeOffset utcNow)
+        string paymentMethodId)
     {
         ArgumentNullException.ThrowIfNull(amount);
 
@@ -135,12 +140,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             return Result.Fail<PaymentTransaction>(paymentMethodIdResult.Errors);
         }
 
-        // ADR-0023 follow-up: no PaymentRequestedDomainEvent raised here. The aggregate's
-        // creation moment is signalled to the saga via RequestPaymentCommand (Checkout-saga
-        // produced, on payments.payment-commands), not via a Payments-internal domain event.
-        // The `utcNow` parameter is retained on the factory for symmetry with the other
-        // mutator methods and to keep the test interface stable.
-        _ = utcNow;
         var paymentTransaction = new PaymentTransaction
         {
             Id = paymentId,

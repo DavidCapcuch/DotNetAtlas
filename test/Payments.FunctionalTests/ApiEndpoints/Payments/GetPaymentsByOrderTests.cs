@@ -58,7 +58,7 @@ public class GetPaymentsByOrderTests : BaseApiTest
     public async Task WhenAdminAndOnePaymentForOrder_ReturnsOkWithOnePayment()
     {
         var orderId = Guid.CreateVersion7();
-        var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, DateTimeOffset.UtcNow, orderId: orderId);
+        var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
 
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(
@@ -77,8 +77,8 @@ public class GetPaymentsByOrderTests : BaseApiTest
     public async Task WhenAdminAndMultiplePaymentsForOrder_ReturnsOkWithAll()
     {
         var orderId = Guid.CreateVersion7();
-        var seedA = await PaymentSeed.InsertRequestedAsync(DbContext, DateTimeOffset.UtcNow, orderId: orderId);
-        var seedB = await PaymentSeed.InsertRequestedAsync(DbContext, DateTimeOffset.UtcNow, orderId: orderId);
+        var seedA = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
+        var seedB = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
 
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(

@@ -279,8 +279,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             buyerId: Guid.CreateVersion7(),
             orderId,
             amount,
-            paymentMethodId: "tok_visa_4242",
-            utcNow: DateTimeOffset.UtcNow).Value;
+            paymentMethodId: "tok_visa_4242").Value;
 
         // ADR-0023 follow-up: PaymentTransaction.Create raises no domain events, so PopDomainEvents()
         // here returns an empty collection. The call is retained defensively to make the "no events

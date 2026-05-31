@@ -1,7 +1,5 @@
 using FluentResults.Extensions.FluentAssertions;
-using Microsoft.Extensions.Time.Testing;
 using Payments.Domain.Transactions;
-using Payments.Domain.Transactions.Events;
 using Payments.Domain.Transactions.ValueObjects;
 using Platform.SharedKernel.Errors;
 using Platform.SharedKernel.ValueObjects;
@@ -10,10 +8,6 @@ namespace Payments.UnitTests.Transactions.Aggregates;
 
 public class PaymentTransactionCreateTests
 {
-    private readonly FakeTimeProvider _fakeTimeProvider = new();
-
-    private DateTimeOffset UtcNow => _fakeTimeProvider.GetUtcNow();
-
     [Fact]
     public void Create_WhenValid_ReturnsOkAndRaisesNoDomainEvents()
     {
@@ -29,7 +23,7 @@ public class PaymentTransactionCreateTests
         var amount = Money.Create(100m, "USD").Value;
 
         var result = PaymentTransaction.Create(
-            paymentId, correlationId, buyerId, orderId, amount, "tok_visa_4242", UtcNow);
+            paymentId, correlationId, buyerId, orderId, amount, "tok_visa_4242");
 
         using (new AssertionScope())
         {
@@ -64,7 +58,7 @@ public class PaymentTransactionCreateTests
 
         var result = PaymentTransaction.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
-            nonPositiveAmount, "tok_visa_4242", UtcNow);
+            nonPositiveAmount, "tok_visa_4242");
 
         using (new AssertionScope())
         {
@@ -85,7 +79,7 @@ public class PaymentTransactionCreateTests
 
         var result = PaymentTransaction.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
-            amount, paymentMethodId!, UtcNow);
+            amount, paymentMethodId!);
 
         using (new AssertionScope())
         {
@@ -104,7 +98,7 @@ public class PaymentTransactionCreateTests
 
         var result = PaymentTransaction.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
-            amount, tooLong, UtcNow);
+            amount, tooLong);
 
         using (new AssertionScope())
         {

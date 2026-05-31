@@ -94,8 +94,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
                 command.BuyerId,
                 command.OrderId,
                 moneyResult.Value,
-                command.PaymentMethodId,
-                _timeProvider.GetUtcNow());
+                command.PaymentMethodId);
             if (createResult.IsFailed)
             {
                 return createResult.ToResult<Guid>();

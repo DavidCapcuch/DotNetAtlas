@@ -69,7 +69,7 @@ public class PaymentTransactionCaptureTests
     [Fact]
     public void Capture_FromRequested_ThrowsDataIntegrityException()
     {
-        var tx = PaymentTransactionFactory.Requested(UtcNow);
+        var tx = PaymentTransactionFactory.Requested();
 
         var action = () => tx.Capture("gw-tx-abc", PaymentTransactionFactory.SuccessResponse, UtcNow);
 

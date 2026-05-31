@@ -215,7 +215,19 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(PaymentCapturedEvent)
                 .Then(ctx =>
                 {
-                    ctx.Saga.PaymentTransactionId = ctx.Message.PaymentTransactionId;
+                    // Wave1-followup #255: PaymentTransactionId was minted in the Initial state and
+                    // travelled out on AuthorizePaymentCommand. Payments echoes the same id back on
+                    // PaymentCapturedEvent. They MUST be equal — any divergence is a Payments-side bug
+                    // or a wire-shape skew that would silently corrupt the downstream PaymentCompletedEvent
+                    // payload (which uses Saga.PaymentTransactionId). Fail loud rather than overwrite.
+                    if (ctx.Saga.PaymentTransactionId != ctx.Message.PaymentTransactionId)
+                    {
+                        throw new InvalidOperationException(
+                            $"PaymentTransactionId mismatch for CorrelationId {ctx.Saga.CorrelationId}: "
+                            + $"saga minted {ctx.Saga.PaymentTransactionId}, Payments returned {ctx.Message.PaymentTransactionId}. "
+                            + "Refusing to silently overwrite saga state — this indicates a wire-shape or Payments-side bug.");
+                    }
+
                     ctx.Saga.CapturedAtUtc = ctx.Message.CapturedAtUtc;
                 })
                 .Activity(x => x.OfType<CaptureCompletedActivity>())

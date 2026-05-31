@@ -22,7 +22,6 @@ internal static class PaymentTransactionFactory
     public static Money UsdAmount(decimal amount = 100m) => Money.Create(amount, "USD").Value;
 
     public static PaymentTransaction Requested(
-        DateTimeOffset utcNow,
         decimal amount = 100m,
         string paymentMethodId = DefaultPaymentMethodId)
     {
@@ -32,8 +31,7 @@ internal static class PaymentTransactionFactory
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             UsdAmount(amount),
-            paymentMethodId,
-            utcNow);
+            paymentMethodId);
 
         if (result.IsFailed)
         {
@@ -45,7 +43,7 @@ internal static class PaymentTransactionFactory
 
     public static PaymentTransaction Authorized(DateTimeOffset utcNow)
     {
-        var tx = Requested(utcNow);
+        var tx = Requested();
         tx.PopDomainEvents();
         tx.Authorize(DefaultGatewayTransactionId, SuccessResponse, utcNow.AddDays(7), utcNow);
         tx.PopDomainEvents();
@@ -62,7 +60,7 @@ internal static class PaymentTransactionFactory
 
     public static PaymentTransaction Failed(DateTimeOffset utcNow)
     {
-        var tx = Requested(utcNow);
+        var tx = Requested();
         tx.PopDomainEvents();
         tx.MarkAuthorizationFailed(FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", utcNow), utcNow);
         tx.PopDomainEvents();
