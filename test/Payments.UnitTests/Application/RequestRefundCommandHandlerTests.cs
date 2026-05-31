@@ -16,7 +16,7 @@ namespace Payments.UnitTests.Application;
 public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
 {
     private RequestRefundCommandHandler BuildHandler() =>
-        new(DbContext, Gateway, Outbox, Dispatcher, TimeProvider, NullLogger<RequestRefundCommandHandler>.Instance);
+        new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<RequestRefundCommandHandler>.Instance);
 
     private static RequestRefundCommand BuildCommand(Guid? paymentId = null, Guid? correlationId = null) => new()
     {
@@ -40,7 +40,9 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
         {
             result.Should().BeSuccess();
             existing.Status.Should().Be(PaymentStatus.Refunded);
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentRefundedDomainEvent>(), Arg.Any<CancellationToken>());
+            // Dispatch is owned by DispatchDomainEventsInterceptor (ADR-0024); verify the aggregate
+            // raised the event that the interceptor will pop on SaveChanges.
+            existing.PopDomainEvents().Should().ContainSingle().Which.Should().BeOfType<PaymentRefundedDomainEvent>();
             await Outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         }
     }

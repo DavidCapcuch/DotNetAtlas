@@ -101,6 +101,7 @@ The result-vs-exception split is mandatory per [CLAUDE.md](../../CLAUDE.md). Cro
 - **Outbox** (`Platform.ReliableMessaging.Outbox.EFCore`) — the outbox row is written **in the same DbContext transaction** as the aggregate save. The outbox relay sidecar later publishes to Kafka with schema-registry validation.
 - **Inbox** (`Platform.KafkaFlow.Inbox.EFCore`) — dedup primary key is the producer-supplied `IdempotencyKey` (or `MessageId` where the producer pattern hasn't been adapted yet). Redelivered messages short-circuit before the handler runs.
 - **At-least-once everywhere.** Consumers MUST be idempotent. Producers MUST mint deterministic idempotency keys derived from business state (NOT `Guid.NewGuid()`); see [notifications.md § 4.2](notifications.md) for the canonical example of producer-side key derivation.
+- **Domain-event dispatch is owned by the persistence boundary, not application handlers.** EF-Core BCs (Catalog, Ordering, Invoicing, Payments) dispatch via `DispatchDomainEventsInterceptor` on the BC's `DbContext`; command handlers MUST NOT inject `IDomainEventDispatcher`. The two exceptions are Basket (Redis primary, dispatch in handler after `SaveAsync`) and Inventory (event-sourced, dispatch inside `EventStoreRepository.AppendAsync`). Canonical detail and per-BC wiring table: [ADR-0024](../adr/0024-domain-event-dispatch-in-persistence-interceptor.md).
 
 ---
 

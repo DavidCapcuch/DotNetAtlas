@@ -9,7 +9,6 @@ using Payments.Domain.Transactions.Specifications;
 using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
 
 namespace Payments.Application.Transactions.RequestRefund;
@@ -26,7 +25,6 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
     private readonly IPaymentsDbContext _dbContext;
     private readonly IPaymentGateway _gateway;
     private readonly ITransactionalOutbox<IPaymentsDbContext> _outbox;
-    private readonly IDomainEventDispatcher _dispatcher;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<RequestRefundCommandHandler> _logger;
 
@@ -34,14 +32,12 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
         IPaymentsDbContext dbContext,
         IPaymentGateway gateway,
         ITransactionalOutbox<IPaymentsDbContext> outbox,
-        IDomainEventDispatcher dispatcher,
         TimeProvider timeProvider,
         ILogger<RequestRefundCommandHandler> logger)
     {
         _dbContext = dbContext;
         _gateway = gateway;
         _outbox = outbox;
-        _dispatcher = dispatcher;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -104,11 +100,6 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
         if (refundResult.IsFailed)
         {
             return refundResult;
-        }
-
-        foreach (var domainEvent in tx.PopDomainEvents())
-        {
-            await _dispatcher.DispatchAsync(domainEvent, ct);
         }
 
         await _outbox.SaveChangesAsync(ct);
