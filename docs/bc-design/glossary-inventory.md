@@ -4,18 +4,6 @@
 
 ---
 
-## Addendum — review-resolved clarifications
-
-### ReservationStatus
-
-Internal aggregate state tracker on `ReservationInfo`: `Active`, `Confirmed`, `Released`. **NOT published** on any external event — consumers infer status from the event type they receive (`StockReservedEvent` → Active, `ReservationConfirmedEvent` → Confirmed, `ReservationReleasedEvent` → Released). This design avoids versioning an enum across service boundaries; if a new status is added internally, external consumers are not affected.
-
-### ReleaseReason
-
-Enum carried on `ReservationReleasedDomainEvent`: `Compensation` (saga-driven rollback after a downstream failure — payment fail, confirmation fail), `Expiry` (automatic release after 15-minute TTL via the `ReservationExpiryWorker` background job), `Cancellation` (explicit user or admin action on a live order). Distinguishes the three legitimate release paths for audit, metrics, and downstream reaction.
-
----
-
 ## Aggregate & state
 
 ### StockItem
@@ -44,10 +32,10 @@ A time-bounded hold of N units of a `ProductId` against a specific `OrderId`. Cr
 The unique identifier of a reservation, supplied by the saga (`Guid`, `Guid.CreateVersion7()`). Distinct from `OrderId`. Modelled as a strongly-typed wrapper `record ReservationId(Guid Value)` to prevent accidental confusion with other Guids at call sites.
 
 ### ReservationStatus
-Enum `{ Active, Confirmed, Released }`. Drives allowed state transitions — `ConfirmReservationCommand` and `ReleaseReservationCommand` require `Active`. Held on `ReservationInfo` in-memory and on `reservation_audit` projection.
+Enum `{ Active, Confirmed, Released }` tracking internal reservation state on `ReservationInfo` (also held on the `reservation_audit` projection). Drives allowed state transitions — `ConfirmReservationCommand` and `ReleaseReservationCommand` require `Active`. **NOT published** on any external event: consumers infer status from the event type they receive (`StockReservedEvent` → Active, `ReservationConfirmedEvent` → Confirmed, `ReservationReleasedEvent` → Released), which avoids versioning an enum across service boundaries.
 
 ### ReleaseReason
-Enum `{ Compensation, Expiry, Cancellation }` carried on every `ReservationReleasedDomainEvent`. Critical for auditing and for the checkout saga's ability to distinguish genuine compensation (its own rollback) from TTL timeouts (customer didn't pay fast enough) from explicit customer cancellation.
+Enum `{ Compensation, Expiry, Cancellation }` carried on every `ReservationReleasedDomainEvent`: `Compensation` (saga-driven rollback after a downstream failure — payment or confirmation fail), `Expiry` (automatic release after the 15-minute TTL via the `ReservationExpiryWorker`), `Cancellation` (explicit user or admin action on a live order). Critical for auditing and for the checkout saga's ability to distinguish genuine compensation from TTL timeouts and explicit customer cancellation.
 
 ### TTL (Time-To-Live)
 The duration after which an unconfirmed reservation is automatically released. Default **15 minutes** from `ReservedAtUtc`. Stored on `StockReservedDomainEvent.ExpiresAtUtc` at reservation time — once written, the expiry is a fact, not a moving target. Enforced by the `ReservationExpiryWorker` hosted service, not by DB triggers: every expiry produces a real `ReservationReleasedDomainEvent(reason=Expiry)` so no state change is silent.
@@ -60,7 +48,7 @@ The hosted service that scans `reservation_audit` for expired `Active` reservati
 ## Events & event sourcing
 
 ### ES event / Event-sourced event
-A record stored in the `inventory.stock_events` table that IS part of the aggregate's state. When rehydrating a `StockItem`, these events are folded via reducer functions to reconstruct the aggregate. Unlike external events, ES events are not versioned Avro schemas — they are internal `DomainEvent`-derived records. Inventory is the only BC in the eShop solution that uses the suffix `Event` (not `DomainEvent`) for these records to mark them as the persistence model.
+A record stored in the `inventory.stock_events` table that IS part of the aggregate's state. When rehydrating a `StockItem`, these events are folded via reducer functions to reconstruct the aggregate. Unlike external events, ES events are not versioned Avro schemas — they are internal `DomainEvent`-derived records (e.g. `StockReceivedDomainEvent`, `StockReservedDomainEvent`, `ReservationReleasedDomainEvent`) folded back into the aggregate on rehydration.
 
 ### Reducer
 The pure function `(state, event) → state` that produces the next aggregate state given the current state and one event. In code, this is typically named `Apply(event)` on the aggregate. Reducers are the ONLY place state mutates. Command methods are the ONLY place new events are produced.

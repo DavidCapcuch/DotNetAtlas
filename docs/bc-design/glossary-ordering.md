@@ -141,4 +141,4 @@ The guard method on `OrderStatus` that returns `true` iff moving from the curren
 
 ---
 
-*End of Ordering glossary — 30 terms defined.*
+*End of Ordering glossary — 33 terms defined.*

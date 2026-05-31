@@ -63,7 +63,7 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 
 **Future fix (cross-cutting wave):** the saga emits a fresh `Guid.CreateVersion7()` `PaymentTransactionId` on `AuthorizePaymentCommand`; Payments-side mapper uses it as the aggregate id; the v7 PK comment becomes true; "one-payment-per-saga" stays enforced via the existing unique index on `correlation_id`. Saga-side change is **out of scope** for the Wave-1 Payments-followups branch (saga code is in `saga/SagaOrchestrators/`).
 
-**Tracking issue:** filed as a `cross-cutting(wave1-followup)` GitHub issue.
+**Tracking issue:** filed as a `cross-cutting(wave1-followup)` GitHub issue; catalogued in [roadmap.md § 2.4](../roadmap.md).
 
 ### 2.2 Invariants
 
@@ -89,7 +89,7 @@ public static Result<PaymentTransaction> Create(
 
 Returns `Result.Fail(PaymentsErrors.InvalidAmount)` if `amount.Amount <= 0`, and `Result.Fail(PaymentsErrors.InvalidPaymentMethod)` if the payment method token is empty or exceeds 64 chars.
 
-Raises `PaymentRequestedDomainEvent`.
+Raises no domain event — the transaction is created in `Requested` status and the `PaymentProcessingSaga` drives all subsequent transitions.
 
 ---
 
@@ -116,7 +116,7 @@ Requested ──authorize──▶ Authorized ──capture──▶ Captured �
     │                         └──void──▶ Voided (terminal)               
     └──reject──▶ Failed (terminal)      
                                                                          
-Captured ──refund──▶ Refunded (terminal)                                 
+Captured / Completed ──refund──▶ Refunded (terminal)                                 
 ```
 
 ### 4.1 Transitions
@@ -130,18 +130,18 @@ Captured ──refund──▶ Refunded (terminal)
 | Authorized | `VoidPaymentCommand` | Voided | Saga compensation pre-capture |
 | Captured | (auto) | Completed | All steps complete |
 | Captured | `RequestRefundCommand` | Refunded | Cancel-post-capture compensation |
+| Completed | `RequestRefundCommand` | Refunded | Cancel-post-capture compensation (capture auto-advances to `Completed`) |
 
-`Completed` is the successful terminal state. `Failed`, `Refunded`, `Voided` are compensation terminals.
+`Completed` is the happy-path success state but is not final — it stays reversible to `Refunded` for cancel-post-capture compensation. `Failed`, `Voided`, `Refunded` are the true terminals with no further transitions.
 
 Transition guard: `PaymentStatus.CanTransitionTo(target)` consults a readonly `_allowed` dictionary. Invalid transitions throw `DataIntegrityException` (bug-class).
 
 ---
 
-## 5. Domain Events (internal, 9)
+## 5. Domain Events (internal, 8)
 
 Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Never published to Kafka directly — external events are translated by outbox publishers.
 
-- `PaymentRequestedDomainEvent` — aggregate created
 - `PaymentAuthorizedDomainEvent` — gateway auth success
 - `PaymentAuthorizationFailedDomainEvent` — gateway auth failure
 - `PaymentCapturedDomainEvent` — gateway capture success

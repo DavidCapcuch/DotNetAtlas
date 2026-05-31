@@ -226,10 +226,10 @@ All live under `Ordering.Domain.Orders.Events`. All inherit `Platform.SharedKern
 | `OrderCreatedDomainEvent` | `CreateFromBasket` factory | `OrderId`, `BuyerId`, `CorrelationId`, `Items` (item-level snapshot inline: `ProductId`, `Sku`, `Name`, `Quantity`, `UnitPriceAmount`, `LineTotalAmount`, `Currency`), `ShippingAddress`, `BillingAddress`, `Total`, `CreatedAtUtc` |
 | `OrderStockReservedDomainEvent` | `MarkStockReserved` | `OrderId`, `CorrelationId`, `ReservationId`, `OccurredOnUtc` |
 | `OrderPaymentCompletedDomainEvent` | `MarkPaymentCompleted` | `OrderId`, `CorrelationId`, `PaymentTransactionId`, `OccurredOnUtc` |
-| `OrderConfirmedDomainEvent` | `Confirm` | `OrderId`, `CorrelationId`, `BuyerId`, `OccurredOnUtc` |
+| `OrderConfirmedDomainEvent` | `Confirm` | `OrderId`, `CorrelationId`, `BuyerId`, `Items`, `Total`, `BillingAddress`, `ConfirmedAtUtc`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for Invoicing) |
 | `OrderShippedDomainEvent` | `MarkShipped` | `OrderId`, `CorrelationId`, `BuyerId`, `Carrier`, `TrackingNumber`, `ShippedAtUtc`, `OccurredOnUtc` |
 | `OrderDeliveredDomainEvent` | `MarkDelivered` | `OrderId`, `BuyerId`, `DeliveredAtUtc`, `OccurredOnUtc` |
-| `OrderCancelledDomainEvent` | `Cancel` | `OrderId`, `CorrelationId`, `BuyerId`, `Reason`, `AtStatus` (previous), `CancelledAtUtc`, `OccurredOnUtc` |
+| `OrderCancelledDomainEvent` | `Cancel` | `OrderId`, `CorrelationId`, `BuyerId`, `Reason`, `AtStatus` (previous), `CancelledAtUtc`, `Items`, `Total`, `BillingAddress`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for the credit-note projection) |
 | `OrderFailedDomainEvent` | `Fail` | `OrderId`, `CorrelationId`, `BuyerId`, `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`, `OccurredOnUtc` |
 
 **Consumers of internal events (handlers in `Ordering.Application.Orders.*.*DomainEventHandler`):**

@@ -56,6 +56,9 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 #### Catalog
 - **Search indexer consumer.** Would land under `search-group` per [events-catalog § 3.1](bc-design/events-catalog.md), subscribing to `catalog.products` + `catalog.categories`.
 - **Product dimensions for shipping estimation.** `Dimensions` VO already exists (`Length`/`Width`/`Height`/`Unit`); shipping-estimator consumer is the missing piece.
+- **`ProductImageAdded` read-view projection.** `ProductImageAddedDomainEvent` fires today, but the `ProductImageAddedProjectionDomainEventHandler` that updates `ImagesJson` on `product_search_view` is not implemented in v1 (the `RemoveProductImage` counterpart projection is). See [use-cases.md § 1.1.6](bc-design/use-cases.md).
+- **Category breadcrumb projection seeding.** `CategoryCreatedProjectionDomainEventHandler` is a no-op placeholder today; future breadcrumb seeding per [catalog.md § 9](bc-design/catalog.md).
+- **`CategoryReparentedEvent` external publication.** Reparenting raises `CategoryReparentedDomainEvent` (in-process descendant-path cascade) but publishes no external event in v1; reserved for later. See [use-cases.md § 1.1.9](bc-design/use-cases.md).
 
 #### Basket
 - **Cart abandonment re-engagement.** Hook Redis keyspace events → `SendEmailNotificationCommand`.
@@ -82,9 +85,9 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 
 #### Invoicing
 - **`InvoiceDeliveredEvent.avsc` + `InvoiceDeliveryRequestedDomainEvent`** — tracked at [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123). Runtime is gated by `DeliveryChannel.None` hard-code today.
-- **Tax-authority webhook delivery channel.** `DeliveryChannel` SmartEnum has space for it but only `Email` / `None` are implemented; webhook to a stub SII / XRechnung endpoint.
-- **Postal-mail delivery channel.** Same SmartEnum space; PDF + envelope queue.
-- **Archival process.** Move PDFs to cold storage after N years; current state is "Delivered" without an explicit archived terminal.
+- **Tax-authority webhook delivery channel.** The `DeliveryChannel.TaxAuthorityWebhook` value exists but no delivery behavior is wired (v1 delivers on `Email` only); webhook to a stub SII / XRechnung endpoint.
+- **Postal-mail delivery channel.** A new `DeliveryChannel` value (`PostalMail`) + PDF + envelope queue.
+- **Archival process.** The `Archived` terminal state + `Invoice.Archive()` / `CreditNote.Archive()` transitions (`Delivered → Archived`) exist; the missing piece is the background job that drives them and moves PDFs to cold storage after N years.
 - **Credit-note partial refund + adjustment reasons.** `CreditNoteReason` SmartEnum has `PartialRefund` + `Adjustment` slots beyond `OrderCancelled`.
 - **`ResendInvoiceCommandHandler` production handler.** Today a stub (logging-only no-op); the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` is the design.
 - **`ResendInvoice` scope-based gating** — tracked at [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125) per [ADR-0010 § Implementation Notes](adr/0010-service-to-service-auth.md).
@@ -116,6 +119,7 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 | **DLT operations** | Replay-admin operator CLI | [kafka-dlt-strategy.md § 7 F-4](bc-design/kafka-dlt-strategy.md) |
 | **DLT operations** | Grafana `Kafka Consumer Health` dashboard JSON | [kafka-dlt-strategy.md § 7 F-6](bc-design/kafka-dlt-strategy.md) |
 | **Saga observability** | Saga-terminal events (`CheckoutCompletedEvent` / `CheckoutFailedEvent` / `CheckoutStuckEvent`) — schemas + topic exist; cataloguing in [events-catalog.md § 2](bc-design/events-catalog.md) + consumer wiring | (To be filed as GitHub issue.) |
+| **Payments / saga** | `PaymentTransactionId` v7 emission — saga emits a fresh `Guid.CreateVersion7()` `PaymentTransactionId` on `AuthorizePaymentCommand` and Payments uses it as the aggregate id. Today the aggregate id collapses to `CorrelationId` (random v4), forfeiting v7 index locality; one-payment-per-saga stays enforced via the existing `correlation_id` unique index. Saga code lives in `saga/SagaOrchestrators/`. | [payments.md § 2.1](bc-design/payments.md) (tracked as a `cross-cutting(wave1-followup)` issue) |
 | **Performance** | High-volume tracing / span sampling configuration | Not in current scope per [ADR-0009](adr/0009-reference-solution-target-profile.md) |
 | **Storage** | SSE-CMK encryption for PDF invoices (Azure Storage customer-managed keys) | [ADR-0011](adr/0011-pii-handling-gdpr.md) + [ADR-0017](adr/0017-blob-storage-cdn.md) |
 | **Storage** | `product-images` blob container | [ADR-0017](adr/0017-blob-storage-cdn.md) |

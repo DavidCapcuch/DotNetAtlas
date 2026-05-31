@@ -306,7 +306,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Aggregate:** `PaymentTransaction` (one per saga-scoped payment lifecycle).
 **Value objects:** `Money`, `PaymentMethodId`, `GatewayResponseCode`, `FailureInfo`.
 **SmartEnum:** `PaymentStatus` (Requested → Authorized → Captured → Completed; off-ramps Failed / Voided / Refunded); `FailureReason` (GatewayDeclined / GatewayTimeout / InsufficientFunds / FraudSuspected / Cancelled / Unknown).
-**Internal events (9):** `PaymentRequestedDomainEvent`, `PaymentAuthorized/AuthorizationFailed`, `PaymentCaptured/CaptureFailed`, `PaymentCompleted`, `PaymentRefunded`, `PaymentVoided`, `PaymentFailedDomainEvent`.
+**Internal events (8):** `PaymentAuthorized/AuthorizationFailed`, `PaymentCaptured/CaptureFailed`, `PaymentCompleted`, `PaymentRefunded`, `PaymentVoided`, `PaymentFailedDomainEvent`.
 **External events (8) on `payments.transactions`:** `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent`. (`PaymentRequestedEvent` was renamed to `RequestPaymentCommand` and moved to `payments.payment-commands` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md).)
 **External commands (5) on `payments.payment-commands`:** `RequestPaymentCommand` (Checkout-saga → PaymentProcessingSaga), `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` (PaymentProcessingSaga → Payments).
 **Pattern:** Saga sub-orchestration — `PaymentProcessingSaga` (under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`) is the sole caller of Payments commands; Checkout saga delegates via `RequestPaymentCommand` and awaits guaranteed feedback (`PaymentCompletedEvent` / `PaymentFailedEvent`) to drive its FSM. PCI scope minimization: only gateway-issued tokens stored, no PAN/CVV.
@@ -624,11 +624,13 @@ dotnet restore --locked-mode
 
 ### 12.3 Per-BC glossaries
 
-See the four linked glossary files in [docs/bc-design/](bc-design/):
-- [glossary-catalog.md](bc-design/glossary-catalog.md) — 14 terms (Product, SKU, Category, Category Path, Category Breadcrumb, Price, Brand, Product Status, Discontinued, Reactivation, Read View, Draft, Active, Dimensions, Image Reference).
+See the six linked glossary files in [docs/bc-design/](bc-design/):
+- [glossary-catalog.md](bc-design/glossary-catalog.md) — 14 terms (Product, SKU, Category, Category Path, Category Breadcrumb, Price, Brand, Product Status, Discontinued, Reactivation, Read View, Active, Dimensions, Image Reference).
 - [glossary-basket.md](bc-design/glossary-basket.md) — 14 terms (Basket, BasketItem, ProductSnapshot, BasketTotal, Money, Frozen-pricing contract, Checkout, BasketCorrelationId, Version, Basket expiry, Catalog Unavailable, ACL, Redis-backed aggregate, Outbox side-car).
-- [glossary-ordering.md](bc-design/glossary-ordering.md) — 30 terms.
-- [glossary-inventory.md](bc-design/glossary-inventory.md) — 30 terms grouped by Aggregate/state, Reservations, Events/ES, Commands/write-path, External surface, Value objects.
+- [glossary-ordering.md](bc-design/glossary-ordering.md) — 33 terms.
+- [glossary-inventory.md](bc-design/glossary-inventory.md) — 37 terms grouped by Aggregate/state, Reservations, Events/ES, Commands/write-path, External surface, Value objects.
+- [glossary-payments.md](bc-design/glossary-payments.md) — 30 terms.
+- [glossary-invoicing.md](bc-design/glossary-invoicing.md) — 32 terms.
 
 ---
 

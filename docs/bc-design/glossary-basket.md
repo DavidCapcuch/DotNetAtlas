@@ -17,7 +17,7 @@ A single line in a Basket: the triple `(ProductId, ProductSnapshot, Quantity)`. 
 A frozen, point-in-time copy of the Catalog data that Basket cares about: `Sku`, `Name`, `Price`, `CapturedAtUtc`. Created by the ACL at `AddItem` time (and replaced wholesale by `RefreshPrices`). It is **not** a live reference — if Catalog changes a product's price or name, existing snapshots in baskets do not move. This is the **frozen-pricing contract**. *Distinct from:* Catalog's `Product` aggregate (the authority) and Catalog's `CatalogProductResponse` DTO (the wire shape — never visible inside Basket).
 
 ### BasketTotal
-The computed sum `Σ(item.Snapshot.Price × item.Quantity)` across all items in the basket. A value object. Not stored — projected on demand. Empty basket yields `Money.Zero(defaultCurrency)`, but note that an empty basket cannot be checked out, so a zero total never appears in a `BasketCheckoutInitiatedEvent`.
+The computed sum `Σ(item.Snapshot.Price × item.Quantity)` across all items in the basket. A value object. Not stored — projected on demand via the nullable `Basket.Total` getter, which returns `null` for an empty basket (a `BasketTotal` only ever wraps a strictly-positive amount). An empty basket cannot be checked out, so a total never appears in a `BasketCheckoutInitiatedEvent`.
 
 ### Money
 A `(decimal Amount, string Currency)` pair, currency as ISO 4217. Defined in `Platform.SharedKernel` (shared kernel) — the one value object Basket shares with Catalog and Ordering by design. Arithmetic across different currencies throws `DataIntegrityException` (not a `Result.Fail`): mixed-currency math is a bug, not a user error.

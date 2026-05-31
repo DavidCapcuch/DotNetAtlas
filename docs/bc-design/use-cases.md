@@ -266,7 +266,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   2. Build `ImageReference.Create(url, altText, displayOrder)`; cascade.
   3. Call `product.AddImage(imageReference)` — if duplicate `DisplayOrder`, returns `Result.Fail(ProductErrors.DuplicateImageDisplayOrder)`.
   4. `SaveChangesAsync`.
-- **Emits internal event(s):** `ProductImageAddedDomainEvent` (in-process only — consumed by a future `ProductImageAddedProjectionDomainEventHandler` to UPDATE `ImagesJson`; not implemented in v1). No external event.
+- **Emits internal event(s):** `ProductImageAddedDomainEvent` (in-process only — consumed by a future `ProductImageAddedProjectionDomainEventHandler` to UPDATE `ImagesJson`; not implemented in v1 — see [roadmap.md § 2.3 Catalog](../roadmap.md)). No external event.
 
 #### 1.1.7 `RemoveProductImageCommand`
 
@@ -314,7 +314,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   3. `_dbContext.Categories.Add(category); await _dbContext.SaveChangesAsync(ct);`.
   4. Return `Result.Ok(category.Id)`.
 - **Emits internal event(s):** `CategoryCreatedDomainEvent`. Fan-out:
-  - `CategoryCreatedProjectionDomainEventHandler` — no-op placeholder for future breadcrumb seeding (per `catalog.md` § 9).
+  - `CategoryCreatedProjectionDomainEventHandler` — no-op placeholder for future breadcrumb seeding (per `catalog.md` § 9; see [roadmap.md § 2.3 Catalog](../roadmap.md)).
   - `CategoryCreatedOutboxPublisherDomainEventHandler` — writes `CategoryCreatedEvent` (Avro) to outbox for topic `catalog.categories`.
 
 #### 1.1.9 `ReparentCategoryCommand`
@@ -343,7 +343,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   6. `SaveChangesAsync`.
 - **Emits internal event(s):** `CategoryReparentedDomainEvent`. Fan-out:
   - `CategoryReparentedProjectionDomainEventHandler` — log-only seam; the descendant-row cascade (bulk UPDATE of `CategoryPath` + `CategoryBreadcrumb` for every affected `product_search_view` row) runs inside `CategoryPathService.RewriteDescendantPathsAsync` in the same UoW.
-  - *No external event* in v1 (reserved for later).
+  - *No external event* in v1 (reserved for later — see [roadmap.md § 2.3 Catalog](../roadmap.md)).
 
 #### 1.1.10 `DeleteCategoryCommand`
 
