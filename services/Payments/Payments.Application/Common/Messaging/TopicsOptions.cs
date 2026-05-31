@@ -3,13 +3,13 @@ using System.ComponentModel.DataAnnotations;
 namespace Payments.Application.Common.Messaging;
 
 /// <summary>
-/// Kafka topic names for the Payments BC. Bound from configuration section
-/// <see cref="Section"/>. The single topic emitted by Payments is <c>payments.transactions</c>
-/// (per <c>events-catalog.md § 2</c>).
+/// Kafka topic names for the Payments BC — the outbound lifecycle-event topic emitted by
+/// the outbox (<see cref="Transactions"/>, per <c>events-catalog.md § 2</c>) and the inbound
+/// saga-command topic consumed by the <c>KafkaPaymentCommandsConsumer</c>
+/// (<see cref="PaymentCommands"/>). Bound from configuration section <see cref="Section"/>.
 /// </summary>
 public sealed class TopicsOptions
 {
-    /// <summary>Configuration section name (BC-prefixed for clarity in shared composition roots).</summary>
     public const string Section = "Topics";
 
     private const int MaximumKafkaTopicLength = 249;

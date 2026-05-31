@@ -26,9 +26,9 @@ namespace Inventory.Infrastructure.Common;
 /// <summary>
 /// Messaging DI for the Inventory bounded context. Wires the producer-side outbox
 /// + inbox adapter against <c>InventoryDbContext</c> plus the KafkaFlow cluster
-/// with three consumers — saga commands on <c>inventory.reservation-commands</c>,
-/// Catalog products on <c>catalog.products</c>, and Ordering orders on
-/// <c>ordering.orders</c> — and the cluster-level DLT producer.
+/// with three consumers — saga commands on <c>TopicsOptions.InventoryReservationCommands</c>,
+/// Catalog products on <c>TopicsOptions.CatalogProducts</c>, and Ordering orders on
+/// <c>TopicsOptions.OrderingOrders</c> — and the cluster-level DLT producer.
 /// </summary>
 internal static class MessagingDependencyInjection
 {

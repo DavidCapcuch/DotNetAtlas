@@ -21,7 +21,10 @@ using Platform.ReliableMessaging.Outbox.EFCore.Common;
 namespace Notifications.Infrastructure.Common;
 
 /// <summary>
-/// Dependency injection extensions for communication infrastructure.
+/// DI wiring for Kafka — the inbound <c>TopicsOptions.EmailCommands</c> consumer that
+/// dispatches <c>SendEmailNotificationCommand</c> to <see cref="SendEmailNotificationCommandKafkaHandler"/>,
+/// the inbox dedup adapter against <see cref="NotificationsDbContext"/>, and the transactional-outbox
+/// writer for <c>EmailNotificationSentEvent</c> publishing (<c>TopicsOptions.EmailEvents</c>).
 /// </summary>
 internal static class MessagingDependencyInjection
 {
@@ -30,13 +33,6 @@ internal static class MessagingDependencyInjection
     /// </summary>
     private const string KafkaProducerOrigin = ApplicationInfo.AppName;
 
-    /// <summary>
-    /// Configures Kafka messaging with producers and schema registry.
-    /// Sets up event-driven messaging infrastructure.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration manager.</param>
-    /// <returns>The service collection for chaining.</returns>
     internal static IServiceCollection AddKafkaMessaging(
         this IServiceCollection services,
         ConfigurationManager configuration)
