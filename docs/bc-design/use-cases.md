@@ -1568,11 +1568,11 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 
 ### 6.6 GetInvoicesByBuyerQuery
 
-- **HTTP:** `GET /api/v1/invoicing/invoices/by-buyer` — buyer-scoped only (admin override deferred — see Invoicing-followups [#129](https://github.com/DavidCapcuch/DotNetAtlas/issues/129)).
+- **HTTP:** `GET /api/v1/invoicing/invoices?pageNumber=&pageSize=&buyerId=` — buyer callers are scoped to their own JWT subject; an admin (`User.IsInvoicingAdmin()`) may pass `?buyerId={guid}` to list another buyer's invoices.
 - **Handler:** `GetInvoicesByBuyerQueryHandler`.
-- **Auth:** requires `User.GetBuyerIdOrNull()` to be non-null; service-to-service admin tokens with no `sub` return 401 in v1.
-- **Payload:** none (buyer derived from JWT).
-- **Response:** paginated list `{ Items[] (InvoiceSummary), Page, PageSize, TotalCount }`.
+- **Auth:** JWT bearer required. A non-admin caller passing a `buyerId` other than their own is rejected with 403; a caller that is neither an admin nor carries a buyer `sub` gets 401.
+- **Payload:** optional `buyerId` (Guid; admin-only override) + `pageNumber` (default 1) / `pageSize` (default 20, max 100) query params.
+- **Response:** paginated list `{ Items[] (GetInvoiceByIdResponse), Total, PageNumber, PageSize }`.
 
 ### 6.7 GetCreditNoteByIdQuery
 

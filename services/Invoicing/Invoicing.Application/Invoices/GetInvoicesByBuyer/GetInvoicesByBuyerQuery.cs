@@ -4,10 +4,11 @@ using Platform.CQRS;
 namespace Invoicing.Application.Invoices.GetInvoicesByBuyer;
 
 /// <summary>
-/// Lists the calling buyer's invoices, most-recent-first, paged with 1-indexed
-/// <c>pageNumber</c> / <c>pageSize</c> (use-cases.md § Conventions). Admin override
-/// (an admin requesting another buyer's invoices) is deferred to v2+; v1 always
-/// scopes to the JWT subject.
+/// Lists a buyer's invoices, most-recent-first, paged with 1-indexed
+/// <c>pageNumber</c> / <c>pageSize</c> (use-cases.md § Conventions). The endpoint
+/// scopes buyer callers to their own JWT subject and lets an admin target another
+/// buyer via the request's <c>BuyerId</c>; this query receives the already-resolved
+/// <see cref="BuyerId"/>.
 /// </summary>
 public sealed record GetInvoicesByBuyerQuery : IQuery<GetInvoicesByBuyerResponse>
 {
