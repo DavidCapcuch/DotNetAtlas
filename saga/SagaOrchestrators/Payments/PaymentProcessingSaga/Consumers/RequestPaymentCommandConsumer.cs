@@ -5,26 +5,30 @@ using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Consumers;
 
 /// <summary>
-/// Consumer that receives <see cref="PaymentRequestedEvent"/> from Kafka
-/// and forwards it to the <see cref="PaymentProcessingSagaOrchestrator"/> as an internal
-/// <see cref="PaymentInitiatedSagaEvent"/>.
+/// Consumer that receives <see cref="RequestPaymentCommand"/> from
+/// <c>payments.payment-commands</c> and forwards it to the
+/// <see cref="PaymentProcessingSagaOrchestrator"/> as an internal
+/// <see cref="PaymentInitiatedSagaEvent"/>. Renamed from <c>PaymentRequestedConsumer</c> per
+/// ADR-0023; the imperative-to-declarative translation at this boundary is intentional —
+/// the wire is a command (the Checkout saga awaits guaranteed feedback) while the FSM
+/// transition trigger reads naturally as "the payment-processing saga has been initiated".
 /// </summary>
-public sealed class PaymentRequestedConsumer : IConsumer<PaymentRequestedEvent>
+public sealed class RequestPaymentCommandConsumer : IConsumer<RequestPaymentCommand>
 {
-    private readonly ILogger<PaymentRequestedConsumer> _logger;
+    private readonly ILogger<RequestPaymentCommandConsumer> _logger;
 
-    public PaymentRequestedConsumer(ILogger<PaymentRequestedConsumer> logger)
+    public RequestPaymentCommandConsumer(ILogger<RequestPaymentCommandConsumer> logger)
     {
         _logger = logger;
     }
 
-    public async Task Consume(ConsumeContext<PaymentRequestedEvent> context)
+    public async Task Consume(ConsumeContext<RequestPaymentCommand> context)
     {
         var message = context.Message;
 
         _logger.LogInformation(
             "{ConsumerType} received {EventType} for user {UserId}, order {OrderId}, correlation {CorrelationId}, amount {Amount} {Currency}",
-            nameof(PaymentRequestedConsumer), nameof(PaymentRequestedEvent),
+            nameof(RequestPaymentCommandConsumer), nameof(RequestPaymentCommand),
             message.UserId, message.OrderId, message.CorrelationId, message.Amount, message.Currency);
 
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent

@@ -28,10 +28,10 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
 
-        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
+        var paymentRequestedEvent = CreateRequestPaymentCommand(correlationId, userId);
 
         // Act
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
             paymentRequestedEvent);
 
         // Assert
@@ -48,7 +48,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         {
             persistedState.Should().NotBeNull();
             persistedState.UserId.Should().Be(userId);
-            persistedState.CurrentState.Should().Be("AwaitingAuthorization");
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingAuthorization));
             persistedState.Amount.Should().Be(9.99m);
             persistedState.Currency.Should().Be("USD");
             outboxMessages.Should().ContainSingle();
@@ -95,7 +95,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             persistedState.Should().NotBeNull();
-            persistedState.CurrentState.Should().Be("PaymentCompleted");
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted));
             persistedState.PaymentTransactionId.Should().Be(paymentTransactionId);
             persistedState.AuthorizationId.Should().Be(authorizationId);
             persistedState.CapturedAtUtc.Should().NotBeNull();
@@ -114,12 +114,12 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var userId1 = Guid.CreateVersion7();
         var userId2 = Guid.CreateVersion7();
 
-        var event1 = CreatePaymentRequestedEvent(correlationId1, userId1, 9.99m, "USD");
-        var event2 = CreatePaymentRequestedEvent(correlationId2, userId2, 99.99m, "EUR");
+        var event1 = CreateRequestPaymentCommand(correlationId1, userId1, 9.99m, "USD");
+        var event2 = CreateRequestPaymentCommand(correlationId2, userId2, 99.99m, "EUR");
 
         // Act
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId1, event1);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId2, event2);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId1, event1);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId2, event2);
 
         // Assert
         await SagaStateMonitor.WaitForStateAsync(correlationId1, state => state.AwaitingAuthorization, DefaultTimeout);
@@ -155,9 +155,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
         // Step 1: Initiate payment
-        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, 49.99m, "USD", paymentMethodId);
+        var paymentRequestedEvent = CreateRequestPaymentCommand(correlationId, userId, 49.99m, "USD", paymentMethodId);
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
             paymentRequestedEvent);
 
         // Verify: AwaitingAuthorization state persisted
@@ -169,7 +169,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             stateAfterInitiation.Should().NotBeNull();
-            stateAfterInitiation.CurrentState.Should().Be("AwaitingAuthorization");
+            stateAfterInitiation.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingAuthorization));
             stateAfterInitiation.UserId.Should().Be(userId);
             stateAfterInitiation.PaymentMethodId.Should().Be(paymentMethodId);
             stateAfterInitiation.Amount.Should().Be(49.99m);
@@ -200,7 +200,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             stateAfterAuthorization.Should().NotBeNull();
-            stateAfterAuthorization.CurrentState.Should().Be("AwaitingCapture");
+            stateAfterAuthorization.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingCapture));
             stateAfterAuthorization.AuthorizationId.Should().Be(authorizationId);
             stateAfterAuthorization.AuthorizedAtUtc.Should().HaveValue();
         }
@@ -232,7 +232,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             stateAfterCapture.Should().NotBeNull();
-            stateAfterCapture.CurrentState.Should().Be("PaymentCompleted");
+            stateAfterCapture.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted));
             stateAfterCapture.PaymentTransactionId.Should().Be(paymentTransactionId);
             stateAfterCapture.CapturedAtUtc.Should().HaveValue();
             stateAfterCapture.CompensationTriggered.Should().BeFalse();
@@ -246,7 +246,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         }
     }
 
-    private PaymentRequestedEvent CreatePaymentRequestedEvent(
+    private RequestPaymentCommand CreateRequestPaymentCommand(
         Guid correlationId,
         Guid userId,
         decimal amount = 9.99m,
@@ -254,7 +254,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         string? paymentMethodId = null,
         Guid? orderId = null)
     {
-        return new PaymentRequestedEvent
+        return new RequestPaymentCommand
         {
             CorrelationId = correlationId,
             OrderId = orderId ?? Guid.CreateVersion7(),
@@ -275,8 +275,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
 
-        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
+        var paymentRequestedEvent = CreateRequestPaymentCommand(correlationId, userId);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
             paymentRequestedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingAuthorization, DefaultTimeout);
@@ -337,7 +337,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             persistedState.Should().NotBeNull();
-            persistedState.CurrentState.Should().Be("VoidInProgress");
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
             persistedState.CompensationTriggered.Should().BeTrue();
 
             outboxMessages.Should().Contain(om => om.Type == typeof(VoidPaymentCommand).FullName
@@ -410,7 +410,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             persistedState.Should().NotBeNull();
-            persistedState.CurrentState.Should().Be("RefundInProgress");
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.RefundInProgress));
 
             outboxMessages.Should().Contain(om => om.Type == typeof(RequestRefundCommand).FullName
                                                   && om.KafkaKey == correlationId.ToString());
@@ -424,8 +424,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
 
-        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
+        var paymentRequestedEvent = CreateRequestPaymentCommand(correlationId, userId);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
             paymentRequestedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);
@@ -474,7 +474,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             persistedState.Should().NotBeNull();
-            persistedState.CurrentState.Should().Be("VoidInProgress");
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
             persistedState.CompensationTriggered.Should().BeTrue();
 
             outboxMessages.Should().Contain(om => om.Type == typeof(VoidPaymentCommand).FullName
@@ -539,8 +539,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         decimal amount = 99.99m,
         string currency = "USD")
     {
-        var paymentRequestedEvent = CreatePaymentRequestedEvent(correlationId, userId, amount, currency);
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
+        var paymentRequestedEvent = CreateRequestPaymentCommand(correlationId, userId, amount, currency);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
             paymentRequestedEvent);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingAuthorization, DefaultTimeout);

@@ -49,7 +49,9 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
             DbContext.Transactions.Local.Should().ContainSingle(t =>
                 t.Id == command.PaymentId && t.Status == PaymentStatus.Authorized);
             await Gateway.Received(1).AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-            await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentRequestedDomainEvent>(), Arg.Any<CancellationToken>());
+            // ADR-0023 follow-up: PaymentTransaction.Create raises no domain events, so the
+            // first-SaveChanges dispatch loop is a no-op. Only the Authorize transition's event
+            // is dispatched.
             await Dispatcher.Received().DispatchAsync(Arg.Any<PaymentAuthorizedDomainEvent>(), Arg.Any<CancellationToken>());
             // H-3: two SaveChanges sites — first persists the Requested aggregate before the
             // gateway call (double-charge anchor), second persists the Authorized transition

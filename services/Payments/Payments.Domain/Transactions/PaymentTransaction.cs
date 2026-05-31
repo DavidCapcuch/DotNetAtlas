@@ -16,9 +16,13 @@ namespace Payments.Domain.Transactions;
 /// are accepted; saga retries become idempotent no-ops.
 /// </summary>
 /// <remarks>
-/// This aggregate raises (at most) the following domain events per lifecycle:
+/// This aggregate raises (at most) the following domain events per lifecycle. Note that
+/// <see cref="Create"/> deliberately does NOT raise a domain event — the Payments BC is invoked
+/// through <c>AuthorizePaymentCommand</c> from PaymentProcessingSaga, and the wire-level
+/// <c>RequestPaymentCommand</c> (per ADR-0023) is produced by the Checkout saga, not by Payments.
+/// Raising a Payments-internal "requested" event with no in-process handler and no outbox
+/// publisher was pure scaffolding; it was removed in the ADR-0023 follow-up.
 /// <list type="bullet">
-/// <item><see cref="PaymentRequestedDomainEvent"/>: on <see cref="Create"/>.</item>
 /// <item><see cref="PaymentAuthorizedDomainEvent"/>: on successful <see cref="Authorize"/>.</item>
 /// <item><see cref="PaymentAuthorizationFailedDomainEvent"/> + <see cref="PaymentFailedDomainEvent"/>:
 ///   on <see cref="MarkAuthorizationFailed"/>.</item>
@@ -131,6 +135,12 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             return Result.Fail<PaymentTransaction>(paymentMethodIdResult.Errors);
         }
 
+        // ADR-0023 follow-up: no PaymentRequestedDomainEvent raised here. The aggregate's
+        // creation moment is signalled to the saga via RequestPaymentCommand (Checkout-saga
+        // produced, on payments.payment-commands), not via a Payments-internal domain event.
+        // The `utcNow` parameter is retained on the factory for symmetry with the other
+        // mutator methods and to keep the test interface stable.
+        _ = utcNow;
         var paymentTransaction = new PaymentTransaction
         {
             Id = paymentId,
@@ -141,17 +151,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
             PaymentMethodId = paymentMethodIdResult.Value,
             Status = PaymentStatus.Requested,
         };
-
-        paymentTransaction.AddDomainEvent(new PaymentRequestedDomainEvent
-        {
-            PaymentId = paymentId,
-            CorrelationId = correlationId,
-            BuyerId = buyerId,
-            OrderId = orderId,
-            Amount = amount,
-            PaymentMethodId = paymentMethodIdResult.Value,
-            OccurredOnUtc = utcNow,
-        });
 
         return Result.Ok(paymentTransaction);
     }

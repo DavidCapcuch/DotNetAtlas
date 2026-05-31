@@ -1,8 +1,8 @@
 {
     "type": "record",
-    "name": "PaymentRequestedEvent",
+    "name": "RequestPaymentCommand",
     "namespace": "Payments.Transactions",
-    "doc": "Event emitted when a payment is requested for an Order. Triggers the Payment Saga to process authorization and capture. The eShop's Checkout saga always creates the Order before requesting payment, so OrderId is always present at request time.",
+    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a payment through authorize → capture for the supplied order. The Checkout saga's state machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (correlated by CorrelationId) to advance. Renamed from PaymentRequestedEvent and moved to payments.payment-commands per ADR-0023; the wire shape is identical.",
     "fields": [
         {
             "name": "CorrelationId",
@@ -10,7 +10,7 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice)."
+            "doc": "Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice). Also the Kafka message key for payments.payment-commands partitioning."
         },
         {
             "name": "OrderId",
@@ -64,4 +64,3 @@
         }
     ]
 }
-

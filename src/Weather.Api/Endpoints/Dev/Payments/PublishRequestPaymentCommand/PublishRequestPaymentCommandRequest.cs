@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Weather.Api.Endpoints.Dev.Payments.PublishPaymentRequestedEvent;
+namespace Weather.Api.Endpoints.Dev.Payments.PublishRequestPaymentCommand;
 
 /// <summary>
-/// Command to publish PaymentRequestedEvent for dev testing.
+/// Request DTO for the dev endpoint that publishes a <c>RequestPaymentCommand</c> (renamed from
+/// <c>PaymentRequestedEvent</c> per ADR-0023; the wire shape is identical) to
+/// <c>payments.payment-commands</c> — simulates what the Checkout saga would emit to initiate
+/// the PaymentProcessingSaga sub-saga.
 /// </summary>
-public class PublishPaymentRequestedEventCommand
+public class PublishRequestPaymentCommandRequest
 {
     /// <summary>
     /// Correlation ID for tracking the workflow.

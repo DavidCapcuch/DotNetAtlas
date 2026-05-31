@@ -5,21 +5,23 @@ using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Weather.Application.Common.Messaging;
 using Weather.Infrastructure.Messaging.Kafka.Dev;
 
-namespace Weather.Api.Endpoints.Dev.Payments.PublishPaymentRequestedEvent;
+namespace Weather.Api.Endpoints.Dev.Payments.PublishRequestPaymentCommand;
 
 /// <summary>
-/// Dev endpoint to publish PaymentRequestedEvent for testing.
+/// Dev endpoint to publish <c>RequestPaymentCommand</c> for testing. Simulates what the Checkout
+/// saga would emit on <c>payments.payment-commands</c> to initiate <c>PaymentProcessingSaga</c>.
+/// Renamed from <c>PublishPaymentRequestedEventEndpoint</c> per ADR-0023.
 /// </summary>
-internal class PublishPaymentRequestedEventEndpoint : Endpoint<PublishPaymentRequestedEventCommand>
+internal class PublishRequestPaymentCommandEndpoint : Endpoint<PublishRequestPaymentCommandRequest>
 {
     private readonly DevEventsKafkaProducer _devEventsProducer;
     private readonly TopicsOptions _topicsOptions;
-    private readonly ILogger<PublishPaymentRequestedEventEndpoint> _logger;
+    private readonly ILogger<PublishRequestPaymentCommandEndpoint> _logger;
 
-    public PublishPaymentRequestedEventEndpoint(
+    public PublishRequestPaymentCommandEndpoint(
         DevEventsKafkaProducer devEventsProducer,
         IOptions<TopicsOptions> topicsOptions,
-        ILogger<PublishPaymentRequestedEventEndpoint> logger)
+        ILogger<PublishRequestPaymentCommandEndpoint> logger)
     {
         _devEventsProducer = devEventsProducer;
         _topicsOptions = topicsOptions.Value;
@@ -28,15 +30,15 @@ internal class PublishPaymentRequestedEventEndpoint : Endpoint<PublishPaymentReq
 
     public override void Configure()
     {
-        Post("publish-payment-requested-event");
+        Post("publish-request-payment-command");
         Version(1);
         Group<DevGroup>();
         Summary(s =>
         {
             s.Description =
-                "Publishes a PaymentRequestedEvent to Kafka for dev testing. " +
-                "Simulates what the Order service would emit to trigger the Payment Saga.";
-            s.ExampleRequest = new PublishPaymentRequestedEventCommand
+                "Publishes a RequestPaymentCommand to Kafka for dev testing. " +
+                "Simulates what the Checkout saga would emit to initiate the PaymentProcessingSaga.";
+            s.ExampleRequest = new PublishRequestPaymentCommandRequest
             {
                 CorrelationId = Guid.CreateVersion7(),
                 OrderId = Guid.CreateVersion7(),
@@ -49,9 +51,9 @@ internal class PublishPaymentRequestedEventEndpoint : Endpoint<PublishPaymentReq
         });
     }
 
-    public override async Task HandleAsync(PublishPaymentRequestedEventCommand req, CancellationToken ct)
+    public override async Task HandleAsync(PublishRequestPaymentCommandRequest req, CancellationToken ct)
     {
-        var paymentRequestedEvent = new PaymentRequestedEvent
+        var requestPaymentCommand = new RequestPaymentCommand
         {
             CorrelationId = req.CorrelationId,
             OrderId = req.OrderId,
@@ -63,17 +65,17 @@ internal class PublishPaymentRequestedEventEndpoint : Endpoint<PublishPaymentReq
             RequestedAtUtc = DateTime.UtcNow
         };
 
-        await _devEventsProducer.PublishPaymentRequestedEventAsync(paymentRequestedEvent);
+        await _devEventsProducer.PublishRequestPaymentCommandAsync(requestPaymentCommand);
 
         _logger.LogInformation(
-            "Published PaymentRequestedEvent - CorrelationId: {CorrelationId}, UserId: {UserId}",
+            "Published RequestPaymentCommand - CorrelationId: {CorrelationId}, UserId: {UserId}",
             req.CorrelationId, req.UserId);
 
         await Send.OkAsync(new
         {
             req.CorrelationId,
-            Topic = _topicsOptions.Payments,
-            Message = "Event published successfully"
+            Topic = _topicsOptions.PaymentCommands,
+            Message = "Command published successfully"
         }, ct);
     }
 }

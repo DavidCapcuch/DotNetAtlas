@@ -60,7 +60,7 @@ stateDiagram-v2
 |---|---|---|
 | `AwaitingOrderCreation` | Working | `CreateOrderCommand` published; waiting for `OrderCreatedEvent` |
 | `AwaitingStockReservation` | Working | N `ReserveStockCommand`s fanned out (one per distinct ProductId); waiting for all `StockReservedEvent`s |
-| `AwaitingPayment` | Working | `PaymentRequestedEvent` published (delegated to `PaymentProcessingSaga`); waiting for `PaymentCompletedEvent`/`PaymentFailedEvent` |
+| `AwaitingPayment` | Working | `RequestPaymentCommand` published to `payments.payment-commands` (delegated to `PaymentProcessingSaga` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)); waiting for `PaymentCompletedEvent`/`PaymentFailedEvent` |
 | `AwaitingConfirmation` | Working | `ConfirmOrderCommand` published; waiting for `OrderConfirmedEvent` |
 | `CompensatingStock` | Recovery | Releasing all active reservations via `ReleaseReservationCommand` |
 | `CompensatingPayment` | Recovery | Refund requested via `RequestRefundCommand`; waiting for `PaymentRefundedEvent` |

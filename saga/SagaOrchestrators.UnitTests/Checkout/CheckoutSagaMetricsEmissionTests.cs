@@ -121,7 +121,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
                 kv.Key == CheckoutSagaActivityTags.LastState
                 && (string?)kv.Value == nameof(CheckoutSagaOrchestrator.CompensatingStockReservations));
             stuckTags[0].Should().Contain(kv =>
-                kv.Key == SagaActivityTags.ErrorCode && (string?)kv.Value == "COMPENSATION_TIMEOUT");
+                kv.Key == SagaActivityTags.ErrorCode && (string?)kv.Value == CheckoutSagaErrorCodes.CompensationTimeout);
         }
     }
 

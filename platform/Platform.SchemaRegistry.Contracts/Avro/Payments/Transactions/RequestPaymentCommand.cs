@@ -12,38 +12,40 @@ namespace Payments.Transactions
 	using System.Text;
 	using global::Avro;
 	using global::Avro.Specific;
-
+	
 	/// <summary>
-	/// Event emitted when a payment is requested for an Order. Triggers the Payment Saga to process authorization and capture. The eShop's Checkout saga always creates the Order before requesting payment, so OrderId is always present at request time.
+	/// Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a payment through authorize → capture for the supplied order. The Checkout saga's state machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (correlated by CorrelationId) to advance. Renamed from PaymentRequestedEvent and moved to payments.payment-commands per ADR-0023; the wire shape is identical.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-	public partial class PaymentRequestedEvent : global::Avro.Specific.ISpecificRecord
+	public partial class RequestPaymentCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"PaymentRequestedEvent\",\"doc\":\"Event emitted when a payme" +
-				"nt is requested for an Order. Triggers the Payment Saga to process authorization" +
-				" and capture. The eShop\'s Checkout saga always creates the Order before requesti" +
-				"ng payment, so OrderId is always present at request time.\",\"namespace\":\"Payments" +
-				".Transactions\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Correlation ID shared ac" +
-				"ross the entire business flow (e.g., checkout → order → payment → invoice).\",\"ty" +
-				"pe\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering ag" +
-				"gregate id this payment is attached to. Persisted on the Payments-side aggregate" +
-				" as a debugging/admin-lookup convenience; downstream Payments events drop it (cr" +
-				"oss-BC linkage stays CorrelationId).\",\"default\":\"00000000-0000-0000-0000-0000000" +
-				"00000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"Us" +
-				"er initiating the payment.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"nam" +
-				"e\":\"PaymentMethodId\",\"doc\":\"Gateway-issued opaque payment-method token (e.g. Str" +
-				"ipe 'pm_*', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 close" +
-				"out C-2 fix: previously typed as logicalType:uuid which blocked any real-PSP ada" +
-				"pter swap because no real gateway issues UUID-shaped payment-method ids.\",\"type\"" +
-				":\"string\"},{\"name\":\"Amount\",\"doc\":\"" +
-				"Payment amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"" +
-				"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code (e.g., \'USD\', \'EUR\')" +
-				".\",\"type\":\"string\"},{\"name\":\"IdempotencyKey\",\"doc\":\"Idempotency key for preventi" +
-				"ng duplicate payment processing.\",\"type\":\"string\"},{\"name\":\"RequestedAtUtc\",\"doc" +
-				"\":\"UTC timestamp when payment was requested.\",\"type\":{\"type\":\"long\",\"logicalType" +
-				"\":\"timestamp-millis\"}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"RequestPaymentCommand\",\"doc\":\"Imperative command from th" +
+				"e Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a pay" +
+				"ment through authorize → capture for the supplied order. The Checkout saga\'s sta" +
+				"te machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (corr" +
+				"elated by CorrelationId) to advance. Renamed from PaymentRequestedEvent and move" +
+				"d to payments.payment-commands per ADR-0023; the wire shape is identical.\",\"name" +
+				"space\":\"Payments.Transactions\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Correlat" +
+				"ion ID shared across the entire business flow (e.g., checkout → order → payment " +
+				"→ invoice). Also the Kafka message key for payments.payment-commands partitionin" +
+				"g.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Orde" +
+				"ring aggregate id this payment is attached to. Persisted on the Payments-side ag" +
+				"gregate as a debugging/admin-lookup convenience; downstream Payments events drop" +
+				" it (cross-BC linkage stays CorrelationId).\",\"default\":\"00000000-0000-0000-0000-" +
+				"000000000000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"d" +
+				"oc\":\"User initiating the payment.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}" +
+				"},{\"name\":\"PaymentMethodId\",\"doc\":\"Gateway-issued opaque payment-method token (e" +
+				".g. Stripe \'pm_*\', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-" +
+				"1 closeout C-2 fix: previously typed as logicalType:uuid which blocked any real-" +
+				"PSP adapter swap because no real gateway issues UUID-shaped payment-method ids.\"" +
+				",\"type\":\"string\"},{\"name\":\"Amount\",\"doc\":\"Payment amount.\",\"type\":{\"type\":\"bytes" +
+				"\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"I" +
+				"SO 4217 currency code (e.g., \'USD\', \'EUR\').\",\"type\":\"string\"},{\"name\":\"Idempoten" +
+				"cyKey\",\"doc\":\"Idempotency key for preventing duplicate payment processing.\",\"typ" +
+				"e\":\"string\"},{\"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when payment was requ" +
+				"ested.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice).
+		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice). Also the Kafka message key for payments.payment-commands partitioning.
 		/// </summary>
 		private System.Guid _CorrelationId;
 		/// <summary>
@@ -78,11 +80,11 @@ namespace Payments.Transactions
 		{
 			get
 			{
-				return PaymentRequestedEvent._SCHEMA;
+				return RequestPaymentCommand._SCHEMA;
 			}
 		}
 		/// <summary>
-		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice).
+		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice). Also the Kafka message key for payments.payment-commands partitioning.
 		/// </summary>
 		public System.Guid CorrelationId
 		{

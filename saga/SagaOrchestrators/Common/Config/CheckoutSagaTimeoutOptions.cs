@@ -32,7 +32,7 @@ public sealed class CheckoutSagaTimeoutOptions
     public required int StockReservationSeconds { get; set; }
 
     /// <summary>
-    /// Timeout in seconds for PaymentCompletedEvent to arrive after PaymentRequestedEvent.
+    /// Timeout in seconds for PaymentCompletedEvent to arrive after RequestPaymentCommand.
     /// Default 90 - bracket gateway p99 latency. Must be >= sub-saga's
     /// AuthorizationMinutes + CaptureMinutes to avoid the captured-but-compensated race.
     /// </summary>

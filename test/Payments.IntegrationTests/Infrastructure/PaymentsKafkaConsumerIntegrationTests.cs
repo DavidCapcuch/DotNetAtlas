@@ -282,9 +282,9 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             paymentMethodId: "tok_visa_4242",
             utcNow: DateTimeOffset.UtcNow).Value;
 
-        // Discard PaymentRequestedDomainEvent so the seed save doesn't dispatch it through the
-        // interceptor — there is no outbox publisher for it, but discarding keeps the test
-        // setup invariant explicit.
+        // ADR-0023 follow-up: PaymentTransaction.Create raises no domain events, so PopDomainEvents()
+        // here returns an empty collection. The call is retained defensively to make the "no events
+        // leak into the seed save" invariant explicit for future readers.
         _ = tx.PopDomainEvents();
         dbContext.Transactions.Add(tx);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);

@@ -176,10 +176,13 @@ public class DevEventsKafkaProducer
             _paymentsTopic, eventPaymentRefunded.PaymentTransactionId.ToString(), eventPaymentRefunded);
     }
 
-    public Task PublishPaymentRequestedEventAsync(PaymentRequestedEvent eventPaymentRequested)
+    public Task PublishRequestPaymentCommandAsync(RequestPaymentCommand requestPaymentCommand)
     {
+        // ADR-0023: renamed from PaymentRequestedEvent and moved to payments.payment-commands
+        // (was previously published on payments.transactions). The Kafka key remains UserId-derived
+        // for dev-tooling continuity; the Checkout saga keys real production traffic by CorrelationId.
         return _producer.ProduceAsync(
-            _paymentsTopic, eventPaymentRequested.UserId.ToString(), eventPaymentRequested);
+            _paymentCommandsTopic, requestPaymentCommand.UserId.ToString(), requestPaymentCommand);
     }
 
     public Task PublishPaymentVoidedEventAsync(PaymentVoidedEvent eventPaymentVoided)
