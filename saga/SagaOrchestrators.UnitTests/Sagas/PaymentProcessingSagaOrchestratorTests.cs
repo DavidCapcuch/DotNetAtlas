@@ -275,6 +275,8 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
+            // Upstream-owned code emitted by the Payments BC's gateway adapter on PaymentCaptureFailedEvent.ErrorCode;
+            // not extracted to PaymentProcessingSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Unable to capture funds",
             IsRetryable = false,
@@ -312,6 +314,8 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
+            // Upstream-owned code emitted by the Payments BC's gateway adapter on PaymentCaptureFailedEvent.ErrorCode;
+            // not extracted to PaymentProcessingSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Unable to capture funds",
             IsRetryable = false,
