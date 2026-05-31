@@ -18,9 +18,9 @@ public sealed class StockLevelChangedEventConsumerOptions : ConsumerConfig
     public required string Topic { get; set; }
 
     /// <summary>
-    /// Consumer group id. Must NOT collide with Inventory's own internal groups
-    /// (per <c>events-catalog.md § 7</c>) — recommended value is
-    /// <c>catalog-stock-level-watcher</c>.
+    /// Consumer group id. Per the one-group-per-service rule in
+    /// <c>events-catalog.md § 3.1</c>, this is <c>catalog-group</c> — the sole
+    /// Catalog consumer group across every topic Catalog subscribes to.
     /// </summary>
     [Required(
         ErrorMessage = $"{nameof(GroupId)} for {nameof(StockLevelChangedEventConsumerOptions)} is missing",

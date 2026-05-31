@@ -14,8 +14,8 @@ namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 /// Carries the 3 saga commands (<c>ReserveStockCommand</c>,
 /// <c>ConfirmReservationCommand</c>, <c>ReleaseReservationCommand</c>) on a
 /// single 3-partition topic per <c>events-catalog.md § 3</c>. Group id is
-/// <c>inventory-reservation-commands</c> (distinct from the
-/// <c>inventory-stock-init</c> group used by the cross-BC event consumers).
+/// <c>inventory-group</c> — Inventory's sole consumer group across every topic
+/// it subscribes to (one-group-per-service rule, <c>events-catalog.md § 3.1</c>).
 /// </remarks>
 public sealed class ReservationCommandsConsumerOptions : ConsumerConfig
 {

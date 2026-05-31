@@ -710,10 +710,12 @@ Basket:
 
 ## 15. Open Questions / Deferred
 
-- **Cart abandonment re-engagement** — explicitly v2+ (would hook Redis keyspace events → Notifications).
-- **Guest baskets (no `UserId`)** — v1 assumes authenticated users only. A guest-basket pattern (keyed by anonymous session cookie, short TTL, merged on login) is deferred.
-- **Saved-for-later** — a parallel collection to the basket — v2+.
-- **Coupons / promotions** — see master design Appendix C; Basket in v1 has no discount concept.
+Planned scope is catalogued in [roadmap.md § 2.3 Basket](../roadmap.md):
+
+- **Cart abandonment re-engagement** (would hook Redis keyspace events → Notifications).
+- **Guest baskets (no `UserId`)** — current scope assumes authenticated users only. A guest-basket pattern (keyed by anonymous session cookie, short TTL, merged on login) is deferred.
+- **Saved-for-later** — a parallel collection to the basket.
+- **Coupons / promotions** — see [roadmap.md § 2.2](../roadmap.md); Basket today has no discount concept.
 - **Price refresh automation** — intentionally not implemented. If the product team later wants "refresh on session resume," that is a command-triggering client behavior, not a domain change.
 
 ---

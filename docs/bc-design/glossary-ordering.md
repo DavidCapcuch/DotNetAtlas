@@ -29,7 +29,7 @@ The act of terminating an Order's lifecycle before fulfillment. Represented as t
 A value object capturing the Reason, the `AtStatus` (status just before cancellation), and the `CancelledAtUtc` timestamp. Attached to `Order.Cancellation` after a successful `Cancel` call. See [ordering.md § 4.5](./ordering.md).
 
 ### Carrier
-The shipping company that physically delivers an order (e.g., "FedEx", "DHL", "UPS"). In v1 stored as a free-form string on `ShipmentInfo.Carrier`; v2 may formalize as a SmartEnum. Not owned by Ordering — Ordering only records the chosen carrier's name and the Carrier-assigned tracking number.
+The shipping company that physically delivers an order (e.g., "FedEx", "DHL", "UPS"). Stored today as a free-form string on `ShipmentInfo.Carrier`; planned migration to a SmartEnum is in [roadmap.md § 2.3 Ordering](../roadmap.md). Not owned by Ordering — Ordering only records the chosen carrier's name and the Carrier-assigned tracking number.
 
 ### Compensation
 The reversal of previously-applied effects when a downstream step of the Checkout saga fails. Ordering does **not** orchestrate compensation itself; compensation is emergent from the published `OrderCancelledEvent` / `OrderFailedEvent`: Inventory consumes the event and releases the reservation; Payments consumes the event and issues a refund if payment had already completed. Divergence: "compensation" in the saga BC means the state-machine's compensation branch; in Ordering it means the downstream effect of a cancelled/failed order.

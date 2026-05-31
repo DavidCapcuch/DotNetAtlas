@@ -28,8 +28,8 @@
 |------|------------|
 | **Draft** | Transient state: the aggregate exists but `InvoiceNumber` not yet allocated and PDF not yet stored. Brief window within a single command handler; rare to observe in production. Retained as a state so partial failures (PDF generated but blob upload failed) are resumable. |
 | **Issued** | Terminal happy state: number allocated, PDF stored, aggregate persisted. `InvoiceIssuedEvent` fired. |
-| **Delivered** | Follow-on state: delivery channel confirmed receipt (email accepted by SMTP, or tax-authority ACK in v2). Does not affect legal validity — issuance is the legal moment. |
-| **Archived** | V1 equivalent to `Delivered` + passage of time. Reserved for a v2 archival process that moves PDFs to cold storage after N years. |
+| **Delivered** | Follow-on state: delivery channel confirmed receipt (email accepted by SMTP — additional channels are planned scope; see [roadmap.md § 2.3 Invoicing](../roadmap.md)). Does not affect legal validity — issuance is the legal moment. |
+| **Archived** | Currently equivalent to `Delivered` + passage of time. Reserved for a planned archival process that moves PDFs to cold storage after N years — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
 | **Cancelled** | Off-ramp: the invoice is reversed by issuing a CreditNote. Requires `CancellationInfo.CreditNoteId` to be populated — an invoice cannot be cancelled without a corresponding credit note. |
 
 ---
@@ -49,7 +49,7 @@
 
 | Term | Definition |
 |------|------------|
-| **DeliveryChannel** | SmartEnum: `Email`, `None` (v1 values). `TaxAuthorityWebhook` and `PostalMail` are v2 slots. |
+| **DeliveryChannel** | SmartEnum: `Email`, `None`. Additional channels (`TaxAuthorityWebhook`, `PostalMail`) are planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
 | **DeliveryAttempt** | Monotonic counter per `(InvoiceId, Channel)`. Each resend increments. Recorded in `invoice_delivery_log`. |
 | **SAS URL** (Shared Access Signature) | A time-bounded (10-minute) Azure Blob URL that grants GET access to the PDF without exposing storage account credentials. Served through nginx-cdn locally / Azure Front Door in production for CDN semantics. |
 | **Write-once blob** | The guarantee that once a PDF is uploaded to Azurite/Azure Blob, its content never changes. Enforced by Azure immutable-blob policy (10-year time-based retention). The content hash is stored on the aggregate's `PdfBlobRef`. |
@@ -81,16 +81,18 @@
 
 ---
 
-## Deliberately omitted / deferred to v2
+## Deliberately omitted from current scope
+
+Planned extensions are catalogued in [roadmap.md § 2.3 Invoicing](../roadmap.md):
 
 | Term | Reason |
 |------|--------|
-| **Partial credit note** | V1 refunds are full-amount, so credit notes mirror the full invoice |
-| **Recurring invoice** | No subscription semantics in v1 |
+| **Partial credit note** | Refunds today are full-amount, so credit notes mirror the full invoice |
+| **Recurring invoice** | No subscription semantics |
 | **Multi-currency invoice** | Matches Order single-currency constraint |
-| **Tax-authority webhook** | Slot in `DeliveryChannel` but no implementation — v2 |
-| **Invoice correction (not via credit note)** | Some jurisdictions allow amending an invoice without issuing a credit note. V1 is strict: corrections are credit note + new invoice |
-| **Regional sequence formats** (Czech tax ID patterns, German formal requirements) | V1 uses a single global pattern. V2 parametrizes per country |
+| **Tax-authority webhook** | Slot in `DeliveryChannel` but no implementation yet |
+| **Invoice correction (not via credit note)** | Some jurisdictions allow amending an invoice without issuing a credit note. Current scope is strict: corrections are credit note + new invoice |
+| **Regional sequence formats** (Czech tax ID patterns, German formal requirements) | Today uses a single global pattern |
 
 ---
 

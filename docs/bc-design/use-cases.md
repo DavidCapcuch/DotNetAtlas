@@ -1325,7 +1325,7 @@ public sealed class CreateOrderKafkaHandler
 
 **Topic:** `inventory.reservation-commands`.
 
-**Consumer group:** `inventory-reservation-commands-consumer`.
+**Consumer group:** `inventory-group` (one-group-per-service rule per [events-catalog.md § 3.1](events-catalog.md)).
 
 **Kafka handler classes** (in `Inventory.Infrastructure.Messaging.Kafka.Handlers`):
 
@@ -1541,14 +1541,14 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 ### 6.3 ResendInvoiceCommand
 
 - **Trigger:** admin HTTP — `POST /api/v1/invoicing/invoices/{InvoiceId}/resend` with `Idempotency-Key` header (24 h Redis cache per ADR-0013).
-- **Handler:** `ResendInvoiceCommandHandler` — **v1 STUB** (logging-only no-op; the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` described in `bc-design/invoicing.md § 12` is deferred to Wave 2 — see Invoicing-followups disclosure landed in commit `c4e16fa` and OpenAPI `Description` "v1 stub" marker).
-- **Auth:** `AuthPolicies.InvoicingAdmin` (Keycloak realm role `Admin`; ADR-0010 scope-based gating deferred to v2 — see [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125)).
+- **Handler:** `ResendInvoiceCommandHandler` — **STUB** (logging-only no-op; the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` described in `bc-design/invoicing.md § 12` is planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md), [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123); the OpenAPI `Description` carries a "stub" marker).
+- **Auth:** `AuthPolicies.InvoicingAdmin` (Keycloak realm role `Admin`; ADR-0010 scope-based gating is planned scope — see [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125), [roadmap.md § 2.1](../roadmap.md)).
 - **Payload:** `{ InvoiceId, Channel (DeliveryChannel SmartEnum) }`.
 - **Validator:** `ResendInvoiceCommandValidator` — `InvoiceId NotEmpty`.
 - **Result paths:**
   - `Result.Ok()` → HTTP 204 (no-op acknowledgement).
   - `Result.Fail(InvoicingErrors.InvoiceNotFound)` → 404.
-- **Domain events:** none in v1 (Wave 2 will raise `InvoiceDeliveryRequestedDomainEvent`).
+- **Domain events:** none today (planned: `InvoiceDeliveryRequestedDomainEvent` — see [roadmap.md § 2.3 Invoicing](../roadmap.md), [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123)).
 
 ### 6.4 GetInvoiceByIdQuery
 

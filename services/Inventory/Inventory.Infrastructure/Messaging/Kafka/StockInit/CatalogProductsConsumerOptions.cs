@@ -10,18 +10,12 @@ namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 /// <c>KafkaCatalogProductsConsumer</c> section.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Group id is <c>inventory-stock-init</c> — shared with
-/// <see cref="OrderingOrdersConsumerOptions"/> per the
-/// <c>events-catalog.md:96</c> + accepted deviation #1 in
-/// <c>docs/implementation-prompts/inventory.md</c>'s wave-progress.
-/// </para>
-/// <para>
-/// Reused-group rationale: both upstreams seed the same in-process pipeline
-/// (Inventory's stream-init / release-on-cancel handler chain), and offset
-/// coupling is acceptable for v1 — splitting the group is an operational
-/// follow-up if replay-of-one-without-the-other ever becomes necessary.
-/// </para>
+/// Group id is <c>inventory-group</c> — the sole Inventory consumer group across
+/// every topic Inventory subscribes to. See the one-group-per-service rule in
+/// <c>events-catalog.md § 3.1</c>: per-topic offsets are tracked independently
+/// within the group, so a separate group per source topic is unnecessary
+/// operational overhead. Kafka commits offsets per <c>(group, topic, partition)</c>;
+/// shared group id across topics does not couple their offset positions.
 /// </remarks>
 public sealed class CatalogProductsConsumerOptions : ConsumerConfig
 {
@@ -32,8 +26,8 @@ public sealed class CatalogProductsConsumerOptions : ConsumerConfig
     public required string Topic { get; set; }
 
     /// <summary>
-    /// Shared consumer group id with the Ordering-orders consumer
-    /// (<c>inventory-stock-init</c>).
+    /// Inventory's sole consumer group id (<c>inventory-group</c>); shared with
+    /// every other Inventory Kafka consumer per <c>events-catalog.md § 3.1</c>.
     /// </summary>
     [Required(
         ErrorMessage = $"{nameof(GroupId)} for {nameof(CatalogProductsConsumerOptions)} is missing",

@@ -38,14 +38,14 @@ public static class KafkaTopicNames
     public const string DltTopicSuffix = ".Inventory.DLT";
 
     /// <summary>
-    /// Consumer-group name shared between the Catalog-products and
-    /// Ordering-orders consumers (deviation #1 from <c>events-catalog.md § E.10</c>
-    /// per <c>inventory.md:70</c>).
+    /// Inventory's sole Kafka consumer group, shared across every topic Inventory
+    /// subscribes to per the one-group-per-service rule in
+    /// <c>docs/bc-design/events-catalog.md § 3.1</c>. Kept here as a
+    /// design-document constant; the runtime values are read from
+    /// <c>appsettings.json</c> (<c>KafkaCatalogProductsConsumer.GroupId</c>,
+    /// <c>KafkaOrderingOrdersConsumer.GroupId</c>,
+    /// <c>KafkaReservationCommandsConsumer.GroupId</c>) and must all match this
+    /// constant.
     /// </summary>
-    public const string StockInitConsumerGroup = "inventory-stock-init";
-
-    /// <summary>
-    /// Consumer-group name for the saga-command consumer.
-    /// </summary>
-    public const string ReservationCommandsConsumerGroup = "inventory-reservation-commands";
+    public const string ConsumerGroup = "inventory-group";
 }

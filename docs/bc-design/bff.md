@@ -90,7 +90,7 @@ Each client resolves the resilience pipeline by name (`"catalog"`, `"basket"`, `
 
 ### 2.2 Cache invalidation Kafka consumer
 
-**Consumer group:** `bff-cache-invalidator`.
+**Consumer group:** `bff-group` (one-group-per-service rule, [events-catalog.md § 3.1](events-catalog.md)).
 
 **Subscribed topics and per-topic handler → tag mapping:**
 
@@ -131,7 +131,7 @@ class AuthForwardingHandler : DelegatingHandler {
 
 Registered before the resilience handler so retry copies of the request preserve the Authorization header. For public BFF endpoints (home page, product page), the handler simply has nothing to forward — upstream anonymous endpoints accept calls without `Authorization`.
 
-**Service-to-service fallback (v2):** not in v1. In v1 the BFF always forwards whatever the user sent; if no user token is present and the upstream requires auth, the upstream returns 401 and the BFF surfaces a 401. Future work could use `IdentityServerTokenExchange` (client credentials) as a fallback.
+**Service-to-service fallback:** not in current scope. The BFF always forwards whatever the user sent; if no user token is present and the upstream requires auth, the upstream returns 401 and the BFF surfaces a 401. Planned: `IdentityServerTokenExchange` (client credentials) as a fallback — see [roadmap.md § 2.3 BFF](../roadmap.md).
 
 ### 2.4 Observability
 
@@ -171,7 +171,7 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
 - **Authentication/authorization:** **Optional auth.** Anonymous users get the public product page; authenticated users additionally receive `AlreadyInBasket` populated from the Basket service.
 - **Request params:**
   - `productId` (route, Guid).
-  - No query params in v1 (no language / region selection — deferred to v2).
+  - No query params today (language / region selection is planned scope — see [roadmap.md § 2.3 BFF](../roadmap.md)).
 - **Upstream service calls** (parallel):
   - `CatalogClient.GetProductByIdAsync(productId, ct)`.
   - `InventoryClient.GetStockLevelAsync(productId, ct)`.
@@ -323,7 +323,7 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
   1. `OrderingClient.GetOrderByIdAsync(orderId, ct)` — first. If 404 → BFF 404 (no order means no summary).
   2. **Parallel enrichment** once order is loaded:
      - `CatalogClient.GetProductsByIdsAsync(orderItemProductIds, ct)` — fetch *current* product metadata for display enrichment (name changes, current images, current price — NOT to override order snapshot, but to show "product details today" alongside "price you paid").
-     - `PaymentsClient.GetPaymentStatusAsync(order.PaymentTransactionId, ct)` — **v2 only** if Payments exposes a BFF-facing query API. For v1 the BFF treats Payments as opaque: `PaymentStatus` is derived from the order's own `PaymentCompletedAtUtc` (null ⇒ "Pending", non-null ⇒ "Completed"; on `Failed` status, "Failed"). Document the v2 path so the endpoint shape is future-compatible.
+     - `PaymentsClient.GetPaymentStatusAsync(order.PaymentTransactionId, ct)` — **planned scope only** (see [roadmap.md § 2.3 BFF — `IPaymentsClient`](../roadmap.md)); requires Payments to expose a BFF-facing query API. Today the BFF treats Payments as opaque: `PaymentStatus` is derived from the order's own `PaymentCompletedAtUtc` (null ⇒ "Pending", non-null ⇒ "Completed"; on `Failed` status, "Failed"). The endpoint shape is left forward-compatible.
 - **Response composition logic:**
   1. From Ordering response: populate all order-intrinsic fields (status, totals, addresses, timestamps).
   2. For each `OrderItem`, merge with Catalog response by ProductId. If Catalog has the product, attach `CurrentName`, `CurrentPrimaryImageUrl`, `CurrentPrice`. If Catalog returned `CurrentPrice != snapshot.UnitPrice`, expose both values.
@@ -337,7 +337,7 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
      - `Cancelled` = `cancellation.CancelledAtUtc`.
      - `Failed` = `failure.FailedAtUtc`.
      Entries with null timestamps are omitted from the timeline array.
-  4. `PaymentStatus`: v1 derived from order fields (`Completed` / `Pending` / `Failed`); v2 sources from Payments.
+  4. `PaymentStatus`: derived from order fields today (`Completed` / `Pending` / `Failed`); a future `IPaymentsClient` source is planned scope per [roadmap.md § 2.3 BFF](../roadmap.md).
 - **Response shape** (`OrderSummaryResponse`):
   ```
   {
@@ -387,7 +387,7 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
   | Ordering timeout / 5xx | Serve stale cache if any (with `HasStaleData=true`); else 503. | First and gating call. |
   | Ordering 404 / 403 | BFF returns 404 (same masking as the upstream handler). | Do not leak existence. |
   | Catalog batch timeout / 5xx / partial | Items lose `CurrentName`, `CurrentPrimaryImageUrl`, `CurrentPrice` (set to null). `HasStaleData=true`. Snapshot values remain. | `X-BFF-PartialData: catalog`. |
-  | Payments (v2) timeout / 5xx | Fall back to v1 derivation (derive PaymentStatus from order fields). | Documented for forward-compat. |
+  | Payments (planned `IPaymentsClient`) timeout / 5xx | Fall back to deriving `PaymentStatus` from order fields. | Documented for forward-compat; see [roadmap.md § 2.3 BFF](../roadmap.md). |
   | Network unavailable | Serve from cache with `HasStaleData=true`. If no cache, 503. | — |
 - **Cache invalidation hooks:**
   - `ordering.orders` topic: on `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` → `RemoveByTagAsync("order-{OrderId}")` AND `RemoveByTagAsync("order-history-{BuyerId}")`.
@@ -401,7 +401,7 @@ Public landing page — featured products + full category tree + stock highlight
 
 - **HTTP route and method:** `GET /api/bff/home-page`.
 - **Authentication/authorization:** **Public.** No JWT required.
-- **Request params:** none in v1 (no per-user personalization; v2 may accept optional `language` / `region`).
+- **Request params:** none today (no per-user personalization; optional `language` / `region` are planned scope — see [roadmap.md § 2.3 BFF](../roadmap.md)).
 - **Upstream service calls** (parallel):
   1. `CatalogClient.SearchProductsAsync(new SearchProductsRequest { Status = "Active", PageNumber = 1, PageSize = 20 }, ct)` — "featured" semantics in v1 is simply "first 20 active products sorted by `CreatedAtUtc DESC`". A dedicated "featured" flag is Appendix-C scope.
   2. `CatalogClient.GetCategoryTreeAsync(rootCategoryId: null, ct)` — full tree.
@@ -468,7 +468,7 @@ Public landing page — featured products + full category tree + stock highlight
 - **Cache invalidation hooks:**
   - `catalog.products` topic: on `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → `RemoveByTagAsync("home-page")`.
   - `catalog.categories` topic: on `CategoryCreatedEvent` → `RemoveByTagAsync("home-page")`.
-  - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("home-page")` — only when the product is in the featured set. v1 simplification: always invalidate on any stock event; accepts occasional over-invalidation to keep the handler simple. v2 would maintain a "featured-products-now" set and filter.
+  - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("home-page")` — ideally only when the product is in the featured set. Current simplification: always invalidate on any stock event; accepts occasional over-invalidation to keep the handler simple. A "featured-products-now" set + filter is planned scope — see [roadmap.md § 2.3 BFF](../roadmap.md).
 
 ---
 
@@ -713,12 +713,12 @@ record StockLevelsBulkDto(
 | `GetStockLevelAsync` | `GET /api/inventory/stock-items/{productId}` | `GetStockLevelQuery` |
 | `GetStockLevelsBulkAsync` | `POST /api/inventory/stock-items/bulk` — body `{ productIds: [] }` | `GetStockLevelsBulkQuery` |
 
-### 4.5 `IPaymentsClient` (v2, forward-compat stub)
+### 4.5 `IPaymentsClient` (planned scope — forward-compat stub)
 
-Documented for the `OrderSummary` endpoint's future evolution. NOT registered in v1. Shape:
+Documented for the `OrderSummary` endpoint's planned evolution per [roadmap.md § 2.3 BFF](../roadmap.md). NOT registered today. Shape:
 
 ```csharp
-// v2 only
+// planned scope — see roadmap.md § 2.3 BFF
 public interface IPaymentsClient
 {
     Task<Result<PaymentStatusDto>> GetPaymentStatusAsync(
@@ -733,7 +733,7 @@ record PaymentStatusDto(
     DateTimeOffset LastUpdatedUtc);
 ```
 
-In v1 the BFF derives `OrderSummaryResponse.PaymentStatus` purely from Ordering fields.
+Today the BFF derives `OrderSummaryResponse.PaymentStatus` purely from Ordering fields.
 
 ---
 
@@ -763,7 +763,7 @@ One table combining all four endpoints' behavior under common failure scenarios,
 | Inventory down | 200 with `InStock=null`, `HasStaleData=true` | 200 with `AvailableQty=null`, `HasStaleData=true` | n/a (no call) | 200 with null stock fields, `HasStaleData=true` |
 | Ordering down | n/a (no call; Basket is independent) | n/a | 503 or stale cache | n/a |
 | Basket down (auth) | 200 with `AlreadyInBasket=null` | 503 or stale cache | n/a | n/a (public endpoint) |
-| Payments down (v2) | n/a | n/a | 200 with derived PaymentStatus | n/a |
+| Payments down (planned `IPaymentsClient`) | n/a | n/a | 200 with derived PaymentStatus | n/a |
 | All upstreams down | 503 (if no cache); stale from cache else | 503 (Basket gating) or stale | 503 or stale | Stale cache or 503 |
 
 ---
@@ -783,13 +783,15 @@ One table combining all four endpoints' behavior under common failure scenarios,
 
 ## 8. Open Questions / Deferred
 
-- **Rate limiting at BFF level** — v1 relies on YARP's rate limiting. A BFF-level per-user cap would be relevant if upstream protection via YARP proves insufficient.
+Planned scope is catalogued in [roadmap.md § 2.3 BFF](../roadmap.md):
+
+- **Rate limiting at BFF level** — current scope relies on YARP's rate limiting. A BFF-level per-user cap would be relevant if upstream protection via YARP proves insufficient.
 - **Per-endpoint response compression** — deferred; YARP and ASP.NET Core defaults should be enough.
-- **Language / region support** — home page and product page may want `Accept-Language` forwarding. v2.
-- **Personalized home page** — requires auth; v2.
-- **gRPC between BFF and services** — v1 uses HTTP/JSON (already matching the service endpoints). gRPC would halve latency but adds contract-generation surface; deferred.
+- **Language / region support** — home page and product page may want `Accept-Language` forwarding.
+- **Personalized home page** — requires auth.
+- **gRPC between BFF and services** — today uses HTTP/JSON (already matching the service endpoints). gRPC would halve latency but adds contract-generation surface; deferred.
 - **Payments BFF query endpoint** — once Payments exposes a read API, `OrderSummary` switches from derived `PaymentStatus` to authoritative.
-- **GraphQL gateway** — an alternative to this per-endpoint BFF; explicitly NOT chosen for v1 (REST + manual aggregation is the teaching goal).
+- **GraphQL gateway** — an alternative to this per-endpoint BFF; explicitly NOT chosen (REST + manual aggregation is the teaching goal).
 
 ---
 

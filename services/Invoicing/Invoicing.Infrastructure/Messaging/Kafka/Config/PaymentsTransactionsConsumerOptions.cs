@@ -20,8 +20,9 @@ public sealed class PaymentsTransactionsConsumerOptions : ConsumerConfig
     public required string Topic { get; set; }
 
     /// <summary>
-    /// Consumer group id. Recommended value is
-    /// <c>invoicing-payments-projection</c>.
+    /// Consumer group id. Per the one-group-per-service rule in
+    /// <c>events-catalog.md § 3.1</c>, this is <c>invoicing-group</c> — the sole
+    /// Invoicing consumer group across every topic Invoicing subscribes to.
     /// </summary>
     [Required(
         ErrorMessage = $"{nameof(GroupId)} for {nameof(PaymentsTransactionsConsumerOptions)} is missing",

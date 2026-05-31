@@ -52,7 +52,7 @@ Two aggregates: `Invoice` and `CreditNote`. A `CreditNote` references the `Invoi
 | `VatLines` | `IReadOnlyList<VatLine>` | Per-rate breakdown (e.g., `21% → €42.00`, `0% → €10.00`) |
 | `Total` | `Money` | `Subtotal + sum(VatLines.Amount)` |
 | `PdfBlobRef` | `PdfBlobRef?` | Populated on `Issued`; null while `Draft` |
-| `DeliveryChannel` | `DeliveryChannel` (SmartEnum) | `Email`, `None` (for v1 only email; v2 adds tax-authority webhook) |
+| `DeliveryChannel` | `DeliveryChannel` (SmartEnum) | `Email`, `None`. Additional channels (tax-authority webhook, postal mail) are planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
 | `Status` | `InvoiceStatus` (SmartEnum) | `Draft → Issued → Delivered → Archived`; `Cancelled` off-ramp |
 | `CancellationInfo` | `CancellationInfo?` | Populated when moving to `Cancelled`; references the `CreditNote.Id` that reverses this invoice |
 | `RowVersion` | `uint` | Optimistic concurrency |
@@ -78,7 +78,7 @@ Mirrors `Invoice` shape with negative amounts:
 | `IssueDate` | `DateTimeOffset` | |
 | `Lines` | `IReadOnlyList<InvoiceLine>` | Copy of original with flipped sign |
 | `Total` | `Money` | Negative (e.g., `-€152.00`) |
-| `Reason` | `CreditNoteReason` (SmartEnum) | `OrderCancelled`, `PartialRefund` (v2), `Adjustment` (v2) |
+| `Reason` | `CreditNoteReason` (SmartEnum) | `OrderCancelled`. `PartialRefund` and `Adjustment` are planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md). |
 | `PdfBlobRef` | `PdfBlobRef` | Required at creation; credit notes are immediately issued |
 | `Status` | `CreditNoteStatus` | `Issued → Delivered → Archived` — no cancellation of a credit note |
 
@@ -279,7 +279,7 @@ Table `invoicing.invoice_delivery_log`:
 | Column | Type | |
 |---|---|---|
 | `InvoiceId` | `uuid` | Composite PK |
-| `Channel` | `text` | `email`, `tax-authority` (v2) |
+| `Channel` | `text` | `email` (additional channels are planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md)) |
 | `Attempt` | `int` | 1..N |
 | `AttemptedAtUtc` | `timestamptz` | |
 | `Outcome` | `text` | `delivered`, `bounced`, `failed` |
@@ -351,14 +351,16 @@ Full example-mapping sessions in [`example-mapping/invoicing.md`](example-mappin
 
 ---
 
-## 17. Out of scope for v1
+## 17. Out of scope for current scope
+
+Planned scope is catalogued in [roadmap.md § 2.3 Invoicing](../roadmap.md):
 
 - **Multi-currency invoices** — single currency per invoice (matches Order constraint).
-- **Partial refunds / partial credit notes** — v1 issues one credit note for the full refund.
-- **Legal numbering per country** — v1 uses `INV-YYYY-NNNNNN` globally. Real deployments need per-country sequences (Czech Republic, Germany, France each have different formal requirements).
-- **E-invoicing webhooks (tax authority delivery)** — `DeliveryChannel` leaves the slot open but only `Email` is implemented. Webhook to a stub SII/XRechnung endpoint is v2.
-- **Tax-rate calculation** — v1 accepts VAT rates as inputs from `OrderConfirmedEvent` (computed by Ordering at checkout). Invoicing does not compute tax; it just records.
-- **Archival rotation** — `Archived` status is defined but no job moves old invoices to cold storage in v1.
+- **Partial refunds / partial credit notes** — today issues one credit note for the full refund.
+- **Legal numbering per country** — today uses `INV-YYYY-NNNNNN` globally. Real deployments need per-country sequences (Czech Republic, Germany, France each have different formal requirements).
+- **E-invoicing webhooks (tax authority delivery)** — `DeliveryChannel` leaves the slot open but only `Email` is implemented. Webhook to a stub SII/XRechnung endpoint is planned scope.
+- **Tax-rate calculation** — today accepts VAT rates as inputs from `OrderConfirmedEvent` (computed by Ordering at checkout). Invoicing does not compute tax; it just records.
+- **Archival rotation** — `Archived` status is defined but no job moves old invoices to cold storage.
 
 ---
 

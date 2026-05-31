@@ -16,7 +16,11 @@ public sealed class NotificationsEmailEventsConsumerOptions : ConsumerConfig
     [Required(AllowEmptyStrings = false)]
     public required string Topic { get; set; }
 
-    /// <summary>Consumer group id. Recommended value: <c>invoicing-notifications-email</c>.</summary>
+    /// <summary>
+    /// Consumer group id. Per the one-group-per-service rule in
+    /// <c>events-catalog.md § 3.1</c>, this is <c>invoicing-group</c> — the sole
+    /// Invoicing consumer group across every topic Invoicing subscribes to.
+    /// </summary>
     [Required(AllowEmptyStrings = false)]
     public new required string GroupId { get; set; }
 

@@ -1,5 +1,9 @@
 # Master System Prompt — Implement the **Inventory** Bounded Context
 
+> **⚠ SUPERSEDED (2026-05-31) — historical wave prompt.** This prompt drove the original Inventory implementation and is preserved verbatim as a record of the plan that shipped. It references the deprecated consumer groups `inventory-stock-init` + `inventory-reservation-commands` and the now-retracted `eshop-master-design.md § E.10` "deviation #1" framing.
+>
+> The current, authoritative consumer-group rule is **one group per service** (`inventory-group`) per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md). Use the BC-design docs as ground truth; treat this file as background only.
+
 > Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
 
 <thinking_first>
