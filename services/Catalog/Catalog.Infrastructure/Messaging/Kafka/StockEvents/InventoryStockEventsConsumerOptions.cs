@@ -4,14 +4,14 @@ using Confluent.Kafka;
 namespace Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 
 /// <summary>
-/// Kafka consumer configuration for the inbound <c>StockLevelChangedEvent</c> event from
-/// Inventory. Bound from <c>KafkaStockLevelChangedEventConsumer</c>. Inherits from
+/// Kafka consumer configuration for the inbound <c>TopicsOptions.InventoryStockEvents</c>
+/// topic. Bound from <c>KafkaInventoryStockEventsConsumer</c>. Inherits from
 /// <see cref="ConsumerConfig"/> so broker-level knobs (auto-offset-reset, session-timeout)
 /// are bindable directly.
 /// </summary>
-public sealed class StockLevelChangedEventConsumerOptions : ConsumerConfig
+public sealed class InventoryStockEventsConsumerOptions : ConsumerConfig
 {
-    public const string Section = "KafkaStockLevelChangedEventConsumer";
+    public const string Section = "KafkaInventoryStockEventsConsumer";
 
     /// <summary>
     /// Consumer group id. Per the one-group-per-service rule in
@@ -19,7 +19,7 @@ public sealed class StockLevelChangedEventConsumerOptions : ConsumerConfig
     /// Catalog consumer group across every topic Catalog subscribes to.
     /// </summary>
     [Required(
-        ErrorMessage = $"{nameof(GroupId)} for {nameof(StockLevelChangedEventConsumerOptions)} is missing",
+        ErrorMessage = $"{nameof(GroupId)} for {nameof(InventoryStockEventsConsumerOptions)} is missing",
         AllowEmptyStrings = false)]
     public new required string GroupId { get; set; }
 

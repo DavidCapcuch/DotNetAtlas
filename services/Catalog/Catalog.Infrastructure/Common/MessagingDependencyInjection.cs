@@ -59,8 +59,8 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(AvroSerializerOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<StockLevelChangedEventConsumerOptions>()
-            .BindConfiguration(StockLevelChangedEventConsumerOptions.Section)
+        services.AddOptionsWithValidateOnStart<InventoryStockEventsConsumerOptions>()
+            .BindConfiguration(InventoryStockEventsConsumerOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
@@ -68,8 +68,8 @@ internal static class MessagingDependencyInjection
             .Get<KafkaOptions>()!;
 
         var consumerOptions = configuration
-            .GetRequiredSection(StockLevelChangedEventConsumerOptions.Section)
-            .Get<StockLevelChangedEventConsumerOptions>()!;
+            .GetRequiredSection(InventoryStockEventsConsumerOptions.Section)
+            .Get<InventoryStockEventsConsumerOptions>()!;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
