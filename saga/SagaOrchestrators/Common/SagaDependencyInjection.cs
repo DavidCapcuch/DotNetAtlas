@@ -38,6 +38,14 @@ public static class SagaDependencyInjection
                 .BindConfiguration(SagaOptions.Section)
                 .ValidateDataAnnotations();
 
+            services.AddOptionsWithValidateOnStart<PaymentProcessingSagaTimeoutOptions>()
+                .BindConfiguration(PaymentProcessingSagaTimeoutOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddOptionsWithValidateOnStart<CheckoutSagaTimeoutOptions>()
+                .BindConfiguration(CheckoutSagaTimeoutOptions.Section)
+                .ValidateDataAnnotations();
+
             services.AddOptionsWithValidateOnStart<KafkaOptions>()
                 .BindConfiguration(KafkaOptions.Section)
                 .ValidateDataAnnotations();

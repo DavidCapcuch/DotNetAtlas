@@ -15,6 +15,8 @@ namespace SagaOrchestrators.Common.Config;
 /// </remarks>
 public sealed class CheckoutSagaTimeoutOptions
 {
+    public const string Section = $"{SagaOptions.Section}:CheckoutTimeouts";
+
     /// <summary>
     /// Timeout in seconds for OrderCreatedEvent to arrive after CreateOrderCommand is dispatched.
     /// Default 30 - Ordering does a local DB write; p99 should be well under 5s.
