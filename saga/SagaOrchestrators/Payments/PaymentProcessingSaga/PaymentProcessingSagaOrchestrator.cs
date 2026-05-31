@@ -201,7 +201,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(AuthorizationTimeout.Received)
                 .Then(ctx =>
                 {
-                    ctx.Saga.ErrorCode = "AUTHORIZATION_TIMEOUT";
+                    ctx.Saga.ErrorCode = PaymentProcessingSagaErrorCodes.AuthorizationTimeout;
                     ctx.Saga.ErrorMessage = "Authorization timeout expired";
                 })
                 .Activity(x => x.OfType<AuthorizationTimeoutActivity>())
@@ -298,7 +298,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(CaptureTimeout.Received)
                 .Then(ctx =>
                 {
-                    ctx.Saga.ErrorCode = "CAPTURE_TIMEOUT";
+                    ctx.Saga.ErrorCode = PaymentProcessingSagaErrorCodes.CaptureTimeout;
                     ctx.Saga.ErrorMessage = "Capture timeout expired";
                 })
                 .Activity(x => x.OfType<CaptureTimeoutActivity>())
@@ -321,7 +321,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     {
                         CorrelationId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
-                        ErrorCode = "CAPTURE_TIMEOUT",
+                        ErrorCode = PaymentProcessingSagaErrorCodes.CaptureTimeout,
                         ErrorMessage = "Capture timeout expired",
                         FailedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
@@ -385,7 +385,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(VoidTimeout.Received)
                 .Then(ctx =>
                 {
-                    ctx.Saga.ErrorCode = "VOID_TIMEOUT";
+                    ctx.Saga.ErrorCode = PaymentProcessingSagaErrorCodes.VoidTimeout;
                     ctx.Saga.ErrorMessage = "Void timeout expired. Manual intervention required.";
                 })
                 .Activity(x => x.OfType<VoidTimeoutActivity>())
@@ -408,7 +408,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(RefundTimeout.Received)
                 .Then(ctx =>
                 {
-                    ctx.Saga.ErrorCode = "REFUND_TIMEOUT";
+                    ctx.Saga.ErrorCode = PaymentProcessingSagaErrorCodes.RefundTimeout;
                     ctx.Saga.ErrorMessage = "Refund timeout expired. Manual intervention required.";
                 })
                 .Activity(x => x.OfType<RefundTimeoutActivity>())

@@ -300,7 +300,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             var payload = Encoding.UTF8.GetString(checkoutStuckRows[0].AvroPayload);
             payload.Should().Contain(nameof(CheckoutSagaOrchestrator.CompensatingStockReservations),
                 "CheckoutStuckEvent.LastState carries the state name the saga was stuck in");
-            payload.Should().Contain("COMPENSATION_TIMEOUT",
+            payload.Should().Contain(CheckoutSagaErrorCodes.CompensationTimeout,
                 "CheckoutStuckEvent.ErrorCode is COMPENSATION_TIMEOUT for timeout-driven stuck");
 
             AssertNoAddressValuesInPayload(checkoutStuckRows[0].AvroPayload);

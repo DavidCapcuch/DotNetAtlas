@@ -10,7 +10,7 @@ public static class CheckoutSagaFeatureFlags
     /// per ADR-0004), the saga runs <b>stock-then-payment</b>: after <c>OrderCreated</c> it fans out
     /// <c>ReserveStockCommand</c> per distinct ProductId and only requests payment once every
     /// reservation lands. When <c>true</c>, the experimental <b>payment-then-stock</b> branch is
-    /// taken: the saga immediately publishes <c>PaymentRequestedEvent</c> and transitions to
+    /// taken: the saga immediately publishes <c>RequestPaymentCommand</c> and transitions to
     /// <c>AwaitingPayment</c> without reserving stock first.
     ///
     /// The ON path is <b>intentionally not validated end-to-end in v1</b> — per ADR-0014 line 116

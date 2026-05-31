@@ -183,7 +183,7 @@ public static class SagaDependencyInjection
         {
             cfg.AddRider(rider =>
             {
-                rider.AddConsumersFromNamespaceContaining<PaymentRequestedConsumer>();
+                rider.AddConsumersFromNamespaceContaining<RequestPaymentCommandConsumer>();
                 rider.AddConsumersFromNamespaceContaining<BasketCheckoutInitiatedConsumer>();
 
                 rider.UsingKafka((registrationContext, kafkaConfigurator) =>

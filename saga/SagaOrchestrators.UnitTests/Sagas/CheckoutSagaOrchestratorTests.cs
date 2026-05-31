@@ -225,6 +225,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             sagaNotExists.Should().BeTrue("Failed is terminal and finalized");
             failedEvents.Should().ContainSingle();
+            // Forwarded from Ordering BC's OrderFailedEvent.ErrorCode (set by the arrange block above);
+            // not extracted to CheckoutSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
             failedEvents[0].IntegrationEvent.ErrorCode.Should().Be("ORDER_VALIDATION_FAILED");
             failedEvents[0].IntegrationEvent.FailedAtState.Should().Be(nameof(_sagaHarness.StateMachine.AwaitingOrderCreation));
             failedEvents[0].IntegrationEvent.CompensationTriggered.Should().BeFalse();
@@ -312,7 +314,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         var awaitingPayment = _sagaHarness.Sagas.ContainsInState(
             correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingPayment);
-        var paymentRequested = _fakeOutboxWriter.GetMessages<PaymentRequestedEvent>().ToList();
+        var paymentRequested = _fakeOutboxWriter.GetMessages<RequestPaymentCommand>().ToList();
 
         using (new AssertionScope())
         {
@@ -385,7 +387,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             compensating.Should().NotBeNull();
             compensating.CompensationTriggered.Should().BeTrue();
-            compensating.ErrorCode.Should().Be("STOCK_UNAVAILABLE");
+            compensating.ErrorCode.Should().Be(CheckoutSagaErrorCodes.StockUnavailable);
             compensating.PendingReleases.Should().Be(2, "p1 + p3 had been Reserved");
             releases.Should().HaveCount(2);
             releases.Select(r => r.IntegrationEvent.ProductId).Should()
@@ -466,6 +468,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             compensating.Should().NotBeNull();
+            // Forwarded from Payments BC's PaymentFailedEvent.ErrorCode (set by the arrange block above);
+            // not extracted to CheckoutSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
             compensating.ErrorCode.Should().Be("PAYMENT_FAILED");
             _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeFalse(
                 "payment never captured - no refund needed");
@@ -824,12 +828,12 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             sagaFinalized.Should().BeTrue("Failed is terminal");
             failedEvents.Should().ContainSingle();
             failedEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            failedEvents[0].IntegrationEvent.ErrorCode.Should().Be("ORDER_CREATION_TIMEOUT");
+            failedEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.OrderCreationTimeout);
             // OrderId is null in AwaitingOrderCreation - the defensive command goes out with
             // Guid.Empty + the CorrelationId for Ordering to resolve at its end (§ 3 row 4).
             markFailedCmds.Should().ContainSingle();
             markFailedCmds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            markFailedCmds[0].IntegrationEvent.ErrorCode.Should().Be("ORDER_CREATION_TIMEOUT");
+            markFailedCmds[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.OrderCreationTimeout);
             markFailedCmds[0].IntegrationEvent.OrderId.Should().Be(Guid.Empty);
         }
     }
@@ -855,7 +859,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             compensating.Should().NotBeNull();
-            compensating!.ErrorCode.Should().Be("STOCK_TIMEOUT");
+            compensating!.ErrorCode.Should().Be(CheckoutSagaErrorCodes.StockTimeout);
             compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingStockReservation));
             compensating.CompensationTriggered.Should().BeTrue();
             // No StockReservedEvents have arrived yet, so no active reservations to release;
@@ -889,7 +893,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             compensating.Should().NotBeNull();
-            compensating!.ErrorCode.Should().Be("PAYMENT_TIMEOUT");
+            compensating!.ErrorCode.Should().Be(CheckoutSagaErrorCodes.PaymentTimeout);
             compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingPayment));
             compensating.CompensationTriggered.Should().BeTrue();
             releases.Should().HaveCount(2, "two reservations were active when payment timed out");
@@ -919,7 +923,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             compensating.Should().NotBeNull();
-            compensating!.ErrorCode.Should().Be("CONFIRMATION_TIMEOUT");
+            compensating!.ErrorCode.Should().Be(CheckoutSagaErrorCodes.ConfirmationTimeout);
             compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingConfirmation));
             compensating.CompensationTriggered.Should().BeTrue();
             refunds.Should().ContainSingle();
@@ -953,7 +957,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             stuckEvents.Should().ContainSingle();
             stuckEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             stuckEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
-            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be("COMPENSATION_TIMEOUT");
+            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.CompensationTimeout);
             stuckEvents[0].IntegrationEvent.LastState.Should().Be(
                 nameof(CheckoutSagaOrchestrator.CompensatingStockReservations));
         }
@@ -982,7 +986,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             stuckEvents.Should().ContainSingle();
             stuckEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             stuckEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
-            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be("COMPENSATION_TIMEOUT");
+            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.CompensationTimeout);
             stuckEvents[0].IntegrationEvent.LastState.Should().Be(
                 nameof(CheckoutSagaOrchestrator.CompensatingPayment));
         }

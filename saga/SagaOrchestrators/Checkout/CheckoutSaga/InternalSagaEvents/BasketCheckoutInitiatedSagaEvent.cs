@@ -42,7 +42,7 @@ public sealed record BasketCheckoutInitiatedSagaEvent
     /// <summary>
     /// Saved payment method id — still <c>Guid</c> because the Basket-side wire schema
     /// (<c>BasketCheckoutInitiatedEvent</c>) is unchanged. CheckoutSaga converts to a
-    /// gateway-token string only when emitting the Payments-side <c>PaymentRequestedEvent</c>
+    /// gateway-token string only when emitting the Payments-side <c>RequestPaymentCommand</c>
     /// (Payments-side schema changed; Basket + Ordering wire shapes deferred).
     /// </summary>
     public required Guid PaymentMethodId { get; init; }

@@ -50,29 +50,33 @@ public sealed class TopicsOptions
     public required string NotificationCommands { get; set; }
 
     /// <summary>
-    /// Topic for Payment commands.
-    /// Consumed by Payment service:
+    /// Topic for Payment commands (payments.payment-commands).
+    /// Consumed by the Payments service:
     /// - AuthorizePaymentCommand
     /// - CapturePaymentCommand
     /// - RequestRefundCommand
     /// - VoidPaymentCommand.
+    /// Consumed by PaymentProcessingSaga (Checkout-saga → sub-saga, per ADR-0023):
+    /// - RequestPaymentCommand.
     /// </summary>
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string PaymentCommands { get; set; }
 
     /// <summary>
-    /// Topic for Payment events.
-    /// Published by Payment service:
+    /// Topic for Payment events (payments.transactions).
+    /// Published by Payments BC:
     /// - PaymentAuthorizationFailedEvent
     /// - PaymentAuthorizedEvent
     /// - PaymentCapturedEvent
     /// - PaymentCaptureFailedEvent
-    /// - PaymentCompletedEvent
-    /// - PaymentFailedEvent
     /// - PaymentRefundedEvent
-    /// - PaymentRequestedEvent
     /// - PaymentVoidedEvent.
+    /// Published by PaymentProcessingSaga:
+    /// - PaymentCompletedEvent
+    /// - PaymentFailedEvent.
+    /// (PaymentRequestedEvent was renamed to RequestPaymentCommand and moved to
+    /// payments.payment-commands per ADR-0023.)
     /// </summary>
     [Required]
     [Length(1, MaximumKafkaTopicLength)]

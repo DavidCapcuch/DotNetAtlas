@@ -15,8 +15,13 @@ public class PaymentTransactionCreateTests
     private DateTimeOffset UtcNow => _fakeTimeProvider.GetUtcNow();
 
     [Fact]
-    public void Create_WhenValid_ReturnsOkAndRaisesPaymentRequestedDomainEvent()
+    public void Create_WhenValid_ReturnsOkAndRaisesNoDomainEvents()
     {
+        // ADR-0023 follow-up: PaymentTransaction.Create no longer raises a domain event. The
+        // wire-level "requested" signal is RequestPaymentCommand (renamed from PaymentRequestedEvent
+        // and moved to payments.payment-commands), produced by the Checkout saga — not by Payments.
+        // The Payments-internal PaymentRequestedDomainEvent had no in-process handler and no
+        // outbox publisher; it was scaffolding and has been removed.
         var paymentId = Guid.CreateVersion7();
         var correlationId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
@@ -41,17 +46,8 @@ public class PaymentTransactionCreateTests
             tx.AuthorizedAtUtc.Should().BeNull();
             tx.FailureInfo.Should().BeNull();
 
-            var domainEvent = tx.PopDomainEvents().Should()
-                .ContainSingle()
-                .Which.Should().BeOfType<PaymentRequestedDomainEvent>()
-                .Subject;
-            domainEvent.PaymentId.Should().Be(paymentId);
-            domainEvent.CorrelationId.Should().Be(correlationId);
-            domainEvent.BuyerId.Should().Be(buyerId);
-            domainEvent.OrderId.Should().Be(orderId);
-            domainEvent.Amount.Should().Be(amount);
-            domainEvent.PaymentMethodId.Value.Should().Be("tok_visa_4242");
-            domainEvent.OccurredOnUtc.Should().Be(UtcNow);
+            tx.PopDomainEvents().Should().BeEmpty(
+                "ADR-0023 follow-up: PaymentTransaction.Create raises no domain events");
         }
     }
 

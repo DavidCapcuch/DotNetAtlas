@@ -20,7 +20,17 @@ internal static class PaymentProcessingSagaDependencyInjection
     extension(IKafkaFactoryConfigurator kafka)
     {
         /// <summary>
-        /// Configures Kafka topic endpoints and consumers for the payment processing saga.
+        /// Configures Kafka topic endpoints and consumers for the payment processing saga. Two
+        /// topic subscriptions under one consumer group per ADR-0023:
+        /// <list type="bullet">
+        /// <item><c>payments.transactions</c> (event log) — Payments-BC-emitted lifecycle facts
+        /// the saga reacts to (Authorized / AuthorizationFailed / Captured / CaptureFailed /
+        /// Voided).</item>
+        /// <item><c>payments.payment-commands</c> (command stream) — imperative
+        /// <c>RequestPaymentCommand</c> sent by the Checkout saga to initiate sub-saga processing.
+        /// Shares the topic with Payments-BC consumers of <c>AuthorizePaymentCommand</c> / etc.;
+        /// MassTransit dispatches by message type so cross-consumption is clean.</item>
+        /// </list>
         /// </summary>
         /// <param name="context">The MassTransit rider registration context.</param>
         /// <param name="schemaRegistryClient">The Confluent Schema Registry client for Avro deserialization.</param>
@@ -40,12 +50,25 @@ internal static class PaymentProcessingSagaDependencyInjection
                     consumerConfig.SetValueDeserializer(
                         new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
 
-                    consumerConfig.ConfigureConsumer<PaymentRequestedConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentVoidedConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentAuthorizationFailedConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentAuthorizedConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentCapturedConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentCaptureFailedConsumer>(context);
+                });
+
+            kafka.TopicEndpoint<Guid, ISpecificRecord>(
+                kafkaOptions.Topics.PaymentsPaymentCommands,
+                kafkaOptions.ConsumerGroups.PaymentProcessingSaga,
+                consumerConfig =>
+                {
+                    consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    consumerConfig.SetKeyDeserializer(
+                        new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
+                    consumerConfig.SetValueDeserializer(
+                        new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
+
+                    consumerConfig.ConfigureConsumer<RequestPaymentCommandConsumer>(context);
                 });
         }
     }

@@ -68,7 +68,7 @@ public class CheckoutSagaOrchestratorFlagTests
             correlationId, setup.SagaHarness.StateMachine,
             setup.SagaHarness.StateMachine.AwaitingStockReservation);
         var reserveCommands = fakeOutbox.GetMessages<ReserveStockCommand>().ToList();
-        var paymentRequested = fakeOutbox.GetMessages<PaymentRequestedEvent>().ToList();
+        var paymentRequested = fakeOutbox.GetMessages<RequestPaymentCommand>().ToList();
 
         using (new AssertionScope())
         {
@@ -78,7 +78,7 @@ public class CheckoutSagaOrchestratorFlagTests
             state.PendingReservations.Should().Be(2);
             reserveCommands.Should().HaveCount(2, "OFF branch fans out one ReserveStockCommand per distinct ProductId");
             reserveCommands.Select(m => m.IntegrationEvent.ProductId).Should().BeEquivalentTo(new[] { product1, product2 });
-            paymentRequested.Should().BeEmpty("OFF branch does NOT publish PaymentRequestedEvent until all stock is reserved");
+            paymentRequested.Should().BeEmpty("OFF branch does NOT publish RequestPaymentCommand until all stock is reserved");
         }
     }
 
@@ -113,7 +113,7 @@ public class CheckoutSagaOrchestratorFlagTests
             correlationId, setup.SagaHarness.StateMachine,
             setup.SagaHarness.StateMachine.AwaitingPayment);
         var reserveCommands = fakeOutbox.GetMessages<ReserveStockCommand>().ToList();
-        var paymentRequested = fakeOutbox.GetMessages<PaymentRequestedEvent>().ToList();
+        var paymentRequested = fakeOutbox.GetMessages<RequestPaymentCommand>().ToList();
 
         using (new AssertionScope())
         {
@@ -121,9 +121,9 @@ public class CheckoutSagaOrchestratorFlagTests
             state!.OrderId.Should().Be(orderId);
             state.ExpectedReservations.Should().Be(0, "ON branch skips stock reservation tracking init");
             state.PendingReservations.Should().Be(0);
-            state.PaymentRequestedAtUtc.Should().NotBeNull("PaymentRequestedAtUtc is set when PaymentRequestedEvent is dispatched");
+            state.PaymentRequestedAtUtc.Should().NotBeNull("PaymentRequestedAtUtc is set when RequestPaymentCommand is dispatched");
             reserveCommands.Should().BeEmpty("ON branch must NOT fan out ReserveStockCommand — that's the whole point of the swap");
-            paymentRequested.Should().ContainSingle("ON branch dispatches PaymentRequestedEvent immediately after OrderCreated");
+            paymentRequested.Should().ContainSingle("ON branch dispatches RequestPaymentCommand immediately after OrderCreated");
             paymentRequested[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             paymentRequested[0].IntegrationEvent.OrderId.Should().Be(orderId);
             paymentRequested[0].IntegrationEvent.UserId.Should().Be(userId);
@@ -171,7 +171,7 @@ public class CheckoutSagaOrchestratorFlagTests
         var state = setup.SagaHarness.Sagas.ContainsInState(
             correlationId, setup.SagaHarness.StateMachine,
             setup.SagaHarness.StateMachine.AwaitingPayment);
-        var paymentRequested = fakeOutbox.GetMessages<PaymentRequestedEvent>().ToList();
+        var paymentRequested = fakeOutbox.GetMessages<RequestPaymentCommand>().ToList();
         var reserveCommands = fakeOutbox.GetMessages<ReserveStockCommand>().ToList();
 
         using (new AssertionScope())

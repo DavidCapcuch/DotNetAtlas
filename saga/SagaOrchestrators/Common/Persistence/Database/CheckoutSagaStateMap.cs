@@ -98,7 +98,7 @@ public sealed class CheckoutSagaStateMap :
             .HasComment("Payment transaction id from PaymentProcessingSaga. Required for refund compensation.");
 
         entity.Property(x => x.PaymentRequestedAtUtc)
-            .HasComment("UTC timestamp when PaymentRequestedEvent was emitted.");
+            .HasComment("UTC timestamp when RequestPaymentCommand was emitted to payments.payment-commands (per ADR-0023; renamed from PaymentRequestedEvent).");
 
         entity.Property(x => x.PaymentCompletedAtUtc)
             .HasComment("UTC timestamp when PaymentCompletedSagaEvent was received.");

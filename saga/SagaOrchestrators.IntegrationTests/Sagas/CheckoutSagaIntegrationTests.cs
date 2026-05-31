@@ -185,7 +185,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             trackingAfterFanIn.Values.Should().AllSatisfy(entry =>
                 entry.Status.Should().Be(ReservationStatus.Reserved));
 
-            outboxMessages.Should().ContainSingle(om => om.Type == typeof(PaymentRequestedEvent).FullName!
+            outboxMessages.Should().ContainSingle(om => om.Type == typeof(RequestPaymentCommand).FullName!
                                                        && om.KafkaKey == correlationId.ToString());
         }
     }
@@ -254,7 +254,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         {
             compensatingState.CompensationTriggered.Should().BeTrue();
             compensatingState.PendingReleases.Should().Be(1, "only product1 is Reserved; product2 failed and product3 is still Pending");
-            compensatingState.ErrorCode.Should().Be("STOCK_UNAVAILABLE");
+            compensatingState.ErrorCode.Should().Be(CheckoutSagaErrorCodes.StockUnavailable);
             compensatingState.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingStockReservation));
 
             releaseCommands.Should().ContainSingle("only product1 holds an active reservation needing release")
@@ -310,7 +310,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
                 "the duplicate StockReservedEvent is skipped by the Pending-status guard");
 
             outboxMessages
-                .Where(om => om.Type == typeof(PaymentRequestedEvent).FullName!
+                .Where(om => om.Type == typeof(RequestPaymentCommand).FullName!
                              && om.KafkaKey == correlationId.ToString())
                 .Should().ContainSingle("the AwaitingPayment transition runs exactly once even with duplicate fan-in");
         }

@@ -157,32 +157,33 @@ Raised by the aggregate; dispatched in-process via `IDomainEventHandler<T>`. Nev
 
 **Topic:** `payments.transactions` — infinite retention (audit), partition key `CorrelationId`.
 
-The table below lists events Payments **produces** (via outbox → Kafka). The upstream `PaymentRequestedEvent` that *invokes* the Payments sub-orchestration is produced by Checkout / `PaymentProcessingSaga` — not by Payments — and is documented in [events-catalog.md § 2](events-catalog.md). Payments owns only the internal `PaymentRequestedDomainEvent` (raised when its own aggregate is created); there is no outbound `PaymentRequestedEvent` publisher in this BC.
+The table below lists external lifecycle events on `payments.transactions`. Producer attribution matters: most are Payments-BC-produced via outbox, but **`PaymentCompletedEvent` and `PaymentFailedEvent` are produced by `PaymentProcessingSaga`** (the sub-saga) — Payments raises matching internal `*DomainEvent`s for FSM-terminal observability but has no outbox publisher for them. The upstream message that **invokes** the Payments sub-orchestration is `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)); see § 7 below and [events-catalog.md § 2 / § 3](events-catalog.md).
 
-| External event | Triggered by | Consumer(s) |
-|---|---|---|
-| `PaymentAuthorizedEvent` | `PaymentAuthorizedDomainEvent` | PaymentProcessingSaga |
-| `PaymentAuthorizationFailedEvent` | `PaymentAuthorizationFailedDomainEvent` | PaymentProcessingSaga |
-| `PaymentCapturedEvent` | `PaymentCapturedDomainEvent` | PaymentProcessingSaga, **Invoicing** (enrichment trigger) |
-| `PaymentCaptureFailedEvent` | `PaymentCaptureFailedDomainEvent` | PaymentProcessingSaga |
-| `PaymentCompletedEvent` | `PaymentCompletedDomainEvent` | Checkout saga (drives `AwaitingConfirmation → Confirmed`) |
-| `PaymentFailedEvent` | `PaymentFailedDomainEvent` | Checkout saga (drives compensation) |
-| `PaymentRefundedEvent` | `PaymentRefundedDomainEvent` | Checkout saga (cancel-post-capture confirmation), **Invoicing** (credit-note trigger). Refund-confirmation email is deferred (would route as `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md), not as a Notifications subscription to this topic). |
-| `PaymentVoidedEvent` | `PaymentVoidedDomainEvent` | PaymentProcessingSaga |
+| External event | Producer | Triggered by | Consumer(s) |
+|---|---|---|---|
+| `PaymentAuthorizedEvent` | Payments BC | `PaymentAuthorizedDomainEvent` | PaymentProcessingSaga |
+| `PaymentAuthorizationFailedEvent` | Payments BC | `PaymentAuthorizationFailedDomainEvent` | PaymentProcessingSaga |
+| `PaymentCapturedEvent` | Payments BC | `PaymentCapturedDomainEvent` | PaymentProcessingSaga, **Invoicing** (enrichment trigger) |
+| `PaymentCaptureFailedEvent` | Payments BC | `PaymentCaptureFailedDomainEvent` | PaymentProcessingSaga |
+| `PaymentCompletedEvent` | **PaymentProcessingSaga** | saga `AwaitingCapture → PaymentCompleted` transition (Payments-side `PaymentCompletedDomainEvent` is internal-only and not translated to wire) | Checkout saga (drives `AwaitingPayment → AwaitingConfirmation`) |
+| `PaymentFailedEvent` | **PaymentProcessingSaga** | saga capture-failure / capture-timeout compensation path | Checkout saga (drives compensation) |
+| `PaymentRefundedEvent` | Payments BC | `PaymentRefundedDomainEvent` | Checkout saga (cancel-post-capture confirmation), **Invoicing** (credit-note trigger). Refund-confirmation email is deferred (would route as `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md), not as a Notifications subscription to this topic). |
+| `PaymentVoidedEvent` | Payments BC | `PaymentVoidedDomainEvent` | PaymentProcessingSaga |
 
 **Schema compatibility:** FORWARD_TRANSITIVE per [ADR-0007](../adr/0007-avro-compatibility-modes.md).
 
-**Known classification debt:** several `*Event`-named messages have exactly one consumer (PaymentProcessingSaga) and per master-design § 3.5 are really commands. The **Checkout saga agent** has explicit authority to propose renames (`PaymentRequestedEvent` → `RequestPaymentCommand` on the `payments.payment-commands` topic). Proposals surface in the session summary; user approval required before implementation.
+**Classification analysis:** the 1-consumer rows above are *fact-shaped* under [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)'s 2-part test (specific logic at consumer **+ producer awaits guaranteed feedback** — the second leg fails for every Payments-emitted lifecycle event and for the two saga-emitted terminals). They remain `*Event`-named. The one prior message in this BC that the test classifies as a **command** — what was `PaymentRequestedEvent` — has been renamed to `RequestPaymentCommand` and moved to `payments.payment-commands` (see § 7). See ADR-0023 for the per-message classification table and the rationale for deferring further renames.
 
 ---
 
 ## 7. Commands (Avro) + Command Topic
 
-**Topic:** `payments.payment-commands` — 7-day retention, partition key `CorrelationId`. Canonical name per [events-catalog.md § 3](events-catalog.md).
+**Topic:** `payments.payment-commands` — 7-day retention, partition key `CorrelationId`. Canonical name per [events-catalog.md § 3](events-catalog.md). Carries imperative intent toward the Payments aggregate (directly, or via its `PaymentProcessingSaga` sub-saga per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)).
 
 | Command | Producer | Consumer | Trigger |
 |---|---|---|---|
-| `AuthorizePaymentCommand` | PaymentProcessingSaga | Payments | Checkout saga → auth step |
+| `RequestPaymentCommand` | Checkout saga | PaymentProcessingSaga | Checkout saga reaches `AwaitingPayment`; renamed from `PaymentRequestedEvent` and moved off `payments.transactions` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md). The Checkout saga awaits a specific `PaymentCompletedEvent` / `PaymentFailedEvent` reply (correlated by `CorrelationId`) to advance its FSM. |
+| `AuthorizePaymentCommand` | PaymentProcessingSaga | Payments | Sub-saga's first command after receiving `RequestPaymentCommand` |
 | `CapturePaymentCommand` | PaymentProcessingSaga | Payments | After `PaymentAuthorized`, immediately capture (v1 single-step flow) |
 | `RequestRefundCommand` | PaymentProcessingSaga (Checkout compensation) | Payments | Cancel-post-capture path |
 | `VoidPaymentCommand` | PaymentProcessingSaga | Payments | Compensation pre-capture |
