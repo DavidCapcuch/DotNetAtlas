@@ -45,27 +45,31 @@ Then deploy to Kubernetes, ECS, or any container orchestrator with environment-b
 Use docker-compose and run along with the main application:
 
 ```yaml
-outbox-relay:
+outbox-relay-catalog:
   build:
     context: .
     dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
-  container_name: outbox-relay
+  container_name: outbox-relay-catalog
   restart: unless-stopped
   depends_on:
-    mssqldb:
+    postgresdb:
       condition: service_healthy
     kafka:
       condition: service_healthy
     schema-registry:
       condition: service_healthy
   environment:
-    - ConnectionStrings__Outbox=Server=mssqldb,1433;Database=Weather;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=true;
+    - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD}
     - KafkaProducer__BootstrapServers=broker:9092
-    - KafkaProducer__ClientId=outbox-relay-worker
+    - KafkaProducer__ClientId=outbox-relay-catalog-worker
+    # SchemaName/TableName are required and bind this relay to one schema (fail-closed if absent).
+    - OutboxRelay__SchemaName=catalog
+    - OutboxRelay__TableName=outbox_messages
     - OutboxRelay__PollingIntervalMs=2000
+    - OTEL_SERVICE_NAME=CatalogOutboxRelay
     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
   ports:
-    - "8088:8080"  # Health checks endpoint
+    - "8091:8080"  # Health checks endpoint
 ```
 
 ## Configuration
@@ -76,8 +80,8 @@ outbox-relay:
 | -------------------- | ------------------------------------ | -------------- |
 | `PollingIntervalMs`  | How often to poll for new messages   | 1000           |
 | `BatchSize`          | Max messages per batch               | 1000           |
-| `SchemaName`         | Database schema for outbox table     | weather        |
-| `TableName`          | Outbox table name                    | OutboxMessages |
+| `SchemaName`         | Database schema for the outbox table (bound per deployment via `OutboxRelay__SchemaName`) | _required_ |
+| `TableName`          | Outbox table name (bound per deployment via `OutboxRelay__TableName`)                      | _required_ |
 | `FlushTimeoutMs`     | Kafka flush timeout                  | 30000          |
 | `ShutdownTimeoutMs`  | Graceful shutdown timeout            | 60000          |
 
@@ -97,11 +101,13 @@ outbox-relay:
 ```json
 {
   "ConnectionStrings": {
-    "Outbox": "Server=localhost;Database=Weather;..."
+    "Outbox": "Host=localhost;Port=5433;Database=Catalog;Username=postgres;Password=..."
   },
   "OutboxRelay": {
     "PollingIntervalMs": 1000,
-    "BatchSize": 1000
+    "BatchSize": 1000,
+    "SchemaName": "catalog",
+    "TableName": "outbox_messages"
   },
   "KafkaProducer": {
     "BootstrapServers": "localhost:9094",

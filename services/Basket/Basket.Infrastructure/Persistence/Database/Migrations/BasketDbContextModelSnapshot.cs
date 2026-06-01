@@ -18,7 +18,7 @@ namespace Basket.Infrastructure.Persistence.Database.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("basket")
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -39,9 +39,9 @@ namespace Basket.Infrastructure.Persistence.Database.Migrations
                         .HasName("pk_inbox_messages");
 
                     b.HasIndex("ProcessedAtUtc")
-                        .HasDatabaseName("IX_InboxMessages_ProcessedAtUtc");
+                        .HasDatabaseName("ix_inbox_messages_processed_at_utc");
 
-                    b.ToTable("InboxMessages", "basket", t =>
+                    b.ToTable("inbox_messages", "basket", t =>
                         {
                             t.HasComment("Inbox pattern table for idempotent message processing. Tracks processed messages to prevent duplicate processing.");
                         });
@@ -100,7 +100,7 @@ namespace Basket.Infrastructure.Persistence.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_outbox_messages");
 
-                    b.ToTable("OutboxMessages", "basket", t =>
+                    b.ToTable("outbox_messages", "basket", t =>
                         {
                             t.HasComment("Outbox pattern table for storing domain events as Avro-serialized messages for reliable event publishing.");
                         });

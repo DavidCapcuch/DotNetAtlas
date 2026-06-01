@@ -26,7 +26,7 @@ namespace Invoicing.Infrastructure.Persistence.Database;
 /// tables (ADR-0018), the <see cref="PendingInvoice"/> +
 /// <see cref="PendingCreditNote"/> projection tables, the
 /// <c>inbox_messages</c> dedup table, the <c>Invoice</c> + <c>CreditNote</c>
-/// aggregate sets, and the <c>OutboxMessages</c> table so issuance persists
+/// aggregate sets, and the <c>outbox_messages</c> table so issuance persists
 /// atomically with the allocator increment and external-event publication.
 /// </summary>
 public sealed class InvoicingDbContext : DbContext, IInvoicingDbContext, IInboxDbContext, IOutboxDbContext

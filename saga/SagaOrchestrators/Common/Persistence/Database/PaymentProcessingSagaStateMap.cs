@@ -10,7 +10,7 @@ public sealed class PaymentProcessingSagaStateMap :
 {
     protected override void Configure(EntityTypeBuilder<PaymentProcessingSagaState> entity, ModelBuilder model)
     {
-        entity.ToTable("PaymentProcessingSagaState", SagaDbContext.DefaultSchemaName,
+        entity.ToTable("payment_processing_saga_state", SagaDbContext.DefaultSchemaName,
             t => t.HasComment("Saga state for payment processing orchestration."));
 
         // Primary key - configured by MassTransit SagaClassMap base
@@ -25,7 +25,7 @@ public sealed class PaymentProcessingSagaStateMap :
             .IsRequired();
 
         entity.HasIndex(x => x.CurrentState)
-            .HasDatabaseName("IX_PaymentSagaState_CurrentState");
+            .HasDatabaseName("ix_payment_processing_saga_state_current_state");
 
         // Ordering aggregate id this payment is attached to. Frozen at saga start
         // (the Checkout saga always creates the Order before requesting payment).
@@ -34,14 +34,14 @@ public sealed class PaymentProcessingSagaStateMap :
             .HasComment("Ordering aggregate id this payment is attached to. Frozen at saga start.");
 
         entity.HasIndex(x => x.OrderId)
-            .HasDatabaseName("IX_PaymentSagaState_OrderId");
+            .HasDatabaseName("ix_payment_processing_saga_state_order_id");
 
         // User and Payment Method
         entity.Property(x => x.UserId)
             .HasComment("User initiating the payment");
 
         entity.HasIndex(x => x.UserId)
-            .HasDatabaseName("IX_PaymentSagaState_UserId");
+            .HasDatabaseName("ix_payment_processing_saga_state_user_id");
 
         entity.Property(x => x.PaymentMethodId)
             .HasComment("Gateway-issued opaque payment-method token (Stripe 'pm_*', Adyen alphanumeric, …); 1-64 chars. Changed from uuid in the Wave-1 closeout C-2 fix.")
@@ -64,7 +64,7 @@ public sealed class PaymentProcessingSagaStateMap :
             .IsRequired();
 
         entity.HasIndex(x => x.IdempotencyKey)
-            .HasDatabaseName("IX_PaymentSagaState_IdempotencyKey")
+            .HasDatabaseName("ux_payment_processing_saga_state_idempotency_key")
             .IsUnique();
 
         // Authorization details
@@ -144,7 +144,7 @@ public sealed class PaymentProcessingSagaStateMap :
             x.CurrentState,
             CreatedAtUtc = x.CreatedUtc
         })
-            .HasDatabaseName("IX_PaymentSagaState_State_Created");
+            .HasDatabaseName("ix_payment_processing_saga_state_state_created");
 
         // Index for stuck saga health check queries
         entity.HasIndex(x => new
@@ -152,6 +152,6 @@ public sealed class PaymentProcessingSagaStateMap :
             x.CurrentState,
             LastUpdatedAtUtc = x.LastModifiedUtc
         })
-            .HasDatabaseName("IX_PaymentSagaState_State_LastUpdated");
+            .HasDatabaseName("ix_payment_processing_saga_state_state_last_updated");
     }
 }

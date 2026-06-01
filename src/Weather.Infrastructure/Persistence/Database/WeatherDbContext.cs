@@ -34,8 +34,12 @@ public class WeatherDbContext : DbContext, IWeatherDbContext, IInboxDbContext
         modelBuilder.ApplyConfigurationsFromAssembly(GetType().Assembly)
             .HasDefaultSchema(DefaultSchemaName);
 
-        modelBuilder.ConfigureOutbox(DefaultSchemaName);
-        modelBuilder.ConfigureInbox(DefaultSchemaName);
+        // src/Weather is deprecated reference scaffolding (slated for deletion) and is intentionally
+        // NOT part of the snake_case migration regeneration. Pin its outbox/inbox table names to the
+        // pre-existing PascalCase identifiers so the platform default flip to snake_case
+        // (outbox_messages / inbox_messages) does not desync this BC's model from its frozen migration.
+        modelBuilder.ConfigureOutbox(DefaultSchemaName, "OutboxMessages");
+        modelBuilder.ConfigureInbox(DefaultSchemaName, "InboxMessages");
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

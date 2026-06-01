@@ -57,13 +57,13 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
         builder.HasIndex(cn => cn.CreditNoteNumber)
             .IsUnique()
             .HasFilter("credit_note_number IS NOT NULL")
-            .HasDatabaseName("UX_CreditNotes_CreditNoteNumber");
+            .HasDatabaseName("ux_credit_notes_credit_note_number");
 
         builder.Property(cn => cn.OriginalInvoiceId)
             .HasComment("Identifier of the Invoice this credit note reverses.");
         builder.HasIndex(cn => cn.OriginalInvoiceId)
             .IsUnique()
-            .HasDatabaseName("UX_CreditNotes_OriginalInvoiceId");
+            .HasDatabaseName("ux_credit_notes_original_invoice_id");
 
         builder.Property(cn => cn.OriginalInvoiceNumber)
             .HasColumnName("original_invoice_number")
@@ -76,13 +76,13 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
 
         builder.Property(cn => cn.BuyerId)
             .HasComment("Buyer of the original invoice (and therefore the credit note).");
-        builder.HasIndex(cn => cn.BuyerId).HasDatabaseName("IX_CreditNotes_BuyerId");
+        builder.HasIndex(cn => cn.BuyerId).HasDatabaseName("ix_credit_notes_buyer_id");
 
         builder.Property(cn => cn.CorrelationId)
             .HasComment("Cancellation flow correlation id; used as idempotency key.");
         builder.HasIndex(cn => cn.CorrelationId)
             .IsUnique()
-            .HasDatabaseName("UX_CreditNotes_CorrelationId");
+            .HasDatabaseName("ux_credit_notes_correlation_id");
 
         builder.Property(cn => cn.IssueDate)
             .HasComment("UTC timestamp when the credit note was issued (number stamped + PDF stored).");

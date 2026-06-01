@@ -51,11 +51,11 @@ public class AppDbContext : DbContext, IInboxDbContext
         base.OnModelCreating(modelBuilder);
 
         // Use the ConfigureInbox extension method (recommended)
-        modelBuilder.ConfigureInbox(schemaName: "app", tableName: "InboxMessages");
+        modelBuilder.ConfigureInbox(schemaName: "app", tableName: "inbox_messages");
 
         // Or apply configuration directly
         // modelBuilder.ApplyConfiguration(
-        //     new InboxMessageConfiguration("app", "InboxMessages"));
+        //     new InboxMessageConfiguration("app", "inbox_messages"));
     }
 }
 ```
@@ -67,7 +67,7 @@ using Platform.ReliableMessaging.Inbox.EFCore;
 
 // Configure DbContext with UseExceptionProcessor (required!)
 services.AddDbContextPool<AppDbContext>(options => options
-    .UseSqlServer(connectionString)
+    .UseNpgsql(connectionString)
     .UseExceptionProcessor());  // From EntityFramework.Exceptions
 
 // Register inbox services
@@ -99,7 +99,7 @@ services.AddInbox<AppDbContext>();
 | Parameter | Description |
 |-----------|-------------|
 | `schemaName` | Database schema name (default: model's default schema or "dbo") |
-| `tableName` | Table name for inbox messages (default: "InboxMessages") |
+| `tableName` | Table name for inbox messages (default: "inbox_messages") |
 
 ## Usage with KafkaFlow
 

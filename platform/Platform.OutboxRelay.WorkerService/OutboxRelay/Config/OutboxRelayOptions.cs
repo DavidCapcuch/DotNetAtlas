@@ -28,8 +28,7 @@ public sealed class OutboxRelayOptions : IValidatableObject
     public required int BatchSize { get; set; }
 
     /// <summary>
-    /// Database schema name where the outbox table is located.
-    /// Defaults to "dbo" if not specified.
+    /// Database schema name where the outbox table is located (e.g. "catalog", "ordering").
     /// </summary>
     [Required]
     [RegularExpression("^[a-zA-Z][a-zA-Z0-9_]*$", ErrorMessage = "Schema name must be a valid SQL identifier")]
@@ -37,8 +36,7 @@ public sealed class OutboxRelayOptions : IValidatableObject
     public required string SchemaName { get; set; }
 
     /// <summary>
-    /// Database table name for the outbox messages.
-    /// Defaults to "OutboxMessages" if not specified.
+    /// Database table name for the outbox messages (the platform default is "outbox_messages").
     /// </summary>
     [Required]
     [RegularExpression("^[a-zA-Z][a-zA-Z0-9_]*$", ErrorMessage = "Table name must be a valid SQL identifier")]
