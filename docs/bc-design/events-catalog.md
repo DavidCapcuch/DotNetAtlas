@@ -52,7 +52,7 @@ Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 | D-3 | **One `ReserveStockCommand` per order line item** (Option A in Agent-5 prompt) | Matches Inventory's per-`ProductId` stream model (ADR-0006); gives natural per-item failure granularity; saga fan-in by `OrderId` correlates N responses. |
 | D-4 | **No dedicated `checkout.commands` topic** | Saga publishes imperative intent to `ordering.order-commands`, `inventory.reservation-commands`, and `payments.payment-commands`. A checkout-specific topic would duplicate infrastructure for no new semantics. |
 | D-5 | **Notifications is command-driven, NOT event-subscribed** (decision reversed from earlier intent) | Implementation lands on the command-driven pattern: producer BCs emit `SendEmailNotificationCommand` on `notifications.email-commands` with deterministic idempotency keys; Notifications routes/renders/sends and emits `EmailNotificationSentEvent` on `notifications.email-events`. Editorial control stays in the producing BC; channel routing stays local to Notifications. Notifications does NOT subscribe to `ordering.orders` / `inventory.reservations` / `payments.transactions` / `invoicing.invoices`. Full rationale: [notifications.md § 2](notifications.md). |
-| D-6 | **Outbox-relay is a separate container per service schema** | Follows the `outbox-relay`, `outbox-relay-saga`, `outbox-relay-ordering` precedent already in `docker-compose.yaml`. Each service gets its own relay with its own `OutboxRelay__SchemaName` binding. See § 6. |
+| D-6 | **Outbox-relay is a separate container per service schema** | One relay container per service schema in `docker-compose.yaml` (`outbox-relay-saga`, `outbox-relay-basket`, `outbox-relay-catalog`, `outbox-relay-inventory`, `outbox-relay-invoicing`, `outbox-relay-notifications`, `outbox-relay-ordering`, `outbox-relay-payments`). Each service gets its own relay with its own `OutboxRelay__SchemaName` binding. See § 6. |
 | D-7 | **Weather-remnant fully decommissioned pre-dispatch** | The `services/Order/` project, `AlertSubscription*Saga` sagas, and Kafka topic `order.alert-subscriptions` were deleted. Ordering is greenfield; no legacy topic coexistence remains. |
 | D-8 | **Basket sessions topic retains events for 30 days**; all other event-log topics use `compact + delete` (infinite retention) to preserve audit trail | Basket is ephemeral by definition. Order/Inventory events feed compliance audit; deleting them defeats the audit-trail purpose of § 2 of `inventory.md`. |
 | D-9 | **Command topics retain 7 days** | Commands are transient intent; after 7 days a replay is not operationally useful and keeping them consumes broker disk needlessly. |
@@ -412,65 +412,64 @@ All four target the `invoicing.invoices` topic (10-year retention, partition key
 
 ### 6.1 Summary
 
-Each new service (Catalog, Basket, Ordering, Inventory) has:
-- its own PostgreSQL schema (`catalog`, `basket`, `ordering`, `inventory`),
-- its own outbox table in that schema (`{schema}.OutboxMessages`),
+Each service has:
+- its own PostgreSQL schema (`catalog`, `basket`, `ordering`, `inventory`, …),
+- its own outbox table in that schema (`{schema}.outbox_messages`),
 - its own DbContext that implements `ITransactionalOutbox<T>` via `Platform.ReliableMessaging.Outbox.EFCore`,
 - its own outbox-relay container in `docker-compose.yaml` pointed at that schema.
 
-This matches the existing pattern exemplified by three containers already in `docker-compose.yaml`:
-- `outbox-relay` (schema `weather`, DB `Weather`) — lines 306–337
-- `outbox-relay-saga` (schema `saga`, DB `Weather`) — lines 339–371
-- `outbox-relay-ordering` (schema `ordering`, DB `Ordering`) — lines 373–404
+The full per-schema relay fleet currently in `docker-compose.yaml` is listed in § 6.2.
 
 The **worker** implementation is `platform/Platform.OutboxRelay.WorkerService/` — a single code project parameterized entirely by environment variables (`OutboxRelay__SchemaName`, `OutboxRelay__TableName`, `ConnectionStrings__Outbox`, `OTEL_SERVICE_NAME`). One Dockerfile, N container instances.
 
 **Recommended pattern: one relay container per service schema** (**not** embedded as `IHostedService` inside each service's `Program.cs`). Rationale:
 
-1. **Existing repo evidence.** The three current outbox-relay containers are all separate services in docker-compose. Going embedded would break this consistency.
+1. **Existing repo evidence.** The outbox-relay containers are all separate services in docker-compose (one per service schema). Going embedded would break this consistency.
 2. **Resource isolation.** Relay polls DB every 2 seconds (`OutboxRelay__PollingIntervalMs=2000`). Embedding it in the service's main process couples DB-poll traffic to the service's request-handling threads and memory budget.
 3. **Operational independence.** A relay restart does not restart the service (and vice-versa). For high-throughput services like Ordering this matters.
 4. **Symmetry with benchmarks.** `platform/Platform.OutboxRelay.Benchmark/` treats the relay as a stand-alone component; embedding would invalidate that benchmark's representativeness.
 
 **Non-recommendation (rejected):** registering the relay as `IHostedService` inside each service — examined per the Agent-5 brief. Rejected because: (a) no existing service in the repo does this; (b) it requires every service to pull `Platform.OutboxRelay.WorkerService` as a library reference, which inflates the API's deployed image; (c) it couples service uptime to relay uptime.
 
-### 6.2 Docker-compose additions (outbox relays)
+### 6.2 Docker-compose relay containers
 
-Four new relay containers to append to `docker-compose.yaml` (outside the `kafka-create-topic` block, alongside the existing three relays). Each follows the exact env-var shape of `outbox-relay-ordering` (lines 373–404). Implementation agent produces these in the devops wave; spec here is authoritative for the env-var keys.
+One relay container per service schema in `docker-compose.yaml` (outside the `kafka-create-topic` block). All share the same image/Dockerfile and differ only by `ConnectionStrings__Outbox`, `OutboxRelay__SchemaName`, `KafkaProducer__ClientId`, `OTEL_SERVICE_NAME`, and the published health port.
 
 | Container | DB | Schema | Port (health) | OTEL_SERVICE_NAME |
 |-----------|----|--------|---------------|-------------------|
+| `outbox-relay-saga` | `Saga` | `saga` | 8089 | `SagaOutboxRelay` |
+| `outbox-relay-basket` | `Basket` | `basket` | 8090 | `BasketOutboxRelay` |
 | `outbox-relay-catalog` | `Catalog` | `catalog` | 8091 | `CatalogOutboxRelay` |
-| `outbox-relay-basket` | `Basket` | `basket` | 8092 | `BasketOutboxRelay` |
-| `outbox-relay-inventory` | `Inventory` | `inventory` | 8093 | `InventoryOutboxRelay` |
-| `outbox-relay-ordering` | `Ordering` | `ordering` | 8090 | `OrderingOutboxRelay` (ALREADY EXISTS — keep) |
-
-The existing `outbox-relay` (Weather) stays in place during the COEXIST period (D-7). Port 8088 and 8089 remain taken.
+| `outbox-relay-inventory` | `Inventory` | `inventory` | 8092 | `InventoryOutboxRelay` |
+| `outbox-relay-invoicing` | `Invoicing` | `invoicing` | 8093 | `InvoicingOutboxRelay` |
+| `outbox-relay-notifications` | `Notifications` | `notifications` | 8094 | `NotificationsOutboxRelay` |
+| `outbox-relay-ordering` | `Ordering` | `ordering` | 8095 | `OrderingOutboxRelay` |
+| `outbox-relay-payments` | `Payments` | `payments` | 8096 | `PaymentsOutboxRelay` |
 
 ### 6.3 Per-service Program.cs registration
 
-Inside each service's `Program.cs`, register the outbox (NOT the relay worker) via `services.AddOutbox(...)` — identical to the Weather pattern at `Weather.Infrastructure.Common.MessagingDependencyInjection.AddKafkaMessaging` lines 135–148. This configures:
+Inside each service's `Program.cs`, register the outbox (NOT the relay worker) via `services.AddOutbox(...)` in the service's messaging DI. This configures:
 
 - `outbox.ConfigureMessageOrigin(ApplicationInfo.AppName)` — the `message.origin` header stamp.
 - `outbox.ConfigureAvroSerializerConfig(...)` — schema registry serialization.
 - `outbox.ConfigureSchemaRegistryConfig(...)` — schema registry URL.
 
-The relay process separately reads from the same `{schema}.OutboxMessages` table and produces to Kafka. No in-process work is done inside the service API pod for relay publishing.
+The relay process separately reads from the same `{schema}.outbox_messages` table and produces to Kafka. No in-process work is done inside the service API pod for relay publishing.
 
-Each service's DbContext (`CatalogDbContext`, `BasketDbContext`, `OrderingDbContext`, `InventoryDbContext`) implements `ITransactionalOutbox<T>` via `services.AddInbox<T>()` + `services.AddOutbox(...)`. Basket is a special case: it has no aggregate data in SQL, but its DbContext still owns the `basket.OutboxMessages` table (see `basket.md § 5.5`).
+Each service's DbContext (`CatalogDbContext`, `BasketDbContext`, `OrderingDbContext`, `InventoryDbContext`) implements `ITransactionalOutbox<T>` via `services.AddInbox<T>()` + `services.AddOutbox(...)`. Basket is a special case: it has no aggregate data in SQL, but its DbContext still owns the `basket.outbox_messages` table (see `basket.md § 5.5`).
 
 ### 6.4 Connection strings
 
 Per `docker-compose.yaml` pattern each relay points to its own DB. Implementation devops wave must:
 1. Ensure separate Postgres databases (`Catalog`, `Basket`, `Inventory`, `Ordering`) exist (the container `postgresdb` already runs the server; the databases are created by migration bootstrap).
-2. Add one connection-string line per service into appsettings under `ConnectionStrings__Outbox` (env var), matching the existing Ordering block at docker-compose lines 389.
+2. Add one connection-string line per service into appsettings under `ConnectionStrings__Outbox` (env var), matching the per-relay blocks in `docker-compose.yaml`.
 3. Verify `OutboxRelay__SchemaName` matches the EF Core schema exactly — schema names are case-sensitive in Postgres when quoted.
 
 ---
 
 ## 7. Inbox Registration per Service
 
-Each service registers the message types it will dedupe in `services.AddInbox(...)` in its `MessagingDependencyInjection` (following the Weather pattern at lines 124). Only external events/commands that enter the service via Kafka need inbox entries — internal domain events do not. The inbox tables live at `{schema}.InboxMessages` per existing `Platform.ReliableMessaging.Inbox.EFCore` conventions.
+Each service registers the message types it will dedupe in `services.AddInbox(...)` in its `MessagingDependencyInjection`. Only external events/commands that enter the service via Kafka need inbox entries — internal domain events do not. The inbox tables live at `{schema}.inbox_messages` per existing `Platform.ReliableMessaging.Inbox.EFCore` conventions.
 
 ### 7.1 Catalog Service
 

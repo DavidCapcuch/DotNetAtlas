@@ -169,7 +169,7 @@ The nWave methodology provides the most structured path. Each bounded context is
 ## Infrastructure Changes
 
 - **Docker Compose**: Add YARP container, new Kafka topics (`catalog.*`, `basket.*`, `ordering.*`, `inventory.*`), new outbox relay workers per schema
-- **Database**: Shared SQL Server, new schemas: `catalog`, `basket`, `ordering`, `inventory`
+- **Database**: Shared PostgreSQL, new schemas: `catalog`, `basket`, `ordering`, `inventory`
 - **CI/CD**: New test projects in coverage pipeline, new Docker builds per service
 - **Aspire** (optional): `.AddYarp()` for gateway, service discovery for internal HTTP clients
 
@@ -179,7 +179,7 @@ The nWave methodology provides the most structured path. Each bounded context is
 
 - Each BC has 4 test projects: UnitTests, IntegrationTests, ArchitectureTests, FunctionalTests
 - Architecture tests enforce no cross-BC direct references
-- Integration tests use Testcontainers (SQL Server, Redis, Kafka)
+- Integration tests use Testcontainers (PostgreSQL, Redis, Kafka)
 - Functional tests use WebApplicationFactory for full HTTP stack
 - Checkout saga tested with MassTransit test harness
 - `dotnet build -m` and `dotnet format` must pass (CI-enforced)

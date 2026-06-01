@@ -77,7 +77,7 @@ saga/SagaOrchestrators/
 ├── Payments/                # existing PaymentProcessingSaga — sub-saga reused
 └── (Orders/ previously held AlertSubscription sagas — removed pre-dispatch with the Weather cleanup)
 platform/                   # unchanged
-docker-compose.yaml         # 8 new topics, 3 new outbox-relay containers
+docker-compose.yaml         # new topics + one outbox-relay container per service schema
 ```
 
 ---
@@ -359,7 +359,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 New `kafka-topics --create ...` lines appended to [docker-compose.yaml](../docker-compose.yaml). Exact copy-paste block in [events-catalog.md § 4](bc-design/events-catalog.md), including the 10-year retention flag on `invoicing.invoices`.
 
-Also: `outbox-relay-*` containers for each new BC (`outbox-relay-catalog`, `outbox-relay-basket`, `outbox-relay-inventory`, `outbox-relay-ordering`, `outbox-relay-payments`, `outbox-relay-invoicing`). Pattern follows existing `outbox-relay-saga` precedent.
+Also: one `outbox-relay-*` container per service schema (`outbox-relay-saga`, `outbox-relay-basket`, `outbox-relay-catalog`, `outbox-relay-inventory`, `outbox-relay-invoicing`, `outbox-relay-notifications`, `outbox-relay-ordering`, `outbox-relay-payments`). Each binds to its service's `OutboxRelay__SchemaName`.
 
 New containers: `azurite` (local Azure Blob Storage emulator for invoice PDFs; first-party Aspire integration via `AddAzureStorage().RunAsEmulator()`) + `nginx-cdn` (local CDN emulation fronting Azurite) — see [ADR-0017](adr/0017-blob-storage-cdn.md).
 
@@ -684,7 +684,7 @@ Each references `Platform.Test.Framework` for shared fixtures (Testcontainers se
 
 Add to [docker-compose.yaml](../docker-compose.yaml):
 - Per-service `{bc}-db` entry (if the service uses its own Postgres schema, likely not — all BCs share a single Postgres instance; schemas are per-BC).
-- Per-service `outbox-relay-{bc}` container (Catalog, Basket, Inventory; Ordering reuses existing).
+- One `outbox-relay-{bc}` container per service schema (saga, basket, catalog, inventory, invoicing, notifications, ordering, payments).
 - 8 new topics in `kafka-create-topic` command (full list: [events-catalog.md § 4](bc-design/events-catalog.md)).
 
 ---
@@ -811,7 +811,7 @@ No change required; design-intent note added here for implementation agents to r
 
 ### E.8 Outbox-relay containers
 
-**Clarification:** Per [events-catalog.md § 6 D-6](bc-design/events-catalog.md), the implementation wave must add 3 new containers to [docker-compose.yaml](../docker-compose.yaml): `outbox-relay-catalog`, `outbox-relay-basket`, `outbox-relay-inventory` (Ordering already has `outbox-relay-ordering`). Each relay binds to the corresponding service's PostgreSQL schema. No container for the checkout saga — sagas use MassTransit's built-in outbox.
+**Clarification:** Per [events-catalog.md § 1.4 D-6](bc-design/events-catalog.md), `docker-compose.yaml` runs one outbox-relay container per service schema (`outbox-relay-saga`, `outbox-relay-basket`, `outbox-relay-catalog`, `outbox-relay-inventory`, `outbox-relay-invoicing`, `outbox-relay-notifications`, `outbox-relay-ordering`, `outbox-relay-payments`). Each relay binds to the corresponding service's PostgreSQL schema via `OutboxRelay__SchemaName`. The checkout saga has no relay container — sagas use MassTransit's built-in outbox.
 
 ### E.9 Kafka topic retention application
 
