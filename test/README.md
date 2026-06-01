@@ -115,3 +115,31 @@ Each assembly has exactly one collection:
 - `Weather.IntegrationTests` → `IntegrationTestCollection` (backed by `IntegrationTestFixture`)
 - `Weather.FunctionalTests` → `FunctionalTestCollection` (backed by `ApiTestFixture`)
 - `SagaOrchestrators.IntegrationTests` → `SagaTestCollection` (backed by `SagaIntegrationTestFixture`)
+
+## Choosing the Right Test Level (Harness Rules)
+
+Each test must use the harness appropriate to its level. **Never hand-reassemble a partial
+composition root** — a `new ServiceCollection()` that calls a *subset* of the app's real wiring
+(e.g. just `AddApplication()`), sets a few config keys, and `BuildServiceProvider()`. That is a
+drift-prone half-replica of `Program`: it silently diverges the moment a binding moves to a layer
+the test forgot to call (a real bug this rule was introduced to kill — an Application-only test
+that never bound `TopicsOptions`, so the handler emitted a `null` Kafka topic at runtime).
+
+| Level | Harness | Rule |
+| --- | --- | --- |
+| `*.UnitTests` | None | Construct the SUT directly with explicit deps/stubs (NSubstitute, fakes). No DI container, no infrastructure. |
+| `*.IntegrationTests` | Shared `AppFixture<Program>` fixture | Ride the per-assembly fixture (real composition root on Testcontainers). Swap **only** external seams via `ConfigureTestServices(... services.Replace(...) ...)` — repositories, HTTP adapters, `IOutboxWriter`→`FakeOutboxWriter`, `TimeProvider`. Resolve the SUT from the fixture (or construct it directly with the fixture's *real* `DbContext` + a stubbed port). |
+| `*.FunctionalTests` | Shared API fixture (`AppFixture<Program>`) | Drive the real HTTP surface through the fixture. |
+
+If a "unit" test needs real wiring/infra, it is an integration test — move it onto the fixture.
+If an "integration" test only exercises in-process logic with stubs and a directly-constructed SUT
+(no Testcontainers, no real composition root), it is a unit test — move it down a level.
+
+**The only legitimate `new ServiceCollection()` / `BuildServiceProvider()` in tests:**
+
+1. A `Common/` fixture overriding `AppFixture<Program>.ConfigureTestServices` — the canonical good pattern.
+2. A `*.UnitTests` test whose SUT **is** a DI-registration extension (e.g.
+   `Platform.ServiceDefaults.UnitTests` asserting `AddIdempotency()` registers the right services) —
+   here the container is the system under test, not a stand-in for `Program`.
+3. MassTransit `AddMassTransitTestHarness(...)` in saga/consumer unit tests — the framework's
+   prescribed in-memory harness; no app composition-root extension is called.

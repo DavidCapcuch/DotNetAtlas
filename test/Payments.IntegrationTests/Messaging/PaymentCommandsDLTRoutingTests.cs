@@ -42,12 +42,17 @@ public sealed class PaymentCommandsDLTRoutingTests
         // Expected wiring once the Kafka testcontainer harness exists:
         //
         // 1. Boot KafkaTestContainer + SchemaRegistryTestContainer alongside the Postgres
-        //    testcontainer the existing IntegrationTestFixture already starts.
+        //    testcontainer the existing IntegrationTestFixture already starts (add them to the
+        //    fixture's PreSetupAsync, mirroring the Postgres container).
         //
-        // 2. Configure the production Payments composition root against the test cluster:
-        //      services.UseKafkaSettings(_kafkaContainer.KafkaOptions)
-        //      services.AddApplication();
-        //      services.AddKafkaMessaging(configuration);  // includes the new RetrySimple(8) + DLT.
+        // 2. Drive the REAL composition root through the shared AppFixture<Program> fixture — do
+        //    NOT hand-assemble a ServiceCollection (no services.AddApplication()/AddKafkaMessaging()
+        //    in the test). Instead, extend IntegrationTestFixture.ConfigureAppHost to point the
+        //    broker + schema-registry settings at the test cluster
+        //    (UseSetting("Kafka:Brokers:0", _kafkaContainer.BootstrapAddress), …) so Program's own
+        //    AddKafkaMessaging wires the production KafkaFlow runtime — RetrySimple(8) +
+        //    DeadLetterMiddleware — against the test container. Program guards kafkaBus.StartAsync()
+        //    with !IsTesting(), so that guard also needs a test-aware opt-in to actually consume.
         //
         // 3. Inject a DbContext interceptor that throws DbUpdateException on every
         //    SaveChangesAsync against the inbox/aggregate row for the target PaymentId — surviving
