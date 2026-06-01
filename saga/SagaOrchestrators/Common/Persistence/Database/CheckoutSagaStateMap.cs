@@ -10,7 +10,7 @@ public sealed class CheckoutSagaStateMap :
 {
     protected override void Configure(EntityTypeBuilder<CheckoutSagaState> entity, ModelBuilder model)
     {
-        entity.ToTable("CheckoutSagaState", SagaDbContext.DefaultSchemaName,
+        entity.ToTable("checkout_saga_state", SagaDbContext.DefaultSchemaName,
             t => t.HasComment("Saga state for the checkout orchestration."));
 
         // Primary key - configured by MassTransit SagaClassMap base
@@ -25,14 +25,14 @@ public sealed class CheckoutSagaStateMap :
             .IsRequired();
 
         entity.HasIndex(x => x.CurrentState)
-            .HasDatabaseName("IX_CheckoutSagaState_CurrentState");
+            .HasDatabaseName("ix_checkout_saga_state_current_state");
 
         // Buyer / user data
         entity.Property(x => x.UserId)
             .HasComment("User initiating checkout. Becomes Ordering's BuyerId.");
 
         entity.HasIndex(x => x.UserId)
-            .HasDatabaseName("IX_CheckoutSagaState_UserId");
+            .HasDatabaseName("ix_checkout_saga_state_user_id");
 
         entity.Property(x => x.TotalAmount)
             .HasComment("Sum of basket line totals captured at checkout initiation.")
@@ -68,7 +68,7 @@ public sealed class CheckoutSagaStateMap :
             .HasComment("Ordering aggregate id assigned after OrderCreatedEvent. Null until OrderCreated arrives.");
 
         entity.HasIndex(x => x.OrderId)
-            .HasDatabaseName("IX_CheckoutSagaState_OrderId");
+            .HasDatabaseName("ix_checkout_saga_state_order_id");
 
         entity.Property(x => x.OrderCreatedAtUtc)
             .HasComment("UTC timestamp when Ordering reported the order created.");
@@ -172,7 +172,7 @@ public sealed class CheckoutSagaStateMap :
             x.CurrentState,
             CreatedAtUtc = x.CreatedUtc
         })
-            .HasDatabaseName("IX_CheckoutSagaState_State_Created");
+            .HasDatabaseName("ix_checkout_saga_state_state_created");
 
         // Index for stuck saga health check queries
         entity.HasIndex(x => new
@@ -180,6 +180,6 @@ public sealed class CheckoutSagaStateMap :
             x.CurrentState,
             LastUpdatedAtUtc = x.LastModifiedUtc
         })
-            .HasDatabaseName("IX_CheckoutSagaState_State_LastUpdated");
+            .HasDatabaseName("ix_checkout_saga_state_state_last_updated");
     }
 }

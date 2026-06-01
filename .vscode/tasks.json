@@ -422,13 +422,13 @@
     {
       "id": "FromMigration",
       "description": "From migration (leave empty for initial)",
-      "default": "20251112184015_CreateOutboxMessagesTable",
+      "default": "",
       "type": "promptString"
     },
     {
       "id": "ToMigration",
       "description": "To migration",
-      "default": "20251226184930_AddSubscriberAndInboxTables",
+      "default": "CreateCatalogTables",
       "type": "promptString"
     },
     {

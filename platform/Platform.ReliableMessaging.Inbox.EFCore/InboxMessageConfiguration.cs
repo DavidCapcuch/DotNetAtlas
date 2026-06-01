@@ -17,8 +17,8 @@ public class InboxMessageConfiguration : IEntityTypeConfiguration<InboxMessage>
     /// Initializes a new instance of the <see cref="InboxMessageConfiguration"/> class.
     /// </summary>
     /// <param name="schemaName">The database schema name.</param>
-    /// <param name="tableName">The table name. Defaults to "InboxMessages".</param>
-    public InboxMessageConfiguration(string schemaName = "dbo", string tableName = "InboxMessages")
+    /// <param name="tableName">The table name. Defaults to "inbox_messages".</param>
+    public InboxMessageConfiguration(string schemaName, string tableName = "inbox_messages")
     {
         _schemaName = schemaName;
         _tableName = tableName;
@@ -40,6 +40,6 @@ public class InboxMessageConfiguration : IEntityTypeConfiguration<InboxMessage>
             .HasComment("UTC timestamp when the message was processed.");
 
         builder.HasIndex(i => i.ProcessedAtUtc)
-            .HasDatabaseName($"IX_{_tableName}_ProcessedAtUtc");
+            .HasDatabaseName($"ix_{_tableName}_processed_at_utc");
     }
 }

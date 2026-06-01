@@ -41,13 +41,13 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(o => o.BuyerId)
             .HasComment("JWT sub of the buyer who placed the order.");
-        builder.HasIndex(o => o.BuyerId).HasDatabaseName("IX_Orders_BuyerId");
+        builder.HasIndex(o => o.BuyerId).HasDatabaseName("ix_orders_buyer_id");
 
         builder.Property(o => o.CorrelationId)
             .HasComment("Checkout saga correlation id. Idempotency key for CreateOrderCommand.");
         builder.HasIndex(o => o.CorrelationId)
             .IsUnique()
-            .HasDatabaseName("UX_Orders_CorrelationId");
+            .HasDatabaseName("ux_orders_correlation_id");
 
         builder.Property(o => o.PaymentMethodId)
             .HasComment("Payments-side payment method reference.");
@@ -81,7 +81,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasComment("Row-level audit: last-modified timestamp (UTC). Set by interceptor.");
 
         builder.HasIndex(o => new { o.BuyerId, o.CreatedAtUtc })
-            .HasDatabaseName("IX_Orders_BuyerId_CreatedAtUtc");
+            .HasDatabaseName("ix_orders_buyer_id_created_at_utc");
 
         // Total as owned Money (flat amount + currency).
         builder.OwnsOne(o => o.Total, total =>

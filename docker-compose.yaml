@@ -1046,7 +1046,7 @@ services:
       - OutboxRelay__PollingIntervalMs=2000
       - OutboxRelay__BatchSize=100
       - OutboxRelay__SchemaName=saga
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=SagaOutboxRelay
     ports:
@@ -1082,7 +1082,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-basket-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=basket
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=BasketOutboxRelay
@@ -1119,7 +1119,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-catalog-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=catalog
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=CatalogOutboxRelay
@@ -1156,7 +1156,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-inventory-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=inventory
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=InventoryOutboxRelay
@@ -1193,7 +1193,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-invoicing-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=invoicing
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=InvoicingOutboxRelay
@@ -1230,7 +1230,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-notifications-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=notifications
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=NotificationsOutboxRelay
@@ -1267,7 +1267,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-ordering-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=ordering
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=OrderingOutboxRelay
@@ -1304,7 +1304,7 @@ services:
       - KafkaProducer__ClientId=outbox-relay-payments-worker
       - KafkaProducer__LingerMs=5
       - OutboxRelay__SchemaName=payments
-      - OutboxRelay__TableName=OutboxMessages
+      - OutboxRelay__TableName=outbox_messages
       - OutboxRelay__PollingIntervalMs=2000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=PaymentsOutboxRelay

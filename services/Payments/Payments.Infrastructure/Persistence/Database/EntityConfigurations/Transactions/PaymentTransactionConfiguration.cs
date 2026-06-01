@@ -19,8 +19,8 @@ namespace Payments.Infrastructure.Persistence.Database.EntityConfigurations.Tran
 /// <item>Owned <see cref="Money"/>, <see cref="ValueObjects.GatewayResponseCode"/>, and
 /// <see cref="ValueObjects.FailureInfo"/> value objects flattened onto sibling columns.</item>
 /// <item>SmartEnum conversions for <see cref="PaymentStatus"/> + <see cref="FailureReason"/>.</item>
-/// <item>Indexes: unique <c>UX_PaymentTransactions_CorrelationId</c> (saga-idempotency key),
-/// non-unique <c>IX_PaymentTransactions_BuyerId</c> + <c>IX_PaymentTransactions_OrderId</c>
+/// <item>Indexes: unique <c>ux_payment_transactions_correlation_id</c> (saga-idempotency key),
+/// non-unique <c>ix_payment_transactions_buyer_id</c> + <c>ix_payment_transactions_order_id</c>
 /// for admin lookups.</item>
 /// </list>
 /// </summary>
@@ -48,17 +48,17 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
             .HasComment("Originating saga correlation id. Idempotency key for the saga-issued AuthorizePaymentCommand.");
         builder.HasIndex(t => t.CorrelationId)
             .IsUnique()
-            .HasDatabaseName("UX_PaymentTransactions_CorrelationId");
+            .HasDatabaseName("ux_payment_transactions_correlation_id");
 
         builder.Property(t => t.BuyerId)
             .HasComment("JWT sub of the buyer the payment is for.");
         builder.HasIndex(t => t.BuyerId)
-            .HasDatabaseName("IX_PaymentTransactions_BuyerId");
+            .HasDatabaseName("ix_payment_transactions_buyer_id");
 
         builder.Property(t => t.OrderId)
             .HasComment("Ordering aggregate id this payment is attached to (frozen at creation; debugging/admin-lookup convenience).");
         builder.HasIndex(t => t.OrderId)
-            .HasDatabaseName("IX_PaymentTransactions_OrderId");
+            .HasDatabaseName("ix_payment_transactions_order_id");
 
         builder.Property(t => t.Status)
             .HasComment("Lifecycle status (Requested / Authorized / Captured / Completed / Failed / Voided / Refunded).")

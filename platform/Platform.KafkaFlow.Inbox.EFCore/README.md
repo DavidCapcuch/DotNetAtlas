@@ -27,7 +27,7 @@ public class AppDbContext : DbContext, IInboxDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ConfigureInbox(schemaName: "app", tableName: "InboxMessages");
+        modelBuilder.ConfigureInbox(schemaName: "app", tableName: "inbox_messages");
     }
 }
 ```
@@ -36,7 +36,7 @@ public class AppDbContext : DbContext, IInboxDbContext
 
 ```csharp
 services.AddDbContextPool<AppDbContext>(options => options
-    .UseSqlServer(connectionString)
+    .UseNpgsql(connectionString)
     .UseExceptionProcessor());  // Required for detecting UQ constraint violations of MessageId
 
 services.AddInbox<AppDbContext>();
@@ -66,10 +66,10 @@ services.AddKafka(kafka => kafka
 │                    InboxMiddleware                          │
 │                                                             │
 │  1. Extract message.id from headers                         │
-│  2. Check if message.id exists in InboxMessages table       │
+│  2. Check if message.id exists in inbox_messages table      │
 │  3. If exists → Skip (already processed)                    │
 │  4. If not exists → Continue to next middleware             │
-│  5. After successful processing → Add to InboxMessages      │
+│  5. After successful processing → Add to inbox_messages     │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼

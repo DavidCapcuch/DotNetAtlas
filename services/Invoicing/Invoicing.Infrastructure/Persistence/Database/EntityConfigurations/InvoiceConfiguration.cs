@@ -63,18 +63,18 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.HasIndex(i => i.InvoiceNumber)
             .IsUnique()
             .HasFilter("invoice_number IS NOT NULL")
-            .HasDatabaseName("UX_Invoices_InvoiceNumber");
+            .HasDatabaseName("ux_invoices_invoice_number");
 
         builder.Property(i => i.BuyerId)
             .HasComment("JWT sub of the buyer the invoice is issued to.");
-        builder.HasIndex(i => i.BuyerId).HasDatabaseName("IX_Invoices_BuyerId");
+        builder.HasIndex(i => i.BuyerId).HasDatabaseName("ix_invoices_buyer_id");
 
         builder.Property(i => i.OrderId)
             .HasComment("Reference to the Ordering Order the invoice settles.");
         // Unique — at most one Invoice per Order (M7 idempotency contract).
         builder.HasIndex(i => i.OrderId)
             .IsUnique()
-            .HasDatabaseName("UX_Invoices_OrderId");
+            .HasDatabaseName("ux_invoices_order_id");
 
         builder.Property(i => i.PaymentId)
             .HasComment("Reference to the Payments transaction the invoice settles.");
@@ -84,7 +84,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         // Unique — gap-free correlation: M7 short-circuits on this in IssueInvoiceCommandHandler.
         builder.HasIndex(i => i.CorrelationId)
             .IsUnique()
-            .HasDatabaseName("UX_Invoices_CorrelationId");
+            .HasDatabaseName("ux_invoices_correlation_id");
 
         builder.Property(i => i.IssueDate)
             .HasComment("UTC timestamp when the invoice transitioned to Issued.");

@@ -47,11 +47,11 @@ public class AppDbContext : DbContext, IOutboxDbContext
         base.OnModelCreating(modelBuilder);
 
         // Use the ConfigureOutbox extension method (recommended)
-        modelBuilder.ConfigureOutbox(schemaName: "app", tableName: "OutboxMessages");
+        modelBuilder.ConfigureOutbox(schemaName: "app", tableName: "outbox_messages");
 
         // Or apply configuration directly
         // modelBuilder.ApplyConfiguration(
-        //     new OutboxMessageConfiguration("app", "OutboxMessages"));
+        //     new OutboxMessageConfiguration("app", "outbox_messages"));
     }
 }
 ```
@@ -247,7 +247,7 @@ public class OrderEventKafkaHandler : IMessageHandler<OrderPlacedEvent>
 ┌─────────────────────────────────────────────────────────────┐
 │                    Outbox Relay Worker                       │
 │                                                              │
-│  1. Poll OutboxMessages table for new messages              │
+│  1. Poll outbox_messages table for new messages             │
 │  2. Publish to Kafka with headers                           │
 │  3. Delete successfully published messages                   │
 └─────────────────────────────────────────────────────────────┘

@@ -25,7 +25,7 @@ public class SagaDbContext : MassTransit.EntityFrameworkCoreIntegration.SagaDbCo
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.HasDefaultSchema(DefaultSchemaName);
-        modelBuilder.ConfigureOutbox(schemaName: DefaultSchemaName, tableName: "OutboxMessages");
+        modelBuilder.ConfigureOutbox(schemaName: DefaultSchemaName);
     }
 
     protected override IEnumerable<ISagaClassMap> Configurations

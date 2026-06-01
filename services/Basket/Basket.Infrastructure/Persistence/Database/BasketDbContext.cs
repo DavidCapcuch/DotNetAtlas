@@ -20,14 +20,14 @@ namespace Basket.Infrastructure.Persistence.Database;
 /// Per [ADR-0003](../../../../docs/adr/0003-basket-as-technical-bc.md), Basket
 /// is a technical bounded context whose aggregate lives in <c>redis-basket</c>,
 /// not Postgres. The sole purpose of this DbContext is the transactional
-/// outbox + inbox; it carries the <c>OutboxMessages</c> and <c>InboxMessages</c>
+/// outbox + inbox; it carries the <c>outbox_messages</c> and <c>inbox_messages</c>
 /// tables and nothing else. An architecture test asserts that the type
 /// never exposes a <c>DbSet&lt;Basket&gt;</c>.
 /// </para>
 /// <para>
 /// The <c>basket</c> schema name matches the relay configuration pinned in
 /// <c>docker-compose.yaml</c> (<c>OutboxRelay__SchemaName=basket</c>); the
-/// relay container tails the <c>basket.OutboxMessages</c> table and republishes
+/// relay container tails the <c>basket.outbox_messages</c> table and republishes
 /// the Avro payload to the <c>basket.sessions</c> Kafka topic.
 /// </para>
 /// </remarks>

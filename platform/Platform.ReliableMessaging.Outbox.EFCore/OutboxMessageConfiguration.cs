@@ -16,8 +16,8 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
     /// Initializes a new instance of the <see cref="OutboxMessageConfiguration"/> class.
     /// </summary>
     /// <param name="schemaName">The database schema name.</param>
-    /// <param name="tableName">The table name. Defaults to "OutboxMessages".</param>
-    public OutboxMessageConfiguration(string schemaName, string tableName = "OutboxMessages")
+    /// <param name="tableName">The table name. Defaults to "outbox_messages".</param>
+    public OutboxMessageConfiguration(string schemaName, string tableName = "outbox_messages")
     {
         _schemaName = schemaName;
         _tableName = tableName;
