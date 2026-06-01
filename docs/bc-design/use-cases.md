@@ -1534,7 +1534,7 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 - **Side-effects:** allocates credit-note number (`CreditNoteNumber` format `CN-YYYY-NNNNNN`), renders PDF, uploads to blob, persists `CreditNote` aggregate in `Issued` state, links to source `Invoice` (transitions invoice to `Cancelled` on full-amount path).
 - **Result paths:**
   - `Result.Ok(CreditNoteId)` — happy path.
-  - `Result.Fail(InvoicingErrors.PartialRefundNotSupportedV1())` — payment refund amount < invoice total (501; inbox commits per H3 disposition — see Invoicing-followups [#124](https://github.com/DavidCapcuch/DotNetAtlas/issues/124)).
+  - `Result.Fail(InvoicingErrors.PartialRefundNotSupportedV1())` — payment refund amount < invoice total (501; the convergence consumer logs a warning and commits the inbox row rather than DLT'ing — partial-refund credit notes are planned scope, see [roadmap.md § 2.3 Invoicing](../roadmap.md)).
   - `Throw DataIntegrityException(Invoicing.CreditNoteRefersToCancelledInvoice)` — bug-class; DLT.
 - **Domain events:** `CreditNoteIssuedDomainEvent` + `InvoiceCancelledDomainEvent` (when the full-amount credit-note flips the invoice to `Cancelled`). Outbox publishers emit Avro `CreditNoteIssuedEvent` + `InvoiceCancelledEvent` on `invoicing.invoices`.
 
