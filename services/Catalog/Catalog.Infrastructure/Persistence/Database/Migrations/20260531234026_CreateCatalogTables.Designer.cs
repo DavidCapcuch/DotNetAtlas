@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    [Migration("20260528172152_TrimColumnCommentNoise")]
-    partial class TrimColumnCommentNoise
+    [Migration("20260531234026_CreateCatalogTables")]
+    partial class CreateCatalogTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -91,7 +91,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_sellable")
-                        .HasComment("Computed flag — wired up by the StockLevelChanged Kafka inbox consumer.");
+                        .HasComment("Computed flag — wired up by the StockLevelChangedEvent Kafka inbox consumer.");
 
                     b.Property<DateTimeOffset>("LastUpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -125,26 +125,26 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("status")
-                        .HasComment("Lifecycle status name (Draft|Active|Discontinued).");
+                        .HasComment("Lifecycle status name (Active|Discontinued).");
 
                     b.HasKey("ProductId")
                         .HasName("pk_product_search_view");
 
                     b.HasIndex("CategoryId")
-                        .HasDatabaseName("IX_ProductSearchView_CategoryId");
+                        .HasDatabaseName("ix_product_search_view_category_id");
 
                     b.HasIndex("CategoryPath")
-                        .HasDatabaseName("IX_ProductSearchView_CategoryPath");
+                        .HasDatabaseName("ix_product_search_view_category_path");
 
                     b.HasIndex("PriceAmount")
-                        .HasDatabaseName("IX_ProductSearchView_PriceAmount");
+                        .HasDatabaseName("ix_product_search_view_price_amount");
 
                     b.HasIndex("Sku")
                         .IsUnique()
-                        .HasDatabaseName("UX_ProductSearchView_Sku");
+                        .HasDatabaseName("ux_product_search_view_sku");
 
                     b.HasIndex("Status")
-                        .HasDatabaseName("IX_ProductSearchView_Status");
+                        .HasDatabaseName("ix_product_search_view_status");
 
                     b.ToTable("product_search_view", "catalog", t =>
                         {
@@ -229,16 +229,16 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status")
-                        .HasComment("Lifecycle status (Draft|Active|Discontinued); SmartEnum integer Value.");
+                        .HasComment("Lifecycle status (Active|Discontinued); SmartEnum integer Value.");
 
                     b.HasKey("Id")
                         .HasName("pk_products");
 
                     b.HasIndex("CategoryId")
-                        .HasDatabaseName("IX_Products_CategoryId");
+                        .HasDatabaseName("ix_products_category_id");
 
                     b.HasIndex("Status")
-                        .HasDatabaseName("IX_Products_Status");
+                        .HasDatabaseName("ix_products_status");
 
                     b.ToTable("products", "catalog", t =>
                         {
@@ -262,9 +262,9 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                         .HasName("pk_inbox_messages");
 
                     b.HasIndex("ProcessedAtUtc")
-                        .HasDatabaseName("IX_InboxMessages_ProcessedAtUtc");
+                        .HasDatabaseName("ix_inbox_messages_processed_at_utc");
 
-                    b.ToTable("InboxMessages", "catalog", t =>
+                    b.ToTable("inbox_messages", "catalog", t =>
                         {
                             t.HasComment("Inbox pattern table for idempotent message processing. Tracks processed messages to prevent duplicate processing.");
                         });
@@ -323,7 +323,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_outbox_messages");
 
-                    b.ToTable("OutboxMessages", "catalog", t =>
+                    b.ToTable("outbox_messages", "catalog", t =>
                         {
                             t.HasComment("Outbox pattern table for storing domain events as Avro-serialized messages for reliable event publishing.");
                         });
@@ -357,7 +357,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                             b1.HasKey("CategoryId");
 
                             b1.HasIndex("Value")
-                                .HasDatabaseName("IX_Categories_Path");
+                                .HasDatabaseName("ix_categories_path");
 
                             b1.ToTable("categories", "catalog");
 
@@ -532,7 +532,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
 
                             b1.HasIndex("Value")
                                 .IsUnique()
-                                .HasDatabaseName("UX_Products_Sku");
+                                .HasDatabaseName("ux_products_sku");
 
                             b1.ToTable("products", "catalog");
 

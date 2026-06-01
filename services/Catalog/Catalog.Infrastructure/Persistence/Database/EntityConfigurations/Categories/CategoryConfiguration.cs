@@ -49,7 +49,7 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
                 .HasMaxLength(256)
                 .IsRequired()
                 .HasComment("Materialized closure (max depth 5).");
-            path.HasIndex(p => p.Value).HasDatabaseName("IX_Categories_Path");
+            path.HasIndex(p => p.Value).HasDatabaseName("ix_categories_path");
         });
         builder.Navigation(c => c.Path).IsRequired();
     }
