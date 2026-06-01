@@ -6,14 +6,13 @@ using Platform.ReliableMessaging.Outbox.EFCore;
 namespace Platform.OutboxRelay.WorkerService.Common;
 
 /// <summary>
-/// Dependency injection extensions for persistence infrastructure.
-/// Configures database (EF Core) and distributed caching (Redis + FusionCache).
+/// Dependency injection extensions for persistence infrastructure (EF Core / PostgreSQL).
 /// </summary>
 public static class PersistenceDependencyInjection
 {
     /// <summary>
-    /// Configures Entity Framework Core database context with SQL Server.
-    /// Sets up connection pooling, interceptors, retry policies, seeding, and outbox pattern.
+    /// Configures the Entity Framework Core outbox context with PostgreSQL (Npgsql).
+    /// Sets up the pooled DbContext factory, connection retry policy, and snake_case naming convention.
     /// </summary>
     public static IServiceCollection AddDatabase(
         this IServiceCollection services,
