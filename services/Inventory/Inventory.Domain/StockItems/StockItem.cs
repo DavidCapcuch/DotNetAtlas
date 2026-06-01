@@ -248,7 +248,8 @@ public sealed class StockItem : AggregateRoot<Guid>
             case ReservationStatus.Released:
                 // Idempotent replay — reason is not re-checked because ReservationInfo
                 // does not retain the original ReleaseReason (that lives on the stream +
-                // ReservationAuditView). Safe because the saga issues at-least-once.
+                // ReservationAuditView). Safe because releases are at-least-once
+                // (saga compensation + the TTL expiry worker).
                 return Result.Ok();
 
             case ReservationStatus.Confirmed:
