@@ -9,13 +9,14 @@ using Microsoft.Extensions.Options;
 using Platform.SharedKernel.ValueObjects;
 using Xunit;
 
-namespace Invoicing.IntegrationTests.Pdf;
+namespace Invoicing.UnitTests.Pdf;
 
 /// <summary>
-/// Integration tests for <see cref="QuestPdfInvoiceGenerator"/>. No Testcontainers needed
-/// — PDF generation is pure in-process. The determinism tests are the primary acceptance
-/// gate for ADR-0019 (two regenerations of the same aggregate must produce byte-identical
-/// PDFs, so the SHA-256 content hash is stable across runs and across library upgrades).
+/// Unit tests for <see cref="QuestPdfInvoiceGenerator"/>. PDF generation is pure in-process
+/// (no Testcontainers, no DI container) — the generator is constructed directly. The
+/// determinism tests are the primary acceptance gate for ADR-0019 (two regenerations of the
+/// same aggregate must produce byte-identical PDFs, so the SHA-256 content hash is stable
+/// across runs and across library upgrades).
 /// </summary>
 public sealed class QuestPdfInvoiceGeneratorTests
 {
