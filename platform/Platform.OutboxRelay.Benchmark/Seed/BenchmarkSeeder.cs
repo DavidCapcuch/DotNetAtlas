@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Bogus;
+using Catalog.Products;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
@@ -11,13 +12,12 @@ using Platform.Avro.UniversalSerDes;
 using Platform.OutboxRelay.WorkerService.OutboxRelay;
 using Platform.ReliableMessaging.Outbox.Core;
 using Serilog;
-using Weather.Forecast;
 
 namespace Platform.OutboxRelay.Benchmark.Seed;
 
 /// <summary>
-/// Seeds the outbox table with ForecastRequestedEvent messages using Bogus faker,
-/// parallel Avro serialization, and Npgsql binary COPY for high-performance bulk insertion.
+/// Seeds the outbox table with ProductCreatedEvent messages using Bogus faker,
+/// Avro serialization, and Npgsql binary COPY for high-performance bulk insertion.
 /// </summary>
 public class BenchmarkSeeder
 {
@@ -38,7 +38,7 @@ public class BenchmarkSeeder
     }
 
     /// <summary>
-    /// Seeds the specified number of ForecastRequestedEvent messages into the outbox table.
+    /// Seeds the specified number of ProductCreatedEvent messages into the outbox table.
     /// Uses Bogus for generation, serialization, and Npgsql binary COPY for high-performance insertion.
     /// </summary>
     public async Task SeedAsync(
@@ -49,8 +49,8 @@ public class BenchmarkSeeder
 
         var startTime = DateTime.UtcNow;
 
-        var forecastEvents = GenerateForecastRequestedEvents(messageCountToSeed);
-        var outboxMessages = BuildOutboxMessagesFromForecastEvents(forecastEvents);
+        var productEvents = GenerateProductCreatedEvents(messageCountToSeed);
+        var outboxMessages = BuildOutboxMessagesFromProductEvents(productEvents);
         await BulkInsertOutboxMessagesAsync(outboxMessages, ct);
 
         var elapsedSeconds = (DateTime.UtcNow - startTime).TotalSeconds;
@@ -61,47 +61,47 @@ public class BenchmarkSeeder
         Log.Information("Sample message size: {Size} bytes", sampleMessage.AvroPayload.Length);
     }
 
-    private static List<ForecastRequestedEvent> GenerateForecastRequestedEvents(int count)
+    private static List<ProductCreatedEvent> GenerateProductCreatedEvents(int count)
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         Randomizer.Seed = new Random(420_69);
 
-        Log.Information("Generating {Count:N0} ForecastRequestedEvent messages...", count);
+        Log.Information("Generating {Count:N0} ProductCreatedEvent messages...", count);
 
-        var forecastRequestedEventFaker = new ForecastRequestedEventFaker();
-        var forecastRequestedEvents = forecastRequestedEventFaker.Generate(count);
+        var productCreatedEventFaker = new ProductCreatedEventFaker();
+        var productCreatedEvents = productCreatedEventFaker.Generate(count);
 
         var elapsedSeconds = Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds;
 
-        Log.Information("Generated {Count:N0} Forecast Avro events in {Seconds:F2}s ({Rate:N0} events/s)",
+        Log.Information("Generated {Count:N0} Product Avro events in {Seconds:F2}s ({Rate:N0} events/s)",
             count, elapsedSeconds, count / elapsedSeconds);
 
-        return forecastRequestedEvents;
+        return productCreatedEvents;
     }
 
-    private List<OutboxMessage> BuildOutboxMessagesFromForecastEvents(
-        List<ForecastRequestedEvent> forecastEvents)
+    private List<OutboxMessage> BuildOutboxMessagesFromProductEvents(
+        List<ProductCreatedEvent> productEvents)
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         var outboxMessages = new List<OutboxMessage>();
         var utcNow = DateTimeOffset.UtcNow;
 
-        foreach (var forecastRequestedEvent in forecastEvents)
+        foreach (var productCreatedEvent in productEvents)
         {
-            var avroPayload = _universalAvroSerializer.Serialize(forecastRequestedEvent, SerializationContext.Empty);
+            var avroPayload = _universalAvroSerializer.Serialize(productCreatedEvent, SerializationContext.Empty);
 
             outboxMessages.Add(new OutboxMessage
             {
-                KafkaKey = forecastRequestedEvent.City,
+                KafkaKey = productCreatedEvent.ProductId.ToString(),
                 AvroPayload = avroPayload,
-                Type = typeof(ForecastRequestedEvent).FullName!,
-                TopicName = "weather.forecast.requested",
+                Type = typeof(ProductCreatedEvent).FullName!,
+                TopicName = "catalog.products",
                 Headers = null,
                 CreatedUtc = utcNow
             });
         }
 
-        var count = forecastEvents.Count;
+        var count = productEvents.Count;
         var elapsedSeconds = Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds;
         Log.Information("Serialized {Count:N0} messages in {Seconds:F2}s ({Rate:N0} msg/s)",
             count, elapsedSeconds, count / elapsedSeconds);
@@ -124,16 +124,19 @@ public class BenchmarkSeeder
         var tableMetadata = dbContext.OutboxMessages.EntityType;
         var tableName = tableMetadata.GetTableName();
         var schema = tableMetadata.GetSchema();
-        var fullTableName = $"{schema}.{tableName}";
 
+        // Columns are snake_case (EFCore.NamingConventions on OutboxDbContext); id is identity, so it is
+        // omitted and generated by Postgres. topic_name is NOT NULL and is what the relay routes on.
+        // Quote schema and table separately - "schema.table" would be parsed as a single identifier.
         await using var writer = await connection.BeginBinaryImportAsync(
-            $"COPY \"{fullTableName}\" (\"{nameof(OutboxMessage.KafkaKey)}\", \"{nameof(OutboxMessage.AvroPayload)}\", " +
-            $"\"{nameof(OutboxMessage.Type)}\", \"{nameof(OutboxMessage.Headers)}\", \"{nameof(OutboxMessage.CreatedUtc)}\") " +
+            $"COPY \"{schema}\".\"{tableName}\" " +
+            "(topic_name, kafka_key, avro_payload, type, headers, created_utc) " +
             "FROM STDIN (FORMAT BINARY)", ct);
 
         foreach (var message in outboxMessages)
         {
             await writer.StartRowAsync(ct);
+            await writer.WriteAsync(message.TopicName, ct);
             await writer.WriteAsync(message.KafkaKey, ct);
             await writer.WriteAsync(message.AvroPayload, ct);
             await writer.WriteAsync(message.Type, ct);

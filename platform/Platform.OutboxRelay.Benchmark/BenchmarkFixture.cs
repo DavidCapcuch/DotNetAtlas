@@ -12,8 +12,6 @@ using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Respawn;
 using Serilog;
-using Weather.Infrastructure.Messaging.Kafka.Config;
-using Weather.Infrastructure.Persistence.Database;
 
 namespace Platform.OutboxRelay.Benchmark;
 
@@ -23,13 +21,24 @@ namespace Platform.OutboxRelay.Benchmark;
 [DisableWafCache]
 internal sealed class BenchmarkFixture : AppFixture<Platform.OutboxRelay.WorkerService.Program>
 {
+    /// <summary>
+    /// Dedicated schema the benchmark provisions and drains. Must stay in sync with the schema created
+    /// in Seed/V001__CreateOutboxMessagesTable.sql and the OutboxRelay:SchemaName supplied below.
+    /// </summary>
+    private const string BenchmarkSchemaName = "benchmark";
+
+    /// <summary>
+    /// Outbox table name - the platform default (snake_case). Matches V001 and OutboxRelay:TableName below.
+    /// </summary>
+    private const string OutboxTableName = "outbox_messages";
+
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "OutboxBenchmark",
         sqlScriptsMigrationsPath:
         Path.Combine(SolutionPaths.GetSolutionRootDirectory(), "platform", "Platform.OutboxRelay.Benchmark", "Seed"),
         new RespawnerOptions
         {
-            SchemasToInclude = [WeatherDbContext.DefaultSchemaName]
+            SchemasToInclude = [BenchmarkSchemaName]
         });
 
     private readonly KafkaTestContainer _kafkaContainer = new();
@@ -56,7 +65,13 @@ internal sealed class BenchmarkFixture : AppFixture<Platform.OutboxRelay.WorkerS
                 .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Outbox)}",
                     _dbContainer.ConnectionString)
                 .UseSetting($"{KafkaProducerOptions.Section}:BootstrapServers",
-                    _kafkaContainer.KafkaOptions.BrokersFlat);
+                    _kafkaContainer.KafkaOptions.BrokersFlat)
+                // Supplied explicitly because AppFixture runs in the "Testing" environment (no
+                // appsettings.Testing.json), so these OutboxRelay keys are otherwise unbound.
+                .UseSetting($"{OutboxRelayOptions.Section}:{nameof(OutboxRelayOptions.SchemaName)}",
+                    BenchmarkSchemaName)
+                .UseSetting($"{OutboxRelayOptions.Section}:{nameof(OutboxRelayOptions.TableName)}",
+                    OutboxTableName);
         });
 
         return base.ConfigureAppHost(builder);

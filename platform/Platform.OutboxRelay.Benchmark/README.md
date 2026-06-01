@@ -2,7 +2,7 @@
 ## Overview
 
 This benchmark measures the performance of [OutboxMessageRelay](../Platform.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs)
-when Publishing pre-seeded Outbox Messages to Kafka using real infrastructure (SQL Server + Kafka). Uses [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) library.
+when Publishing pre-seeded Outbox Messages to Kafka using real infrastructure (PostgreSQL + Kafka). Uses [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) library.
 
 ### Quick Start
 
@@ -43,8 +43,8 @@ dotnet run --project Platform.OutboxRelay.Benchmark.csproj -c Release -- --filte
     - With dotTrace, look for: CPU hotspots, lock contentions, async bottlenecks
 
 ## How the benchmark works
-1. Global setup: spins up SQL Server, Kafka, Schema Registry, preseeds outbox messages
-2. Multiple [OutboxRelayWorkers](../Platform.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs) are created using [OutboxMessageRelayBuilder](OutboxMessageRelayBuilder.cs) with customized configs,
+1. Global setup: spins up PostgreSQL, Kafka, Schema Registry, preseeds outbox messages
+2. Multiple [OutboxMessageRelay](../Platform.OutboxRelay.WorkerService/OutboxRelay/OutboxMessageRelay.cs) instances are created using [OutboxMessageRelayBuilder](OutboxMessageRelayBuilder.cs) with customized configs,
 in this benchmark, each one using different a Kafka producer compression algorithm config, with no compression as a baseline.
 3. Each one gets its own Benchmark method for Publishing Outbox Messages which measures its performance.
 

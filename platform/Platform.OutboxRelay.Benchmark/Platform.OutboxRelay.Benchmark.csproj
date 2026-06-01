@@ -26,7 +26,6 @@
         <ProjectReference Include="..\Platform.OutboxRelay.WorkerService\Platform.OutboxRelay.WorkerService.csproj" />
         <ProjectReference Include="..\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
         <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />
-        <ProjectReference Include="..\..\src\Weather.Infrastructure\Weather.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
