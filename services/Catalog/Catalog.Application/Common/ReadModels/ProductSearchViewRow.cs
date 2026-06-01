@@ -32,7 +32,7 @@ public sealed class ProductSearchViewRow
 
     public string PriceCurrency { get; set; } = string.Empty;
 
-    /// <summary>Lifecycle status as the SmartEnum <c>Name</c> (Draft|Active|Discontinued).</summary>
+    /// <summary>Lifecycle status as the SmartEnum <c>Name</c> (Active|Discontinued).</summary>
     public string Status { get; set; } = string.Empty;
 
     /// <summary>Serialized <c>Dimensions</c> value object, or <c>null</c> for digital products.</summary>

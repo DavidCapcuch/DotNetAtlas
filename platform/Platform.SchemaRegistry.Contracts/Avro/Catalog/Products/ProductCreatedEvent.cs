@@ -38,9 +38,9 @@ namespace Catalog.Products
 				"cale\":4}},{\"name\":\"PriceCurrency\",\"doc\":\"ISO 4217 currency code (e.g., \'USD\', \'E" +
 				"UR\').\",\"type\":\"string\"},{\"name\":\"Status\",\"doc\":\"Product lifecycle status at the " +
 				"time of the event.\",\"type\":{\"type\":\"enum\",\"name\":\"ProductStatus\",\"namespace\":\"Ca" +
-				"talog.Products\",\"symbols\":[\"Draft\",\"Active\",\"Discontinued\"]}},{\"name\":\"CreatedAt" +
-				"Utc\",\"doc\":\"UTC timestamp when the product was created.\",\"type\":{\"type\":\"long\",\"" +
-				"logicalType\":\"timestamp-millis\"}}]}");
+				"talog.Products\",\"symbols\":[\"Active\",\"Discontinued\"]}},{\"name\":\"CreatedAtUtc\",\"do" +
+				"c\":\"UTC timestamp when the product was created.\",\"type\":{\"type\":\"long\",\"logicalT" +
+				"ype\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Unique identifier of the product aggregate.
 		/// </summary>
