@@ -1,5 +1,6 @@
 using Inventory.Application.Common.Data;
 using Inventory.Application.StockItems.ReleaseReservation;
+using Inventory.Domain.StockItems.Errors;
 using Inventory.Domain.StockItems.ValueObjects;
 using Inventory.Infrastructure.Observability;
 using Microsoft.EntityFrameworkCore;
@@ -22,9 +23,14 @@ namespace Inventory.Infrastructure.BackgroundJobs;
 /// <remarks>
 /// <para>
 /// At-least-once: audit rows stay <see cref="ReservationStatus.Active"/> until the
-/// command commits, so a worker crash mid-tick is recovered by the next tick. The
-/// command-handler path is idempotent on already-<c>Released</c>/<c>Confirmed</c>
-/// reservations (Result.Ok with no event), so a duplicate dispatch is benign.
+/// command commits, so a worker crash mid-tick is recovered by the next tick. A
+/// duplicate dispatch is benign, but the two terminal statuses resolve differently:
+/// an already-<see cref="ReservationStatus.Released"/> reservation is an idempotent
+/// replay (<c>Result.Ok</c> with no event), whereas a
+/// <see cref="ReservationStatus.Confirmed"/> one fails with
+/// <see cref="InventoryErrors.ReservationNotActive"/>. The worker tolerates that
+/// failure in its warning branch — one <c>LogWarning</c> and continue, no throw and
+/// no phantom release (see <c>ProcessExpiredReservationsAsync</c>).
 /// </para>
 /// <para>
 /// The timer is built from the injected <see cref="TimeProvider"/> per ADR-0015,
