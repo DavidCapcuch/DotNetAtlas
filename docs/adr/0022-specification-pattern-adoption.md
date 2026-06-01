@@ -5,8 +5,10 @@
 Accepted (2026-05-29)
 
 > **Amended (2026-06-01):** added the "Naming write-side load abstractions" section below — a
-> shape-conditional naming rule refining criterion 1. No code changed; the rule is inert until a
-> non-owned aggregate child exists (the same trigger as criterion 2).
+> shape-conditional naming rule refining criterion 1. The shaping rule is documentation-only and
+> inert until a non-owned aggregate child exists (the trigger criterion 2 shares); the
+> `*Spec` suffix it references is now enforced by a `SpecificationTests` NetArchTest in every
+> spec-framework BC (Basket exempt — see the Enforcement note below).
 
 Complements [ADR-0021](0021-read-side-no-specifications.md), which governs the **read** side
 ("query handlers must not depend on `Ardalis.Specification`"). This ADR governs the **write**
@@ -113,9 +115,20 @@ type that auto-loads (see Context), so no two write-side loads of the same aggre
 shape; every surviving load is a bare-identity or business-filter predicate that keeps its name.
 The convention becomes operative the day a non-owned child is introduced — the same trigger that
 activates criterion 2 — at which point the two loads sized for two operations take `ForUseCase`
-names rather than a shared `ById`. It is **documentation-only**: like ADR-0021's read-side rule,
-it is not arch-test-enforced — a static rule cannot tell whether a `ByX` name *should have been*
-`ForY` without knowing the include-graph divergence it commits to.
+names rather than a shared `ById`.
+
+**Enforcement — two layers, deliberately split.** The `*Spec`/`*Specification` **suffix** is
+mechanically checkable and pinned per-BC by a `SpecificationTests` NetArchTest
+(`Specifications_Should_HaveNameEndingWith_Spec_Or_Specification`), present in every BC that
+references the specification framework — it keeps specs greppable and guards the first spec a BC
+adds, so it is kept even where a BC has none yet. (Basket is exempt: a Redis-primary BC with no
+`Ardalis.Specification` dependency per [ADR-0003](0003-basket-as-technical-bc.md) — a spec cannot
+appear there without first adding the package, which is the natural point to add the test.) The
+**use-case-vs-predicate choice** above is **documentation-only** — a static rule cannot tell
+whether a `ByX` name *should have been* `ForY` without knowing the include-graph divergence it
+commits to. Both are distinct from the read-side `QueryHandlerSpecificationTests` that ADR-0021 and
+this ADR removed: that asserted a *dependency* (query handlers must not reference the framework),
+not a name.
 
 ## Examples
 
