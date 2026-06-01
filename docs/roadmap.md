@@ -28,10 +28,8 @@ Plus the **CheckoutSaga** + **PaymentProcessingSaga** in `saga/SagaOrchestrators
 
 | # | Issue | Scope |
 |---|---|---|
-| 1 | [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123) | `InvoiceDeliveredEvent.avsc` + `InvoiceDeliveryRequestedDomainEvent` (Invoicing delivery feedback loop; runtime is gated by `DeliveryChannel.None` hard-code in `IssueInvoiceCommandHandler`) |
-| 2 | [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125) | ADR-0010 scope-based gating for the `ResendInvoiceCommandHandler` admin endpoint |
-| 3 | [#289](https://github.com/DavidCapcuch/DotNetAtlas/issues/289) | BFF inbox-dedup + topic-set reconciliation across events-catalog § 7.7 ↔ bff.md § 2.2 ↔ master-design § 9.2 |
-| 4 | [#290](https://github.com/DavidCapcuch/DotNetAtlas/issues/290) | Cross-saga refund path: master-design § 5.5 vs Checkout-saga reality (resolves ADR-0001 deferred decision) |
+| 1 | [#289](https://github.com/DavidCapcuch/DotNetAtlas/issues/289) | BFF inbox-dedup + topic-set reconciliation across events-catalog § 7.7 ↔ bff.md § 2.2 ↔ master-design § 9.2 |
+| 2 | [#290](https://github.com/DavidCapcuch/DotNetAtlas/issues/290) | Cross-saga refund path: master-design § 5.5 vs Checkout-saga reality (resolves ADR-0001 deferred decision) |
 
 ---
 
@@ -84,13 +82,12 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 - **Stale-payment reconciliation worker** (capture-then-compensate race). When the Checkout-saga `PaymentTimeout` fires while `PaymentProcessingSaga` is still running, Payments may eventually capture for an already-finalized outer saga. The worker reconciles by issuing a void or refund.
 
 #### Invoicing
-- **`InvoiceDeliveredEvent.avsc` + `InvoiceDeliveryRequestedDomainEvent`** — tracked at [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123). Runtime is gated by `DeliveryChannel.None` hard-code today.
 - **Tax-authority webhook delivery channel.** The `DeliveryChannel.TaxAuthorityWebhook` value exists but no delivery behavior is wired (v1 delivers on `Email` only); webhook to a stub SII / XRechnung endpoint.
 - **Postal-mail delivery channel.** A new `DeliveryChannel` value (`PostalMail`) + PDF + envelope queue.
 - **Archival process.** The `Archived` terminal state + `Invoice.Archive()` / `CreditNote.Archive()` transitions (`Delivered → Archived`) exist; the missing piece is the background job that drives them and moves PDFs to cold storage after N years.
 - **Credit-note partial refund + adjustment reasons.** `CreditNoteReason` SmartEnum has `PartialRefund` + `Adjustment` slots beyond `OrderCancelled`.
 - **`ResendInvoiceCommandHandler` production handler.** Today a stub (logging-only no-op); the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` is the design.
-- **`ResendInvoice` scope-based gating** — tracked at [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125) per [ADR-0010 § Implementation Notes](adr/0010-service-to-service-auth.md).
+- **`ResendInvoice` scope-based gating** (v2+). The endpoint gates on the `Admin` realm role (`AuthPolicies.InvoicingAdmin`) today; per [ADR-0010 § Implementation Notes](adr/0010-service-to-service-auth.md) the policy gains a `RequireClaim("scope", "invoicing.admin.*")` when scope-based gating lands.
 - **Buffer-projection alarm** (credit-note flow). Today the `pending_invoices` buffer can grow indefinitely if `PaymentRefundedEvent` is never received after `OrderCancelledEvent`; a configurable timeout alarm fires when buffer rows age past a threshold.
 - **Void-path cleanup job.** Today when a buyer cancels pre-capture, no invoice is issued (no `PaymentCapturedEvent`), so no credit note is needed; the `pending_invoices` row is left dangling. A cleanup job sweeps these.
 

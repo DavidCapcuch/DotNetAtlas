@@ -395,14 +395,14 @@ The following schemas **already exist** in the repository and are **not** re-aut
 
 ### 5.8 Invoicing External Events
 
-Current scope ships 3 of 4 LOCKED Invoicing Avro schemas. The 4th (`InvoiceDeliveredEvent.avsc`) is a disclosed carry-forward tracked at [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123); deferral rationale is "no consumer ready" (Notifications email + BFF cache are planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md)). The runtime path is gated: `IssueInvoiceCommandHandler` hard-codes `DeliveryChannel.None` so production never raises `InvoiceDeliveredDomainEvent`.
+Current scope ships all 4 LOCKED Invoicing Avro schemas. `IssueInvoiceCommandHandler` issues with `DeliveryChannel.Email`, so issuance raises `InvoiceDeliveryRequestedDomainEvent` (fanned out as a `SendEmailNotificationCommand` to Notifications); when Notifications reports back via `EmailNotificationSentEvent`, Invoicing transitions `Issued → Delivered` and raises `InvoiceDeliveredDomainEvent`, whose outbox publisher emits `InvoiceDeliveredEvent`.
 
 | File | Producer → Consumers |
 |---|---|
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceIssuedEvent.avsc` | Invoicing → BFF (invoice cache). Buyer email flows via Invoicing's outbox publisher emitting `SendEmailNotificationCommand` (NOT a Notifications subscription to this topic) — see D-5. |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceCancelledEvent.avsc` | Invoicing → BFF (cache invalidate). Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | **DEFERRED** — see [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123), [roadmap.md § 2.3 Invoicing](../roadmap.md) |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | Invoicing → BFF (invalidate the buyer's invoices cache). Emitted after Invoicing consumes `EmailNotificationSentEvent` and transitions `Issued → Delivered`. |
 
 All four target the `invoicing.invoices` topic (10-year retention, partition key `BuyerId`) per § 3 + § 4. Compatibility mode at the registry is `FORWARD_TRANSITIVE` (per-subject configured by the `schema-registry-init` companion service — see `cross-cutting-followups.md` H-1).
 

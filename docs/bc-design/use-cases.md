@@ -1523,7 +1523,7 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
   - `Result.Fail(InvoicingErrors.InvoiceAlreadyIssued(correlationId))` — idempotent re-issue attempt (409 if surfaced as HTTP; consumer just commits the inbox row).
   - `Result.Fail(InvoicingErrors.BlobUploadFailed())` — after `Azure.Storage.Blobs` SDK retry exhaustion (5xx; DLT).
   - `Throw DataIntegrityException(Invoicing.TotalMismatch)` — bug-class; DLT.
-- **Domain events:** `InvoiceIssuedDomainEvent` (always); outbox publisher emits Avro `InvoiceIssuedEvent` on `invoicing.invoices`.
+- **Domain events:** `InvoiceIssuedDomainEvent` (always) → outbox publisher emits Avro `InvoiceIssuedEvent` on `invoicing.invoices`; plus `InvoiceDeliveryRequestedDomainEvent` (channel `Email`) → `InvoiceDeliveryRequestedOutboxPublisher` fans out a `SendEmailNotificationCommand` to Notifications.
 
 ### 6.2 IssueCreditNoteCommand
 
@@ -1541,14 +1541,14 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 ### 6.3 ResendInvoiceCommand
 
 - **Trigger:** admin HTTP — `POST /api/v1/invoicing/invoices/{InvoiceId}/resend` with `Idempotency-Key` header (24 h Redis cache per ADR-0013).
-- **Handler:** `ResendInvoiceCommandHandler` — **STUB** (logging-only no-op; the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` described in `bc-design/invoicing.md § 12` is planned scope — see [roadmap.md § 2.3 Invoicing](../roadmap.md), [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123); the OpenAPI `Description` carries a "stub" marker).
-- **Auth:** `AuthPolicies.InvoicingAdmin` (Keycloak realm role `Admin`; ADR-0010 scope-based gating is planned scope — see [#125](https://github.com/DavidCapcuch/DotNetAtlas/issues/125), [roadmap.md § 2.1](../roadmap.md)).
+- **Handler:** `ResendInvoiceCommandHandler` — **STUB** (validates existence + resendable state, logs, returns 204; the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` described in `bc-design/invoicing.md § 12` is planned scope — see the `ResendInvoiceCommandHandler` production-handler item in [roadmap.md § 2.3 Invoicing](../roadmap.md); the OpenAPI `Description` carries a "stub" marker).
+- **Auth:** `AuthPolicies.InvoicingAdmin` (Keycloak realm role `Admin`; ADR-0010 scope-based gating is planned scope (v2+) — see [roadmap.md § 2.3 Invoicing](../roadmap.md)).
 - **Payload:** `{ InvoiceId, Channel (DeliveryChannel SmartEnum) }`.
 - **Validator:** `ResendInvoiceCommandValidator` — `InvoiceId NotEmpty`.
 - **Result paths:**
   - `Result.Ok()` → HTTP 204 (no-op acknowledgement).
   - `Result.Fail(InvoicingErrors.InvoiceNotFound)` → 404.
-- **Domain events:** none today (planned: `InvoiceDeliveryRequestedDomainEvent` — see [roadmap.md § 2.3 Invoicing](../roadmap.md), [#123](https://github.com/DavidCapcuch/DotNetAtlas/issues/123)).
+- **Domain events:** none today (the stub raises nothing); the production handler (see [roadmap.md § 2.3 Invoicing](../roadmap.md)) will raise `InvoiceDeliveryRequestedDomainEvent` per resend — the same event the issuance path already emits.
 
 ### 6.4 GetInvoiceByIdQuery
 
