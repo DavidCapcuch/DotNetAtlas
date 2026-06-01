@@ -5,7 +5,7 @@ using Platform.SharedKernel.Base;
 namespace Catalog.Domain.Products.ValueObjects;
 
 /// <summary>
-/// Product description. Empty is allowed (Draft products need not be fully described).
+/// Product description. Empty is allowed (a product need not be fully described at creation).
 /// Max 4000 characters.
 /// </summary>
 public sealed record ProductDescription : ValueObject

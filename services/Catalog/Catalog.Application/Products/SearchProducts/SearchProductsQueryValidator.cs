@@ -45,6 +45,6 @@ public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuer
         RuleFor(x => x.Status)
             .Must(status => ProductStatus.TryFromName(status!, ignoreCase: false, out _))
             .When(x => !string.IsNullOrEmpty(x.Status))
-            .WithMessage("Status must be one of Draft, Active, Discontinued.");
+            .WithMessage("Status must be one of Active, Discontinued.");
     }
 }

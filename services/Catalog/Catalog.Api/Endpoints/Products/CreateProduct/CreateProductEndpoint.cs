@@ -24,7 +24,7 @@ internal sealed class CreateProductEndpoint : Endpoint<CreateProductRequest, Cre
         Idempotency();
         Summary(s =>
         {
-            s.Summary = "Create a new Product in Draft status. Publishes ProductCreatedEvent on success.";
+            s.Summary = "Create a new Product in Active status. Publishes ProductCreatedEvent on success.";
         });
         Description(b =>
         {
