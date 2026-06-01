@@ -20,5 +20,22 @@
         <AssemblyVersion>$(Version)</AssemblyVersion>
         <FileVersion>$(Version)</FileVersion>
         <InformationalVersion>$(Version)</InformationalVersion>
+
+        <!-- Ownership — flows into assembly metadata via GenerateAssemblyInfo.
+             Static year keeps the build reproducible (no DateTime.Now). -->
+        <Company>David Čapčuch</Company>
+        <Product>DotNetAtlas</Product>
+        <Copyright>© 2026 David Čapčuch</Copyright>
+
+        <!-- Reproducible / debuggable symbols: PDB embedded in the assembly so stack
+             traces keep line numbers in Seq, and untracked/generated sources are embedded. -->
+        <DebugType>embedded</DebugType>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    </PropertyGroup>
+
+    <!-- Deterministic source paths on CI only (keeps local debugging convenient).
+         Normalizes paths so PDBs don't embed the build machine's absolute path. -->
+    <PropertyGroup Condition="'$(CI)' == 'true' or '$(GITHUB_ACTIONS)' == 'true' or '$(TF_BUILD)' == 'true'">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     </PropertyGroup>
 </Project>
