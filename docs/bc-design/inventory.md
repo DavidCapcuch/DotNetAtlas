@@ -754,7 +754,7 @@ Inventory does NOT consume any other cross-service events in v1. It is a downstr
 
 ### 13.3 Outbox relay registration
 
-Uses the existing `Platform.OutboxRelay` — register a worker per topic in `Inventory.Api/Program.cs`. The relay pattern and wiring match the existing Weather / Order services; nothing new here except the topic names.
+Inventory does NOT host a relay in `Inventory.Api/Program.cs`; it registers only the outbox via `services.AddOutbox(...)` (writing to `inventory.outbox_messages`). A standalone `outbox-relay-inventory` container (`OutboxRelay__SchemaName=inventory`) drains that schema to Kafka — one relay container per service schema, per [events-catalog § 6](events-catalog.md). Nothing new here except the topic names.
 
 ### 13.4 Hosted services
 

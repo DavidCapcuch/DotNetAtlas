@@ -78,17 +78,17 @@ await kafka.DisposeAsync();
 See also [KafkaTestConsumerRegistry](Kafka/KafkaTestConsumerRegistry.cs)
 
 ```csharp
+using Catalog.Products;
 using Platform.Test.Framework.Kafka;
-using Weather.Contracts;
 
 // Assumes KafkaTestContainer was started and provides options
 var options = kafka.KafkaOptions;
 
 // Create during setup
-var consumer = new KafkaTestConsumer<ForecastRequestedEvent>(
+var consumer = new KafkaTestConsumer<ProductCreatedEvent>(
     bootstrapServers: options.BrokersFlat,
     schemaRegistryUrl: options.SchemaRegistry.Url,
-    topic: "forecast-requested");
+    topic: "catalog.products");
 
 var one = consumer.ConsumeOne(TimeSpan.FromSeconds(5));
 var many = consumer.ConsumeAll(TimeSpan.FromSeconds(5), maxCount: 10);
