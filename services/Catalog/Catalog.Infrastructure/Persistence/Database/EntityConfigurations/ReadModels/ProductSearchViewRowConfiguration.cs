@@ -27,7 +27,7 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
         builder.Property(r => r.Sku)
             .HasMaxLength(Sku.MaxLength)
             .IsRequired();
-        builder.HasIndex(r => r.Sku).IsUnique().HasDatabaseName("UX_ProductSearchView_Sku");
+        builder.HasIndex(r => r.Sku).IsUnique().HasDatabaseName("ux_product_search_view_sku");
 
         builder.Property(r => r.Name)
             .HasMaxLength(ProductName.MaxLength)
@@ -47,13 +47,13 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
             .WithMany()
             .HasForeignKey(r => r.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasIndex(r => r.CategoryId).HasDatabaseName("IX_ProductSearchView_CategoryId");
+        builder.HasIndex(r => r.CategoryId).HasDatabaseName("ix_product_search_view_category_id");
 
         builder.Property(r => r.CategoryPath)
             .HasMaxLength(256)
             .IsRequired()
             .HasComment("Materialized category path; rewritten on Reparent by CategoryPathService.");
-        builder.HasIndex(r => r.CategoryPath).HasDatabaseName("IX_ProductSearchView_CategoryPath");
+        builder.HasIndex(r => r.CategoryPath).HasDatabaseName("ix_product_search_view_category_path");
 
         builder.Property(r => r.CategoryBreadcrumb)
             .HasMaxLength(512)
@@ -66,7 +66,7 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
 
         builder.Property(r => r.PriceAmount)
             .HasPrecision(19, 4);
-        builder.HasIndex(r => r.PriceAmount).HasDatabaseName("IX_ProductSearchView_PriceAmount");
+        builder.HasIndex(r => r.PriceAmount).HasDatabaseName("ix_product_search_view_price_amount");
 
         builder.Property(r => r.PriceCurrency)
             .HasMaxLength(3)
@@ -75,8 +75,8 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
         builder.Property(r => r.Status)
             .HasMaxLength(32)
             .IsRequired()
-            .HasComment("Lifecycle status name (Draft|Active|Discontinued).");
-        builder.HasIndex(r => r.Status).HasDatabaseName("IX_ProductSearchView_Status");
+            .HasComment("Lifecycle status name (Active|Discontinued).");
+        builder.HasIndex(r => r.Status).HasDatabaseName("ix_product_search_view_status");
 
         builder.Property(r => r.DimensionsJson)
             .HasColumnType("jsonb")

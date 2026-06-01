@@ -33,14 +33,14 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.Property(p => p.CategoryId)
             .HasComment("Catalog category identifier — referenced by id only, no navigation per arch test.");
-        builder.HasIndex(p => p.CategoryId).HasDatabaseName("IX_Products_CategoryId");
+        builder.HasIndex(p => p.CategoryId).HasDatabaseName("ix_products_category_id");
 
         builder.Property(p => p.Status)
-            .HasComment("Lifecycle status (Draft|Active|Discontinued); SmartEnum integer Value.")
+            .HasComment("Lifecycle status (Active|Discontinued); SmartEnum integer Value.")
             .HasConversion(
                 status => status.Value,
                 value => ProductStatus.FromValue(value));
-        builder.HasIndex(p => p.Status).HasDatabaseName("IX_Products_Status");
+        builder.HasIndex(p => p.Status).HasDatabaseName("ix_products_status");
 
         builder.Property(p => p.CreatedUtc)
             .HasComment("Row-level audit: created timestamp (UTC). Set by interceptor.");
@@ -60,7 +60,7 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                 .HasComment("Business key — unique per Catalog.");
             sku.HasIndex(s => s.Value)
                 .IsUnique()
-                .HasDatabaseName("UX_Products_Sku");
+                .HasDatabaseName("ux_products_sku");
         });
         builder.Navigation(p => p.Sku).IsRequired();
 

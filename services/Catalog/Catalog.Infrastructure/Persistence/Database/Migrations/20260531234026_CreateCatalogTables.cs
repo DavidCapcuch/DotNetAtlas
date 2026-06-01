@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Infrastructure.Persistence.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class CreateCatalogTables : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -35,7 +35,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                 comment: "Category aggregate — taxonomy node with materialized path.");
 
             migrationBuilder.CreateTable(
-                name: "InboxMessages",
+                name: "inbox_messages",
                 schema: "catalog",
                 columns: table => new
                 {
@@ -49,7 +49,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                 comment: "Inbox pattern table for idempotent message processing. Tracks processed messages to prevent duplicate processing.");
 
             migrationBuilder.CreateTable(
-                name: "OutboxMessages",
+                name: "outbox_messages",
                 schema: "catalog",
                 columns: table => new
                 {
@@ -81,7 +81,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     brand_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, comment: "Brand name (1..100)."),
                     price_amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false, comment: "Price amount."),
                     price_currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code."),
-                    status = table.Column<int>(type: "integer", nullable: false, comment: "Lifecycle status (Draft|Active|Discontinued); SmartEnum integer Value."),
+                    status = table.Column<int>(type: "integer", nullable: false, comment: "Lifecycle status (Active|Discontinued); SmartEnum integer Value."),
                     dimensions_length = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true),
                     dimensions_width = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true),
                     dimensions_height = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true),
@@ -111,13 +111,13 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     brand_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     price_amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false),
                     price_currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
-                    status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false, comment: "Lifecycle status name (Draft|Active|Discontinued)."),
+                    status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false, comment: "Lifecycle status name (Active|Discontinued)."),
                     dimensions_json = table.Column<string>(type: "jsonb", nullable: true, comment: "Serialized Dimensions VO; null for digital/service products."),
                     images_json = table.Column<string>(type: "jsonb", nullable: false, defaultValue: "[]"),
-                    is_sellable = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false, comment: "Computed flag — wired up by the StockLevelChanged Kafka inbox consumer (M4.2)."),
+                    is_sellable = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false, comment: "Computed flag — wired up by the StockLevelChangedEvent Kafka inbox consumer."),
                     created_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     last_updated_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValue: new Guid("00000000-0000-0000-0000-000000000000"), comment: "Originating HTTP correlation id (ADR-0008). M4 reserves the column; the API layer wires HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] in M6.")
+                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValue: new Guid("00000000-0000-0000-0000-000000000000"), comment: "Originating HTTP correlation id (ADR-0008). Populated from HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] by the API layer, or Guid.Empty when no HTTP pipeline is in play.")
                 },
                 constraints: table =>
                 {
@@ -158,62 +158,62 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                 comment: "Ordered image collection — owned by the Product aggregate.");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Categories_Path",
+                name: "ix_categories_path",
                 schema: "catalog",
                 table: "categories",
                 column: "path");
 
             migrationBuilder.CreateIndex(
-                name: "IX_InboxMessages_ProcessedAtUtc",
+                name: "ix_inbox_messages_processed_at_utc",
                 schema: "catalog",
-                table: "InboxMessages",
+                table: "inbox_messages",
                 column: "processed_at_utc");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProductSearchView_CategoryId",
+                name: "ix_product_search_view_category_id",
                 schema: "catalog",
                 table: "product_search_view",
                 column: "category_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProductSearchView_CategoryPath",
+                name: "ix_product_search_view_category_path",
                 schema: "catalog",
                 table: "product_search_view",
                 column: "category_path");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProductSearchView_PriceAmount",
+                name: "ix_product_search_view_price_amount",
                 schema: "catalog",
                 table: "product_search_view",
                 column: "price_amount");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProductSearchView_Status",
+                name: "ix_product_search_view_status",
                 schema: "catalog",
                 table: "product_search_view",
                 column: "status");
 
             migrationBuilder.CreateIndex(
-                name: "UX_ProductSearchView_Sku",
+                name: "ux_product_search_view_sku",
                 schema: "catalog",
                 table: "product_search_view",
                 column: "sku",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Products_CategoryId",
+                name: "ix_products_category_id",
                 schema: "catalog",
                 table: "products",
                 column: "category_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Products_Status",
+                name: "ix_products_status",
                 schema: "catalog",
                 table: "products",
                 column: "status");
 
             migrationBuilder.CreateIndex(
-                name: "UX_Products_Sku",
+                name: "ux_products_sku",
                 schema: "catalog",
                 table: "products",
                 column: "sku",
@@ -224,11 +224,11 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "InboxMessages",
+                name: "inbox_messages",
                 schema: "catalog");
 
             migrationBuilder.DropTable(
-                name: "OutboxMessages",
+                name: "outbox_messages",
                 schema: "catalog");
 
             migrationBuilder.DropTable(
