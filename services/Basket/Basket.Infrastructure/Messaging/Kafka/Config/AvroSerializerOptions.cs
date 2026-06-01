@@ -7,7 +7,7 @@ namespace Basket.Infrastructure.Messaging.Kafka.Config;
 /// <summary>
 /// Avro serializer configuration. Inherits from <see cref="AvroSerializerConfig"/>
 /// to expose all Confluent serializer settings. The outbox publisher uses this
-/// to produce the Avro payload written to <c>basket.OutboxMessages.avro_payload</c>
+/// to produce the Avro payload written to <c>basket.outbox_messages.avro_payload</c>
 /// before the relay lifts it onto the <c>basket.sessions</c> topic.
 /// </summary>
 public sealed class AvroSerializerOptions : AvroSerializerConfig
