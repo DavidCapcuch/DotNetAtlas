@@ -37,7 +37,7 @@ dotnet format style --no-restore --verify-no-changes
 - Codebase follows DDD and prefers domain model completeness + performance (sacrificing purity)
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts
-- **Avro C# bindings (`.cs` files next to `.avsc`):** never hand-edit. They are regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen). Run after every `.avsc` edit; commit both the `.avsc` and the regenerated `.cs` together. If avrogen isn't installed the script `dotnet tool install`s it on first run.
+- **Avro C# bindings (`.cs` files next to `.avsc`):** never hand-edit. They are regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen). Run after every `.avsc` edit; commit both the `.avsc` and the regenerated `.cs` together. The script runs `dotnet tool restore` against the pinned local manifest (`.config/dotnet-tools.json`), so every dev/CI machine uses the same `Apache.Avro.Tools` version — no global install required.
 - **`src/Weather` is reference scaffolding, not production code** — it predates the current conventions (e.g. still uses Ardalis.Specification on the read side) and is slated for deletion. Do **not** flag ADR violations, over-fetch, or other issues in `src/Weather`; treat it as an illustrative template only.
 
 ## Agent skills
