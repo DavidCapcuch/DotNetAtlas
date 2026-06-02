@@ -8,13 +8,12 @@ namespace Payments.Domain.Transactions.Events;
 /// via refund) state. Co-raised with <see cref="PaymentCapturedDomainEvent"/> in v1.
 /// </summary>
 /// <remarks>
-/// <b>No in-process handler today.</b> The external <c>PaymentCompletedEvent</c> Avro record is
-/// produced by <b>PaymentProcessingSaga</b> (per <c>events-catalog.md § 2</c>), not by Payments
-/// — emitted on the AwaitingCapture → PaymentCompleted transition via the saga's outbox. The
-/// Payments-side aggregate raises this domain event purely as a signal of the FSM-terminal
-/// transition; no <c>IDomainEventHandler&lt;PaymentCompletedDomainEvent&gt;</c> is registered. Do
-/// NOT wire a handler here (e.g. an outbox publisher) without ADR alignment — the wire-event
-/// ownership boundary is intentional and PaymentProcessingSaga is the authoritative producer.
+/// Per <b>ADR-0026</b> the Payments service owns all its lifecycle integration events including
+/// the terminals. <see cref="Payments.Application.Outbox.PaymentCompletedOutboxPublisherDomainEventHandler"/>
+/// fans this domain event out to the external <c>PaymentCompletedEvent</c> on
+/// <c>payments.transactions</c> — symmetric with the Authorized / Captured / Voided / Refunded
+/// publishers. Co-raised with <see cref="PaymentCapturedDomainEvent"/> on a successful capture;
+/// PaymentProcessingSaga no longer publishes this event (it orchestrates only).
 /// </remarks>
 public sealed record PaymentCompletedDomainEvent : DomainEvent
 {

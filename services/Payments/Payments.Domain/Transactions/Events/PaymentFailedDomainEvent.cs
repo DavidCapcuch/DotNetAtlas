@@ -9,13 +9,13 @@ namespace Payments.Domain.Transactions.Events;
 /// <c>PaymentFailedEvent</c> to drive its compensation branch.
 /// </summary>
 /// <remarks>
-/// <b>No in-process handler today.</b> The external <c>PaymentFailedEvent</c> Avro record is
-/// produced by <b>PaymentProcessingSaga</b> (per <c>events-catalog.md § 2</c>), not by Payments
-/// — emitted on capture-failure / capture-timeout via the saga's outbox. The Payments-side
-/// aggregate raises this domain event purely as a signal of the FSM-terminal transition; no
-/// <c>IDomainEventHandler&lt;PaymentFailedDomainEvent&gt;</c> is registered. Do NOT wire a
-/// handler here (e.g. an outbox publisher) without ADR alignment — the wire-event ownership
-/// boundary is intentional and PaymentProcessingSaga is the authoritative producer.
+/// Per <b>ADR-0026</b> the Payments service owns all its lifecycle integration events including
+/// the terminals. <see cref="Payments.Application.Outbox.PaymentFailedOutboxPublisherDomainEventHandler"/>
+/// fans this domain event out to the external <c>PaymentFailedEvent</c> on
+/// <c>payments.transactions</c> — symmetric with the AuthorizationFailed / CaptureFailed
+/// publishers. Co-raised on both <see cref="PaymentAuthorizationFailedDomainEvent"/> and
+/// <see cref="PaymentCaptureFailedDomainEvent"/>; the Checkout saga consumes the external event to
+/// fast-fail on an authorization decline. PaymentProcessingSaga no longer publishes this event.
 /// </remarks>
 public sealed record PaymentFailedDomainEvent : DomainEvent
 {

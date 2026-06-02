@@ -252,6 +252,88 @@ public class PaymentEventMapperTests
     }
 
     [Fact]
+    public void PaymentCompletedMapper_MapsAggregateIdToPaymentTransactionId()
+    {
+        // ADR-0026: Payments owns its terminal events. PaymentCompletedDomainEvent (co-raised
+        // with PaymentCapturedDomainEvent on Capture) now has a Payments-side outbox publisher,
+        // so the aggregate id projects to PaymentTransactionId and BuyerId -> UserId, identical
+        // to the Captured shape, on the Path-B contract.
+        var domainEvent = new PaymentCompletedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            Amount = UsdAmount(149.99m),
+            CompletedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentCompletedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.PaymentTransactionId.Should().Be(PaymentId);
+            avro.Amount.Should().Be(new AvroDecimal(149.9900m));
+            avro.Currency.Should().Be("USD");
+            avro.CompletedAtUtc.Should().Be(Now.UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public void PaymentFailedMapper_MapsErrorCodeFromGatewayCodeWhenAvailable()
+    {
+        // ADR-0026: Payments owns its terminal events. PaymentFailedDomainEvent (co-raised on
+        // both MarkAuthorizationFailed and MarkCaptureFailed) now has a Payments-side outbox
+        // publisher. ErrorCode prefers the raw gateway code, ErrorMessage carries the canonical
+        // reason name — symmetric with PaymentAuthorizationFailedMapper.
+        var failureInfo = FailureInfo.Create(FailureReason.GatewayDeclined, "card_declined", Now);
+        var domainEvent = new PaymentFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            FailureInfo = failureInfo,
+            FailedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentFailedEvent();
+
+        using (new AssertionScope())
+        {
+            avro.CorrelationId.Should().Be(CorrelationId);
+            avro.UserId.Should().Be(BuyerId);
+            avro.ErrorCode.Should().Be("card_declined");
+            avro.ErrorMessage.Should().Be("GatewayDeclined");
+            avro.FailedAtUtc.Should().Be(Now.UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public void PaymentFailedMapper_FallsBackToReasonNameWhenGatewayCodeMissing()
+    {
+        var failureInfo = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, Now);
+        var domainEvent = new PaymentFailedDomainEvent
+        {
+            PaymentId = PaymentId,
+            CorrelationId = CorrelationId,
+            BuyerId = BuyerId,
+            OrderId = OrderId,
+            FailureInfo = failureInfo,
+            FailedAtUtc = Now,
+            OccurredOnUtc = Now,
+        };
+
+        var avro = domainEvent.ToPaymentFailedEvent();
+
+        avro.ErrorCode.Should().Be("Unknown");
+    }
+
+    [Fact]
     public void PaymentVoidedMapper_MapsAllFieldsIncludingReason()
     {
         var domainEvent = new PaymentVoidedDomainEvent
