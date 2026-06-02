@@ -1089,7 +1089,6 @@
       "platform.kafkaflow.deadletter": {
         "type": "Project",
         "dependencies": {
-          "Confluent.Kafka": "[2.14.0, )",
           "KafkaFlow": "[4.2.0, )",
           "KafkaFlow.Microsoft.DependencyInjection": "[4.2.0, )",
           "Platform.SharedKernel": "[1.0.0, )"

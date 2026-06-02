@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
@@ -64,6 +65,7 @@ internal static class MessagingDependencyInjection
         var consumerOptions = configuration
             .GetRequiredSection(EmailCommandsConsumerOptions.Section)
             .Get<EmailCommandsConsumerOptions>()!;
+        consumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
@@ -84,7 +86,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.EmailCommands)
-                    .WithConsumerConfig(consumerOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares

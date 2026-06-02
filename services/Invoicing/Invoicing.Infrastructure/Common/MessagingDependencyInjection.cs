@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using Invoicing.Application.Common.Messaging;
 using Invoicing.Infrastructure.Messaging.Kafka.Config;
 using Invoicing.Infrastructure.Messaging.Kafka.Notifications;
@@ -91,14 +92,17 @@ internal static class MessagingDependencyInjection
         var orderingConsumerOptions = configuration
             .GetRequiredSection(OrderingOrdersConsumerOptions.Section)
             .Get<OrderingOrdersConsumerOptions>()!;
+        orderingConsumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var paymentsConsumerOptions = configuration
             .GetRequiredSection(PaymentsTransactionsConsumerOptions.Section)
             .Get<PaymentsTransactionsConsumerOptions>()!;
+        paymentsConsumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var notificationsEmailEventsConsumerOptions = configuration
             .GetRequiredSection(NotificationsEmailEventsConsumerOptions.Section)
             .Get<NotificationsEmailEventsConsumerOptions>()!;
+        notificationsEmailEventsConsumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster
@@ -112,7 +116,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.OrderingOrders)
-                    .WithConsumerConfig(orderingConsumerOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(orderingConsumerOptions)
                     .WithBufferSize(orderingConsumerOptions.BufferSize)
                     .WithWorkersCount(orderingConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -134,7 +138,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<OrderCancelledCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.PaymentsTransactions)
-                    .WithConsumerConfig(paymentsConsumerOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(paymentsConsumerOptions)
                     .WithBufferSize(paymentsConsumerOptions.BufferSize)
                     .WithWorkersCount(paymentsConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -155,7 +159,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<PaymentRefundedCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.NotificationsEmailEvents)
-                    .WithConsumerConfig(notificationsEmailEventsConsumerOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(notificationsEmailEventsConsumerOptions)
                     .WithBufferSize(notificationsEmailEventsConsumerOptions.BufferSize)
                     .WithWorkersCount(notificationsEmailEventsConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares

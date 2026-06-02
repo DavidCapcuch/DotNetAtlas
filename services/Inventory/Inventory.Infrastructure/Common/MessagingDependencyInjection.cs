@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using Inventory.Application.Common.Messaging;
 using Inventory.Infrastructure.Messaging.Kafka.Config;
 using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
@@ -76,14 +77,17 @@ internal static class MessagingDependencyInjection
         var reservationCommandsOptions = configuration
             .GetRequiredSection(ReservationCommandsConsumerOptions.Section)
             .Get<ReservationCommandsConsumerOptions>()!;
+        reservationCommandsOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var catalogProductsOptions = configuration
             .GetRequiredSection(CatalogProductsConsumerOptions.Section)
             .Get<CatalogProductsConsumerOptions>()!;
+        catalogProductsOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var orderingOrdersOptions = configuration
             .GetRequiredSection(OrderingOrdersConsumerOptions.Section)
             .Get<OrderingOrdersConsumerOptions>()!;
+        orderingOrdersOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
@@ -104,7 +108,7 @@ internal static class MessagingDependencyInjection
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.InventoryReservationCommands)
-                    .WithConsumerConfig(reservationCommandsOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(reservationCommandsOptions)
                     .WithBufferSize(reservationCommandsOptions.BufferSize)
                     .WithWorkersCount(reservationCommandsOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -131,7 +135,7 @@ internal static class MessagingDependencyInjection
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.CatalogProducts)
-                    .WithConsumerConfig(catalogProductsOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(catalogProductsOptions)
                     .WithBufferSize(catalogProductsOptions.BufferSize)
                     .WithWorkersCount(catalogProductsOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -152,7 +156,7 @@ internal static class MessagingDependencyInjection
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.OrderingOrders)
-                    .WithConsumerConfig(orderingOrdersOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(orderingOrdersOptions)
                     .WithBufferSize(orderingOrdersOptions.BufferSize)
                     .WithWorkersCount(orderingOrdersOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares

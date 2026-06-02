@@ -2,6 +2,7 @@ using Catalog.Application.Common.Messaging;
 using Catalog.Infrastructure.Messaging.Kafka.Config;
 using Catalog.Infrastructure.Messaging.Kafka.StockEvents;
 using Catalog.Infrastructure.Persistence.Database;
+using Confluent.Kafka;
 using Inventory.Stock;
 using KafkaFlow;
 using KafkaFlow.Configuration;
@@ -69,6 +70,7 @@ internal static class MessagingDependencyInjection
         var consumerOptions = configuration
             .GetRequiredSection(InventoryStockEventsConsumerOptions.Section)
             .Get<InventoryStockEventsConsumerOptions>()!;
+        consumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
@@ -86,7 +88,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.InventoryStockEvents)
-                    .WithConsumerConfig(consumerOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
