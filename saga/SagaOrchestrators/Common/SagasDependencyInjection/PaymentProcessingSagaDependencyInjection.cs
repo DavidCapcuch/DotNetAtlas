@@ -1,10 +1,6 @@
 using Avro.Specific;
-using Confluent.Kafka;
-using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
-using Confluent.SchemaRegistry.Serdes;
 using MassTransit;
-using Platform.Avro.UniversalSerDes;
 using SagaOrchestrators.Common.Config.Kafka;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
 using SagaOrchestrators.Payments.PaymentProcessingSaga.Consumers;
@@ -46,11 +42,7 @@ internal static class PaymentProcessingSagaDependencyInjection
                 kafkaOptions.ConsumerGroups.PaymentProcessingSaga,
                 consumerConfig =>
                 {
-                    consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    consumerConfig.SetKeyDeserializer(
-                        new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
-                    consumerConfig.SetValueDeserializer(
-                        new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
+                    consumerConfig.ConfigureCommon(schemaRegistryClient, kafkaOptions);
 
                     consumerConfig.ConfigureConsumer<PaymentVoidedConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentAuthorizationFailedConsumer>(context);
@@ -64,11 +56,7 @@ internal static class PaymentProcessingSagaDependencyInjection
                 kafkaOptions.ConsumerGroups.PaymentProcessingSaga,
                 consumerConfig =>
                 {
-                    consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
-                    consumerConfig.SetKeyDeserializer(
-                        new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
-                    consumerConfig.SetValueDeserializer(
-                        new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
+                    consumerConfig.ConfigureCommon(schemaRegistryClient, kafkaOptions);
 
                     consumerConfig.ConfigureConsumer<RequestPaymentCommandConsumer>(context);
                     consumerConfig.ConfigureConsumer<ApproveCaptureCommandConsumer>(context);
