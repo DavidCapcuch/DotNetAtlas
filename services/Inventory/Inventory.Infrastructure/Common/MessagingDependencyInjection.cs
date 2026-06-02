@@ -6,10 +6,9 @@ using Inventory.Infrastructure.Persistence.Database;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
+using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
@@ -105,7 +104,7 @@ internal static class MessagingDependencyInjection
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.InventoryReservationCommands)
-                    .WithConsumerConfig(reservationCommandsOptions)
+                    .WithConsumerConfig(reservationCommandsOptions.WithCooperativeRebalancing())
                     .WithBufferSize(reservationCommandsOptions.BufferSize)
                     .WithWorkersCount(reservationCommandsOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -114,9 +113,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
@@ -134,7 +131,7 @@ internal static class MessagingDependencyInjection
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.CatalogProducts)
-                    .WithConsumerConfig(catalogProductsOptions)
+                    .WithConsumerConfig(catalogProductsOptions.WithCooperativeRebalancing())
                     .WithBufferSize(catalogProductsOptions.BufferSize)
                     .WithWorkersCount(catalogProductsOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -142,9 +139,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
@@ -157,7 +152,7 @@ internal static class MessagingDependencyInjection
                 // (one-group-per-service rule, events-catalog.md § 3.1).
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.OrderingOrders)
-                    .WithConsumerConfig(orderingOrdersOptions)
+                    .WithConsumerConfig(orderingOrdersOptions.WithCooperativeRebalancing())
                     .WithBufferSize(orderingOrdersOptions.BufferSize)
                     .WithWorkersCount(orderingOrdersOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -165,9 +160,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))

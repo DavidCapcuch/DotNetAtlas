@@ -1,77 +1,74 @@
 namespace Payments.IntegrationTests.Messaging;
 
 /// <summary>
-/// End-to-end DLT routing assertion for the Payments saga-command consumer pipeline (#247).
-/// The bounded-retry replacement (<c>RetrySimple(TryTimes: 8)</c> in
-/// <c>MessagingDependencyInjection</c>) is load-bearing: when a poison command throws
-/// <see cref="Microsoft.EntityFrameworkCore.DbUpdateException"/> on every attempt, the exception
-/// must bubble out of the retry middleware, into <see cref="Platform.KafkaFlow.DeadLetter.DeadLetterMiddleware"/>,
-/// and land on <c>payments.payment-commands.Payments.DLT</c> within timeout — proving the partition
-/// keeps advancing instead of being blocked by the indefinite <c>RetryForever</c> the wire-up
-/// replaces.
+/// End-to-end DLT routing assertion for the Payments saga-command consumer pipeline (#247, ADR-0025).
+/// Under the classified <c>RetryForever</c> wiring in <c>MessagingDependencyInjection</c>, a poison
+/// command — one that throws a deterministic <c>23505</c> unique-violation
+/// (<see cref="Microsoft.EntityFrameworkCore.DbUpdateException"/> wrapping a non-transient
+/// <c>PostgresException</c>) — is classified non-retryable by
+/// <see cref="Platform.KafkaFlow.DeadLetter.ConsumerRetry"/>, falls through to
+/// <see cref="Platform.KafkaFlow.DeadLetter.DeadLetterMiddleware"/>, and lands on
+/// <c>payments.payment-commands.Payments.DLT</c> while the partition keeps advancing. A
+/// <em>transient</em> (<c>IsTransient</c>) failure, by contrast, is retried with the consumer paused
+/// and must NOT dead-letter.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Status — placeholder.</b> The existing <see cref="Common.IntegrationTestFixture"/> exercises
-/// the consumer pipeline by invoking the typed Kafka handlers directly via a
-/// <see cref="Common.FakeKafkaMessageContext"/>; the production KafkaFlow runtime (including
-/// the <c>RetrySimple</c> middleware and the <c>DeadLetterMiddleware</c>) is bypassed. Asserting
-/// DLT routing requires booting a real <see cref="Platform.Test.Framework.Kafka.KafkaTestContainer"/>
-/// alongside the existing Postgres testcontainer, wiring the BC composition root's
-/// <c>AddKafkaMessaging</c> against the test container's bootstrap, producing the poison Avro
-/// command, and attaching a <see cref="Platform.Test.Framework.Kafka.KafkaTestConsumer{TValue}"/>
-/// (or raw <c>Confluent.Kafka</c> consumer) to <c>payments.payment-commands.Payments.DLT</c>. That
-/// infrastructure is a follow-up since neither this BC nor any wave1 BC integration suite has
-/// it today (Weather is the only test project that wires the full
-/// <c>UseKafkaSettings(KafkaTestContainer.KafkaOptions)</c> shape).
+/// <b>Status — placeholder (tracked follow-up).</b> Per ADR-0025 the classified-retry change is
+/// covered by the exhaustive <c>ConsumerRetry.IsRetryable</c> unit tests
+/// (<c>Platform.KafkaFlow.DeadLetter.UnitTests</c>) plus the per-BC wiring. The full broker
+/// round-trip — which mostly re-exercises KafkaFlow's own (unchanged) DLT delivery path — is deferred
+/// to a dedicated follow-up rather than standing up a Kafka container for a single assertion.
 /// </para>
 /// <para>
-/// <b>Why the placeholder still earns its keep.</b> The file pins the file path the runbook
-/// (<c>docs/runbooks/payments-dlt.md § 6</c>) references and the closeout points at; future
-/// hardening lands here without renaming. The expected assertion shape is captured in the
-/// commented-out body below so the next contributor doesn't re-derive it.
+/// The harness exists: boot a <see cref="Platform.Test.Framework.Kafka.KafkaTestContainer"/> alongside
+/// the existing Postgres testcontainer and drive the real composition root, mirroring
+/// <c>Catalog.IntegrationTests/Common/IntegrationTestFixture.cs</c> (the reference
+/// <c>.UseKafkaSettings(KafkaTestContainer.KafkaOptions)</c> wiring). DLT operations and the header
+/// taxonomy this test asserts are documented in <c>docs/bc-design/kafka-dlt-strategy.md</c>.
 /// </para>
 /// </remarks>
 public sealed class PaymentCommandsDLTRoutingTests
 {
-    [Fact(Skip = "Requires KafkaTestContainer + SchemaRegistry harness (follow-up). " +
-                 "See class XML docs. Bounded-retry behaviour is enforced by unit-level " +
-                 "ripgrep + arch tests; full DLT roundtrip needs a real Kafka pipeline.")]
+    [Fact(Skip = "Broker round-trip deferred to a tracked follow-up (ADR-0025 / #247): the " +
+                 "classified-retry change is covered by ConsumerRetry.IsRetryable unit tests + per-BC " +
+                 "wiring, and the DLT delivery path itself is unchanged. See class XML docs and " +
+                 "docs/bc-design/kafka-dlt-strategy.md.")]
     public Task PoisonCommand_AfterRetryExhaustion_LandsOnPaymentsPaymentCommandsDLT()
     {
-        // Expected wiring once the Kafka testcontainer harness exists:
+        // Expected wiring once the Kafka testcontainer harness is added to this suite:
         //
-        // 1. Boot KafkaTestContainer + SchemaRegistryTestContainer alongside the Postgres
-        //    testcontainer the existing IntegrationTestFixture already starts (add them to the
-        //    fixture's PreSetupAsync, mirroring the Postgres container).
+        // 1. Boot KafkaTestContainer alongside the Postgres testcontainer the existing
+        //    IntegrationTestFixture already starts (add it to PreSetupAsync, mirroring
+        //    Catalog.IntegrationTests/Common/IntegrationTestFixture.cs).
         //
-        // 2. Drive the REAL composition root through the shared AppFixture<Program> fixture — do
-        //    NOT hand-assemble a ServiceCollection (no services.AddApplication()/AddKafkaMessaging()
-        //    in the test). Instead, extend IntegrationTestFixture.ConfigureAppHost to point the
-        //    broker + schema-registry settings at the test cluster
-        //    (UseSetting("Kafka:Brokers:0", _kafkaContainer.BootstrapAddress), …) so Program's own
-        //    AddKafkaMessaging wires the production KafkaFlow runtime — RetrySimple(8) +
+        // 2. Drive the REAL composition root through AppFixture<Program> — do NOT hand-assemble a
+        //    ServiceCollection. Extend ConfigureAppHost to point the broker + schema-registry settings
+        //    at the test cluster (.UseKafkaSettings(_kafkaContainer.KafkaOptions)) so Program's own
+        //    AddKafkaMessaging wires the production KafkaFlow runtime — the classified RetryForever +
         //    DeadLetterMiddleware — against the test container. Program guards kafkaBus.StartAsync()
-        //    with !IsTesting(), so that guard also needs a test-aware opt-in to actually consume.
+        //    with !IsTesting(), so that guard needs a test-aware opt-in to actually consume.
         //
-        // 3. Inject a DbContext interceptor that throws DbUpdateException on every
-        //    SaveChangesAsync against the inbox/aggregate row for the target PaymentId — surviving
-        //    the 8 backoff steps configured by RetrySimple's WithTimeBetweenTriesPlan.
+        // 3. POISON case: inject a DbContext interceptor that throws a 23505 unique-violation
+        //    (DbUpdateException wrapping a non-transient PostgresException) on SaveChangesAsync for the
+        //    target PaymentId. ConsumerRetry.IsRetryable returns false -> not retried -> DLT.
         //
         // 4. Produce a syntactically-valid AuthorizePaymentCommand to payments.payment-commands via
         //    KafkaTestProducer, keyed by CorrelationId.
         //
-        // 5. Attach a raw Confluent.Kafka IConsumer<string, byte[]> (the DLT producer round-trips
-        //    raw bytes — not a typed Avro record) to payments.payment-commands.Payments.DLT with
+        // 5. Attach a raw Confluent.Kafka IConsumer<string, byte[]> (the DLT producer round-trips raw
+        //    bytes — not a typed Avro record) to payments.payment-commands.Payments.DLT with
         //    AutoOffsetReset.Earliest and a fresh GroupId.
         //
-        // 6. Within ~30s (8 retries × 5s + slack), assert:
-        //      - One message on the DLT topic.
-        //      - dlt-original-topic header == "payments.payment-commands".
-        //      - dlt-exception-type header startsWith "Microsoft.EntityFrameworkCore.DbUpdateException".
-        //      - correlation.id header is preserved end-to-end.
-        //      - Original Kafka offset on payments.payment-commands has been COMMITTED (consumer group
-        //        lag returns to 0; partition is not blocked).
+        // 6. Assert (poison): one message on the DLT topic; dlt-original-topic header ==
+        //    "payments.payment-commands"; dlt-exception-type startsWith
+        //    "Microsoft.EntityFrameworkCore.DbUpdateException"; correlation.id preserved; the original
+        //    payments.payment-commands offset is COMMITTED (lag returns to 0; partition not blocked).
+        //
+        // 7. TRANSIENT case (companion assertion): inject an IsTransient failure (e.g. a 40001
+        //    serialization_failure PostgresException). ConsumerRetry.IsRetryable returns true -> the
+        //    consumer is paused and retries; assert NOTHING lands on the DLT within the window and the
+        //    message eventually processes once the fault clears.
         return Task.CompletedTask;
     }
 }

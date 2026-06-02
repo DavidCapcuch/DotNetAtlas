@@ -6,12 +6,11 @@ using Invoicing.Infrastructure.Persistence.Database;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Notifications.Email;
-using Npgsql;
+using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
@@ -113,7 +112,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.OrderingOrders)
-                    .WithConsumerConfig(orderingConsumerOptions)
+                    .WithConsumerConfig(orderingConsumerOptions.WithCooperativeRebalancing())
                     .WithBufferSize(orderingConsumerOptions.BufferSize)
                     .WithWorkersCount(orderingConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -122,9 +121,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500),
                                 TimeSpan.FromSeconds(1),
@@ -137,7 +134,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<OrderCancelledCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.PaymentsTransactions)
-                    .WithConsumerConfig(paymentsConsumerOptions)
+                    .WithConsumerConfig(paymentsConsumerOptions.WithCooperativeRebalancing())
                     .WithBufferSize(paymentsConsumerOptions.BufferSize)
                     .WithWorkersCount(paymentsConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -145,9 +142,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500),
                                 TimeSpan.FromSeconds(1),
@@ -160,7 +155,7 @@ internal static class MessagingDependencyInjection
                             .AddHandler<PaymentRefundedCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.NotificationsEmailEvents)
-                    .WithConsumerConfig(notificationsEmailEventsConsumerOptions)
+                    .WithConsumerConfig(notificationsEmailEventsConsumerOptions.WithCooperativeRebalancing())
                     .WithBufferSize(notificationsEmailEventsConsumerOptions.BufferSize)
                     .WithWorkersCount(notificationsEmailEventsConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -168,9 +163,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500),
                                 TimeSpan.FromSeconds(1),

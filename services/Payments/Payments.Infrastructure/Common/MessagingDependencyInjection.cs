@@ -1,14 +1,13 @@
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 using Payments.Application.Common.Messaging;
 using Payments.Infrastructure.Messaging.Kafka.Config;
 using Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 using Payments.Infrastructure.Persistence.Database;
+using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
@@ -83,7 +82,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.PaymentCommands)
-                    .WithConsumerConfig(consumerOptions)
+                    .WithConsumerConfig(consumerOptions.WithCooperativeRebalancing())
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -91,18 +90,15 @@ internal static class MessagingDependencyInjection
                         // Middleware order -> outermost to innermost.
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
-                        // #247: bounded retry. RetryForever blocks the partition indefinitely on
-                        // a poison-pill (DbUpdateException with a structural cause that survives
-                        // 4 backoff steps); bounded TryTimes lets the exception bubble to the
-                        // outer AddDeadLetter middleware, which routes the message to
-                        // <consumer-topic>.Payments.DLT (e.g. payments.payment-commands.Payments.DLT) so
-                        // the partition keeps advancing. Operational runbook:
-                        // docs/runbooks/payments-dlt.md.
-                        .RetrySimple(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
-                            .TryTimes(8)
+                        // ADR-0025: one classified RetryForever governs all consumers — no
+                        // money-handling exception. Retry iff the failure is transient/retryable
+                        // (ConsumerRetry.IsRetryable); a poison command (e.g. a 23505 unique-violation)
+                        // is not handled here and falls through to AddDeadLetter, routing to
+                        // payments.payment-commands.Payments.DLT so the partition keeps advancing.
+                        // Transient faults retry forever with the consumer paused — never
+                        // dead-lettered. DLT operations: docs/bc-design/kafka-dlt-strategy.md.
+                        .RetryForever(config => config
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))

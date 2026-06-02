@@ -2,6 +2,15 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "Confluent.Kafka": {
+        "type": "Direct",
+        "requested": "[2.14.0, )",
+        "resolved": "2.14.0",
+        "contentHash": "NnG0UXR9Wnup3Nvik6SBVaHRzCu0Iit8BE7ayaWsLt+yRWrI0ZY6o8pxPB6B/jyu+fbUllZ9efsbyFwrowDcpg==",
+        "dependencies": {
+          "librdkafka.redist": "2.14.0"
+        }
+      },
       "KafkaFlow": {
         "type": "Direct",
         "requested": "[4.2.0, )",
@@ -58,6 +67,11 @@
         "resolved": "9.0.3",
         "contentHash": "oFFX9Ls8dnNUBCD9yzRzHTY8tqvv+CiX43B8L8DjrM8BqYTAlORYaJf6+KXNtSC2bD1135yV8OxzcZFaluow5w=="
       },
+      "Microsoft.Extensions.DependencyModel": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "RFYJR7APio/BiqdQunRq6DB+nDB6nc2qhHr77mlvZ0q0BT8PubMXN7XicmfzCbrDE/dzhBnUKBRXLTcqUiZDGg=="
+      },
       "Microsoft.IO.RecyclableMemoryStream": {
         "type": "Transitive",
         "resolved": "3.0.1",
@@ -68,13 +82,28 @@
         "resolved": "1.2.0.556",
         "contentHash": "zvn9Mqs/ox/83cpYPignI8hJEM2A93s2HkHs8HYMOAQW0PkampyoErAiIyKxgTLqbbad29HX/shv/6LGSjPJNQ=="
       },
-      "Confluent.Kafka": {
-        "type": "CentralTransitive",
-        "requested": "[2.14.0, )",
-        "resolved": "2.14.0",
-        "contentHash": "NnG0UXR9Wnup3Nvik6SBVaHRzCu0Iit8BE7ayaWsLt+yRWrI0ZY6o8pxPB6B/jyu+fbUllZ9efsbyFwrowDcpg==",
+      "platform.sharedkernel": {
+        "type": "Project",
         "dependencies": {
-          "librdkafka.redist": "2.14.0"
+          "Ardalis.SmartEnum": "[8.2.0, )",
+          "FluentResults": "[4.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.8, )",
+          "Scrutor": "[7.0.0, )"
+        }
+      },
+      "Ardalis.SmartEnum": {
+        "type": "CentralTransitive",
+        "requested": "[8.2.0, )",
+        "resolved": "8.2.0",
+        "contentHash": "P1CLI2okpzHjOJnZMYLnzcyu1/fUJEYK1X4JSnal2TPmovrUTtXK6Sn78D2JgKUdwjSeWddnRveMj+BEZoksvg=="
+      },
+      "FluentResults": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.0, )",
+        "resolved": "4.0.0",
+        "contentHash": "wKfdLvDnDVhXlSreU7u/NFNHH6EfoOhAloEID4ePAyk+ZliowKZJvX+aCL4hxhFc9Jj74t62amS4LyOYTjXGCg==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "2.1.1"
         }
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
@@ -82,6 +111,16 @@
         "requested": "[10.0.8, )",
         "resolved": "10.0.8",
         "contentHash": "21nbDV60SRPWGIivsyl6lqBeEJNG1sginhhfWgRrr3Ais7aQ12To25OAHQxgoiJkjqy1aQ6RxpZBGYuTi7Ge6A=="
+      },
+      "Scrutor": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "wHWaroody48jnlLoq/REwUltIFLxplXyHTP+sttrc8P7+jkiVqf38afDidJNv4qgD/6zz2NKOYg06xLZ1bG7wQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
+          "Microsoft.Extensions.DependencyModel": "10.0.0"
+        }
       }
     },
     "net10.0/linux-x64": {

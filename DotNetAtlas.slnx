@@ -130,6 +130,7 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="platform/Platform.Api.UnitTests/Platform.Api.UnitTests.csproj" />
+    <Project Path="platform/Platform.KafkaFlow.DeadLetter.UnitTests/Platform.KafkaFlow.DeadLetter.UnitTests.csproj" />
     <Project Path="platform/Platform.KafkaFlow.ProducerHeaders.UnitTests/Platform.KafkaFlow.ProducerHeaders.UnitTests.csproj" />
     <Project Path="platform/Platform.ReliableMessaging.Outbox.EFCore.UnitTests/Platform.ReliableMessaging.Outbox.EFCore.UnitTests.csproj" />
     <Project Path="platform/Platform.ServiceDefaults.UnitTests/Platform.ServiceDefaults.UnitTests.csproj" />

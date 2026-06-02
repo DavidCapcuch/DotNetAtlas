@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <ItemGroup>
+        <PackageReference Include="Confluent.Kafka"/>
         <PackageReference Include="KafkaFlow"/>
         <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
@@ -8,5 +9,10 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- RetryableException marker consumed by ConsumerRetry.IsRetryable (ADR-0025). -->
+        <ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj"/>
     </ItemGroup>
 </Project>
