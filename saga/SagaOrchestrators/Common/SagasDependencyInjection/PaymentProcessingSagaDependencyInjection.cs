@@ -27,7 +27,9 @@ internal static class PaymentProcessingSagaDependencyInjection
         /// the saga reacts to (Authorized / AuthorizationFailed / Captured / CaptureFailed /
         /// Voided).</item>
         /// <item><c>payments.payment-commands</c> (command stream) — imperative
-        /// <c>RequestPaymentCommand</c> sent by the Checkout saga to initiate sub-saga processing.
+        /// <c>RequestPaymentCommand</c> sent by the Checkout saga to initiate sub-saga processing,
+        /// plus the ADR-0026 capture-pivot handshake (<c>ApproveCaptureCommand</c> /
+        /// <c>AbortCaptureCommand</c>) the Checkout saga sends after confirming stock + order.
         /// Shares the topic with Payments-BC consumers of <c>AuthorizePaymentCommand</c> / etc.;
         /// MassTransit dispatches by message type so cross-consumption is clean.</item>
         /// </list>
@@ -69,6 +71,8 @@ internal static class PaymentProcessingSagaDependencyInjection
                         new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
 
                     consumerConfig.ConfigureConsumer<RequestPaymentCommandConsumer>(context);
+                    consumerConfig.ConfigureConsumer<ApproveCaptureCommandConsumer>(context);
+                    consumerConfig.ConfigureConsumer<AbortCaptureCommandConsumer>(context);
                 });
         }
     }

@@ -7,7 +7,8 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 /// Represents the state of the <see cref="PaymentProcessingSagaOrchestrator"/>. The eShop
 /// always creates an Order before initiating payment, so the saga state carries the
 /// <see cref="OrderId"/> from initialization through to the outbound
-/// <c>AuthorizePaymentCommand</c>. Lifecycle: authorization -&gt; capture -&gt; void/refund.
+/// <c>AuthorizePaymentCommand</c>. Lifecycle (ADR-0026 capture pivot): authorize -&gt; await
+/// capture approval -&gt; capture, with a pre-capture void on the compensation path.
 /// </summary>
 public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableEntity
 {
@@ -115,7 +116,7 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
     public string? ErrorMessage { get; set; }
 
     /// <summary>
-    /// Indicates if compensation (void or refund) has been triggered.
+    /// Indicates if compensation (a pre-capture void) has been triggered.
     /// </summary>
     public bool CompensationTriggered { get; set; }
 
@@ -131,23 +132,24 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
 
     // Scheduler tokens for MassTransit scheduled messages
     public Guid? AuthorizationTimeoutTokenId { get; set; }
+    public Guid? CaptureApprovalTimeoutTokenId { get; set; }
     public Guid? CaptureTimeoutTokenId { get; set; }
     public Guid? VoidTimeoutTokenId { get; set; }
-    public Guid? RefundTimeoutTokenId { get; set; }
-    public Guid? SuccessFinalizationTimeoutTokenId { get; set; }
 
     /// <summary>
     /// Terminal states that indicate the saga has completed (successfully or with failure).
-    /// Sagas in these states should not be considered "stuck".
-    /// Note: PaymentCompleted is NOT terminal - refunds can still be triggered.
+    /// Sagas in these states should not be considered "stuck". Each transitions straight to
+    /// <c>Finalize()</c> so a healthy saga is removed from the table on reaching one; this list
+    /// backstops the stuck-saga health check against any instance that lingers. Per ADR-0026
+    /// <c>PaymentCompleted</c> is now terminal (refund is a deferred customer/admin flow, not a
+    /// post-completion wait-state) and the refund states were removed.
     /// </summary>
     public static readonly string[] TerminalStates =
     [
         nameof(PaymentProcessingSagaOrchestrator.AuthorizationFailed),
         nameof(PaymentProcessingSagaOrchestrator.PaymentFailed),
+        nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted),
         nameof(PaymentProcessingSagaOrchestrator.VoidCompleted),
-        nameof(PaymentProcessingSagaOrchestrator.VoidFailed),
-        nameof(PaymentProcessingSagaOrchestrator.RefundCompleted),
-        nameof(PaymentProcessingSagaOrchestrator.RefundFailed)
+        nameof(PaymentProcessingSagaOrchestrator.VoidFailed)
     ];
 }

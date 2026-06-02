@@ -4,11 +4,17 @@ using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.Test.Framework.Assertions;
 using SagaOrchestrators.IntegrationTests.Common;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
-using SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 using SagaOrchestrators.Payments.PaymentProcessingSaga.Schedules;
 
 namespace SagaOrchestrators.IntegrationTests.Sagas;
 
+/// <summary>
+/// Integration tests for the PaymentProcessingSaga over real Postgres + Kafka after the ADR-0026
+/// capture-pivot restructure: authorize → await the Checkout saga's capture-approval / abort
+/// signal → capture → finalize, with a pre-capture void on the compensation path. The saga issues
+/// commands only — the Payments service owns and publishes the terminal events, so this suite
+/// asserts the saga does NOT outbox <c>PaymentCompletedEvent</c> / <c>PaymentFailedEvent</c>.
+/// </summary>
 [Collection(nameof(SagaTestCollection))]
 public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 {
@@ -58,18 +64,72 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     }
 
     [Fact]
-    public async Task WhenPaymentCaptured_ShouldTransitionToAndPersistPaymentCompleted()
+    public async Task WhenPaymentAuthorized_ShouldTransitionToAndPersistAwaitingCaptureApproval()
+    {
+        // ADR-0026: capture is deferred. On authorization the saga parks in AwaitingCaptureApproval
+        // and must NOT have issued a CapturePaymentCommand.
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await TransitionSagaToAwaitingCaptureApproval(correlationId, userId, authorizationId);
+
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await SagaDbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
+
+        using (new AssertionScope())
+        {
+            persistedState.Should().NotBeNull();
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingCaptureApproval));
+            persistedState.AuthorizationId.Should().Be(authorizationId);
+            persistedState.AuthorizedAtUtc.Should().HaveValue();
+            outboxMessages.Where(om => om.Type == typeof(CapturePaymentCommand).FullName)
+                .Should().BeEmpty("capture is deferred to the pivot — no CapturePaymentCommand until approval");
+        }
+    }
+
+    [Fact]
+    public async Task WhenCaptureApproved_ShouldTransitionToAwaitingCapture_AndIssueCapturePaymentCommand()
     {
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
+        await TransitionSagaToAwaitingCapture(correlationId, userId, authorizationId);
 
-        // Wave1-followup #255: saga mints PaymentTransactionId in Initial state and rejects (throws)
-        // any inbound PaymentCapturedEvent whose PaymentTransactionId does not match. Tests must
-        // therefore echo back the saga's minted value rather than fabricate a new Guid.
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await SagaDbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
+
+        using (new AssertionScope())
+        {
+            persistedState.Should().NotBeNull();
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingCapture));
+            outboxMessages.Should().ContainMessageOfType<CapturePaymentCommand>(correlationId.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task WhenPaymentCaptured_ShouldFinalize_WithoutPublishingTerminalEvent()
+    {
+        // Arrange
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await TransitionSagaToAwaitingCapture(correlationId, userId, authorizationId);
+
+        // Wave1-followup #255: echo the saga-minted PaymentTransactionId on the capture event.
         var sagaMintedPaymentTransactionId = await ReadSagaMintedPaymentTransactionIdAsync(correlationId);
 
         // Act - Capture the payment
@@ -86,11 +146,8 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
 
-        // Assert
-        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+        // Assert - the saga reaches its successful terminal and finalizes (removed from the table)
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -98,13 +155,11 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         using (new AssertionScope())
         {
-            persistedState.Should().NotBeNull();
-            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted));
-            persistedState.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
-            persistedState.AuthorizationId.Should().Be(authorizationId);
-            persistedState.CapturedAtUtc.Should().NotBeNull();
-
-            outboxMessages.Should().ContainMessageOfType<PaymentCompletedEvent>(correlationId.ToString());
+            sagaFinalized.Should().BeTrue("the sub-saga finalizes on a successful capture");
+            // ADR-0026: Payments owns the terminal PaymentCompletedEvent — the sub-saga must not
+            // outbox it.
+            outboxMessages.Where(om => om.Type == typeof(PaymentCompletedEvent).FullName)
+                .Should().BeEmpty("Payments owns the terminal PaymentCompletedEvent, not the sub-saga");
         }
     }
 
@@ -179,7 +234,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             stateAfterInitiation.InitiatedAtUtc.Should().NotBe(default);
         }
 
-        // Step 2: Authorize payment
+        // Step 2: Authorize payment → AwaitingCaptureApproval (no capture yet)
         var authorizedEvent = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
@@ -193,8 +248,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, authorizedEvent);
 
-        // Verify: AwaitingCapture state persisted
-        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCaptureApproval, DefaultTimeout);
         var stateAfterAuthorization = await SagaDbContext.PaymentProcessingSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
@@ -202,13 +256,18 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             stateAfterAuthorization.Should().NotBeNull();
-            stateAfterAuthorization.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingCapture));
+            stateAfterAuthorization.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingCaptureApproval));
             stateAfterAuthorization.AuthorizationId.Should().Be(authorizationId);
             stateAfterAuthorization.AuthorizedAtUtc.Should().HaveValue();
         }
 
-        // Step 3: Capture payment
-        // Wave1-followup #255: echo saga's minted PaymentTransactionId on the capture event.
+        // Step 3: Checkout saga approves capture → AwaitingCapture (issues CapturePaymentCommand)
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
+            CreateApproveCaptureCommand(correlationId, userId));
+
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
+
+        // Step 4: Capture payment → finalize (no terminal published by the saga)
         var sagaMintedPaymentTransactionId = stateAfterAuthorization!.PaymentTransactionId!.Value;
         var capturedEvent = new PaymentCapturedEvent
         {
@@ -223,11 +282,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
 
-        // Verify: PaymentCompleted state persisted
-        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        var stateAfterCapture = await SagaDbContext.PaymentProcessingSagaStates
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -235,38 +290,13 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         using (new AssertionScope())
         {
-            stateAfterCapture.Should().NotBeNull();
-            stateAfterCapture.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted));
-            stateAfterCapture.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
-            stateAfterCapture.CapturedAtUtc.Should().HaveValue();
-            stateAfterCapture.CompensationTriggered.Should().BeFalse();
-
+            sagaFinalized.Should().BeTrue();
             outboxMessages.Should().ContainMessageOfType<AuthorizePaymentCommand>(correlationId.ToString());
             outboxMessages.Should().ContainMessageOfType<CapturePaymentCommand>(correlationId.ToString());
-            outboxMessages.Should().ContainMessageOfType<PaymentCompletedEvent>(correlationId.ToString());
+            // ADR-0026: Payments owns the terminal PaymentCompletedEvent.
+            outboxMessages.Where(om => om.Type == typeof(PaymentCompletedEvent).FullName)
+                .Should().BeEmpty("Payments owns the terminal PaymentCompletedEvent, not the sub-saga");
         }
-    }
-
-    private RequestPaymentCommand CreateRequestPaymentCommand(
-        Guid correlationId,
-        Guid userId,
-        decimal amount = 9.99m,
-        string currency = "USD",
-        string? paymentMethodId = null,
-        Guid? orderId = null)
-    {
-        return new RequestPaymentCommand
-        {
-            CorrelationId = correlationId,
-            OrderId = orderId ?? Guid.CreateVersion7(),
-            UserId = userId,
-            // C-2 closeout: Payments wire shape is string. Default to a Stripe-style token.
-            PaymentMethodId = paymentMethodId ?? $"pm_{Guid.CreateVersion7():N}",
-            Amount = amount.ToAvroDecimal(4),
-            Currency = currency,
-            IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
-            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
-        };
     }
 
     [Fact]
@@ -301,14 +331,49 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     }
 
     [Fact]
-    public async Task WhenCaptureFailsNonRetryable_ShouldTriggerVoidAndTransitionToVoidInProgress()
+    public async Task WhenCaptureAborted_ShouldTriggerVoidAndTransitionToVoidInProgress()
+    {
+        // ADR-0026: the Checkout saga aborts (its confirmation failed); the sub-saga voids the
+        // pre-capture authorization — a free void, never a refund.
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await TransitionSagaToAwaitingCaptureApproval(correlationId, userId, authorizationId);
+
+        // Act
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
+            CreateAbortCaptureCommand(correlationId, userId, "Order confirmation failed"));
+
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
+
+        // Assert
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await SagaDbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
+
+        using (new AssertionScope())
+        {
+            persistedState.Should().NotBeNull();
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
+            persistedState.CompensationTriggered.Should().BeTrue();
+            outboxMessages.Should().ContainMessageOfType<VoidPaymentCommand>(correlationId.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task WhenCaptureFailsNonRetryable_ShouldTriggerVoidAndNotPublishTerminal()
     {
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
+        await TransitionSagaToAwaitingCapture(correlationId, userId, authorizationId);
 
         // Act - Send non-retryable capture failure
         var captureFailedEvent = new PaymentCaptureFailedEvent
@@ -316,8 +381,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
-            // Upstream-owned code emitted by the Payments BC's gateway adapter on PaymentCaptureFailedEvent.ErrorCode;
-            // not extracted to PaymentProcessingSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Capture failed permanently",
             IsRetryable = false,
@@ -344,7 +407,9 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.CompensationTriggered.Should().BeTrue();
 
             outboxMessages.Should().ContainMessageOfType<VoidPaymentCommand>(correlationId.ToString());
-            outboxMessages.Should().ContainMessageOfType<PaymentFailedEvent>(correlationId.ToString());
+            // ADR-0026: Payments owns the terminal PaymentFailedEvent — the sub-saga must not outbox it.
+            outboxMessages.Where(om => om.Type == typeof(PaymentFailedEvent).FullName)
+                .Should().BeEmpty("Payments owns the terminal PaymentFailedEvent, not the sub-saga");
         }
     }
 
@@ -356,7 +421,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        // Transition to VoidInProgress via capture failure
         await TransitionSagaToVoidInProgressState(correlationId, userId, authorizationId);
 
         // Act - Complete the void
@@ -373,48 +437,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Assert - verify saga finalized (removed from database)
         var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
         sagaFinalized.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task WhenRefundRequested_ShouldTransitionToRefundInProgress()
-    {
-        // Arrange
-        var correlationId = Guid.CreateVersion7();
-        var userId = Guid.CreateVersion7();
-
-        // Transition to PaymentCompleted state; helper returns the saga-minted PaymentTransactionId
-        // that must be echoed on the downstream PaymentRefundRequestedSagaEvent (wave1-followup #255).
-        var paymentTransactionId = await TransitionSagaToPaymentCompletedState(correlationId, userId);
-
-        // Act - Request refund (internal saga event - no Kafka consumer exists)
-        var refundCommand = new PaymentRefundRequestedSagaEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
-            Reason = "Customer requested refund",
-            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await Bus.Publish(refundCommand);
-
-        // Assert
-        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
-        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
-
-        var outboxMessages = await SagaDbContext.OutboxMessages
-            .AsNoTracking()
-            .ToListAsync();
-
-        using (new AssertionScope())
-        {
-            persistedState.Should().NotBeNull();
-            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.RefundInProgress));
-
-            outboxMessages.Should().ContainMessageOfType<RequestRefundCommand>(correlationId.ToString());
-        }
     }
 
     [Fact]
@@ -444,6 +466,39 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     }
 
     [Fact]
+    public async Task WhenCaptureApprovalTimesOut_ShouldTriggerVoidAndTransitionToVoidInProgress()
+    {
+        // ADR-0026 wait-state timeout: the Checkout saga never signalled approval/abort, so the
+        // dangling authorization is released via the void path.
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await TransitionSagaToAwaitingCaptureApproval(correlationId, userId, authorizationId);
+
+        // Act - Simulate timeout by publishing CaptureApprovalTimeoutExpired (MassTransit internal)
+        await Bus.Publish(new CaptureApprovalTimeoutExpired { CorrelationId = correlationId });
+
+        // Assert
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
+        var persistedState = await SagaDbContext.PaymentProcessingSagaStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+        var outboxMessages = await SagaDbContext.OutboxMessages
+            .AsNoTracking()
+            .ToListAsync();
+
+        using (new AssertionScope())
+        {
+            persistedState.Should().NotBeNull();
+            persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
+            persistedState.CompensationTriggered.Should().BeTrue();
+            outboxMessages.Should().ContainMessageOfType<VoidPaymentCommand>(correlationId.ToString());
+        }
+    }
+
+    [Fact]
     public async Task WhenCaptureTimesOut_ShouldTriggerVoidAndTransitionToVoidInProgress()
     {
         // Arrange
@@ -451,7 +506,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId);
+        await TransitionSagaToAwaitingCapture(correlationId, userId, authorizationId);
 
         // Act - Simulate timeout by publishing CaptureTimeoutExpired (MassTransit internal)
         var timeoutEvent = new CaptureTimeoutExpired
@@ -476,9 +531,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.Should().NotBeNull();
             persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.VoidInProgress));
             persistedState.CompensationTriggered.Should().BeTrue();
-
             outboxMessages.Should().ContainMessageOfType<VoidPaymentCommand>(correlationId.ToString());
-            outboxMessages.Should().ContainMessageOfType<PaymentFailedEvent>(correlationId.ToString());
         }
     }
 
@@ -505,31 +558,50 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         sagaFinalized.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task WhenRefundTimesOut_ShouldFinalizeInRefundFailedState()
-    {
-        // Arrange
-        var correlationId = Guid.CreateVersion7();
-        var userId = Guid.CreateVersion7();
-
-        await TransitionSagaToRefundInProgressState(correlationId, userId);
-
-        // Act - Simulate timeout by publishing RefundTimeoutExpired (MassTransit internal)
-        var timeoutEvent = new RefundTimeoutExpired
-        {
-            CorrelationId = correlationId
-        };
-
-        await Bus.Publish(timeoutEvent);
-
-        // Assert - verify saga finalized (removed from database)
-        var sagaFinalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        sagaFinalized.Should().BeTrue();
-    }
-
     // -- Helper Methods --
 
-    private async Task TransitionSagaToAwaitingCaptureState(
+    private RequestPaymentCommand CreateRequestPaymentCommand(
+        Guid correlationId,
+        Guid userId,
+        decimal amount = 9.99m,
+        string currency = "USD",
+        string? paymentMethodId = null,
+        Guid? orderId = null)
+    {
+        return new RequestPaymentCommand
+        {
+            CorrelationId = correlationId,
+            OrderId = orderId ?? Guid.CreateVersion7(),
+            UserId = userId,
+            // C-2 closeout: Payments wire shape is string. Default to a Stripe-style token.
+            PaymentMethodId = paymentMethodId ?? $"pm_{Guid.CreateVersion7():N}",
+            Amount = amount.ToAvroDecimal(4),
+            Currency = currency,
+            IdempotencyKey = $"payment-{userId}-{Guid.CreateVersion7()}",
+            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
+        };
+    }
+
+    private ApproveCaptureCommand CreateApproveCaptureCommand(Guid correlationId, Guid userId) => new()
+    {
+        CorrelationId = correlationId,
+        UserId = userId,
+        RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
+    };
+
+    private AbortCaptureCommand CreateAbortCaptureCommand(Guid correlationId, Guid userId, string reason) => new()
+    {
+        CorrelationId = correlationId,
+        UserId = userId,
+        Reason = reason,
+        RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
+    };
+
+    /// <summary>
+    /// Drives the saga to <c>AwaitingCaptureApproval</c> (request → authorize). Per ADR-0026 the
+    /// sub-saga parks here waiting for the Checkout saga's capture-approval / abort signal.
+    /// </summary>
+    private async Task TransitionSagaToAwaitingCaptureApproval(
         Guid correlationId,
         Guid userId,
         string authorizationId,
@@ -555,9 +627,31 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, authorizedEvent);
 
+        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCaptureApproval, DefaultTimeout);
+    }
+
+    /// <summary>
+    /// Drives the saga to <c>AwaitingCapture</c> (request → authorize → capture-approval). The
+    /// Checkout saga issues capture approval only after confirming stock + order.
+    /// </summary>
+    private async Task TransitionSagaToAwaitingCapture(
+        Guid correlationId,
+        Guid userId,
+        string authorizationId,
+        decimal amount = 99.99m,
+        string currency = "USD")
+    {
+        await TransitionSagaToAwaitingCaptureApproval(correlationId, userId, authorizationId, amount, currency);
+
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
+            CreateApproveCaptureCommand(correlationId, userId));
+
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.AwaitingCapture, DefaultTimeout);
     }
 
+    /// <summary>
+    /// Drives the saga to <c>VoidInProgress</c> via the abort path (request → authorize → abort).
+    /// </summary>
     private async Task TransitionSagaToVoidInProgressState(
         Guid correlationId,
         Guid userId,
@@ -565,87 +659,18 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         decimal amount = 99.99m,
         string currency = "USD")
     {
-        await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId, amount, currency);
+        await TransitionSagaToAwaitingCaptureApproval(correlationId, userId, authorizationId, amount, currency);
 
-        var captureFailedEvent = new PaymentCaptureFailedEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            AuthorizationId = authorizationId,
-            // Upstream-owned code emitted by the Payments BC's gateway adapter on PaymentCaptureFailedEvent.ErrorCode;
-            // not extracted to PaymentProcessingSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
-            ErrorCode = "CAPTURE_FAILED",
-            ErrorMessage = "Capture failed",
-            IsRetryable = false,
-            FailedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId,
-            captureFailedEvent);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsPaymentCommands, userId,
+            CreateAbortCaptureCommand(correlationId, userId, "Compensation: confirmation failed"));
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.VoidInProgress, DefaultTimeout);
     }
 
     /// <summary>
-    /// Drives the saga to <c>PaymentCompleted</c> and returns the saga-minted PaymentTransactionId
-    /// (wave1-followup #255). Callers MUST use this value on any subsequent event whose
-    /// PaymentTransactionId the saga validates (refund-request, refund-completed).
-    /// </summary>
-    private async Task<Guid> TransitionSagaToPaymentCompletedState(
-        Guid correlationId,
-        Guid userId,
-        decimal amount = 99.99m,
-        string currency = "USD")
-    {
-        var authorizationId = $"auth-{Guid.CreateVersion7()}";
-
-        await TransitionSagaToAwaitingCaptureState(correlationId, userId, authorizationId, amount, currency);
-
-        var sagaMintedPaymentTransactionId = await ReadSagaMintedPaymentTransactionIdAsync(correlationId);
-        var capturedEvent = new PaymentCapturedEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = sagaMintedPaymentTransactionId,
-            AuthorizationId = authorizationId,
-            Amount = amount.ToAvroDecimal(4),
-            Currency = currency,
-            CapturedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, userId, capturedEvent);
-
-        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.PaymentCompleted, DefaultTimeout);
-        return sagaMintedPaymentTransactionId;
-    }
-
-    private async Task TransitionSagaToRefundInProgressState(
-        Guid correlationId,
-        Guid userId,
-        decimal amount = 99.99m,
-        string currency = "USD")
-    {
-        var paymentTransactionId = await TransitionSagaToPaymentCompletedState(correlationId, userId, amount, currency);
-
-        // RefundRequested is an internal saga event (no Kafka consumer exists)
-        var refundCommand = new PaymentRefundRequestedSagaEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
-            Reason = "Test refund",
-            RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await Bus.Publish(refundCommand);
-
-        await SagaStateMonitor.WaitForStateAsync(correlationId, state => state.RefundInProgress, DefaultTimeout);
-    }
-
-    /// <summary>
     /// Reads the saga's PaymentTransactionId from the persisted state. Must be called after the
     /// saga has reached at least <c>AwaitingAuthorization</c> (the Initial transition mints it
-    /// per wave1-followup #255). Used by tests that need to echo the value back on a downstream
+    /// per wave1-followup #255). Used by tests that echo the value back on a downstream capture
     /// event the saga's mismatch-guard would otherwise throw on.
     /// </summary>
     private async Task<Guid> ReadSagaMintedPaymentTransactionIdAsync(Guid correlationId)
