@@ -456,7 +456,7 @@ Per [ADR-0004](adr/0004-checkout-saga-topology.md). Industry-standard UX: reserv
 ### 9.2 Cross-cutting
 
 - **Resilience** (Polly): per-call timeout 2s (batch 10s), retry max 2 (exponential backoff), circuit breaker opens after 5 failures / 10 s, half-opens after 30 s.
-- **Cache invalidation**: BFF subscribes via consumer group `bff-group` (one-group-per-service rule per [events-catalog.md § 3.1](bc-design/events-catalog.md)) to `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`. Translates events to `FusionCache.RemoveByTagAsync(...)`.
+- **Cache invalidation**: BFF subscribes via consumer group `bff-group` (one-group-per-service rule per [events-catalog.md § 3.1](bc-design/events-catalog.md)) to `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions` (five topics). Translates events to `FusionCache.RemoveByTagAsync(...)`. The BFF registers **no inbox dedup** — `RemoveByTagAsync` is idempotent, so at-least-once redelivery is harmless; it subscribes to published-language event topics only (never saga-internal streams such as `inventory.reservations`). Per-topic handler→tag mapping and rationale are canonical in [bc-design/bff.md § 2.2](bc-design/bff.md).
 - **Auth pass-through**: `DelegatingHandler` forwards JWT bearer to upstream services.
 - **Observability**: OpenTelemetry traceparent auto-propagated via `HttpClient` instrumentation.
 

@@ -101,14 +101,13 @@ Each client resolves the resilience pipeline by name (`"catalog"`, `"basket"`, `
 | `catalog.products` | `ProductDiscontinuedEvent` | `ProductEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
 | `catalog.categories` | `CategoryCreatedEvent` | `CategoryEventCacheInvalidator` | `RemoveByTagAsync("home-page")` (category tree changed). |
 | `inventory.stock-events` | `StockLevelChangedEvent` | `StockEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` + `RemoveByTagAsync("home-page")`. |
-| `inventory.reservations` | `StockReservedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` | `StockEventCacheInvalidator` | `RemoveByTagAsync("product-{ProductId}")` (Available changed). |
-| `ordering.orders` | `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` | `OrderEventCacheInvalidator` | `RemoveByTagAsync("order-{OrderId}")` + `RemoveByTagAsync("order-history-{BuyerId}")`. |
+| `ordering.orders` | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` | `OrderEventCacheInvalidator` | `RemoveByTagAsync("order-{OrderId}")` + `RemoveByTagAsync("order-history-{BuyerId}")` — except `OrderCreatedEvent`, which invalidates `order-history-{BuyerId}` only (no `order-{OrderId}` entry exists for a brand-new order yet). |
 | `basket.sessions` | `BasketCheckoutInitiatedEvent` | `BasketEventCacheInvalidator` | `RemoveByTagAsync("basket-bff-{UserId}")` (basket has been converted to an order — aggressively clear the BFF's basket cache). |
 
 **Middleware pipeline** — same shape as the service inbox consumers:
 
 1. Avro deserialization.
-2. **No inbox middleware** is required on the BFF side because cache invalidation is idempotent by construction (`RemoveByTag` is a no-op when the tag is absent). Double-invalidation is cheap; missing invalidation would be a correctness bug, but at-least-once Kafka delivery covers that.
+2. **No inbox middleware** is required on the BFF side because cache invalidation is idempotent by construction (`RemoveByTag` is a no-op when the tag is absent). Double-invalidation is cheap; missing invalidation would be a correctness bug, but at-least-once Kafka delivery covers that. An inbox would add a per-message DB write for zero behavioural change, so the BFF registers none. **Subscription principle:** the BFF subscribes to *published-language event topics only* and never to saga-internal coordination streams — which is why it does **not** consume `inventory.reservations` (an `OrderId`-keyed, saga-internal stream owned by the Checkout saga). The BFF's product-availability concern is served by the purpose-built `ProductId`-keyed `inventory.stock-events` contract plus the short product-page cache TTL; oversell safety lives in Inventory, not in the BFF's cached display. (This is the canonical record of that decision — no separate ADR.)
 3. Handler dispatch.
 4. DLT on exception.
 
@@ -229,8 +228,7 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
   | Network unavailable | Serve from cache unconditionally with `HasStaleData = true`. If no cache, 503. | `X-BFF-Stale: true`. |
 - **Cache invalidation hooks (external Kafka events):**
   - `catalog.products` topic: on `ProductPriceChangedEvent` or `ProductDiscontinuedEvent` with matching `ProductId` → `RemoveByTagAsync("product-{ProductId}")`.
-  - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("product-{ProductId}")`.
-  - `inventory.reservations` topic: on `StockReservedEvent` / `ReservationConfirmedEvent` / `ReservationReleasedEvent` → `RemoveByTagAsync("product-{ProductId}")` (because `Available` shifted).
+  - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("product-{ProductId}")`. This is the BFF's sole availability-invalidation signal; reservation-level `Available` shifts (the saga-internal `inventory.reservations` stream) are **not** subscribed — they are absorbed by the short product-page TTL, per the published-language-only subscription principle in § 2.2.
 
 ### 3.2 `GET /api/bff/basket`
 
@@ -390,6 +388,7 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
   | Payments (planned `IPaymentsClient`) timeout / 5xx | Fall back to deriving `PaymentStatus` from order fields. | Documented for forward-compat; see [roadmap.md § 2.3 BFF](../roadmap.md). |
   | Network unavailable | Serve from cache with `HasStaleData=true`. If no cache, 503. | — |
 - **Cache invalidation hooks:**
+  - `ordering.orders` topic: on `OrderCreatedEvent` → `RemoveByTagAsync("order-history-{BuyerId}")` **only** — a brand-new order has no `order-{OrderId}` summary cached yet, but it must appear in the buyer's order-history list.
   - `ordering.orders` topic: on `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` → `RemoveByTagAsync("order-{OrderId}")` AND `RemoveByTagAsync("order-history-{BuyerId}")`.
   - `catalog.products` topic: on `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → too broad to invalidate every order containing the product. Stale enrichment accepted within TTL.
 
