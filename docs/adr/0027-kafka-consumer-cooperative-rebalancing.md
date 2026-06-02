@@ -100,15 +100,20 @@ The strategy is bindable from appsettings (the BC consumer-options classes
 inherit `Confluent.Kafka.ConsumerConfig`), so two homes were possible:
 
 - **(a) appsettings, per consumer section.** Matches where `AutoOffsetReset`
-  lives. **Rejected:** the value would be copy-pasted across 10 BC sections and a
-  future consumer that omits it silently reverts to eager (driver 3); and the
-  KafkaFlow `EnableAutoCommit` coupling stays invisible in config.
-- **(b) code, one shared place per stack (chosen).** A single
-  `WithCooperativeRebalancing()` extension for the BCs and a single shared saga
-  `ConfigureCommon` helper. The **value** lives in exactly one place per stack,
-  cannot drift, and is co-located with the documented `EnableAutoCommit`
-  consequence. Treats the strategy as the architectural invariant it is
-  (driver 5).
+  lives. **Rejected:** the assignment strategy is a fixed architectural invariant,
+  not a per-environment knob like `auto.offset.reset`; and putting it in config
+  hides the KafkaFlow `EnableAutoCommit` coupling (config would no longer reflect
+  runtime). It belongs in code.
+- **(b) code, set at each consumer (chosen).** The BCs set
+  `PartitionAssignmentStrategy = CooperativeSticky` inline right after binding each
+  consumer's options; the saga sets it in the shared
+  `SagaKafkaConsumerDefaults.ConfigureCommon` helper (which already centralises the
+  saga consumers' offset-reset + deserializers). The assigned value is a single
+  framework enum constant, so a dedicated BC helper/extension was judged
+  unnecessary indirection — inlining keeps the setting visible at each consumer.
+  This still treats the strategy as a code-level invariant, not a per-environment
+  knob (driver 5); the `EnableAutoCommit` consequence is documented here and in the
+  commit message rather than at each call site.
 
 ## Evaluation Matrix
 
@@ -118,7 +123,7 @@ inherit `Confluent.Kafka.ConsumerConfig`), so two homes were possible:
 | 2. Minimise duplicate reprocessing | ❌ all partitions re-fetch | ⚠️ less movement, still stops | ✅ only moved partitions re-fetch |
 | 3. Uniform across groups | n/a | n/a | ✅ one protocol everywhere |
 | 4. At-least-once + ordering unchanged | ✅ | ✅ | ✅ |
-| 5. Minimal/invariant config | ⚠️ implicit default | ❌ per-knob | ✅ one place per stack |
+| 5. Minimal/invariant config | ⚠️ implicit default | ❌ per-knob | ✅ code-set invariant, not env knob |
 | 6. Stateless Deployments | ✅ | ✅ | ✅ |
 
 ## Decision
@@ -128,9 +133,9 @@ for every consumer group in the solution** — all 10 KafkaFlow BC consumers and
 both MassTransit saga groups — set **in code, one shared place per stack**
 (placement option (b)).
 
-- **BCs:** a `WithCooperativeRebalancing()` extension on `ConsumerConfig` in
-  `Platform.KafkaFlow.DeadLetter`, chained into each consumer's
-  `WithConsumerConfig(...)`.
+- **BCs:** `PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky`
+  set inline after binding each consumer's options (all 10 KafkaFlow consumers),
+  before `WithConsumerConfig(...)`.
 - **Saga:** a shared `SagaKafkaConsumerDefaults.ConfigureCommon(...)` applied to
   every topic endpoint of both saga groups (this also retired the duplicated
   inline consumer config that previously existed only on the
@@ -202,21 +207,20 @@ KafkaFlow `EnableAutoCommit` coupling discoverable next to the setting.
   verified against its source + sample. MassTransit *exposes* the setting and
   wires it to the Confluent consumer, but the saga's cooperative behaviour should
   be **confirmed at runtime** before being trusted under real deploy churn.
-- **A new consumer that omits the helper silently reverts to eager.** Neither a
-  shared helper nor appsettings fully prevents this; only an architecture test
-  would, and a structural-invariant arch test of that shape is deliberately not
-  adopted here. Mitigation: a single obvious helper per stack + this ADR; the
-  symptom (stop-the-world on that one group's deploys) is observable.
+- **A new consumer that omits the setting silently reverts to eager.** Neither
+  inlining nor a helper nor appsettings fully prevents this; only an architecture
+  test would, and a structural-invariant arch test of that shape is deliberately
+  not adopted here. Mitigation: this ADR + the visible per-consumer assignment;
+  the symptom (stop-the-world on that one group's deploys) is observable.
 
 ## Implementation Notes
 
-- **Shared helper (BCs):** `KafkaConsumerRebalancing.WithCooperativeRebalancing(this
-  ConsumerConfig)` in `Platform.KafkaFlow.DeadLetter` (sets
-  `PartitionAssignmentStrategy = CooperativeSticky`). The csproj gains an explicit
-  `Confluent.Kafka` reference (version pinned in `platform/Directory.Packages.props`).
-- **BC wiring:** chained into `WithConsumerConfig(consumerOptions.WithCooperativeRebalancing())`
-  at all 10 consumer sites (Catalog, Inventory ×3, Invoicing ×3, Notifications,
-  Ordering, Payments).
+- **BCs:** `PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky`
+  set inline after binding each consumer's options, before
+  `WithConsumerConfig(consumerOptions)`, at all 10 consumer sites (Catalog,
+  Inventory ×3, Invoicing ×3, Notifications, Ordering, Payments). The
+  `Confluent.Kafka` types resolve transitively via KafkaFlow (no explicit package
+  reference needed).
 - **Saga:** new `SagaKafkaConsumerDefaults.ConfigureCommon(...)` (offset-reset +
   `CooperativeSticky` + Avro deserializers); `CheckoutSagaDependencyInjection` and
   `PaymentProcessingSagaDependencyInjection` both call it, removing the previously

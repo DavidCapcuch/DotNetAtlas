@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
@@ -65,6 +66,7 @@ internal static class MessagingDependencyInjection
         var consumerOptions = configuration
             .GetRequiredSection(PaymentCommandsConsumerOptions.Section)
             .Get<PaymentCommandsConsumerOptions>()!;
+        consumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
@@ -82,7 +84,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.PaymentCommands)
-                    .WithConsumerConfig(consumerOptions.WithCooperativeRebalancing())
+                    .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
