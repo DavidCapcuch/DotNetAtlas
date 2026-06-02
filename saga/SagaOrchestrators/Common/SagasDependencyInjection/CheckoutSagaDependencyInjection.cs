@@ -1,10 +1,6 @@
 using Avro.Specific;
-using Confluent.Kafka;
-using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
-using Confluent.SchemaRegistry.Serdes;
 using MassTransit;
-using Platform.Avro.UniversalSerDes;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 using SagaOrchestrators.Common.Config.Kafka;
@@ -42,7 +38,7 @@ internal static class CheckoutSagaDependencyInjection
                 checkoutGroup,
                 consumerConfig =>
                 {
-                    ConfigureCommon(consumerConfig, schemaRegistryClient, kafkaOptions);
+                    consumerConfig.ConfigureCommon(schemaRegistryClient, kafkaOptions);
                     consumerConfig.ConfigureConsumer<BasketCheckoutInitiatedConsumer>(context);
                 });
 
@@ -51,7 +47,7 @@ internal static class CheckoutSagaDependencyInjection
                 checkoutGroup,
                 consumerConfig =>
                 {
-                    ConfigureCommon(consumerConfig, schemaRegistryClient, kafkaOptions);
+                    consumerConfig.ConfigureCommon(schemaRegistryClient, kafkaOptions);
                     consumerConfig.ConfigureConsumer<OrderCreatedConsumer>(context);
                     consumerConfig.ConfigureConsumer<OrderConfirmedConsumer>(context);
                     consumerConfig.ConfigureConsumer<OrderCancelledConsumer>(context);
@@ -63,7 +59,7 @@ internal static class CheckoutSagaDependencyInjection
                 checkoutGroup,
                 consumerConfig =>
                 {
-                    ConfigureCommon(consumerConfig, schemaRegistryClient, kafkaOptions);
+                    consumerConfig.ConfigureCommon(schemaRegistryClient, kafkaOptions);
                     consumerConfig.ConfigureConsumer<StockReservedConsumer>(context);
                     consumerConfig.ConfigureConsumer<StockReservationFailedConsumer>(context);
                     consumerConfig.ConfigureConsumer<ReservationConfirmedConsumer>(context);
@@ -75,22 +71,11 @@ internal static class CheckoutSagaDependencyInjection
                 checkoutGroup,
                 consumerConfig =>
                 {
-                    ConfigureCommon(consumerConfig, schemaRegistryClient, kafkaOptions);
+                    consumerConfig.ConfigureCommon(schemaRegistryClient, kafkaOptions);
                     consumerConfig.ConfigureConsumer<PaymentAuthorizedCheckoutConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentCompletedCheckoutConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentFailedCheckoutConsumer>(context);
                 });
         }
-    }
-
-    private static void ConfigureCommon(IKafkaTopicReceiveEndpointConfigurator<Guid, ISpecificRecord> consumerConfig,
-        ISchemaRegistryClient schemaRegistryClient,
-        KafkaOptions kafkaOptions)
-    {
-        consumerConfig.AutoOffsetReset = AutoOffsetReset.Earliest;
-        consumerConfig.SetKeyDeserializer(
-            new AvroDeserializer<Guid>(schemaRegistryClient).AsSyncOverAsync());
-        consumerConfig.SetValueDeserializer(
-            new UniversalAvroDeserializer(schemaRegistryClient, kafkaOptions.AvroDeserializer).AsSyncOverAsync());
     }
 }
