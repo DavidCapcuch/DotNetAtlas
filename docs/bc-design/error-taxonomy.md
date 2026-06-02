@@ -111,8 +111,8 @@ A distinct subset of "user errors" whose outcome is **expected in the saga flow*
 
 Temporary failures outside the BC's control — upstream service returning 5xx, Kafka produce failing, DB connection timing out. Example: `BasketAclErrors.CatalogUnavailable` surfaces when Basket's `ProductCatalogHttpAdapter` hits a network error or Catalog returns 5xx. These errors:
 
-- Use **client retry** (the HTTP caller or outbox relay retries).
-- Do NOT dead-letter on first failure — only after the configured retry policy is exhausted (see [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) for Kafka side; per-adapter Polly policy for HTTP side).
+- Use **client retry** on the HTTP / outbox-relay side (the caller or outbox relay retries; per-adapter Polly policy).
+- On the Kafka **consumer** side they are **never dead-lettered**: a transient infrastructure failure is *retryable* and the classified `RetryForever` retries it forever with the consumer paused until recovery (transient ≡ `DbException.IsTransient` ∨ a deliberate `RetryableException` ∨ `TimeoutException`). Only a **poison** failure (§ 2.3) dead-letters. See [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) and [ADR-0025](../adr/0025-kafka-consumer-retry-dlt-policy.md). A non-DB upstream fault that must survive as retryable on the consumer path has to be thrown as (or wrapped in) `RetryableException` — otherwise it is poison.
 - Map to HTTP 503 (Service Unavailable) when surfaced through an API. They are constructed as `ServiceUnavailableError` (a `DomainError` subclass) so the type-switch in § 4 routes them correctly.
 
 ---
@@ -311,10 +311,10 @@ Cross-reference to [checkout-saga.md § 6 Compensation matrix](checkout-saga.md)
 | `OrderCreatedEvent` never arrives within timeout | `AwaitingOrderCreation` → `Failed` (no side effects) |
 | `StockReservationFailedEvent(InsufficientStockError)` | `AwaitingStockReservation` → `CompensatingStockReservations` → release any prior reservations for this `CorrelationId` → `CancelOrder` → `Failed` |
 | `StockReservationFailedEvent` with bug-class error (reservation ID clash etc.) | Same as above — compensation path is identical; ops alert additionally raised due to DLT message on the ORIGINATING consumer |
-| `PaymentFailedEvent` (from `GatewayDeclinedError`) | `AwaitingPayment` → `CompensatingStockReservations` → `CancelOrder` → `Failed` |
-| Confirmation fails (order FSM rejects `Confirm` after payment succeeded) | `AwaitingConfirmation` → `CompensatingPayment` (`RequestRefund` via PaymentProcessingSaga) → `CompensatingStockReservations` → `CancelOrder` → `Compensated` |
+| `PaymentFailedEvent` (from `GatewayDeclinedError`) — Payments-owned terminal, authorization decline | `AwaitingPaymentAuthorization` → fast-fail → `CompensatingStockReservations` → `CancelOrder` → `Compensated` (nothing captured; no void needed) |
+| Confirmation fails (order FSM rejects `Confirm` after authorization) — ADR-0026 pre-capture | `AwaitingConfirmation` → `AbortCaptureCommand` (PaymentProcessingSaga voids the authorization — free, never a refund) + release reservations → `CompensatingStockReservations` → `CancelOrder` → `Compensated` |
+| Post-pivot capture failure / timeout (order already confirmed, capture did not settle) — ADR-0026 deferred reconciliation | `AwaitingPaymentCapture` → `CompensationStuck` (ops alert, manual intervention) |
 | `ReservationReleasedEvent` never arrives during compensation within 300 s | `CompensatingStockReservations` → `CompensationStuck` (ops alert, manual intervention via [saga-stuck runbook](saga-stuck-runbook.md)) |
-| `PaymentRefundedEvent` never arrives during `CompensatingPayment` within 300 s | `CompensatingPayment` → `CompensationStuck` |
 
 Bug-class errors inside Ordering / Inventory that cause a saga-command consumer to DLT (e.g., `DataIntegrityException` on `ConfirmReservationCommand` for an already-confirmed reservation) leave the saga in its *Awaiting* state until the corresponding response event is produced. If no response event arrives before the state timeout, the saga transitions to its compensation path using the generic timeout error code (`STOCK_TIMEOUT` / `CONFIRMATION_TIMEOUT`). The DLT alert and the saga timeout are **complementary signals** — they frequently fire together for the same incident.
 

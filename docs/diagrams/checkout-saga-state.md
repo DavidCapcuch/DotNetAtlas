@@ -12,26 +12,31 @@ stateDiagram-v2
     AwaitingOrderCreation --> AwaitingStockReservation : OrderCreated
     AwaitingOrderCreation --> Failed : OrderFailed / Timeout
 
-    AwaitingStockReservation --> AwaitingPayment : all StockReserved
+    AwaitingStockReservation --> AwaitingPaymentAuthorization : all StockReserved
     AwaitingStockReservation --> CompensatingStock : StockReservationFailed / Timeout
 
-    AwaitingPayment --> AwaitingConfirmation : PaymentCompleted
-    AwaitingPayment --> CompensatingStock : PaymentFailed / Timeout
+    AwaitingPaymentAuthorization --> AwaitingConfirmation : PaymentAuthorized (confirm order + reservations)
+    AwaitingPaymentAuthorization --> CompensatingStock : PaymentFailed (auth decline, fast-fail) / Timeout
 
-    AwaitingConfirmation --> Confirmed : OrderConfirmed
-    AwaitingConfirmation --> CompensatingPayment : ConfirmationFailed / Timeout
+    AwaitingConfirmation --> AwaitingPaymentCapture : OrderConfirmed (ApproveCapture = PIVOT)
+    AwaitingConfirmation --> CompensatingStock : ConfirmationFailed / Timeout (AbortCapture = pre-capture void)
 
-    CompensatingStock --> Failed : all released (no refund)
-    CompensatingStock --> Compensated : all released (after refund)
+    AwaitingPaymentCapture --> Confirmed : PaymentCompleted
+    AwaitingPaymentCapture --> CompensationStuck : PaymentFailed / Timeout (post-pivot, manual)
+
+    CompensatingStock --> Compensated : all released + order cancelled
     CompensatingStock --> CompensationStuck : CompensationTimeout
-
-    CompensatingPayment --> CompensatingStock : PaymentRefunded
-    CompensatingPayment --> CompensationStuck : RefundFailed
 
     Confirmed --> [*]
     Failed --> [*]
     Compensated --> [*]
     CompensationStuck --> [*] : ops intervention
+
+    note right of AwaitingPaymentCapture
+        ADR-0026 capture pivot:
+        capture deferred until
+        after confirmation
+    end note
 
     note right of Confirmed
         Happy terminal
@@ -44,8 +49,9 @@ stateDiagram-v2
     end note
 
     note right of Compensated
-        Money moved & refunded
-        (post-confirmation failure)
+        Authorization voided
+        (pre-capture, free) +
+        reservation released
     end note
 
     note right of CompensationStuck
@@ -60,13 +66,13 @@ stateDiagram-v2
 |---|---|---|
 | `AwaitingOrderCreation` | Working | `CreateOrderCommand` published; waiting for `OrderCreatedEvent` |
 | `AwaitingStockReservation` | Working | N `ReserveStockCommand`s fanned out (one per distinct ProductId); waiting for all `StockReservedEvent`s |
-| `AwaitingPayment` | Working | `RequestPaymentCommand` published to `payments.payment-commands` (delegated to `PaymentProcessingSaga` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)); waiting for `PaymentCompletedEvent`/`PaymentFailedEvent` |
-| `AwaitingConfirmation` | Working | `ConfirmOrderCommand` published; waiting for `OrderConfirmedEvent` |
-| `CompensatingStock` | Recovery | Releasing all active reservations via `ReleaseReservationCommand` |
-| `CompensatingPayment` | Recovery | Refund requested via `RequestRefundCommand`; waiting for `PaymentRefundedEvent` |
+| `AwaitingPaymentAuthorization` | Working | `RequestPaymentCommand` published to `payments.payment-commands` (delegated to `PaymentProcessingSaga` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)); waiting for the Payments-owned `PaymentAuthorizedEvent` (→ confirm) or `PaymentFailedEvent` (auth decline → fast-fail) |
+| `AwaitingConfirmation` | Working | `ConfirmOrderCommand` + per-reservation `ConfirmReservationCommand`s published; waiting for `OrderConfirmedEvent`. On success approves capture (the pivot) via `ApproveCaptureCommand` |
+| `AwaitingPaymentCapture` | Working | Capture approved (ADR-0026 pivot); waiting for the Payments-owned terminal `PaymentCompletedEvent` |
+| `CompensatingStock` | Recovery | Releasing all active reservations via `ReleaseReservationCommand` + cancelling the order |
 | `Confirmed` | Terminal | Happy path — order is complete |
 | `Failed` | Terminal | No money moved; reached when pre-payment step failed and stock already released |
-| `Compensated` | Terminal | Money moved **and** refunded; reached when post-confirmation step failed |
-| `CompensationStuck` | Terminal abnormal | Compensation exceeded `CompensationTimeout`; **ops alert fires** |
+| `Compensated` | Terminal | Authorization voided pre-capture (free, via `AbortCaptureCommand`) **and** reservation released; reached when confirmation failed |
+| `CompensationStuck` | Terminal abnormal | Compensation exceeded `CompensationTimeout`, or a post-pivot capture failure left an unrecoverable state; **ops alert fires** |
 
 See [bc-design/checkout-saga.md](../bc-design/checkout-saga.md) for full transition table, timeout config, and compensation matrix.

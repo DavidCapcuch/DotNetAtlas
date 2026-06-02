@@ -32,7 +32,7 @@ namespace SagaOrchestrators.UnitTests.Checkout;
 public sealed class CheckoutTimeoutInvariantTests
 {
     [Fact]
-    public void ProductionTimeoutBudget_PlusTwiceCompensation_StaysUnderInventoryReservationTtl()
+    public void ProductionTimeoutBudget_TwoPaymentWaitsPlusCompensation_StaysUnderInventoryReservationTtl()
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
@@ -46,18 +46,21 @@ public sealed class CheckoutTimeoutInvariantTests
                 "Saga:CheckoutTimeouts missing from saga/SagaOrchestrators/appsettings.json. " +
                 "The Checkout saga relies on these values for the F4/ADR-0004 invariant.");
 
+        // ADR-0026 capture pivot: the happy path spans TWO payment waits on PaymentSeconds —
+        // AwaitingPaymentAuthorization (authorize) and AwaitingPaymentCapture (capture) — and
+        // compensation is single-pass (no refund-then-stock rearm), so 1 × CompensationSeconds.
         var happyPathBudgetSeconds =
             timeouts.OrderCreationSeconds
             + timeouts.StockReservationSeconds
-            + timeouts.PaymentSeconds
+            + (2 * timeouts.PaymentSeconds)
             + timeouts.OrderConfirmationSeconds;
-        var compensationBudgetSeconds = 2 * timeouts.CompensationSeconds;
+        var compensationBudgetSeconds = timeouts.CompensationSeconds;
         var totalBudgetSeconds = happyPathBudgetSeconds + compensationBudgetSeconds;
 
         totalBudgetSeconds.Should().BeLessThan(
             InventoryReservationInvariants.InventoryReservationTtlSeconds,
-            "Sum(OrderCreationSeconds={0}, StockReservationSeconds={1}, PaymentSeconds={2}, " +
-            "OrderConfirmationSeconds={3}) + 2 × CompensationSeconds({4}) = {5}s must stay under " +
+            "Sum(OrderCreationSeconds={0}, StockReservationSeconds={1}, 2 × PaymentSeconds({2}), " +
+            "OrderConfirmationSeconds={3}) + CompensationSeconds({4}) = {5}s must stay under " +
             "Inventory reservation TTL ({6}s) so a worst-case happy-path-then-compensation cycle " +
             "cannot outlive a stock reservation per F4 / ADR-0004",
             timeouts.OrderCreationSeconds,
