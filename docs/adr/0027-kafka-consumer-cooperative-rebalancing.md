@@ -150,8 +150,8 @@ classifies `Range`/`RoundRobin` as "stop-the-world" via an internal
 `IsStopTheWorldStrategy` check and treats every other strategy — including
 `CooperativeSticky` — incrementally: assigned partitions are `Union`-ed and
 revoked partitions `Except`-ed from the live assignment, restarting only the
-affected workers (it ships a `KafkaFlow.Sample.CooperativeSticky` sample and
-`ConsumerManagerCooperativeStickyTests`). MassTransit.Kafka exposes
+affected workers (it ships a cooperative-sticky sample and cooperative
+consumer-manager tests). MassTransit.Kafka exposes
 `PartitionAssignmentStrategy` on `IKafkaTopicReceiveEndpointConfigurator`, which
 flows straight to the underlying `Confluent.Kafka` consumer builder.
 
