@@ -46,8 +46,8 @@ public static class PaymentSagaActivityTags
     public static class TimeoutStages
     {
         public const string Authorization = "authorization";
+        public const string CaptureApproval = "capture_approval";
         public const string Capture = "capture";
         public const string Void = "void";
-        public const string Refund = "refund";
     }
 }

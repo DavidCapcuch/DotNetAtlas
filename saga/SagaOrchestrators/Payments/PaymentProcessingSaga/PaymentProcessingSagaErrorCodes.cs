@@ -15,11 +15,10 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 /// </para>
 /// <para>
 /// String values are wire-protocol values. Every code is persisted to
-/// <c>PaymentProcessingSagaState.ErrorCode</c>; only the <c>CaptureTimeout</c>
-/// path additionally publishes it as <c>PaymentFailedEvent.ErrorCode</c> on
-/// the <c>payments.transactions</c> topic (the <c>AuthorizationTimeout</c>,
-/// <c>VoidTimeout</c>, and <c>RefundTimeout</c> paths stay internal to the
-/// saga). Treat them as stable contracts.
+/// <c>PaymentProcessingSagaState.ErrorCode</c>. Per ADR-0026 the sub-saga no
+/// longer publishes payment-state events — the Payments service owns the
+/// terminal <c>PaymentFailedEvent</c> — so every code below stays internal to
+/// the saga. Treat them as stable contracts.
 /// </para>
 /// </remarks>
 public static class PaymentProcessingSagaErrorCodes
@@ -31,10 +30,17 @@ public static class PaymentProcessingSagaErrorCodes
     public const string AuthorizationTimeout = "AUTHORIZATION_TIMEOUT";
 
     /// <summary>
+    /// The Checkout saga's capture-approval / abort signal did not arrive
+    /// within the saga's <c>CaptureApprovalTimeout</c> budget (ADR-0026
+    /// wait-state). Drives the void-payment path so the dangling
+    /// authorization is released.
+    /// </summary>
+    public const string CaptureApprovalTimeout = "CAPTURE_APPROVAL_TIMEOUT";
+
+    /// <summary>
     /// <c>PaymentCapturedEvent</c> / <c>PaymentCaptureFailedEvent</c> did
     /// not arrive within the saga's <c>CaptureTimeout</c> budget. Triggers
-    /// a void-payment compensation and is also forwarded into the
-    /// <c>PaymentFailedEvent.ErrorCode</c> the saga emits.
+    /// a void-payment compensation.
     /// </summary>
     public const string CaptureTimeout = "CAPTURE_TIMEOUT";
 
@@ -44,11 +50,4 @@ public static class PaymentProcessingSagaErrorCodes
     /// manual intervention required.
     /// </summary>
     public const string VoidTimeout = "VOID_TIMEOUT";
-
-    /// <summary>
-    /// <c>PaymentRefundCompletedEvent</c> did not arrive within the saga's
-    /// <c>RefundTimeout</c> budget. Saga finalises in <c>RefundFailed</c>;
-    /// manual intervention required.
-    /// </summary>
-    public const string RefundTimeout = "REFUND_TIMEOUT";
 }

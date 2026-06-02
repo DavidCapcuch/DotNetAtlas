@@ -123,17 +123,14 @@ public sealed class PaymentProcessingSagaStateMap :
         entity.Property(x => x.AuthorizationTimeoutTokenId)
             .HasComment("Token ID for authorization timeout scheduler - set when schedule is active");
 
+        entity.Property(x => x.CaptureApprovalTimeoutTokenId)
+            .HasComment("Token ID for capture-approval wait-state timeout scheduler - set when schedule is active");
+
         entity.Property(x => x.CaptureTimeoutTokenId)
             .HasComment("Token ID for capture timeout scheduler - set when schedule is active");
 
         entity.Property(x => x.VoidTimeoutTokenId)
             .HasComment("Token ID for void timeout scheduler - set when schedule is active");
-
-        entity.Property(x => x.RefundTimeoutTokenId)
-            .HasComment("Token ID for refund timeout scheduler - set when schedule is active");
-
-        entity.Property(x => x.SuccessFinalizationTimeoutTokenId)
-            .HasComment("Token ID for success finalization timeout scheduler - set when schedule is active");
 
         entity.Property(s => s.RowVersion)
             .IsRowVersion()

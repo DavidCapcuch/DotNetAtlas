@@ -17,6 +17,15 @@ public sealed class PaymentProcessingSagaTimeoutOptions
     public required int AuthorizationMinutes { get; set; }
 
     /// <summary>
+    /// Timeout in minutes for the Checkout saga to signal capture approval / abort after
+    /// authorization (ADR-0026 capture-pivot wait-state). On expiry the sub-saga drives the void
+    /// path so the dangling authorization is released rather than left open.
+    /// </summary>
+    [Required]
+    [Range(1, int.MaxValue)]
+    public required int CaptureApprovalMinutes { get; set; }
+
+    /// <summary>
     /// Timeout in minutes for payment capture to complete.
     /// </summary>
     [Required]
@@ -29,20 +38,4 @@ public sealed class PaymentProcessingSagaTimeoutOptions
     [Required]
     [Range(1, int.MaxValue)]
     public required int VoidMinutes { get; set; }
-
-    /// <summary>
-    /// Timeout in minutes for refund to complete (when compensation is needed after capture).
-    /// </summary>
-    [Required]
-    [Range(1, int.MaxValue)]
-    public required int RefundMinutes { get; set; }
-
-    /// <summary>
-    /// Timeout in minutes after payment completion before the saga finalizes.
-    /// This provides a window for calling sagas to request refunds if their downstream operations fail.
-    /// After this timeout, the saga finalizes and late refunds must be handled through a separate service.
-    /// </summary>
-    [Required]
-    [Range(1, int.MaxValue)]
-    public required int SuccessFinalizationMinutes { get; set; }
 }

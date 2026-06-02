@@ -37,14 +37,6 @@ public static class PaymentProcessingSagaMetrics
         Meter.CreateCounter<long>("saga.payments.voids.completed", "count",
             "Number of payment voids completed");
 
-    private static readonly Counter<long> RefundsCompleted =
-        Meter.CreateCounter<long>("saga.payments.refunds.completed", "count",
-            "Number of payment refunds completed");
-
-    private static readonly Counter<long> RefundsRequested =
-        Meter.CreateCounter<long>("saga.payments.refunds.requested", "count",
-            "Number of payment refunds requested");
-
     private static readonly Counter<long> SagasCompleted =
         Meter.CreateCounter<long>("saga.payments.completed", "count",
             "Number of payment sagas completed successfully");
@@ -107,22 +99,6 @@ public static class PaymentProcessingSagaMetrics
     public static void RecordVoidCompleted()
     {
         VoidsCompleted.Add(1);
-    }
-
-    /// <summary>
-    /// Records that payment refund completed.
-    /// </summary>
-    public static void RecordRefundCompleted()
-    {
-        RefundsCompleted.Add(1);
-    }
-
-    /// <summary>
-    /// Records that a refund was requested.
-    /// </summary>
-    public static void RecordRefundRequested()
-    {
-        RefundsRequested.Add(1);
     }
 
     /// <summary>

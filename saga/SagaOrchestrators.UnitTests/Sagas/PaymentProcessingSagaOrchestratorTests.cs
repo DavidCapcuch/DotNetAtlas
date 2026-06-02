@@ -13,15 +13,19 @@ using SagaOrchestrators.Payments.PaymentProcessingSaga.Schedules;
 namespace SagaOrchestrators.UnitTests.Sagas;
 
 /// <summary>
-/// Unit tests for the PaymentProcessingSaga state machine.
-/// Tests verify correct state transitions, event handling, timeout scenarios, and compensation logic.
+/// Unit tests for the PaymentProcessingSaga state machine after the ADR-0026 capture-pivot
+/// restructure. Tests verify correct state transitions, the AwaitingCaptureApproval wait-state,
+/// the capture-approval / abort handshake, timeout scenarios, and compensation logic.
 /// </summary>
 /// <remarks>
 /// The saga flow is:
-/// 1. PaymentInitiatedEvent → AwaitingAuthorization (publishes RequestPaymentAuthorizationCommand)
-/// 2. PaymentAuthorizedEvent → AwaitingCapture (publishes RequestPaymentCaptureCommand)
-/// 3. PaymentCapturedEvent → PaymentCompleted (publishes PaymentCompletedEvent to Kafka)
-/// The saga remains alive in PaymentCompleted to handle potential refund requests.
+/// 1. PaymentInitiatedEvent → AwaitingAuthorization (publishes AuthorizePaymentCommand)
+/// 2. PaymentAuthorizedEvent → AwaitingCaptureApproval (does NOT capture yet — waits for the
+///    Checkout saga to confirm stock + order and signal capture approval)
+/// 3a. ApproveCaptureSagaEvent → AwaitingCapture (publishes CapturePaymentCommand)
+/// 3b. AbortCaptureSagaEvent / CaptureApprovalTimeout → VoidInProgress (publishes VoidPaymentCommand)
+/// 4. PaymentCapturedEvent → PaymentCompleted + finalized. The saga does NOT publish the terminal
+///    PaymentCompletedEvent — per ADR-0026 the Payments service owns its terminal events.
 /// </remarks>
 public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
 {
@@ -88,6 +92,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         await _testHarness.Bus.Publish(paymentInitiatedSagaEvent);
 
         // Assert
+        (await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>()).Should().BeTrue();
         var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
         sagaExists.Should().BeTrue();
 
@@ -104,9 +109,11 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task WhenPaymentAuthorized_ShouldTransitionToAwaitingCapture()
+    public async Task WhenPaymentAuthorized_ShouldTransitionToAwaitingCaptureApproval()
     {
-        // Arrange
+        // ADR-0026: capture is deferred to the pivot. On authorization the sub-saga parks in
+        // AwaitingCaptureApproval and waits for the Checkout saga's capture-approval / abort
+        // signal — it must NOT issue CapturePaymentCommand here.
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
@@ -133,29 +140,136 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Assert
         (await _sagaHarness.Consumed.Any<PaymentAuthorizedSagaEvent>()).Should().BeTrue();
 
-        var awaitingCaptureSagaState = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCapture);
+        var awaitingApprovalSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCaptureApproval);
 
         using (new AssertionScope())
         {
-            awaitingCaptureSagaState.Should().NotBeNull("Saga should be in AwaitingCapture state");
-            awaitingCaptureSagaState.AuthorizationId.Should().Be(authorizationId);
+            awaitingApprovalSagaState.Should().NotBeNull("Saga should be in AwaitingCaptureApproval state");
+            awaitingApprovalSagaState.AuthorizationId.Should().Be(authorizationId);
+            // Capture must NOT be triggered yet — it waits for the Checkout saga's approval.
+            _fakeOutboxWriter.HasMessage<CapturePaymentCommand>().Should().BeFalse(
+                "capture is deferred to the pivot — no CapturePaymentCommand until approval");
         }
     }
 
     [Fact]
-    public async Task WhenPaymentCaptured_ShouldTransitionToPaymentCompleted()
+    public async Task WhenCaptureApproved_ShouldIssueCapture_AndTransitionToAwaitingCapture()
     {
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+        await PublishAndWaitForCaptureApproval(correlationId, userId, authorizationId);
+
+        // Act
+        await _testHarness.Bus.Publish(new ApproveCaptureSagaEvent
+        {
+            CorrelationId = correlationId,
+            UserId = userId,
+            RequestedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
+        });
+
+        // Assert
+        (await _sagaHarness.Consumed.Any<ApproveCaptureSagaEvent>()).Should().BeTrue();
+
+        var awaitingCaptureSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCapture);
+
+        using (new AssertionScope())
+        {
+            awaitingCaptureSagaState.Should().NotBeNull("Saga should be in AwaitingCapture after approval");
+            var captureCommands = _fakeOutboxWriter.GetMessages<CapturePaymentCommand>().ToList();
+            captureCommands.Should().ContainSingle(
+                "approval triggers exactly one CapturePaymentCommand to Payments");
+            captureCommands[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            captureCommands[0].IntegrationEvent.AuthorizationId.Should().Be(authorizationId);
+        }
+    }
+
+    [Fact]
+    public async Task WhenCaptureAborted_ShouldIssueVoid_AndTransitionToVoidInProgress()
+    {
+        // ADR-0026: on confirmation failure the Checkout saga sends AbortCapture; the sub-saga
+        // voids the (pre-capture) authorization — a free void, never a refund.
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await PublishAndWaitForCaptureApproval(correlationId, userId, authorizationId);
+
+        // Act
+        await _testHarness.Bus.Publish(new AbortCaptureSagaEvent
+        {
+            CorrelationId = correlationId,
+            UserId = userId,
+            Reason = "Order confirmation failed",
+            RequestedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
+        });
+
+        // Assert
+        (await _sagaHarness.Consumed.Any<AbortCaptureSagaEvent>()).Should().BeTrue();
+
+        var voidInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.VoidInProgress);
+
+        using (new AssertionScope())
+        {
+            voidInProgressSagaState.Should().NotBeNull("Saga should transition to VoidInProgress on abort");
+            voidInProgressSagaState.CompensationTriggered.Should().BeTrue();
+            var voidCommands = _fakeOutboxWriter.GetMessages<VoidPaymentCommand>().ToList();
+            voidCommands.Should().ContainSingle("abort triggers exactly one VoidPaymentCommand");
+            voidCommands[0].IntegrationEvent.AuthorizationId.Should().Be(authorizationId);
+        }
+    }
+
+    [Fact]
+    public async Task WhenCaptureApprovalTimeout_ShouldIssueVoid_AndTransitionToVoidInProgress()
+    {
+        // ADR-0026 risk mitigation: if the capture-approval signal never arrives (Checkout saga
+        // crashed after authorize), the wait-state timeout drives the void path so the
+        // authorization is released rather than left dangling.
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await PublishAndWaitForCaptureApproval(correlationId, userId, authorizationId);
+
+        // Act
+        await _testHarness.Bus.Publish(new CaptureApprovalTimeoutExpired
+        {
+            CorrelationId = correlationId
+        });
+
+        // Assert
+        (await _sagaHarness.Consumed.Any<CaptureApprovalTimeoutExpired>()).Should().BeTrue();
+
+        var voidInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.VoidInProgress);
+
+        using (new AssertionScope())
+        {
+            voidInProgressSagaState.Should().NotBeNull(
+                "Saga should transition to VoidInProgress on capture-approval timeout");
+            voidInProgressSagaState.CompensationTriggered.Should().BeTrue();
+            _fakeOutboxWriter.HasMessage<VoidPaymentCommand>().Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public async Task WhenPaymentCaptured_ShouldFinalizeInPaymentCompleted()
+    {
+        // Arrange
+        var correlationId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        var authorizationId = $"auth-{Guid.CreateVersion7()}";
+
+        await PublishApprovedAndWaitForAwaitingCapture(correlationId, userId, authorizationId);
 
         // Wave1-followup #255: PaymentTransactionId is minted by the saga in Initial state and
-        // echoed back by Payments on PaymentCapturedEvent. The saga now throws on mismatch instead
-        // of overwriting, so the test must read the saga's minted value rather than fabricating one.
+        // echoed back by Payments on PaymentCapturedEvent. The saga throws on mismatch instead of
+        // overwriting, so the test must read the saga's minted value rather than fabricating one.
         var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(correlationId);
 
         // Act
@@ -175,28 +289,22 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         // Assert
         (await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>()).Should().BeTrue();
 
-        var paymentCompletedSagaState = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.PaymentCompleted);
-
-        using (new AssertionScope())
-        {
-            paymentCompletedSagaState.Should().NotBeNull("Saga should be in PaymentCompleted state");
-            paymentCompletedSagaState.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
-            paymentCompletedSagaState.CapturedAtUtc.Should().NotBeNull();
-        }
+        // The sub-saga reaches its successful terminal (PaymentCompleted) and finalizes — it no
+        // longer lingers to await refund requests (refund is a deferred customer/admin flow).
+        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
+        sagaNotExists.Should().BeTrue("Saga should finalize after capture completes");
     }
 
     [Fact]
-    public async Task WhenPaymentCaptured_ShouldPublishPaymentCompletedEventToKafka()
+    public async Task WhenPaymentCaptured_ShouldNotPublishPaymentCompletedEvent_PaymentsOwnsTerminal()
     {
-        // Arrange
+        // ADR-0026: the Payments service (not the sub-saga) is the authoritative producer of the
+        // terminal PaymentCompletedEvent. The sub-saga orchestrates only — it must NOT publish it.
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
-
-        // Wave1-followup #255: see WhenPaymentCaptured_ShouldTransitionToPaymentCompleted.
+        await PublishApprovedAndWaitForAwaitingCapture(correlationId, userId, authorizationId);
         var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(correlationId);
 
         // Act
@@ -214,21 +322,13 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         await _testHarness.Bus.Publish(paymentCapturedSagaEvent);
         await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
 
-        // Assert - verify message was added to the transactional outbox
-        var outboxMessages = _fakeOutboxWriter.GetMessages<PaymentCompletedEvent>().ToList();
-
-        using (new AssertionScope())
-        {
-            _fakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeTrue(
-                "PaymentCompletedEvent should be added to the outbox for publishing to Kafka");
-            outboxMessages.Should().ContainSingle();
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            outboxMessages[0].IntegrationEvent.PaymentTransactionId.Should().Be(sagaMintedPaymentTransactionId);
-        }
+        // Assert
+        _fakeOutboxWriter.HasMessage<PaymentCompletedEvent>().Should().BeFalse(
+            "Payments owns the terminal PaymentCompletedEvent (ADR-0026); the sub-saga must not publish it");
     }
 
     [Fact]
-    public async Task WhenAuthorizationFailed_NonRetryable_ShouldTransitionToAuthorizationFailed()
+    public async Task WhenAuthorizationFailed_NonRetryable_ShouldFinalizeAndNotPublishPaymentFailedEvent()
     {
         // Arrange
         var correlationId = Guid.CreateVersion7();
@@ -256,7 +356,15 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         (await _sagaHarness.Consumed.Any<PaymentAuthorizationFailedSagaEvent>()).Should().BeTrue();
 
         var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
-        sagaNotExists.Should().BeTrue("Saga should be finalized after non-retryable auth failure");
+
+        using (new AssertionScope())
+        {
+            sagaNotExists.Should().BeTrue("Saga should be finalized after non-retryable auth failure");
+            // ADR-0026: Payments already published PaymentFailedEvent on the decline (it owns the
+            // terminal); the sub-saga must not publish a payment-state event of its own.
+            _fakeOutboxWriter.HasMessage<PaymentFailedEvent>().Should().BeFalse(
+                "Payments owns the terminal PaymentFailedEvent; the sub-saga must not publish it");
+        }
     }
 
     [Fact]
@@ -267,7 +375,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+        await PublishApprovedAndWaitForAwaitingCapture(correlationId, userId, authorizationId);
 
         // Act
         var paymentCaptureFailedSagaEvent = new PaymentCaptureFailedSagaEvent
@@ -295,6 +403,8 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         {
             voidInProgressSagaState.Should().NotBeNull("Saga should transition to VoidInProgress after capture failure");
             voidInProgressSagaState.CompensationTriggered.Should().BeTrue();
+            // Payments owns the terminal PaymentFailedEvent (ADR-0026); the sub-saga only voids.
+            _fakeOutboxWriter.HasMessage<PaymentFailedEvent>().Should().BeFalse();
         }
     }
 
@@ -306,7 +416,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+        await PublishApprovedAndWaitForAwaitingCapture(correlationId, userId, authorizationId);
 
         // Fail capture to get to VoidInProgress
         var paymentCaptureFailedSagaEvent = new PaymentCaptureFailedSagaEvent
@@ -314,8 +424,6 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             CorrelationId = correlationId,
             UserId = userId,
             AuthorizationId = authorizationId,
-            // Upstream-owned code emitted by the Payments BC's gateway adapter on PaymentCaptureFailedEvent.ErrorCode;
-            // not extracted to PaymentProcessingSagaErrorCodes because saga is a consumer of this vocabulary, not the owner.
             ErrorCode = "CAPTURE_FAILED",
             ErrorMessage = "Unable to capture funds",
             IsRetryable = false,
@@ -341,83 +449,6 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
 
         var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
         sagaNotExists.Should().BeTrue("Saga should be finalized after void completed");
-    }
-
-    [Fact]
-    public async Task WhenRefundRequested_FromPaymentCompleted_ShouldTransitionToRefundInProgress()
-    {
-        // Arrange
-        var correlationId = Guid.CreateVersion7();
-        var userId = Guid.CreateVersion7();
-        var authorizationId = $"auth-{Guid.CreateVersion7()}";
-
-        var paymentTransactionId = await PublishAndWaitForCapture(correlationId, userId, authorizationId);
-
-        // Act - request refund
-        var paymentRefundRequestedSagaEvent = new PaymentRefundRequestedSagaEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
-            Reason = "Customer requested refund",
-            RequestedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await _testHarness.Bus.Publish(paymentRefundRequestedSagaEvent);
-
-        // Assert
-        (await _sagaHarness.Consumed.Any<PaymentRefundRequestedSagaEvent>()).Should().BeTrue();
-
-        var refundInProgressSagaState = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.RefundInProgress);
-
-        using (new AssertionScope())
-        {
-            refundInProgressSagaState.Should().NotBeNull("Saga should be in RefundInProgress state");
-            refundInProgressSagaState.CompensationTriggered.Should().BeTrue();
-        }
-    }
-
-    [Fact]
-    public async Task WhenRefundCompleted_ShouldTransitionToRefundCompleted()
-    {
-        // Arrange
-        var correlationId = Guid.CreateVersion7();
-        var userId = Guid.CreateVersion7();
-        var authorizationId = $"auth-{Guid.CreateVersion7()}";
-
-        var paymentTransactionId = await PublishAndWaitForCapture(correlationId, userId, authorizationId);
-
-        // Request refund
-        var paymentRefundRequestedSagaEvent = new PaymentRefundRequestedSagaEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
-            Reason = "Customer requested refund",
-            RequestedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await _testHarness.Bus.Publish(paymentRefundRequestedSagaEvent);
-        await _sagaHarness.Consumed.Any<PaymentRefundRequestedSagaEvent>();
-
-        // Act - refund completed
-        var paymentRefundCompletedSagaEvent = new PaymentRefundCompletedSagaEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
-            RefundTransactionId = Guid.CreateVersion7(),
-            RefundedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await _testHarness.Bus.Publish(paymentRefundCompletedSagaEvent);
-
-        // Assert
-        (await _sagaHarness.Consumed.Any<PaymentRefundCompletedSagaEvent>()).Should().BeTrue();
-
-        var sagaNotExists = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
-        sagaNotExists.Should().BeTrue("Saga should be finalized after refund completed");
     }
 
     [Fact]
@@ -455,7 +486,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
 
-        await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
+        await PublishApprovedAndWaitForAwaitingCapture(correlationId, userId, authorizationId);
 
         // Act
         var captureTimeoutExpired = new CaptureTimeoutExpired
@@ -479,7 +510,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task WhenPaymentInitiated_ShouldPublishRequestPaymentAuthorizationCommand()
+    public async Task WhenPaymentInitiated_ShouldPublishAuthorizePaymentCommand()
     {
         // Arrange
         var correlationId = Guid.CreateVersion7();
@@ -532,6 +563,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
 
         // Act
         await _testHarness.Bus.Publish(paymentInitiatedSagaEvent);
+        (await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>()).Should().BeTrue();
         var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
         sagaExists.Should().BeTrue();
 
@@ -590,6 +622,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         var userId = Guid.CreateVersion7();
 
         await _testHarness.Bus.Publish(CreatePaymentInitiatedEvent(correlationId, userId));
+        (await _sagaHarness.Consumed.Any<PaymentInitiatedSagaEvent>()).Should().BeTrue();
         var sagaExists = await _sagaHarness.Exists(correlationId, timeout: DefaultTimeout) is not null;
         sagaExists.Should().BeTrue();
 
@@ -647,7 +680,11 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         };
     }
 
-    private async Task PublishAndWaitForAuthorization(
+    /// <summary>
+    /// Drives the saga to <c>AwaitingCaptureApproval</c> (initiate → authorize). Per ADR-0026 the
+    /// sub-saga parks here waiting for the Checkout saga's capture-approval / abort signal.
+    /// </summary>
+    private async Task PublishAndWaitForCaptureApproval(
         Guid correlationId,
         Guid userId,
         string authorizationId)
@@ -671,59 +708,47 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         await _testHarness.Bus.Publish(paymentAuthorizedSagaEvent);
         await _sagaHarness.Consumed.Any<PaymentAuthorizedSagaEvent>();
 
-        var awaitingCaptureSagaState = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCapture);
-        awaitingCaptureSagaState.Should().NotBeNull("Saga should be in AwaitingCapture state");
+        var awaitingApprovalSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCaptureApproval);
+        awaitingApprovalSagaState.Should().NotBeNull("Saga should be in AwaitingCaptureApproval state");
     }
 
     /// <summary>
-    /// Drives the saga to <c>PaymentCompleted</c> and returns the saga-minted PaymentTransactionId
-    /// that callers must use for any subsequent event (refund-request, refund-completed). Per
-    /// wave1-followup #255, the saga mints the id in <c>Initial</c> and rejects (throws) any
-    /// inbound <c>PaymentCapturedSagaEvent</c> whose PaymentTransactionId does not match.
+    /// Drives the saga to <c>AwaitingCapture</c> (initiate → authorize → capture-approval). The
+    /// Checkout saga issues capture approval only after confirming stock + order.
     /// </summary>
-    private async Task<Guid> PublishAndWaitForCapture(
+    private async Task PublishApprovedAndWaitForAwaitingCapture(
         Guid correlationId,
         Guid userId,
         string authorizationId)
     {
-        await PublishAndWaitForAuthorization(correlationId, userId, authorizationId);
-        var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(correlationId);
+        await PublishAndWaitForCaptureApproval(correlationId, userId, authorizationId);
 
-        var paymentCapturedSagaEvent = new PaymentCapturedSagaEvent
+        await _testHarness.Bus.Publish(new ApproveCaptureSagaEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = sagaMintedPaymentTransactionId,
-            AuthorizationId = authorizationId,
-            Amount = 9.99m,
-            Currency = "USD",
-            CapturedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
-        };
+            RequestedAtUtc = _fakeTimeProvider.GetUtcNow().UtcDateTime
+        });
+        await _sagaHarness.Consumed.Any<ApproveCaptureSagaEvent>();
 
-        await _testHarness.Bus.Publish(paymentCapturedSagaEvent);
-        await _sagaHarness.Consumed.Any<PaymentCapturedSagaEvent>();
-
-        var paymentCompletedSagaState = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.PaymentCompleted);
-        paymentCompletedSagaState.Should().NotBeNull("Saga should be in PaymentCompleted state");
-
-        return sagaMintedPaymentTransactionId;
+        var awaitingCaptureSagaState = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCapture);
+        awaitingCaptureSagaState.Should().NotBeNull("Saga should be in AwaitingCapture after approval");
     }
 
     /// <summary>
-    /// Reads the saga's PaymentTransactionId from the in-memory test harness state. The saga
-    /// mints this in <c>Initial</c> (wave1-followup #255); callers need it whenever they
-    /// construct a downstream event whose PaymentTransactionId must echo it back.
+    /// Reads the saga's PaymentTransactionId from the in-memory test harness state regardless of
+    /// the current state. The saga mints this in <c>Initial</c> (wave1-followup #255); callers
+    /// need it whenever they construct a downstream event whose PaymentTransactionId must echo it.
     /// </summary>
     private Guid GetSagaMintedPaymentTransactionId(Guid correlationId)
     {
-        var saga = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingCapture);
-        saga.Should().NotBeNull("Saga must be in AwaitingCapture to read the minted PaymentTransactionId");
+        var saga = _sagaHarness.Sagas.Contains(correlationId);
+        saga.Should().NotBeNull("Saga must exist to read the minted PaymentTransactionId");
         return saga.PaymentTransactionId
             ?? throw new InvalidOperationException(
-                $"Saga {correlationId} reached AwaitingCapture without a minted PaymentTransactionId — "
+                $"Saga {correlationId} has no minted PaymentTransactionId — "
                 + "wave1-followup #255 invariant violation");
     }
 }
