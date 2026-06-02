@@ -139,10 +139,10 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
-| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | BFF (cache warm). Invoice-delivery email flows via the command-driven pattern (Invoicing → `SendEmailNotificationCommand` → Notifications), NOT a Notifications subscription to this topic — see [notifications.md § 2](notifications.md). |
-| `InvoiceDeliveredEvent` | `InvoiceDeliveredDomainEvent` | BFF (cache invalidate for "my invoices" page) |
-| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
-| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
+| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | **No v1 consumer** — a BFF invoice cache is planned-not-v1 (the v1 BFF defines no invoice endpoint/cache; see [events-catalog.md § 5.8](events-catalog.md)) and would consume this topic if added. Invoice-delivery email flows via the command-driven pattern (Invoicing → `SendEmailNotificationCommand` → Notifications), NOT a Notifications subscription to this topic — see [notifications.md § 2](notifications.md). |
+| `InvoiceDeliveredEvent` | `InvoiceDeliveredDomainEvent` | **No v1 consumer** (a BFF "my invoices" cache is planned-not-v1). |
+| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
+| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
 
 **Schema compatibility:** FORWARD_TRANSITIVE.
 
@@ -385,7 +385,7 @@ Ordering                 Payments
 └───────────┬──────────────────┘
             │
             ▼
-   InvoiceIssuedEvent  ──▶  BFF (cache warm)
+   InvoiceIssuedEvent  (emitted to invoicing.invoices — no v1 consumer)
    InvoiceDeliveryRequestedDomainEvent
         ──▶  SendEmailNotificationCommand  ──▶  Notifications  ──▶  EmailNotificationSentEvent
                                                                           │
@@ -403,7 +403,7 @@ Ordering (OrderCancelled) + Payments (PaymentRefunded)
                 ▼
       IssueCreditNoteCommand
                 ▼
-      CreditNoteIssuedEvent ──▶ BFF (cache invalidate)
+      CreditNoteIssuedEvent (emitted to invoicing.invoices — no v1 consumer)
                             (no Notifications wiring in v1)
 ```
 

@@ -66,7 +66,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 
 | Event | Topic | Namespace | Producer | Consumer(s) | Consumer Group(s) | Correlation Key | Triggered By | Schema File Path |
 |-------|-------|-----------|----------|-------------|-------------------|-----------------|--------------|------------------|
-| `BasketCheckoutInitiatedEvent` | `basket.sessions` | `Basket.Sessions` | Basket | Checkout saga | `saga-checkout` | `BasketCorrelationId` | `BasketCheckedOutDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc` |
+| `BasketCheckoutInitiatedEvent` | `basket.sessions` | `Basket.Sessions` | Basket | Checkout saga, BFF (cache invalidate) | `saga-checkout`, `bff-group` | `BasketCorrelationId` | `BasketCheckedOutDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc` |
 | `CategoryCreatedEvent` | `catalog.categories` | `Catalog.Categories` | Catalog | BFF (cache warm), Search indexer¹ | `bff-group` | `CategoryId` | `CategoryCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Categories/CategoryCreatedEvent.avsc` |
 | `ProductCreatedEvent` | `catalog.products` | `Catalog.Products` | Catalog | Inventory (init stream), BFF (cache warm) | `inventory-group`, `bff-group` | `ProductId` | `ProductCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductCreatedEvent.avsc` |
 | `ProductDiscontinuedEvent` | `catalog.products` | `Catalog.Products` | Catalog | Basket (flag stale snapshots; on-demand in v1)², BFF (cache invalidate) | `bff-group` | `ProductId` | `ProductDiscontinuedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Catalog/Products/ProductDiscontinuedEvent.avsc` |
@@ -87,7 +87,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `PaymentRefundedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | Checkout saga (cancel-post-capture path), Invoicing (credit-note trigger) — Notifications via command-driven path only (see D-5) | `saga-checkout`, `invoicing-group` | `CorrelationId` | Payments refund success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRefundedEvent.avsc` (existing) |
 | `RequestPaymentCommand` | `payments.payment-commands` | `Payments.Transactions` | Checkout saga | PaymentProcessingSaga | `saga-payment-processing` | `CorrelationId` | Checkout saga step (after stock reserved) | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/RequestPaymentCommand.avsc` (existing — renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)) |
 | `PaymentVoidedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `saga-payment-processing` | `CorrelationId` | Payments void success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentVoidedEvent.avsc` (existing) |
-| `StockLevelChangedEvent` | `inventory.stock-events` | `Inventory.Stock` | Inventory | Catalog (IsSellable projection) | `catalog-group` | `ProductId` | Availability crosses 0↔positive | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/StockLevelChangedEvent.avsc` |
+| `StockLevelChangedEvent` | `inventory.stock-events` | `Inventory.Stock` | Inventory | Catalog (IsSellable projection), BFF (cache invalidate) | `catalog-group`, `bff-group` | `ProductId` | Availability crosses 0↔positive | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Stock/StockLevelChangedEvent.avsc` |
 | `ReservationConfirmedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga (informational) — Notifications via command-driven path only (see D-5) | `saga-checkout` | `OrderId` | `ReservationConfirmedDomainEvent` (ES internal) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationConfirmedEvent.avsc` |
 | `ReservationReleasedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga (compensation confirmation) | `saga-checkout` | `OrderId` | `ReservationReleasedDomainEvent` (ES internal) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReservationReleasedEvent.avsc` |
 | `StockReservationFailedEvent` | `inventory.reservations` | `Inventory.Reservations` | Inventory | Checkout saga (triggers compensation) | `saga-checkout` | `OrderId` | `ReserveStockCommand` failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/StockReservationFailedEvent.avsc` |
@@ -100,9 +100,9 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `OrderCancelledEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Inventory (release if still reserved), BFF (cache invalidate), Checkout saga (compensation confirmation; saga publishes `RequestRefundCommand` to `payments.payment-commands` for the post-capture refund path) — Notifications via command-driven path only (see D-5) | `inventory-group`, `saga-checkout`, `bff-group` | `OrderId` | `OrderCancelledDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc` |
 | `OrderConfirmedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate), Checkout saga (terminal success) — Notifications via command-driven path only (see D-5) | `bff-group`, `saga-checkout` | `OrderId` | `OrderConfirmedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc` |
 | `OrderCreatedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Checkout saga (drives next step: reserve stock), BFF (cache populate) | `saga-checkout`, `bff-group` | `OrderId` | `OrderCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCreatedEvent.avsc` |
-| `OrderDeliveredEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | (no v1 consumer — Notifications via command-driven path only, see D-5) | — | `OrderId` | `OrderDeliveredDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderDeliveredEvent.avsc` |
+| `OrderDeliveredEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate) — Notifications via command-driven path only (see D-5) | `bff-group` | `OrderId` | `OrderDeliveredDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderDeliveredEvent.avsc` |
 | `OrderFailedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate), Checkout saga (terminal failure) — Notifications via command-driven path only (see D-5) | `bff-group`, `saga-checkout` | `OrderId` | `OrderFailedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderFailedEvent.avsc` |
-| `OrderShippedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | (no v1 consumer — Notifications via command-driven path only, see D-5) | — | `OrderId` | `OrderShippedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderShippedEvent.avsc` |
+| `OrderShippedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate) — Notifications via command-driven path only (see D-5) | `bff-group` | `OrderId` | `OrderShippedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderShippedEvent.avsc` |
 | `CancelOrderCommand` | `ordering.order-commands` | `Ordering.Orders` | Checkout saga (compensation) | Ordering | `ordering-group` | `OrderId` | saga compensation | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/CancelOrderCommand.avsc` |
 | `ConfirmOrderCommand` | `ordering.order-commands` | `Ordering.Orders` | Checkout saga | Ordering | `ordering-group` | `OrderId` | saga step (after all greens) | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/ConfirmOrderCommand.avsc` |
 | `CreateOrderCommand` | `ordering.order-commands` | `Ordering.Orders` | Checkout saga | Ordering | `ordering-group` | `CorrelationId` | saga step (after basket checkout) | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/CreateOrderCommand.avsc` |
@@ -148,7 +148,7 @@ Examples from § 2:
 - `saga-payment-processing` — PaymentProcessingSaga state machine. Consumes `payments.transactions` (lifecycle facts) and `payments.payment-commands` (`RequestPaymentCommand`).
 - `inventory-group` — Inventory's sole consumer group. Spans `catalog.products` (stream-init), `ordering.orders` (release-on-cancel), and `inventory.reservation-commands` (saga commands). Per-topic offsets inside the group keep these independent for replay purposes.
 - `invoicing-group` — Invoicing's sole consumer group. Spans `ordering.orders`, `payments.transactions`, `notifications.email-events`.
-- `bff-group` — BFF's sole consumer group. Spans `catalog.products`, `catalog.categories`, `ordering.orders` (all for FusionCache invalidation).
+- `bff-group` — BFF's sole consumer group. Spans `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions` (all for FusionCache invalidation). Registers **no inbox** — `RemoveByTagAsync` is idempotent, so at-least-once redelivery is harmless (see [bff.md § 2.2](bff.md) + § 7.7).
 - `catalog-group` — Catalog's sole consumer group on `inventory.stock-events` (the `IsSellable` projection).
 - `notifications-group` — Notifications' sole consumer group on `notifications.email-commands`. No subscriptions to per-BC event topics — see D-5 + [notifications.md § 2](notifications.md).
 - `payments-group` — Payments' sole consumer group on `payments.payment-commands` (saga-issued commands).
@@ -399,10 +399,10 @@ Current scope ships all 4 LOCKED Invoicing Avro schemas. `IssueInvoiceCommandHan
 
 | File | Producer → Consumers |
 |---|---|
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceIssuedEvent.avsc` | Invoicing → BFF (invoice cache). Buyer email flows via Invoicing's outbox publisher emitting `SendEmailNotificationCommand` (NOT a Notifications subscription to this topic) — see D-5. |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceCancelledEvent.avsc` | Invoicing → BFF (cache invalidate). Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → BFF. Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
-| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | Invoicing → BFF (invalidate the buyer's invoices cache). Emitted after Invoicing consumes `EmailNotificationSentEvent` and transitions `Issued → Delivered`. |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceIssuedEvent.avsc` | Invoicing → **no v1 consumer** by design (the v1 BFF defines no invoice endpoint/cache; a BFF invoice view is planned-not-v1 and would consume this topic if added). Buyer-delivery email flows via Invoicing's outbox publisher emitting `SendEmailNotificationCommand` (NOT a Notifications subscription to this topic) — see D-5. |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceCancelledEvent.avsc` | Invoicing → **no v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → **no v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `SendEmailNotificationCommand` per D-5). |
+| `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | Invoicing → **no v1 consumer** (BFF "my invoices" cache is planned-not-v1). Emitted after Invoicing consumes `EmailNotificationSentEvent` and transitions `Issued → Delivered`. |
 
 All four target the `invoicing.invoices` topic (10-year retention, partition key `BuyerId`) per § 3 + § 4. Compatibility mode at the registry is `FORWARD_TRANSITIVE` (per-subject configured by the `schema-registry-init` companion service — see `cross-cutting-followups.md` H-1).
 
@@ -575,24 +575,13 @@ services.AddInbox<NotificationsDbContext>();
 
 ### 7.7 BFF
 
-**Topics consumed:** `catalog.products`, `catalog.categories`, `ordering.orders` (all for cache warm/invalidate).
+**Topics consumed:** `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions` (all for FusionCache invalidation).
 
-The BFF is a **read-through cache front-end** to the other services' HTTP APIs. It consumes events not for business logic but for cache-invalidation telemetry. Per Stage 2 Agent 7 ownership, the exact shape of the BFF's consumer pipeline (whether it uses inbox dedup at all, or accepts at-least-once as idempotent cache-invalidate operations) is decided there.
+The BFF is a **read-through cache front-end** to the other services' HTTP APIs. It consumes events not for business logic but to invalidate cached read-models via `FusionCache.RemoveByTagAsync(...)`.
 
-Recommended default from this document: **yes, register inbox** so cache-invalidate messages are dedup'd per-key within one partition. Message types to dedupe:
+**The BFF registers NO inbox.** Cache invalidation is idempotent by construction — `RemoveByTagAsync` is a no-op when the tag is absent — so at-least-once Kafka redelivery is harmless, and an inbox would add a per-message DB write for zero behavioural change. (Contrast the service consumers in § 7.1–7.4, whose handlers mutate persisted state and therefore must dedupe.) The BFF also subscribes to *published-language event topics only* and never to saga-internal coordination streams — hence it does **not** consume `inventory.reservations` (an `OrderId`-keyed, saga-internal stream); its product-availability concern is served by the `ProductId`-keyed `inventory.stock-events` contract plus the short cache TTL.
 
-```csharp
-services.AddInbox<BffDbContext>();
-.AddInbox(
-    typeof(ProductCreatedEvent),
-    typeof(ProductPriceChangedEvent),
-    typeof(ProductDiscontinuedEvent),
-    typeof(CategoryCreatedEvent),
-    typeof(OrderCreatedEvent),
-    typeof(OrderConfirmedEvent),
-    typeof(OrderCancelledEvent),
-    typeof(OrderFailedEvent))
-```
+The per-topic handler → FusionCache-tag mapping is canonical in [bff.md § 2.2](bff.md); the per-event consumer registry (which events `bff-group` consumes) is canonical in the master event catalog (§ 2). This section deliberately does **not** re-embed either table — the duplication between those tables was the source of the cross-section drift this catalog now avoids.
 
 ### 7.8 Inbox registration summary table
 
@@ -604,7 +593,7 @@ services.AddInbox<BffDbContext>();
 | Inventory | `catalog.products`, `inventory.reservation-commands` | `ProductCreatedEvent`, `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
 | Checkout saga | `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions` | MassTransit handles (no `AddInbox(typeof(...))`) |
 | Notifications | `notifications.email-commands` (only) | `SendEmailNotificationCommand` — per D-5 + [notifications.md § 2](notifications.md). No subscriptions to per-BC event topics. |
-| BFF | `catalog.products`, `catalog.categories`, `ordering.orders` | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent`, `CategoryCreatedEvent`, `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
+| BFF | `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions` | — (no inbox — idempotent cache invalidation; see § 7.7) |
 
 ---
 
