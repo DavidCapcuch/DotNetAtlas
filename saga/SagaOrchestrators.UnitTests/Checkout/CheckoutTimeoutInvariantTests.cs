@@ -22,10 +22,11 @@ namespace SagaOrchestrators.UnitTests.Checkout;
 /// uniform short timeouts that would mask a production drift).
 /// </para>
 /// <para>
-/// The "2 ×" coefficient mirrors the refund-then-stock-release split per § 6.1 of the
-/// design doc: the <c>CompensationTimeout</c> is rearmed when <c>CompensatingPayment</c>
-/// transitions to <c>CompensatingStockReservations</c>, so a single compensation cycle can
-/// burn up to twice the configured <c>CompensationSeconds</c>.
+/// Per ADR-0026 (capture pivot) the happy path spans two payment waits -- authorization
+/// before confirmation and capture after -- so the budget counts 2 x PaymentSeconds.
+/// Compensation is single-pass: the refund-then-stock-release split (and its
+/// CompensatingPayment rearm of CompensationTimeout) was removed, so a confirmation failure is
+/// a pre-capture void + stock release under one CompensationSeconds window.
 /// </para>
 /// </remarks>
 public sealed class CheckoutTimeoutInvariantTests

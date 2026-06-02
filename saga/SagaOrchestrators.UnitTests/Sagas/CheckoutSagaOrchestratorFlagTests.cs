@@ -83,7 +83,7 @@ public class CheckoutSagaOrchestratorFlagTests
     }
 
     [Fact]
-    public async Task OrderCreated_WithFlagOn_TransitionsToAwaitingPayment_AndDispatchesPaymentRequested_AndDoesNotReserveStock()
+    public async Task OrderCreated_WithFlagOn_TransitionsToAwaitingPaymentAuthorization_AndDispatchesPaymentRequested_AndDoesNotReserveStock()
     {
         var fakeTime = new FakeTimeProvider();
         var fakeOutbox = new FakeOutboxWriter();
@@ -111,7 +111,7 @@ public class CheckoutSagaOrchestratorFlagTests
 
         var state = setup.SagaHarness.Sagas.ContainsInState(
             correlationId, setup.SagaHarness.StateMachine,
-            setup.SagaHarness.StateMachine.AwaitingPayment);
+            setup.SagaHarness.StateMachine.AwaitingPaymentAuthorization);
         var reserveCommands = fakeOutbox.GetMessages<ReserveStockCommand>().ToList();
         var paymentRequested = fakeOutbox.GetMessages<RequestPaymentCommand>().ToList();
 
@@ -170,7 +170,7 @@ public class CheckoutSagaOrchestratorFlagTests
 
         var state = setup.SagaHarness.Sagas.ContainsInState(
             correlationId, setup.SagaHarness.StateMachine,
-            setup.SagaHarness.StateMachine.AwaitingPayment);
+            setup.SagaHarness.StateMachine.AwaitingPaymentAuthorization);
         var paymentRequested = fakeOutbox.GetMessages<RequestPaymentCommand>().ToList();
         var reserveCommands = fakeOutbox.GetMessages<ReserveStockCommand>().ToList();
 

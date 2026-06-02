@@ -76,9 +76,9 @@ internal static class CheckoutSagaDependencyInjection
                 consumerConfig =>
                 {
                     ConfigureCommon(consumerConfig, schemaRegistryClient, kafkaOptions);
+                    consumerConfig.ConfigureConsumer<PaymentAuthorizedCheckoutConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentCompletedCheckoutConsumer>(context);
                     consumerConfig.ConfigureConsumer<PaymentFailedCheckoutConsumer>(context);
-                    consumerConfig.ConfigureConsumer<PaymentRefundedCheckoutConsumer>(context);
                 });
         }
     }

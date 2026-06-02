@@ -79,10 +79,11 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await PublishStockReservedAsync(orderId, product2, tracking[product2].ReservationId!.Value, quantity: 2);
         await PublishStockReservedAsync(orderId, product3, tracking[product3].ReservationId!.Value, quantity: 3);
 
-        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingPayment, DefaultTimeout);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingPaymentAuthorization, DefaultTimeout);
 
-        // Act 1 — payment fails → saga transitions to CompensatingStockReservations and dispatches
-        // 3× ReleaseReservationCommand + 1× CancelOrderCommand via DispatchStockReleaseAndCancelOrder.
+        // Act 1 — authorization declines (Payments publishes PaymentFailedEvent per ADR-0026) → saga
+        // fast-fails to CompensatingStockReservations and dispatches 3× ReleaseReservationCommand +
+        // 1× CancelOrderCommand via DispatchStockReleaseAndCancelOrder.
         await PublishPaymentFailedAsync(correlationId, userId, errorCode: "INSUFFICIENT_FUNDS");
 
         var compensatingState = await SagaStateMonitor.WaitForStateAsync(
@@ -140,15 +141,15 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     }
 
     /// <summary>
-    /// § 4 row 11 + the <c>CompensatingPayment</c> + <c>CompensatingStockReservations</c> chain
-    /// (rows 16 + 13-14): order confirmation fails after payment captured → saga refunds first
-    /// (per § 6.1 refund-then-stock split), then releases stock + cancels order, reaches
-    /// <see cref="CheckoutSagaOrchestrator.Compensated"/>.
+    /// ADR-0026 capture pivot: order confirmation fails BEFORE capture (the pivot). The saga sends
+    /// <see cref="AbortCaptureCommand"/> to PaymentProcessingSaga (which voids the authorization —
+    /// free, never a refund), releases stock + cancels order, and reaches
+    /// <see cref="CheckoutSagaOrchestrator.Compensated"/>. No <c>RequestRefundCommand</c> is issued.
     /// </summary>
     [Fact]
-    public async Task OrderConfirmationFails_AfterPaymentCompleted_ReachesCompensatedTerminal_RefundFirst_ThenStockRelease()
+    public async Task OrderConfirmationFails_BeforeCapture_ReachesCompensatedTerminal_AbortsCapture_NotRefund()
     {
-        // Arrange — drive saga to AwaitingConfirmation
+        // Arrange — drive saga to AwaitingConfirmation (reserve → authorize)
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -168,28 +169,23 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await PublishStockReservedAsync(orderId, product3, tracking[product3].ReservationId!.Value, quantity: 3);
 
         var awaitingPaymentState = await SagaStateMonitor.WaitForStateAsync(
-            correlationId, x => x.AwaitingPayment, DefaultTimeout);
+            correlationId, x => x.AwaitingPaymentAuthorization, DefaultTimeout);
 
-        var paymentTransactionId = Guid.CreateVersion7();
-        await PublishPaymentCompletedAsync(correlationId, userId, paymentTransactionId, awaitingPaymentState.TotalAmount);
+        // Authorize (Payments-owned) → AwaitingConfirmation (saga confirms order + reservations).
+        await PublishPaymentAuthorizedAsync(correlationId, userId, awaitingPaymentState.TotalAmount);
 
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingConfirmation, DefaultTimeout);
 
-        // Act 1 — Ordering reports the order failed during confirmation. Saga publishes
-        // RequestRefundCommand and transitions to CompensatingPayment per § 4 row 11.
+        // Act 1 — Ordering reports the order failed during confirmation (pre-capture). Saga publishes
+        // AbortCaptureCommand + releases stock + cancels order, transitioning to
+        // CompensatingStockReservations directly (no CompensatingPayment / refund leg).
         await PublishOrderFailedAsync(correlationId, userId, orderId,
             errorCode: "CONFIRMATION_INVENTORY_OUT_OF_SYNC",
             atStatus: OrderStatusAtTransition.PaymentCompleted);
 
-        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.CompensatingPayment, DefaultTimeout);
-
-        // Act 2 — Payments confirms the refund; saga then dispatches stock releases + order cancel,
-        // and re-arms the compensation budget for the stock-release leg per § 6.1.
-        await PublishPaymentRefundedAsync(correlationId, userId, paymentTransactionId, awaitingPaymentState.TotalAmount);
-
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.CompensatingStockReservations, DefaultTimeout);
 
-        // Act 3 — Inventory acknowledges releases + Ordering acknowledges cancel
+        // Act 2 — Inventory acknowledges releases + Ordering acknowledges cancel
         await PublishReservationReleasedAsync(orderId, product1, tracking[product1].ReservationId!.Value);
         await PublishReservationReleasedAsync(orderId, product2, tracking[product2].ReservationId!.Value);
         await PublishReservationReleasedAsync(orderId, product3, tracking[product3].ReservationId!.Value);
@@ -197,12 +193,16 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
 
         // Assert — Compensated terminal reached + finalized
         var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        finalized.Should().BeTrue("Compensated is reached once refund + all releases + cancel land");
+        finalized.Should().BeTrue("Compensated is reached once abort + all releases + cancel land");
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
             .OrderBy(om => om.Id)
             .ToListAsync();
+
+        var abortCommands = outboxMessages
+            .Where(om => om.Type == typeof(AbortCaptureCommand).FullName)
+            .ToList();
 
         var refundCommands = outboxMessages
             .Where(om => om.Type == typeof(RequestRefundCommand).FullName)
@@ -222,15 +222,14 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
 
         using (new AssertionScope())
         {
-            refundCommands.Should().ContainSingle()
+            // ADR-0026: confirmation failure is pre-capture — abort (sub-saga voids), never a refund.
+            abortCommands.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(correlationId.ToString());
+            refundCommands.Should().BeEmpty(
+                "the pivot was not reached — the authorization is voided via AbortCaptureCommand, not refunded");
 
             releaseCommands.Should().HaveCount(3);
             cancelCommands.Should().ContainSingle();
-
-            // refund-first ordering (§ 6.1): the refund command is enqueued ahead of the stock releases
-            refundCommands[0].Id.Should().BeLessThan(releaseCommands.Min(rc => rc.Id),
-                "per § 6.1 refund precedes stock release in the compensating-payment chain");
 
             checkoutFailedRows.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(correlationId.ToString());
@@ -437,35 +436,22 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentFailed);
     }
 
-    private async Task PublishPaymentCompletedAsync(Guid correlationId, Guid userId, Guid paymentTransactionId, decimal amount)
+    private async Task PublishPaymentAuthorizedAsync(Guid correlationId, Guid userId, decimal amount)
     {
-        var paymentCompleted = new PaymentCompletedEvent
+        // ADR-0026: Payments authorizes and publishes PaymentAuthorizedEvent; the Checkout saga
+        // reacts by confirming order + reservations (the pre-pivot step).
+        var paymentAuthorized = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
             UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
+            AuthorizationId = $"auth-{Guid.CreateVersion7():N}",
             Amount = amount.ToAvroDecimal(4),
             Currency = "USD",
-            CompletedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
+            AuthorizedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
+            ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
         };
 
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentCompleted);
-    }
-
-    private async Task PublishPaymentRefundedAsync(Guid correlationId, Guid userId, Guid paymentTransactionId, decimal amount)
-    {
-        var refunded = new PaymentRefundedEvent
-        {
-            CorrelationId = correlationId,
-            UserId = userId,
-            PaymentTransactionId = paymentTransactionId,
-            RefundTransactionId = Guid.CreateVersion7(),
-            RefundedAmount = amount.ToAvroDecimal(4),
-            Currency = "USD",
-            RefundedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
-        };
-
-        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, refunded);
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentAuthorized);
     }
 
     private async Task PublishOrderFailedAsync(
