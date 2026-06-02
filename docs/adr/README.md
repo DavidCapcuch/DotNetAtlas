@@ -30,6 +30,9 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0022](0022-specification-pattern-adoption.md) | Specification pattern adoption criteria | Accepted | 2026-05-29 |
 | [0023](0023-payments-event-vs-command-classification.md) | Payments Event-vs-Command Classification | Accepted | 2026-05-30 |
 | [0024](0024-domain-event-dispatch-in-persistence-interceptor.md) | Domain-event dispatch belongs in the persistence boundary | Accepted | 2026-05-31 |
+| [0025](0025-kafka-consumer-retry-dlt-policy.md) | Kafka consumer retry & dead-letter policy (classify by failure class) | Accepted | 2026-06-01 |
+| [0026](0026-checkout-payment-flow-capture-pivot.md) | Checkout payment flow — defer capture to the pivot, Payments owns terminal events | Accepted | 2026-06-02 |
+| [0027](0027-kafka-consumer-cooperative-rebalancing.md) | Kafka consumer partition-assignment strategy — CooperativeSticky for rolling/canary deploys | Accepted | 2026-06-02 |
 
 ## Creating a New ADR
 

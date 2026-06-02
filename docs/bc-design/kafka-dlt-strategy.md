@@ -36,24 +36,24 @@ The suffix is applied by [`DeadLetterMiddleware`](../../platform/Platform.KafkaF
 
 ## 2. Retry Policy (Default for All Consumers)
 
-**There is currently no generic `Platform.KafkaFlow.Retry` middleware in this repo.** Consumer-side retry is achieved via two complementary mechanisms:
+Every consumer wires one **classified `RetryForever`** middleware ahead of the inbox ([ADR-0025](../adr/0025-kafka-consumer-retry-dlt-policy.md)). The retry decision branches on failure **class**, not exception type, via the shared predicate [`ConsumerRetry.IsRetryable`](../../platform/Platform.KafkaFlow.DeadLetter/ConsumerRetry.cs):
 
-1. **Transient-error retry inside the handler** — the consumer handler (or the inner HTTP/DB call) uses Polly (established pattern — see [`src/Weather.Infrastructure/Common/HttpClientsDependencyInjection.cs`](../../src/Weather.Infrastructure/Common/HttpClientsDependencyInjection.cs) `AddRetry` with `HttpRetryStrategyOptions`) for upstream HTTP calls, and an EF Core execution strategy with retries for DB calls. These retries happen inline and do NOT re-consume the Kafka message.
-2. **Broker-level redelivery on throw** — if the handler does not catch an exception, [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) catches it and routes the message directly to the DLT topic. The offset is then committed. **There is no second attempt on the original topic.**
+1. **Retryable** (transient infrastructure fault, or a deliberate `RetryableException` / `System.TimeoutException`) → retried **forever with the consumer paused**, never dead-lettered. "Transient" is whatever Npgsql flags `DbException.IsTransient` (SQLSTATE classes `08*`, `40001`, `40P01`, `53*`, `57P0*`, `58*`). A DB outage therefore parks the partition until recovery — no message lost, no DLT flood.
+2. **Poison** (everything else: integrity / data / syntax violations `23*`/`22*`/`42*`, deserialization failures, a bare `DbUpdateException`, domain bugs) → **not** handled by the retry middleware, so it falls through to [`DeadLetterMiddleware`](../../platform/Platform.KafkaFlow.DeadLetter/DeadLetterMiddleware.cs) and is produced to the DLT immediately; the partition advances.
 
-This is an intentionally **aggressive** DLT policy: a single unhandled exception dead-letters. It avoids partition head-of-line blocking on a poison message and surfaces bugs quickly in the reference solution. If real workload pressure motivates retry-with-backoff-then-DLT in the future, a `Platform.KafkaFlow.Retry` middleware can be introduced following the `DeadLetterMiddleware` pattern; the per-topic table in § 3 is already shaped to carry retry counts and backoff values.
+A message on a DLT now means **"genuinely unprocessable (poison)"** — never "the DB blipped."
 
-**For the purposes of this document and the reference architecture, the *target* default policy is:**
+**The default policy, per delivery:**
 
 | Stage | Behavior |
 |-------|----------|
-| 1st delivery | Handler runs; inner Polly/EF retries (≤ 3, jittered exponential) handle transient upstream faults |
-| Handler throws | Exception caught by `DeadLetterMiddleware` → message produced to `<source-topic>.<consumer-bc>.DLT` with diagnostic headers → offset committed → NO re-consume |
+| Handler throws a **retryable** failure | Classified `RetryForever` retries with backoff (500 ms → 1 s → 2 s → 5 s), consumer **paused**; offset NOT committed; repeats until success — never dead-lettered |
+| Handler throws a **poison** failure | Not handled by retry → `DeadLetterMiddleware` produces the message to `<source-topic>.<consumer-bc>.DLT` with diagnostic headers → offset committed → partition advances |
 | Handler returns `Result.Fail(userError)` | Consumer handler **MUST** convert the failure into a business outcome event (e.g., `StockReservationFailedEvent`) and commit normally — DO NOT throw to DLT |
 
 **Exceptions to the "throw → DLT" rule:**
 
-- **`OperationCanceledException`** (graceful shutdown): rethrown by `DeadLetterMiddleware` so the offset remains uncommitted and the message is replayed on restart. This is correct — shutdown is not a poison-message condition.
+- **`OperationCanceledException`** (graceful shutdown): excluded from the retryable set by `ConsumerRetry.IsRetryable` and rethrown by `DeadLetterMiddleware`, so the offset remains uncommitted and the message is replayed on restart. This is correct — shutdown is neither a poison nor a transient condition.
 - **Inbox-deduped duplicates**: handled by [`Platform.KafkaFlow.Inbox.EFCore`](../../platform/Platform.KafkaFlow.Inbox.EFCore/) middleware BEFORE the handler runs; duplicates become a no-op and commit — never dead-lettered.
 - **Business-expected failures** (e.g., `InsufficientStockError` returned from `ReserveStockCommand` handler): the handler publishes `StockReservationFailedEvent`, returns `Result.Ok()`, and the message commits. Dead-lettering would wrongly classify a normal business outcome as a poison message. The architecture test in [architecture-tests.md § 1.5](architecture-tests.md) enforces this by rejecting handlers that rethrow `Result.Fail` as `InvalidOperationException` for user-actionable errors.
 
@@ -183,7 +183,7 @@ The items below are explicit gaps between this design document and the current p
 | F-2 | No `kafka.consumer.dlt.messages_total` counter emitted — alert can't fire without metric | Platform / KafkaFlow DeadLetter maintainer |
 | ~~F-3~~ | ~~No bootstrap block creating `<source-topic>.<consumer-bc>.DLT` topics with explicit partition count + 14-day retention.~~ **Resolved** — the 10 per-consumer-BC DLT topics from § 3 are now pre-created by `kafka-create-topic` with 3 partitions (matching source) + 14d retention (`retention.ms=1209600000`) + `min.insync.replicas=1`. See [docker-compose.yaml](../../docker-compose.yaml) `kafka-create-topic` block. | — |
 | F-4 | No `replay-admin-*` operator CLI | Ops — planned scope, see [roadmap.md § 2.4](../roadmap.md) |
-| F-5 | No `Platform.KafkaFlow.Retry` middleware (mentioned in some early design drafts) — intentionally OMITTED for v1; add only if production pressure requires retry-with-backoff-then-DLT | N/A unless requested |
+| ~~F-5~~ | ~~No `Platform.KafkaFlow.Retry` middleware — intentionally OMITTED for v1.~~ **Resolved** — [ADR-0025](../adr/0025-kafka-consumer-retry-dlt-policy.md) adopted a classified `RetryForever` (transient → retry-forever-paused, poison → DLT) across all consumers via the shared [`ConsumerRetry.IsRetryable`](../../platform/Platform.KafkaFlow.DeadLetter/ConsumerRetry.cs) predicate. See § 2. | — |
 | F-6 | Grafana `Kafka Consumer Health` dashboard JSON not checked in (`ops/grafana/kafka-consumer-health.json` referenced but not present) | Ops — planned scope, see [roadmap.md § 2.4](../roadmap.md) |
 
 ---

@@ -1,6 +1,6 @@
 # Notifications Bounded Context
 
-> **Status:** Authored 2026-05-30. The other six BC design docs (catalog/basket/ordering/inventory/payments/invoicing) reference Notifications as a downstream consumer but no design doc for the BC itself existed. This file fills that gap and **codifies what is actually implemented**, which diverges from how earlier docs describe the integration shape (see § 11 — Cross-doc divergence).
+> **Status:** Authored 2026-05-30. The other six BC design docs (catalog/basket/ordering/inventory/payments/invoicing) reference Notifications as a downstream consumer but no design doc for the BC itself existed. This file fills that gap and **codifies the command-driven pattern actually implemented** — the canonical reference cited by [events-catalog.md § 1.4 D-5](events-catalog.md), the consumer/producer rows in events-catalog § 2, and the deferred-Notifications callouts in the five other BC docs.
 > **Scope:** A thin, single-channel **outbound notification dispatcher**. Receives generic SendEmail commands from other BCs, renders a template, calls an email gateway, and emits a delivery-confirmation event. No domain model, no public HTTP surface.
 > **Pattern showcased:** **Command-driven fan-in plumbing BC.** Producers explicitly *ask* Notifications to send an email; Notifications never reaches into another BC's event stream to decide policy. The producer owns the *intent* (which user, which template, which idempotency key); Notifications owns the *channel* (render → send → confirm).
 > **Storage:** PostgreSQL, schema `notifications`. Only platform Inbox / Outbox tables — no domain tables.
@@ -69,7 +69,7 @@ The producing BC is responsible for the editorial decision ("the buyer should be
 
 ### 2.1 Why not subscribe to per-BC topics directly?
 
-A common alternative would be: Notifications subscribes to `ordering.orders`, `payments.transactions`, `inventory.reservations`, etc., and uses its own routing rules to decide what to send. That pattern *is* described in some of the other BC docs (see § 11 — Cross-doc divergence), but is **not** the implemented one. Trade-offs:
+A common alternative would be: Notifications subscribes to `ordering.orders`, `payments.transactions`, `inventory.reservations`, etc., and uses its own routing rules to decide what to send. That was the original design intent and shows up in earlier drafts of the other BC docs (now corrected — see [events-catalog.md § 1.4 D-5](events-catalog.md), which records the reversal). Trade-offs:
 
 | Concern | Command-driven (current) | Direct subscription (alternative) |
 |---|---|---|
@@ -209,15 +209,15 @@ Schema `notifications` (Postgres). Two tables, both platform-shared:
 
 | Table | Owner | Purpose |
 |---|---|---|
-| `notifications.InboxMessages` | `Platform.ReliableMessaging.Inbox.EFCore` | Idempotency — primary key is the producer-supplied `IdempotencyKey`. Stores `processed_at_utc`. |
-| `notifications.OutboxMessages` | `Platform.ReliableMessaging.Outbox.EFCore` | Pending outbound events (`EmailNotificationSentEvent`) awaiting relay to Kafka. |
+| `notifications.inbox_messages` | `Platform.ReliableMessaging.Inbox.EFCore` | Idempotency — primary key is the producer-supplied `IdempotencyKey`. Stores `processed_at_utc`. |
+| `notifications.outbox_messages` | `Platform.ReliableMessaging.Outbox.EFCore` | Pending outbound events (`EmailNotificationSentEvent`) awaiting relay to Kafka. |
 
 **No domain tables.** Migrations under [`services/Notifications/Notifications.Infrastructure/Persistence/Database/Migrations/`](../../services/Notifications/Notifications.Infrastructure/Persistence/Database/Migrations/):
 
 - `20260417121247_Init` — created the Inbox + Outbox tables under the (then-named) `payment` schema. Schema choice was a copy-paste carry-over from the BC-template.
 - `20260525094927_RenameSchemaToNotifications` — renames `payment.*` → `notifications.*`. Schema-rename only; no data-shape change.
 
-Outbox relay runs in a sidecar container: `outbox-relay-notifications` (see `docker-compose.yaml:1197`) with `OutboxRelay__SchemaName=notifications` per [events-catalog.md § 2 D-6](events-catalog.md).
+Outbox relay runs in a sidecar container: `outbox-relay-notifications` (see `docker-compose.yaml`) with `OutboxRelay__SchemaName=notifications` per [events-catalog.md § 2 D-6](events-catalog.md).
 
 ---
 
@@ -229,7 +229,7 @@ Outbox relay runs in a sidecar container: `outbox-relay-notifications` (see `doc
 | `notifications.email-commands.Notifications.DLT` | 3 | 14 days | (preserved) | DLT for unrenderable / poisoned commands |
 | `notifications.email-events` | 3 | infinite | `UserId` | **outbound** — Notifications publishes |
 
-Both topics are registered in `docker-compose.yaml` (lines 315–316 + 325 for the DLT). The `notifications.email-events` topic is **new** in this BC's lifecycle and is **not** listed in [events-catalog.md § 3](events-catalog.md) (which predated it — see § 11.2 below).
+Both topics are registered in `docker-compose.yaml` (lines 315–316 + 325 for the DLT) and are catalogued in [events-catalog.md § 3](events-catalog.md) (`notifications.email-commands`, `notifications.email-events`). The full event-row entries (`SendEmailNotificationCommand`, `EmailNotificationSentEvent`) live in [events-catalog.md § 2](events-catalog.md); the dedicated [events-catalog.md § 7.6](events-catalog.md) Notifications subsection records the subscription contract.
 
 ---
 
@@ -265,30 +265,11 @@ When a second template / a real `IEmailGateway` adapter / a domain aggregate lan
 
 ---
 
-## 11. Cross-doc divergence (read this before reading the other BC docs)
+## 11. Historical note — the direction reversal
 
-Five existing BC design docs and one decision row in the master events catalog describe an integration shape with Notifications that **does not match the implemented code**. The implementation is correct; the docs predate it.
+The pre-implementation drafts of the other BC docs (ordering, inventory, payments, invoicing) and the original [events-catalog.md § 1.4 D-5](events-catalog.md) row described Notifications as a **direct subscriber** to per-BC event topics (`ordering.orders`, `inventory.reservations`, `payments.transactions`, `invoicing.invoices`). The implementation landed on the opposite shape — producer-driven `SendEmailNotificationCommand` — because editorial control over "should we email?" belongs in the BC that owns the business moment, not in the channel adapter.
 
-### 11.1 "Notifications subscribes to per-BC topics" — stale
-
-| Doc | Statement | Reality |
-|---|---|---|
-| [ordering.md § 4](ordering.md#integration) (≈ L504) | "Notifications subscribes to `ordering.orders` topic, filters by event name, renders buyer-facing emails." | Notifications does not subscribe to `ordering.orders` at all. There is no Ordering-side producer of `SendEmailNotificationCommand` either, so today no Ordering events trigger any emails. |
-| ordering.md § 7 events table (L261-265) | `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` all list "Notifications" as a consumer. | No `ordering.orders` consumer is wired in [`MessagingDependencyInjection.cs`](../../services/Notifications/Notifications.Infrastructure/Common/MessagingDependencyInjection.cs). |
-| [inventory.md § 7.4](inventory.md) (L427, L731) | "Notifications (optional) consumes `ReservationConfirmedEvent` — 'Your order is being prepared' notification." | Not implemented. |
-| [payments.md § 6 events table](payments.md) (L170) | `PaymentRefundedEvent` lists Notifications as a consumer. | Not implemented. |
-| [invoicing.md § 6 events table](invoicing.md) (L142-145) | `InvoiceIssuedEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent` list Notifications as a consumer. | The implemented flow is the *reverse*: Invoicing produces `SendEmailNotificationCommand`, Notifications produces `EmailNotificationSentEvent`, and Invoicing consumes that back to transition `Issued → Delivered`. There is no Notifications-side consumer of `invoicing.invoices`. |
-| [events-catalog.md § 1.4 D-5](events-catalog.md) | "Notifications continues consuming business events directly (not a `notifications.email-commands` fan-out). Matches existing Weather→Notifications pattern. `notifications.email-commands` topic stays reserved for explicit SendEmail commands; Ordering emits `ordering.orders` and Notifications subscribes." | Direction was reversed in the implementation. Notifications consumes **only** `SendEmail` commands; producing BCs translate their domain events into commands. |
-
-These are documentation artefacts of an earlier design intent. The implemented pattern (§ 2) is the better fit (editorial control stays in the producing BC, channel routing stays in Notifications) and should be propagated to the other docs in a follow-up.
-
-### 11.2 `notifications.email-events` topic is undocumented in the events catalog
-
-[events-catalog.md § 3](events-catalog.md) lists `notifications.email-commands` as a pre-existing topic but does not list `notifications.email-events`. The topic is registered in `docker-compose.yaml:316` and produced by this BC; the catalog row should be added (out of scope for this doc — flagged in § 12).
-
-### 11.3 `EmailNotificationSentEvent` is not in the master event catalog table
-
-[events-catalog.md § 2](events-catalog.md) lists `SendEmailNotificationCommand` (line 95) but not `EmailNotificationSentEvent`. The schema exists at `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/EmailNotificationSentEvent.avsc` and is actively consumed by Invoicing. Same out-of-scope cleanup.
+The reversal is recorded in the rewritten D-5 row; the per-event tables in the five sibling BC docs were corrected in the same wave to read "Notifications via command-driven path only (see D-5)" / "Notifications (deferred)" / "not wired in v1". Cross-references from those docs now point back to § 2 above. No live divergence remains between the docs and the code as of this writing — if a future reader finds one, that is a regression, not a known gap.
 
 ---
 
@@ -309,11 +290,8 @@ Listed so readers don't search for them.
 - **Notification digests / batching.** Each command produces one immediate send. A `NotificationDigest` aggregate (group N events into one daily email) would justify a Domain layer.
 - **Delivery receipt callbacks (bounce / spam / open).** The current `EmailNotificationSentEvent` reflects only gateway-acceptance success. Bounce-back webhooks are a separate Phase-2 surface.
 
-**Doc follow-ups identified during authoring:**
-1. Update the five other BC docs (ordering, basket, inventory, payments, invoicing) to remove the "Notifications subscribes to {topic}" claims and replace with the command-driven shape.
-2. Add `EmailNotificationSentEvent` row to [events-catalog.md § 2](events-catalog.md) and a `notifications.email-events` row to § 3.
-3. Replace the stale [events-catalog.md § 1.4 D-5](events-catalog.md) decision with one that records the command-driven choice.
-4. The migration history (Init created `payment` schema then renamed it) is a layering relic. Acceptable but worth a single squash if a wider migration consolidation pass happens.
+**Remaining cleanup (low priority):**
+- The migration history (`Init` created the `payment` schema, then `RenameSchemaToNotifications` renamed it) is a copy-paste relic from the Payments BC template. Acceptable; worth a single squash if a wider migration consolidation pass happens.
 
 ---
 
