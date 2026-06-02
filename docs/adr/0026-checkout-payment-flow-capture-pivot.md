@@ -151,8 +151,8 @@ Subsumes [#262](https://github.com/DavidCapcuch/DotNetAtlas/issues/262), [#288](
 
 ### When to revisit
 
-- Gateway-timeout reconciliation (`Capturing`/`Completing` intermediate states + worker) — a future ADR if/when the stub gateway is replaced by a real PSP.
-- A customer/admin-initiated refund/returns flow — promotes the deferred refund capability to a real producer; its own design effort.
+- Gateway-timeout reconciliation (`Capturing`/`Completing` intermediate states + worker) — a future ADR if/when the stub gateway is replaced by a real PSP. Tracked: [#297](https://github.com/DavidCapcuch/DotNetAtlas/issues/297).
+- A customer/admin-initiated refund/returns flow — promotes the deferred refund capability to a real producer; its own design effort. Tracked: [#298](https://github.com/DavidCapcuch/DotNetAtlas/issues/298).
 
 ## Related Decisions
 

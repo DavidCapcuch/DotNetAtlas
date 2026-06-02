@@ -10,6 +10,7 @@ using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using Platform.SharedKernel.Errors;
+using Platform.SharedKernel.Exceptions;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 
 namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
@@ -36,10 +37,10 @@ namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 /// fan-out we want partial success to be retried by KafkaFlow's
 /// <c>RetryForever</c> (the inbox tx rolls back, the next attempt re-queries
 /// active reservations and only retries the still-pending ones — naturally
-/// idempotent). So we throw a <see cref="DbUpdateException"/> instead of
-/// <c>SagaCommandDispatchException</c> when a release fails: the retry
-/// middleware (which lists <c>DbUpdateException</c> in its retry list)
-/// re-runs the whole pipeline.
+/// idempotent). So we throw a <see cref="RetryableException"/> instead of
+/// <c>SagaCommandDispatchException</c> when a release fails: the classified
+/// retry predicate (<c>ConsumerRetry.IsRetryable</c>) treats it as retryable
+/// (ADR-0025) and re-runs the whole pipeline.
 /// </para>
 /// <para>
 /// Same-message redelivery is naturally idempotent: the audit query filters
@@ -129,21 +130,19 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                 {
                     var errorSummary = string.Join("; ", result.Errors.Select(e => e.Message));
                     _logger.LogWarning(
-                        "Release failed for reservation {ReservationId} (Product {ProductId}); rethrowing as DbUpdateException so KafkaFlow RetryForever re-runs the message: {Errors}",
+                        "Release failed for reservation {ReservationId} (Product {ProductId}); throwing RetryableException so the classified RetryForever re-runs the message: {Errors}",
                         reservation.ReservationId, reservation.ProductId, errorSummary);
 
-                    // Throw a retry-eligible exception so KafkaFlow's
-                    // RetryForever middleware classifies this as transient
-                    // and re-runs the message. The inbox tx rolls back; the
-                    // next attempt re-queries Active reservations
-                    // (already-released ones drop out) and retries the still-
-                    // pending ones. Idempotent by construction.
+                    // Throw a retryable exception so the classified RetryForever
+                    // middleware (ConsumerRetry.IsRetryable) re-runs the message.
+                    // The inbox tx rolls back; the next attempt re-queries Active
+                    // reservations (already-released ones drop out) and retries the
+                    // still-pending ones. Idempotent by construction.
                     //
-                    // Use a dedicated DbUpdateException subclass so a DLT
-                    // post-mortem can identify the failure point by type and
-                    // read structured ReservationId/OrderId/ErrorCodes off
-                    // the .Data dictionary — mirrors SagaCommandDispatchException's
-                    // role for the saga-command consumers.
+                    // Use a dedicated RetryableException subclass so diagnostics can
+                    // identify the failure point by type and read structured
+                    // ReservationId/OrderId/ErrorCodes off the .Data dictionary —
+                    // mirrors SagaCommandDispatchException's role for the saga consumers.
                     throw new ReservationReleaseFailedException(
                         reservationId: reservation.ReservationId,
                         orderId: message.OrderId,
@@ -167,14 +166,14 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
 /// <summary>
 /// Thrown by <see cref="OrderCancelledEventKafkaHandler"/> when a
 /// per-reservation <c>ReleaseReservationCommand</c> dispatch returns
-/// <c>Result.Fail</c>. Subclasses <see cref="DbUpdateException"/> so KafkaFlow's
-/// <c>RetryForever</c> middleware (which retries on <c>DbUpdateException</c>)
-/// re-runs the message; the dedicated type plus the structured
-/// <see cref="Exception.Data"/> entries (<c>ReservationId</c>, <c>OrderId</c>,
-/// <c>ErrorCodes</c>) give operators a faster path through a DLT post-mortem
-/// than a bare <c>DbUpdateException</c> would.
+/// <c>Result.Fail</c>. Subclasses <see cref="RetryableException"/> so the
+/// classified consumer-retry predicate (<c>ConsumerRetry.IsRetryable</c>) treats
+/// it as retryable (ADR-0025) and <c>RetryForever</c> re-runs the message; the
+/// dedicated type plus the structured <see cref="Exception.Data"/> entries
+/// (<c>ReservationId</c>, <c>OrderId</c>, <c>ErrorCodes</c>) give operators typed
+/// diagnostics on each retry attempt.
 /// </summary>
-public sealed class ReservationReleaseFailedException : DbUpdateException
+public sealed class ReservationReleaseFailedException : RetryableException
 {
     public ReservationReleaseFailedException(
         Guid reservationId,

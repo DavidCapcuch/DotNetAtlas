@@ -1,14 +1,13 @@
 using KafkaFlow;
 using KafkaFlow.Configuration;
 using KafkaFlow.Retry;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 using Ordering.Application.Common.Messaging;
 using Ordering.Infrastructure.Messaging.Kafka.Config;
 using Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 using Ordering.Infrastructure.Persistence.Database;
+using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
 using Platform.KafkaFlow.ProducerHeaders;
@@ -83,7 +82,7 @@ internal static class MessagingDependencyInjection
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
                     .Topic(topicsOptions.OrderCommands)
-                    .WithConsumerConfig(consumerOptions)
+                    .WithConsumerConfig(consumerOptions.WithCooperativeRebalancing())
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
@@ -92,9 +91,7 @@ internal static class MessagingDependencyInjection
                         .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
-                            .Handle<DbUpdateException>()
-                            .Handle<NpgsqlException>()
-                            .Handle<TimeoutException>()
+                            .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))

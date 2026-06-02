@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props).
+         Npgsql + EF Core are needed to construct PostgresException/DbUpdateException test inputs. -->
+    <ItemGroup>
+        <!-- Confluent.Kafka (CPM-pinned 2.14.0) aligns the transitive version surfaced by the
+             DeadLetter project reference, avoiding MSB3277 (test projects disable transitive
+             pinning). Npgsql + EF Core construct the PostgresException/DbUpdateException inputs. -->
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="Npgsql"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.KafkaFlow.DeadLetter\Platform.KafkaFlow.DeadLetter.csproj"/>
+        <ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj"/>
+    </ItemGroup>
+</Project>
