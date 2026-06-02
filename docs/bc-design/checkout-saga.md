@@ -14,12 +14,12 @@ The Checkout Saga is the **orchestrator of the eShop commercial commitment flow*
 
 - **Ordering** (create order, then later confirm or cancel the order),
 - **Inventory** (reserve stock per item before payment, then later confirm or release the reservation),
-- **PaymentProcessingSaga** (delegated sub-saga, existing — handled via `RequestPaymentCommand` / `PaymentCompletedEvent` / `PaymentFailedEvent` / `PaymentRefundedEvent`),
+- **PaymentProcessingSaga** (delegated sub-saga, existing — handled via `RequestPaymentCommand` + the capture-approval handshake `ApproveCaptureCommand` / `AbortCaptureCommand`; the saga reacts to the Payments-owned events `PaymentAuthorizedEvent` / `PaymentCompletedEvent` / `PaymentFailedEvent`, per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)),
 - **Ordering again** at the confirmation step (`ConfirmOrderCommand`).
 
 The saga is **centralized** per [ADR-0001](../adr/0001-centralized-saga-orchestration.md) and lives in `saga/SagaOrchestrators/Checkout/CheckoutSaga/`, following the exact folder layout of `Orders/PaymentProcessingSaga/`. Its state machine extends `MassTransitStateMachine<CheckoutSagaState>`, its state is persisted to the shared `saga` PostgreSQL schema, and it communicates with downstream services exclusively via Kafka (Avro-serialized via `Platform.Avro.UniversalSerDes`, published through the transactional outbox).
 
-**Step order (per [ADR-0004](../adr/0004-checkout-saga-topology.md)):** *Create Order → Reserve Stock → Process Payment → Confirm Order → Confirm Reservations*. Stock is reserved **before** payment. This ordering is the industry standard for consumer commerce (Amazon, eBay, most large marketplaces), guarantees the customer a reservation before being charged, and produces a well-defined compensation path on payment failure (release reservations, cancel order — no refund needed because payment never captured). Full rationale in § 13.
+**Step order (per [ADR-0004](../adr/0004-checkout-saga-topology.md) + [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)):** *Create Order → Reserve Stock → Authorize Payment → Confirm Order + Confirm Reservations → Capture Payment (PIVOT) → Complete*. Stock is reserved **before** payment, and **capture is deferred to the pivot** — it fires only after stock + order are confirmed. This ordering is the industry standard for consumer commerce (Amazon, eBay, most large marketplaces), guarantees the customer a reservation before being charged, and makes the common failure (confirmation fails) a free pre-capture **void** rather than a refund: an authorization decline or a confirmation failure compensates with release-reservations + cancel-order, with at most a pre-capture void — no refund, because capture happens only after confirmation succeeds. Full rationale in § 13; capture-pivot rationale in [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md).
 
 ### 1.1 High-level flow diagram
 
@@ -30,17 +30,18 @@ flowchart TD
     AwaitOrder -->|OrderCreatedEvent| AwaitStock[AwaitingStockReservation]
     AwaitOrder -->|OrderFailedEvent / Timeout| Failed[(Failed — terminal)]
 
-    AwaitStock -->|all StockReservedEvent received| AwaitPay[AwaitingPayment]
+    AwaitStock -->|all StockReservedEvent received| AwaitAuth[AwaitingPaymentAuthorization]
     AwaitStock -->|StockReservationFailedEvent / Timeout| CompStock[CompensatingStockReservations]
 
-    AwaitPay -->|PaymentCompletedEvent| AwaitConfirm[AwaitingConfirmation]
-    AwaitPay -->|PaymentFailedEvent / Timeout| CompStock
+    AwaitAuth -->|PaymentAuthorizedEvent| AwaitConfirm[AwaitingConfirmation]
+    AwaitAuth -->|PaymentFailedEvent / Timeout| CompStock
 
-    AwaitConfirm -->|OrderConfirmedEvent + all ReservationConfirmedEvent| Confirmed[(Confirmed — terminal)]
-    AwaitConfirm -->|OrderFailedEvent / Timeout| CompPay[CompensatingPayment]
+    AwaitConfirm -->|OrderConfirmedEvent + all ReservationConfirmedEvent → ApproveCaptureCommand| AwaitCapture[AwaitingPaymentCapture]
+    AwaitConfirm -->|OrderFailedEvent / Timeout → AbortCaptureCommand + release| CompStock
+
+    AwaitCapture -->|PaymentCompletedEvent| Confirmed[(Confirmed — terminal)]
 
     CompStock -->|all ReservationReleasedEvent + OrderCancelledEvent| Failed
-    CompPay -->|PaymentRefundedEvent| CompStock
     CompStock -->|CompensationTimeout exhausted| Stuck[(CompensationStuck — terminal, ops)]
 
     Confirmed --> Done[Saga finalized]
@@ -50,7 +51,7 @@ flowchart TD
 
 ### 1.2 Why a dedicated saga (not embedded in Ordering)
 
-Ordering is a command responder — it owns the Order aggregate and its status FSM. If checkout orchestration lived in Ordering, Ordering would have to consume Inventory events (`StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent`) and Payments events (`PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`), violating the autonomy-as-command-responder driver from ADR-0001. The saga-in-its-own-service pattern keeps Ordering clean and gives the orchestration a single home.
+Ordering is a command responder — it owns the Order aggregate and its status FSM. If checkout orchestration lived in Ordering, Ordering would have to consume Inventory events (`StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent`) and Payments events (`PaymentAuthorizedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`), violating the autonomy-as-command-responder driver from ADR-0001. The saga-in-its-own-service pattern keeps Ordering clean and gives the orchestration a single home.
 
 ---
 
@@ -78,13 +79,14 @@ Implements `ISagaStateInstance, IAuditableEntity` (same base as `PaymentProcessi
 | **— Inventory-side data (filled progressively) —** | | | |
 | `ReservationIdsJson` | `string` (jsonb) | Progressive, during `AwaitingStockReservation` | Serialized `IDictionary<Guid ProductId, ReservationTracking>` — one entry per distinct ProductId in the basket. `ReservationTracking = { Status (Pending/Reserved/Failed/Released/Confirmed), ReservationId (nullable), ReservedAtUtc, ExpiresAtUtc }`. Updated on every `StockReservedSagaEvent` / `StockReservationFailedSagaEvent` / `ReservationReleasedSagaEvent` / `ReservationConfirmedSagaEvent`. See § 5 for the fan-out algorithm. |
 | `ExpectedReservations` | `int` | Set at fan-out (when transitioning into `AwaitingStockReservation`) | Count of distinct ProductIds. |
-| `PendingReservations` | `int` | Decremented on each `StockReservedSagaEvent` | Zero triggers transition to `AwaitingPayment`. |
+| `PendingReservations` | `int` | Decremented on each `StockReservedSagaEvent` | Zero triggers transition to `AwaitingPaymentAuthorization`. |
 | `StockReservationStartedAtUtc` | `DateTimeOffset?` | On transition into `AwaitingStockReservation` | For latency observability. |
 | `StockReservationCompletedAtUtc` | `DateTimeOffset?` | When `PendingReservations` reaches 0 | For latency observability. |
 | **— Payment-side data (delegated to PaymentProcessingSaga) —** | | | |
-| `PaymentTransactionId` | `Guid?` | On `PaymentCompletedSagaEvent` | Payments's transaction id. Required for compensation refund. |
-| `PaymentRequestedAtUtc` | `DateTimeOffset?` | On transition into `AwaitingPayment` | |
-| `PaymentCompletedAtUtc` | `DateTimeOffset?` | On `PaymentCompletedSagaEvent` | |
+| `PaymentTransactionId` | `Guid?` | On `PaymentAuthorizedSagaEvent` | Payments's transaction id. Captured at authorization. |
+| `PaymentRequestedAtUtc` | `DateTimeOffset?` | On transition into `AwaitingPaymentAuthorization` | |
+| `PaymentAuthorizedAtUtc` | `DateTimeOffset?` | On `PaymentAuthorizedSagaEvent` | Drives the confirm step (capture is deferred to the pivot). |
+| `PaymentCompletedAtUtc` | `DateTimeOffset?` | On `PaymentCompletedSagaEvent` | Set when the Payments-owned `PaymentCompletedEvent` (post-capture) finalizes the saga. |
 | **— Confirmation timestamps —** | | | |
 | `OrderConfirmationRequestedAtUtc` | `DateTimeOffset?` | On transition into `AwaitingConfirmation` | |
 | `OrderConfirmedAtUtc` | `DateTimeOffset?` | On `OrderConfirmedSagaEvent` | |
@@ -133,18 +135,18 @@ All states are `public State` properties on `CheckoutSagaOrchestrator`. MassTran
 
 1. **`Initial`** — MassTransit-implicit initial state. The saga has no row in the repository yet. Entry on `BasketCheckoutInitiatedSagaEvent`.
 2. **`AwaitingOrderCreation`** — the saga has been instantiated, `CreateOrderCommand` has been published to `ordering.order-commands`, and an `OrderCreationTimeout` schedule is armed. The saga is waiting for `OrderCreatedSagaEvent` (positive) or `OrderFailedSagaEvent` / timeout (negative).
-3. **`AwaitingStockReservation`** — `OrderId` has been captured, `ReserveStockCommand`s have been fanned out (one per distinct ProductId), `ExpectedReservations` counter is set, and `StockReservationTimeout` is armed. The saga is accumulating `StockReservedSagaEvent`s and watching for any `StockReservationFailedSagaEvent`. **Entry action**: publish N commands (fan-out). **Exit conditions**: all N successes → `AwaitingPayment`; any failure → `CompensatingStockReservations`; timeout → `CompensatingStockReservations`.
-4. **`AwaitingPayment`** — all reservations confirmed; `RequestPaymentCommand` has been published to `payments.payment-commands` (delegates to `PaymentProcessingSaga`); `PaymentTimeout` is armed. Waiting for `PaymentCompletedSagaEvent` or `PaymentFailedSagaEvent`/timeout.
-5. **`AwaitingConfirmation`** — payment captured. Saga has published `ConfirmOrderCommand` to Ordering and one `ConfirmReservationCommand` per active reservation to Inventory. `OrderConfirmationTimeout` is armed. Waiting for `OrderConfirmedSagaEvent`. Individual `ReservationConfirmedSagaEvent`s are observed but NOT the gating event (Inventory auto-confirms on command; the gate is Ordering's confirm). If Ordering confirm fails/timeouts → `CompensatingPayment` (payment captured, must refund).
-6. **`Confirmed`** (terminal) — happy path complete. `SetCompletedWhenFinalized()` removes the saga instance after a configurable window.
+3. **`AwaitingStockReservation`** — `OrderId` has been captured, `ReserveStockCommand`s have been fanned out (one per distinct ProductId), `ExpectedReservations` counter is set, and `StockReservationTimeout` is armed. The saga is accumulating `StockReservedSagaEvent`s and watching for any `StockReservationFailedSagaEvent`. **Entry action**: publish N commands (fan-out). **Exit conditions**: all N successes → `AwaitingPaymentAuthorization`; any failure → `CompensatingStockReservations`; timeout → `CompensatingStockReservations`.
+4. **`AwaitingPaymentAuthorization`** — all reservations confirmed; `RequestPaymentCommand` has been published to `payments.payment-commands` (delegates to `PaymentProcessingSaga`); `PaymentTimeout` is armed. Waiting for `PaymentAuthorizedSagaEvent` (proceed to confirmation) or `PaymentFailedSagaEvent`/timeout (the Payments-owned `PaymentFailedEvent` fast-fails the saga — no capture occurred, so compensation is just release + cancel, no void needed). Capture is **not** triggered here — it is deferred to the pivot (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).
+5. **`AwaitingConfirmation`** — payment **authorized** (not yet captured). Saga has published `ConfirmOrderCommand` to Ordering and one `ConfirmReservationCommand` per active reservation to Inventory. `OrderConfirmationTimeout` is armed. Waiting for `OrderConfirmedSagaEvent`. Individual `ReservationConfirmedSagaEvent`s are observed but NOT the gating event (Inventory auto-confirms on command; the gate is Ordering's confirm). On `OrderConfirmedSagaEvent` → send `ApproveCaptureCommand` to the sub-saga → `AwaitingPaymentCapture`. If Ordering confirm fails/timeouts → send `AbortCaptureCommand` (pre-capture void, free) + release reservations → `CompensatingStockReservations` (no refund, no `CompensatingPayment`).
+6. **`AwaitingPaymentCapture`** — order + reservations confirmed; `ApproveCaptureCommand` has been sent to `PaymentProcessingSaga` (which issues `CapturePaymentCommand`); `PaymentTimeout` is re-armed for the capture wait. Waiting for the Payments-owned `PaymentCompletedSagaEvent` (post-capture terminal) to finalize. Capture is the pivot — once it succeeds, only `Complete` remains, which cannot meaningfully fail; there is no post-capture compensation inside the checkout flow.
+7. **`Confirmed`** (terminal) — happy path complete. `SetCompletedWhenFinalized()` removes the saga instance after a configurable window.
 
 ### Compensation states
 
-7. **`CompensatingStockReservations`** — at least one reservation may exist and must be released. Entry actions: (a) publish `ReleaseReservationCommand` for every `ReservationId` currently in `Reserved` status in `ReservationIdsJson`; (b) publish `CancelOrderCommand` to Ordering (if `OrderId` is set); (c) arm `CompensationTimeout`. Waits for `ReservationReleasedSagaEvent` per in-flight reservation (match against the tracking dictionary). Transitions to `Compensated` when every dispatched release has been confirmed AND Ordering has acked the cancel (via `OrderCancelledSagaEvent`).
-8. **`CompensatingPayment`** — reached only when payment has been captured and a later step failed (Ordering confirm). Entry actions: (a) publish `RequestRefundCommand` to `payments.payment-commands` (`PaymentProcessingSaga` handles it); (b) arm `CompensationTimeout`. On `PaymentRefundedSagaEvent`, transitions to `CompensatingStockReservations` (refund done → release stock).
-9. **`Compensated`** (terminal) — all compensations complete. Saga publishes a terminal `CheckoutFailedEvent` for downstream consumers (Notifications, BFF cache invalidation) — this is the saga-level failure event that Ordering does not emit on its own because Ordering only knows about its own cancellation, not the broader saga failure. **Open question — Stage 2 Agent 5:** decide whether `CheckoutFailedEvent` is a separate schema or whether `OrderCancelledEvent + OrderFailedEvent` from Ordering are sufficient. This design assumes a separate `CheckoutFailedEvent` on a new `checkout.sagas` topic for symmetry with `CheckoutCompletedEvent` (see § 9).
+8. **`CompensatingStockReservations`** — at least one reservation may exist and must be released. Compensation is **single-pass** (no refund phase): reached from a stock failure, an authorization decline (`PaymentFailedSagaEvent` in `AwaitingPaymentAuthorization`), or a confirmation failure (after the saga has already sent `AbortCaptureCommand` for the pre-capture void). Entry actions: (a) publish `ReleaseReservationCommand` for every `ReservationId` currently in `Reserved` status in `ReservationIdsJson`; (b) publish `CancelOrderCommand` to Ordering (if `OrderId` is set); (c) arm `CompensationTimeout`. Waits for `ReservationReleasedSagaEvent` per in-flight reservation (match against the tracking dictionary). Transitions to `Compensated` when every dispatched release has been confirmed AND Ordering has acked the cancel (via `OrderCancelledSagaEvent`).
+9. **`Compensated`** (terminal) — all compensations complete. Saga publishes a terminal `CheckoutFailedEvent` to `checkout.sagas` — the saga-level failure event that Ordering does not emit on its own because Ordering only knows about its own cancellation, not the broader saga failure. **Resolved** (was an open question for Stage 2 Agent 5 — separate schema vs. relying on `OrderCancelledEvent + OrderFailedEvent` from Ordering): `CheckoutFailedEvent` ships as a separate schema on `checkout.sagas` for symmetry with `CheckoutCompletedEvent`, published with **no v1 consumer** — a forensic record + future-consumer seam (see § 9.1).
 10. **`Failed`** (terminal) — reached when no compensation is required (e.g., `OrderFailedEvent` in `AwaitingOrderCreation` before stock was touched; or `OrderCreationTimeout` where the command was presumed never accepted). The saga simply emits `CheckoutFailedEvent` and finalizes.
-11. **`CompensationStuck`** (terminal, abnormal) — reached when `CompensationTimeout` fires while in any `Compensating*` state. Emits `CheckoutStuckEvent` (ops alert), does NOT auto-retry, and remains finalized for manual operator intervention. The stuck-saga health check in `SagaHealthCheck` already counts sagas in non-terminal states older than `StuckSagaThresholdMinutes`; `CompensationStuck` is explicitly terminal so it does not inflate that metric — operators track these separately via the dedicated counter (§ 11).
+11. **`CompensationStuck`** (terminal, abnormal) — reached when `CompensationTimeout` fires while in `CompensatingStockReservations`. Emits `CheckoutStuckEvent` (ops alert), does NOT auto-retry, and remains finalized for manual operator intervention. The stuck-saga health check in `SagaHealthCheck` already counts sagas in non-terminal states older than `StuckSagaThresholdMinutes`; `CompensationStuck` is explicitly terminal so it does not inflate that metric — operators track these separately via the dedicated counter (§ 11).
 
 ---
 
@@ -156,21 +158,20 @@ Current State | Triggering Event | Action(s) Taken | Next State
 `AwaitingOrderCreation` | `OrderCreatedSagaEvent` | Capture `OrderId`, `OrderCreatedAtUtc`. Unschedule `OrderCreationTimeout`. Compute `ExpectedReservations = distinct(ProductId).Count`. Initialize `ReservationIdsJson` with `Pending` entries per ProductId. Publish N `ReserveStockCommand` to `inventory.reservation-commands` (key = `ProductId`, one per distinct ProductId with summed quantities). Arm `StockReservationTimeout`. Set `StockReservationStartedAtUtc`. | `AwaitingStockReservation`
 `AwaitingOrderCreation` | `OrderFailedSagaEvent` | Capture ErrorCode/Message, FailedAtState. Unschedule `OrderCreationTimeout`. Publish `CheckoutFailedEvent` (no compensation — nothing touched downstream yet). | `Failed` (finalize)
 `AwaitingOrderCreation` | `OrderCreationTimeout.Received` | Set ErrorCode=`ORDER_CREATION_TIMEOUT`, ErrorMessage. Publish `MarkOrderFailedCommand` to Ordering (in case Ordering did actually accept the command but the reply got lost — defensive). Publish `CheckoutFailedEvent`. | `Failed` (finalize)
-`AwaitingStockReservation` | `StockReservedSagaEvent` (one of N) | Append `ReservationId` to `ReservationIdsJson` entry, set Status=`Reserved`, decrement `PendingReservations`. **If `PendingReservations > 0`**: stay in state; **if `PendingReservations == 0`**: unschedule `StockReservationTimeout`. Set `StockReservationCompletedAtUtc`. Publish `RequestPaymentCommand` to `payments.payment-commands` (key = `CorrelationId`). Arm `PaymentTimeout`. Set `PaymentRequestedAtUtc`. | `AwaitingPayment` (when counter reaches 0; else stays)
+`AwaitingStockReservation` | `StockReservedSagaEvent` (one of N) | Append `ReservationId` to `ReservationIdsJson` entry, set Status=`Reserved`, decrement `PendingReservations`. **If `PendingReservations > 0`**: stay in state; **if `PendingReservations == 0`**: unschedule `StockReservationTimeout`. Set `StockReservationCompletedAtUtc`. Publish `RequestPaymentCommand` to `payments.payment-commands` (key = `CorrelationId`). Arm `PaymentTimeout`. Set `PaymentRequestedAtUtc`. | `AwaitingPaymentAuthorization` (when counter reaches 0; else stays)
 `AwaitingStockReservation` | `StockReservationFailedSagaEvent` | Mark the matching ProductId's tracking entry Status=`Failed`. Unschedule `StockReservationTimeout`. Set ErrorCode=`STOCK_UNAVAILABLE`, ErrorMessage (include shortfall). Mark `CompensationTriggered=true`. Set `CompensationStartedAtUtc`. For all entries currently Status=`Reserved`, publish `ReleaseReservationCommand` (key = ProductId). Publish `CancelOrderCommand` to Ordering (key = OrderId). Arm `CompensationTimeout`. | `CompensatingStockReservations`
 `AwaitingStockReservation` | `StockReservationTimeout.Received` | Same as `StockReservationFailedSagaEvent` except ErrorCode=`STOCK_TIMEOUT`. Release whatever was reserved so far. | `CompensatingStockReservations`
-`AwaitingPayment` | `PaymentCompletedSagaEvent` | Capture `PaymentTransactionId`, `PaymentCompletedAtUtc`. Unschedule `PaymentTimeout`. Publish `ConfirmOrderCommand` to Ordering. Publish `ConfirmReservationCommand` per active reservation (key = ProductId). Arm `OrderConfirmationTimeout`. Set `OrderConfirmationRequestedAtUtc`. | `AwaitingConfirmation`
-`AwaitingPayment` | `PaymentFailedSagaEvent` | Capture ErrorCode/Message (`PAYMENT_FAILED`). Unschedule `PaymentTimeout`. Mark `CompensationTriggered=true`. For all active reservations, publish `ReleaseReservationCommand`. Publish `CancelOrderCommand`. Arm `CompensationTimeout`. Note: payment did not capture — no refund needed. | `CompensatingStockReservations`
-`AwaitingPayment` | `PaymentTimeout.Received` | Treat as `PaymentFailedSagaEvent` with ErrorCode=`PAYMENT_TIMEOUT`. | `CompensatingStockReservations`
-`AwaitingConfirmation` | `OrderConfirmedSagaEvent` | Capture `OrderConfirmedAtUtc`. Unschedule `OrderConfirmationTimeout`. Publish `CheckoutCompletedEvent` to `checkout.sagas` (informational, see § 9). | `Confirmed` (finalize)
+`AwaitingPaymentAuthorization` | `PaymentAuthorizedSagaEvent` | Capture `PaymentTransactionId`, `PaymentAuthorizedAtUtc`. Unschedule `PaymentTimeout`. Publish `ConfirmOrderCommand` to Ordering. Publish `ConfirmReservationCommand` per active reservation (key = ProductId). Arm `OrderConfirmationTimeout`. Set `OrderConfirmationRequestedAtUtc`. | `AwaitingConfirmation`
+`AwaitingPaymentAuthorization` | `PaymentFailedSagaEvent` | Capture ErrorCode/Message (`PAYMENT_FAILED`). Unschedule `PaymentTimeout`. Mark `CompensationTriggered=true`. For all active reservations, publish `ReleaseReservationCommand`. Publish `CancelOrderCommand`. Arm `CompensationTimeout`. Note: authorization declined — nothing captured, no void or refund needed. Fast-fail driven by the Payments-owned `PaymentFailedEvent` (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). | `CompensatingStockReservations`
+`AwaitingPaymentAuthorization` | `PaymentTimeout.Received` | Treat as `PaymentFailedSagaEvent` with ErrorCode=`PAYMENT_TIMEOUT`. | `CompensatingStockReservations`
+`AwaitingConfirmation` | `OrderConfirmedSagaEvent` | Capture `OrderConfirmedAtUtc`. Unschedule `OrderConfirmationTimeout`. Publish `ApproveCaptureCommand` to `payments.payment-commands` (key = `CorrelationId`) — tells the sub-saga to capture. Re-arm `PaymentTimeout` for the capture wait. | `AwaitingPaymentCapture`
 `AwaitingConfirmation` | `ReservationConfirmedSagaEvent` (0..N) | Update tracking entry Status=`Confirmed`. Purely informational — does not gate state transition. No side effects published. | `AwaitingConfirmation` (stays)
-`AwaitingConfirmation` | `OrderFailedSagaEvent` | Capture ErrorCode/Message (`CONFIRMATION_FAILED`). Mark `CompensationTriggered=true`. Publish `RequestRefundCommand`. Arm `CompensationTimeout`. Defer stock release until refund completes. | `CompensatingPayment`
-`AwaitingConfirmation` | `OrderConfirmationTimeout.Received` | Treat as `OrderFailedSagaEvent` with ErrorCode=`CONFIRMATION_TIMEOUT`. | `CompensatingPayment`
+`AwaitingConfirmation` | `OrderFailedSagaEvent` | Capture ErrorCode/Message (`CONFIRMATION_FAILED`). Mark `CompensationTriggered=true`. Publish `AbortCaptureCommand` to `payments.payment-commands` (key = `CorrelationId`) — pre-capture void, free. For all active reservations, publish `ReleaseReservationCommand`. Publish `CancelOrderCommand`. Arm `CompensationTimeout`. Single-pass: stock release and abort dispatch together (no refund phase). | `CompensatingStockReservations`
+`AwaitingConfirmation` | `OrderConfirmationTimeout.Received` | Treat as `OrderFailedSagaEvent` with ErrorCode=`CONFIRMATION_TIMEOUT`. | `CompensatingStockReservations`
+`AwaitingPaymentCapture` | `PaymentCompletedSagaEvent` | Capture `PaymentCompletedAtUtc` (the Payments-owned post-capture terminal). Unschedule `PaymentTimeout`. Publish `CheckoutCompletedEvent` to `checkout.sagas` (informational, see § 9). | `Confirmed` (finalize)
 `CompensatingStockReservations` | `ReservationReleasedSagaEvent` (0..M) | Update tracking entry Status=`Released`. Decrement `PendingReleases`. **If `PendingReleases > 0` OR OrderCancelled not yet received**: stay. **If all released AND `OrderCancelledSagaEvent` received**: unschedule `CompensationTimeout`. Set `CompensationCompletedAtUtc`. Publish `CheckoutFailedEvent` (with `CompensationTriggered=true`). | `Compensated` (finalize, if gate met)
 `CompensatingStockReservations` | `OrderCancelledSagaEvent` | Mark Ordering cancellation complete. Gate check against reservation releases (same gate as above). | `Compensated` (finalize, if gate met)
 `CompensatingStockReservations` | `CompensationTimeout.Received` | Set ErrorCode=`COMPENSATION_TIMEOUT`, ErrorMessage=`Stock compensation did not complete in time`. Publish `CheckoutStuckEvent` for ops. | `CompensationStuck` (finalize, abnormal)
-`CompensatingPayment` | `PaymentRefundedSagaEvent` | Capture refund acknowledged. Now publish `ReleaseReservationCommand`s for all active reservations + `CancelOrderCommand`. Reset `CompensationTimeout` counter (fresh schedule for stock phase). | `CompensatingStockReservations`
-`CompensatingPayment` | `CompensationTimeout.Received` | Set ErrorCode=`COMPENSATION_TIMEOUT`, ErrorMessage=`Refund did not complete in time`. Publish `CheckoutStuckEvent`. | `CompensationStuck` (finalize, abnormal)
 
 ### 4.1 Event correlation policy
 
@@ -245,7 +246,7 @@ The `ReservationId` is **generated by the saga** and passed INTO Inventory. This
        Unschedule StockReservationTimeout
        Publish RequestPaymentCommand
        Arm PaymentTimeout
-       TransitionTo(AwaitingPayment)
+       TransitionTo(AwaitingPaymentAuthorization)
    Else:
        stay in AwaitingStockReservation
 ```
@@ -273,7 +274,7 @@ The `ReservationId` is **generated by the saga** and passed INTO Inventory. This
 - **Inside one saga instance, MassTransit serializes message handling** (documented by MassTransit; this is also our `ConcurrencyMode.Optimistic` repository contract). So a `StockReservedSagaEvent` and a `StockReservationFailedSagaEvent` arriving concurrently for the same saga are handled one at a time. If the success lands first, the tracking entry goes `Pending → Reserved`. The later failure then lands, and its guard sees `Status == "Reserved"` for the *other* (failed) ProductId — it updates that entry and triggers compensation that includes releasing the `Reserved` one. Correctness preserved.
 - **Kafka partition ordering:** `ReserveStockCommand` messages are keyed by `ProductId`, so Inventory's consumer processes commands for the same SKU in order. Cross-ProductId ordering is NOT guaranteed — a fast Inventory instance can reply for ProductId X before it replies for ProductId Y. The saga's counter approach (counts are commutative over positive outcomes) is robust to this. Failures are "first arrival wins" — the first failure aborts the flow.
 - **Duplicate deliveries:** Kafka is at-least-once. Consumer-adapter plus idempotency guard (`if entry.Status != "Pending"` skip) keeps saga state correct.
-- **Delayed failures after overall success:** If all successes land, saga transitions to `AwaitingPayment`, and then a stale `StockReservationFailedSagaEvent` arrives (e.g., a retry from before), the state machine has already left `AwaitingStockReservation`. With `During(AwaitingStockReservation, When(StockReservationFailedEvent)...)` and default MassTransit semantics, events received in a state they are NOT `During`d in are simply ignored (unless `Ignore(...)` or a catch-all is configured). That is the desired behavior. The stale failure is dropped. Operational note: a warning log entry MUST be emitted by the consumer-adapter so that operators can see the dangling message in traces.
+- **Delayed failures after overall success:** If all successes land, saga transitions to `AwaitingPaymentAuthorization`, and then a stale `StockReservationFailedSagaEvent` arrives (e.g., a retry from before), the state machine has already left `AwaitingStockReservation`. With `During(AwaitingStockReservation, When(StockReservationFailedEvent)...)` and default MassTransit semantics, events received in a state they are NOT `During`d in are simply ignored (unless `Ignore(...)` or a catch-all is configured). That is the desired behavior. The stale failure is dropped. Operational note: a warning log entry MUST be emitted by the consumer-adapter so that operators can see the dangling message in traces.
 
 ### 5.4 Edge case — basket with exactly one distinct ProductId
 
@@ -293,21 +294,20 @@ If the saga crashes between publishing `ReserveStockCommand` and the outbox comm
 | Order creation times out (`OrderCreationTimeout`) | `AwaitingOrderCreation` | Ordering *might* have accepted the command and replied lost. Be defensive. | Publish `MarkOrderFailedCommand` to Ordering. Publish `CheckoutFailedEvent`. | `Failed` |
 | Stock reservation fails (partial or full) (`StockReservationFailedSagaEvent`) | `AwaitingStockReservation` | Ordering has `Status=Created` (Order exists). Some reservations may be `Reserved` already. | Release all `Reserved` entries + `CancelOrderCommand`. Arm `CompensationTimeout`. On all `ReservationReleasedSagaEvent` + `OrderCancelledSagaEvent`: publish `CheckoutFailedEvent`. | `Compensated` |
 | Stock reservation times out (`StockReservationTimeout`) | `AwaitingStockReservation` | Same as above — partial reservations possible. | Same as above, ErrorCode=`STOCK_TIMEOUT`. | `Compensated` |
-| Payment fails (`PaymentFailedSagaEvent`) | `AwaitingPayment` | Ordering=`StockReserved`, all Inventory reservations active. NO capture at Payments (by PaymentProcessingSaga's contract). | Release all reservations + `CancelOrderCommand`. Arm `CompensationTimeout`. **No refund** — payment never captured. | `Compensated` |
-| Payment times out (`PaymentTimeout`) | `AwaitingPayment` | Same — assume payment not captured. (PaymentProcessingSaga has its own internal timeouts; reaching this outer timeout implies no positive reply, treat as failure.) | Same as payment fail, ErrorCode=`PAYMENT_TIMEOUT`. | `Compensated` |
-| Order confirmation fails (`OrderFailedSagaEvent` in `AwaitingConfirmation`) | `AwaitingConfirmation` | Ordering=`PaymentCompleted`, all reservations active, Payments captured payment. | **Refund first**: publish `RequestRefundCommand` → wait `PaymentRefundedSagaEvent` → then publish `ReleaseReservationCommand`s + `CancelOrderCommand` → wait their acks → `CheckoutFailedEvent`. Two-phase compensation. | `Compensated` |
-| Order confirmation times out (`OrderConfirmationTimeout`) | `AwaitingConfirmation` | Same as above. | Same two-phase compensation, ErrorCode=`CONFIRMATION_TIMEOUT`. | `Compensated` |
+| Authorization declines (`PaymentFailedSagaEvent`) | `AwaitingPaymentAuthorization` | Ordering=`StockReserved`, all Inventory reservations active. NO authorization captured (capture is deferred to the pivot, per ADR-0026). | Release all reservations + `CancelOrderCommand`. Arm `CompensationTimeout`. **No void, no refund** — authorization declined, nothing captured. Fast-fail on the Payments-owned `PaymentFailedEvent` (no timeout wait). | `Compensated` |
+| Payment authorization times out (`PaymentTimeout`) | `AwaitingPaymentAuthorization` | Same — assume not authorized. (PaymentProcessingSaga has its own internal timeouts; reaching this outer timeout implies no positive reply, treat as failure.) | Same as authorization decline, ErrorCode=`PAYMENT_TIMEOUT`. | `Compensated` |
+| Order confirmation fails (`OrderFailedSagaEvent` in `AwaitingConfirmation`) | `AwaitingConfirmation` | Ordering=`Confirmed` attempt failed, all reservations active, Payments **authorized but not yet captured** (capture deferred to pivot). | **Single-pass**: publish `AbortCaptureCommand` (pre-capture void — free, sub-saga issues `VoidPaymentCommand`) + `ReleaseReservationCommand`s + `CancelOrderCommand` together → wait release/cancel acks → `CheckoutFailedEvent`. **No refund** — capture never happened. | `Compensated` |
+| Order confirmation times out (`OrderConfirmationTimeout`) | `AwaitingConfirmation` | Same as above. | Same single-pass compensation, ErrorCode=`CONFIRMATION_TIMEOUT`. | `Compensated` |
 | `CompensationTimeout` fires in `CompensatingStockReservations` | `CompensatingStockReservations` | Releases may be hung at Inventory (message broker dead-letter, Inventory crashed, etc.). | None. Emit `CheckoutStuckEvent` (ops alert). | `CompensationStuck` |
-| `CompensationTimeout` fires in `CompensatingPayment` | `CompensatingPayment` | Refund may be hung at PaymentProcessingSaga. | None. Emit `CheckoutStuckEvent`. | `CompensationStuck` |
 
-### 6.1 Two-phase compensation rationale
+### 6.1 Single-pass compensation rationale (capture-pivot)
 
-At `AwaitingConfirmation` failure, the saga has **both** live reservations AND a captured payment. The order matters:
+At `AwaitingConfirmation` failure, the saga has live reservations AND an **authorized-but-uncaptured** payment (capture is deferred to the pivot per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). Because no money has moved, compensation is **single-pass** — there is no refund phase and no two-step refund-then-stock rearm:
 
-- **Refund first, then release stock.** A refund failure should not leave money in Payments while stock is already released (customer sees "cancelled but no refund"). The refund is riskier — it involves gateway traffic — so it goes first.
-- The alternative (release first, then refund) risks "stock returned to shelf, sold to someone else, refund fails, customer with no stock AND no refund" — worse UX.
+- **Abort the authorization (pre-capture void) and release stock in one pass.** The void is free and invisible to the cardholder; the release and the `AbortCaptureCommand` are dispatched together. The old "refund first, then release stock" ordering is gone because there is no captured payment to refund.
+- This is precisely the win the capture-pivot delivers: by deferring capture until *after* confirmation, the common post-authorization failure is a free void rather than a fee-incurring, customer-visible refund. The earlier failure mode ("stock released, refund fails, customer left with neither") cannot occur — nothing was charged.
 
-The two-phase compensation adds at most ~30 seconds of latency before reservations come off-hand; given the rarity of confirmation-stage failure (typical cause: Ordering service crash post-payment), the trade is correct.
+Single-pass compensation is also strictly faster than the old two-phase path; given the rarity of confirmation-stage failure (typical cause: Ordering service crash post-authorization), this is the textbook-correct shape.
 
 ---
 
@@ -317,7 +317,7 @@ Each awaiting-* state has a MassTransit schedule. Values are overridable via con
 
 - `OrderCreationTimeout`: **30 seconds**. Ordering is a local DB write via Kafka consumer. No external I/O. 30s is generous; p99 should be well under 5s.
 - `StockReservationTimeout`: **60 seconds**. Per-item events fan-in; worst case is a slow Inventory consumer processing tens of commands sequentially per partition. Event Sourcing in Inventory (§ 8 of `inventory.md`) has heavier write path than a row update. 60s allows headroom.
-- `PaymentTimeout`: **90 seconds**. Involves `PaymentProcessingSaga` which has its own `AuthorizationMinutes: 5` and `CaptureMinutes: 5` internal timeouts — but those are per-step. The outer Checkout timeout must be shorter than the inner ones' sum to avoid a race where the sub-saga is still trying while the outer already gave up. **Trade-off note**: if `PaymentTimeout` fires while the sub-saga is still running, the outer compensation proceeds (release stock), and the sub-saga may later succeed in capturing — the outer then receives a late `PaymentCompletedSagaEvent` for a finalized saga, which is discarded. This produces a captured-but-compensated state. Mitigation: set the outer timeout ≥ the sub-saga's AuthorizationMinutes + CaptureMinutes + buffer. 90s is enough for gateway p99 latency; increase to 3-5 minutes if production data disagrees.
+- `PaymentTimeout`: **90 seconds**, applied to **each** of the two payment waits — the authorization wait in `AwaitingPaymentAuthorization` and the capture wait in `AwaitingPaymentCapture` (capture is deferred to the pivot per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). It is armed when entering `AwaitingPaymentAuthorization`, unscheduled on `PaymentAuthorizedSagaEvent`, and re-armed when entering `AwaitingPaymentCapture`. Involves `PaymentProcessingSaga` which has its own `AuthorizationMinutes: 5` and `CaptureMinutes: 5` internal timeouts — but those are per-step. The outer Checkout timeout must be shorter than the inner ones to avoid a race where the sub-saga is still trying while the outer already gave up. **Trade-off note**: the authorization wait now fast-fails on the Payments-owned `PaymentFailedEvent` rather than waiting out the timeout. If `PaymentTimeout` fires in `AwaitingPaymentCapture` while the sub-saga is still capturing, the outer compensation proceeds and the sub-saga may later succeed; the outer then receives a late `PaymentCompletedSagaEvent` for a finalized saga, which is discarded — a captured-but-compensated edge whose true remedy is the deferred customer/admin refund flow. Mitigation: set the outer timeout with headroom over gateway p99 latency; increase to 3-5 minutes if production data disagrees.
 - `OrderConfirmationTimeout`: **30 seconds**. Local DB write at Ordering; similar to creation.
 - `CompensationTimeout`: **300 seconds** (5 minutes). Compensation has to complete N releases + 1 cancel OR 1 refund + N releases + 1 cancel. With per-step processing at ~1s each and potential retries, 5 min is cushion. Beyond this, `CompensationStuck` fires and ops takes over.
 
@@ -347,10 +347,10 @@ Bound to a new `CheckoutTimeoutsOptions` sub-section on `SagaOptions` alongside 
 
 ### 7.2 Relationship to Inventory reservation TTL
 
-Inventory's `ReservationTtl` (default 15 minutes per `inventory.md § 11.3`) is the upper bound on how long a reservation can sit before Inventory's own `ReservationExpiryWorker` auto-releases it. The checkout saga MUST finish (or fail) within that window or Inventory will release the reservation out from under it and the saga receives a late `ReservationReleasedSagaEvent` with `ReleaseReason=Expiry` while still in `AwaitingPayment` or `AwaitingConfirmation`. **Handling** (documented here, deferred to Stage 4 ADR if more weight needed):
+Inventory's `ReservationTtl` (default 15 minutes per `inventory.md § 11.3`) is the upper bound on how long a reservation can sit before Inventory's own `ReservationExpiryWorker` auto-releases it. The checkout saga MUST finish (or fail) within that window or Inventory will release the reservation out from under it and the saga receives a late `ReservationReleasedSagaEvent` with `ReleaseReason=Expiry` while still in `AwaitingPaymentAuthorization`, `AwaitingConfirmation`, or `AwaitingPaymentCapture`. **Handling** (documented here, deferred to Stage 4 ADR if more weight needed):
 
-- In `AwaitingPayment` / `AwaitingConfirmation`, if `ReservationReleasedSagaEvent.ReleaseReason == Expiry` arrives, it means the reservation TTL beat the saga. The saga MUST treat this as a `StockTimeout`-equivalent: set ErrorCode=`RESERVATION_EXPIRED_DURING_SAGA`, transition to compensating. If in `AwaitingConfirmation` (payment already captured), go `CompensatingPayment` first. The tracking entry for that ProductId goes from `Reserved` to `Released-by-expiry`; no need to issue a second `ReleaseReservationCommand` for it during compensation.
-- The timeout stack is therefore: `OrderCreationTimeout (30s) + StockReservationTimeout (60s) + PaymentTimeout (90s) + OrderConfirmationTimeout (30s) = 210s = 3.5 minutes`, well under the 15-minute reservation TTL. Leaves 11+ minutes of slack; compensation has another 5 min. Comfortable.
+- In `AwaitingPaymentAuthorization` / `AwaitingConfirmation` / `AwaitingPaymentCapture`, if `ReservationReleasedSagaEvent.ReleaseReason == Expiry` arrives, it means the reservation TTL beat the saga. The saga MUST treat this as a `StockTimeout`-equivalent: set ErrorCode=`RESERVATION_EXPIRED_DURING_SAGA`, transition to `CompensatingStockReservations`. If a payment authorization already exists (`AwaitingConfirmation` / `AwaitingPaymentCapture`), it sends `AbortCaptureCommand` (pre-capture void) as part of the single-pass compensation. The tracking entry for that ProductId goes from `Reserved` to `Released-by-expiry`; no need to issue a second `ReleaseReservationCommand` for it during compensation.
+- The happy path now spans **two** payment waits (authorization + capture) on `PaymentSeconds`, so the worst-case timeout stack is: `OrderCreationTimeout (30s) + StockReservationTimeout (60s) + PaymentTimeout authorization (90s) + OrderConfirmationTimeout (30s) + PaymentTimeout capture (90s) = 300s = 5 minutes`, still well under the 15-minute reservation TTL. Leaves 10 minutes of slack; compensation has another 5 min. Comfortable.
 
 ---
 
@@ -371,11 +371,11 @@ Naming convention: `{EventName}CheckoutConsumer` (suffix `Checkout` so consumer 
 | `Inventory.Reservations.StockReservationFailedEvent` | `inventory.reservations` | `StockReservationFailedConsumer` | `StockReservationFailedSagaEvent` |
 | `Inventory.Reservations.ReservationReleasedEvent` | `inventory.reservations` | `ReservationReleasedConsumer` | `ReservationReleasedSagaEvent` (discriminates on `ReleaseReason` to distinguish compensation-driven vs expiry-driven) |
 | `Inventory.Reservations.ReservationConfirmedEvent` | `inventory.reservations` | `ReservationConfirmedConsumer` | `ReservationConfirmedSagaEvent` |
-| `Payments.Transactions.PaymentCompletedEvent` | `payments.transactions` | `PaymentCompletedCheckoutConsumer` | `PaymentCompletedSagaEvent` |
-| `Payments.Transactions.PaymentFailedEvent` | `payments.transactions` | `PaymentFailedCheckoutConsumer` | `PaymentFailedSagaEvent` |
-| `Payments.Transactions.PaymentRefundedEvent` | `payments.transactions` | `PaymentRefundedCheckoutConsumer` | `PaymentRefundedSagaEvent` |
+| `Payments.Transactions.PaymentAuthorizedEvent` | `payments.transactions` | `PaymentAuthorizedCheckoutConsumer` | `PaymentAuthorizedSagaEvent` (drives `AwaitingPaymentAuthorization → AwaitingConfirmation`; new adapter per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) |
+| `Payments.Transactions.PaymentCompletedEvent` | `payments.transactions` | `PaymentCompletedCheckoutConsumer` | `PaymentCompletedSagaEvent` (Payments-owned post-capture terminal) |
+| `Payments.Transactions.PaymentFailedEvent` | `payments.transactions` | `PaymentFailedCheckoutConsumer` | `PaymentFailedSagaEvent` (Payments-owned; fast-fail on auth decline) |
 
-**Total adapters: 12.**
+**Total adapters: 12.** (The `PaymentRefundedEvent` adapter was removed and a `PaymentAuthorizedEvent` adapter added per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md): refund is no longer part of checkout compensation; the saga now drives confirmation off `PaymentAuthorizedEvent`.)
 
 ### 8.1 CorrelationId mapping for Inventory events
 
@@ -424,16 +424,17 @@ Commands flow **outbound** from the saga via the transactional outbox. Every pub
 |---|---|---|---|---|
 | `CreateOrderCommand` | `ordering.order-commands` | `CorrelationId` | `Initial → AwaitingOrderCreation` | Ask Ordering to create the Order aggregate from the basket snapshot. |
 | `MarkOrderFailedCommand` | `ordering.order-commands` | `OrderId` (if known) or `CorrelationId` | `AwaitingOrderCreation → Failed` (on timeout only) | Defensive: if Ordering did accept the creation but reply got lost, tell it to transition to Failed so its state is consistent. |
-| `ConfirmOrderCommand` | `ordering.order-commands` | `OrderId` | `AwaitingPayment → AwaitingConfirmation` | Tell Ordering the payment is captured and stock is reserved; transition the aggregate to Confirmed. |
-| `CancelOrderCommand` | `ordering.order-commands` | `OrderId` | `AwaitingStockReservation / AwaitingPayment → CompensatingStockReservations` AND `CompensatingPayment → CompensatingStockReservations` | Tell Ordering to cancel — Ordering's `Cancel` method produces `OrderCancelledEvent` which the saga consumes as `OrderCancelledSagaEvent`. |
+| `ConfirmOrderCommand` | `ordering.order-commands` | `OrderId` | `AwaitingPaymentAuthorization → AwaitingConfirmation` | Tell Ordering the payment is authorized and stock is reserved; transition the aggregate to Confirmed. (Capture happens after this succeeds — the pivot.) |
+| `CancelOrderCommand` | `ordering.order-commands` | `OrderId` | `AwaitingStockReservation / AwaitingPaymentAuthorization / AwaitingConfirmation → CompensatingStockReservations` | Tell Ordering to cancel — Ordering's `Cancel` method produces `OrderCancelledEvent` which the saga consumes as `OrderCancelledSagaEvent`. |
 | `ReserveStockCommand` | `inventory.reservation-commands` | `ProductId` | `AwaitingOrderCreation → AwaitingStockReservation` (fan-out, N copies) | Ask Inventory to reserve N units for ProductId. Carries saga-assigned `ReservationId` (idempotency key) + `CorrelationId`. |
-| `ConfirmReservationCommand` | `inventory.reservation-commands` | `ProductId` | `AwaitingPayment → AwaitingConfirmation` (per active reservation) | Tell Inventory the reservation is now a physical commitment — Inventory decrements OnHand. |
-| `ReleaseReservationCommand` | `inventory.reservation-commands` | `ProductId` | `AwaitingStockReservation / AwaitingPayment → CompensatingStockReservations` AND `CompensatingPayment → CompensatingStockReservations` (per active reservation) | Tell Inventory to release the hold with `ReleaseReason=Compensation`. |
-| `RequestPaymentCommand` | `payments.payment-commands` | `CorrelationId` | `AwaitingStockReservation → AwaitingPayment` | Delegate to `PaymentProcessingSaga` (existing sub-saga). Reuses the schema defined for PaymentProcessingSaga. |
-| `RequestRefundCommand` | `payments.payment-commands` | `CorrelationId` | `AwaitingConfirmation → CompensatingPayment` | Delegate refund to `PaymentProcessingSaga`. Reuses existing schema. |
-| `CheckoutCompletedEvent` | `checkout.sagas` | `CorrelationId` | `AwaitingConfirmation → Confirmed` | Saga-level terminal event. Informs Notifications ("your order is confirmed!") and BFF (cache invalidate). See § 9.1. |
-| `CheckoutFailedEvent` | `checkout.sagas` | `CorrelationId` | `AwaitingOrderCreation / CompensatingStockReservations → Failed / Compensated` | Saga-level terminal event, informs downstream of the saga's overall outcome (distinct from Ordering's per-aggregate events). |
-| `CheckoutStuckEvent` | `checkout.sagas` | `CorrelationId` | `Compensating* → CompensationStuck` | Ops alert. Notifications / PagerDuty / Slack integration listens. |
+| `ConfirmReservationCommand` | `inventory.reservation-commands` | `ProductId` | `AwaitingPaymentAuthorization → AwaitingConfirmation` (per active reservation) | Tell Inventory the reservation is now a physical commitment — Inventory decrements OnHand. |
+| `ReleaseReservationCommand` | `inventory.reservation-commands` | `ProductId` | `AwaitingStockReservation / AwaitingPaymentAuthorization / AwaitingConfirmation → CompensatingStockReservations` (per active reservation) | Tell Inventory to release the hold with `ReleaseReason=Compensation`. |
+| `RequestPaymentCommand` | `payments.payment-commands` | `CorrelationId` | `AwaitingStockReservation → AwaitingPaymentAuthorization` | Delegate to `PaymentProcessingSaga` (existing sub-saga). Reuses the schema defined for PaymentProcessingSaga. |
+| `ApproveCaptureCommand` | `payments.payment-commands` | `CorrelationId` | `AwaitingConfirmation → AwaitingPaymentCapture` | Tell the sub-saga that stock + order are confirmed — capture now (the pivot). Carries `CorrelationId`, `UserId`, `RequestedAtUtc`. New per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
+| `AbortCaptureCommand` | `payments.payment-commands` | `CorrelationId` | `AwaitingConfirmation → CompensatingStockReservations` (on confirmation failure) | Tell the sub-saga confirmation failed — take the pre-capture `Void` path (free). Carries `CorrelationId`, `UserId`, `Reason`, `RequestedAtUtc`. New per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). Replaces the removed `RequestRefundCommand` compensation. |
+| `CheckoutCompletedEvent` | `checkout.sagas` | `CorrelationId` | `AwaitingConfirmation → Confirmed` | Saga-level terminal event. **No v1 consumer by design** — published as a forensic record + future-consumer seam. See § 9.1. Any "order confirmed" customer email is dispatched via the command-driven path (`SendEmailNotificationCommand` per D-5), **not** by Notifications subscribing to this topic. |
+| `CheckoutFailedEvent` | `checkout.sagas` | `CorrelationId` | `AwaitingOrderCreation / CompensatingStockReservations → Failed / Compensated` | Saga-level terminal event recording the saga's overall outcome (distinct from Ordering's per-aggregate events). **No v1 consumer by design** — forensic record + future-consumer seam. See § 9.1. |
+| `CheckoutStuckEvent` | `checkout.sagas` | `CorrelationId` | `Compensating* → CompensationStuck` | Ops-alert sink. **No v1 consumer by design** — a future ops-alerting seam (PagerDuty / Slack); **not** consumed by Notifications in v1. See § 9.1. |
 
 **New topics introduced:** `ordering.order-commands`, `inventory.reservation-commands`, `checkout.sagas`. These need to land in `docker-compose.yaml` (kafka-init) and in the Schema Registry contracts — Stage 2 Agent 5's responsibility.
 
@@ -445,9 +446,9 @@ Three reasons:
 
 1. **Semantic difference.** `OrderConfirmedEvent` means "the aggregate is Confirmed" — but the saga has more context (payment transaction id, list of reservation ids, saga duration). Rather than bolt that onto Ordering's event, the saga emits its own.
 2. **Failure differentiation.** When the saga reaches `Failed`, Ordering emitted `OrderFailedEvent` (or never emitted, if order creation failed). The saga additionally wants to publish a stable "checkout failed" signal with saga-level fields (including e.g., `CompensationTriggered`, `ErrorCode`) that Ordering's event can't carry.
-3. **Subscription simplicity.** Notifications ideally subscribes to one topic for checkout outcomes (`checkout.sagas`) rather than needing to join `ordering.orders` + `checkout.sagas`. BFF same.
+3. **Forensic record + future-consumer seam.** The saga-terminal events are published with **no v1 consumer** (see [events-catalog.md § 2](events-catalog.md) footnote 3). They serve as an audit trail of checkout outcomes and a non-breaking seam: a future analytics dashboard, a "my orders" read model, or ops alerting on `CheckoutStuckEvent` can subscribe later without touching the saga. The BFF (canonical 5-topic published-language matrix — `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`) and Notifications (command-driven, `notifications.email-commands` only, per D-5) deliberately do **not** consume `checkout.sagas`; the BFF subscribes to published-language event topics only, never saga-internal coordination streams.
 
-**Trade-off:** adds a topic + schemas + one more consumer group on Notifications/BFF sides. Justified for the reference solution because it showcases the saga-level event distinct from aggregate-level event. Stage 2 Agent 5 can disagree and push the saga-level fields into Ordering's events — documented as an open question for that stage.
+**Trade-off:** adds a topic + schemas (the producer side is LIVE), but **no extra consumer group** — `checkout.sagas` has no v1 consumer (see reason 3). Justified for the reference solution because it showcases the saga-level terminal event distinct from the aggregate-level events. **Resolved** (this was flagged as an open question for Stage 2 Agent 5 — push the saga-level fields into Ordering's events vs. a dedicated topic): settled in favor of the dedicated `checkout.sagas` topic, carried as a forensic / future-consumer seam with no v1 consumer — see [events-catalog.md § 2](events-catalog.md) footnote 3.
 
 ### 9.2 Partition-key choices
 
@@ -515,12 +516,12 @@ public static class CheckoutSagaDependencyInjection
             kafkaConfigurator.TopicEndpoint<Inventory.Reservations.ReservationReleasedEvent>(/* ... */);
             kafkaConfigurator.TopicEndpoint<Inventory.Reservations.ReservationConfirmedEvent>(/* ... */);
 
-            kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentCompletedEvent>(
+            kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentAuthorizedEvent>(
                 kafkaOptions.Topics.PaymentsTransactions,
                 kafkaOptions.ConsumerGroups.CheckoutSaga, /* ... */);
 
+            kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentCompletedEvent>(/* ... */);
             kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentFailedEvent>(/* ... */);
-            kafkaConfigurator.TopicEndpoint<Payments.Transactions.PaymentRefundedEvent>(/* ... */);
         }
     }
 }
@@ -602,7 +603,8 @@ Follows the existing pattern established in `saga/SagaOrchestrators/Payments/Pay
   - `StockReservationFailedActivity`
   - `StockReservationTimeoutActivity`
   - `AllStockReservedActivity` (the transition point — tags `saga.expected_reservations`)
-  - `PaymentCompletedActivity` (Checkout variant — sub-saga `PaymentProcessingSaga` owns its own activity class)
+  - `PaymentAuthorizedActivity` (Checkout variant — drives the confirm step; capture deferred to pivot)
+  - `PaymentCompletedActivity` (Checkout variant, post-capture terminal — sub-saga `PaymentProcessingSaga` owns its own activity class)
   - `PaymentFailedCheckoutActivity`
   - `PaymentTimeoutCheckoutActivity`
   - `OrderConfirmedActivity`
@@ -671,10 +673,13 @@ Pattern: existing `saga/SagaOrchestrators.UnitTests/` uses `ITestHarness` + `Get
 **Representative test names:**
 
 - `Initial_on_BasketCheckoutInitiatedSagaEvent_transitions_to_AwaitingOrderCreation_and_publishes_CreateOrderCommand`
-- `AwaitingStockReservation_when_all_StockReservedSagaEvents_arrive_transitions_to_AwaitingPayment`
+- `AwaitingStockReservation_when_all_StockReservedSagaEvents_arrive_transitions_to_AwaitingPaymentAuthorization`
 - `AwaitingStockReservation_when_StockReservationFailedSagaEvent_arrives_with_some_Reserved_transitions_to_CompensatingStockReservations_and_releases_already_reserved`
-- `AwaitingPayment_on_PaymentFailedSagaEvent_does_not_request_refund_and_only_releases_reservations`
-- `AwaitingConfirmation_on_OrderFailedSagaEvent_requests_refund_before_releasing_reservations`
+- `AwaitingPaymentAuthorization_on_PaymentAuthorizedSagaEvent_publishes_ConfirmOrderCommand_and_transitions_to_AwaitingConfirmation`
+- `AwaitingPaymentAuthorization_on_PaymentFailedSagaEvent_fast_fails_and_only_releases_reservations_no_void_no_refund`
+- `AwaitingConfirmation_on_OrderConfirmedSagaEvent_publishes_ApproveCaptureCommand_and_transitions_to_AwaitingPaymentCapture`
+- `AwaitingConfirmation_on_OrderFailedSagaEvent_publishes_AbortCaptureCommand_and_releases_reservations_single_pass`
+- `AwaitingPaymentCapture_on_PaymentCompletedSagaEvent_transitions_to_Confirmed`
 - `CompensatingStockReservations_reaches_Compensated_only_after_all_releases_and_OrderCancelled`
 - `CompensationTimeout_in_CompensatingStockReservations_transitions_to_CompensationStuck_and_emits_CheckoutStuckEvent`
 - `Duplicate_StockReservedSagaEvent_for_same_ProductId_is_idempotent_no_op`
@@ -726,9 +731,9 @@ Reserving stock before payment is the **industry-standard pattern in consumer co
 
 ### Consequences
 
-**Positive.** Customer availability UX is guaranteed at the moment of checkout intent — stock is held before the charge. Payment-failure compensation is cheap (release stock, cancel order; no refund). Reserve-first aligns with existing industry mental models, which simplifies hiring and onboarding. The Checkout saga reuses the existing `PaymentProcessingSaga`, amortizing the refund/capture orchestration across both the existing Weather Alert Subscription flows and the new eShop flow.
+**Positive.** Customer availability UX is guaranteed at the moment of checkout intent — stock is held before the charge. Payment-failure compensation is cheap: an authorization decline releases stock with no money movement, and a confirmation failure is a free pre-capture void (capture is deferred to the pivot per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) — never a refund. Reserve-first aligns with existing industry mental models, which simplifies hiring and onboarding. The Checkout saga reuses the existing `PaymentProcessingSaga`, amortizing the authorize/capture/void orchestration across both the existing Weather Alert Subscription flows and the new eShop flow.
 
-**Negative / trade-offs.** Stock is held during the payment window (p99 ≤ ~90s, plus reservation-TTL slack up to 15 min per Inventory's default policy). During flash sales, this visible "stock held but not shipped" pool can push unlucky customers to out-of-stock errors even though the buyer eventually abandons payment. Mitigation: Inventory's reservation TTL + `ReservationExpiryWorker` auto-releases expired reservations (per `inventory.md § 11`); and the saga's `StockReservationTimeout` + `PaymentTimeout` cumulatively bound the visible holding window to a few minutes. Compensation paths are explicit in the state machine and tested. The edge case where the Checkout saga's `PaymentTimeout` fires while `PaymentProcessingSaga` is still running can produce a late "capture-then-compensate" scenario; mitigation is to set outer timeouts with headroom over inner-saga timeout sums. The `CompensationStuck` terminal state captures catastrophic compensation failures (releases lost, refunds stuck) and emits dedicated ops alerts; no automatic recovery — manual operator action.
+**Negative / trade-offs.** Stock is held during the payment window — now spanning **two** waits (authorization + capture) at ~90s each, plus reservation-TTL slack up to 15 min per Inventory's default policy. During flash sales, this visible "stock held but not shipped" pool can push unlucky customers to out-of-stock errors even though the buyer eventually abandons payment. Mitigation: Inventory's reservation TTL + `ReservationExpiryWorker` auto-releases expired reservations (per `inventory.md § 11`); and the saga's `StockReservationTimeout` + the two `PaymentTimeout` waits cumulatively bound the visible holding window to a few minutes. Compensation paths are explicit in the state machine and tested. The edge case where the Checkout saga's `PaymentTimeout` fires in `AwaitingPaymentCapture` while `PaymentProcessingSaga` is still capturing can produce a late "capture-then-compensate" scenario whose true remedy is the deferred customer/admin refund flow; mitigation is to set outer timeouts with headroom over inner-saga timeouts. (Authorization declines no longer wait out a timeout — they fast-fail on the Payments-owned `PaymentFailedEvent` per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md).) The `CompensationStuck` terminal state captures catastrophic compensation failures (releases lost) and emits dedicated ops alerts; no automatic recovery — manual operator action.
 
 ### Relationship to ADR-0001
 
@@ -742,9 +747,9 @@ These questions belong to Stage 4 / later stages and are explicitly out of scope
 
 1. **Address source on `BasketCheckoutInitiatedEvent`** (§ 2.2) — does Basket carry addresses (Option P) or does Ordering fetch them (Option Q)? Stage 2 Agent 5 (event catalog) must commit.
 2. **CorrelationId field on Inventory external events** (§ 8.1) — this design assumes `Inventory.Reservations.*Event.CorrelationId` exists. Stage 2 Agent 5 must confirm.
-3. **Separate `checkout.sagas` topic** (§ 9.1) — is the saga-level terminal event a new schema, or collapsed into Ordering events? Stage 2 Agent 5 can overrule.
+3. **Separate `checkout.sagas` topic** (§ 9.1) — ~~is the saga-level terminal event a new schema, or collapsed into Ordering events?~~ **Resolved by Stage 2 Agent 5:** a dedicated `checkout.sagas` topic with its own schemas, published with no v1 consumer (forensic record + future-consumer seam) — see [events-catalog.md § 2](events-catalog.md) footnote 3.
 4. **`MarkOrderFailedCommand`** (§ 9) — does Ordering need this as a separate command, or is `CancelOrderCommand` with a special reason sufficient? Stage 2 Agent 7 (use case catalog) closes this.
-5. **Payment capture-then-outer-timeout race** (§ 7 + § 13 Consequences) — is there a need for a "stale payment reconciliation worker" that detects late `PaymentCompletedSagaEvent`s for already-finalized sagas and issues a refund? Deferred to Stage 4.
+5. **Payment capture-then-outer-timeout race** (§ 7 + § 13 Consequences) — with capture deferred to the pivot, this race is now confined to the `AwaitingPaymentCapture` wait. Is there a need for a "stale payment reconciliation worker" that detects late `PaymentCompletedSagaEvent`s for already-finalized sagas and triggers the deferred customer/admin refund flow? Deferred to Stage 4 (refund producer is itself future work per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).
 6. **Stock reservation TTL vs saga compensation window** (§ 7.2) — documented handling exists; if reservation TTL elapses during the saga, the saga treats it as a stock timeout. Production tuning of the 15-minute TTL could be required.
 7. **Concurrency limit per endpoint** (saga registration § 10) — current `SagaOptions.ConcurrencyLimit = 10` may be insufficient for the Checkout saga's expected traffic; load testing (Stage 5) determines the real value.
 8. **Observability dashboard layout** (§ 11) — specific Grafana dashboards for Checkout saga are deferred to Stage 3 devops.

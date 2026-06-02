@@ -151,7 +151,7 @@ Canonical examples in this solution:
 
 **Important — apply the spirit, not just the letter.** The decision-table row "consumer count: exactly one known → command" is a useful summary but lossy. The article quoted above requires both parts: *specific logic at the consumer* **AND** *guaranteed feedback to the producer*. A past-tense fact published fire-and-forget is an event even if exactly one consumer happens to react today. See [ADR-0023](adr/0023-payments-event-vs-command-classification.md) for the worked example.
 
-**Payments classification (resolved per [ADR-0023](adr/0023-payments-event-vs-command-classification.md), 2026-05-30):** of the nine messages on the `payments.transactions` / `payments.payment-commands` topics, exactly one — what was `PaymentRequestedEvent` — has been renamed to `RequestPaymentCommand` and moved to `payments.payment-commands`. The Checkout saga publishes it and *blocks* on the matching `PaymentCompletedEvent` / `PaymentFailedEvent` reply (90 s timeout drives compensation) — the textbook "guaranteed feedback" pattern, so the command-shape is correct. The remaining seven Payments messages stay event-named: `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCaptureFailedEvent`, `PaymentVoidedEvent` (Payments-BC-produced facts), and `PaymentCompletedEvent`, `PaymentFailedEvent` (PaymentProcessingSaga-produced terminals) — their producers don't await any reply, so the 2-part test classifies them as events even with one consumer today. `PaymentCapturedEvent` and `PaymentRefundedEvent` already have ≥ 2 real consumers (Invoicing joins the saga in both cases) and need no action.
+**Payments classification (resolved per [ADR-0023](adr/0023-payments-event-vs-command-classification.md), 2026-05-30):** of the messages on the `payments.transactions` / `payments.payment-commands` topics, exactly one — what was `PaymentRequestedEvent` — has been renamed to `RequestPaymentCommand` and moved to `payments.payment-commands`. The Checkout saga publishes it and the payment leg replies with the Payments-owned `PaymentAuthorizedEvent` (then, post-confirmation, `PaymentCompletedEvent`) or fast-fails on `PaymentFailedEvent` — the textbook "guaranteed feedback" pattern, so the command-shape is correct. The remaining Payments messages stay event-named: `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCaptureFailedEvent`, `PaymentVoidedEvent`, and the terminals `PaymentCompletedEvent`, `PaymentFailedEvent` — **all Payments-BC-produced facts via outbox** (the terminals gained outbox publishers in [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md); `PaymentProcessingSaga` produces none of them) — their producer doesn't await any reply, so the 2-part test classifies them as events even with one consumer today. `PaymentCapturedEvent` and `PaymentRefundedEvent` already have ≥ 2 real consumers / a live Invoicing consumer and need no action.
 
 ### 3.6 External event authoring checklist
 
@@ -238,9 +238,9 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | Ordering | CheckoutSaga | Saga event | Kafka (`ordering.orders`) | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
 | CheckoutSaga | Inventory | Saga command | Kafka (`inventory.reservation-commands`) | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
 | Inventory | CheckoutSaga | Saga event | Kafka (`inventory.reservations`) | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent` |
-| CheckoutSaga | PaymentProcessingSaga | Async saga sub-orchestration trigger | Kafka (`payments.payment-commands`) | `RequestPaymentCommand` (renamed from `PaymentRequestedEvent` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md)) |
-| PaymentProcessingSaga | CheckoutSaga | Saga event | Kafka (`payments.transactions`) | `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent` |
-| PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand` (existing) |
+| CheckoutSaga | PaymentProcessingSaga | Async saga sub-orchestration trigger + capture-approval handshake | Kafka (`payments.payment-commands`) | `RequestPaymentCommand` (renamed from `PaymentRequestedEvent` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md)); `ApproveCaptureCommand`, `AbortCaptureCommand` (new per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md)) |
+| Payments | CheckoutSaga | Published event (Payments outbox) | Kafka (`payments.transactions`) | `PaymentAuthorizedEvent` (drives confirmation), `PaymentCompletedEvent` (post-capture terminal), `PaymentFailedEvent` (fast-fail) — Payments-owned per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md) |
+| PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand` (after `ApproveCaptureCommand`), `VoidPaymentCommand` (on `AbortCaptureCommand` / timeout); `RequestRefundCommand` is deferred — no v1 producer (existing) |
 | Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChangedEvent` (crosses 0↔positive) |
 | Ordering | Notifications | Published Language (async) | Kafka (`ordering.orders`) | Order lifecycle events |
 
@@ -306,10 +306,10 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Aggregate:** `PaymentTransaction` (one per saga-scoped payment lifecycle).
 **Value objects:** `Money`, `PaymentMethodId`, `GatewayResponseCode`, `FailureInfo`.
 **SmartEnum:** `PaymentStatus` (Requested → Authorized → Captured → Completed; off-ramps Failed / Voided / Refunded); `FailureReason` (GatewayDeclined / GatewayTimeout / InsufficientFunds / FraudSuspected / Cancelled / Unknown).
-**Internal events (8):** `PaymentAuthorized/AuthorizationFailed`, `PaymentCaptured/CaptureFailed`, `PaymentCompleted`, `PaymentRefunded`, `PaymentVoided`, `PaymentFailedDomainEvent`.
-**External events (8) on `payments.transactions`:** `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent`. (`PaymentRequestedEvent` was renamed to `RequestPaymentCommand` and moved to `payments.payment-commands` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md).)
-**External commands (5) on `payments.payment-commands`:** `RequestPaymentCommand` (Checkout-saga → PaymentProcessingSaga), `AuthorizePaymentCommand`, `CapturePaymentCommand`, `RequestRefundCommand`, `VoidPaymentCommand` (PaymentProcessingSaga → Payments).
-**Pattern:** Saga sub-orchestration — `PaymentProcessingSaga` (under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`) is the sole caller of Payments commands; Checkout saga delegates via `RequestPaymentCommand` and awaits guaranteed feedback (`PaymentCompletedEvent` / `PaymentFailedEvent`) to drive its FSM. PCI scope minimization: only gateway-issued tokens stored, no PAN/CVV.
+**Internal events (8):** `PaymentAuthorized/AuthorizationFailed`, `PaymentCaptured/CaptureFailed`, `PaymentCompleted`, `PaymentRefunded`, `PaymentVoided`, `PaymentFailedDomainEvent`. All eight now have outbox publishers — `PaymentCompletedDomainEvent` / `PaymentFailedDomainEvent` gained handlers in [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md) (previously inert, #262) so Payments owns its terminal integration events.
+**External events (8) on `payments.transactions`:** `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` — **all Payments-BC-produced via outbox**, terminals included (per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md); `PaymentProcessingSaga` publishes no payment-state events). (`PaymentRequestedEvent` was renamed to `RequestPaymentCommand` and moved to `payments.payment-commands` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md).)
+**External commands (7) on `payments.payment-commands`:** `RequestPaymentCommand`, `ApproveCaptureCommand`, `AbortCaptureCommand` (Checkout-saga → PaymentProcessingSaga — the latter two are the [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md) capture-approval handshake); `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand` (PaymentProcessingSaga → Payments); `RequestRefundCommand` (deferred — no v1 producer; future customer/admin refund flow → Payments).
+**Pattern:** Saga sub-orchestration with a **capture-pivot** flow ([ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md)) — `PaymentProcessingSaga` (under `saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`) authorizes, then waits in `AwaitingCaptureApproval`, then captures only after the Checkout saga confirms stock + order; `Void` is the pre-capture compensation. The sub-saga sends commands and reacts to events only — it publishes no payment-state events. The Checkout saga drives confirmation off the Payments-owned `PaymentAuthorizedEvent`, sends `ApproveCaptureCommand` / `AbortCaptureCommand`, and finalizes on the Payments-owned `PaymentCompletedEvent` / fast-fails on `PaymentFailedEvent`. Refund is a deferred standalone customer/admin flow (Invoicing's credit-note consumer retained; no v1 producer for `RequestRefundCommand`). PCI scope minimization: only gateway-issued tokens stored, no PAN/CVV.
 **Integration:** `IPaymentGateway` port with stub adapter (`StubPaymentGateway`) for reference solution; swap to real gateway (Stripe/Adyen/Braintree) via DI in production.
 **Folder:** `services/Payments/` (renamed from `services/Payments/` in Wave 0).
 
@@ -405,28 +405,29 @@ Full mechanism documented in [use-cases.md § Ordering § 3.3](bc-design/use-cas
 
 ### 8.2 Happy-path states
 
-1. `Initial` → 2. `AwaitingOrderCreation` → 3. `AwaitingStockReservation` → 4. `AwaitingPayment` → 5. `AwaitingConfirmation` → 6. `Confirmed` (terminal success)
+1. `Initial` → 2. `AwaitingOrderCreation` → 3. `AwaitingStockReservation` → 4. `AwaitingPaymentAuthorization` → 5. `AwaitingConfirmation` → 6. `AwaitingPaymentCapture` → 7. `Confirmed` (terminal success)
+
+Capture is **deferred to the pivot** ([ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md)): authorize → confirm order + reservations → capture → complete.
 
 ### 8.3 Compensation states
 
-7. `CompensatingStockReservations` — releases all active reservations
-8. `CompensatingPayment` — requests refund (only when confirmation fails post-capture)
-9. `Compensated` (terminal — money moved then refunded)
+8. `CompensatingStockReservations` — releases all active reservations (single-pass; on confirmation failure the saga has already sent `AbortCaptureCommand` for a free pre-capture void)
+9. `Compensated` (terminal — no money moved: authorization either declined or voided pre-capture)
 10. `Failed` (terminal — no money moved)
 11. `CompensationStuck` (terminal abnormal — ops alert)
 
-### 8.4 Step ordering (stock BEFORE payment)
+### 8.4 Step ordering (stock BEFORE payment, capture AFTER confirmation)
 
-Per [ADR-0004](adr/0004-checkout-saga-topology.md). Industry-standard UX: reservation at checkout-entry guarantees availability through payment wait. Inventory 15-min TTL bounds worst-case hold time.
+Per [ADR-0004](adr/0004-checkout-saga-topology.md) + [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md). Industry-standard UX: reservation at checkout-entry guarantees availability through the payment wait. Capture is the pivot, deferred until after confirmation, so the common failure is a free pre-capture **void**, not a refund. Inventory 15-min TTL bounds worst-case hold time.
 
 ### 8.5 Compensation matrix (summary; full matrix in checkout-saga.md § 6)
 
 | Failure point | Compensation |
 |---|---|
 | Order creation fails/times out | Terminal `Failed`. No side effects. |
-| Stock reservation partial/full failure | Release any made reservations + CancelOrder → `Failed`. |
-| Payment fails | Release all reservations + CancelOrder → `Failed`. |
-| Confirmation fails | Refund (via PaymentProcessingSaga) → release reservations → CancelOrder → `Compensated`. |
+| Stock reservation partial/full failure | Release any made reservations + CancelOrder → `Compensated`. |
+| Payment authorization declines/times out | Release all reservations + CancelOrder → `Compensated`. No void/refund (nothing captured); fast-fail on the Payments-owned `PaymentFailedEvent`. |
+| Confirmation fails | `AbortCaptureCommand` (pre-capture void, free) + release reservations + CancelOrder → `Compensated`. Single-pass, no refund. |
 
 ### 8.6 Timeouts (defaults, configurable via `SagaOptions.Checkout`)
 
@@ -434,9 +435,10 @@ Per [ADR-0004](adr/0004-checkout-saga-topology.md). Industry-standard UX: reserv
 |-------|---------|
 | `AwaitingOrderCreation` | 30 s |
 | `AwaitingStockReservation` | 60 s |
-| `AwaitingPayment` | 90 s |
+| `AwaitingPaymentAuthorization` | 90 s |
 | `AwaitingConfirmation` | 30 s |
-| `CompensatingStockReservations` / `CompensatingPayment` | 300 s |
+| `AwaitingPaymentCapture` | 90 s |
+| `CompensatingStockReservations` | 300 s |
 
 ---
 
