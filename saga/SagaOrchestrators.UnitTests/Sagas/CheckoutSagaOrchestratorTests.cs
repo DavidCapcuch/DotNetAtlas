@@ -83,11 +83,11 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             stateMachine.AwaitingOrderCreation.Should().NotBeNull();
             stateMachine.AwaitingStockReservation.Should().NotBeNull();
-            stateMachine.AwaitingPayment.Should().NotBeNull();
+            stateMachine.AwaitingPaymentAuthorization.Should().NotBeNull();
             stateMachine.AwaitingConfirmation.Should().NotBeNull();
+            stateMachine.AwaitingPaymentCapture.Should().NotBeNull();
             stateMachine.Confirmed.Should().NotBeNull();
             stateMachine.CompensatingStockReservations.Should().NotBeNull();
-            stateMachine.CompensatingPayment.Should().NotBeNull();
             stateMachine.Compensated.Should().NotBeNull();
             stateMachine.Failed.Should().NotBeNull();
             stateMachine.CompensationStuck.Should().NotBeNull();
@@ -110,9 +110,10 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             stateMachine.StockReservationFailedEvent.Should().NotBeNull();
             stateMachine.ReservationReleasedEvent.Should().NotBeNull();
             stateMachine.ReservationConfirmedEvent.Should().NotBeNull();
+            // ADR-0026: PaymentAuthorized replaces PaymentRefunded in the Checkout saga's vocabulary.
+            stateMachine.PaymentAuthorizedEvent.Should().NotBeNull();
             stateMachine.PaymentCompletedEvent.Should().NotBeNull();
             stateMachine.PaymentFailedEvent.Should().NotBeNull();
-            stateMachine.PaymentRefundedEvent.Should().NotBeNull();
         }
     }
 
@@ -275,7 +276,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AwaitingStockReservation_WhenAllStockReservedArrive_TransitionsToAwaitingPayment_AndPublishesPaymentRequested()
+    public async Task AwaitingStockReservation_WhenAllStockReservedArrive_TransitionsToAwaitingPaymentAuthorization_AndPublishesPaymentRequested()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -313,7 +314,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await WaitForConsumed<StockReservedSagaEvent>(2);
 
         var awaitingPayment = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingPayment);
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingPaymentAuthorization);
         var paymentRequested = _fakeOutboxWriter.GetMessages<RequestPaymentCommand>().ToList();
 
         using (new AssertionScope())
@@ -399,29 +400,27 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    // ===== § 4 row 7: AwaitingPayment -> AwaitingConfirmation =====
+    // ===== ADR-0026: AwaitingPaymentAuthorization -> AwaitingConfirmation (confirm before capture) =====
 
     [Fact]
-    public async Task AwaitingPayment_OnPaymentCompleted_TransitionsToAwaitingConfirmation_AndPublishesConfirmOrderAndPerReservationConfirms()
+    public async Task AwaitingPaymentAuthorization_OnPaymentAuthorized_TransitionsToAwaitingConfirmation_AndPublishesConfirmOrderAndPerReservationConfirms()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
-        await ReachAwaitingPayment(correlationId, orderId, product1, product2);
+        await ReachAwaitingPaymentAuthorization(correlationId, orderId, product1, product2);
         _fakeOutboxWriter.Clear();
 
-        await _testHarness.Bus.Publish(new PaymentCompletedSagaEvent
+        await _testHarness.Bus.Publish(new PaymentAuthorizedCheckoutSagaEvent
         {
             CorrelationId = correlationId,
-            PaymentTransactionId = Guid.CreateVersion7(),
-            Amount = 19.98m,
-            Currency = "USD",
-            CompletedAtUtc = _fakeTimeProvider.GetUtcNow()
+            AuthorizationId = $"auth-{Guid.CreateVersion7()}",
+            AuthorizedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
 
-        (await _sagaHarness.Consumed.Any<PaymentCompletedSagaEvent>()).Should().BeTrue();
+        (await _sagaHarness.Consumed.Any<PaymentAuthorizedCheckoutSagaEvent>()).Should().BeTrue();
 
         var awaitingConfirmation = _sagaHarness.Sagas.ContainsInState(
             correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingConfirmation);
@@ -431,7 +430,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             awaitingConfirmation.Should().NotBeNull();
-            awaitingConfirmation.PaymentTransactionId.Should().NotBeNull();
+            // Capture must NOT be approved yet — confirmation is the pre-pivot step.
+            _fakeOutboxWriter.HasMessage<ApproveCaptureCommand>().Should().BeFalse();
             confirmOrders.Should().ContainSingle();
             confirmOrders[0].IntegrationEvent.OrderId.Should().Be(orderId);
             confirmReservations.Should().HaveCount(2);
@@ -440,16 +440,16 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    // ===== § 4 row 8: AwaitingPayment -> CompensatingStockReservations (no refund) =====
+    // ===== ADR-0026: AwaitingPaymentAuthorization -> CompensatingStockReservations (auth decline fast-fail) =====
 
     [Fact]
-    public async Task AwaitingPayment_OnPaymentFailed_TransitionsToCompensatingStockReservations_AndDoesNotPublishRequestRefund()
+    public async Task AwaitingPaymentAuthorization_OnPaymentFailed_FastFailsToCompensatingStockReservations_AndDoesNotPublishRequestRefund()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var product1 = Guid.CreateVersion7();
 
-        await ReachAwaitingPayment(correlationId, orderId, product1);
+        await ReachAwaitingPaymentAuthorization(correlationId, orderId, product1);
         _fakeOutboxWriter.Clear();
 
         await _testHarness.Bus.Publish(new PaymentFailedSagaEvent
@@ -478,24 +478,17 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    // ===== § 4 row 10: AwaitingConfirmation -> Confirmed =====
+    // ===== ADR-0026: AwaitingConfirmation -> AwaitingPaymentCapture (approve capture = pivot) =====
 
     [Fact]
-    public async Task AwaitingConfirmation_OnOrderConfirmed_TransitionsToConfirmed_AndPublishesCheckoutCompleted()
+    public async Task AwaitingConfirmation_OnOrderConfirmed_TransitionsToAwaitingPaymentCapture_AndPublishesApproveCapture()
     {
-        // ADR-0011 PII null-out also runs on this terminal transition, but the saga is
-        // finalised before we can re-read state - that property is covered by static review of
-        // CheckoutSagaOrchestrator.NullOutAddresses being chained on every TransitionTo terminal
-        // and is more directly testable via an integration test post-M5.
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingConfirmation(correlationId, orderId, product1);
         _fakeOutboxWriter.Clear();
-
-        var beforeState = _sagaHarness.Sagas.Contains(correlationId)!;
-        beforeState.ShippingAddressJson.Should().NotBeNull("address present until terminal transition");
 
         await _testHarness.Bus.Publish(new OrderConfirmedSagaEvent
         {
@@ -506,6 +499,50 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         (await _sagaHarness.Consumed.Any<OrderConfirmedSagaEvent>()).Should().BeTrue();
 
+        var awaitingCapture = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingPaymentCapture);
+        var approvals = _fakeOutboxWriter.GetMessages<ApproveCaptureCommand>().ToList();
+
+        using (new AssertionScope())
+        {
+            awaitingCapture.Should().NotBeNull("OrderConfirmed approves capture — the pivot — and waits for completion");
+            approvals.Should().ContainSingle();
+            approvals[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            // Not complete yet — CheckoutCompletedEvent is emitted only after capture completes.
+            _fakeOutboxWriter.HasMessage<CheckoutCompletedEvent>().Should().BeFalse();
+        }
+    }
+
+    // ===== ADR-0026: AwaitingPaymentCapture -> Confirmed (terminal on the Payments-owned PaymentCompleted) =====
+
+    [Fact]
+    public async Task AwaitingPaymentCapture_OnPaymentCompleted_TransitionsToConfirmed_AndPublishesCheckoutCompleted()
+    {
+        // ADR-0011 PII null-out runs on this terminal transition, but the saga is finalised before
+        // we can re-read state - that property is covered by static review of NullOutAddresses being
+        // chained on every terminal TransitionTo and is more directly testable via an integration test.
+        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var product1 = Guid.CreateVersion7();
+
+        await ReachAwaitingPaymentCapture(correlationId, orderId, product1);
+        _fakeOutboxWriter.Clear();
+
+        var beforeState = _sagaHarness.Sagas.Contains(correlationId)!;
+        beforeState.ShippingAddressJson.Should().NotBeNull("address present until terminal transition");
+
+        var paymentTransactionId = Guid.CreateVersion7();
+        await _testHarness.Bus.Publish(new PaymentCompletedSagaEvent
+        {
+            CorrelationId = correlationId,
+            PaymentTransactionId = paymentTransactionId,
+            Amount = 9.99m,
+            Currency = "USD",
+            CompletedAtUtc = _fakeTimeProvider.GetUtcNow()
+        });
+
+        (await _sagaHarness.Consumed.Any<PaymentCompletedSagaEvent>()).Should().BeTrue();
+
         var sagaFinalized = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
         var completedEvents = _fakeOutboxWriter.GetMessages<CheckoutCompletedEvent>().ToList();
 
@@ -514,6 +551,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             sagaFinalized.Should().BeTrue("Confirmed is terminal");
             completedEvents.Should().ContainSingle();
             completedEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
+            completedEvents[0].IntegrationEvent.PaymentTransactionId.Should().Be(paymentTransactionId);
         }
     }
 
@@ -552,10 +590,10 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    // ===== § 4 row 12: AwaitingConfirmation -> CompensatingPayment (refund-first) =====
+    // ===== ADR-0026: AwaitingConfirmation -> CompensatingStockReservations (confirmation failure = pre-capture void) =====
 
     [Fact]
-    public async Task AwaitingConfirmation_OnOrderFailed_TransitionsToCompensatingPayment_AndPublishesRequestRefund()
+    public async Task AwaitingConfirmation_OnOrderFailed_TransitionsToCompensatingStockReservations_AndPublishesAbortCapture_NotRefund()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -575,19 +613,22 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         (await _sagaHarness.Consumed.Any<OrderFailedSagaEvent>()).Should().BeTrue();
 
-        var compensatingPayment = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingPayment);
-        var refunds = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
+        var compensating = _sagaHarness.Sagas.ContainsInState(
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingStockReservations);
+        var aborts = _fakeOutboxWriter.GetMessages<AbortCaptureCommand>().ToList();
 
         using (new AssertionScope())
         {
-            compensatingPayment.Should().NotBeNull();
-            compensatingPayment.CompensationTriggered.Should().BeTrue();
-            refunds.Should().ContainSingle();
-            refunds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            // Refund-first per § 6.1: stock release / cancel order happen AFTER PaymentRefunded.
-            _fakeOutboxWriter.HasMessage<ReleaseReservationCommand>().Should().BeFalse();
-            _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeFalse();
+            compensating.Should().NotBeNull();
+            compensating.CompensationTriggered.Should().BeTrue();
+            // ADR-0026: confirmation failure is pre-capture — abort (sub-saga voids), never a refund.
+            aborts.Should().ContainSingle();
+            aborts[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeFalse(
+                "the pivot has not been reached — the authorization is voided, not refunded");
+            // Stock release + cancel happen immediately (no refund-then-stock gating).
+            _fakeOutboxWriter.HasMessage<ReleaseReservationCommand>().Should().BeTrue();
+            _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeTrue();
         }
     }
 
@@ -641,40 +682,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    // ===== § 4 row 16: CompensatingPayment -> CompensatingStockReservations =====
-
-    [Fact]
-    public async Task CompensatingPayment_OnPaymentRefunded_TransitionsToCompensatingStockReservations_AndPublishesReleaseAndCancel()
-    {
-        var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
-        var product1 = Guid.CreateVersion7();
-
-        await ReachCompensatingPayment(correlationId, orderId, product1);
-        _fakeOutboxWriter.Clear();
-
-        await _testHarness.Bus.Publish(new PaymentRefundedSagaEvent
-        {
-            CorrelationId = correlationId,
-            PaymentTransactionId = Guid.CreateVersion7(),
-            Amount = 9.99m,
-            Currency = "USD",
-            RefundedAtUtc = _fakeTimeProvider.GetUtcNow()
-        });
-
-        (await _sagaHarness.Consumed.Any<PaymentRefundedSagaEvent>()).Should().BeTrue();
-
-        var compensatingStock = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingStockReservations);
-
-        using (new AssertionScope())
-        {
-            compensatingStock.Should().NotBeNull();
-            _fakeOutboxWriter.HasMessage<ReleaseReservationCommand>().Should().BeTrue();
-            _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeTrue();
-        }
-    }
-
     // ===== § 5.3 race condition: duplicate StockReserved is idempotent =====
 
     [Fact]
@@ -705,9 +712,9 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await _testHarness.Bus.Publish(sagaEvent);
         await WaitForConsumed<StockReservedSagaEvent>(2);
 
-        // single ProductId -> first event takes us to AwaitingPayment; duplicate is no-op there.
+        // single ProductId -> first event takes us to AwaitingPaymentAuthorization; duplicate is no-op there.
         var awaitingPayment = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingPayment);
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.AwaitingPaymentAuthorization);
         awaitingPayment.Should().NotBeNull("first reserved-event transitions; duplicate is dropped");
     }
 
@@ -871,14 +878,14 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AwaitingPayment_OnPaymentTimeout_TransitionsToCompensatingStockReservations_AndDispatchesReleasesAndCancel()
+    public async Task AwaitingPaymentAuthorization_OnPaymentTimeout_TransitionsToCompensatingStockReservations_AndDispatchesReleasesAndCancel()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
-        await ReachAwaitingPayment(correlationId, orderId, product1, product2);
+        await ReachAwaitingPaymentAuthorization(correlationId, orderId, product1, product2);
         _fakeOutboxWriter.Clear();
 
         await _testHarness.Bus.Publish(new PaymentTimeoutExpired { CorrelationId = correlationId });
@@ -894,7 +901,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             compensating.Should().NotBeNull();
             compensating!.ErrorCode.Should().Be(CheckoutSagaErrorCodes.PaymentTimeout);
-            compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingPayment));
+            compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingPaymentAuthorization));
             compensating.CompensationTriggered.Should().BeTrue();
             releases.Should().HaveCount(2, "two reservations were active when payment timed out");
             cancels.Should().ContainSingle();
@@ -903,7 +910,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AwaitingConfirmation_OnOrderConfirmationTimeout_TransitionsToCompensatingPayment_AndPublishesRequestRefund()
+    public async Task AwaitingConfirmation_OnOrderConfirmationTimeout_TransitionsToCompensatingStockReservations_AndPublishesAbortCapture()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -917,8 +924,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         (await _sagaHarness.Consumed.Any<OrderConfirmationTimeoutExpired>()).Should().BeTrue();
 
         var compensating = _sagaHarness.Sagas.ContainsInState(
-            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingPayment);
-        var refunds = _fakeOutboxWriter.GetMessages<RequestRefundCommand>().ToList();
+            correlationId, _sagaHarness.StateMachine, _sagaHarness.StateMachine.CompensatingStockReservations);
+        var aborts = _fakeOutboxWriter.GetMessages<AbortCaptureCommand>().ToList();
 
         using (new AssertionScope())
         {
@@ -926,11 +933,11 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             compensating!.ErrorCode.Should().Be(CheckoutSagaErrorCodes.ConfirmationTimeout);
             compensating.FailedAtState.Should().Be(nameof(CheckoutSagaOrchestrator.AwaitingConfirmation));
             compensating.CompensationTriggered.Should().BeTrue();
-            refunds.Should().ContainSingle();
-            refunds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            // Refund-first per § 6.1: releases + cancel happen AFTER PaymentRefunded.
-            _fakeOutboxWriter.HasMessage<ReleaseReservationCommand>().Should().BeFalse();
-            _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeFalse();
+            // ADR-0026: confirmation timeout is pre-capture — abort (sub-saga voids), never a refund.
+            aborts.Should().ContainSingle();
+            aborts[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
+            _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeFalse();
+            _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeTrue();
         }
     }
 
@@ -963,35 +970,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    [Fact]
-    public async Task CompensatingPayment_OnCompensationTimeout_TransitionsToCompensationStuck_AndPublishesCheckoutStuck()
-    {
-        var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
-        var product1 = Guid.CreateVersion7();
-
-        await ReachCompensatingPayment(correlationId, orderId, product1);
-        _fakeOutboxWriter.Clear();
-
-        await _testHarness.Bus.Publish(new CompensationTimeoutExpired { CorrelationId = correlationId });
-
-        (await _sagaHarness.Consumed.Any<CompensationTimeoutExpired>()).Should().BeTrue();
-
-        var sagaFinalized = await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null;
-        var stuckEvents = _fakeOutboxWriter.GetMessages<CheckoutStuckEvent>().ToList();
-
-        using (new AssertionScope())
-        {
-            sagaFinalized.Should().BeTrue("CompensationStuck is abnormal-terminal");
-            stuckEvents.Should().ContainSingle();
-            stuckEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
-            stuckEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
-            stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.CompensationTimeout);
-            stuckEvents[0].IntegrationEvent.LastState.Should().Be(
-                nameof(CheckoutSagaOrchestrator.CompensatingPayment));
-        }
-    }
-
     // ===== helpers =====
 
     private async Task PublishInitiated(Guid correlationId, params CheckoutItemSnapshot[] items)
@@ -1018,7 +996,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<OrderCreatedSagaEvent>();
     }
 
-    private async Task ReachAwaitingPayment(Guid correlationId, Guid orderId, params Guid[] productIds)
+    private async Task ReachAwaitingPaymentAuthorization(Guid correlationId, Guid orderId, params Guid[] productIds)
     {
         await ReachAwaitingStockReservation(correlationId, orderId,
             productIds.Select(BuildItem).ToArray());
@@ -1043,21 +1021,34 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
     private async Task ReachAwaitingConfirmation(Guid correlationId, Guid orderId, params Guid[] productIds)
     {
-        await ReachAwaitingPayment(correlationId, orderId, productIds);
-        await _testHarness.Bus.Publish(new PaymentCompletedSagaEvent
+        // ADR-0026: authorization (not completion) drives confirmation.
+        await ReachAwaitingPaymentAuthorization(correlationId, orderId, productIds);
+        await _testHarness.Bus.Publish(new PaymentAuthorizedCheckoutSagaEvent
         {
             CorrelationId = correlationId,
-            PaymentTransactionId = Guid.CreateVersion7(),
-            Amount = 9.99m,
-            Currency = "USD",
-            CompletedAtUtc = _fakeTimeProvider.GetUtcNow()
+            AuthorizationId = $"auth-{Guid.CreateVersion7()}",
+            AuthorizedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
-        await _sagaHarness.Consumed.Any<PaymentCompletedSagaEvent>();
+        await _sagaHarness.Consumed.Any<PaymentAuthorizedCheckoutSagaEvent>();
+    }
+
+    private async Task ReachAwaitingPaymentCapture(Guid correlationId, Guid orderId, params Guid[] productIds)
+    {
+        // ADR-0026: confirmation success approves capture and moves to the post-pivot wait-state.
+        await ReachAwaitingConfirmation(correlationId, orderId, productIds);
+        await _testHarness.Bus.Publish(new OrderConfirmedSagaEvent
+        {
+            CorrelationId = correlationId,
+            OrderId = orderId,
+            ConfirmedAtUtc = _fakeTimeProvider.GetUtcNow()
+        });
+        await _sagaHarness.Consumed.Any<OrderConfirmedSagaEvent>();
     }
 
     private async Task ReachCompensatingStockReservations(Guid correlationId, Guid orderId, params Guid[] productIds)
     {
-        await ReachAwaitingPayment(correlationId, orderId, productIds);
+        // ADR-0026: an authorization decline fast-fails from AwaitingPaymentAuthorization.
+        await ReachAwaitingPaymentAuthorization(correlationId, orderId, productIds);
         await _testHarness.Bus.Publish(new PaymentFailedSagaEvent
         {
             CorrelationId = correlationId,
@@ -1066,20 +1057,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             FailedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
         await _sagaHarness.Consumed.Any<PaymentFailedSagaEvent>();
-    }
-
-    private async Task ReachCompensatingPayment(Guid correlationId, Guid orderId, params Guid[] productIds)
-    {
-        await ReachAwaitingConfirmation(correlationId, orderId, productIds);
-        await _testHarness.Bus.Publish(new OrderFailedSagaEvent
-        {
-            CorrelationId = correlationId,
-            OrderId = orderId,
-            ErrorCode = "CONFIRMATION_FAILED",
-            ErrorMessage = "Internal Ordering error",
-            FailedAtUtc = _fakeTimeProvider.GetUtcNow()
-        });
-        await _sagaHarness.Consumed.Any<OrderFailedSagaEvent>();
     }
 
     private BasketCheckoutInitiatedSagaEvent BuildBasketCheckoutInitiated(

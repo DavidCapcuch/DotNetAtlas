@@ -116,7 +116,9 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     // — Payment-side data (delegated to PaymentProcessingSaga) —
 
     /// <summary>
-    /// Payment transaction id from PaymentProcessingSaga. Required for compensation refund.
+    /// Payment transaction id sourced from Payments' terminal <c>PaymentCompletedEvent</c> (set in
+    /// <see cref="CheckoutSagaOrchestrator.AwaitingPaymentCapture"/> per ADR-0026); flowed onto the
+    /// outbound <c>CheckoutCompletedEvent</c>.
     /// </summary>
     public Guid? PaymentTransactionId { get; set; }
 

@@ -126,43 +126,6 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CompensatingPaymentCompensationTimeout_EmitsStuckAndCompensationTimeoutCounters()
-    {
-        var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
-        var product1 = Guid.CreateVersion7();
-
-        await ReachCompensatingPayment(correlationId, orderId, product1);
-
-        var stuck = new List<long>();
-        var stuckTags = new List<KeyValuePair<string, object?>[]>();
-        var compensationTimeout = new List<long>();
-        var compensationTimeoutTags = new List<KeyValuePair<string, object?>[]>();
-
-        using var listener = BuildLongCounterListener(
-            ("saga.checkout.stuck", stuck, stuckTags),
-            ("saga.checkout.compensation_timeout", compensationTimeout, compensationTimeoutTags));
-        listener.Start();
-
-        await _testHarness.Bus.Publish(new CompensationTimeoutExpired { CorrelationId = correlationId });
-        (await _sagaHarness.Consumed.Any<CompensationTimeoutExpired>()).Should().BeTrue();
-        (await _sagaHarness.NotExists(correlationId, timeout: DefaultTimeout) is null)
-            .Should().BeTrue("CompensationStuck is abnormal-terminal");
-
-        using (new AssertionScope())
-        {
-            stuck.Should().ContainSingle().Which.Should().Be(1);
-            compensationTimeout.Should().ContainSingle().Which.Should().Be(1);
-            stuckTags.Should().ContainSingle().Which.Should().Contain(kv =>
-                kv.Key == CheckoutSagaActivityTags.LastState
-                && (string?)kv.Value == nameof(CheckoutSagaOrchestrator.CompensatingPayment));
-            compensationTimeoutTags.Should().ContainSingle().Which.Should().Contain(kv =>
-                kv.Key == CheckoutSagaActivityTags.LastState
-                && (string?)kv.Value == nameof(CheckoutSagaOrchestrator.CompensatingPayment));
-        }
-    }
-
-    [Fact]
     public async Task CompensatedTerminal_EmitsCompensatedCounterAndCompensationDurationHistogram()
     {
         var correlationId = Guid.CreateVersion7();
@@ -300,7 +263,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
         await _sagaHarness.Consumed.Any<OrderCreatedSagaEvent>();
     }
 
-    private async Task ReachAwaitingPayment(Guid correlationId, Guid orderId, params Guid[] productIds)
+    private async Task ReachAwaitingPaymentAuthorization(Guid correlationId, Guid orderId, params Guid[] productIds)
     {
         await ReachAwaitingStockReservation(correlationId, orderId,
             productIds.Select(BuildItem).ToArray());
@@ -323,23 +286,10 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
         }
     }
 
-    private async Task ReachAwaitingConfirmation(Guid correlationId, Guid orderId, params Guid[] productIds)
-    {
-        await ReachAwaitingPayment(correlationId, orderId, productIds);
-        await _testHarness.Bus.Publish(new PaymentCompletedSagaEvent
-        {
-            CorrelationId = correlationId,
-            PaymentTransactionId = Guid.CreateVersion7(),
-            Amount = 9.99m,
-            Currency = "USD",
-            CompletedAtUtc = _fakeTimeProvider.GetUtcNow()
-        });
-        await _sagaHarness.Consumed.Any<PaymentCompletedSagaEvent>();
-    }
-
     private async Task ReachCompensatingStockReservations(Guid correlationId, Guid orderId, params Guid[] productIds)
     {
-        await ReachAwaitingPayment(correlationId, orderId, productIds);
+        // ADR-0026: an authorization decline fast-fails from AwaitingPaymentAuthorization.
+        await ReachAwaitingPaymentAuthorization(correlationId, orderId, productIds);
         await _testHarness.Bus.Publish(new PaymentFailedSagaEvent
         {
             CorrelationId = correlationId,
@@ -348,20 +298,6 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
             FailedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
         await _sagaHarness.Consumed.Any<PaymentFailedSagaEvent>();
-    }
-
-    private async Task ReachCompensatingPayment(Guid correlationId, Guid orderId, params Guid[] productIds)
-    {
-        await ReachAwaitingConfirmation(correlationId, orderId, productIds);
-        await _testHarness.Bus.Publish(new OrderFailedSagaEvent
-        {
-            CorrelationId = correlationId,
-            OrderId = orderId,
-            ErrorCode = "CONFIRMATION_FAILED",
-            ErrorMessage = "Internal Ordering error",
-            FailedAtUtc = _fakeTimeProvider.GetUtcNow()
-        });
-        await _sagaHarness.Consumed.Any<OrderFailedSagaEvent>();
     }
 
     private BasketCheckoutInitiatedSagaEvent BuildBasketCheckoutInitiated(

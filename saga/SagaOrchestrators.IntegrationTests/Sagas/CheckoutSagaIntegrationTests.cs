@@ -169,7 +169,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
 
         // Assert
         var awaitingPaymentState = await SagaStateMonitor.WaitForStateAsync(
-            correlationId, x => x.AwaitingPayment, DefaultTimeout);
+            correlationId, x => x.AwaitingPaymentAuthorization, DefaultTimeout);
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -290,14 +290,14 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         // Act — duplicate StockReservedEvent for product1, then product2's reserved event.
         // The idempotency guard in UpdateReservationOnReserved must skip the duplicate so
         // PendingReservations decrements from 2 → 1 → 0 (not 2 → 1 → -1) and the saga still
-        // transitions to AwaitingPayment exactly once.
+        // transitions to AwaitingPaymentAuthorization exactly once.
         await PublishStockReservedAsync(orderId, product1, product1ReservationId, quantity: 1);
         await PublishStockReservedAsync(orderId, product1, product1ReservationId, quantity: 1);
         await PublishStockReservedAsync(orderId, product2, product2ReservationId, quantity: 2);
 
         // Assert
         var awaitingPaymentState = await SagaStateMonitor.WaitForStateAsync(
-            correlationId, x => x.AwaitingPayment, DefaultTimeout);
+            correlationId, x => x.AwaitingPaymentAuthorization, DefaultTimeout);
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -311,7 +311,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
             outboxMessages
                 .Where(om => om.Type == typeof(RequestPaymentCommand).FullName
                              && om.KafkaKey == correlationId.ToString())
-                .Should().ContainSingle("the AwaitingPayment transition runs exactly once even with duplicate fan-in");
+                .Should().ContainSingle("the AwaitingPaymentAuthorization transition runs exactly once even with duplicate fan-in");
         }
     }
 

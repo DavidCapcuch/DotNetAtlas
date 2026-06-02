@@ -24,8 +24,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga;
 /// <summary>
 /// MassTransit state machine implementing the Checkout saga - orchestrates the full
 /// commercial-commitment flow across Basket -&gt; Ordering -&gt; Inventory -&gt; PaymentProcessingSaga
-/// -&gt; Notifications. Eleven states including the abnormal-terminal CompensationStuck per
-/// docs/bc-design/checkout-saga.md § 3.
+/// -&gt; Notifications. Ten states including the abnormal-terminal CompensationStuck. Per ADR-0026
+/// the flow is reserve -&gt; authorize -&gt; confirm (order + reservations) -&gt; capture (pivot) -&gt;
+/// complete: capture is deferred until after confirmation so the common failure is a free
+/// pre-capture void rather than a refund.
 /// </summary>
 /// <remarks>
 /// Implements the event-driven cells of the § 4 transition table plus the five timeout
@@ -43,16 +45,17 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     private readonly SagaTopicsOptions _topicsOptions;
     private readonly TimeProvider _timeProvider;
 
-    // Happy path states (Initial is MassTransit-implicit)
+    // Happy path states (Initial is MassTransit-implicit). ADR-0026 capture pivot:
+    // reserve -> authorize -> confirm -> capture -> complete.
     public State AwaitingOrderCreation { get; private set; }
     public State AwaitingStockReservation { get; private set; }
-    public State AwaitingPayment { get; private set; }
+    public State AwaitingPaymentAuthorization { get; private set; }
     public State AwaitingConfirmation { get; private set; }
+    public State AwaitingPaymentCapture { get; private set; }
     public State Confirmed { get; private set; }
 
     // Compensation states
     public State CompensatingStockReservations { get; private set; }
-    public State CompensatingPayment { get; private set; }
     public State Compensated { get; private set; }
     public State Failed { get; private set; }
     public State CompensationStuck { get; private set; }
@@ -72,10 +75,12 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     public Event<ReservationReleasedSagaEvent> ReservationReleasedEvent { get; private set; }
     public Event<ReservationConfirmedSagaEvent> ReservationConfirmedEvent { get; private set; }
 
-    // Payments events (delegated via PaymentProcessingSaga)
+    // Payments events. Per ADR-0026 the Payments BC owns + publishes all its lifecycle events; the
+    // Checkout saga subscribes to payments.transactions directly (PaymentAuthorized to drive
+    // confirmation, then the terminal PaymentCompleted / PaymentFailed).
+    public Event<PaymentAuthorizedCheckoutSagaEvent> PaymentAuthorizedEvent { get; private set; }
     public Event<PaymentCompletedSagaEvent> PaymentCompletedEvent { get; private set; }
     public Event<PaymentFailedSagaEvent> PaymentFailedEvent { get; private set; }
-    public Event<PaymentRefundedSagaEvent> PaymentRefundedEvent { get; private set; }
 
     // Timeout schedules (M5 — checkout-saga.md § 7). Tokens persist on CheckoutSagaState
     // so the same saga instance can Unschedule a previously-armed timeout across hops.
@@ -106,10 +111,10 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         ConfigureInitialState();
         ConfigureAwaitingOrderCreationState();
         ConfigureAwaitingStockReservationState();
-        ConfigureAwaitingPaymentState();
+        ConfigureAwaitingPaymentAuthorizationState();
         ConfigureAwaitingConfirmationState();
+        ConfigureAwaitingPaymentCaptureState();
         ConfigureCompensatingStockReservationsState();
-        ConfigureCompensatingPaymentState();
 
         SetCompletedWhenFinalized();
     }
@@ -211,7 +216,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                             ctx => BuildRequestPaymentCommand(ctx.Saga))
                         .Schedule(PaymentTimeout,
                             ctx => new PaymentTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
-                        .TransitionTo(AwaitingPayment),
+                        .TransitionTo(AwaitingPaymentAuthorization),
                     stockFirst => stockFirst
                         // === OFF branch (default per ADR-0004) — stock-then-payment.
                         .Then(ctx =>
@@ -350,7 +355,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                             ctx => BuildRequestPaymentCommand(ctx.Saga))
                         .Schedule(PaymentTimeout,
                             ctx => new PaymentTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
-                        .TransitionTo(AwaitingPayment),
+                        .TransitionTo(AwaitingPaymentAuthorization),
                     stillPending => stillPending),
             When(StockReservationFailedEvent)
                 .Then(ctx =>
@@ -392,21 +397,18 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// AwaitingPayment - § 4 rows 7-8 plus the PaymentTimeout-driven row 9.
+    /// AwaitingPaymentAuthorization (ADR-0026 capture pivot). On authorization the saga confirms
+    /// the order + reservations — the pre-pivot step — then waits for confirmation before approving
+    /// capture. A <c>PaymentFailedEvent</c> here is an authorization decline (Payments published it,
+    /// per ADR-0026): fast-fail by releasing the reservation and cancelling the order. No void is
+    /// needed — nothing was captured and the sub-saga had not yet entered AwaitingCaptureApproval.
     /// </summary>
-    private void ConfigureAwaitingPaymentState()
+    private void ConfigureAwaitingPaymentAuthorizationState()
     {
-        During(AwaitingPayment,
-            When(PaymentCompletedEvent)
-                .Then(ctx =>
-                {
-                    var saga = ctx.Saga;
-                    var message = ctx.Message;
-                    saga.PaymentTransactionId = message.PaymentTransactionId;
-                    saga.PaymentCompletedAtUtc = message.CompletedAtUtc;
-                    saga.OrderConfirmationRequestedAtUtc = _timeProvider.GetUtcNow();
-                })
-                .Activity(x => x.OfType<PaymentCompletedCheckoutActivity>())
+        During(AwaitingPaymentAuthorization,
+            When(PaymentAuthorizedEvent)
+                .Then(ctx => ctx.Saga.OrderConfirmationRequestedAtUtc = _timeProvider.GetUtcNow())
+                .Activity(x => x.OfType<PaymentAuthorizedCheckoutActivity>())
                 .Unschedule(PaymentTimeout)
                 .PublishToOutbox(
                     _topicsOptions.OrderingOrderCommands,
@@ -428,7 +430,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     var message = ctx.Message;
                     saga.ErrorCode = message.ErrorCode;
                     saga.ErrorMessage = message.ErrorMessage;
-                    saga.FailedAtState = nameof(AwaitingPayment);
+                    saga.FailedAtState = nameof(AwaitingPaymentAuthorization);
                 })
                 .Activity(x => x.OfType<PaymentFailedCheckoutActivity>())
                 .Unschedule(PaymentTimeout)
@@ -441,8 +443,8 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 {
                     var saga = ctx.Saga;
                     saga.ErrorCode = CheckoutSagaErrorCodes.PaymentTimeout;
-                    saga.ErrorMessage = "PaymentCompletedEvent not received within PaymentSeconds budget";
-                    saga.FailedAtState = nameof(AwaitingPayment);
+                    saga.ErrorMessage = "PaymentAuthorizedEvent not received within PaymentSeconds budget";
+                    saga.FailedAtState = nameof(AwaitingPaymentAuthorization);
                 })
                 .Activity(x => x.OfType<PaymentTimeoutCheckoutActivity>())
                 .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
@@ -452,8 +454,12 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// AwaitingConfirmation - § 4 rows 10-12 plus the OrderConfirmationTimeout-driven row 13.
-    /// ReservationConfirmed events stay in state (informational only).
+    /// AwaitingConfirmation (ADR-0026 capture pivot). The order + reservations are confirmed here,
+    /// before capture. On <c>OrderConfirmed</c> the saga approves capture (the pivot) and moves to
+    /// <see cref="AwaitingPaymentCapture"/>. A confirmation failure (<c>OrderFailed</c> or the
+    /// OrderConfirmationTimeout) is pre-capture: the saga sends <see cref="AbortCaptureCommand"/> to
+    /// the sub-saga (which voids the authorization — free, never a refund) and releases the
+    /// reservation. ReservationConfirmed events are informational only.
     /// </summary>
     private void ConfigureAwaitingConfirmationState()
     {
@@ -462,13 +468,21 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 .Then(ctx => ctx.Saga.OrderConfirmedAtUtc = ctx.Message.ConfirmedAtUtc)
                 .Activity(x => x.OfType<OrderConfirmedActivity>())
                 .Unschedule(OrderConfirmationTimeout)
+                // Pivot reached: stock + order confirmed -> approve capture. The capture-completion
+                // wait is backstopped by re-arming PaymentTimeout; the Payments-owned
+                // PaymentCompletedEvent finalizes the saga in AwaitingPaymentCapture.
                 .PublishToOutbox(
-                    _topicsOptions.CheckoutSagas,
+                    _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
-                    ctx => BuildCheckoutCompletedEvent(ctx.Saga))
-                .Then(NullOutAddresses)
-                .TransitionTo(Confirmed)
-                .Finalize(),
+                    ctx => new ApproveCaptureCommand
+                    {
+                        CorrelationId = ctx.Saga.CorrelationId,
+                        UserId = ctx.Saga.UserId,
+                        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    })
+                .Schedule(PaymentTimeout,
+                    ctx => new PaymentTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
+                .TransitionTo(AwaitingPaymentCapture),
             When(ReservationConfirmedEvent)
                 .Then(ctx =>
                 {
@@ -495,20 +509,15 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 })
                 .Activity(x => x.OfType<OrderConfirmationFailedActivity>())
                 .Unschedule(OrderConfirmationTimeout)
+                // Pre-capture compensation: abort the authorization (sub-saga voids) + release stock.
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
-                    ctx => new RequestRefundCommand
-                    {
-                        CorrelationId = ctx.Saga.CorrelationId,
-                        UserId = ctx.Saga.UserId,
-                        PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
-                        Reason = ctx.Saga.ErrorMessage ?? "Order confirmation failed",
-                        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-                    })
+                    ctx => BuildAbortCaptureCommand(ctx.Saga, "Order confirmation failed"))
+                .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
                 .Schedule(CompensationTimeout,
                     ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
-                .TransitionTo(CompensatingPayment),
+                .TransitionTo(CompensatingStockReservations),
             When(OrderConfirmationTimeout.Received)
                 .Then(ctx =>
                 {
@@ -523,17 +532,78 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
                     ctx => ctx.Saga.CorrelationId.ToString(),
-                    ctx => new RequestRefundCommand
-                    {
-                        CorrelationId = ctx.Saga.CorrelationId,
-                        UserId = ctx.Saga.UserId,
-                        PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
-                        Reason = ctx.Saga.ErrorMessage ?? "Order confirmation timeout",
-                        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-                    })
+                    ctx => BuildAbortCaptureCommand(ctx.Saga, "Order confirmation timeout"))
+                .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
                 .Schedule(CompensationTimeout,
                     ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
-                .TransitionTo(CompensatingPayment));
+                .TransitionTo(CompensatingStockReservations));
+    }
+
+    /// <summary>
+    /// AwaitingPaymentCapture (ADR-0026 capture pivot — the post-pivot step). The Checkout saga has
+    /// approved capture and waits for the Payments-owned terminal. On <c>PaymentCompletedEvent</c>
+    /// the order is complete: emit <c>CheckoutCompletedEvent</c> and finalize. Post-pivot failures
+    /// (a capture decline after the order was already confirmed, or the capture-completion timeout)
+    /// are not auto-compensatable in v1 — order + reservations are confirmed but payment did not
+    /// settle — so they escalate to <see cref="CompensationStuck"/> for manual intervention
+    /// (gateway-timeout-during-capture reconciliation is future work per ADR-0026).
+    /// </summary>
+    private void ConfigureAwaitingPaymentCaptureState()
+    {
+        During(AwaitingPaymentCapture,
+            When(PaymentCompletedEvent)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    var message = ctx.Message;
+                    saga.PaymentTransactionId = message.PaymentTransactionId;
+                    saga.PaymentCompletedAtUtc = message.CompletedAtUtc;
+                })
+                .Activity(x => x.OfType<PaymentCompletedCheckoutActivity>())
+                .Unschedule(PaymentTimeout)
+                .PublishToOutbox(
+                    _topicsOptions.CheckoutSagas,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => BuildCheckoutCompletedEvent(ctx.Saga))
+                .Then(NullOutAddresses)
+                .TransitionTo(Confirmed)
+                .Finalize(),
+            When(PaymentFailedEvent)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    var message = ctx.Message;
+                    saga.ErrorCode = message.ErrorCode;
+                    saga.ErrorMessage = message.ErrorMessage;
+                    saga.FailedAtState = nameof(AwaitingPaymentCapture);
+                })
+                .Activity(x => x.OfType<PaymentFailedCheckoutActivity>())
+                .Unschedule(PaymentTimeout)
+                .Then(ctx => CheckoutSagaMetrics.DecrementActive())
+                .PublishToOutbox(
+                    _topicsOptions.CheckoutSagas,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => BuildCheckoutStuckEvent(ctx.Saga, nameof(AwaitingPaymentCapture), _timeProvider.GetUtcNow()))
+                .Then(NullOutAddresses)
+                .TransitionTo(CompensationStuck)
+                .Finalize(),
+            When(PaymentTimeout.Received)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    saga.ErrorCode = CheckoutSagaErrorCodes.PaymentTimeout;
+                    saga.ErrorMessage = "PaymentCompletedEvent not received within PaymentSeconds budget after capture approval";
+                    saga.FailedAtState = nameof(AwaitingPaymentCapture);
+                })
+                .Activity(x => x.OfType<PaymentTimeoutCheckoutActivity>())
+                .Then(ctx => CheckoutSagaMetrics.DecrementActive())
+                .PublishToOutbox(
+                    _topicsOptions.CheckoutSagas,
+                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => BuildCheckoutStuckEvent(ctx.Saga, nameof(AwaitingPaymentCapture), _timeProvider.GetUtcNow()))
+                .Then(NullOutAddresses)
+                .TransitionTo(CompensationStuck)
+                .Finalize());
     }
 
     /// <summary>
@@ -590,44 +660,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => BuildCheckoutStuckEvent(
                         ctx.Saga,
                         nameof(CompensatingStockReservations),
-                        _timeProvider.GetUtcNow()))
-                .Then(NullOutAddresses)
-                .TransitionTo(CompensationStuck)
-                .Finalize());
-    }
-
-    /// <summary>
-    /// CompensatingPayment - § 4 row 16 (refund-first per § 6.1) plus the
-    /// CompensationTimeout-driven row 17.
-    /// </summary>
-    private void ConfigureCompensatingPaymentState()
-    {
-        During(CompensatingPayment,
-            When(PaymentRefundedEvent)
-                .Activity(x => x.OfType<PaymentRefundedActivity>())
-                .Then(ctx => DispatchStockReleaseAndCancelOrder(ctx))
-                // The compensation budget restarts for the stock-release phase per § 6.1
-                // refund-then-stock split (refund is done, now bound the release+cancel work).
-                .Unschedule(CompensationTimeout)
-                .Schedule(CompensationTimeout,
-                    ctx => new CompensationTimeoutExpired { CorrelationId = ctx.Saga.CorrelationId })
-                .TransitionTo(CompensatingStockReservations),
-            When(CompensationTimeout.Received)
-                .Then(ctx =>
-                {
-                    var saga = ctx.Saga;
-                    saga.ErrorCode = CheckoutSagaErrorCodes.CompensationTimeout;
-                    saga.ErrorMessage = "Refund did not complete in time";
-                })
-                .Activity(x => x.OfType<CompensationTimeoutActivity>())
-                .Activity(x => x.OfType<CheckoutStuckActivity>())
-                .Then(ctx => CheckoutSagaMetrics.DecrementActive())
-                .PublishToOutbox(
-                    _topicsOptions.CheckoutSagas,
-                    ctx => ctx.Saga.CorrelationId.ToString(),
-                    ctx => BuildCheckoutStuckEvent(
-                        ctx.Saga,
-                        nameof(CompensatingPayment),
                         _timeProvider.GetUtcNow()))
                 .Then(NullOutAddresses)
                 .TransitionTo(CompensationStuck)
@@ -702,6 +734,12 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
             e.OnMissingInstance(m => m.Discard());
         });
 
+        Event(() => PaymentAuthorizedEvent, e =>
+        {
+            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.OnMissingInstance(m => m.Discard());
+        });
+
         Event(() => PaymentCompletedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
@@ -709,12 +747,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         });
 
         Event(() => PaymentFailedEvent, e =>
-        {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
-            e.OnMissingInstance(m => m.Discard());
-        });
-
-        Event(() => PaymentRefundedEvent, e =>
         {
             e.CorrelateById(ctx => ctx.Message.CorrelationId);
             e.OnMissingInstance(m => m.Discard());
@@ -1038,6 +1070,20 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         Amount = saga.TotalAmount.ToAvroDecimal(4),
         Currency = saga.Currency,
         IdempotencyKey = saga.CorrelationId.ToString(),
+        RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+    };
+
+    /// <summary>
+    /// Builds the <see cref="AbortCaptureCommand"/> emitted on the confirmation-failure paths
+    /// (ADR-0026). The Checkout saga sends it to PaymentProcessingSaga, which voids the
+    /// (pre-capture) authorization — a free void, never a refund. The reason prefers the saga's
+    /// recorded <c>ErrorMessage</c>, falling back to the supplied default.
+    /// </summary>
+    private AbortCaptureCommand BuildAbortCaptureCommand(CheckoutSagaState saga, string fallbackReason) => new()
+    {
+        CorrelationId = saga.CorrelationId,
+        UserId = saga.UserId,
+        Reason = saga.ErrorMessage ?? fallbackReason,
         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
     };
 

@@ -88,22 +88,26 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
 
         var tracking = DeserializeTracking(fanOutState.ReservationIdsJson);
 
-        // Act 2 — three StockReserved events fan in → AwaitingPayment
+        // Act 2 — three StockReserved events fan in → AwaitingPaymentAuthorization
         await PublishStockReservedAsync(orderId, product1, tracking[product1].ReservationId!.Value, quantity: 1);
         await PublishStockReservedAsync(orderId, product2, tracking[product2].ReservationId!.Value, quantity: 2);
         await PublishStockReservedAsync(orderId, product3, tracking[product3].ReservationId!.Value, quantity: 3);
 
         var awaitingPaymentState = await SagaStateMonitor.WaitForStateAsync(
-            correlationId, x => x.AwaitingPayment, DefaultTimeout);
+            correlationId, x => x.AwaitingPaymentAuthorization, DefaultTimeout);
 
-        // Act 3 — PaymentCompleted → AwaitingConfirmation (saga also fans out ConfirmReservationCommands here)
-        var paymentTransactionId = Guid.CreateVersion7();
-        await PublishPaymentCompletedAsync(correlationId, userId, paymentTransactionId, awaitingPaymentState.TotalAmount);
-
+        // Act 3 — PaymentAuthorized (Payments-owned) → AwaitingConfirmation (saga fans out
+        // ConfirmOrder + per-reservation ConfirmReservationCommands here, the pre-pivot step).
+        await PublishPaymentAuthorizedAsync(correlationId, userId, awaitingPaymentState.TotalAmount);
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingConfirmation, DefaultTimeout);
 
-        // Act 4 — OrderConfirmed → Confirmed (terminal, finalized)
+        // Act 4 — OrderConfirmed → AwaitingPaymentCapture (saga approves capture — the pivot).
         await PublishOrderConfirmedAsync(correlationId, userId, orderId);
+        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingPaymentCapture, DefaultTimeout);
+
+        // Act 5 — PaymentCompleted (Payments owns this terminal per ADR-0026) → Confirmed (terminal, finalized).
+        var paymentTransactionId = Guid.CreateVersion7();
+        await PublishPaymentCompletedAsync(correlationId, userId, paymentTransactionId, awaitingPaymentState.TotalAmount);
 
         // Assert — saga row removed by the EF repo on Finalize() per SetCompletedWhenFinalized()
         var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -126,6 +130,10 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
             .Where(om => om.Type == typeof(ConfirmOrderCommand).FullName)
             .ToList();
 
+        var approveCaptureRows = outboxMessages
+            .Where(om => om.Type == typeof(ApproveCaptureCommand).FullName)
+            .ToList();
+
         using (new AssertionScope())
         {
             checkoutCompletedRows.Should().ContainSingle()
@@ -135,6 +143,11 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
             confirmOrderRows.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(orderId.ToString(),
                     "ConfirmOrderCommand is keyed by OrderId");
+
+            // ADR-0026: capture is approved only after stock + order confirmation succeed.
+            approveCaptureRows.Should().ContainSingle()
+                .Which.KafkaKey.Should().Be(correlationId.ToString(),
+                    "ApproveCaptureCommand is keyed by CorrelationId and issued once after confirmation");
 
             confirmReservationRows.Should().HaveCount(3, "one ConfirmReservationCommand per distinct ProductId in the basket");
             confirmReservationRows.Select(om => om.KafkaKey)
@@ -191,6 +204,24 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         };
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.InventoryReservations, productId, stockReserved);
+    }
+
+    private async Task PublishPaymentAuthorizedAsync(Guid correlationId, Guid userId, decimal amount)
+    {
+        // ADR-0026: Payments authorizes and publishes PaymentAuthorizedEvent; the Checkout saga
+        // reacts by confirming order + reservations before approving capture.
+        var paymentAuthorized = new PaymentAuthorizedEvent
+        {
+            CorrelationId = correlationId,
+            UserId = userId,
+            AuthorizationId = $"auth-{Guid.CreateVersion7():N}",
+            Amount = amount.ToAvroDecimal(4),
+            Currency = "USD",
+            AuthorizedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
+            ExpiresAtUtc = TimeProvider.GetUtcNow().AddDays(7).UtcDateTime
+        };
+
+        await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentAuthorized);
     }
 
     private async Task PublishPaymentCompletedAsync(Guid correlationId, Guid userId, Guid paymentTransactionId, decimal amount)
