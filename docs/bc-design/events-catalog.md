@@ -83,7 +83,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `PaymentAuthorizationFailedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `saga-payment-processing` | `CorrelationId` | Payments auth failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentAuthorizationFailedEvent.avsc` (existing) |
 | `PaymentAuthorizedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga, **Checkout saga** (drives order + reservation confirmation) | `saga-payment-processing`, `saga-checkout` | `CorrelationId` | Payments auth success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentAuthorizedEvent.avsc` (existing) |
 | `PaymentCaptureFailedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `saga-payment-processing` | `CorrelationId` | Payments capture failure | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCaptureFailedEvent.avsc` (existing) |
-| `PaymentCapturedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga | `saga-payment-processing` | `CorrelationId` | Payments capture success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCapturedEvent.avsc` (existing) |
+| `PaymentCapturedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | PaymentProcessingSaga, Invoicing (invoice-issuance projection) | `saga-payment-processing`, `invoicing-group` | `CorrelationId` | Payments capture success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCapturedEvent.avsc` (existing) |
 | `PaymentCompletedEvent` | `payments.transactions` | `Payments.Transactions` | **Payments** | **Checkout saga** | `saga-checkout` | `CorrelationId` | `PaymentCompletedDomainEvent` (co-raised with capture; Payments outbox per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentCompletedEvent.avsc` (existing) |
 | `PaymentFailedEvent` | `payments.transactions` | `Payments.Transactions` | **Payments** | **Checkout saga** | `saga-checkout` | `CorrelationId` | `PaymentFailedDomainEvent` (auth or capture decline; Payments outbox per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentFailedEvent.avsc` (existing) |
 | `PaymentRefundedEvent` | `payments.transactions` | `Payments.Transactions` | Payments | Invoicing (credit-note trigger) — deferred customer/admin refund flow; not consumed by the Checkout saga (see [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). Notifications via command-driven path only (see D-5) | `invoicing-group` | `CorrelationId` | Payments refund success | `platform/Platform.SchemaRegistry.Contracts/Avro/Payments/Transactions/PaymentRefundedEvent.avsc` (existing) |
@@ -99,8 +99,8 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 | `ReserveStockCommand` | `inventory.reservation-commands` | `Inventory.Reservations` | Checkout saga | Inventory | `inventory-group` | `CorrelationId` | saga step (after order created) | `platform/Platform.SchemaRegistry.Contracts/Avro/Inventory/Reservations/ReserveStockCommand.avsc` |
 | `SendEmailNotificationCommand` | `notifications.email-commands` | `Notifications.Email` | Producing BCs (v1: Invoicing only — `InvoiceDeliveryRequestedOutboxPublisherDomainEventHandler`) | Notifications | `notifications-group` | `UserId` | producer-driven (e.g. `InvoiceIssuedDomainEvent` → `InvoiceDeliveryRequestedDomainEvent` in Invoicing) | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/SendEmailNotificationCommand.avsc` |
 | `EmailNotificationSentEvent` | `notifications.email-events` | `Notifications.Email` | Notifications | Invoicing (v1: `EmailNotificationSentEventKafkaHandler` drives `Issued → Delivered`). Open to other BCs that need delivery-confirmation feedback. | `invoicing-group` | `UserId` | gateway-acceptance success in `SendEmailNotificationCommandKafkaHandler` | `platform/Platform.SchemaRegistry.Contracts/Avro/Notifications/Email/EmailNotificationSentEvent.avsc` |
-| `OrderCancelledEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Inventory (release if still reserved), BFF (cache invalidate), Checkout saga (compensation confirmation) — Notifications via command-driven path only (see D-5) | `inventory-group`, `saga-checkout`, `bff-group` | `OrderId` | `OrderCancelledDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc` |
-| `OrderConfirmedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate), Checkout saga (terminal success) — Notifications via command-driven path only (see D-5) | `bff-group`, `saga-checkout` | `OrderId` | `OrderConfirmedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc` |
+| `OrderCancelledEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Inventory (release if still reserved), Invoicing (credit-note projection), BFF (cache invalidate), Checkout saga (compensation confirmation) — Notifications via command-driven path only (see D-5) | `inventory-group`, `invoicing-group`, `saga-checkout`, `bff-group` | `OrderId` | `OrderCancelledDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc` |
+| `OrderConfirmedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Invoicing (invoice-issuance projection), BFF (cache invalidate), Checkout saga (terminal success) — Notifications via command-driven path only (see D-5) | `invoicing-group`, `bff-group`, `saga-checkout` | `OrderId` | `OrderConfirmedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderConfirmedEvent.avsc` |
 | `OrderCreatedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | Checkout saga (drives next step: reserve stock), BFF (cache invalidate) | `saga-checkout`, `bff-group` | `OrderId` | `OrderCreatedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCreatedEvent.avsc` |
 | `OrderDeliveredEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate) — Notifications via command-driven path only (see D-5) | `bff-group` | `OrderId` | `OrderDeliveredDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderDeliveredEvent.avsc` |
 | `OrderFailedEvent` | `ordering.orders` | `Ordering.Orders` | Ordering | BFF (cache invalidate), Checkout saga (terminal failure) — Notifications via command-driven path only (see D-5) | `bff-group`, `saga-checkout` | `OrderId` | `OrderFailedDomainEvent` | `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderFailedEvent.avsc` |
@@ -264,7 +264,7 @@ Where a schema has non-trivial cross-cutting semantics (Summary Event flag, shar
 
 **Path:** `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/OrderCancelledEvent.avsc`
 
-> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's state at the cancellation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) alongside the original `Reason` / `AtStatus` delta payload, so Invoicing's credit-note handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them. Compensation consumers (Inventory, Payments, Notifications, BFF, checkout saga) keep reading only the `Reason` / `AtStatus` fields they already used.
+> **Summary Event** per [ADR-0020](../adr/0020-summary-events.md) — carries the order's state at the cancellation transition (`Items`, `TotalAmount`, `Currency`, `BillingAddress`) alongside the original `Reason` / `AtStatus` delta payload, so Invoicing's credit-note handler (10-year retention) can rebuild state without an HTTP round-trip to Ordering. The four enrichment fields are nullable / defaulted for FORWARD_TRANSITIVE compatibility per [ADR-0007](../adr/0007-avro-compatibility-modes.md); production producers always populate them. Consumers that read only the `Reason` / `AtStatus` delta (Inventory, BFF, checkout saga) are unaffected by the enrichment fields; Invoicing's credit-note handler is the one consumer that reads the added state.
 
 <!-- Schema body: see .avsc path above (single source of truth). -->
 
@@ -525,7 +525,7 @@ Inbox dedupe-key is the Kafka message-id header; Idempotency contract per-comman
 
 ### 7.4 Inventory Service
 
-**Topics consumed:** `catalog.products`, `inventory.reservation-commands`
+**Topics consumed:** `catalog.products`, `inventory.reservation-commands`, `ordering.orders`
 
 **Message types to dedupe:**
 - From `catalog.products`: `Catalog.Products.ProductCreatedEvent` (triggers `InitializeStockItemCommand`).
@@ -533,6 +533,7 @@ Inbox dedupe-key is the Kafka message-id header; Idempotency contract per-comman
   - `Inventory.Reservations.ReserveStockCommand`
   - `Inventory.Reservations.ConfirmReservationCommand`
   - `Inventory.Reservations.ReleaseReservationCommand`
+- From `ordering.orders`: `Ordering.Orders.OrderCancelledEvent` — releases the reservation when an order is cancelled before shipment (`OrderCancelledEventKafkaHandler`).
 
 Inventory does **not** consume `ProductPriceChangedEvent` or `ProductDiscontinuedEvent` in v1 — those are non-stock-lifecycle events that do not affect the event-sourced stream.
 
@@ -546,6 +547,8 @@ services.AddInbox<InventoryDbContext>();
     typeof(ReserveStockCommand),
     typeof(ConfirmReservationCommand),
     typeof(ReleaseReservationCommand))
+// consumer for ordering.orders (release-on-cancel):
+.AddInbox(typeof(OrderCancelledEvent))
 ```
 
 ### 7.5 Checkout Saga (in `saga/SagaOrchestrators/Checkout/`)
@@ -587,15 +590,63 @@ The BFF is a **read-through cache front-end** to the other services' HTTP APIs. 
 
 The per-topic handler → FusionCache-tag mapping is canonical in [bff.md § 2.2](bff.md); the per-event consumer registry (which events `bff-group` consumes) is canonical in the master event catalog (§ 2). This section deliberately does **not** re-embed either table — the duplication between those tables was the source of the cross-section drift this catalog now avoids.
 
-### 7.8 Inbox registration summary table
+### 7.8 Invoicing Service
+
+**Topics consumed:** `ordering.orders`, `payments.transactions`, `notifications.email-events`
+
+**Message types to dedupe:**
+- From `ordering.orders`:
+  - `Ordering.Orders.OrderConfirmedEvent` — `OrderConfirmedInvoiceProjectionKafkaHandler` (invoice-issuance projection; order half).
+  - `Ordering.Orders.OrderCancelledEvent` — `OrderCancelledCreditNoteProjectionKafkaHandler` (credit-note projection; order half).
+- From `payments.transactions`:
+  - `Payments.Transactions.PaymentCapturedEvent` — `PaymentCapturedInvoiceProjectionKafkaHandler` (invoice-issuance projection; payment half — the invoice issues once both the order-confirmed and payment-captured halves have arrived).
+  - `Payments.Transactions.PaymentRefundedEvent` — `PaymentRefundedCreditNoteProjectionKafkaHandler` (credit-note projection; payment half).
+- From `notifications.email-events`:
+  - `Notifications.Email.EmailNotificationSentEvent` — `EmailNotificationSentEventKafkaHandler` drives `Issued → Delivered` (acts only on `TemplateId` prefix `invoicing.`).
+
+**Registration:**
+```csharp
+services.AddInbox<InvoicingDbContext>();
+// consumer for ordering.orders:
+.AddInbox(typeof(OrderConfirmedEvent), typeof(OrderCancelledEvent))
+// consumer for payments.transactions:
+.AddInbox(typeof(PaymentCapturedEvent), typeof(PaymentRefundedEvent))
+// consumer for notifications.email-events:
+.AddInbox(typeof(EmailNotificationSentEvent))
+```
+
+### 7.9 Payments Service
+
+**Topics consumed:** `payments.payment-commands`
+
+**Message types to dedupe** (saga-issued commands from PaymentProcessingSaga):
+- `Payments.Transactions.AuthorizePaymentCommand`
+- `Payments.Transactions.CapturePaymentCommand`
+- `Payments.Transactions.VoidPaymentCommand`
+- `Payments.Transactions.RequestRefundCommand` — consumer registered, but has no v1 producer (deferred refund flow per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).
+
+**Registration:**
+```csharp
+services.AddInbox<PaymentsDbContext>();
+.AddInbox(
+    typeof(AuthorizePaymentCommand),
+    typeof(CapturePaymentCommand),
+    typeof(VoidPaymentCommand),
+    typeof(RequestRefundCommand))
+```
+
+### 7.10 Inbox registration summary table
 
 | Service | Consumes topics | Inbox-registered message types |
 |---------|-----------------|-------------------------------|
-| Catalog | — | — |
+| Catalog | `inventory.stock-events` | `StockLevelChangedEvent` |
 | Basket | — | — |
 | Ordering | `ordering.order-commands` | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
-| Inventory | `catalog.products`, `inventory.reservation-commands` | `ProductCreatedEvent`, `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
+| Inventory | `catalog.products`, `inventory.reservation-commands`, `ordering.orders` | `ProductCreatedEvent`, `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand`, `OrderCancelledEvent` |
+| Invoicing | `ordering.orders`, `payments.transactions`, `notifications.email-events` | `OrderConfirmedEvent`, `OrderCancelledEvent`, `PaymentCapturedEvent`, `PaymentRefundedEvent`, `EmailNotificationSentEvent` |
+| Payments | `payments.payment-commands` | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RequestRefundCommand` |
 | Checkout saga | `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions` | MassTransit handles (no `AddInbox(typeof(...))`) |
+| PaymentProcessing saga | `payments.transactions`, `payments.payment-commands` | MassTransit handles (no `AddInbox(typeof(...))`) |
 | Notifications | `notifications.email-commands` (only) | `SendEmailNotificationCommand` — per D-5 + [notifications.md § 2](notifications.md). No subscriptions to per-BC event topics. |
 | BFF | `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions` | — (no inbox — idempotent cache invalidation; see § 7.7) |
 
