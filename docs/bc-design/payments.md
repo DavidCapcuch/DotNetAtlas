@@ -32,7 +32,7 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 
 | Property | Type | Notes |
 |---|---|---|
-| `Id` | `Guid` | Aggregate root identity. **v1 design intent:** UUID v7 (time-sortable). **v1 reality (carry-forward):** `PaymentId` is silently set equal to the saga `CorrelationId` (UUID v4, random) — see § 2.1.1 below + Wave-1 closeout H-7. |
+| `Id` | `Guid` | Aggregate root identity — UUID v7 (time-sortable). Minted by the saga and carried on `AuthorizePaymentCommand` as `PaymentTransactionId`; **distinct from `CorrelationId`** (see I-7). |
 | `CompletedAtUtc` | `DateTimeOffset?` | Set on auto-advance from `Captured`. |
 | `CorrelationId` | `Guid` | The originating saga CorrelationId (links to checkout, order, invoice) |
 | `BuyerId` | `Guid` | JWT `sub` at checkout time; frozen |
@@ -50,21 +50,6 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 | `VoidReason` | `string?` | Saga-supplied reason on `Voided` (Wave-1 closeout H-5; nullable until `Void` succeeds). |
 | `RowVersion` | `uint` | Optimistic concurrency token |
 
-### 2.1.1 v1 carry-forward — `PaymentId == CorrelationId` collapse
-
-**Status:** known divergence between the design above (`PaymentId` is UUID v7, distinct from `CorrelationId`) and the v1 implementation (Wave-1 closeout H-7).
-
-**Reality:** The saga emits an `AuthorizePaymentCommand` with only `CorrelationId` on the wire — there is no `PaymentTransactionId` field. The Payments-side `SagaCommandMappers.ToAppCommand(AvroAuthorizePaymentCommand)` sets `PaymentId = avro.CorrelationId`, so the persisted aggregate row's primary key equals the saga's correlation id (UUID v4, random — *not* time-ordered v7). The migration's `id` column comment was originally `"Primary key (Guid v7 — time-ordered)."` which is **false on the v1 wire shape**; it was corrected in the same closeout to reflect the collapse.
-
-**Why this matters now:**
-- The `UX_PaymentTransactions_CorrelationId` unique index and the implicit `PaymentId == CorrelationId` equation together enforce one-payment-per-saga.
-- B-tree index locality benefits intended by v7 ordering are not realised — inserts scatter across the index.
-- Downstream BCs reading `PaymentTransactionId` from `PaymentCapturedEvent` / `PaymentCompletedEvent` get a value that *happens to equal* `CorrelationId`; they should not rely on this equation.
-
-**Future fix (cross-cutting wave):** the saga emits a fresh `Guid.CreateVersion7()` `PaymentTransactionId` on `AuthorizePaymentCommand`; Payments-side mapper uses it as the aggregate id; the v7 PK comment becomes true; "one-payment-per-saga" stays enforced via the existing unique index on `correlation_id`. Saga-side change is **out of scope** for the Wave-1 Payments-followups branch (saga code is in `saga/SagaOrchestrators/`).
-
-**Tracking issue:** filed as a `cross-cutting(wave1-followup)` GitHub issue; catalogued in [roadmap.md § 2.4](../roadmap.md).
-
 ### 2.2 Invariants
 
 - **I-1** `Amount.Amount > 0` always. Enforced in factory.
@@ -73,6 +58,7 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 - **I-4** `GatewayTransactionId` is append-only — once set, it never changes (even on refund/void, which reuse the same gateway transaction).
 - **I-5** Once `Status ∈ { Completed, Failed, Refunded, Voided }`, all mutations are rejected at the aggregate root. Saga retries become idempotent no-ops.
 - **I-6** `CorrelationId`, `BuyerId`, `OrderId` are immutable post-creation.
+- **I-7** One payment per saga is enforced by the unique index `UX_PaymentTransactions_CorrelationId` on `correlation_id`. `PaymentId` (saga-minted UUID v7) is the aggregate key; `CorrelationId` is the saga link — distinct values. The saga reuses the same `PaymentTransactionId` across `AuthorizePaymentCommand` retries, so it doubles as the command's idempotency anchor.
 
 ### 2.3 Factory
 
@@ -287,7 +273,7 @@ FSM guard violations (bug-class) throw `DataIntegrityException`, not `Result.Fai
 
 - **Unit tests** (`test/Payments.UnitTests/`) — `PaymentTransaction` state transitions, factory validation, invariants (I-1 through I-6), SmartEnum transition table.
 - **Architecture tests** (`test/Payments.ArchitectureTests/`) — no cross-BC references; no direct `StackExchange.Redis` imports in `Payments.Domain`; aggregates have private ctor + static factory; enforced `*DomainEvent` suffix on internal events.
-- **Integration tests** (`test/Payments.IntegrationTests/`) — Testcontainers Postgres + Kafka. Tests the outbox publisher chain: command → domain event → outbox row → Kafka message (with Avro schema registry stub).
+- **Integration tests** (`test/Payments.IntegrationTests/`) — Testcontainers Postgres + Kafka. Tests the outbox publisher chain: command → domain event → outbox row → Kafka message (with Avro schema registry stub); the one-payment-per-saga unique index (I-7).
 - **Functional tests** (`test/Payments.FunctionalTests/`) — `WebApplicationFactory`-based full-stack admin HTTP endpoints with auth.
 - **Gateway stub** (`StubPaymentGateway`) — deterministic responses in test mode; swap via DI using options.
 

@@ -54,8 +54,8 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                 schema: "payments",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Primary key. v1 collapse: PaymentId == saga CorrelationId (Guid v4, random). Index locality is therefore random, not time-ordered. See docs/bc-design/payments.md § 2.1 + Wave-1 closeout H-7."),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Originating saga correlation id. Idempotency key for the saga-issued AuthorizePaymentCommand."),
+                    id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7)."),
+                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga."),
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "JWT sub of the buyer the payment is for."),
                     order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Ordering aggregate id this payment is attached to (frozen at creation; debugging/admin-lookup convenience)."),
                     amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount."),
