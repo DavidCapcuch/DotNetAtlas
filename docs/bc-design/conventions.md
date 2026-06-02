@@ -128,6 +128,7 @@ Layering and dependency rules are enforced by [architecture-tests.md](architectu
 | Time + timezone | [ADR-0015](../adr/0015-time-timezone-policy.md) |
 | Error taxonomy | [error-taxonomy.md](error-taxonomy.md) |
 | Saga compensation / DLT routing | [kafka-dlt-strategy.md](kafka-dlt-strategy.md) + per-BC checkout-saga doc |
+| Consumer rebalance protocol (CooperativeSticky) | [ADR-0027](../adr/0027-kafka-consumer-cooperative-rebalancing.md) |
 | Ubiquitous language across BCs | [eshop-ubiquitous-language.md](../eshop-ubiquitous-language.md) + per-BC `glossary-*.md` |
 | Layering / architecture tests | [architecture-tests.md](architecture-tests.md) |
 
