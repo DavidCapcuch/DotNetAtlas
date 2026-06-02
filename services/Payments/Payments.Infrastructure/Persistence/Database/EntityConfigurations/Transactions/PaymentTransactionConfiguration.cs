@@ -34,7 +34,7 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
         builder.HasKey(t => t.Id);
         builder.Property(t => t.Id)
             .ValueGeneratedNever()
-            .HasComment("Primary key. v1 collapse: PaymentId == saga CorrelationId (Guid v4, random). Index locality is therefore random, not time-ordered. See docs/bc-design/payments.md § 2.1 + Wave-1 closeout H-7.");
+            .HasComment("Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7).");
 
         // Optimistic concurrency via Postgres xmin system column. `Entity.RowVersion` is
         // inherited from Platform.SharedKernel; Npgsql's RowVersion convention maps it to
@@ -45,7 +45,7 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
             .HasComment("Optimistic concurrency token (Postgres xmin system column).");
 
         builder.Property(t => t.CorrelationId)
-            .HasComment("Originating saga correlation id. Idempotency key for the saga-issued AuthorizePaymentCommand.");
+            .HasComment("Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga.");
         builder.HasIndex(t => t.CorrelationId)
             .IsUnique()
             .HasDatabaseName("ux_payment_transactions_correlation_id");

@@ -28,7 +28,7 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id")
-                        .HasComment("Primary key. v1 collapse: PaymentId == saga CorrelationId (Guid v4, random). Index locality is therefore random, not time-ordered. See docs/bc-design/payments.md § 2.1 + Wave-1 closeout H-7.");
+                        .HasComment("Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7).");
 
                     b.Property<DateTimeOffset?>("AuthorizedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -53,7 +53,7 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                     b.Property<Guid>("CorrelationId")
                         .HasColumnType("uuid")
                         .HasColumnName("correlation_id")
-                        .HasComment("Originating saga correlation id. Idempotency key for the saga-issued AuthorizePaymentCommand.");
+                        .HasComment("Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga.");
 
                     b.Property<string>("GatewayTransactionId")
                         .HasMaxLength(256)

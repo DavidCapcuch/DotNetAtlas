@@ -85,8 +85,8 @@ BEGIN
         CONSTRAINT pk_payment_transactions PRIMARY KEY (id)
     );
     COMMENT ON TABLE payments.payment_transactions IS 'PaymentTransaction aggregate — saga-scoped lifecycle from Requested through Completed/Failed/Voided/Refunded.';
-    COMMENT ON COLUMN payments.payment_transactions.id IS 'Primary key. v1 collapse: PaymentId == saga CorrelationId (Guid v4, random). Index locality is therefore random, not time-ordered. See docs/bc-design/payments.md § 2.1 + Wave-1 closeout H-7.';
-    COMMENT ON COLUMN payments.payment_transactions.correlation_id IS 'Originating saga correlation id. Idempotency key for the saga-issued AuthorizePaymentCommand.';
+    COMMENT ON COLUMN payments.payment_transactions.id IS 'Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7).';
+    COMMENT ON COLUMN payments.payment_transactions.correlation_id IS 'Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga.';
     COMMENT ON COLUMN payments.payment_transactions.buyer_id IS 'JWT sub of the buyer the payment is for.';
     COMMENT ON COLUMN payments.payment_transactions.order_id IS 'Ordering aggregate id this payment is attached to (frozen at creation; debugging/admin-lookup convenience).';
     COMMENT ON COLUMN payments.payment_transactions.amount IS 'Payment amount.';
