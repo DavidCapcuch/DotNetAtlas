@@ -14,6 +14,8 @@ using AvroCapturePaymentCommand = Payments.Transactions.CapturePaymentCommand;
 using AvroPaymentAuthorizationFailedEvent = Payments.Transactions.PaymentAuthorizationFailedEvent;
 using AvroPaymentAuthorizedEvent = Payments.Transactions.PaymentAuthorizedEvent;
 using AvroPaymentCapturedEvent = Payments.Transactions.PaymentCapturedEvent;
+using AvroPaymentCompletedEvent = Payments.Transactions.PaymentCompletedEvent;
+using AvroPaymentFailedEvent = Payments.Transactions.PaymentFailedEvent;
 using AvroPaymentRefundedEvent = Payments.Transactions.PaymentRefundedEvent;
 using AvroPaymentVoidedEvent = Payments.Transactions.PaymentVoidedEvent;
 using AvroRequestRefundCommand = Payments.Transactions.RequestRefundCommand;
@@ -80,7 +82,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
-    public async Task Authorize_DeclineRule_TransitionsAggregateToFailed_AndOutboxesAuthorizationFailedEventOnly()
+    public async Task Authorize_DeclineRule_TransitionsAggregateToFailed_AndOutboxesAuthorizationFailedAndTerminalFailedEvents()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -106,16 +108,22 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             aggregate!.Status.Should().Be(PaymentStatus.Failed);
             aggregate.FailureInfo.Should().NotBeNull();
 
-            // PaymentAuthorizationFailedEvent is emitted by Payments via the outbox; the
-            // terminal PaymentFailedEvent is the saga's responsibility (Path B from M4) and
-            // is therefore NOT expected on the Payments-side outbox.
+            // ADR-0026: Payments owns ALL its lifecycle events, including the terminal
+            // PaymentFailedEvent — co-raised with PaymentAuthorizationFailedEvent on a decline so
+            // the Checkout saga can fast-fail. PaymentProcessingSaga no longer publishes it.
             outbox.HasMessage<AvroPaymentAuthorizationFailedEvent>().Should().BeTrue();
+            outbox.HasMessage<AvroPaymentFailedEvent>().Should().BeTrue();
             outbox.HasMessage<AvroPaymentAuthorizedEvent>().Should().BeFalse();
+
+            var failed = outbox.GetMessages<AvroPaymentFailedEvent>().Single();
+            failed.TopicName.Should().Be("payments.transactions");
+            failed.KafkaKey.Should().Be(correlationId.ToString());
+            failed.IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
     [Fact]
-    public async Task Capture_AfterAuthorize_TransitionsToCompleted_AndOutboxesCapturedEventOnly()
+    public async Task Capture_AfterAuthorize_TransitionsToCompleted_AndOutboxesCapturedAndTerminalCompletedEvents()
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -150,11 +158,17 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         {
             aggregate.Should().NotBeNull();
             // Aggregate auto-advances Captured -> Completed (v1 single-step flow per
-            // payments.md § 4). PaymentCapturedEvent is emitted by Payments; the terminal
-            // PaymentCompletedEvent is the saga's responsibility (Path B) and is NOT expected
-            // on the Payments-side outbox.
+            // payments.md § 4). ADR-0026: Payments owns ALL its lifecycle events — both
+            // PaymentCapturedEvent and the terminal PaymentCompletedEvent are emitted by the
+            // Payments-side outbox; PaymentProcessingSaga no longer publishes the terminal.
             aggregate!.Status.Should().Be(PaymentStatus.Completed);
             outbox.HasMessage<AvroPaymentCapturedEvent>().Should().BeTrue();
+            outbox.HasMessage<AvroPaymentCompletedEvent>().Should().BeTrue();
+
+            var completed = outbox.GetMessages<AvroPaymentCompletedEvent>().Single();
+            completed.TopicName.Should().Be("payments.transactions");
+            completed.KafkaKey.Should().Be(correlationId.ToString());
+            completed.IntegrationEvent.PaymentTransactionId.Should().Be(correlationId);
         }
     }
 
