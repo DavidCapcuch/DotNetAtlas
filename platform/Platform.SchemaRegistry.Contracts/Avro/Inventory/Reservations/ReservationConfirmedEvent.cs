@@ -7,63 +7,119 @@
 // ------------------------------------------------------------------------------
 namespace Inventory.Reservations
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using global::Avro;
-    using global::Avro.Specific;
-
-    /// <summary>
-    /// Emitted when a reservation is confirmed (stock physically committed to the order). OnHand is decremented by Quantity as part of the same transaction.
-    /// </summary>
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-    public partial class ReservationConfirmedEvent : global::Avro.Specific.ISpecificRecord
-    {
-        public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(
-            "{\"type\":\"record\",\"name\":\"ReservationConfirmedEvent\",\"doc\":\"Emitted when a reserva" +
-            "tion is confirmed (stock physically committed to the order). OnHand is decreme" +
-            "nted by Quantity as part of the same transaction.\",\"namespace\":\"Inventory.Reser" +
-            "vations\",\"fields\":[{\"name\":\"ProductId\",\"doc\":\"Product whose reservation was con" +
-            "firmed.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ReservationId\"," +
-            "\"doc\":\"Reservation that was confirmed.\",\"type\":{\"type\":\"string\",\"logicalType\":\"" +
-            "uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Owning order.\",\"type\":{\"type\":\"string\",\"logica" +
-            "lType\":\"uuid\"}},{\"name\":\"ConfirmedAtUtc\",\"doc\":\"UTC timestamp of confirmation.\"" +
-            ",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
-
-        private System.Guid _ProductId;
-        private System.Guid _ReservationId;
-        private System.Guid _OrderId;
-        private System.DateTime _ConfirmedAtUtc;
-
-        public virtual global::Avro.Schema Schema => ReservationConfirmedEvent._SCHEMA;
-
-        public System.Guid ProductId { get => this._ProductId; set => this._ProductId = value; }
-        public System.Guid ReservationId { get => this._ReservationId; set => this._ReservationId = value; }
-        public System.Guid OrderId { get => this._OrderId; set => this._OrderId = value; }
-        public System.DateTime ConfirmedAtUtc { get => this._ConfirmedAtUtc; set => this._ConfirmedAtUtc = value; }
-
-        public virtual object Get(int fieldPos)
-        {
-            switch (fieldPos)
-            {
-            case 0: return this.ProductId;
-            case 1: return this.ReservationId;
-            case 2: return this.OrderId;
-            case 3: return this.ConfirmedAtUtc;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
-            }
-        }
-
-        public virtual void Put(int fieldPos, object fieldValue)
-        {
-            switch (fieldPos)
-            {
-            case 0: this.ProductId = (System.Guid)fieldValue; break;
-            case 1: this.ReservationId = (System.Guid)fieldValue; break;
-            case 2: this.OrderId = (System.Guid)fieldValue; break;
-            case 3: this.ConfirmedAtUtc = (System.DateTime)fieldValue; break;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
-            }
-        }
-    }
+	using System;
+	using System.Collections.Generic;
+	using System.Text;
+	using global::Avro;
+	using global::Avro.Specific;
+	
+	/// <summary>
+	/// Emitted when a reservation is confirmed (stock physically committed to the order). OnHand is decremented by Quantity as part of the same transaction.
+	/// </summary>
+	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
+	public partial class ReservationConfirmedEvent : global::Avro.Specific.ISpecificRecord
+	{
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ReservationConfirmedEvent"",""doc"":""Emitted when a reservation is confirmed (stock physically committed to the order). OnHand is decremented by Quantity as part of the same transaction."",""namespace"":""Inventory.Reservations"",""fields"":[{""name"":""ProductId"",""doc"":""Product whose reservation was confirmed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ReservationId"",""doc"":""Reservation that was confirmed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Owning order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ConfirmedAtUtc"",""doc"":""UTC timestamp of confirmation."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		/// <summary>
+		/// Product whose reservation was confirmed.
+		/// </summary>
+		private System.Guid _ProductId;
+		/// <summary>
+		/// Reservation that was confirmed.
+		/// </summary>
+		private System.Guid _ReservationId;
+		/// <summary>
+		/// Owning order.
+		/// </summary>
+		private System.Guid _OrderId;
+		/// <summary>
+		/// UTC timestamp of confirmation.
+		/// </summary>
+		private System.DateTime _ConfirmedAtUtc;
+		public virtual global::Avro.Schema Schema
+		{
+			get
+			{
+				return ReservationConfirmedEvent._SCHEMA;
+			}
+		}
+		/// <summary>
+		/// Product whose reservation was confirmed.
+		/// </summary>
+		public System.Guid ProductId
+		{
+			get
+			{
+				return this._ProductId;
+			}
+			set
+			{
+				this._ProductId = value;
+			}
+		}
+		/// <summary>
+		/// Reservation that was confirmed.
+		/// </summary>
+		public System.Guid ReservationId
+		{
+			get
+			{
+				return this._ReservationId;
+			}
+			set
+			{
+				this._ReservationId = value;
+			}
+		}
+		/// <summary>
+		/// Owning order.
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
+			}
+		}
+		/// <summary>
+		/// UTC timestamp of confirmation.
+		/// </summary>
+		public System.DateTime ConfirmedAtUtc
+		{
+			get
+			{
+				return this._ConfirmedAtUtc;
+			}
+			set
+			{
+				this._ConfirmedAtUtc = value;
+			}
+		}
+		public virtual object Get(int fieldPos)
+		{
+			switch (fieldPos)
+			{
+			case 0: return this.ProductId;
+			case 1: return this.ReservationId;
+			case 2: return this.OrderId;
+			case 3: return this.ConfirmedAtUtc;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
+			};
+		}
+		public virtual void Put(int fieldPos, object fieldValue)
+		{
+			switch (fieldPos)
+			{
+			case 0: this.ProductId = (System.Guid)fieldValue; break;
+			case 1: this.ReservationId = (System.Guid)fieldValue; break;
+			case 2: this.OrderId = (System.Guid)fieldValue; break;
+			case 3: this.ConfirmedAtUtc = (System.DateTime)fieldValue; break;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
+			};
+		}
+	}
 }

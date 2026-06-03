@@ -7,77 +7,159 @@
 // ------------------------------------------------------------------------------
 namespace Inventory.Reservations
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using global::Avro;
-    using global::Avro.Specific;
-
-    /// <summary>
-    /// Emitted when units have been successfully reserved for an order. Consumed by the checkout saga as the positive outcome of ReserveStockCommand. The reservation is time-bounded by ExpiresAtUtc.
-    /// </summary>
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-    public partial class StockReservedEvent : global::Avro.Specific.ISpecificRecord
-    {
-        public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(
-            "{\"type\":\"record\",\"name\":\"StockReservedEvent\",\"doc\":\"Emitted when units have been" +
-            " successfully reserved for an order. Consumed by the checkout saga as the posit" +
-            "ive outcome of ReserveStockCommand. The reservation is time-bounded by ExpiresA" +
-            "tUtc.\",\"namespace\":\"Inventory.Reservations\",\"fields\":[{\"name\":\"ProductId\",\"doc\":" +
-            "\"Product that was reserved. Shared key with Catalog.\",\"type\":{\"type\":\"string\",\"l" +
-            "ogicalType\":\"uuid\"}},{\"name\":\"ReservationId\",\"doc\":\"Unique id of this reservatio" +
-            "n. Used by ConfirmReservationCommand and ReleaseReservationCommand.\",\"type\":{\"t" +
-            "ype\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Owning order (saga" +
-            " correlation id). Enables fan-in of multiple line-item reservations per order." +
-            "\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Quantity\",\"doc\":\"Units" +
-            " reserved.\",\"type\":\"int\"},{\"name\":\"ExpiresAtUtc\",\"doc\":\"UTC timestamp after whi" +
-            "ch the reservation is automatically released by the TTL worker unless confirme" +
-            "d or explicitly released.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-milli" +
-            "s\"}},{\"name\":\"ReservedAtUtc\",\"doc\":\"UTC timestamp when the reservation was crea" +
-            "ted.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
-
-        private System.Guid _ProductId;
-        private System.Guid _ReservationId;
-        private System.Guid _OrderId;
-        private int _Quantity;
-        private System.DateTime _ExpiresAtUtc;
-        private System.DateTime _ReservedAtUtc;
-
-        public virtual global::Avro.Schema Schema => StockReservedEvent._SCHEMA;
-
-        public System.Guid ProductId { get => this._ProductId; set => this._ProductId = value; }
-        public System.Guid ReservationId { get => this._ReservationId; set => this._ReservationId = value; }
-        public System.Guid OrderId { get => this._OrderId; set => this._OrderId = value; }
-        public int Quantity { get => this._Quantity; set => this._Quantity = value; }
-        public System.DateTime ExpiresAtUtc { get => this._ExpiresAtUtc; set => this._ExpiresAtUtc = value; }
-        public System.DateTime ReservedAtUtc { get => this._ReservedAtUtc; set => this._ReservedAtUtc = value; }
-
-        public virtual object Get(int fieldPos)
-        {
-            switch (fieldPos)
-            {
-            case 0: return this.ProductId;
-            case 1: return this.ReservationId;
-            case 2: return this.OrderId;
-            case 3: return this.Quantity;
-            case 4: return this.ExpiresAtUtc;
-            case 5: return this.ReservedAtUtc;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
-            }
-        }
-
-        public virtual void Put(int fieldPos, object fieldValue)
-        {
-            switch (fieldPos)
-            {
-            case 0: this.ProductId = (System.Guid)fieldValue; break;
-            case 1: this.ReservationId = (System.Guid)fieldValue; break;
-            case 2: this.OrderId = (System.Guid)fieldValue; break;
-            case 3: this.Quantity = (int)fieldValue; break;
-            case 4: this.ExpiresAtUtc = (System.DateTime)fieldValue; break;
-            case 5: this.ReservedAtUtc = (System.DateTime)fieldValue; break;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
-            }
-        }
-    }
+	using System;
+	using System.Collections.Generic;
+	using System.Text;
+	using global::Avro;
+	using global::Avro.Specific;
+	
+	/// <summary>
+	/// Emitted when units have been successfully reserved for an order. Consumed by the checkout saga as the positive outcome of ReserveStockCommand. The reservation is time-bounded by ExpiresAtUtc.
+	/// </summary>
+	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
+	public partial class StockReservedEvent : global::Avro.Specific.ISpecificRecord
+	{
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""StockReservedEvent"",""doc"":""Emitted when units have been successfully reserved for an order. Consumed by the checkout saga as the positive outcome of ReserveStockCommand. The reservation is time-bounded by ExpiresAtUtc."",""namespace"":""Inventory.Reservations"",""fields"":[{""name"":""ProductId"",""doc"":""Product that was reserved. Shared key with Catalog."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ReservationId"",""doc"":""Unique id of this reservation. Used by ConfirmReservationCommand and ReleaseReservationCommand."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Owning order (saga correlation id). Enables fan-in of multiple line-item reservations per order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Quantity"",""doc"":""Units reserved."",""type"":""int""},{""name"":""ExpiresAtUtc"",""doc"":""UTC timestamp after which the reservation is automatically released by the TTL worker unless confirmed or explicitly released."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""ReservedAtUtc"",""doc"":""UTC timestamp when the reservation was created."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		/// <summary>
+		/// Product that was reserved. Shared key with Catalog.
+		/// </summary>
+		private System.Guid _ProductId;
+		/// <summary>
+		/// Unique id of this reservation. Used by ConfirmReservationCommand and ReleaseReservationCommand.
+		/// </summary>
+		private System.Guid _ReservationId;
+		/// <summary>
+		/// Owning order (saga correlation id). Enables fan-in of multiple line-item reservations per order.
+		/// </summary>
+		private System.Guid _OrderId;
+		/// <summary>
+		/// Units reserved.
+		/// </summary>
+		private int _Quantity;
+		/// <summary>
+		/// UTC timestamp after which the reservation is automatically released by the TTL worker unless confirmed or explicitly released.
+		/// </summary>
+		private System.DateTime _ExpiresAtUtc;
+		/// <summary>
+		/// UTC timestamp when the reservation was created.
+		/// </summary>
+		private System.DateTime _ReservedAtUtc;
+		public virtual global::Avro.Schema Schema
+		{
+			get
+			{
+				return StockReservedEvent._SCHEMA;
+			}
+		}
+		/// <summary>
+		/// Product that was reserved. Shared key with Catalog.
+		/// </summary>
+		public System.Guid ProductId
+		{
+			get
+			{
+				return this._ProductId;
+			}
+			set
+			{
+				this._ProductId = value;
+			}
+		}
+		/// <summary>
+		/// Unique id of this reservation. Used by ConfirmReservationCommand and ReleaseReservationCommand.
+		/// </summary>
+		public System.Guid ReservationId
+		{
+			get
+			{
+				return this._ReservationId;
+			}
+			set
+			{
+				this._ReservationId = value;
+			}
+		}
+		/// <summary>
+		/// Owning order (saga correlation id). Enables fan-in of multiple line-item reservations per order.
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
+			}
+		}
+		/// <summary>
+		/// Units reserved.
+		/// </summary>
+		public int Quantity
+		{
+			get
+			{
+				return this._Quantity;
+			}
+			set
+			{
+				this._Quantity = value;
+			}
+		}
+		/// <summary>
+		/// UTC timestamp after which the reservation is automatically released by the TTL worker unless confirmed or explicitly released.
+		/// </summary>
+		public System.DateTime ExpiresAtUtc
+		{
+			get
+			{
+				return this._ExpiresAtUtc;
+			}
+			set
+			{
+				this._ExpiresAtUtc = value;
+			}
+		}
+		/// <summary>
+		/// UTC timestamp when the reservation was created.
+		/// </summary>
+		public System.DateTime ReservedAtUtc
+		{
+			get
+			{
+				return this._ReservedAtUtc;
+			}
+			set
+			{
+				this._ReservedAtUtc = value;
+			}
+		}
+		public virtual object Get(int fieldPos)
+		{
+			switch (fieldPos)
+			{
+			case 0: return this.ProductId;
+			case 1: return this.ReservationId;
+			case 2: return this.OrderId;
+			case 3: return this.Quantity;
+			case 4: return this.ExpiresAtUtc;
+			case 5: return this.ReservedAtUtc;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
+			};
+		}
+		public virtual void Put(int fieldPos, object fieldValue)
+		{
+			switch (fieldPos)
+			{
+			case 0: this.ProductId = (System.Guid)fieldValue; break;
+			case 1: this.ReservationId = (System.Guid)fieldValue; break;
+			case 2: this.OrderId = (System.Guid)fieldValue; break;
+			case 3: this.Quantity = (System.Int32)fieldValue; break;
+			case 4: this.ExpiresAtUtc = (System.DateTime)fieldValue; break;
+			case 5: this.ReservedAtUtc = (System.DateTime)fieldValue; break;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
+			};
+		}
+	}
 }
