@@ -33,6 +33,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0025](0025-kafka-consumer-retry-dlt-policy.md) | Kafka consumer retry & dead-letter policy (classify by failure class) | Accepted | 2026-06-01 |
 | [0026](0026-checkout-payment-flow-capture-pivot.md) | Checkout payment flow — defer capture to the pivot, Payments owns terminal events | Accepted | 2026-06-02 |
 | [0027](0027-kafka-consumer-cooperative-rebalancing.md) | Kafka consumer partition-assignment strategy — CooperativeSticky for rolling/canary deploys | Accepted | 2026-06-02 |
+| [0028](0028-error-code-wire-fields-stay-string.md) | `ErrorCode` wire fields stay `string` (reject Avro enum migration) | Accepted | 2026-06-02 |
 
 ## Creating a New ADR
 
