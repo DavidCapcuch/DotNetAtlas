@@ -16,7 +16,7 @@ The following 7 bounded contexts are in scope today:
 - **Inventory** — event-sourced reservation + stock-level (per-`ProductId` streams)
 - **Payments** — gateway-facing Authorize / Capture / Void / Refund commands and lifecycle events
 - **Invoicing** — invoice issuance + credit notes (10-year retention, EU VAT compliance)
-- **Notifications** — outbound `SendEmailNotificationCommand` → email gateway
+- **Notifications** — channel-agnostic `NotifyUserCommand` → per-channel fan-out (email / fake SMS / SignalR bell). **v2 is the agreed design, in progress (#312–#317)**; v1 shipped the single-channel email path. See [notifications.md](bc-design/notifications.md) + [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)/[ADR-0032](adr/0032-notifications-dispatch-and-channels.md).
 
 Plus the **CheckoutSaga** + **PaymentProcessingSaga** in `saga/SagaOrchestrators/`.
 
@@ -59,7 +59,7 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 - **`CategoryReparentedEvent` external publication.** Reparenting raises `CategoryReparentedDomainEvent` (in-process descendant-path cascade) but publishes no external event in v1; reserved for later. See [use-cases.md § 1.1.9](bc-design/use-cases.md).
 
 #### Basket
-- **Cart abandonment re-engagement.** Hook Redis keyspace events → `SendEmailNotificationCommand`.
+- **Cart abandonment re-engagement.** Hook Redis keyspace events → `NotifyUserCommand`.
 - **Saved-for-later collection.** A parallel collection to the basket.
 
 #### Ordering
@@ -92,9 +92,10 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 - **Void-path cleanup job.** Today when a buyer cancels pre-capture, no invoice is issued (no `PaymentCapturedEvent`), so no credit note is needed; the `pending_invoices` row is left dangling. A cleanup job sweeps these.
 
 #### Notifications
-- **SMS channel.** `SendSmsNotificationCommand` on a sibling topic (`notifications.sms-commands`), separate gateway. The current `SendEmailNotificationCommand` naming is deliberately channel-scoped to allow this without retrofit.
-- **Push channel.** `SendPushNotificationCommand` — analogous structure.
-- **In-app channel.** `SendInAppNotificationCommand` writing to a Notifications-owned read-side that a future per-user inbox endpoint surfaces.
+Notifications v2 ([notifications.md](bc-design/notifications.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md) / [ADR-0032](adr/0032-notifications-dispatch-and-channels.md)) — the agreed design, in progress (#312–#317) — supersedes the v1 channel-scoped command with a channel-agnostic `NotifyUserCommand` fanned out per-channel via Hangfire. The sibling-command-per-channel plan is **superseded** by that fan-out:
+- **Real SMS / push providers.** SMS already ships as a fan-out channel (fake log handler today); a real provider is a new `IChannelDispatcher` + a `template_channels` row — no sibling command/topic. Push is the same pattern (a new `ChannelType` + adapter).
+- **Durable in-app inbox.** The bell ships as an **ephemeral SignalR live push** (no persistence). A durable feed (history, unseen-count badge, mark-read, HTTP poll, SSE replay) is the deferred evolution — see [notifications.md § 13](bc-design/notifications.md).
+- **Preference HTTP + marketing consent.** Preferences are seeded (no API), transactional-only; a read/mutate HTTP surface and a marketing-consent system-of-record are deferred seams.
 
 #### BFF
 - **Service-to-service token-exchange fallback** (`IdentityServerTokenExchange`). Today the BFF forwards user-token-only; if no user token is present and an upstream requires auth, the upstream returns 401 and the BFF surfaces 401.

@@ -24,8 +24,8 @@ Invoicing is the **authority for fiscal records** — it produces legally-bindin
   - `PaymentCapturedEvent` (Payments) — payment-side half
   - `OrderCancelledEvent` (Ordering) + `PaymentRefundedEvent` (Payments) — credit-note triggers
 - **Downstream (publishes):**
-  - `InvoiceIssuedEvent` — Invoicing-internal trigger for `InvoiceDeliveryRequestedDomainEventHandler` to emit `SendEmailNotificationCommand` on `notifications.email-commands` (the command-driven Notifications pattern in [notifications.md § 2](notifications.md)). Notifications does NOT subscribe to `invoicing.invoices`.
-  - `InvoiceDeliveredEvent` — published after Invoicing consumes `EmailNotificationSentEvent` back from Notifications and transitions `Issued → Delivered`. Consumer-less by default; available for analytics.
+  - `InvoiceIssuedEvent` — Invoicing-internal trigger for `InvoiceDeliveryRequestedDomainEventHandler` to emit `NotifyUserCommand` on `notifications.notify-commands` (the command-driven Notifications pattern in [notifications.md § 2](notifications.md); v2 — [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md), migrated in #312). Notifications does NOT subscribe to `invoicing.invoices`.
+  - `InvoiceDeliveredEvent` — published after Invoicing consumes `NotificationDeliveryStatusChangedEvent` (`Channel==email && Status==Dispatched`, correlated on `NotificationId`) back from Notifications and transitions `Issued → Delivered`. Consumer-less by default; available for analytics.
   - `InvoiceCancelledEvent` + `CreditNoteIssuedEvent` — no Notifications wiring in v1 (would follow the same command-driven pattern as `InvoiceIssuedEvent` if buyer emails for cancellations/credit notes are added).
 
 **Why event-driven, not saga-orchestrated?** Invoice issuance is a **convergent enrichment** — two independent events (order + payment) must both arrive before the invoice can be issued. This is a natural fit for an inbox-backed projection that buffers partial state. Invoicing has no multi-step distributed transaction of its own; a saga would be over-engineered.
@@ -125,7 +125,7 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 - `InvoiceCreatedDomainEvent` — aggregate created in `Draft`
 - `InvoiceIssuedDomainEvent` — aggregate → `Issued` (number allocated, PDF stored)
-- `InvoiceDeliveryRequestedDomainEvent` — used internally to trigger the delivery side-effect via outbox (`SendEmailNotificationCommand` to `notifications.email-commands`; receiving end documented in [notifications.md](notifications.md))
+- `InvoiceDeliveryRequestedDomainEvent` — used internally to trigger the delivery side-effect via outbox (`NotifyUserCommand` to `notifications.notify-commands`, carrying the producer-assigned `NotificationId`; v2 — [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md); receiving end documented in [notifications.md](notifications.md))
 - `InvoiceDeliveredDomainEvent` — delivery confirmed
 - `InvoiceCancelledDomainEvent` — aggregate → `Cancelled`
 - `CreditNoteCreatedDomainEvent` — a new credit note was created against an invoice
@@ -139,10 +139,10 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
-| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | **No v1 consumer** — a BFF invoice cache is planned-not-v1 (the v1 BFF defines no invoice endpoint/cache; see [events-catalog.md § 5.8](events-catalog.md)) and would consume this topic if added. Invoice-delivery email flows via the command-driven pattern (Invoicing → `SendEmailNotificationCommand` → Notifications), NOT a Notifications subscription to this topic — see [notifications.md § 2](notifications.md). |
+| `InvoiceIssuedEvent` | `InvoiceIssuedDomainEvent` | **No v1 consumer** — a BFF invoice cache is planned-not-v1 (the v1 BFF defines no invoice endpoint/cache; see [events-catalog.md § 5.8](events-catalog.md)) and would consume this topic if added. Invoice-delivery email flows via the command-driven pattern (Invoicing → `NotifyUserCommand` → Notifications; v2 ADR-0031), NOT a Notifications subscription to this topic — see [notifications.md § 2](notifications.md). |
 | `InvoiceDeliveredEvent` | `InvoiceDeliveredDomainEvent` | **No v1 consumer** (a BFF "my invoices" cache is planned-not-v1). |
-| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
-| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md)). |
+| `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `NotifyUserCommand` per [notifications.md § 2](notifications.md)). |
+| `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `NotifyUserCommand` per [notifications.md § 2](notifications.md)). |
 
 **Schema compatibility:** FORWARD_TRANSITIVE.
 
@@ -285,7 +285,7 @@ Table `invoicing.invoice_delivery_log`:
 | `Outcome` | `text` | `delivered`, `bounced`, `failed` |
 | `Detail` | `text` | Free-form (bounce reason, etc.) |
 
-`ResendInvoiceCommandHandler` selects `MAX(Attempt)` for `(InvoiceId, Channel)` and inserts `Attempt = max + 1`. The `SendEmailNotificationCommand`'s `IdempotencyKey` carries `(InvoiceId, Channel, Attempt)` to dedup at the Notifications inbox (per [notifications.md § 4.2](notifications.md)).
+`ResendInvoiceCommandHandler` selects `MAX(Attempt)` for `(InvoiceId, Channel)` and inserts `Attempt = max + 1`. In v2 each resend mints a **fresh `NotificationId`** on the `NotifyUserCommand` (producer-assigned, [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)); dedup is the `message.id` header at the Notifications inbox plus the per-channel ledger — **not** a payload key. (`ResendInvoice` is a documented future seam — a no-op stub today.)
 
 ---
 
@@ -387,7 +387,7 @@ Ordering                 Payments
             ▼
    InvoiceIssuedEvent  (emitted to invoicing.invoices — no v1 consumer)
    InvoiceDeliveryRequestedDomainEvent
-        ──▶  SendEmailNotificationCommand  ──▶  Notifications  ──▶  EmailNotificationSentEvent
+        ──▶  NotifyUserCommand  ──▶  Notifications  ──▶  NotificationDeliveryStatusChangedEvent
                                                                           │
                                                                           ▼
                                                                    Invoicing transitions
