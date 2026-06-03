@@ -24,25 +24,25 @@ namespace Checkout.Sagas
 				"ded) or Compensated (full rollback). CompensationTriggered distinguishes the two" +
 				" outcomes per checkout-saga.md § 9.1. Subscribed by Notifications and BFF.\",\"nam" +
 				"espace\":\"Checkout.Sagas\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Saga correlati" +
-				"on id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008.\",\"" +
-				"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering " +
-				"aggregate id - default zero-uuid when the saga failed before the Order was creat" +
-				"ed.\",\"default\":\"00000000-0000-0000-0000-000000000000\",\"type\":{\"type\":\"string\",\"l" +
-				"ogicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User who initiated the checkout.\",\"" +
-				"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ErrorCode\",\"doc\":\"Categor" +
-				"ised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, ORDER_CREATION_TIMEO" +
-				"UT, CONFIRMATION_FAILED).\",\"type\":\"string\"},{\"name\":\"ErrorMessage\",\"doc\":\"Human-" +
-				"readable failure message.\",\"type\":\"string\"},{\"name\":\"FailedAtState\",\"doc\":\"Name " +
-				"of the state when failure first occurred. Aids ops forensics.\",\"type\":\"string\"}," +
-				"{\"name\":\"CompensationTriggered\",\"doc\":\"True when the saga reached Compensated (f" +
-				"ull rollback executed); false when the saga reached Failed (no downstream side e" +
-				"ffects to compensate).\",\"type\":\"boolean\"},{\"name\":\"InitiatedAtUtc\",\"doc\":\"UTC ti" +
-				"mestamp when the saga was first initiated.\",\"type\":{\"type\":\"long\",\"logicalType\":" +
-				"\"timestamp-millis\"}},{\"name\":\"FailedAtUtc\",\"doc\":\"UTC timestamp when the saga re" +
-				"ached its terminal failure state.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestam" +
-				"p-millis\"}}]}");
+				"on id - equals the checkout\'s pre-assigned OrderId (BasketCheckoutInitiatedEvent" +
+				".OrderId) per ADR-0029.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":" +
+				"\"OrderId\",\"doc\":\"Ordering aggregate id - default zero-uuid when the saga failed " +
+				"before the Order was created.\",\"default\":\"00000000-0000-0000-0000-000000000000\"," +
+				"\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User who " +
+				"initiated the checkout.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":" +
+				"\"ErrorCode\",\"doc\":\"Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FA" +
+				"ILED, ORDER_CREATION_TIMEOUT, CONFIRMATION_FAILED).\",\"type\":\"string\"},{\"name\":\"E" +
+				"rrorMessage\",\"doc\":\"Human-readable failure message.\",\"type\":\"string\"},{\"name\":\"F" +
+				"ailedAtState\",\"doc\":\"Name of the state when failure first occurred. Aids ops for" +
+				"ensics.\",\"type\":\"string\"},{\"name\":\"CompensationTriggered\",\"doc\":\"True when the s" +
+				"aga reached Compensated (full rollback executed); false when the saga reached Fa" +
+				"iled (no downstream side effects to compensate).\",\"type\":\"boolean\"},{\"name\":\"Ini" +
+				"tiatedAtUtc\",\"doc\":\"UTC timestamp when the saga was first initiated.\",\"type\":{\"t" +
+				"ype\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"FailedAtUtc\",\"doc\":\"UTC " +
+				"timestamp when the saga reached its terminal failure state.\",\"type\":{\"type\":\"lon" +
+				"g\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008.
+		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
 		/// </summary>
 		private System.Guid _CorrelationId;
 		/// <summary>
@@ -85,7 +85,7 @@ namespace Checkout.Sagas
 			}
 		}
 		/// <summary>
-		/// Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008.
+		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
 		/// </summary>
 		public System.Guid CorrelationId
 		{

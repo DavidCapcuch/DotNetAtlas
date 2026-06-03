@@ -3,7 +3,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// <summary>
 /// Internal saga event that initiates the Checkout saga. Adapted from the external
 /// <c>Basket.Sessions.BasketCheckoutInitiatedEvent</c> by the consumer adapter, which maps
-/// the basket's <c>BasketCorrelationId</c> onto <see cref="CorrelationId"/>. Consumed in the
+/// the basket's pre-assigned <c>OrderId</c> onto <see cref="CorrelationId"/>. Consumed in the
 /// <c>Initial</c> state (transition to <c>AwaitingOrderCreation</c> per
 /// docs/bc-design/checkout-saga.md § 4 transition table). This is the saga's only initiator —
 /// no <c>OnMissingInstance</c> policy is configured because the <c>Initially(...)</c> block
@@ -12,7 +12,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 public sealed record BasketCheckoutInitiatedSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - equals the basket's <c>BasketCorrelationId</c> (UUID v7) per ADR-0008.
+    /// Saga correlation id - equals the basket's pre-assigned <c>OrderId</c> (UUID v7) per ADR-0029.
     /// Threads through every downstream command/event for the lifetime of the workflow.
     /// </summary>
     public required Guid CorrelationId { get; init; }

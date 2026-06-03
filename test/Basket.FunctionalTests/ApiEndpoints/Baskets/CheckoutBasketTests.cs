@@ -33,8 +33,7 @@ public class CheckoutBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
-        var correlationId = Guid.CreateVersion7();
-        var checkoutRequest = ValidCheckoutRequest(correlationId);
+        var checkoutRequest = ValidCheckoutRequest();
 
         client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.CreateVersion7().ToString());
 
@@ -46,7 +45,9 @@ public class CheckoutBasketTests : BaseApiTest
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-            body.CorrelationId.Should().Be(correlationId);
+            // ADR-0029: the OrderId is server-allocated (UUID v7), not chosen by the caller.
+            body.OrderId.Should().NotBe(Guid.Empty);
+            body.OrderId.Version.Should().Be(7);
 
             var redisKeyExists = await Fixture.RedisBasketDb.KeyExistsAsync($"basket:{userId}");
             redisKeyExists.Should().BeFalse("post-checkout cleanup deletes the Redis aggregate key");
@@ -72,7 +73,7 @@ public class CheckoutBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
-        var checkoutRequest = ValidCheckoutRequest(Guid.CreateVersion7());
+        var checkoutRequest = ValidCheckoutRequest();
 
         // No Idempotency-Key header — FastEndpoints' .Idempotency() filter rejects.
         // Act
@@ -101,8 +102,7 @@ public class CheckoutBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
-        var correlationId = Guid.CreateVersion7();
-        var checkoutRequest = ValidCheckoutRequest(correlationId);
+        var checkoutRequest = ValidCheckoutRequest();
 
         var idempotencyKey = Guid.CreateVersion7().ToString();
         client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
@@ -119,7 +119,7 @@ public class CheckoutBasketTests : BaseApiTest
         using (new AssertionScope())
         {
             firstResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
-            firstBody.CorrelationId.Should().Be(correlationId);
+            firstBody.OrderId.Should().NotBe(Guid.Empty);
 
             // Either path is acceptable: 202 (cached replay) OR a 4xx (handler ran and
             // basket was already deleted). Critical invariant is the outbox row count.
@@ -165,10 +165,10 @@ public class CheckoutBasketTests : BaseApiTest
 
         var (aliceResponse, _) = await aliceClient
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(
-                ValidCheckoutRequest(Guid.CreateVersion7()));
+                ValidCheckoutRequest());
         var (bobResponse, _) = await bobClient
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(
-                ValidCheckoutRequest(Guid.CreateVersion7()));
+                ValidCheckoutRequest());
 
         using (new AssertionScope())
         {
@@ -205,7 +205,7 @@ public class CheckoutBasketTests : BaseApiTest
             "/api/v1/basket/items",
             TestContext.Current.CancellationToken);
 
-        var checkoutRequest = ValidCheckoutRequest(Guid.CreateVersion7());
+        var checkoutRequest = ValidCheckoutRequest();
         client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.CreateVersion7().ToString());
 
         // Act
@@ -220,30 +220,7 @@ public class CheckoutBasketTests : BaseApiTest
         }
     }
 
-    [Fact]
-    public async Task WhenCorrelationIdIsV4_ReturnsValidationError()
-    {
-        // Arrange
-        var userId = Guid.CreateVersion7();
-        var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
-
-        var client = HttpClientRegistry.RegularUserAuthClient(userId);
-        await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
-            new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
-
-        var checkoutRequest = ValidCheckoutRequest(Guid.NewGuid());
-        client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.CreateVersion7().ToString());
-
-        // Act
-        var (response, _) = await client
-            .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, ProblemDetails>(checkoutRequest);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-    }
-
-    private static CheckoutBasketRequest ValidCheckoutRequest(Guid correlationId)
+    private static CheckoutBasketRequest ValidCheckoutRequest()
     {
         var address = new CheckoutAddressDto
         {
@@ -255,7 +232,6 @@ public class CheckoutBasketTests : BaseApiTest
 
         return new CheckoutBasketRequest
         {
-            CorrelationId = correlationId,
             ShippingAddress = address,
             BillingAddress = address,
             PaymentMethodId = Guid.CreateVersion7(),

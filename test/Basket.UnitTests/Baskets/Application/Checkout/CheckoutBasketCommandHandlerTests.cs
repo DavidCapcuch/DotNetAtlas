@@ -2,6 +2,7 @@ using Basket.Application.Abstractions;
 using Basket.Application.Baskets.Checkout;
 using Basket.Application.Common.Data;
 using Basket.Domain.Baskets.Errors;
+using Basket.Domain.Baskets.Events;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -61,7 +62,6 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
 
     private static CheckoutBasketCommand ValidCommand(Guid userId) => new(
         userId,
-        Guid.CreateVersion7(),
         ApplicationTestData.AddressDto(),
         ApplicationTestData.AddressDto("CZ"),
         Guid.CreateVersion7());
@@ -88,7 +88,8 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            result.Value.Should().Be(cmd.CorrelationId);
+            // Handler allocates the pre-assigned OrderId (ADR-0029); it is returned to the caller.
+            result.Value.Should().NotBe(Guid.Empty);
 
             // CAS guard: SaveAsync is called with the version captured BEFORE Checkout().
             // Without this, two parallel checkouts would each write an outbox row.
@@ -100,6 +101,42 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
                 Arg.Any<DomainEvent>(), Arg.Any<CancellationToken>());
             await _outbox.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
             await _repo.Received(1).DeleteAsync(userId, Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Fact]
+    public async Task Handle_AllocatesVersion7OrderId_AndCarriesItOnTheDispatchedEvent()
+    {
+        // ADR-0029: the OrderId is pre-assigned by Basket's checkout handler (UUID v7),
+        // not supplied by the caller. The same id flows onto BasketCheckedOutDomainEvent
+        // so the outbox publisher stamps it onto the integration event.
+        var userId = Guid.CreateVersion7();
+        var basket = BasketAggregate.Create(userId, Now);
+        basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
+        _ = basket.PopDomainEvents();
+
+        _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(Result.Ok<BasketAggregate?>(basket));
+        _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Ok());
+        _outbox.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+        _repo.DeleteAsync(userId, Arg.Any<CancellationToken>()).Returns(Result.Ok());
+
+        var result = await CreateSut().HandleAsync(
+            ValidCommand(userId),
+            TestContext.Current.CancellationToken);
+
+        var dispatched = _dispatcher.ReceivedCalls()
+            .Select(c => c.GetArguments()[0])
+            .OfType<BasketCheckedOutDomainEvent>()
+            .Single();
+
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            result.Value.Should().NotBe(Guid.Empty);
+            result.Value.Version.Should().Be(7, "the pre-assigned OrderId is a UUID v7");
+            dispatched.OrderId.Should().Be(result.Value);
         }
     }
 

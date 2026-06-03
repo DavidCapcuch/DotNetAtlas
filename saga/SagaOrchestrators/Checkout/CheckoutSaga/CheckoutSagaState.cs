@@ -8,13 +8,13 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga;
 /// Represents the state of the <see cref="CheckoutSagaOrchestrator"/>. The Checkout saga
 /// turns a <c>BasketCheckoutInitiatedEvent</c> into either a <see cref="OrderId"/>-bound
 /// confirmed order or a fully-compensated rollback. The <see cref="CorrelationId"/> equals
-/// the basket's <c>BasketCorrelationId</c> (UUID v7) per ADR-0008 and threads through every
+/// the basket's pre-assigned <c>OrderId</c> (UUID v7) per ADR-0029 and threads through every
 /// downstream command/event.
 /// </summary>
 public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
 {
     /// <summary>
-    /// Uniquely identifies the saga instance. Equals BasketCheckoutInitiatedEvent.BasketCorrelationId.
+    /// Uniquely identifies the saga instance. Equals BasketCheckoutInitiatedEvent.OrderId (ADR-0029).
     /// Immutable after first set.
     /// </summary>
     public Guid CorrelationId { get; set; }

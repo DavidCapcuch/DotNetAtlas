@@ -24,23 +24,24 @@ namespace Checkout.Sagas
 				"tinct from Ordering\'s OrderConfirmedEvent because it carries saga-level fields (" +
 				"PaymentTransactionId, ReservationIdsJson) per checkout-saga.md § 9.1. Subscribed" +
 				" by Notifications and BFF.\",\"namespace\":\"Checkout.Sagas\",\"fields\":[{\"name\":\"Corr" +
-				"elationId\",\"doc\":\"Saga correlation id - equals BasketCheckoutInitiatedEvent.Bask" +
-				"etCorrelationId per ADR-0008.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"" +
-				"name\":\"OrderId\",\"doc\":\"Ordering aggregate id confirmed by the saga.\",\"type\":{\"ty" +
-				"pe\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User who initiated t" +
-				"he checkout.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"PaymentTra" +
-				"nsactionId\",\"doc\":\"Payment transaction id from the PaymentProcessingSaga capture" +
-				".\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ReservationIdsJson\",\"" +
-				"doc\":\"Serialized list of {ProductId, ReservationId} for the confirmed reservatio" +
-				"ns - opaque payload for downstream analytics.\",\"type\":\"string\"},{\"name\":\"TotalAm" +
-				"ount\",\"doc\":\"Total amount confirmed for the checkout.\",\"type\":{\"type\":\"bytes\",\"l" +
-				"ogicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4" +
-				"217 currency code.\",\"type\":\"string\"},{\"name\":\"InitiatedAtUtc\",\"doc\":\"UTC timesta" +
-				"mp when the saga was first initiated.\",\"type\":{\"type\":\"long\",\"logicalType\":\"time" +
-				"stamp-millis\"}},{\"name\":\"ConfirmedAtUtc\",\"doc\":\"UTC timestamp when the saga reac" +
-				"hed Confirmed.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
+				"elationId\",\"doc\":\"Saga correlation id - equals the checkout\'s pre-assigned Order" +
+				"Id (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.\",\"type\":{\"type\":\"string\"" +
+				",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate id confirmed" +
+				" by the saga.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"" +
+				"doc\":\"User who initiated the checkout.\",\"type\":{\"type\":\"string\",\"logicalType\":\"u" +
+				"uid\"}},{\"name\":\"PaymentTransactionId\",\"doc\":\"Payment transaction id from the Pay" +
+				"mentProcessingSaga capture.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"na" +
+				"me\":\"ReservationIdsJson\",\"doc\":\"Serialized list of {ProductId, ReservationId} fo" +
+				"r the confirmed reservations - opaque payload for downstream analytics.\",\"type\":" +
+				"\"string\"},{\"name\":\"TotalAmount\",\"doc\":\"Total amount confirmed for the checkout.\"" +
+				",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"nam" +
+				"e\":\"Currency\",\"doc\":\"ISO 4217 currency code.\",\"type\":\"string\"},{\"name\":\"Initiate" +
+				"dAtUtc\",\"doc\":\"UTC timestamp when the saga was first initiated.\",\"type\":{\"type\":" +
+				"\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"ConfirmedAtUtc\",\"doc\":\"UTC ti" +
+				"mestamp when the saga reached Confirmed.\",\"type\":{\"type\":\"long\",\"logicalType\":\"t" +
+				"imestamp-millis\"}}]}");
 		/// <summary>
-		/// Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008.
+		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
 		/// </summary>
 		private System.Guid _CorrelationId;
 		/// <summary>
@@ -83,7 +84,7 @@ namespace Checkout.Sagas
 			}
 		}
 		/// <summary>
-		/// Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008.
+		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
 		/// </summary>
 		public System.Guid CorrelationId
 		{

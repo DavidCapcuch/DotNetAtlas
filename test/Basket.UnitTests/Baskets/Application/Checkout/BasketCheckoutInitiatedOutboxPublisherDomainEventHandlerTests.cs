@@ -34,7 +34,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
             NullLogger<BasketCheckoutInitiatedOutboxPublisherDomainEventHandler>.Instance);
 
         var userId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
         var snapshot = ProductSnapshot.Create("SKU", "N", Money.Create(10m, CurrencyCode.Usd).Value, capturedAt);
@@ -48,7 +48,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         {
             OccurredOnUtc = capturedAt,
             UserId = userId,
-            CorrelationId = correlationId,
+            OrderId = orderId,
             Snapshot = basketSnapshot,
             ShippingAddress = address,
             BillingAddress = address,
@@ -63,7 +63,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
                 Arg.Is<string>(t => t == "basket.sessions"),
                 Arg.Is<string>(k => k == userId.ToString()),
                 Arg.Is<Basket.Sessions.BasketCheckoutInitiatedEvent>(e =>
-                    e.BasketCorrelationId == correlationId
+                    e.OrderId == orderId
                     && e.UserId == userId
                     && e.Items.Count == 1));
         }
@@ -104,7 +104,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         {
             OccurredOnUtc = capturedAt,
             UserId = Guid.CreateVersion7(),
-            CorrelationId = Guid.CreateVersion7(),
+            OrderId = Guid.CreateVersion7(),
             Snapshot = basketSnapshot,
             ShippingAddress = address,
             BillingAddress = address,

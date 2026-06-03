@@ -132,7 +132,6 @@ public class ValidatorsTests
         var v = new CheckoutBasketCommandValidator();
         var cmd = new CheckoutBasketCommand(
             UserId,
-            Guid.CreateVersion7(),
             ApplicationTestData.AddressDto(),
             ApplicationTestData.AddressDto(),
             Guid.CreateVersion7());
@@ -141,41 +140,11 @@ public class ValidatorsTests
     }
 
     [Fact]
-    public void Checkout_NonVersion7CorrelationId_Fails()
-    {
-        var v = new CheckoutBasketCommandValidator();
-        var v4 = Guid.NewGuid(); // Version 4
-        var cmd = new CheckoutBasketCommand(
-            UserId,
-            v4,
-            ApplicationTestData.AddressDto(),
-            ApplicationTestData.AddressDto(),
-            Guid.CreateVersion7());
-
-        v.Validate(cmd).IsValid.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Checkout_EmptyCorrelationId_Fails()
-    {
-        var v = new CheckoutBasketCommandValidator();
-        var cmd = new CheckoutBasketCommand(
-            UserId,
-            Guid.Empty,
-            ApplicationTestData.AddressDto(),
-            ApplicationTestData.AddressDto(),
-            Guid.CreateVersion7());
-
-        v.Validate(cmd).IsValid.Should().BeFalse();
-    }
-
-    [Fact]
     public void Checkout_EmptyPaymentMethodId_Fails()
     {
         var v = new CheckoutBasketCommandValidator();
         var cmd = new CheckoutBasketCommand(
             UserId,
-            Guid.CreateVersion7(),
             ApplicationTestData.AddressDto(),
             ApplicationTestData.AddressDto(),
             Guid.Empty);
@@ -192,7 +161,6 @@ public class ValidatorsTests
         var v = new CheckoutBasketCommandValidator();
         var cmd = new CheckoutBasketCommand(
             UserId,
-            Guid.CreateVersion7(),
             new CheckoutAddressDto
             {
                 Street1 = "S",
@@ -212,7 +180,6 @@ public class ValidatorsTests
         var v = new CheckoutBasketCommandValidator();
         var cmd = new CheckoutBasketCommand(
             UserId,
-            Guid.CreateVersion7(),
             new CheckoutAddressDto
             {
                 Street1 = "",
@@ -232,7 +199,6 @@ public class ValidatorsTests
         var v = new CheckoutBasketCommandValidator();
         var cmd = new CheckoutBasketCommand(
             UserId,
-            Guid.CreateVersion7(),
             new CheckoutAddressDto
             {
                 Street1 = new string('a', 201), // exceeds Address.Create's 200-char ceiling

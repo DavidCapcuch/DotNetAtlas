@@ -10,7 +10,7 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Saga correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId per ADR-0008."
+            "doc": "Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029."
         },
         {
             "name": "OrderId",

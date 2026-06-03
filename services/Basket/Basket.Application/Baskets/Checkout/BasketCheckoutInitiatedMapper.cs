@@ -34,7 +34,7 @@ internal static class BasketCheckoutInitiatedMapper
 
         return new Basket.Sessions.BasketCheckoutInitiatedEvent
         {
-            BasketCorrelationId = src.CorrelationId,
+            OrderId = src.OrderId,
             UserId = src.UserId,
             Items = snapshot.Items.Select(MapItem).ToList(),
             TotalAmount = new AvroDecimal(snapshot.Total.Amount.Amount),

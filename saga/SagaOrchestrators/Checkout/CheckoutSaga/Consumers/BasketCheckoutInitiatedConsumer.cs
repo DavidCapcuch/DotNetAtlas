@@ -9,8 +9,8 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
 /// <summary>
 /// Consumer that receives <see cref="BasketCheckoutInitiatedEvent"/> from
 /// <c>basket.sessions</c> and forwards it to the <see cref="CheckoutSagaOrchestrator"/> as the
-/// initiator <see cref="BasketCheckoutInitiatedSagaEvent"/>. Maps Basket's
-/// <c>BasketCorrelationId</c> onto the saga's <c>CorrelationId</c> per
+/// initiator <see cref="BasketCheckoutInitiatedSagaEvent"/>. Maps Basket's pre-assigned
+/// <c>OrderId</c> (ADR-0029) onto the saga's <c>CorrelationId</c> per
 /// docs/bc-design/checkout-saga.md § 8 row 1. Address payloads (PII per ADR-0011) are
 /// serialised to opaque JSON strings and never logged — the <c>Initially(...)</c> handler
 /// persists them, terminal-state handlers null them out per the retention rule.
@@ -31,7 +31,7 @@ public sealed class BasketCheckoutInitiatedConsumer : IConsumer<BasketCheckoutIn
         _logger.LogInformation(
             "{ConsumerType} received {EventType} for correlation {CorrelationId}, user {UserId}, item count {ItemCount}, total {TotalAmount} {Currency}",
             nameof(BasketCheckoutInitiatedConsumer), nameof(BasketCheckoutInitiatedEvent),
-            message.BasketCorrelationId, message.UserId, message.Items.Count,
+            message.OrderId, message.UserId, message.Items.Count,
             (decimal)message.TotalAmount, message.Currency);
 
         var basketSnapshotJson = JsonSerializer.Serialize(
@@ -46,7 +46,7 @@ public sealed class BasketCheckoutInitiatedConsumer : IConsumer<BasketCheckoutIn
 
         var sagaEvent = new BasketCheckoutInitiatedSagaEvent
         {
-            CorrelationId = message.BasketCorrelationId,
+            CorrelationId = message.OrderId,
             UserId = message.UserId,
             BasketSnapshotJson = basketSnapshotJson,
             TotalAmount = (decimal)message.TotalAmount,

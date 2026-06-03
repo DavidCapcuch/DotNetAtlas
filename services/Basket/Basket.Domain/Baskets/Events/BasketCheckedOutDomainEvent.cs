@@ -26,10 +26,11 @@ public sealed record BasketCheckedOutDomainEvent : DomainEvent
     public required Guid UserId { get; init; }
 
     /// <summary>
-    /// Correlation identifier supplied by the caller (typically <c>Guid.CreateVersion7()</c>
-    /// from the API layer). Becomes the Checkout Saga's correlation id.
+    /// Pre-assigned Order identity (UUID v7) allocated by the checkout command handler.
+    /// It is the Order's identity from birth and becomes the Checkout Saga's correlation
+    /// id (ADR-0029).
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Full snapshot of the basket at the moment of checkout.

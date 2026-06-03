@@ -19,7 +19,7 @@ public class BasketCheckoutInitiatedMapperTests
     public void ToAvroEvent_PopulatesEveryFieldCorrectly()
     {
         var userId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
 
@@ -38,7 +38,7 @@ public class BasketCheckoutInitiatedMapperTests
         var domainEvent = new BasketCheckedOutDomainEvent
         {
             UserId = userId,
-            CorrelationId = correlationId,
+            OrderId = orderId,
             Snapshot = basketSnapshot,
             ShippingAddress = shipping,
             BillingAddress = billing,
@@ -50,7 +50,7 @@ public class BasketCheckoutInitiatedMapperTests
 
         using (new AssertionScope())
         {
-            avro.BasketCorrelationId.Should().Be(correlationId);
+            avro.OrderId.Should().Be(orderId);
             avro.UserId.Should().Be(userId);
             avro.PaymentMethodId.Should().Be(paymentMethodId);
             avro.Currency.Should().Be("USD");
@@ -104,7 +104,7 @@ public class BasketCheckoutInitiatedMapperTests
         {
             OccurredOnUtc = capturedAt,
             UserId = Guid.CreateVersion7(),
-            CorrelationId = Guid.CreateVersion7(),
+            OrderId = Guid.CreateVersion7(),
             Snapshot = snap,
             ShippingAddress = addr,
             BillingAddress = addr,
