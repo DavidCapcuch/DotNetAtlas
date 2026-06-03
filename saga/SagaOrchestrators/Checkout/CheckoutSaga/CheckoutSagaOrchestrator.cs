@@ -1018,6 +1018,9 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
 
         return new CreateOrderCommand
         {
+            // ADR-0029: the saga's CorrelationId == the pre-assigned OrderId; Ordering
+            // persists the Order under this supplied id (client-assigned identity).
+            OrderId = saga.CorrelationId,
             CorrelationId = saga.CorrelationId,
             BuyerId = saga.UserId,
             Items = items.Select(MapBasketItem).ToList<CreateOrderItem>(),

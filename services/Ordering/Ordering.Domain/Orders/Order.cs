@@ -77,15 +77,19 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
 
     /// <summary>
     /// Creates a new <see cref="Order"/> in <see cref="OrderStatus.Created"/>
-    /// from a <see cref="BasketSnapshot"/>. Invariants I-6..I-9 are enforced
-    /// here as bug-class (<see cref="DataIntegrityException"/>): Basket / BFF
-    /// should have already validated them, so a failure reaching this factory
-    /// is a system bug, not a user error.
+    /// from a <see cref="BasketSnapshot"/>. The <paramref name="orderId"/> is
+    /// client-assigned (pre-allocated at checkout initiation, UUID v7) and
+    /// persisted as the aggregate identity rather than minted here — see
+    /// ADR-0029. Invariants I-6..I-9 are enforced here as bug-class
+    /// (<see cref="DataIntegrityException"/>): Basket / BFF should have already
+    /// validated them, so a failure reaching this factory is a system bug, not
+    /// a user error.
     /// </summary>
     /// <remarks>
     /// Raises <see cref="OrderCreatedDomainEvent"/> on success.
     /// </remarks>
     public static Order CreateFromBasket(
+        Guid orderId,
         Guid correlationId,
         Guid buyerId,
         BasketSnapshot basket,
@@ -104,6 +108,9 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             "BasketSnapshot.Currency must not be null."));
         var currency = basket.Currency!;
 
+        Throw.If(orderId == Guid.Empty, new DataIntegrityException(
+            "Order.OrderIdEmpty",
+            "OrderId must not be empty."));
         Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
             "Order.CorrelationIdEmpty",
             "CorrelationId must not be empty."));
@@ -161,7 +168,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
 
         var order = new Order
         {
-            Id = Guid.CreateVersion7(),
+            Id = orderId,
             BuyerId = buyerId,
             CorrelationId = correlationId,
             PaymentMethodId = paymentMethodId,

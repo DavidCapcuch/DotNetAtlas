@@ -141,6 +141,7 @@ public sealed class HappyPathIntegrationTests
 
     private static AvroCreateOrderCommand NewValidCreateCommand(Guid correlationId) => new()
     {
+        OrderId = correlationId,
         CorrelationId = correlationId,
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),

@@ -10,6 +10,7 @@ public class CreateOrderCommandValidatorTests
 
     private static CreateOrderCommand Valid() => new()
     {
+        OrderId = Guid.CreateVersion7(),
         CorrelationId = Guid.CreateVersion7(),
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),
@@ -31,6 +32,13 @@ public class CreateOrderCommandValidatorTests
     {
         var c = Valid() with { Items = [] };
         _validator.TestValidate(c).ShouldHaveValidationErrorFor(x => x.Items);
+    }
+
+    [Fact]
+    public void Validate_EmptyOrderId_Fails()
+    {
+        var c = Valid() with { OrderId = Guid.Empty };
+        _validator.TestValidate(c).ShouldHaveValidationErrorFor(x => x.OrderId);
     }
 
     [Fact]

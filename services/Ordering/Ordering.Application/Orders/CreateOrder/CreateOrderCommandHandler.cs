@@ -72,6 +72,7 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
         // and the downstream OrderCreatedEvent. Clock drift between the
         // saga and Ordering pods does not silently rewrite history.
         var order = Order.CreateFromBasket(
+            command.OrderId,
             command.CorrelationId,
             command.BuyerId,
             basket,

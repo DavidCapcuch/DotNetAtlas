@@ -2,15 +2,23 @@
     "type": "record",
     "name": "CreateOrderCommand",
     "namespace": "Ordering.Orders",
-    "doc": "Command issued by the Checkout saga to create a new Order from a BasketSnapshot. Ordering responds by persisting the Order aggregate and publishing OrderCreatedEvent. The saga correlates the resulting OrderCreatedEvent by CorrelationId.",
+    "doc": "Command issued by the Checkout saga to create a new Order from a BasketSnapshot. Ordering responds by persisting the Order aggregate and publishing OrderCreatedEvent. The saga correlates the resulting OrderCreatedEvent by OrderId (ADR-0029).",
     "fields": [
+        {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id; equals CorrelationId (ADR-0029)."
+        },
         {
             "name": "CorrelationId",
             "type": {
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Checkout saga correlation id. Becomes Order.CorrelationId. Primary saga correlation key."
+            "doc": "Checkout saga correlation id. Becomes Order.CorrelationId. Equals OrderId per ADR-0029."
         },
         {
             "name": "BuyerId",

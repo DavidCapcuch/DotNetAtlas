@@ -36,6 +36,7 @@ internal static class OrderTestFactory
             Items: items.Length == 0 ? [Item()] : items);
 
     public static Order NewOrder() => Order.CreateFromBasket(
+        orderId: Guid.CreateVersion7(),
         correlationId: Guid.CreateVersion7(),
         buyerId: Guid.CreateVersion7(),
         basket: Basket(),

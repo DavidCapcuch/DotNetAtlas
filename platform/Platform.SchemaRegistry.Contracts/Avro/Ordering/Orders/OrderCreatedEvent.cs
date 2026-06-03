@@ -14,41 +14,42 @@ namespace Ordering.Orders
 	using global::Avro.Specific;
 	
 	/// <summary>
-	/// Emitted when a new Order is created from a Basket checkout. Starts the Checkout saga instance.
+	/// Emitted when a new Order is created from a Basket checkout. The Checkout saga correlates it by OrderId (ADR-0029).
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class OrderCreatedEvent : global::Avro.Specific.ISpecificRecord
 	{
 		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"OrderCreatedEvent\",\"doc\":\"Emitted when a new Order is cr" +
-				"eated from a Basket checkout. Starts the Checkout saga instance.\",\"namespace\":\"O" +
-				"rdering.Orders\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Unique identifier of the Orde" +
-				"r.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\"" +
-				":\"Checkout saga correlation id.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}}," +
-				"{\"name\":\"BuyerId\",\"doc\":\"User who placed the order (JWT sub).\",\"type\":{\"type\":\"s" +
-				"tring\",\"logicalType\":\"uuid\"}},{\"name\":\"Items\",\"doc\":\"Order line items with froze" +
-				"n product snapshots and prices.\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\"" +
-				",\"name\":\"OrderItemCreated\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"name\":\"Prod" +
-				"uctId\",\"doc\":\"Catalog product identifier for this line.\",\"type\":{\"type\":\"string\"" +
-				",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU snapshot at order creat" +
-				"ion time.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"Product display name snapshot " +
-				"at order creation time.\",\"type\":\"string\"},{\"name\":\"Quantity\",\"doc\":\"Quantity of " +
-				"this line (>= 1).\",\"type\":\"int\"},{\"name\":\"UnitPriceAmount\",\"doc\":\"Per-unit price" +
-				" amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":" +
-				"4}},{\"name\":\"LineTotalAmount\",\"doc\":\"UnitPriceAmount * Quantity, pre-computed.\"," +
-				"\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}}]}}},{\"" +
-				"name\":\"TotalAmount\",\"doc\":\"Total order amount (sum of LineTotalAmount).\",\"type\":" +
-				"{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Curr" +
-				"ency\",\"doc\":\"ISO 4217 currency code shared by all items.\",\"type\":\"string\"},{\"nam" +
-				"e\":\"PaymentMethodId\",\"doc\":\"Payments-side payment method reference.\",\"type\":{\"ty" +
-				"pe\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CreatedAtUtc\",\"doc\":\"UTC timestamp " +
-				"when the order was created.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-mill" +
-				"is\"}}]}");
+				"eated from a Basket checkout. The Checkout saga correlates it by OrderId (ADR-00" +
+				"29).\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Unique id" +
+				"entifier of the Order; the Checkout saga\'s correlation key (ADR-0029).\",\"type\":{" +
+				"\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\":\"Checkout s" +
+				"aga correlation id. Equals OrderId per ADR-0029.\",\"type\":{\"type\":\"string\",\"logic" +
+				"alType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"User who placed the order (JWT sub).\"," +
+				"\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Items\",\"doc\":\"Order line" +
+				" items with frozen product snapshots and prices.\",\"type\":{\"type\":\"array\",\"items\"" +
+				":{\"type\":\"record\",\"name\":\"OrderItemCreated\",\"namespace\":\"Ordering.Orders\",\"field" +
+				"s\":[{\"name\":\"ProductId\",\"doc\":\"Catalog product identifier for this line.\",\"type\"" +
+				":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU snapsh" +
+				"ot at order creation time.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"Product displ" +
+				"ay name snapshot at order creation time.\",\"type\":\"string\"},{\"name\":\"Quantity\",\"d" +
+				"oc\":\"Quantity of this line (>= 1).\",\"type\":\"int\"},{\"name\":\"UnitPriceAmount\",\"doc" +
+				"\":\"Per-unit price amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"preci" +
+				"sion\":19,\"scale\":4}},{\"name\":\"LineTotalAmount\",\"doc\":\"UnitPriceAmount * Quantity" +
+				", pre-computed.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"" +
+				"scale\":4}}]}}},{\"name\":\"TotalAmount\",\"doc\":\"Total order amount (sum of LineTotal" +
+				"Amount).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":" +
+				"4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code shared by all items.\",\"type" +
+				"\":\"string\"},{\"name\":\"PaymentMethodId\",\"doc\":\"Payments-side payment method refere" +
+				"nce.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CreatedAtUtc\",\"doc" +
+				"\":\"UTC timestamp when the order was created.\",\"type\":{\"type\":\"long\",\"logicalType" +
+				"\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Unique identifier of the Order.
+		/// Unique identifier of the Order; the Checkout saga's correlation key (ADR-0029).
 		/// </summary>
 		private System.Guid _OrderId;
 		/// <summary>
-		/// Checkout saga correlation id.
+		/// Checkout saga correlation id. Equals OrderId per ADR-0029.
 		/// </summary>
 		private System.Guid _CorrelationId;
 		/// <summary>
@@ -83,7 +84,7 @@ namespace Ordering.Orders
 			}
 		}
 		/// <summary>
-		/// Unique identifier of the Order.
+		/// Unique identifier of the Order; the Checkout saga's correlation key (ADR-0029).
 		/// </summary>
 		public System.Guid OrderId
 		{
@@ -97,7 +98,7 @@ namespace Ordering.Orders
 			}
 		}
 		/// <summary>
-		/// Checkout saga correlation id.
+		/// Checkout saga correlation id. Equals OrderId per ADR-0029.
 		/// </summary>
 		public System.Guid CorrelationId
 		{

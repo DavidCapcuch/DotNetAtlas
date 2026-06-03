@@ -2,7 +2,7 @@
     "type": "record",
     "name": "OrderCreatedEvent",
     "namespace": "Ordering.Orders",
-    "doc": "Emitted when a new Order is created from a Basket checkout. Starts the Checkout saga instance.",
+    "doc": "Emitted when a new Order is created from a Basket checkout. The Checkout saga correlates it by OrderId (ADR-0029).",
     "fields": [
         {
             "name": "OrderId",
@@ -10,7 +10,7 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Unique identifier of the Order."
+            "doc": "Unique identifier of the Order; the Checkout saga's correlation key (ADR-0029)."
         },
         {
             "name": "CorrelationId",
@@ -18,7 +18,7 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Checkout saga correlation id."
+            "doc": "Checkout saga correlation id. Equals OrderId per ADR-0029."
         },
         {
             "name": "BuyerId",

@@ -56,6 +56,8 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var saved = await db.Orders.AsNoTracking()
                 .FirstAsync(o => o.CorrelationId == avro.CorrelationId, TestContext.Current.CancellationToken);
+            saved.Id.Should().Be(avro.OrderId,
+                "the client-assigned OrderId (ADR-0029) is persisted as the order's identity");
             saved.Status.Should().Be(OrderStatus.Created);
             saved.BuyerId.Should().Be(avro.BuyerId);
             saved.PaymentMethodId.Should().Be(avro.PaymentMethodId);
@@ -181,6 +183,9 @@ public sealed class CreateOrderCommandKafkaHandlerTests
 
     private AvroCreateOrderCommand NewValidAvroCommand() => new()
     {
+        // OrderId deliberately distinct from CorrelationId so HappyPath can prove
+        // the client-assigned id (ADR-0029) flows into the persisted PK.
+        OrderId = Guid.CreateVersion7(),
         CorrelationId = Guid.CreateVersion7(),
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),
