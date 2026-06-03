@@ -253,7 +253,7 @@ Invariant violations on `Invoice` / `CreditNote` aggregates (e.g., issuing a cre
 
 ### 3.7 `CheckoutSaga`
 
-Saga-scoped errors are emitted as `FailureInfo` VO data on `CheckoutSagaState.Failure` (see [checkout-saga.md](checkout-saga.md) — `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`). The saga surfaces them as OpenTelemetry span attributes plus metric counters; per [master design § E.2](../eshop-master-design.md), no saga-terminal Kafka events are emitted in v1.
+Saga-scoped errors are emitted as `FailureInfo` VO data on `CheckoutSagaState.Failure` (see [checkout-saga.md](checkout-saga.md) — `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`). The saga surfaces them to ops as OpenTelemetry span attributes plus metric counters; the saga-terminal `checkout.sagas` events (`CheckoutFailedEvent` / `CheckoutStuckEvent`) carry the same failure context but have **no v1 consumer** (see [events-catalog.md § 2](events-catalog.md) footnote 3).
 
 Canonical saga-owned `ErrorCode` values are the source-of-truth constants in [`CheckoutSagaErrorCodes`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/CheckoutSagaErrorCodes.cs): `STOCK_UNAVAILABLE`, `STOCK_TIMEOUT`, `ORDER_CREATION_TIMEOUT`, `PAYMENT_TIMEOUT`, `CONFIRMATION_TIMEOUT`, `COMPENSATION_TIMEOUT`. The saga also forwards upstream-owned codes unchanged — notably `PAYMENT_FAILED` from Payments BC and `ORDER_VALIDATION_FAILED` / `CONFIRMATION_FAILED` from Ordering BC (per [`OrderFailedSagaEvent`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/InternalSagaEvents/OrderFailedSagaEvent.cs)). (Note: `CompensationStuck` is the terminal *state* the saga enters when `COMPENSATION_TIMEOUT` fires — not an `ErrorCode` value; see [ordering.md § FailureInfo](ordering.md) for the wire-level field.)
 

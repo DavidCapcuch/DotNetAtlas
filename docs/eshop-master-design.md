@@ -146,7 +146,7 @@ Decision test (run for every proposed cross-service message):
 
 Canonical examples in this solution:
 
-- `OrderConfirmedEvent` → **event**: Notifications, BFF cache invalidator, and CheckoutSaga all react independently.
+- `OrderConfirmedEvent` → **event**: Invoicing (invoice issuance), BFF cache invalidator, and CheckoutSaga all react independently.
 - `ReserveStockCommand` → **command**: the CheckoutSaga needs the specific response (`StockReservedEvent` or `StockReservationFailedEvent`) to drive its state machine.
 
 **Important — apply the spirit, not just the letter.** The decision-table row "consumer count: exactly one known → command" is a useful summary but lossy. The article quoted above requires both parts: *specific logic at the consumer* **AND** *guaranteed feedback to the producer*. A past-tense fact published fire-and-forget is an event even if exactly one consumer happens to react today. See [ADR-0023](adr/0023-payments-event-vs-command-classification.md) for the worked example.
@@ -218,7 +218,7 @@ Three integration patterns dominate:
 
 - **Saga orchestration** (Checkout ↔ Ordering, Inventory, PaymentProcessingSaga). Bidirectional: saga publishes commands; BCs publish responses.
 - **Anti-Corruption Layer** (Basket → Catalog). Basket's `ProductCatalogHttpAdapter` translates Catalog DTOs into an internal `ProductSnapshot` VO; Basket never references Catalog aggregates directly.
-- **Published Language** (Catalog → Inventory via `ProductCreatedEvent`; Ordering → Notifications via order lifecycle events). Fire-and-forget; downstream consumers interpret the enriched external events as a stable contract.
+- **Published Language** (Catalog → Inventory via `ProductCreatedEvent`; Ordering → Invoicing via `OrderConfirmedEvent` / `OrderCancelledEvent`). Fire-and-forget; downstream consumers interpret the enriched external events as a stable contract.
 
 The BFF layer is not a bounded context; it is an ACL-like composition gateway over internal HTTP APIs of all four BCs.
 
@@ -237,12 +237,12 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | CheckoutSaga | Ordering | Saga command | Kafka (`ordering.order-commands`) | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
 | Ordering | CheckoutSaga | Saga event | Kafka (`ordering.orders`) | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderFailedEvent` |
 | CheckoutSaga | Inventory | Saga command | Kafka (`inventory.reservation-commands`) | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
-| Inventory | CheckoutSaga | Saga event | Kafka (`inventory.reservations`) | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent` |
+| Inventory | CheckoutSaga | Saga event | Kafka (`inventory.reservations`) | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
 | CheckoutSaga | PaymentProcessingSaga | Async saga sub-orchestration trigger + capture-approval handshake | Kafka (`payments.payment-commands`) | `RequestPaymentCommand` (renamed from `PaymentRequestedEvent` per [ADR-0023](adr/0023-payments-event-vs-command-classification.md)); `ApproveCaptureCommand`, `AbortCaptureCommand` (new per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md)) |
 | Payments | CheckoutSaga | Published event (Payments outbox) | Kafka (`payments.transactions`) | `PaymentAuthorizedEvent` (drives confirmation), `PaymentCompletedEvent` (post-capture terminal), `PaymentFailedEvent` (fast-fail) — Payments-owned per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md) |
 | PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand` (after `ApproveCaptureCommand`), `VoidPaymentCommand` (on `AbortCaptureCommand` / timeout); `RequestRefundCommand` is deferred — no v1 producer (existing) |
 | Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChangedEvent` (crosses 0↔positive) |
-| Ordering | Notifications | Published Language (async) | Kafka (`ordering.orders`) | Order lifecycle events |
+| Producing BCs (v1: Invoicing) | Notifications | Command-driven fan-in (D-5) | Kafka (`notifications.email-commands`) | `SendEmailNotificationCommand` — Notifications does **not** subscribe to `ordering.orders`; order-lifecycle emails would use this command path but ship no v1 producer |
 
 ### 4.3 BC Classification
 
@@ -762,18 +762,6 @@ Files updated:
 
 This aligns with [ADR-0005](adr/0005-customer-data-in-ordering.md): no Accounts BC; customer data snapshotted per-order via the BFF.
 
-### E.2 Saga terminal events — DECIDED to OMIT
-
-**Problem:** [checkout-saga.md](bc-design/checkout-saga.md) mentions emitting `CheckoutCompletedEvent`, `CheckoutFailedEvent`, `CheckoutStuckEvent` as saga-terminal business moments, but these were not in the [events-catalog.md](bc-design/events-catalog.md) master table — leaving the decision ambiguous.
-
-**Resolution:** **OMIT saga-terminal events in v1.** Rationale:
-
-- No consumer demonstrably needs them today — Notifications reacts to `OrderConfirmedEvent` / `OrderCancelledEvent` / `OrderFailedEvent`; BFF cache invalidation uses the same order events; observability of saga lifecycle is better served by OpenTelemetry activities + metrics (§ 11.3 + saga observability subsection in [checkout-saga.md](bc-design/checkout-saga.md) § 11).
-- Adding an event class solely for "saga finished" duplicates information already present in order-lifecycle events.
-- If a future consumer emerges (e.g., saga-specific analytics dashboard), adding a `checkout.sagas` topic + Avro schema later is non-breaking.
-
-Implementation agents: when you encounter references to these three events in the saga chapter, treat them as **replaced by OpenTelemetry spans** (`SagaOrchestrators.Checkout.Confirmed`, `...Failed`, `...Stuck`) and metric counters (`saga.checkout.confirmed`, `saga.checkout.failed`, `saga.checkout.stuck`). No Kafka topic, no Avro schema, no outbox message.
-
 ### E.3 `CreateOrderCommand` partition key — CorrelationId confirmed
 
 **Problem:** The event catalog master table lists `CreateOrderCommand` keyed by `CorrelationId` (because OrderId doesn't exist yet), while the other three Ordering commands are keyed by `OrderId`. Reviewer flagged this as a potential per-order ordering-guarantee gap.
@@ -831,9 +819,10 @@ Current Inventory wiring: all three Inventory Kafka consumers (`catalog.products
 
 ### Verdict
 
-After applying the fixes in E.1 (structural) and documenting the decisions in E.2–E.10, the design is **APPROVED for implementation** by both reviewers' criteria:
+After applying the fixes in E.1 (structural) and documenting the decisions in E.3–E.10, the design is **APPROVED for implementation** by both reviewers' criteria:
 
-- E.1, E.2 — resolved gaps (structural change or binding decision)
+- E.1 — resolved gap (structural change)
+- E.2 — **retracted**; the saga-terminal events it proposed omitting now ship live on `checkout.sagas` with no v1 consumer (see [events-catalog.md § 2](bc-design/events-catalog.md) footnote 3 + [checkout-saga.md § 9.1](bc-design/checkout-saga.md))
 - E.3–E.9 — clarifications without structural change (original design was correct; rationale documented)
 - E.10 — **retracted** on 2026-05-31, superseded by the one-group-per-service rule in [events-catalog.md § 3.1](bc-design/events-catalog.md)
 
