@@ -130,7 +130,13 @@ public sealed class CheckoutSagaStateMap :
 
         entity.Property(x => x.ErrorCode)
             .HasComment("Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED).")
-            .HasMaxLength(64);
+            // 100, not a saga-local choice: this column also persists codes FORWARDED verbatim from
+            // upstream events (Ordering's OrderFailedEvent, Payments' PaymentFailedEvent — see the
+            // `saga.ErrorCode = message.ErrorCode` assignments in CheckoutSagaOrchestrator), so it must
+            // hold the longest code any producer can emit. Ordering caps its codes at
+            // FailureInfo.MaxErrorCodeLength = 100; a narrower column would reject the insert and fail
+            // the saga state write. Kept in lockstep with that cap.
+            .HasMaxLength(100);
 
         entity.Property(x => x.ErrorMessage)
             .HasComment("Human-readable failure message.")
