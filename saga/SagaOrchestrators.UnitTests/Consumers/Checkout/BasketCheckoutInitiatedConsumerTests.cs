@@ -9,8 +9,8 @@ using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 namespace SagaOrchestrators.UnitTests.Consumers.Checkout;
 
 /// <summary>
-/// Asserts <see cref="BasketCheckoutInitiatedConsumer"/> renames Basket's
-/// <c>BasketCorrelationId</c> onto the saga record's <c>CorrelationId</c>, serialises items +
+/// Asserts <see cref="BasketCheckoutInitiatedConsumer"/> maps Basket's pre-assigned
+/// <c>OrderId</c> onto the saga record's <c>CorrelationId</c>, serialises items +
 /// addresses to JSON, and never emits the Avro decimal byte-array shape (PII per ADR-0011 also
 /// covered by the consumer's log allowlist - not asserted here, see code review). Uses a
 /// mocked <see cref="ConsumeContext{T}"/> because <see cref="Avro.AvroDecimal"/> does not
@@ -21,7 +21,7 @@ public class BasketCheckoutInitiatedConsumerTests
     [Fact]
     public async Task Consume_publishes_initiator_saga_event_with_mapped_fields_and_json_snapshot()
     {
-        var basketCorrelationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
@@ -29,7 +29,7 @@ public class BasketCheckoutInitiatedConsumerTests
 
         var avro = new BasketCheckoutInitiatedEvent
         {
-            BasketCorrelationId = basketCorrelationId,
+            OrderId = orderId,
             UserId = userId,
             Items =
             [
@@ -79,7 +79,7 @@ public class BasketCheckoutInitiatedConsumerTests
         await consumer.Consume(ctx);
 
         Assert.NotNull(captured);
-        Assert.Equal(basketCorrelationId, captured.CorrelationId);
+        Assert.Equal(orderId, captured.CorrelationId);
         Assert.Equal(userId, captured.UserId);
         Assert.Equal(39.98m, captured.TotalAmount);
         Assert.Equal("USD", captured.Currency);

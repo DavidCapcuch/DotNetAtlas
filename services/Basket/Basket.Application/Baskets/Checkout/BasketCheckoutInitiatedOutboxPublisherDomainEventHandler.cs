@@ -62,9 +62,9 @@ public sealed class BasketCheckoutInitiatedOutboxPublisherDomainEventHandler
         // Splunk / Grafana dashboards counting "checkouts initiated" via the
         // information-level line never over-count on a transient SaveChanges failure.
         _logger.LogDebug(
-            "Queued BasketCheckoutInitiatedEvent to outbox change-tracker. UserId: {UserId}, CorrelationId: {CorrelationId}, Items: {ItemCount}",
+            "Queued BasketCheckoutInitiatedEvent to outbox change-tracker. UserId: {UserId}, OrderId: {OrderId}, Items: {ItemCount}",
             domainEvent.UserId,
-            domainEvent.CorrelationId,
+            domainEvent.OrderId,
             domainEvent.Snapshot.Items.Length);
 
         return Task.CompletedTask;

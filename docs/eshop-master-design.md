@@ -399,7 +399,7 @@ Full mechanism documented in [use-cases.md § Ordering § 3.3](bc-design/use-cas
 
 - **Placement:** `saga/SagaOrchestrators/Checkout/` (per ADR-0001 + ADR-0004).
 - **Trigger:** `BasketCheckoutInitiatedEvent` → `BasketCheckoutInitiatedConsumer`.
-- **Correlation:** `CorrelationId` = `BasketCheckoutInitiatedEvent.BasketCorrelationId` (UUID v7).
+- **Correlation:** `CorrelationId` = `BasketCheckoutInitiatedEvent.OrderId` (pre-assigned UUID v7; ADR-0029).
 - **Persistence:** MassTransit EF Core repository → PostgreSQL `saga` schema → `checkout_saga_states` table with `RowVersion` optimistic concurrency.
 - **Consumer group:** `saga-checkout`.
 
@@ -616,7 +616,7 @@ dotnet restore --locked-mode
 | **External Summary Event** | Enriched, coarse-grained event with Avro schema; published to Kafka via outbox; contractually stable (treated as API); suffix `Event`. |
 | **Transactional Outbox** | `ITransactionalOutbox<TDbContext>.AddOutboxMessage(topic, key, event)` persists outbox message in same DB transaction as aggregate save. Outbox relay dequeues and publishes to Kafka. |
 | **Inbox (idempotent consumer)** | KafkaFlow `InboxMiddleware` dedupes consumed messages by `MessageId`; stored in `InboxMessage` table per service. |
-| **Correlation ID** | UUID (v7) shared across all events in a single business workflow (checkout flow: BasketCheckoutInitiatedEvent.BasketCorrelationId propagates through Order, Payment, Reservation events). |
+| **Correlation ID** | UUID (v7) shared across all events in a single business workflow (checkout flow: the pre-assigned `BasketCheckoutInitiatedEvent.OrderId` propagates through Order, Payment, Reservation events; ADR-0029). |
 | **Saga** | Centralized orchestrator (per ADR-0001) for multi-BC workflows. MassTransit state machine persisted to PostgreSQL `saga` schema; drives BCs via command topics; reassembles response events. |
 | **ACL (Anti-Corruption Layer)** | Adapter pattern that translates external model into internal model. Basket's `IProductCatalogQueryPort` / `ProductCatalogHttpAdapter` is the canonical example. |
 | **Money** | `(decimal Amount, string Currency)` VO. Currency is ISO 4217 (e.g., `USD`). Amount uses decimal(19,4) precision in Avro and DB. |
@@ -628,7 +628,7 @@ dotnet restore --locked-mode
 
 See the six linked glossary files in [docs/bc-design/](bc-design/):
 - [glossary-catalog.md](bc-design/glossary-catalog.md) — 14 terms (Product, SKU, Category, Category Path, Category Breadcrumb, Price, Brand, Product Status, Discontinued, Reactivation, Read View, Active, Dimensions, Image Reference).
-- [glossary-basket.md](bc-design/glossary-basket.md) — 14 terms (Basket, BasketItem, ProductSnapshot, BasketTotal, Money, Frozen-pricing contract, Checkout, BasketCorrelationId, Version, Basket expiry, Catalog Unavailable, ACL, Redis-backed aggregate, Outbox side-car).
+- [glossary-basket.md](bc-design/glossary-basket.md) — 14 terms (Basket, BasketItem, ProductSnapshot, BasketTotal, Money, Frozen-pricing contract, Checkout, OrderId (pre-assigned), Version, Basket expiry, Catalog Unavailable, ACL, Redis-backed aggregate, Outbox side-car).
 - [glossary-ordering.md](bc-design/glossary-ordering.md) — 33 terms.
 - [glossary-inventory.md](bc-design/glossary-inventory.md) — 37 terms grouped by Aggregate/state, Reservations, Events/ES, Commands/write-path, External surface, Value objects.
 - [glossary-payments.md](bc-design/glossary-payments.md) — 30 terms.

@@ -659,12 +659,11 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 - **HTTP:** `POST /api/basket/checkout`
 - **Authorization:** Authenticated. User may only check out their own basket.
-- **Interface:** `ICommand<Guid>` — returns `CorrelationId` (the saga correlation id the caller passed in; echoed for confirmation).
+- **Interface:** `ICommand<Guid>` — returns the pre-assigned `OrderId` (UUID v7 allocated by the handler; ADR-0029).
 - **Request shape:**
   ```
   {
     "userId": "Guid (from JWT claim)",
-    "correlationId": "Guid (client-generated via Guid.CreateVersion7())",
     "shippingAddress": {
       "street1": "string (non-empty)",
       "street2": "string? (optional)",
@@ -678,11 +677,10 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
   }
   ```
   **Address-sourcing convention** (per ADR-0005 + review addendum): Basket does NOT own addresses; the BFF / client collects them at checkout (possibly from a local address book or a form) and includes them in this command. Basket is a courier: it validates only basic shape (non-empty strings + ISO country code) and passes the data through into `BasketCheckoutInitiatedEvent`. The Ordering service re-snapshots them onto the `Order` aggregate at `CreateFromBasket` time; those snapshots are the authoritative record for fulfillment.
-- **Response:** 202 Accepted `{ "correlationId": "Guid" }` — the checkout is now the saga's responsibility. 404 if basket missing; 409 if basket is empty (`BasketErrors.EmptyBasket`).
-- **Handler class:** `CheckoutBasketCommandHandler`.
+- **Response:** 202 Accepted `{ "orderId": "Guid" }` — the pre-assigned Order id; the checkout is now the saga's responsibility. 404 if basket missing; 409 if basket is empty (`BasketErrors.EmptyBasket`).
+- **Handler class:** `CheckoutBasketCommandHandler` (allocates the `OrderId` via `Guid.CreateVersion7()`; ADR-0029).
 - **Validator rules:**
   - `UserId` — NotEmpty.
-  - `CorrelationId` — NotEmpty; MustBeVersion7Guid (check `Guid` has version-7 bits set — protects against client-side mistakes).
   - `ShippingAddress.Street1`, `.City`, `.PostalCode` — NotEmpty.
   - `ShippingAddress.CountryCode` — NotEmpty; 2 chars; ISO 3166-1 alpha-2.
   - `BillingAddress` — same rules as ShippingAddress (may equal it).

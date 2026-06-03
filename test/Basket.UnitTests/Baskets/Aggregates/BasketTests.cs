@@ -595,12 +595,12 @@ public class BasketTests
         basket.AddItem(p1, BasketTestData.Snapshot(amount: 15m), 2, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
-        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var shipping = BasketTestData.Address("US");
         var billing = BasketTestData.Address("CZ");
         var paymentMethodId = Guid.CreateVersion7();
 
-        var result = basket.Checkout(correlationId, shipping, billing, paymentMethodId, UtcNow);
+        var result = basket.Checkout(orderId, shipping, billing, paymentMethodId, UtcNow);
 
         using (new AssertionScope())
         {
@@ -611,7 +611,7 @@ public class BasketTests
                 .Which.Should().BeOfType<BasketCheckedOutDomainEvent>()
                 .Subject;
             evt.UserId.Should().Be(basket.UserId);
-            evt.CorrelationId.Should().Be(correlationId);
+            evt.OrderId.Should().Be(orderId);
             evt.Snapshot.Items.Should().ContainSingle();
             evt.Snapshot.Total.Amount.Amount.Should().Be(30m);
             evt.ShippingAddress.Should().Be(shipping);
@@ -621,7 +621,7 @@ public class BasketTests
     }
 
     [Fact]
-    public void Checkout_WhenCorrelationIdEmpty_ThrowsDataIntegrityException()
+    public void Checkout_WhenOrderIdEmpty_ThrowsDataIntegrityException()
     {
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, UtcNow);
@@ -634,7 +634,7 @@ public class BasketTests
             UtcNow);
 
         act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*CorrelationId*");
+            .WithMessage("*OrderId*");
     }
 
     [Fact]

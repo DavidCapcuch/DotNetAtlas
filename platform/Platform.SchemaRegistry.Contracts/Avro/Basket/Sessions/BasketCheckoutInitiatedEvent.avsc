@@ -5,12 +5,12 @@
     "doc": "Emitted when a user checks out their basket. Triggers the Checkout Saga. The basket is deleted from Redis after this event is written to the outbox.",
     "fields": [
         {
-            "name": "BasketCorrelationId",
+            "name": "OrderId",
             "type": {
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Correlation identifier for the checkout flow. Becomes the CorrelationId of the downstream Checkout Saga state machine. Generated when CheckoutBasketCommand is invoked."
+            "doc": "Pre-assigned Order identity (UUID v7), allocated by Basket's checkout command handler and carried as a pass-through field. Becomes the Checkout Saga's CorrelationId and the Order aggregate's id. See ADR-0029."
         },
         {
             "name": "UserId",

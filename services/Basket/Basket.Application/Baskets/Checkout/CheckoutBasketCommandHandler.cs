@@ -73,12 +73,20 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
             return Result.Fail<Guid>(addressResults.Errors);
         }
 
+        // Pre-assign the Order's identity (UUID v7) here, once, BEFORE the CAS retry loop
+        // (ADR-0029). Generating it inside ExecuteCheckoutAsync would mint a fresh id on a
+        // retry; minting it here keeps the returned OrderId stable across attempts. The id
+        // never leaked on a prior failed attempt — no outbox row is written until the CAS
+        // save succeeds.
+        var orderId = Guid.CreateVersion7();
+
         return await BasketConcurrencyRetry.ExecuteAsync(innerCt =>
-            ExecuteCheckoutAsync(command, shippingResult.Value, billingResult.Value, innerCt), ct);
+            ExecuteCheckoutAsync(command, orderId, shippingResult.Value, billingResult.Value, innerCt), ct);
     }
 
     private async Task<Result<Guid>> ExecuteCheckoutAsync(
         CheckoutBasketCommand command,
+        Guid orderId,
         Address shippingAddress,
         Address billingAddress,
         CancellationToken ct)
@@ -98,7 +106,7 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
         var expectedVersion = basket.Version;
         var utcNow = _timeProvider.GetUtcNow();
         var checkoutResult = basket.Checkout(
-            command.CorrelationId,
+            orderId,
             shippingAddress,
             billingAddress,
             command.PaymentMethodId,
@@ -143,9 +151,9 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
         // SaveChanges failure. The publisher handler logs at Debug ("queued") before
         // this point — see BasketCheckoutInitiatedOutboxPublisherDomainEventHandler.
         _logger.LogInformation(
-            "Published BasketCheckoutInitiatedEvent to outbox. UserId: {UserId}, CorrelationId: {CorrelationId}",
+            "Published BasketCheckoutInitiatedEvent to outbox. UserId: {UserId}, OrderId: {OrderId}",
             command.UserId,
-            command.CorrelationId);
+            orderId);
 
         // After SQL commit — delete the Redis entry (bypasses FusionCache inside
         // the repository). Failure here is recoverable: the outbox is the source
@@ -158,7 +166,7 @@ internal sealed class CheckoutBasketCommandHandler : ICommandHandler<CheckoutBas
                 command.UserId);
         }
 
-        return Result.Ok(command.CorrelationId);
+        return Result.Ok(orderId);
     }
 
     private static Result<Address> ToAddress(CheckoutAddressDto dto)

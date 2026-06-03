@@ -10,7 +10,7 @@
 |------|------------|
 | **PaymentTransaction** | The sole aggregate in the Payments BC. Wraps one saga-scoped payment lifecycle from request through terminal. Not to be confused with **Invoice** (Invoicing BC) or **Order** (Ordering BC) — those are separate aggregates in different BCs. |
 | **PaymentId** | UUID v7 identity for a `PaymentTransaction`. Time-sortable; assigned at aggregate creation. Different from `GatewayTransactionId` (gateway-issued). |
-| **CorrelationId** | The originating saga CorrelationId (copied from `BasketCheckoutInitiatedEvent.BasketCorrelationId`). Threads through Checkout saga → PaymentProcessingSaga → Payments → Invoicing for end-to-end traceability. |
+| **CorrelationId** | The originating saga CorrelationId (equals the pre-assigned `BasketCheckoutInitiatedEvent.OrderId`; ADR-0029). Threads through Checkout saga → PaymentProcessingSaga → Payments → Invoicing for end-to-end traceability. |
 | **GatewayTransactionId** | String token issued by the external payment gateway on the first successful call (authorize or capture). Reused for subsequent capture/refund/void operations. Immutable once set. |
 | **PaymentMethodId** | Gateway-issued reference token (not a PAN). Identifies *how* to charge without exposing card details. PCI-scope boundary — this is the highest-sensitivity data Payments holds. |
 | **Gateway** | The external payment processor (Stripe/Adyen/Braintree in production; `StubPaymentGateway` in v1). Abstracted via `IPaymentGateway` port in `Payments.Application`. |

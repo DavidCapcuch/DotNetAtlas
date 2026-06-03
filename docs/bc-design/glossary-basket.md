@@ -28,8 +28,8 @@ The explicit rule that once a `ProductSnapshot` is placed in a basket, its price
 ### Checkout (Basket verb)
 The terminal, one-way transition of a basket: from "exists in Redis" to "gone forever." Triggered by `CheckoutBasketCommand`. Atomically writes `BasketCheckoutInitiatedEvent` to the PostgreSQL outbox and then deletes the Redis entry. Cannot be reversed — if the user cancels later, that path belongs to Ordering, not Basket. *Distinct from:* the Checkout **Saga**, which is the orchestrator downstream; Basket's "checkout" is just the ignition.
 
-### BasketCorrelationId
-A fresh `Guid` generated when `CheckoutBasketCommand` is invoked. It becomes the `BasketCheckoutInitiatedEvent.BasketCorrelationId` field and, in turn, the `CorrelationId` of the Checkout Saga state machine. This ID is how every downstream step (order creation, stock reservation, payment, confirmation) is tied back to this one checkout attempt.
+### OrderId (pre-assigned)
+A fresh UUID v7 allocated by `CheckoutBasketCommandHandler` (`Guid.CreateVersion7()`) when checkout is initiated — the Order's identity from birth (ADR-0029). It becomes the `BasketCheckoutInitiatedEvent.OrderId` field and, in turn, the `CorrelationId` of the Checkout Saga state machine and the Ordering `Order` aggregate's id. This single id is how every downstream step (order creation, stock reservation, payment, confirmation) is tied back to this one checkout attempt — replacing the former dedicated `BasketCorrelationId`.
 
 ### Version (Basket)
 An `int` on the Basket aggregate, starting at 0 on creation and incremented on every successful save. Used for optimistic concurrency: the repository's `SaveAsync(basket, expectedVersion)` compares and fails with `BasketConcurrencyError` on mismatch. *Distinct from:* Avro schema version (external event contract evolution) and from an Inventory event-store version (a log position).

@@ -235,7 +235,7 @@ The outbox write is done in the same `SaveAsync` flow during `CheckoutBasketComm
 3. Commit the SQL transaction.
 4. Only after SQL commit succeeds, delete the Redis entry.
 
-Steps 3 → 4 are not atomic across the two stores. If the service crashes between them, the Redis entry remains. On the user's next checkout attempt the repository detects the already-emitted outbox message via correlation and treats it as a duplicate (handler-level idempotency on `BasketCorrelationId`). This is the canonical "outbox then delete" ordering — SQL is the source of truth for "did we publish?".
+Steps 3 → 4 are not atomic across the two stores. If the service crashes between them, the Redis entry remains; the stale entry is overwritten on the next checkout or cleaned at TTL. Client retries are deduplicated by the required `Idempotency-Key` header (ADR-0013). This is the canonical "outbox then delete" ordering — SQL is the source of truth for "did we publish?".
 
 ---
 
@@ -342,12 +342,12 @@ All of these inherit from `Platform.SharedKernel.Base.DomainEvents.DomainEvent` 
     "doc": "Emitted when a user checks out their basket. Triggers the Checkout Saga. The basket is deleted from Redis after this event is written to the outbox.",
     "fields": [
         {
-            "name": "BasketCorrelationId",
+            "name": "OrderId",
             "type": {
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Correlation identifier for the checkout flow. Becomes the CorrelationId of the downstream Checkout Saga state machine. Generated when CheckoutBasketCommand is invoked."
+            "doc": "Pre-assigned Order identity (UUID v7), allocated by Basket's checkout command handler and carried as a pass-through field. Becomes the Checkout Saga's CorrelationId and the Order aggregate's id. See ADR-0029."
         },
         {
             "name": "UserId",

@@ -47,7 +47,7 @@ internal static class CheckoutSagaTestPublishers
 
         return new BasketCheckoutInitiatedEvent
         {
-            BasketCorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             Items = items,
             TotalAmount = totalAmount.ToAvroDecimal(4),

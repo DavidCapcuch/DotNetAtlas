@@ -22,60 +22,60 @@ namespace Basket.Sessions
 		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"BasketCheckoutInitiatedEvent\",\"doc\":\"Emitted when a user" +
 				" checks out their basket. Triggers the Checkout Saga. The basket is deleted from" +
 				" Redis after this event is written to the outbox.\",\"namespace\":\"Basket.Sessions\"" +
-				",\"fields\":[{\"name\":\"BasketCorrelationId\",\"doc\":\"Correlation identifier for the c" +
-				"heckout flow. Becomes the CorrelationId of the downstream Checkout Saga state ma" +
-				"chine. Generated when CheckoutBasketCommand is invoked.\",\"type\":{\"type\":\"string\"" +
-				",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"Identifier of the user whose bas" +
-				"ket is being checked out. Also the Kafka message key for partitioning.\",\"type\":{" +
-				"\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Items\",\"doc\":\"All line items of " +
-				"the basket at the moment of checkout. Never empty (empty-basket checkout is reje" +
-				"cted at the aggregate).\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":" +
-				"\"BasketCheckoutItem\",\"doc\":\"One line of the basket at the moment of checkout. Pr" +
-				"ices reflect the snapshot captured at add-time (or at the last explicit refresh)" +
-				".\",\"namespace\":\"Basket.Sessions\",\"fields\":[{\"name\":\"ProductId\",\"doc\":\"Catalog Pr" +
-				"oduct identifier. Consumers use this to reserve stock and to load authoritative " +
-				"product data.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc" +
-				"\":\"Catalog SKU at the time of checkout. Copied from the snapshot for consumer co" +
-				"nvenience.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"Product name at the time of c" +
-				"heckout. Copied from the snapshot for order history/display.\",\"type\":\"string\"},{" +
-				"\"name\":\"UnitPriceAmount\",\"doc\":\"Snapshot unit price amount. Decimal 19,4 matches" +
-				" the Catalog price precision.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"p" +
-				"recision\":19,\"scale\":4}},{\"name\":\"UnitPriceCurrency\",\"doc\":\"ISO 4217 currency co" +
-				"de of UnitPriceAmount. Uniform across all items (enforced by the Basket aggregat" +
-				"e invariant).\",\"type\":\"string\"},{\"name\":\"Quantity\",\"doc\":\"Number of units of thi" +
-				"s product in the basket. Always >= 1.\",\"type\":\"int\"},{\"name\":\"LineTotal\",\"doc\":\"" +
-				"UnitPriceAmount * Quantity, pre-computed for consumer convenience. Equals the do" +
-				"main value of the line at checkout.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decim" +
-				"al\",\"precision\":19,\"scale\":4}}]}}},{\"name\":\"TotalAmount\",\"doc\":\"Sum of all LineT" +
-				"otal values. Pre-computed so consumers do not have to re-sum; they SHOULD re-ver" +
-				"ify.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}}," +
-				"{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code for TotalAmount. Equals all ite" +
-				"m UnitPriceCurrency values.\",\"type\":\"string\"},{\"name\":\"ShippingAddress\",\"doc\":\"S" +
-				"hipping address collected by the BFF/client at checkout time and passed through " +
-				"the CheckoutBasketCommand. Basket does NOT own addresses; it carries this payloa" +
-				"d to the saga unchanged.\",\"type\":{\"type\":\"record\",\"name\":\"CheckoutAddress\",\"doc\"" +
-				":\"Postal address supplied at checkout. Basket is a pass-through: it does not val" +
-				"idate deeply (only non-empty + ISO country code) and does not persist addresses " +
-				"beyond this event. The Ordering service re-snapshots this into the Order aggrega" +
-				"te.\",\"namespace\":\"Basket.Sessions\",\"fields\":[{\"name\":\"Street1\",\"doc\":\"Primary st" +
-				"reet line.\",\"type\":\"string\"},{\"name\":\"Street2\",\"doc\":\"Optional second street lin" +
-				"e (apartment, suite, etc.).\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"C" +
-				"ity\",\"doc\":\"City name.\",\"type\":\"string\"},{\"name\":\"State\",\"doc\":\"Optional state/p" +
-				"rovince/region. Null for countries without this concept.\",\"default\":null,\"type\":" +
-				"[\"null\",\"string\"]},{\"name\":\"PostalCode\",\"doc\":\"Postal or ZIP code.\",\"type\":\"stri" +
-				"ng\"},{\"name\":\"CountryCode\",\"doc\":\"ISO 3166-1 alpha-2 country code (e.g., \'US\', \'" +
-				"CZ\').\",\"type\":\"string\"}]}},{\"name\":\"BillingAddress\",\"doc\":\"Billing address. Same" +
-				" shape as ShippingAddress; may be identical to it.\",\"type\":\"CheckoutAddress\"},{\"" +
-				"name\":\"PaymentMethodId\",\"doc\":\"Reference to a saved payment method in the Paymen" +
-				"ts service. Collected at checkout by the BFF/client; passed through unchanged. V" +
-				"alidation is delegated to Payments during payment.\",\"type\":{\"type\":\"string\",\"log" +
-				"icalType\":\"uuid\"}},{\"name\":\"InitiatedAtUtc\",\"doc\":\"UTC timestamp when the Checko" +
-				"utBasketCommand was handled and the domain event was raised.\",\"type\":{\"type\":\"lo" +
-				"ng\",\"logicalType\":\"timestamp-millis\"}}]}");
+				",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Pre-assigned Order identity (UUID v7), alloc" +
+				"ated by Basket\'s checkout command handler and carried as a pass-through field. B" +
+				"ecomes the Checkout Saga\'s CorrelationId and the Order aggregate\'s id. See ADR-0" +
+				"029.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"Ide" +
+				"ntifier of the user whose basket is being checked out. Also the Kafka message ke" +
+				"y for partitioning.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Ite" +
+				"ms\",\"doc\":\"All line items of the basket at the moment of checkout. Never empty (" +
+				"empty-basket checkout is rejected at the aggregate).\",\"type\":{\"type\":\"array\",\"it" +
+				"ems\":{\"type\":\"record\",\"name\":\"BasketCheckoutItem\",\"doc\":\"One line of the basket " +
+				"at the moment of checkout. Prices reflect the snapshot captured at add-time (or " +
+				"at the last explicit refresh).\",\"namespace\":\"Basket.Sessions\",\"fields\":[{\"name\":" +
+				"\"ProductId\",\"doc\":\"Catalog Product identifier. Consumers use this to reserve sto" +
+				"ck and to load authoritative product data.\",\"type\":{\"type\":\"string\",\"logicalType" +
+				"\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU at the time of checkout. Copied from" +
+				" the snapshot for consumer convenience.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"" +
+				"Product name at the time of checkout. Copied from the snapshot for order history" +
+				"/display.\",\"type\":\"string\"},{\"name\":\"UnitPriceAmount\",\"doc\":\"Snapshot unit price" +
+				" amount. Decimal 19,4 matches the Catalog price precision.\",\"type\":{\"type\":\"byte" +
+				"s\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"UnitPriceCurrency" +
+				"\",\"doc\":\"ISO 4217 currency code of UnitPriceAmount. Uniform across all items (en" +
+				"forced by the Basket aggregate invariant).\",\"type\":\"string\"},{\"name\":\"Quantity\"," +
+				"\"doc\":\"Number of units of this product in the basket. Always >= 1.\",\"type\":\"int\"" +
+				"},{\"name\":\"LineTotal\",\"doc\":\"UnitPriceAmount * Quantity, pre-computed for consum" +
+				"er convenience. Equals the domain value of the line at checkout.\",\"type\":{\"type\"" +
+				":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}}]}}},{\"name\":\"TotalAm" +
+				"ount\",\"doc\":\"Sum of all LineTotal values. Pre-computed so consumers do not have " +
+				"to re-sum; they SHOULD re-verify.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal" +
+				"\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code fo" +
+				"r TotalAmount. Equals all item UnitPriceCurrency values.\",\"type\":\"string\"},{\"nam" +
+				"e\":\"ShippingAddress\",\"doc\":\"Shipping address collected by the BFF/client at chec" +
+				"kout time and passed through the CheckoutBasketCommand. Basket does NOT own addr" +
+				"esses; it carries this payload to the saga unchanged.\",\"type\":{\"type\":\"record\",\"" +
+				"name\":\"CheckoutAddress\",\"doc\":\"Postal address supplied at checkout. Basket is a " +
+				"pass-through: it does not validate deeply (only non-empty + ISO country code) an" +
+				"d does not persist addresses beyond this event. The Ordering service re-snapshot" +
+				"s this into the Order aggregate.\",\"namespace\":\"Basket.Sessions\",\"fields\":[{\"name" +
+				"\":\"Street1\",\"doc\":\"Primary street line.\",\"type\":\"string\"},{\"name\":\"Street2\",\"doc" +
+				"\":\"Optional second street line (apartment, suite, etc.).\",\"default\":null,\"type\":" +
+				"[\"null\",\"string\"]},{\"name\":\"City\",\"doc\":\"City name.\",\"type\":\"string\"},{\"name\":\"S" +
+				"tate\",\"doc\":\"Optional state/province/region. Null for countries without this con" +
+				"cept.\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"PostalCode\",\"doc\":\"Post" +
+				"al or ZIP code.\",\"type\":\"string\"},{\"name\":\"CountryCode\",\"doc\":\"ISO 3166-1 alpha-" +
+				"2 country code (e.g., \'US\', \'CZ\').\",\"type\":\"string\"}]}},{\"name\":\"BillingAddress\"" +
+				",\"doc\":\"Billing address. Same shape as ShippingAddress; may be identical to it.\"" +
+				",\"type\":\"CheckoutAddress\"},{\"name\":\"PaymentMethodId\",\"doc\":\"Reference to a saved" +
+				" payment method in the Payments service. Collected at checkout by the BFF/client" +
+				"; passed through unchanged. Validation is delegated to Payments during payment.\"" +
+				",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"InitiatedAtUtc\",\"doc\":\"" +
+				"UTC timestamp when the CheckoutBasketCommand was handled and the domain event wa" +
+				"s raised.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Correlation identifier for the checkout flow. Becomes the CorrelationId of the downstream Checkout Saga state machine. Generated when CheckoutBasketCommand is invoked.
+		/// Pre-assigned Order identity (UUID v7), allocated by Basket's checkout command handler and carried as a pass-through field. Becomes the Checkout Saga's CorrelationId and the Order aggregate's id. See ADR-0029.
 		/// </summary>
-		private System.Guid _BasketCorrelationId;
+		private System.Guid _OrderId;
 		/// <summary>
 		/// Identifier of the user whose basket is being checked out. Also the Kafka message key for partitioning.
 		/// </summary>
@@ -116,17 +116,17 @@ namespace Basket.Sessions
 			}
 		}
 		/// <summary>
-		/// Correlation identifier for the checkout flow. Becomes the CorrelationId of the downstream Checkout Saga state machine. Generated when CheckoutBasketCommand is invoked.
+		/// Pre-assigned Order identity (UUID v7), allocated by Basket's checkout command handler and carried as a pass-through field. Becomes the Checkout Saga's CorrelationId and the Order aggregate's id. See ADR-0029.
 		/// </summary>
-		public System.Guid BasketCorrelationId
+		public System.Guid OrderId
 		{
 			get
 			{
-				return this._BasketCorrelationId;
+				return this._OrderId;
 			}
 			set
 			{
-				this._BasketCorrelationId = value;
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -245,7 +245,7 @@ namespace Basket.Sessions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.BasketCorrelationId;
+			case 0: return this.OrderId;
 			case 1: return this.UserId;
 			case 2: return this.Items;
 			case 3: return this.TotalAmount;
@@ -261,7 +261,7 @@ namespace Basket.Sessions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.BasketCorrelationId = (System.Guid)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
 			case 1: this.UserId = (System.Guid)fieldValue; break;
 			case 2: this.Items = (IList<Basket.Sessions.BasketCheckoutItem>)fieldValue; break;
 			case 3: this.TotalAmount = (Avro.AvroDecimal)fieldValue; break;

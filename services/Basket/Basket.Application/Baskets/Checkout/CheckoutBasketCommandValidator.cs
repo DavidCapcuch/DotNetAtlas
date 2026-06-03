@@ -7,8 +7,10 @@ internal sealed class CheckoutBasketCommandValidator : AbstractValidator<Checkou
 {
     public CheckoutBasketCommandValidator()
     {
+        // The OrderId is allocated server-side by the command handler (Guid.CreateVersion7,
+        // ADR-0029), not supplied by the caller — so there is no client-provided correlation
+        // id left to validate here.
         RuleFor(c => c.UserId).NotEmpty();
-        RuleFor(c => c.CorrelationId).MustBeVersion7();
         RuleFor(c => c.PaymentMethodId).NotEmpty();
 
         RuleFor(c => c.ShippingAddress).NotNull()

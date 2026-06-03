@@ -67,7 +67,6 @@ internal sealed class CheckoutBasketEndpoint : Endpoint<CheckoutBasketRequest, C
         var userId = User.GetUserIdFromSubClaim();
         var command = new CheckoutBasketCommand(
             UserId: userId,
-            CorrelationId: request.CorrelationId,
             ShippingAddress: request.ShippingAddress,
             BillingAddress: request.BillingAddress,
             PaymentMethodId: request.PaymentMethodId);
@@ -75,8 +74,8 @@ internal sealed class CheckoutBasketEndpoint : Endpoint<CheckoutBasketRequest, C
         var result = await _handler.HandleAsync(command, ct);
 
         await result.MatchAsync(
-            correlationId => Send.ResponseAsync(
-                new CheckoutBasketResponse { CorrelationId = correlationId },
+            orderId => Send.ResponseAsync(
+                new CheckoutBasketResponse { OrderId = orderId },
                 statusCode: StatusCodes.Status202Accepted,
                 cancellation: ct),
             failureResult => Send.SendErrorResponseAsync(failureResult, ct));

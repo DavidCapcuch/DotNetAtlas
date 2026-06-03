@@ -132,9 +132,9 @@ public class DomainEventsTests
     }
 
     [Fact]
-    public void BasketCheckedOut_CarriesCorrelationIdAndSnapshot()
+    public void BasketCheckedOut_CarriesOrderIdAndSnapshot()
     {
-        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var item = BasketItem.BuildUnchecked(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1);
         var snapshot = BasketSnapshot.Create([item], BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value));
         var shipping = BasketTestData.Address("US");
@@ -145,7 +145,7 @@ public class DomainEventsTests
         {
             OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             UserId = Guid.CreateVersion7(),
-            CorrelationId = correlationId,
+            OrderId = orderId,
             Snapshot = snapshot,
             ShippingAddress = shipping,
             BillingAddress = billing,
@@ -155,7 +155,7 @@ public class DomainEventsTests
         using (new AssertionScope())
         {
             e.Should().BeAssignableTo<DomainEvent>();
-            e.CorrelationId.Should().Be(correlationId);
+            e.OrderId.Should().Be(orderId);
             e.Snapshot.Should().Be(snapshot);
             e.ShippingAddress.Should().Be(shipping);
             e.BillingAddress.Should().Be(billing);

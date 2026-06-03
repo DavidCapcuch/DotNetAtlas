@@ -48,7 +48,6 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
     {
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
 
         var basket = BasketAggregate.Create(userId, IntegrationTestFixture.Now);
@@ -73,7 +72,6 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
         var result = await handler.HandleAsync(
             new CheckoutBasketCommand(
                 userId,
-                correlationId,
                 ValidAddress("US"),
                 ValidAddress("CZ"),
                 paymentMethodId),
@@ -82,7 +80,8 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            result.Value.Should().Be(correlationId);
+            // The handler pre-assigns the OrderId (UUID v7) — ADR-0029.
+            result.Value.Should().NotBe(Guid.Empty);
         }
 
         // Re-resolve the DbContext from a fresh scope to bypass the EF
@@ -187,7 +186,6 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
 
     private static CheckoutBasketCommand MakeCommand(Guid userId) => new(
         userId,
-        Guid.CreateVersion7(),
         ValidAddress("US"),
         ValidAddress("CZ"),
         Guid.CreateVersion7());
