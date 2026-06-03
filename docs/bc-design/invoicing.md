@@ -135,7 +135,7 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 ## 6. External Events (Avro) + Topic
 
-**Topic:** `invoicing.invoices` — **10-year retention** (per EU VAT norm; see [ADR-0019 Invoice numbering](../adr/0019-invoice-numbering.md) and retention ADR). Partition key `BuyerId` (keeps all of a buyer's invoices on one partition for efficient per-buyer consumer reads).
+**Topic:** `invoicing.invoices` — **10-year retention** (per EU VAT norm; see [ADR-0018 Invoice numbering](../adr/0018-invoice-numbering.md) and retention ADR). Partition key `BuyerId` (keeps all of a buyer's invoices on one partition for efficient per-buyer consumer reads).
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
