@@ -129,9 +129,10 @@ inherit `Confluent.Kafka.ConsumerConfig`), so two homes were possible:
 ## Decision
 
 Adopt **`CooperativeStickyAssignor` (`PartitionAssignmentStrategy.CooperativeSticky`)
-for every consumer group in the solution** — all 10 KafkaFlow BC consumers and
-both MassTransit saga groups — set **in code, one shared place per stack**
+for the 10 KafkaFlow BC consumers**, set **in code, one shared place per stack**
 (placement option (b)).
+
+> **Scope correction ([issue #306](https://github.com/DavidCapcuch/DotNetAtlas/issues/306)):** the 2 MassTransit saga groups use the eager **`Range`** assignor, **not** CooperativeSticky — MassTransit's Kafka rider wires eager `Assign`/`Unassign` rebalance callbacks (no `IncrementalAssign`) and cannot run the cooperative protocol; the full rationale lives inline in `SagaKafkaConsumerDefaults.ConfigureCommon`.
 
 - **BCs:** `PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky`
   set inline after binding each consumer's options (all 10 KafkaFlow consumers),
@@ -139,7 +140,7 @@ both MassTransit saga groups — set **in code, one shared place per stack**
 - **Saga:** a shared `SagaKafkaConsumerDefaults.ConfigureCommon(...)` applied to
   every topic endpoint of both saga groups (this also retired the duplicated
   inline consumer config that previously existed only on the
-  `saga-payment-processing` side).
+  `saga-payment-processing` side). Sets eager `Range` per the scope correction above.
 
 **Cutover is a single clean deploy.** The repo is a non-production reference
 solution with no live consumer group whose state must be preserved across the
