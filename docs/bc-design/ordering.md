@@ -16,7 +16,7 @@
 | **Storage** | PostgreSQL, schema `ordering` (shared Postgres instance, per-BC schema — see [ADR-0000 not yet authored; follows general-plan § Infrastructure]). |
 | **Primary pattern showcase** | Rich **SmartEnum-guarded status FSM** with multi-event aggregate transitions, factory from `BasketSnapshot`. Write-side aggregate loading uses inline primary-key LINQ for by-id loads and `Ardalis.Specification` (`OrderByCorrelationIdSpec`) for the business-named saga-idempotency lookup; read side uses inline LINQ with SQL-side projection per [ADR-0021](../adr/0021-read-side-no-specifications.md) (adoption criteria in [ADR-0022](../adr/0022-specification-pattern-adoption.md)). |
 | **Upstream inputs** | `BasketSnapshot` (ACL input from Basket BC at checkout); `StockReserved` / `PaymentCompleted` saga events (routed from the Checkout saga). |
-| **Downstream outputs** | `ordering.orders` topic — enriched external events consumed by the Checkout saga, BFF cache invalidation, Inventory (compensation on cancel), Payments (compensation on cancel). Order-lifecycle email notifications are deferred (would route via the command-driven pattern in [notifications.md § 2](notifications.md) if added). |
+| **Downstream outputs** | `ordering.orders` topic — enriched external events consumed by the Checkout saga, BFF (cache invalidation), Inventory (release on cancel), and Invoicing (invoice-issuance / credit-note projections). Payments does **not** consume `ordering.orders` (refund left checkout compensation per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). Order-lifecycle email notifications are deferred (would route via the command-driven pattern in [notifications.md § 2](notifications.md) if added). |
 
 ---
 
@@ -257,12 +257,12 @@ Notation reminder from master-design § 3.2: external event C# name is `{Busines
 
 | External event | When produced | Consumed by |
 |----------------|--------------|-------------|
-| `OrderCreatedEvent` | `CreateFromBasket` → `OrderCreatedDomainEvent` handler | **Checkout saga** (starts saga instance; correlates by `CorrelationId`). |
-| `OrderConfirmedEvent` | `Confirm` → handler | BFF (cache invalidation: `order-history:{buyerId}`). Catalog aggregate sales analytics is planned scope — see [roadmap.md § 2.3 Ordering](../roadmap.md). |
-| `OrderCancelledEvent` | `Cancel` → handler | Inventory (release reservation if still held); Payments (refund if payment completed); BFF (cache invalidation). |
-| `OrderShippedEvent` | `MarkShipped` → handler | (no current consumer — reserved for future BFF/analytics). |
-| `OrderDeliveredEvent` | `MarkDelivered` → handler | (no current consumer — reserved for future BFF/analytics). |
-| `OrderFailedEvent` | `Fail` → handler | BFF (cache invalidation). |
+| `OrderCreatedEvent` | `CreateFromBasket` → `OrderCreatedDomainEvent` handler | **Checkout saga** (starts saga instance; correlates by `CorrelationId`); BFF (cache invalidation: `order-history-{buyerId}` only — no `order-{orderId}` entry exists for a brand-new order yet, per [bff.md § 2.2](bff.md)). |
+| `OrderConfirmedEvent` | `Confirm` → handler | **Invoicing** (invoice-issuance projection — issues once `OrderConfirmedEvent` + `PaymentCapturedEvent` both arrive); **Checkout saga** (terminal success); BFF (cache invalidation: `order-history:{buyerId}`). Catalog aggregate sales analytics is planned scope — see [roadmap.md § 2.3 Ordering](../roadmap.md). |
+| `OrderCancelledEvent` | `Cancel` → handler | Inventory (release reservation if still held); **Invoicing** (credit-note projection — pairs with `PaymentRefundedEvent`); **Checkout saga** (compensation confirmation); BFF (cache invalidation). Payments does **not** consume this event — refund left checkout compensation per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
+| `OrderShippedEvent` | `MarkShipped` → handler | BFF (cache invalidation: `order-{orderId}` + `order-history-{buyerId}`, per [bff.md § 2.2](bff.md)). Sales analytics is planned scope. |
+| `OrderDeliveredEvent` | `MarkDelivered` → handler | BFF (cache invalidation: `order-{orderId}` + `order-history-{buyerId}`, per [bff.md § 2.2](bff.md)). Sales analytics is planned scope. |
+| `OrderFailedEvent` | `Fail` → handler | **Checkout saga** (terminal failure); BFF (cache invalidation). |
 
 > **Notifications wiring (v1):** Ordering does NOT publish to a Notifications consumer. If a buyer-facing email is needed for any of these lifecycle moments, Ordering would publish `SendEmailNotificationCommand` on `notifications.email-commands` from a dedicated outbox publisher (per [notifications.md § 2](notifications.md) command-driven pattern). v1 ships no such publisher — order-lifecycle notifications are deferred.
 

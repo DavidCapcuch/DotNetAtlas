@@ -424,7 +424,7 @@ Emitted 1:1 with internal `ReservationConfirmedDomainEvent` (ES).
 | `OrderId` | `uuid` | |
 | `ConfirmedAtUtc` | `timestamp-millis` | |
 
-**Consumer:** None in v1. (A "your order is being prepared" buyer notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` from a dedicated outbox publisher; not wired in v1. The Checkout saga already knows the result from the command return.)
+**Consumer:** Checkout saga (informational). The saga's `ReservationConfirmedConsumer` updates its per-reservation tracking on `AwaitingConfirmation`, but it does **not** gate the transition — Ordering's `OrderConfirmedEvent` is the gate (see [checkout-saga.md § 4](checkout-saga.md) + [events-catalog.md § 2](events-catalog.md)). A "your order is being prepared" buyer notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` from a dedicated outbox publisher; not wired in v1.
 
 **Avro schema (`Inventory.Reservations.ReservationConfirmedEvent.avsc`):**
 
@@ -719,22 +719,23 @@ The 15-minute default lives in `InventoryOptions.ReservationTtl` in `appsettings
 | From | Event | Why | Handling |
 |------|-------|-----|----------|
 | Catalog | `ProductCreatedEvent` | Need to open a stream for the new product. | Inbox consumer in `Inventory.Infrastructure` → issues `InitializeStockItemCommand`. Idempotent on `ProductId`. |
+| Ordering | `OrderCancelledEvent` (on `ordering.orders`) | Release any still-`Active` reservation when an order is cancelled before shipment — covers the buyer-initiated cancel that does not flow through saga compensation. | `OrderCancelledEventKafkaHandler` queries `reservation_audit WHERE OrderId = msg.OrderId AND Status = Active` and dispatches one `ReleaseReservationCommand` per row. Idempotent on re-query. |
 
-Inventory does NOT consume any other cross-service events in v1. It is a downstream of Catalog (structurally) and an upstream of the checkout saga (behaviorally).
+Beyond these events, Inventory consumes the saga-issued reservation commands on `inventory.reservation-commands` (`ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` — see § 9). Inventory is a downstream of Catalog (structurally), a direct Published-Language consumer of Ordering's `OrderCancelledEvent`, and an upstream of the checkout saga (behaviorally).
 
 ### 12.2 Downstream consumers (who reads Inventory's external events)
 
 | Consumer | Events | Purpose |
 |----------|--------|---------|
 | **Catalog** | `StockLevelChangedEvent` | Update `IsSellable` / availability projection for product cards. Relationship pattern: Catalog is **downstream, OHS-consumer** of Inventory's stock-level topic. |
-| **Checkout saga** | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationReleasedEvent` | Drives the reserve → pay → confirm OR compensate path. Relationship pattern: Saga is **Customer** of Inventory's reservation topic (Inventory is Supplier). Saga conforms to Inventory's schema. |
+| **Checkout saga** | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` | Drives the reserve → pay → confirm OR compensate path. Relationship pattern: Saga is **Customer** of Inventory's reservation topic (Inventory is Supplier). Saga conforms to Inventory's schema. |
 | **Notifications** (deferred) | (none in v1) | "Your order is being prepared" notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` rather than have Notifications subscribe to `inventory.reservations`. Not wired in v1. |
 
 ### 12.3 Context map relationships
 
 - **Catalog ↔ Inventory** — Shared Kernel on `ProductId` (the Guid is the only shared concept). Otherwise Published Language — Inventory publishes `inventory.stock-events`, Catalog subscribes.
 - **Inventory ↔ Checkout saga** — Customer/Supplier with Inventory as upstream Supplier. Saga conforms to the Avro schemas on `inventory.reservations`.
-- **Inventory ↔ Ordering** — No direct coupling. All interaction flows through the saga.
+- **Inventory ↔ Ordering** — Published Language on the cancel path: Inventory consumes Ordering's `OrderCancelledEvent` on `ordering.orders` directly (release-on-cancel, § 12.1). The reserve/confirm path flows through the saga (`inventory.reservation-commands`).
 - **Inventory ↔ Payments** — No direct coupling.
 
 ---
