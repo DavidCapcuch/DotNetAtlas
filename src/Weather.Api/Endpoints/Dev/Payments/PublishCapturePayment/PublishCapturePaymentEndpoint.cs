@@ -51,7 +51,6 @@ internal class PublishCapturePaymentEndpoint : Endpoint<PublishCapturePaymentCom
     {
         var capturePaymentCommand = new CapturePaymentCommand
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             AuthorizationId = req.AuthorizationId,
             Amount = req.Amount.ToAvroDecimal(4),

@@ -19,15 +19,11 @@ namespace Ordering.Orders
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class MarkOrderFailedCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""MarkOrderFailedCommand"",""doc"":""Command issued by the Checkout saga to mark an Order as terminally Failed when a saga step times out or cannot be completed (e.g., stock reservation failed, payment failed). Ordering transitions to Failed and emits OrderFailedEvent."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order to fail. Also the Kafka message key."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message. Propagates to OrderFailedEvent.ErrorMessage."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the saga issued the command."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""MarkOrderFailedCommand"",""doc"":""Command issued by the Checkout saga to mark an Order as terminally Failed when a saga step times out or cannot be completed (e.g., stock reservation failed, payment failed). Ordering transitions to Failed and emits OrderFailedEvent."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order to fail. Also the Kafka message key."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message. Propagates to OrderFailedEvent.ErrorMessage."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the saga issued the command."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Unique identifier of the Order to fail. Also the Kafka message key.
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id.
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT).
 		/// </summary>
@@ -59,20 +55,6 @@ namespace Ordering.Orders
 			set
 			{
 				this._OrderId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -122,10 +104,9 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.ErrorCode;
-			case 3: return this.ErrorMessage;
-			case 4: return this.RequestedAtUtc;
+			case 1: return this.ErrorCode;
+			case 2: return this.ErrorMessage;
+			case 3: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -134,10 +115,9 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.ErrorCode = (System.String)fieldValue; break;
-			case 3: this.ErrorMessage = (System.String)fieldValue; break;
-			case 4: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.ErrorCode = (System.String)fieldValue; break;
+			case 2: this.ErrorMessage = (System.String)fieldValue; break;
+			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

@@ -95,7 +95,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await PublishReservationReleasedAsync(orderId, product1, tracking[product1].ReservationId!.Value);
         await PublishReservationReleasedAsync(orderId, product2, tracking[product2].ReservationId!.Value);
         await PublishReservationReleasedAsync(orderId, product3, tracking[product3].ReservationId!.Value);
-        await PublishOrderCancelledAsync(correlationId, userId, orderId, atStatus: OrderStatusAtTransition.StockReserved);
+        await PublishOrderCancelledAsync(userId, orderId, atStatus: OrderStatusAtTransition.StockReserved);
 
         // Assert — Compensated terminal reached + finalized
         var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -179,7 +179,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         // Act 1 — Ordering reports the order failed during confirmation (pre-capture). Saga publishes
         // AbortCaptureCommand + releases stock + cancels order, transitioning to
         // CompensatingStockReservations directly (no CompensatingPayment / refund leg).
-        await PublishOrderFailedAsync(correlationId, userId, orderId,
+        await PublishOrderFailedAsync(userId, orderId,
             errorCode: "CONFIRMATION_INVENTORY_OUT_OF_SYNC",
             atStatus: OrderStatusAtTransition.PaymentCompleted);
 
@@ -189,7 +189,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await PublishReservationReleasedAsync(orderId, product1, tracking[product1].ReservationId!.Value);
         await PublishReservationReleasedAsync(orderId, product2, tracking[product2].ReservationId!.Value);
         await PublishReservationReleasedAsync(orderId, product3, tracking[product3].ReservationId!.Value);
-        await PublishOrderCancelledAsync(correlationId, userId, orderId, atStatus: OrderStatusAtTransition.PaymentCompleted);
+        await PublishOrderCancelledAsync(userId, orderId, atStatus: OrderStatusAtTransition.PaymentCompleted);
 
         // Assert — Compensated terminal reached + finalized
         var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
@@ -326,7 +326,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingOrderCreation, DefaultTimeout);
 
         // Act — Ordering rejects the create-order request
-        await PublishOrderFailedAsync(correlationId, userId, orderId,
+        await PublishOrderFailedAsync(userId, orderId,
             errorCode: "ORDER_VALIDATION_FAILED",
             atStatus: OrderStatusAtTransition.Created);
 
@@ -373,7 +373,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await KafkaTestProducer.ProduceAsync(TopicsOptions.BasketSessions, userId, basketCheckoutInitiated);
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingOrderCreation, DefaultTimeout);
 
-        var orderCreated = CheckoutSagaTestPublishers.BuildOrderCreatedEvent(correlationId, userId, orderId);
+        var orderCreated = CheckoutSagaTestPublishers.BuildOrderCreatedEvent(userId, orderId);
         await KafkaTestProducer.ProduceAsync(TopicsOptions.OrderingOrders, orderId, orderCreated);
 
         return await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingStockReservation, DefaultTimeout);
@@ -426,7 +426,6 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     {
         var paymentFailed = new PaymentFailedEvent
         {
-            CorrelationId = correlationId,
             OrderId = correlationId,
             UserId = userId,
             ErrorCode = errorCode,
@@ -443,7 +442,6 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         // reacts by confirming order + reservations (the pre-pivot step).
         var paymentAuthorized = new PaymentAuthorizedEvent
         {
-            CorrelationId = correlationId,
             OrderId = correlationId,
             UserId = userId,
             AuthorizationId = $"auth-{Guid.CreateVersion7():N}",
@@ -457,13 +455,12 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     }
 
     private async Task PublishOrderFailedAsync(
-        Guid correlationId, Guid userId, Guid orderId,
+        Guid userId, Guid orderId,
         string errorCode, OrderStatusAtTransition atStatus)
     {
         var orderFailed = new OrderFailedEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = userId,
             ErrorCode = errorCode,
             ErrorMessage = $"Test-injected order failure: {errorCode}",
@@ -475,15 +472,14 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     }
 
     private async Task PublishOrderCancelledAsync(
-        Guid correlationId, Guid userId, Guid orderId, OrderStatusAtTransition atStatus)
+        Guid userId, Guid orderId, OrderStatusAtTransition atStatus)
     {
         // OrderCancelledEvent.Items / TotalAmount / Currency / BillingAddress are nullable for
         // FORWARD_TRANSITIVE per ADR-0020; the saga's OrderCancelledConsumer reads only OrderId
-        // + CorrelationId + CancelledAtUtc, so the empty/null enrichment fields are ignored here.
+        // + CancelledAtUtc, so the empty/null enrichment fields are ignored here.
         var orderCancelled = new OrderCancelledEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = userId,
             Reason = "Checkout saga compensation (test)",
             AtStatus = atStatus,

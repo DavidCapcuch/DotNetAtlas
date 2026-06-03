@@ -101,7 +101,6 @@ public sealed class HappyPathIntegrationTests
             var avro = new AvroConfirmOrderCommand
             {
                 OrderId = orderId,
-                CorrelationId = correlationId,
                 RequestedAtUtc = DateTime.UtcNow,
             };
             await handler.Handle(
@@ -129,20 +128,17 @@ public sealed class HappyPathIntegrationTests
                 .Where(m => m.IntegrationEvent.OrderId == orderId)
                 .ToList();
             created.Should().ContainSingle();
-            created[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
 
             var confirmed = fakeOutbox.GetMessages<AvroOrderConfirmedEvent>()
                 .Where(m => m.IntegrationEvent.OrderId == orderId)
                 .ToList();
             confirmed.Should().ContainSingle();
-            confirmed[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
     private static AvroCreateOrderCommand NewValidCreateCommand(Guid correlationId) => new()
     {
         OrderId = correlationId,
-        CorrelationId = correlationId,
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),
         Items = new List<AvroCreateOrderItem>

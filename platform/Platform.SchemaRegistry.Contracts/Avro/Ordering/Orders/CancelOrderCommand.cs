@@ -19,15 +19,11 @@ namespace Ordering.Orders
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class CancelOrderCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""CancelOrderCommand"",""doc"":""Command issued by the Checkout saga (or ops tooling) to cancel an Order. Ordering transitions to Cancelled and emits OrderCancelledEvent, which downstream consumers use to release stock and refund if captured."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order to cancel. Also the Kafka message key."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id. Present for admin-driven cancellations too (null-sentinel omitted for v1)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Reason"",""doc"":""Human- or system-assigned cancellation reason (max 500 chars). Propagates to OrderCancelledEvent.Reason."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the cancellation was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""CancelOrderCommand"",""doc"":""Command issued by the Checkout saga (or ops tooling) to cancel an Order. Ordering transitions to Cancelled and emits OrderCancelledEvent, which downstream consumers use to release stock and refund if captured."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order to cancel. Also the Kafka message key."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Reason"",""doc"":""Human- or system-assigned cancellation reason (max 500 chars). Propagates to OrderCancelledEvent.Reason."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the cancellation was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Unique identifier of the Order to cancel. Also the Kafka message key.
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id. Present for admin-driven cancellations too (null-sentinel omitted for v1).
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// Human- or system-assigned cancellation reason (max 500 chars). Propagates to OrderCancelledEvent.Reason.
 		/// </summary>
@@ -55,20 +51,6 @@ namespace Ordering.Orders
 			set
 			{
 				this._OrderId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id. Present for admin-driven cancellations too (null-sentinel omitted for v1).
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -104,9 +86,8 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.Reason;
-			case 3: return this.RequestedAtUtc;
+			case 1: return this.Reason;
+			case 2: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -115,9 +96,8 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.Reason = (System.String)fieldValue; break;
-			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.Reason = (System.String)fieldValue; break;
+			case 2: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

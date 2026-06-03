@@ -21,41 +21,33 @@ namespace Payments.Transactions
 	{
 		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"AuthorizePaymentCommand\",\"doc\":\"Command sent by Payment " +
 				"Saga to request payment authorization from the Payment Service.\",\"namespace\":\"Pa" +
-				"yments.Transactions\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Correlation ID for" +
-				" tracking the workflow.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":" +
-				"\"PaymentTransactionId\",\"doc\":\"Saga-minted UUID v7 that becomes the Payments aggr" +
-				"egate\'s primary key. Saga emits a fresh value at initial state and reuses it on " +
-				"every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == Correlat" +
-				"ionId) was unwound in cross-cutting wave1-followup #255 so the \'v7 PK\' guarantee" +
-				" on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by " +
-				"the unique index on payment_transactions.correlation_id.\",\"type\":{\"type\":\"string" +
-				"\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate id this pay" +
-				"ment is attached to. The Checkout saga creates the order before requesting payme" +
-				"nt, so OrderId is always present at authorize time. Persisted on the PaymentTran" +
-				"saction aggregate as a debugging/admin-lookup convenience; downstream Payments e" +
-				"vents drop it (cross-BC linkage is CorrelationId).\",\"default\":\"00000000-0000-000" +
-				"0-0000-000000000000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Use" +
-				"rId\",\"doc\":\"User to authorize payment for.\",\"type\":{\"type\":\"string\",\"logicalType" +
-				"\":\"uuid\"}},{\"name\":\"PaymentMethodId\",\"doc\":\"Gateway-issued opaque payment-method" +
-				" token (e.g. Stripe \'pm_*\', Adyen alphanumeric); 1-64 chars. BREAKING change in " +
-				"the Wave-1 closeout C-2 fix: previously typed as logicalType:uuid which blocked " +
-				"any real-PSP adapter swap because no real gateway issues UUID-shaped payment-met" +
-				"hod ids.\",\"type\":\"string\"},{\"name\":\"Amount\",\"doc\":\"Amount to authorize.\",\"type\":" +
-				"{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Curr" +
-				"ency\",\"doc\":\"ISO 4217 currency code.\",\"type\":\"string\"},{\"name\":\"IdempotencyKey\"," +
-				"\"doc\":\"Idempotency key to prevent duplicate authorizations.\",\"type\":\"string\"},{\"" +
-				"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when authorization was requested.\",\"" +
-				"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
+				"yments.Transactions\",\"fields\":[{\"name\":\"PaymentTransactionId\",\"doc\":\"Saga-minted" +
+				" UUID v7 that becomes the Payments aggregate\'s primary key. The saga emits a fre" +
+				"sh value at initial state and reuses it on every retry. One-payment-per-order is" +
+				" enforced by the unique index on payment_transactions.order_id (ADR-0029).\",\"typ" +
+				"e\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering agg" +
+				"regate id this payment is attached to. The Checkout saga creates the order befor" +
+				"e requesting payment, so OrderId is always present at authorize time. Persisted " +
+				"on the PaymentTransaction aggregate as the durable cross-BC business key backing" +
+				" the unique one-payment-per-order index (ADR-0029).\",\"type\":{\"type\":\"string\",\"lo" +
+				"gicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User to authorize payment for.\",\"typ" +
+				"e\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"PaymentMethodId\",\"doc\":\"Gate" +
+				"way-issued opaque payment-method token (e.g. Stripe \'pm_*\', Adyen alphanumeric);" +
+				" 1-64 chars. BREAKING change in the Wave-1 closeout C-2 fix: previously typed as" +
+				" logicalType:uuid which blocked any real-PSP adapter swap because no real gatewa" +
+				"y issues UUID-shaped payment-method ids.\",\"type\":\"string\"},{\"name\":\"Amount\",\"doc" +
+				"\":\"Amount to authorize.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precisi" +
+				"on\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code.\",\"type\":\"st" +
+				"ring\"},{\"name\":\"IdempotencyKey\",\"doc\":\"Idempotency key to prevent duplicate auth" +
+				"orizations.\",\"type\":\"string\"},{\"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when" +
+				" authorization was requested.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-mi" +
+				"llis\"}}]}");
 		/// <summary>
-		/// Correlation ID for tracking the workflow.
-		/// </summary>
-		private System.Guid _CorrelationId;
-		/// <summary>
-		/// Saga-minted UUID v7 that becomes the Payments aggregate's primary key. Saga emits a fresh value at initial state and reuses it on every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == CorrelationId) was unwound in cross-cutting wave1-followup #255 so the 'v7 PK' guarantee on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by the unique index on payment_transactions.correlation_id.
+		/// Saga-minted UUID v7 that becomes the Payments aggregate's primary key. The saga emits a fresh value at initial state and reuses it on every retry. One-payment-per-order is enforced by the unique index on payment_transactions.order_id (ADR-0029).
 		/// </summary>
 		private System.Guid _PaymentTransactionId;
 		/// <summary>
-		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId).
+		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as the durable cross-BC business key backing the unique one-payment-per-order index (ADR-0029).
 		/// </summary>
 		private System.Guid _OrderId;
 		/// <summary>
@@ -90,21 +82,7 @@ namespace Payments.Transactions
 			}
 		}
 		/// <summary>
-		/// Correlation ID for tracking the workflow.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
-			}
-		}
-		/// <summary>
-		/// Saga-minted UUID v7 that becomes the Payments aggregate's primary key. Saga emits a fresh value at initial state and reuses it on every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == CorrelationId) was unwound in cross-cutting wave1-followup #255 so the 'v7 PK' guarantee on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by the unique index on payment_transactions.correlation_id.
+		/// Saga-minted UUID v7 that becomes the Payments aggregate's primary key. The saga emits a fresh value at initial state and reuses it on every retry. One-payment-per-order is enforced by the unique index on payment_transactions.order_id (ADR-0029).
 		/// </summary>
 		public System.Guid PaymentTransactionId
 		{
@@ -118,7 +96,7 @@ namespace Payments.Transactions
 			}
 		}
 		/// <summary>
-		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId).
+		/// Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as the durable cross-BC business key backing the unique one-payment-per-order index (ADR-0029).
 		/// </summary>
 		public System.Guid OrderId
 		{
@@ -219,15 +197,14 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.PaymentTransactionId;
-			case 2: return this.OrderId;
-			case 3: return this.UserId;
-			case 4: return this.PaymentMethodId;
-			case 5: return this.Amount;
-			case 6: return this.Currency;
-			case 7: return this.IdempotencyKey;
-			case 8: return this.RequestedAtUtc;
+			case 0: return this.PaymentTransactionId;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.PaymentMethodId;
+			case 4: return this.Amount;
+			case 5: return this.Currency;
+			case 6: return this.IdempotencyKey;
+			case 7: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -235,15 +212,14 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.PaymentTransactionId = (System.Guid)fieldValue; break;
-			case 2: this.OrderId = (System.Guid)fieldValue; break;
-			case 3: this.UserId = (System.Guid)fieldValue; break;
-			case 4: this.PaymentMethodId = (System.String)fieldValue; break;
-			case 5: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 6: this.Currency = (System.String)fieldValue; break;
-			case 7: this.IdempotencyKey = (System.String)fieldValue; break;
-			case 8: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.PaymentTransactionId = (System.Guid)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.PaymentMethodId = (System.String)fieldValue; break;
+			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 5: this.Currency = (System.String)fieldValue; break;
+			case 6: this.IdempotencyKey = (System.String)fieldValue; break;
+			case 7: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

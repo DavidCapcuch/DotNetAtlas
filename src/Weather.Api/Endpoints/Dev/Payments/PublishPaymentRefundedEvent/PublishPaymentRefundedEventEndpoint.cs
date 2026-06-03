@@ -53,7 +53,6 @@ internal class PublishPaymentRefundedEventEndpoint : Endpoint<PublishPaymentRefu
     {
         var paymentRefundedEvent = new PaymentRefundedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             PaymentTransactionId = req.PaymentTransactionId,
             RefundTransactionId = req.RefundTransactionId,

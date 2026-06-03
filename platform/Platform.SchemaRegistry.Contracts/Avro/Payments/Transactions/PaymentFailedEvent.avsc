@@ -5,14 +5,6 @@
     "doc": "Event emitted by Payment Saga when payment processing fails terminally (after retries exhausted or non-retryable error). Business sagas listen to this to handle failure.",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Correlation ID shared with the business saga that initiated the payment."
-        },
-        {
             "name": "OrderId",
             "type": {
                 "type": "string",

@@ -8,7 +8,6 @@
         { "name": "BuyerId",        "type": { "type": "string", "logicalType": "uuid" },             "doc": "Partition key; matches InvoiceIssuedEvent.BuyerId." },
         { "name": "DeliveredAtUtc", "type": { "type": "long",   "logicalType": "timestamp-millis" }, "doc": "UTC instant the channel reported success." },
         { "name": "Channel",        "type": "string",                                                "doc": "DeliveryChannel SmartEnum name: 'Email' (v1) or 'TaxAuthorityWebhook' (v2)." },
-        { "name": "CorrelationId",  "type": { "type": "string", "logicalType": "uuid" },             "doc": "Checkout saga correlation id (passed through from Issuance)." },
         { "name": "OccurredOnUtc",  "type": { "type": "long",   "logicalType": "timestamp-millis" }, "doc": "Domain event occurrence time." }
     ]
 }

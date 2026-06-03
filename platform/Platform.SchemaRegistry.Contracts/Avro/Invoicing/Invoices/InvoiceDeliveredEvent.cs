@@ -19,7 +19,7 @@ namespace Invoicing.Invoices
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class InvoiceDeliveredEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""InvoiceDeliveredEvent"",""doc"":""Emitted when an Invoice transitions Issued -> Delivered (a downstream delivery channel reported success). Topic 'invoicing.invoices' has 10-year retention; consumers may need this to advance their own state machines (BFF cache, audit reports). FORWARD_TRANSITIVE compat."",""namespace"":""Invoicing.Invoices"",""fields"":[{""name"":""InvoiceId"",""doc"":""Aggregate id."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""Partition key; matches InvoiceIssuedEvent.BuyerId."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""DeliveredAtUtc"",""doc"":""UTC instant the channel reported success."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""Channel"",""doc"":""DeliveryChannel SmartEnum name: 'Email' (v1) or 'TaxAuthorityWebhook' (v2)."",""type"":""string""},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id (passed through from Issuance)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OccurredOnUtc"",""doc"":""Domain event occurrence time."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""InvoiceDeliveredEvent"",""doc"":""Emitted when an Invoice transitions Issued -> Delivered (a downstream delivery channel reported success). Topic 'invoicing.invoices' has 10-year retention; consumers may need this to advance their own state machines (BFF cache, audit reports). FORWARD_TRANSITIVE compat."",""namespace"":""Invoicing.Invoices"",""fields"":[{""name"":""InvoiceId"",""doc"":""Aggregate id."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""Partition key; matches InvoiceIssuedEvent.BuyerId."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""DeliveredAtUtc"",""doc"":""UTC instant the channel reported success."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""Channel"",""doc"":""DeliveryChannel SmartEnum name: 'Email' (v1) or 'TaxAuthorityWebhook' (v2)."",""type"":""string""},{""name"":""OccurredOnUtc"",""doc"":""Domain event occurrence time."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Aggregate id.
 		/// </summary>
@@ -36,10 +36,6 @@ namespace Invoicing.Invoices
 		/// DeliveryChannel SmartEnum name: 'Email' (v1) or 'TaxAuthorityWebhook' (v2).
 		/// </summary>
 		private string _Channel;
-		/// <summary>
-		/// Checkout saga correlation id (passed through from Issuance).
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// Domain event occurrence time.
 		/// </summary>
@@ -108,20 +104,6 @@ namespace Invoicing.Invoices
 			}
 		}
 		/// <summary>
-		/// Checkout saga correlation id (passed through from Issuance).
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
-			}
-		}
-		/// <summary>
 		/// Domain event occurrence time.
 		/// </summary>
 		public System.DateTime OccurredOnUtc
@@ -143,8 +125,7 @@ namespace Invoicing.Invoices
 			case 1: return this.BuyerId;
 			case 2: return this.DeliveredAtUtc;
 			case 3: return this.Channel;
-			case 4: return this.CorrelationId;
-			case 5: return this.OccurredOnUtc;
+			case 4: return this.OccurredOnUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -156,8 +137,7 @@ namespace Invoicing.Invoices
 			case 1: this.BuyerId = (System.Guid)fieldValue; break;
 			case 2: this.DeliveredAtUtc = (System.DateTime)fieldValue; break;
 			case 3: this.Channel = (System.String)fieldValue; break;
-			case 4: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 5: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
+			case 4: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

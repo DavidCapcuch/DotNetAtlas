@@ -32,25 +32,23 @@ namespace Invoicing.CreditNotes
 				"oice\'s number for PDF rendering and accounting reconciliation.\",\"type\":\"string\"}" +
 				",{\"name\":\"BuyerId\",\"doc\":\"Buyer of the original invoice (and therefore the credi" +
 				"t note). Kafka partition key on \'invoicing.invoices\'.\",\"type\":{\"type\":\"string\",\"" +
-				"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\":\"Checkout saga correlation i" +
-				"d of the cancellation flow that triggered this credit note.\",\"type\":{\"type\":\"str" +
-				"ing\",\"logicalType\":\"uuid\"}},{\"name\":\"IssueDate\",\"doc\":\"UTC timestamp when the cr" +
-				"edit note was issued (number stamped + PDF uploaded).\",\"type\":{\"type\":\"long\",\"lo" +
-				"gicalType\":\"timestamp-millis\"}},{\"name\":\"Total\",\"doc\":\"Negated total of the orig" +
-				"inal Invoice (Invariant I-CN-2: strictly negative). Currency is in the Currency " +
-				"field.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}" +
-				"},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code (matches the original Invoice" +
-				"\'s currency).\",\"type\":\"string\"},{\"name\":\"Reason\",\"doc\":\"CreditNoteReason SmartEn" +
-				"um name (v1: \'OrderCancelled\'; v2 adds \'PartialRefund\', \'Adjustment\').\",\"type\":\"" +
-				"string\"},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blob name (e.g., \'2026" +
-				"/05/CN-2026-000007.pdf\'). Consumers must call Invoicing\'s GET endpoint (or re-mi" +
-				"nt via a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — ne" +
-				"ver embed long-lived URLs in this stream (issue #131).\",\"type\":\"string\"},{\"name\"" +
-				":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercase hex (64 chars).\",\"t" +
-				"ype\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PDF blob in bytes (>0)." +
-				"\",\"type\":\"long\"},{\"name\":\"OccurredOnUtc\",\"doc\":\"Domain event occurrence time (en" +
-				"velope timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.\"," +
-				"\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
+				"logicalType\":\"uuid\"}},{\"name\":\"IssueDate\",\"doc\":\"UTC timestamp when the credit n" +
+				"ote was issued (number stamped + PDF uploaded).\",\"type\":{\"type\":\"long\",\"logicalT" +
+				"ype\":\"timestamp-millis\"}},{\"name\":\"Total\",\"doc\":\"Negated total of the original I" +
+				"nvoice (Invariant I-CN-2: strictly negative). Currency is in the Currency field." +
+				"\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"na" +
+				"me\":\"Currency\",\"doc\":\"ISO 4217 currency code (matches the original Invoice\'s cur" +
+				"rency).\",\"type\":\"string\"},{\"name\":\"Reason\",\"doc\":\"CreditNoteReason SmartEnum nam" +
+				"e (v1: \'OrderCancelled\'; v2 adds \'PartialRefund\', \'Adjustment\').\",\"type\":\"string" +
+				"\"},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blob name (e.g., \'2026/05/CN" +
+				"-2026-000007.pdf\'). Consumers must call Invoicing\'s GET endpoint (or re-mint via" +
+				" a shared IBlobStore for in-Invoicing readers) to get a fresh SAS URL — never em" +
+				"bed long-lived URLs in this stream (issue #131).\",\"type\":\"string\"},{\"name\":\"PdfC" +
+				"ontentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercase hex (64 chars).\",\"type\":\"" +
+				"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PDF blob in bytes (>0).\",\"typ" +
+				"e\":\"long\"},{\"name\":\"OccurredOnUtc\",\"doc\":\"Domain event occurrence time (envelope" +
+				" timestamp). Matches DomainEvent.OccurredOnUtc on the in-process record.\",\"type\"" +
+				":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Unique identifier of the CreditNote aggregate.
 		/// </summary>
@@ -71,10 +69,6 @@ namespace Invoicing.CreditNotes
 		/// Buyer of the original invoice (and therefore the credit note). Kafka partition key on 'invoicing.invoices'.
 		/// </summary>
 		private System.Guid _BuyerId;
-		/// <summary>
-		/// Checkout saga correlation id of the cancellation flow that triggered this credit note.
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// UTC timestamp when the credit note was issued (number stamped + PDF uploaded).
 		/// </summary>
@@ -182,20 +176,6 @@ namespace Invoicing.CreditNotes
 			set
 			{
 				this._BuyerId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id of the cancellation flow that triggered this credit note.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -319,15 +299,14 @@ namespace Invoicing.CreditNotes
 			case 2: return this.OriginalInvoiceId;
 			case 3: return this.OriginalInvoiceNumber;
 			case 4: return this.BuyerId;
-			case 5: return this.CorrelationId;
-			case 6: return this.IssueDate;
-			case 7: return this.Total;
-			case 8: return this.Currency;
-			case 9: return this.Reason;
-			case 10: return this.PdfBlobName;
-			case 11: return this.PdfContentHash;
-			case 12: return this.PdfSizeBytes;
-			case 13: return this.OccurredOnUtc;
+			case 5: return this.IssueDate;
+			case 6: return this.Total;
+			case 7: return this.Currency;
+			case 8: return this.Reason;
+			case 9: return this.PdfBlobName;
+			case 10: return this.PdfContentHash;
+			case 11: return this.PdfSizeBytes;
+			case 12: return this.OccurredOnUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -340,15 +319,14 @@ namespace Invoicing.CreditNotes
 			case 2: this.OriginalInvoiceId = (System.Guid)fieldValue; break;
 			case 3: this.OriginalInvoiceNumber = (System.String)fieldValue; break;
 			case 4: this.BuyerId = (System.Guid)fieldValue; break;
-			case 5: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 6: this.IssueDate = (System.DateTime)fieldValue; break;
-			case 7: this.Total = (Avro.AvroDecimal)fieldValue; break;
-			case 8: this.Currency = (System.String)fieldValue; break;
-			case 9: this.Reason = (System.String)fieldValue; break;
-			case 10: this.PdfBlobName = (System.String)fieldValue; break;
-			case 11: this.PdfContentHash = (System.String)fieldValue; break;
-			case 12: this.PdfSizeBytes = (System.Int64)fieldValue; break;
-			case 13: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
+			case 5: this.IssueDate = (System.DateTime)fieldValue; break;
+			case 6: this.Total = (Avro.AvroDecimal)fieldValue; break;
+			case 7: this.Currency = (System.String)fieldValue; break;
+			case 8: this.Reason = (System.String)fieldValue; break;
+			case 9: this.PdfBlobName = (System.String)fieldValue; break;
+			case 10: this.PdfContentHash = (System.String)fieldValue; break;
+			case 11: this.PdfSizeBytes = (System.Int64)fieldValue; break;
+			case 12: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

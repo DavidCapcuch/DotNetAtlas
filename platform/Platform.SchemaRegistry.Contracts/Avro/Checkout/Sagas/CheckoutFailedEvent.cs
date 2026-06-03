@@ -23,28 +23,22 @@ namespace Checkout.Sagas
 				"itted by the Checkout saga when the workflow reaches Failed (no compensation nee" +
 				"ded) or Compensated (full rollback). CompensationTriggered distinguishes the two" +
 				" outcomes per checkout-saga.md § 9.1. Subscribed by Notifications and BFF.\",\"nam" +
-				"espace\":\"Checkout.Sagas\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Saga correlati" +
-				"on id - equals the checkout\'s pre-assigned OrderId (BasketCheckoutInitiatedEvent" +
-				".OrderId) per ADR-0029.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":" +
-				"\"OrderId\",\"doc\":\"Ordering aggregate id - default zero-uuid when the saga failed " +
-				"before the Order was created.\",\"default\":\"00000000-0000-0000-0000-000000000000\"," +
-				"\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User who " +
-				"initiated the checkout.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":" +
-				"\"ErrorCode\",\"doc\":\"Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FA" +
-				"ILED, ORDER_CREATION_TIMEOUT, CONFIRMATION_FAILED).\",\"type\":\"string\"},{\"name\":\"E" +
-				"rrorMessage\",\"doc\":\"Human-readable failure message.\",\"type\":\"string\"},{\"name\":\"F" +
-				"ailedAtState\",\"doc\":\"Name of the state when failure first occurred. Aids ops for" +
-				"ensics.\",\"type\":\"string\"},{\"name\":\"CompensationTriggered\",\"doc\":\"True when the s" +
-				"aga reached Compensated (full rollback executed); false when the saga reached Fa" +
-				"iled (no downstream side effects to compensate).\",\"type\":\"boolean\"},{\"name\":\"Ini" +
-				"tiatedAtUtc\",\"doc\":\"UTC timestamp when the saga was first initiated.\",\"type\":{\"t" +
-				"ype\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"FailedAtUtc\",\"doc\":\"UTC " +
-				"timestamp when the saga reached its terminal failure state.\",\"type\":{\"type\":\"lon" +
-				"g\",\"logicalType\":\"timestamp-millis\"}}]}");
-		/// <summary>
-		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
-		/// </summary>
-		private System.Guid _CorrelationId;
+				"espace\":\"Checkout.Sagas\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate i" +
+				"d - default zero-uuid when the saga failed before the Order was created.\",\"defau" +
+				"lt\":\"00000000-0000-0000-0000-000000000000\",\"type\":{\"type\":\"string\",\"logicalType\"" +
+				":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User who initiated the checkout.\",\"type\":{\"typ" +
+				"e\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ErrorCode\",\"doc\":\"Categorised failur" +
+				"e code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, ORDER_CREATION_TIMEOUT, CONFIRM" +
+				"ATION_FAILED).\",\"type\":\"string\"},{\"name\":\"ErrorMessage\",\"doc\":\"Human-readable fa" +
+				"ilure message.\",\"type\":\"string\"},{\"name\":\"FailedAtState\",\"doc\":\"Name of the stat" +
+				"e when failure first occurred. Aids ops forensics.\",\"type\":\"string\"},{\"name\":\"Co" +
+				"mpensationTriggered\",\"doc\":\"True when the saga reached Compensated (full rollbac" +
+				"k executed); false when the saga reached Failed (no downstream side effects to c" +
+				"ompensate).\",\"type\":\"boolean\"},{\"name\":\"InitiatedAtUtc\",\"doc\":\"UTC timestamp whe" +
+				"n the saga was first initiated.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-" +
+				"millis\"}},{\"name\":\"FailedAtUtc\",\"doc\":\"UTC timestamp when the saga reached its t" +
+				"erminal failure state.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}" +
+				"]}");
 		/// <summary>
 		/// Ordering aggregate id - default zero-uuid when the saga failed before the Order was created.
 		/// </summary>
@@ -82,20 +76,6 @@ namespace Checkout.Sagas
 			get
 			{
 				return CheckoutFailedEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -214,15 +194,14 @@ namespace Checkout.Sagas
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.ErrorCode;
-			case 4: return this.ErrorMessage;
-			case 5: return this.FailedAtState;
-			case 6: return this.CompensationTriggered;
-			case 7: return this.InitiatedAtUtc;
-			case 8: return this.FailedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.ErrorCode;
+			case 3: return this.ErrorMessage;
+			case 4: return this.FailedAtState;
+			case 5: return this.CompensationTriggered;
+			case 6: return this.InitiatedAtUtc;
+			case 7: return this.FailedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -230,15 +209,14 @@ namespace Checkout.Sagas
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.ErrorCode = (System.String)fieldValue; break;
-			case 4: this.ErrorMessage = (System.String)fieldValue; break;
-			case 5: this.FailedAtState = (System.String)fieldValue; break;
-			case 6: this.CompensationTriggered = (System.Boolean)fieldValue; break;
-			case 7: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
-			case 8: this.FailedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.ErrorCode = (System.String)fieldValue; break;
+			case 3: this.ErrorMessage = (System.String)fieldValue; break;
+			case 4: this.FailedAtState = (System.String)fieldValue; break;
+			case 5: this.CompensationTriggered = (System.Boolean)fieldValue; break;
+			case 6: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
+			case 7: this.FailedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

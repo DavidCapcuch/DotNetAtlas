@@ -5,14 +5,6 @@
     "doc": "Command to release an Active reservation without confirming it (saga compensation, TTL expiry, or admin cancel). Inventory emits ReservationReleasedEvent with the specified ReleaseReason.",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id (or internally generated for TTL expiry / admin flows). Also the Kafka message key."
-        },
-        {
             "name": "ProductId",
             "type": {
                 "type": "string",

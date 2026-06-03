@@ -29,7 +29,6 @@ internal static class PaymentRefundedMapper
 
         return new PaymentRefundedEvent
         {
-            CorrelationId = source.CorrelationId,
             UserId = source.BuyerId,
             PaymentTransactionId = source.PaymentId,
             // #246: fresh UUID v7 per refund-row (no aggregate change in v1; v2 partial-refund

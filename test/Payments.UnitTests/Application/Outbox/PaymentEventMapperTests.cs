@@ -48,7 +48,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);
@@ -77,7 +76,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.ErrorCode.Should().Be("insufficient_funds");
@@ -179,7 +177,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
@@ -209,7 +206,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);
@@ -243,7 +239,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
             avro.RefundTransactionId.Should().NotBe(PaymentId);
@@ -277,7 +272,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
@@ -310,7 +304,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.ErrorCode.Should().Be("card_declined");
@@ -358,7 +351,6 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
-            avro.CorrelationId.Should().Be(CorrelationId);
             avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);

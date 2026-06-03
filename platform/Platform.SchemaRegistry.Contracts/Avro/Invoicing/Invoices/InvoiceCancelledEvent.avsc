@@ -42,14 +42,6 @@
             "doc": "Identifier of the reversing CreditNote (Invoice invariant I-6). Cancellation always pairs with a credit note issuance."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id of the cancellation flow."
-        },
-        {
             "name": "OccurredOnUtc",
             "type": {
                 "type": "long",

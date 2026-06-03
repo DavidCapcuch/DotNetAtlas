@@ -143,7 +143,6 @@ public sealed class KafkaHandlerCorrelationIdScopeTests
         return new AvroOrderConfirmedEvent
         {
             OrderId = Guid.CreateVersion7(),
-            CorrelationId = Guid.CreateVersion7(),
             BuyerId = Guid.CreateVersion7(),
             ConfirmedAtUtc = DateTime.UtcNow,
             Items = [],
@@ -158,7 +157,6 @@ public sealed class KafkaHandlerCorrelationIdScopeTests
         return new AvroOrderCancelledEvent
         {
             OrderId = Guid.CreateVersion7(),
-            CorrelationId = Guid.CreateVersion7(),
             BuyerId = Guid.CreateVersion7(),
             AtStatus = Ordering.Orders.OrderStatusAtTransition.Confirmed,
             Reason = "test",
@@ -174,7 +172,6 @@ public sealed class KafkaHandlerCorrelationIdScopeTests
     {
         return new AvroPaymentCapturedEvent
         {
-            CorrelationId = Guid.CreateVersion7(),
             UserId = Guid.CreateVersion7(),
             PaymentTransactionId = Guid.CreateVersion7(),
             AuthorizationId = "auth",
@@ -188,7 +185,6 @@ public sealed class KafkaHandlerCorrelationIdScopeTests
     {
         return new AvroPaymentRefundedEvent
         {
-            CorrelationId = Guid.CreateVersion7(),
             UserId = Guid.CreateVersion7(),
             PaymentTransactionId = Guid.CreateVersion7(),
             RefundTransactionId = Guid.CreateVersion7(),

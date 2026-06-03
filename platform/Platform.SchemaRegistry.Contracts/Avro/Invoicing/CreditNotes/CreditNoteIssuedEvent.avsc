@@ -39,14 +39,6 @@
             "doc": "Buyer of the original invoice (and therefore the credit note). Kafka partition key on 'invoicing.invoices'."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id of the cancellation flow that triggered this credit note."
-        },
-        {
             "name": "IssueDate",
             "type": {
                 "type": "long",

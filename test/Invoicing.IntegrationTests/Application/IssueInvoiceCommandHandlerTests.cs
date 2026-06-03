@@ -110,8 +110,7 @@ public sealed class IssueInvoiceCommandHandlerTests
                 e.InvoiceId == invoiceId
                 && e.OrderId == orderId
                 && e.PaymentId == paymentId
-                && e.BuyerId == buyerId
-                && e.CorrelationId == correlationId));
+                && e.BuyerId == buyerId));
 
         // New: SendEmailNotificationCommand row also written in the same EF transaction.
         // Topic: notifications.email-commands, partition key: buyerId.ToString(),

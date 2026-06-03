@@ -52,7 +52,6 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
 
         var avroCommand = new AvroConfirmReservationCommand
         {
-            CorrelationId = correlationId,
             ProductId = productId,
             ReservationId = reservationId,
             RequestedAtUtc = UtcNow,
@@ -116,7 +115,6 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
 
         var avroCommand = new AvroConfirmReservationCommand
         {
-            CorrelationId = Guid.NewGuid(),
             ProductId = productId,
             ReservationId = reservationId,
             RequestedAtUtc = UtcNow,
@@ -162,7 +160,6 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
 
         var avroCommand = new AvroConfirmReservationCommand
         {
-            CorrelationId = Guid.NewGuid(),
             ProductId = productId,
             ReservationId = unknownReservationId,
             RequestedAtUtc = UtcNow,

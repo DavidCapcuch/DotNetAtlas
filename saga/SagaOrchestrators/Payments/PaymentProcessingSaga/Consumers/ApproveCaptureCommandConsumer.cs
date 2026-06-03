@@ -25,9 +25,9 @@ public sealed class ApproveCaptureCommandConsumer : IConsumer<ApproveCaptureComm
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}",
+            "{ConsumerType} received {EventType} for user {UserId}, order {OrderId}",
             nameof(ApproveCaptureCommandConsumer), nameof(ApproveCaptureCommand),
-            message.UserId, message.CorrelationId);
+            message.UserId, message.OrderId);
 
         var approveCaptureSagaEvent = new ApproveCaptureSagaEvent
         {

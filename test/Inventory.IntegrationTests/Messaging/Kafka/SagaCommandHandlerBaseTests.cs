@@ -57,7 +57,6 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
 
         var avroCommand = new AvroReserveStockCommand
         {
-            CorrelationId = Guid.NewGuid(),
             OrderId = Guid.NewGuid(),
             ProductId = productId,
             ReservationId = Guid.Empty, // triggers ValidationError("ReservationId.Empty")
@@ -92,7 +91,6 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
         // Don't seed the stream -- ConfirmReservation on Version == 0 throws.
         var avroCommand = new AvroConfirmReservationCommand
         {
-            CorrelationId = Guid.NewGuid(),
             ProductId = productId,
             ReservationId = reservationId,
             RequestedAtUtc = UtcNow,
@@ -133,7 +131,6 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
 
         var avroCommand = new AvroConfirmReservationCommand
         {
-            CorrelationId = Guid.NewGuid(),
             ProductId = productId,
             ReservationId = reservationId,
             RequestedAtUtc = UtcNow,

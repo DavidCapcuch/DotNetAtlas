@@ -21,7 +21,6 @@ internal static class PaymentCapturedMapper
 
         return new PaymentCapturedEvent
         {
-            CorrelationId = source.CorrelationId,
             OrderId = source.OrderId,
             UserId = source.BuyerId,
             PaymentTransactionId = source.PaymentId,

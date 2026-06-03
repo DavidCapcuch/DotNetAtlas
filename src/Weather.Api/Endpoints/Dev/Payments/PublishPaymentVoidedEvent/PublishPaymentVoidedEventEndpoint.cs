@@ -48,7 +48,6 @@ internal class PublishPaymentVoidedEventEndpoint : Endpoint<PublishPaymentVoided
     {
         var paymentVoidedEvent = new PaymentVoidedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             AuthorizationId = req.AuthorizationId,
             VoidedAtUtc = DateTime.UtcNow

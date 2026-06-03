@@ -26,9 +26,9 @@ public sealed class PaymentCompletedCheckoutConsumer : IConsumer<PaymentComplete
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, transaction {PaymentTransactionId}, amount {Amount} {Currency}",
+            "{ConsumerType} received {EventType} for order {OrderId}, transaction {PaymentTransactionId}, amount {Amount} {Currency}",
             nameof(PaymentCompletedCheckoutConsumer), nameof(PaymentCompletedEvent),
-            message.CorrelationId, message.PaymentTransactionId, (decimal)message.Amount, message.Currency);
+            message.OrderId, message.PaymentTransactionId, (decimal)message.Amount, message.Currency);
 
         await context.Publish(new PaymentCompletedSagaEvent
         {

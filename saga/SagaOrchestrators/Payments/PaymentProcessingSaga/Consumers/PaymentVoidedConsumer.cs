@@ -23,9 +23,9 @@ public sealed class PaymentVoidedConsumer : IConsumer<PaymentVoidedEvent>
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, authorization {AuthorizationId}",
+            "{ConsumerType} received {EventType} for order {OrderId}, authorization {AuthorizationId}",
             nameof(PaymentVoidedConsumer), nameof(PaymentVoidedEvent),
-            message.CorrelationId, message.AuthorizationId);
+            message.OrderId, message.AuthorizationId);
 
         var paymentVoidedSagaEvent = new PaymentVoidedSagaEvent
         {

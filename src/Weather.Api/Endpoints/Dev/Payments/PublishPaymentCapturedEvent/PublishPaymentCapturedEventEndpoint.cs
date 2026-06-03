@@ -52,7 +52,6 @@ internal class PublishPaymentCapturedEventEndpoint : Endpoint<PublishPaymentCapt
     {
         var paymentCapturedEvent = new PaymentCapturedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             PaymentTransactionId = Guid.CreateVersion7(),
             AuthorizationId = req.AuthorizationId,

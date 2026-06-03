@@ -14,7 +14,7 @@ namespace Payments.Transactions
 	using global::Avro.Specific;
 	
 	/// <summary>
-	/// Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a payment through authorize → capture for the supplied order. The Checkout saga's state machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (correlated by CorrelationId) to advance. Renamed from PaymentRequestedEvent and moved to payments.payment-commands per ADR-0023; the wire shape is identical.
+	/// Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a payment through authorize → capture for the supplied order. The Checkout saga's state machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (correlated by OrderId per ADR-0029) to advance. Renamed from PaymentRequestedEvent and moved to payments.payment-commands per ADR-0023; the wire shape is identical.
 	/// </summary>
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class RequestPaymentCommand : global::Avro.Specific.ISpecificRecord
@@ -23,33 +23,25 @@ namespace Payments.Transactions
 				"e Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a pay" +
 				"ment through authorize → capture for the supplied order. The Checkout saga\'s sta" +
 				"te machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (corr" +
-				"elated by CorrelationId) to advance. Renamed from PaymentRequestedEvent and move" +
-				"d to payments.payment-commands per ADR-0023; the wire shape is identical.\",\"name" +
-				"space\":\"Payments.Transactions\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Correlat" +
-				"ion ID shared across the entire business flow (e.g., checkout → order → payment " +
-				"→ invoice). Also the Kafka message key for payments.payment-commands partitionin" +
-				"g.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Orde" +
-				"ring aggregate id this payment is attached to. Persisted on the Payments-side ag" +
-				"gregate as a debugging/admin-lookup convenience; downstream Payments events drop" +
-				" it (cross-BC linkage stays CorrelationId).\",\"default\":\"00000000-0000-0000-0000-" +
-				"000000000000\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"d" +
-				"oc\":\"User initiating the payment.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}" +
-				"},{\"name\":\"PaymentMethodId\",\"doc\":\"Gateway-issued opaque payment-method token (e" +
-				".g. Stripe \'pm_*\', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-" +
-				"1 closeout C-2 fix: previously typed as logicalType:uuid which blocked any real-" +
-				"PSP adapter swap because no real gateway issues UUID-shaped payment-method ids.\"" +
-				",\"type\":\"string\"},{\"name\":\"Amount\",\"doc\":\"Payment amount.\",\"type\":{\"type\":\"bytes" +
-				"\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"I" +
-				"SO 4217 currency code (e.g., \'USD\', \'EUR\').\",\"type\":\"string\"},{\"name\":\"Idempoten" +
-				"cyKey\",\"doc\":\"Idempotency key for preventing duplicate payment processing.\",\"typ" +
-				"e\":\"string\"},{\"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when payment was requ" +
-				"ested.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
+				"elated by OrderId per ADR-0029) to advance. Renamed from PaymentRequestedEvent a" +
+				"nd moved to payments.payment-commands per ADR-0023; the wire shape is identical." +
+				"\",\"namespace\":\"Payments.Transactions\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Orderin" +
+				"g aggregate id this payment is attached to. The durable cross-BC business key, c" +
+				"arried through to the Payments aggregate and its downstream events (ADR-0029).\"," +
+				"\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User init" +
+				"iating the payment.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Pay" +
+				"mentMethodId\",\"doc\":\"Gateway-issued opaque payment-method token (e.g. Stripe \'pm" +
+				"_*\', Adyen alphanumeric); 1-64 chars. BREAKING change in the Wave-1 closeout C-2" +
+				" fix: previously typed as logicalType:uuid which blocked any real-PSP adapter sw" +
+				"ap because no real gateway issues UUID-shaped payment-method ids.\",\"type\":\"strin" +
+				"g\"},{\"name\":\"Amount\",\"doc\":\"Payment amount.\",\"type\":{\"type\":\"bytes\",\"logicalType" +
+				"\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 curren" +
+				"cy code (e.g., \'USD\', \'EUR\').\",\"type\":\"string\"},{\"name\":\"IdempotencyKey\",\"doc\":\"" +
+				"Idempotency key for preventing duplicate payment processing.\",\"type\":\"string\"},{" +
+				"\"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when payment was requested.\",\"type\"" +
+				":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice). Also the Kafka message key for payments.payment-commands partitioning.
-		/// </summary>
-		private System.Guid _CorrelationId;
-		/// <summary>
-		/// Ordering aggregate id this payment is attached to. Persisted on the Payments-side aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage stays CorrelationId).
+		/// Ordering aggregate id this payment is attached to. The durable cross-BC business key, carried through to the Payments aggregate and its downstream events (ADR-0029).
 		/// </summary>
 		private System.Guid _OrderId;
 		/// <summary>
@@ -84,21 +76,7 @@ namespace Payments.Transactions
 			}
 		}
 		/// <summary>
-		/// Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice). Also the Kafka message key for payments.payment-commands partitioning.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
-			}
-		}
-		/// <summary>
-		/// Ordering aggregate id this payment is attached to. Persisted on the Payments-side aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage stays CorrelationId).
+		/// Ordering aggregate id this payment is attached to. The durable cross-BC business key, carried through to the Payments aggregate and its downstream events (ADR-0029).
 		/// </summary>
 		public System.Guid OrderId
 		{
@@ -199,14 +177,13 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.PaymentMethodId;
-			case 4: return this.Amount;
-			case 5: return this.Currency;
-			case 6: return this.IdempotencyKey;
-			case 7: return this.RequestedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.PaymentMethodId;
+			case 3: return this.Amount;
+			case 4: return this.Currency;
+			case 5: return this.IdempotencyKey;
+			case 6: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -214,14 +191,13 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.PaymentMethodId = (System.String)fieldValue; break;
-			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 5: this.Currency = (System.String)fieldValue; break;
-			case 6: this.IdempotencyKey = (System.String)fieldValue; break;
-			case 7: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.PaymentMethodId = (System.String)fieldValue; break;
+			case 3: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 4: this.Currency = (System.String)fieldValue; break;
+			case 5: this.IdempotencyKey = (System.String)fieldValue; break;
+			case 6: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

@@ -9,7 +9,6 @@ internal static class OrderShippedMapper
         new()
         {
             OrderId = source.OrderId,
-            CorrelationId = source.CorrelationId,
             BuyerId = source.BuyerId,
             Carrier = source.Carrier,
             TrackingNumber = source.TrackingNumber,

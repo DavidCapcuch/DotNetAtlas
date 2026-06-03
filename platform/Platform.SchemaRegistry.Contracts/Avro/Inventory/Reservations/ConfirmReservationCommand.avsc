@@ -5,14 +5,6 @@
     "doc": "Command issued by the Checkout saga to confirm a reservation after payment has been captured. Inventory physically decrements OnHand by Quantity and emits ReservationConfirmedEvent. Idempotent on ReservationId.",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Also the Kafka message key."
-        },
-        {
             "name": "ProductId",
             "type": {
                 "type": "string",

@@ -52,7 +52,6 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
         var avroEvent = new AvroOrderCancelledEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = Guid.NewGuid(),
             Reason = "customer requested cancel",
             AtStatus = AvroOrderStatusAtTransition.StockReserved,
@@ -114,7 +113,6 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
         var avroEvent = new AvroOrderCancelledEvent
         {
             OrderId = orderId,
-            CorrelationId = Guid.NewGuid(),
             BuyerId = Guid.NewGuid(),
             Reason = "no reservations on this order",
             AtStatus = AvroOrderStatusAtTransition.Created,

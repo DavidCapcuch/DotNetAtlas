@@ -25,9 +25,9 @@ public sealed class OrderFailedConsumer : IConsumer<OrderFailedEvent>
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, order {OrderId}, error {ErrorCode}",
+            "{ConsumerType} received {EventType} for order {OrderId}, error {ErrorCode}",
             nameof(OrderFailedConsumer), nameof(OrderFailedEvent),
-            message.CorrelationId, message.OrderId, message.ErrorCode);
+            message.OrderId, message.ErrorCode);
 
         await context.Publish(new OrderFailedSagaEvent
         {

@@ -84,7 +84,6 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         var avro = new AvroConfirmOrderCommand
         {
             OrderId = orderId,
-            CorrelationId = Guid.CreateVersion7(),
             RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
@@ -134,7 +133,6 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         var avro = new AvroConfirmOrderCommand
         {
             OrderId = orderId,
-            CorrelationId = Guid.CreateVersion7(),
             RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(
@@ -170,7 +168,6 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         var avro = new AvroConfirmOrderCommand
         {
             OrderId = orderId,
-            CorrelationId = Guid.CreateVersion7(),
             RequestedAtUtc = DateTime.UtcNow,
         };
         var ctx = FakeKafkaMessageContext.Create(

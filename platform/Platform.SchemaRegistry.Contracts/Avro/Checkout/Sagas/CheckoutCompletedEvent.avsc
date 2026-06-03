@@ -5,14 +5,6 @@
     "doc": "Saga-level terminal event emitted by the Checkout saga when the workflow reaches the Confirmed state. Distinct from Ordering's OrderConfirmedEvent because it carries saga-level fields (PaymentTransactionId, ReservationIdsJson) per checkout-saga.md § 9.1. Subscribed by Notifications and BFF.",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029."
-        },
-        {
             "name": "OrderId",
             "type": {
                 "type": "string",

@@ -5,20 +5,12 @@
     "doc": "Command sent by Payment Saga to request payment authorization from the Payment Service.",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Correlation ID for tracking the workflow."
-        },
-        {
             "name": "PaymentTransactionId",
             "type": {
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Saga-minted UUID v7 that becomes the Payments aggregate's primary key. Saga emits a fresh value at initial state and reuses it on every retry. Distinct from CorrelationId; the v1 collapse (PaymentId == CorrelationId) was unwound in cross-cutting wave1-followup #255 so the 'v7 PK' guarantee on PaymentTransaction.Id is genuine. One-payment-per-saga is still enforced by the unique index on payment_transactions.correlation_id."
+            "doc": "Saga-minted UUID v7 that becomes the Payments aggregate's primary key. The saga emits a fresh value at initial state and reuses it on every retry. One-payment-per-order is enforced by the unique index on payment_transactions.order_id (ADR-0029)."
         },
         {
             "name": "OrderId",
@@ -26,8 +18,7 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "default": "00000000-0000-0000-0000-000000000000",
-            "doc": "Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage is CorrelationId)."
+            "doc": "Ordering aggregate id this payment is attached to. The Checkout saga creates the order before requesting payment, so OrderId is always present at authorize time. Persisted on the PaymentTransaction aggregate as the durable cross-BC business key backing the unique one-payment-per-order index (ADR-0029)."
         },
         {
             "name": "UserId",

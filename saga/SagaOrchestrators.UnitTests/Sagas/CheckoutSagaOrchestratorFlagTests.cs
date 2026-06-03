@@ -122,7 +122,6 @@ public class CheckoutSagaOrchestratorFlagTests
             state.PaymentRequestedAtUtc.Should().NotBeNull("PaymentRequestedAtUtc is set when RequestPaymentCommand is dispatched");
             reserveCommands.Should().BeEmpty("ON branch must NOT fan out ReserveStockCommand — that's the whole point of the swap");
             paymentRequested.Should().ContainSingle("ON branch dispatches RequestPaymentCommand immediately after OrderCreated");
-            paymentRequested[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             paymentRequested[0].IntegrationEvent.OrderId.Should().Be(orderId);
             paymentRequested[0].IntegrationEvent.UserId.Should().Be(userId);
             // C-2 closeout: Payments wire shape is string. CheckoutSaga stringifies at the boundary.

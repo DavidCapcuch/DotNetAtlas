@@ -19,31 +19,7 @@ namespace Checkout.Sagas
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class CheckoutCompletedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"CheckoutCompletedEvent\",\"doc\":\"Saga-level terminal event" +
-				" emitted by the Checkout saga when the workflow reaches the Confirmed state. Dis" +
-				"tinct from Ordering\'s OrderConfirmedEvent because it carries saga-level fields (" +
-				"PaymentTransactionId, ReservationIdsJson) per checkout-saga.md § 9.1. Subscribed" +
-				" by Notifications and BFF.\",\"namespace\":\"Checkout.Sagas\",\"fields\":[{\"name\":\"Corr" +
-				"elationId\",\"doc\":\"Saga correlation id - equals the checkout\'s pre-assigned Order" +
-				"Id (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.\",\"type\":{\"type\":\"string\"" +
-				",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate id confirmed" +
-				" by the saga.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"UserId\",\"" +
-				"doc\":\"User who initiated the checkout.\",\"type\":{\"type\":\"string\",\"logicalType\":\"u" +
-				"uid\"}},{\"name\":\"PaymentTransactionId\",\"doc\":\"Payment transaction id from the Pay" +
-				"mentProcessingSaga capture.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"na" +
-				"me\":\"ReservationIdsJson\",\"doc\":\"Serialized list of {ProductId, ReservationId} fo" +
-				"r the confirmed reservations - opaque payload for downstream analytics.\",\"type\":" +
-				"\"string\"},{\"name\":\"TotalAmount\",\"doc\":\"Total amount confirmed for the checkout.\"" +
-				",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"nam" +
-				"e\":\"Currency\",\"doc\":\"ISO 4217 currency code.\",\"type\":\"string\"},{\"name\":\"Initiate" +
-				"dAtUtc\",\"doc\":\"UTC timestamp when the saga was first initiated.\",\"type\":{\"type\":" +
-				"\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"ConfirmedAtUtc\",\"doc\":\"UTC ti" +
-				"mestamp when the saga reached Confirmed.\",\"type\":{\"type\":\"long\",\"logicalType\":\"t" +
-				"imestamp-millis\"}}]}");
-		/// <summary>
-		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
-		/// </summary>
-		private System.Guid _CorrelationId;
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""CheckoutCompletedEvent"",""doc"":""Saga-level terminal event emitted by the Checkout saga when the workflow reaches the Confirmed state. Distinct from Ordering's OrderConfirmedEvent because it carries saga-level fields (PaymentTransactionId, ReservationIdsJson) per checkout-saga.md § 9.1. Subscribed by Notifications and BFF."",""namespace"":""Checkout.Sagas"",""fields"":[{""name"":""OrderId"",""doc"":""Ordering aggregate id confirmed by the saga."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User who initiated the checkout."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Payment transaction id from the PaymentProcessingSaga capture."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ReservationIdsJson"",""doc"":""Serialized list of {ProductId, ReservationId} for the confirmed reservations - opaque payload for downstream analytics."",""type"":""string""},{""name"":""TotalAmount"",""doc"":""Total amount confirmed for the checkout."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""InitiatedAtUtc"",""doc"":""UTC timestamp when the saga was first initiated."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""ConfirmedAtUtc"",""doc"":""UTC timestamp when the saga reached Confirmed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Ordering aggregate id confirmed by the saga.
 		/// </summary>
@@ -81,20 +57,6 @@ namespace Checkout.Sagas
 			get
 			{
 				return CheckoutCompletedEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Saga correlation id - equals the checkout's pre-assigned OrderId (BasketCheckoutInitiatedEvent.OrderId) per ADR-0029.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -213,15 +175,14 @@ namespace Checkout.Sagas
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.PaymentTransactionId;
-			case 4: return this.ReservationIdsJson;
-			case 5: return this.TotalAmount;
-			case 6: return this.Currency;
-			case 7: return this.InitiatedAtUtc;
-			case 8: return this.ConfirmedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.PaymentTransactionId;
+			case 3: return this.ReservationIdsJson;
+			case 4: return this.TotalAmount;
+			case 5: return this.Currency;
+			case 6: return this.InitiatedAtUtc;
+			case 7: return this.ConfirmedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -229,15 +190,14 @@ namespace Checkout.Sagas
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.PaymentTransactionId = (System.Guid)fieldValue; break;
-			case 4: this.ReservationIdsJson = (System.String)fieldValue; break;
-			case 5: this.TotalAmount = (Avro.AvroDecimal)fieldValue; break;
-			case 6: this.Currency = (System.String)fieldValue; break;
-			case 7: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
-			case 8: this.ConfirmedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.PaymentTransactionId = (System.Guid)fieldValue; break;
+			case 3: this.ReservationIdsJson = (System.String)fieldValue; break;
+			case 4: this.TotalAmount = (Avro.AvroDecimal)fieldValue; break;
+			case 5: this.Currency = (System.String)fieldValue; break;
+			case 6: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
+			case 7: this.ConfirmedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

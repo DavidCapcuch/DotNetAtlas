@@ -184,7 +184,6 @@ public sealed class CancelOrderCommandKafkaHandlerTests
         var avro = new AvroCancelOrderCommand
         {
             OrderId = orderId,
-            CorrelationId = Guid.CreateVersion7(),
             Reason = reason,
             RequestedAtUtc = DateTime.UtcNow,
         };

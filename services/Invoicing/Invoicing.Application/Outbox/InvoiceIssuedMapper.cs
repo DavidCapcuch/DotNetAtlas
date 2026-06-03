@@ -33,7 +33,6 @@ public static partial class InvoiceIssuedMapper
             BuyerId = source.BuyerId,
             OrderId = source.OrderId,
             PaymentId = source.PaymentId,
-            CorrelationId = source.CorrelationId,
             IssueDate = source.IssueDate.UtcDateTime,
             BillingAddress = MapAddress(source.BillingAddress),
             Subtotal = source.Subtotal.Amount.ToAvroDecimal(MoneyScale),

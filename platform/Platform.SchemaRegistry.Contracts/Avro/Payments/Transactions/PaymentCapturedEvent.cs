@@ -19,11 +19,7 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentCapturedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentCapturedEvent"",""doc"":""Event emitted when a payment has been successfully captured. The funds have been transferred."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was captured."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Payment transaction ID for the captured funds. Used for refunds if needed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was captured."",""type"":""string""},{""name"":""Amount"",""doc"":""Captured payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""CapturedAtUtc"",""doc"":""UTC timestamp when capture was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
-		/// <summary>
-		/// Correlation ID for tracking the payment workflow.
-		/// </summary>
-		private System.Guid _CorrelationId;
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentCapturedEvent"",""doc"":""Event emitted when a payment has been successfully captured. The funds have been transferred."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was captured."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Payment transaction ID for the captured funds. Used for refunds if needed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was captured."",""type"":""string""},{""name"":""Amount"",""doc"":""Captured payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""CapturedAtUtc"",""doc"":""UTC timestamp when capture was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
 		/// </summary>
@@ -57,20 +53,6 @@ namespace Payments.Transactions
 			get
 			{
 				return PaymentCapturedEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Correlation ID for tracking the payment workflow.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -175,14 +157,13 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.PaymentTransactionId;
-			case 4: return this.AuthorizationId;
-			case 5: return this.Amount;
-			case 6: return this.Currency;
-			case 7: return this.CapturedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.PaymentTransactionId;
+			case 3: return this.AuthorizationId;
+			case 4: return this.Amount;
+			case 5: return this.Currency;
+			case 6: return this.CapturedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -190,14 +171,13 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.PaymentTransactionId = (System.Guid)fieldValue; break;
-			case 4: this.AuthorizationId = (System.String)fieldValue; break;
-			case 5: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 6: this.Currency = (System.String)fieldValue; break;
-			case 7: this.CapturedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.PaymentTransactionId = (System.Guid)fieldValue; break;
+			case 3: this.AuthorizationId = (System.String)fieldValue; break;
+			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 5: this.Currency = (System.String)fieldValue; break;
+			case 6: this.CapturedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

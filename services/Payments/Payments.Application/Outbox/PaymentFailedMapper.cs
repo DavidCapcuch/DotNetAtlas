@@ -22,7 +22,6 @@ internal static class PaymentFailedMapper
 
         return new PaymentFailedEvent
         {
-            CorrelationId = source.CorrelationId,
             OrderId = source.OrderId,
             UserId = source.BuyerId,
             ErrorCode = source.FailureInfo.GatewayCode ?? source.FailureInfo.Reason.Name,

@@ -26,7 +26,6 @@ public static class OrderCancelledMapper
         new()
         {
             OrderId = source.OrderId,
-            CorrelationId = source.CorrelationId,
             BuyerId = source.BuyerId,
             Reason = source.Reason,
             AtStatus = MapStatus(source.AtStatus),

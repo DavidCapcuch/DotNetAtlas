@@ -19,15 +19,11 @@ namespace Ordering.Orders
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class OrderFailedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""OrderFailedEvent"",""doc"":""Emitted when the Order transitions to a terminal Failed state. Downstream consumers notify the buyer and reverse any applied compensations."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order that failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""User who placed the order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""AtStatus"",""doc"":""OrderStatus just before failure."",""type"":{""type"":""enum"",""name"":""OrderStatusAtTransition"",""namespace"":""Ordering.Orders"",""symbols"":[""Created"",""StockReserved"",""PaymentCompleted"",""Confirmed""]}},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when the order failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""OrderFailedEvent"",""doc"":""Emitted when the Order transitions to a terminal Failed state. Downstream consumers notify the buyer and reverse any applied compensations."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order that failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""User who placed the order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""AtStatus"",""doc"":""OrderStatus just before failure."",""type"":{""type"":""enum"",""name"":""OrderStatusAtTransition"",""namespace"":""Ordering.Orders"",""symbols"":[""Created"",""StockReserved"",""PaymentCompleted"",""Confirmed""]}},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when the order failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Unique identifier of the Order that failed.
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id.
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// User who placed the order.
 		/// </summary>
@@ -67,20 +63,6 @@ namespace Ordering.Orders
 			set
 			{
 				this._OrderId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -158,12 +140,11 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.BuyerId;
-			case 3: return this.ErrorCode;
-			case 4: return this.ErrorMessage;
-			case 5: return this.AtStatus;
-			case 6: return this.FailedAtUtc;
+			case 1: return this.BuyerId;
+			case 2: return this.ErrorCode;
+			case 3: return this.ErrorMessage;
+			case 4: return this.AtStatus;
+			case 5: return this.FailedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -172,12 +153,11 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.BuyerId = (System.Guid)fieldValue; break;
-			case 3: this.ErrorCode = (System.String)fieldValue; break;
-			case 4: this.ErrorMessage = (System.String)fieldValue; break;
-			case 5: this.AtStatus = (Ordering.Orders.OrderStatusAtTransition)fieldValue; break;
-			case 6: this.FailedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.BuyerId = (System.Guid)fieldValue; break;
+			case 2: this.ErrorCode = (System.String)fieldValue; break;
+			case 3: this.ErrorMessage = (System.String)fieldValue; break;
+			case 4: this.AtStatus = (Ordering.Orders.OrderStatusAtTransition)fieldValue; break;
+			case 5: this.FailedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

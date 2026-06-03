@@ -22,7 +22,6 @@ public static class OrderCreatedMapper
         new()
         {
             OrderId = source.OrderId,
-            CorrelationId = source.CorrelationId,
             BuyerId = source.BuyerId,
             PaymentMethodId = source.PaymentMethodId,
             TotalAmount = source.Total.Amount.ToAvroDecimal(Scale),

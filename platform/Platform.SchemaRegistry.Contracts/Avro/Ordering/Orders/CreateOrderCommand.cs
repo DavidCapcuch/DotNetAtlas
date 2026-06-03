@@ -24,46 +24,40 @@ namespace Ordering.Orders
 				"ing the Order aggregate and publishing OrderCreatedEvent. The saga correlates th" +
 				"e resulting OrderCreatedEvent by OrderId (ADR-0029).\",\"namespace\":\"Ordering.Orde" +
 				"rs\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Pre-assigned Order identity (client-assig" +
-				"ned UUID v7). Persisted as Order.Id; equals CorrelationId (ADR-0029).\",\"type\":{\"" +
-				"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\":\"Checkout sa" +
-				"ga correlation id. Becomes Order.CorrelationId. Equals OrderId per ADR-0029.\",\"t" +
-				"ype\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"JWT sub cl" +
-				"aim of the buyer. Captured by the saga at basket-checkout time.\",\"type\":{\"type\":" +
-				"\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Items\",\"doc\":\"Order line items. Non-emp" +
-				"ty; rejected by the Order aggregate factory if empty.\",\"type\":{\"type\":\"array\",\"i" +
-				"tems\":{\"type\":\"record\",\"name\":\"CreateOrderItem\",\"doc\":\"One line of the order at " +
-				"creation time. Prices are frozen at checkout.\",\"namespace\":\"Ordering.Orders\",\"fi" +
-				"elds\":[{\"name\":\"ProductId\",\"doc\":\"Catalog product identifier.\",\"type\":{\"type\":\"s" +
-				"tring\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU snapshot.\",\"type\"" +
-				":\"string\"},{\"name\":\"Name\",\"doc\":\"Product display name snapshot.\",\"type\":\"string\"" +
-				"},{\"name\":\"UnitPriceAmount\",\"doc\":\"Per-unit price at checkout.\",\"type\":{\"type\":\"" +
-				"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"UnitPriceCurr" +
-				"ency\",\"doc\":\"ISO 4217 currency code. Uniform across all items.\",\"type\":\"string\"}" +
-				",{\"name\":\"Quantity\",\"doc\":\"Quantity of units (>= 1).\",\"type\":\"int\"}]}}},{\"name\":" +
-				"\"ShippingAddress\",\"doc\":\"Address to ship the order to.\",\"type\":{\"type\":\"record\"," +
-				"\"name\":\"OrderAddress\",\"doc\":\"Postal address for shipping or billing.\",\"namespace" +
-				"\":\"Ordering.Orders\",\"fields\":[{\"name\":\"Street1\",\"doc\":\"Primary street line (max " +
-				"200 chars, required).\",\"type\":\"string\"},{\"name\":\"Street2\",\"doc\":\"Secondary stree" +
-				"t line (max 200 chars, optional).\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"na" +
-				"me\":\"City\",\"doc\":\"City (max 100 chars, required).\",\"type\":\"string\"},{\"name\":\"Sta" +
-				"te\",\"doc\":\"State or province (max 100 chars, optional for countries that do not " +
-				"use one).\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"PostalCode\",\"doc\":\"" +
-				"Postal or ZIP code (max 20 chars, required).\",\"type\":\"string\"},{\"name\":\"CountryC" +
-				"ode\",\"doc\":\"ISO 3166-1 alpha-2 country code (exactly 2 uppercase letters, requir" +
-				"ed).\",\"type\":\"string\"}]}},{\"name\":\"BillingAddress\",\"doc\":\"Address for billing. S" +
-				"ame shape as ShippingAddress; reuses the OrderAddress record.\",\"type\":\"OrderAddr" +
-				"ess\"},{\"name\":\"PaymentMethodId\",\"doc\":\"Payments-side payment method reference. O" +
-				"paque to Ordering.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Requ" +
-				"estedAtUtc\",\"doc\":\"UTC timestamp when the saga issued the CreateOrderCommand.\",\"" +
-				"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
+				"ned UUID v7). Persisted as Order.Id (ADR-0029).\",\"type\":{\"type\":\"string\",\"logica" +
+				"lType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"JWT sub claim of the buyer. Captured by" +
+				" the saga at basket-checkout time.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"" +
+				"}},{\"name\":\"Items\",\"doc\":\"Order line items. Non-empty; rejected by the Order agg" +
+				"regate factory if empty.\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\"" +
+				":\"CreateOrderItem\",\"doc\":\"One line of the order at creation time. Prices are fro" +
+				"zen at checkout.\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"name\":\"ProductId\",\"d" +
+				"oc\":\"Catalog product identifier.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}}" +
+				",{\"name\":\"Sku\",\"doc\":\"Catalog SKU snapshot.\",\"type\":\"string\"},{\"name\":\"Name\",\"do" +
+				"c\":\"Product display name snapshot.\",\"type\":\"string\"},{\"name\":\"UnitPriceAmount\",\"" +
+				"doc\":\"Per-unit price at checkout.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal" +
+				"\",\"precision\":19,\"scale\":4}},{\"name\":\"UnitPriceCurrency\",\"doc\":\"ISO 4217 currenc" +
+				"y code. Uniform across all items.\",\"type\":\"string\"},{\"name\":\"Quantity\",\"doc\":\"Qu" +
+				"antity of units (>= 1).\",\"type\":\"int\"}]}}},{\"name\":\"ShippingAddress\",\"doc\":\"Addr" +
+				"ess to ship the order to.\",\"type\":{\"type\":\"record\",\"name\":\"OrderAddress\",\"doc\":\"" +
+				"Postal address for shipping or billing.\",\"namespace\":\"Ordering.Orders\",\"fields\":" +
+				"[{\"name\":\"Street1\",\"doc\":\"Primary street line (max 200 chars, required).\",\"type\"" +
+				":\"string\"},{\"name\":\"Street2\",\"doc\":\"Secondary street line (max 200 chars, option" +
+				"al).\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"City\",\"doc\":\"City (max 1" +
+				"00 chars, required).\",\"type\":\"string\"},{\"name\":\"State\",\"doc\":\"State or province " +
+				"(max 100 chars, optional for countries that do not use one).\",\"default\":null,\"ty" +
+				"pe\":[\"null\",\"string\"]},{\"name\":\"PostalCode\",\"doc\":\"Postal or ZIP code (max 20 ch" +
+				"ars, required).\",\"type\":\"string\"},{\"name\":\"CountryCode\",\"doc\":\"ISO 3166-1 alpha-" +
+				"2 country code (exactly 2 uppercase letters, required).\",\"type\":\"string\"}]}},{\"n" +
+				"ame\":\"BillingAddress\",\"doc\":\"Address for billing. Same shape as ShippingAddress;" +
+				" reuses the OrderAddress record.\",\"type\":\"OrderAddress\"},{\"name\":\"PaymentMethodI" +
+				"d\",\"doc\":\"Payments-side payment method reference. Opaque to Ordering.\",\"type\":{\"" +
+				"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"RequestedAtUtc\",\"doc\":\"UTC timest" +
+				"amp when the saga issued the CreateOrderCommand.\",\"type\":{\"type\":\"long\",\"logical" +
+				"Type\":\"timestamp-millis\"}}]}");
 		/// <summary>
-		/// Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id; equals CorrelationId (ADR-0029).
+		/// Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id (ADR-0029).
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id. Becomes Order.CorrelationId. Equals OrderId per ADR-0029.
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// JWT sub claim of the buyer. Captured by the saga at basket-checkout time.
 		/// </summary>
@@ -96,7 +90,7 @@ namespace Ordering.Orders
 			}
 		}
 		/// <summary>
-		/// Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id; equals CorrelationId (ADR-0029).
+		/// Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id (ADR-0029).
 		/// </summary>
 		public System.Guid OrderId
 		{
@@ -107,20 +101,6 @@ namespace Ordering.Orders
 			set
 			{
 				this._OrderId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id. Becomes Order.CorrelationId. Equals OrderId per ADR-0029.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -212,13 +192,12 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.BuyerId;
-			case 3: return this.Items;
-			case 4: return this.ShippingAddress;
-			case 5: return this.BillingAddress;
-			case 6: return this.PaymentMethodId;
-			case 7: return this.RequestedAtUtc;
+			case 1: return this.BuyerId;
+			case 2: return this.Items;
+			case 3: return this.ShippingAddress;
+			case 4: return this.BillingAddress;
+			case 5: return this.PaymentMethodId;
+			case 6: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -227,13 +206,12 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.BuyerId = (System.Guid)fieldValue; break;
-			case 3: this.Items = (IList<Ordering.Orders.CreateOrderItem>)fieldValue; break;
-			case 4: this.ShippingAddress = (Ordering.Orders.OrderAddress)fieldValue; break;
-			case 5: this.BillingAddress = (Ordering.Orders.OrderAddress)fieldValue; break;
-			case 6: this.PaymentMethodId = (System.Guid)fieldValue; break;
-			case 7: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.BuyerId = (System.Guid)fieldValue; break;
+			case 2: this.Items = (IList<Ordering.Orders.CreateOrderItem>)fieldValue; break;
+			case 3: this.ShippingAddress = (Ordering.Orders.OrderAddress)fieldValue; break;
+			case 4: this.BillingAddress = (Ordering.Orders.OrderAddress)fieldValue; break;
+			case 5: this.PaymentMethodId = (System.Guid)fieldValue; break;
+			case 6: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

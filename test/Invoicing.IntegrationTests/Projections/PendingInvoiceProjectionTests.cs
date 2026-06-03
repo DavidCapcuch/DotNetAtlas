@@ -59,7 +59,7 @@ public sealed class PendingInvoiceProjectionTests
         var orderClock = new FakeTimeProvider(OrderArrivalUtc);
         var paymentClock = new FakeTimeProvider(PaymentArrivalUtc);
 
-        var orderEvent = BuildOrderConfirmedEvent(orderId, correlationId, buyerId);
+        var orderEvent = BuildOrderConfirmedEvent(orderId, buyerId);
 
         // Order half arrives first.
         await using (var orderScope = _fixture.CreateScope())
@@ -105,7 +105,7 @@ public sealed class PendingInvoiceProjectionTests
 
             await paymentHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentCapturedEvent(correlationId, paymentTransactionId, buyerId));
+                BuildPaymentCapturedEvent(paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -150,7 +150,7 @@ public sealed class PendingInvoiceProjectionTests
 
             await paymentHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentCapturedEvent(correlationId, paymentTransactionId, buyerId));
+                BuildPaymentCapturedEvent(paymentTransactionId, buyerId));
         }
 
         // Verify intermediate state: payment captured, OrderId still null.
@@ -172,7 +172,7 @@ public sealed class PendingInvoiceProjectionTests
 
         // Order half arrives second — converges.
         var orderEvent = BuildOrderConfirmedEvent(
-            orderId, correlationId, buyerId, confirmedAtUtc: orderClock.GetUtcNow().UtcDateTime);
+            orderId, buyerId, confirmedAtUtc: orderClock.GetUtcNow().UtcDateTime);
         await using (var orderScope = _fixture.CreateScope())
         {
             var db = orderScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
@@ -215,12 +215,12 @@ public sealed class PendingInvoiceProjectionTests
         var firstClock = new FakeTimeProvider(OrderArrivalUtc);
         var secondClock = new FakeTimeProvider(OrderArrivalUtc.AddMinutes(2));
 
-        var firstEvent = BuildOrderConfirmedEvent(orderId, correlationId, buyerId);
+        var firstEvent = BuildOrderConfirmedEvent(orderId, buyerId);
         // Second arrival deliberately differs so the assertion proves the row
         // keeps the FIRST payload — locks in ADR-0020 / Wave 1.5 contract:
         // first-arrival wins, second arrival never overwrites OrderPayload.
         var secondEvent = BuildOrderConfirmedEvent(
-            orderId, correlationId, buyerId, totalOverride: 999.99m);
+            orderId, buyerId, totalOverride: 999.99m);
 
         // First arrival inserts.
         await using (var firstScope = _fixture.CreateScope())
@@ -285,7 +285,6 @@ public sealed class PendingInvoiceProjectionTests
 
     private static AvroOrderConfirmedEvent BuildOrderConfirmedEvent(
         Guid orderId,
-        Guid correlationId,
         Guid buyerId,
         DateTime? confirmedAtUtc = null,
         decimal? totalOverride = null)
@@ -299,7 +298,6 @@ public sealed class PendingInvoiceProjectionTests
         return new AvroOrderConfirmedEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             ConfirmedAtUtc = confirmedAtUtc ?? OrderArrivalUtc.UtcDateTime,
             Items =
@@ -329,11 +327,10 @@ public sealed class PendingInvoiceProjectionTests
     }
 
     private static AvroPaymentCapturedEvent BuildPaymentCapturedEvent(
-        Guid correlationId, Guid paymentTransactionId, Guid buyerId)
+        Guid paymentTransactionId, Guid buyerId)
     {
         return new AvroPaymentCapturedEvent
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentTransactionId,
             AuthorizationId = "auth-test",
@@ -349,7 +346,6 @@ public sealed class PendingInvoiceProjectionTests
                   ?? throw new InvalidOperationException("OrderPayload failed to deserialise.");
 
         dto.OrderId.Should().Be(expected.OrderId);
-        dto.CorrelationId.Should().Be(expected.CorrelationId);
         dto.BuyerId.Should().Be(expected.BuyerId);
         dto.Currency.Should().Be(expected.Currency);
         dto.TotalAmount.Should().Be((decimal)expected.TotalAmount!.Value);

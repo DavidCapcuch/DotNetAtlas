@@ -23,35 +23,29 @@ namespace Ordering.Orders
 				"eated from a Basket checkout. The Checkout saga correlates it by OrderId (ADR-00" +
 				"29).\",\"namespace\":\"Ordering.Orders\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Unique id" +
 				"entifier of the Order; the Checkout saga\'s correlation key (ADR-0029).\",\"type\":{" +
-				"\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\":\"Checkout s" +
-				"aga correlation id. Equals OrderId per ADR-0029.\",\"type\":{\"type\":\"string\",\"logic" +
-				"alType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"User who placed the order (JWT sub).\"," +
-				"\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Items\",\"doc\":\"Order line" +
-				" items with frozen product snapshots and prices.\",\"type\":{\"type\":\"array\",\"items\"" +
-				":{\"type\":\"record\",\"name\":\"OrderItemCreated\",\"namespace\":\"Ordering.Orders\",\"field" +
-				"s\":[{\"name\":\"ProductId\",\"doc\":\"Catalog product identifier for this line.\",\"type\"" +
-				":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"doc\":\"Catalog SKU snapsh" +
-				"ot at order creation time.\",\"type\":\"string\"},{\"name\":\"Name\",\"doc\":\"Product displ" +
-				"ay name snapshot at order creation time.\",\"type\":\"string\"},{\"name\":\"Quantity\",\"d" +
-				"oc\":\"Quantity of this line (>= 1).\",\"type\":\"int\"},{\"name\":\"UnitPriceAmount\",\"doc" +
-				"\":\"Per-unit price amount.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"preci" +
-				"sion\":19,\"scale\":4}},{\"name\":\"LineTotalAmount\",\"doc\":\"UnitPriceAmount * Quantity" +
-				", pre-computed.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"" +
-				"scale\":4}}]}}},{\"name\":\"TotalAmount\",\"doc\":\"Total order amount (sum of LineTotal" +
-				"Amount).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":" +
-				"4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code shared by all items.\",\"type" +
-				"\":\"string\"},{\"name\":\"PaymentMethodId\",\"doc\":\"Payments-side payment method refere" +
-				"nce.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CreatedAtUtc\",\"doc" +
-				"\":\"UTC timestamp when the order was created.\",\"type\":{\"type\":\"long\",\"logicalType" +
-				"\":\"timestamp-millis\"}}]}");
+				"\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"BuyerId\",\"doc\":\"User who placed " +
+				"the order (JWT sub).\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"It" +
+				"ems\",\"doc\":\"Order line items with frozen product snapshots and prices.\",\"type\":{" +
+				"\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"OrderItemCreated\",\"namespace\":\"O" +
+				"rdering.Orders\",\"fields\":[{\"name\":\"ProductId\",\"doc\":\"Catalog product identifier " +
+				"for this line.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Sku\",\"do" +
+				"c\":\"Catalog SKU snapshot at order creation time.\",\"type\":\"string\"},{\"name\":\"Name" +
+				"\",\"doc\":\"Product display name snapshot at order creation time.\",\"type\":\"string\"}" +
+				",{\"name\":\"Quantity\",\"doc\":\"Quantity of this line (>= 1).\",\"type\":\"int\"},{\"name\":" +
+				"\"UnitPriceAmount\",\"doc\":\"Per-unit price amount.\",\"type\":{\"type\":\"bytes\",\"logical" +
+				"Type\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"LineTotalAmount\",\"doc\":\"Unit" +
+				"PriceAmount * Quantity, pre-computed.\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"dec" +
+				"imal\",\"precision\":19,\"scale\":4}}]}}},{\"name\":\"TotalAmount\",\"doc\":\"Total order am" +
+				"ount (sum of LineTotalAmount).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"" +
+				"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 currency code share" +
+				"d by all items.\",\"type\":\"string\"},{\"name\":\"PaymentMethodId\",\"doc\":\"Payments-side" +
+				" payment method reference.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"nam" +
+				"e\":\"CreatedAtUtc\",\"doc\":\"UTC timestamp when the order was created.\",\"type\":{\"typ" +
+				"e\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Unique identifier of the Order; the Checkout saga's correlation key (ADR-0029).
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id. Equals OrderId per ADR-0029.
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// User who placed the order (JWT sub).
 		/// </summary>
@@ -95,20 +89,6 @@ namespace Ordering.Orders
 			set
 			{
 				this._OrderId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id. Equals OrderId per ADR-0029.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -200,13 +180,12 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.BuyerId;
-			case 3: return this.Items;
-			case 4: return this.TotalAmount;
-			case 5: return this.Currency;
-			case 6: return this.PaymentMethodId;
-			case 7: return this.CreatedAtUtc;
+			case 1: return this.BuyerId;
+			case 2: return this.Items;
+			case 3: return this.TotalAmount;
+			case 4: return this.Currency;
+			case 5: return this.PaymentMethodId;
+			case 6: return this.CreatedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -215,13 +194,12 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.BuyerId = (System.Guid)fieldValue; break;
-			case 3: this.Items = (IList<Ordering.Orders.OrderItemCreated>)fieldValue; break;
-			case 4: this.TotalAmount = (Avro.AvroDecimal)fieldValue; break;
-			case 5: this.Currency = (System.String)fieldValue; break;
-			case 6: this.PaymentMethodId = (System.Guid)fieldValue; break;
-			case 7: this.CreatedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.BuyerId = (System.Guid)fieldValue; break;
+			case 2: this.Items = (IList<Ordering.Orders.OrderItemCreated>)fieldValue; break;
+			case 3: this.TotalAmount = (Avro.AvroDecimal)fieldValue; break;
+			case 4: this.Currency = (System.String)fieldValue; break;
+			case 5: this.PaymentMethodId = (System.Guid)fieldValue; break;
+			case 6: this.CreatedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

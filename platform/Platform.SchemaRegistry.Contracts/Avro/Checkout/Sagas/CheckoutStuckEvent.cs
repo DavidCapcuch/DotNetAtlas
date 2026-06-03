@@ -24,32 +24,26 @@ namespace Checkout.Sagas
 				" is in any Compensating* state. Drives the ops alert defined in docs/bc-design/s" +
 				"aga-stuck-runbook.md - no auto-recovery, manual operator intervention required. " +
 				"Subscribed by Notifications (PagerDuty/Slack integration).\",\"namespace\":\"Checkou" +
-				"t.Sagas\",\"fields\":[{\"name\":\"CorrelationId\",\"doc\":\"Saga correlation id - the runb" +
-				"ook investigation entry point per ADR-0008.\",\"type\":{\"type\":\"string\",\"logicalTyp" +
-				"e\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate id (always populated - C" +
-				"ompensationStuck is reachable only after stock or payment side effects existed, " +
-				"both of which post-date OrderCreated).\",\"type\":{\"type\":\"string\",\"logicalType\":\"u" +
-				"uid\"}},{\"name\":\"UserId\",\"doc\":\"User affected by the stuck saga.\",\"type\":{\"type\":" +
-				"\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"LastState\",\"doc\":\"Name of the Compensat" +
-				"ing* state the saga was in when CompensationTimeout fired - either CompensatingS" +
-				"tockReservations or CompensatingPayment.\",\"type\":\"string\"},{\"name\":\"ErrorCode\",\"" +
-				"doc\":\"Always COMPENSATION_TIMEOUT - included for downstream filtering symmetry w" +
-				"ith CheckoutFailedEvent.\",\"type\":\"string\"},{\"name\":\"ErrorMessage\",\"doc\":\"Human-r" +
-				"eadable description of which compensation phase did not complete in time.\",\"type" +
-				"\":\"string\"},{\"name\":\"FailureReason\",\"doc\":\"Operator-facing reason field per saga" +
-				"-stuck-runbook.md - typically the unfinished compensation step (e.g., \'Refund di" +
-				"d not complete in time\', \'Stock release did not complete in time\').\",\"type\":\"str" +
-				"ing\"},{\"name\":\"StuckSinceUtc\",\"doc\":\"UTC timestamp the saga first entered a Comp" +
-				"ensating* state - equals CompensationStartedAtUtc.\",\"type\":{\"type\":\"long\",\"logic" +
-				"alType\":\"timestamp-millis\"}},{\"name\":\"InitiatedAtUtc\",\"doc\":\"UTC timestamp when " +
-				"the saga was first initiated.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-mi" +
-				"llis\"}},{\"name\":\"EmittedAtUtc\",\"doc\":\"UTC timestamp when the CompensationTimeout" +
-				" fired and this event was emitted.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timesta" +
-				"mp-millis\"}}]}");
-		/// <summary>
-		/// Saga correlation id - the runbook investigation entry point per ADR-0008.
-		/// </summary>
-		private System.Guid _CorrelationId;
+				"t.Sagas\",\"fields\":[{\"name\":\"OrderId\",\"doc\":\"Ordering aggregate id (always popula" +
+				"ted - CompensationStuck is reachable only after stock or payment side effects ex" +
+				"isted, both of which post-date OrderCreated).\",\"type\":{\"type\":\"string\",\"logicalT" +
+				"ype\":\"uuid\"}},{\"name\":\"UserId\",\"doc\":\"User affected by the stuck saga.\",\"type\":{" +
+				"\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"LastState\",\"doc\":\"Name of the Co" +
+				"mpensating* state the saga was in when CompensationTimeout fired - either Compen" +
+				"satingStockReservations or CompensatingPayment.\",\"type\":\"string\"},{\"name\":\"Error" +
+				"Code\",\"doc\":\"Always COMPENSATION_TIMEOUT - included for downstream filtering sym" +
+				"metry with CheckoutFailedEvent.\",\"type\":\"string\"},{\"name\":\"ErrorMessage\",\"doc\":\"" +
+				"Human-readable description of which compensation phase did not complete in time." +
+				"\",\"type\":\"string\"},{\"name\":\"FailureReason\",\"doc\":\"Operator-facing reason field p" +
+				"er saga-stuck-runbook.md - typically the unfinished compensation step (e.g., \'Re" +
+				"fund did not complete in time\', \'Stock release did not complete in time\').\",\"typ" +
+				"e\":\"string\"},{\"name\":\"StuckSinceUtc\",\"doc\":\"UTC timestamp the saga first entered" +
+				" a Compensating* state - equals CompensationStartedAtUtc.\",\"type\":{\"type\":\"long\"" +
+				",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"InitiatedAtUtc\",\"doc\":\"UTC timestam" +
+				"p when the saga was first initiated.\",\"type\":{\"type\":\"long\",\"logicalType\":\"times" +
+				"tamp-millis\"}},{\"name\":\"EmittedAtUtc\",\"doc\":\"UTC timestamp when the Compensation" +
+				"Timeout fired and this event was emitted.\",\"type\":{\"type\":\"long\",\"logicalType\":\"" +
+				"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Ordering aggregate id (always populated - CompensationStuck is reachable only after stock or payment side effects existed, both of which post-date OrderCreated).
 		/// </summary>
@@ -91,20 +85,6 @@ namespace Checkout.Sagas
 			get
 			{
 				return CheckoutStuckEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Saga correlation id - the runbook investigation entry point per ADR-0008.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -237,16 +217,15 @@ namespace Checkout.Sagas
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.LastState;
-			case 4: return this.ErrorCode;
-			case 5: return this.ErrorMessage;
-			case 6: return this.FailureReason;
-			case 7: return this.StuckSinceUtc;
-			case 8: return this.InitiatedAtUtc;
-			case 9: return this.EmittedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.LastState;
+			case 3: return this.ErrorCode;
+			case 4: return this.ErrorMessage;
+			case 5: return this.FailureReason;
+			case 6: return this.StuckSinceUtc;
+			case 7: return this.InitiatedAtUtc;
+			case 8: return this.EmittedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -254,16 +233,15 @@ namespace Checkout.Sagas
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.LastState = (System.String)fieldValue; break;
-			case 4: this.ErrorCode = (System.String)fieldValue; break;
-			case 5: this.ErrorMessage = (System.String)fieldValue; break;
-			case 6: this.FailureReason = (System.String)fieldValue; break;
-			case 7: this.StuckSinceUtc = (System.DateTime)fieldValue; break;
-			case 8: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
-			case 9: this.EmittedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.LastState = (System.String)fieldValue; break;
+			case 3: this.ErrorCode = (System.String)fieldValue; break;
+			case 4: this.ErrorMessage = (System.String)fieldValue; break;
+			case 5: this.FailureReason = (System.String)fieldValue; break;
+			case 6: this.StuckSinceUtc = (System.DateTime)fieldValue; break;
+			case 7: this.InitiatedAtUtc = (System.DateTime)fieldValue; break;
+			case 8: this.EmittedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

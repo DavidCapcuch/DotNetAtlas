@@ -23,7 +23,6 @@ internal static class PaymentAuthorizedMapper
 
         return new PaymentAuthorizedEvent
         {
-            CorrelationId = source.CorrelationId,
             OrderId = source.OrderId,
             UserId = source.BuyerId,
             AuthorizationId = source.GatewayTransactionId,

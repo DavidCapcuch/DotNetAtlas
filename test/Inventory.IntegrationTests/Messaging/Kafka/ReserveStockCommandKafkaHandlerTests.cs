@@ -50,7 +50,6 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
 
         var avroCommand = new AvroReserveStockCommand
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             ProductId = productId,
             ReservationId = reservationId,
@@ -106,7 +105,6 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
 
         var avroCommand = new AvroReserveStockCommand
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             ProductId = productId,
             ReservationId = reservationId,

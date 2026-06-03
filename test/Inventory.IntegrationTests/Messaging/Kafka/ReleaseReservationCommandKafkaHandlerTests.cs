@@ -52,7 +52,6 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegration
 
         var avroCommand = new AvroReleaseReservationCommand
         {
-            CorrelationId = correlationId,
             ProductId = productId,
             ReservationId = reservationId,
             ReleaseReason = AvroReleaseReason.Compensation,

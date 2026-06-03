@@ -154,7 +154,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             // ADR-0029: the pre-assigned OrderId travels on the command; it equals
             // the saga's CorrelationId (== OrderId from the Initial transition).
             outboxMessages[0].IntegrationEvent.OrderId.Should().Be(correlationId);
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             outboxMessages[0].IntegrationEvent.BuyerId.Should().Be(userId);
             outboxMessages[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);
             outboxMessages[0].IntegrationEvent.Items.Should().HaveCount(2);
@@ -329,7 +328,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             awaitingPayment.PendingReservations.Should().Be(0);
             awaitingPayment.StockReservationCompletedAtUtc.Should().NotBeNull();
             paymentRequested.Should().ContainSingle();
-            paymentRequested[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             paymentRequested[0].IntegrationEvent.OrderId.Should().Be(orderId);
         }
     }
@@ -512,7 +510,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             awaitingCapture.Should().NotBeNull("OrderConfirmed approves capture — the pivot — and waits for completion");
             approvals.Should().ContainSingle();
-            approvals[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             // Not complete yet — CheckoutCompletedEvent is emitted only after capture completes.
             _fakeOutboxWriter.HasMessage<CheckoutCompletedEvent>().Should().BeFalse();
         }
@@ -627,7 +624,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             compensating.CompensationTriggered.Should().BeTrue();
             // ADR-0026: confirmation failure is pre-capture — abort (sub-saga voids), never a refund.
             aborts.Should().ContainSingle();
-            aborts[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeFalse(
                 "the pivot has not been reached — the authorization is voided, not refunded");
             // Stock release + cancel happen immediately (no refund-then-stock gating).
@@ -837,10 +833,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             sagaFinalized.Should().BeTrue("Failed is terminal");
             failedEvents.Should().ContainSingle();
-            failedEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             failedEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.OrderCreationTimeout);
             markFailedCmds.Should().ContainSingle();
-            markFailedCmds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             markFailedCmds[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.OrderCreationTimeout);
             // ADR-0029: OrderId is pre-assigned at checkout initiation, so the defensive
             // MarkOrderFailedCommand carries the real OrderId even though Ordering never replied.
@@ -938,7 +932,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             compensating.CompensationTriggered.Should().BeTrue();
             // ADR-0026: confirmation timeout is pre-capture — abort (sub-saga voids), never a refund.
             aborts.Should().ContainSingle();
-            aborts[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             _fakeOutboxWriter.HasMessage<RequestRefundCommand>().Should().BeFalse();
             _fakeOutboxWriter.HasMessage<CancelOrderCommand>().Should().BeTrue();
         }
@@ -965,7 +958,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         {
             sagaFinalized.Should().BeTrue("CompensationStuck is abnormal-terminal");
             stuckEvents.Should().ContainSingle();
-            stuckEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             stuckEvents[0].IntegrationEvent.OrderId.Should().Be(orderId);
             stuckEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.CompensationTimeout);
             stuckEvents[0].IntegrationEvent.LastState.Should().Be(

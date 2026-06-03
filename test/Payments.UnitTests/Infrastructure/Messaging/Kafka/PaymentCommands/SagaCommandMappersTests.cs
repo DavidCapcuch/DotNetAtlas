@@ -26,7 +26,6 @@ public class SagaCommandMappersTests
 
         var avro = new AvroAuthorizePaymentCommand
         {
-            CorrelationId = correlationId,
             PaymentTransactionId = paymentTransactionId,
             OrderId = Guid.CreateVersion7(),
             UserId = Guid.CreateVersion7(),
@@ -60,7 +59,6 @@ public class SagaCommandMappersTests
 
         var avro = new AvroAuthorizePaymentCommand
         {
-            CorrelationId = correlationId,
             PaymentTransactionId = paymentTransactionId,
             OrderId = orderId,
             UserId = userId,
@@ -93,7 +91,6 @@ public class SagaCommandMappersTests
         var orderId = Guid.CreateVersion7();
         var avro = new AvroCapturePaymentCommand
         {
-            CorrelationId = Guid.CreateVersion7(),
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "auth-123",
             Amount = new AvroDecimal(42.50m),
@@ -115,7 +112,6 @@ public class SagaCommandMappersTests
         var orderId = Guid.CreateVersion7();
         var avro = new AvroVoidPaymentCommand
         {
-            CorrelationId = Guid.CreateVersion7(),
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "auth-456",
             Reason = "saga_compensation",
@@ -140,7 +136,6 @@ public class SagaCommandMappersTests
         var paymentTransactionId = Guid.CreateVersion7();
         var avro = new AvroRequestRefundCommand
         {
-            CorrelationId = Guid.CreateVersion7(),
             UserId = Guid.CreateVersion7(),
             PaymentTransactionId = paymentTransactionId,
             Reason = "buyer_cancelled",

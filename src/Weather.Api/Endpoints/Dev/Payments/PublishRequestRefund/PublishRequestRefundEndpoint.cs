@@ -50,7 +50,6 @@ internal class PublishRequestRefundEndpoint : Endpoint<PublishRequestRefundComma
     {
         var requestRefundCommand = new RequestRefundCommand
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             PaymentTransactionId = req.PaymentTransactionId,
             Reason = req.Reason,

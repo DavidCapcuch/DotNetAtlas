@@ -5,14 +5,6 @@
     "doc": "Saga-level abnormal-terminal event emitted by the Checkout saga when CompensationTimeout fires while the saga is in any Compensating* state. Drives the ops alert defined in docs/bc-design/saga-stuck-runbook.md - no auto-recovery, manual operator intervention required. Subscribed by Notifications (PagerDuty/Slack integration).",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Saga correlation id - the runbook investigation entry point per ADR-0008."
-        },
-        {
             "name": "OrderId",
             "type": {
                 "type": "string",

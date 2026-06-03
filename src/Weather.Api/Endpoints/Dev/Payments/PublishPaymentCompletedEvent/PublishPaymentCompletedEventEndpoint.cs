@@ -51,7 +51,6 @@ internal class PublishPaymentCompletedEventEndpoint : Endpoint<PublishPaymentCom
     {
         var paymentCompletedEvent = new PaymentCompletedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             PaymentTransactionId = req.PaymentTransactionId,
             Amount = req.Amount.ToAvroDecimal(4),

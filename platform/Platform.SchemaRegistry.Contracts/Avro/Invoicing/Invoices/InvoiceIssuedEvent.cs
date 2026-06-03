@@ -33,53 +33,51 @@ namespace Invoicing.Invoices
 				"Type\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\":\"Reference to the Ordering Order this inv" +
 				"oice settles.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"PaymentId" +
 				"\",\"doc\":\"Reference to the Payments transaction this invoice settles.\",\"type\":{\"t" +
-				"ype\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"CorrelationId\",\"doc\":\"Checkout sag" +
-				"a correlation id (passed through from Order + Payment).\",\"type\":{\"type\":\"string\"" +
-				",\"logicalType\":\"uuid\"}},{\"name\":\"IssueDate\",\"doc\":\"UTC timestamp when the invoic" +
-				"e transitioned to Issued.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis" +
-				"\"}},{\"name\":\"BillingAddress\",\"doc\":\"Buyer billing address, snapshotted from Orde" +
-				"rConfirmedEvent.BillingAddress at issuance time and frozen on the Invoice aggreg" +
-				"ate (PII per ADR-0011).\",\"type\":{\"type\":\"record\",\"name\":\"InvoiceBillingAddress\"," +
-				"\"doc\":\"Buyer billing address snapshot at issuance. Field shape mirrors Ordering." +
-				"Orders.OrderBillingAddress; defined locally because avrogen processes each .avsc" +
-				" file in isolation (per ADR-0020).\",\"namespace\":\"Invoicing.Invoices\",\"fields\":[{" +
-				"\"name\":\"Street1\",\"doc\":\"Primary street line.\",\"type\":\"string\"},{\"name\":\"Street2\"" +
-				",\"doc\":\"Optional second street line (apartment, suite, etc.).\",\"default\":null,\"t" +
-				"ype\":[\"null\",\"string\"]},{\"name\":\"City\",\"doc\":\"City name.\",\"type\":\"string\"},{\"nam" +
-				"e\":\"State\",\"doc\":\"Optional state/province/region. Null for countries without thi" +
-				"s concept.\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"PostalCode\",\"doc\":" +
-				"\"Postal or ZIP code.\",\"type\":\"string\"},{\"name\":\"CountryCode\",\"doc\":\"ISO 3166-1 a" +
-				"lpha-2 country code (e.g., \'US\', \'CZ\').\",\"type\":\"string\"}]}},{\"name\":\"Subtotal\"," +
-				"\"doc\":\"Sum of InvoiceLine.LineTotal pre-VAT. Equal to Total minus the sum of Vat" +
-				"Lines.Amount (Invariant I-1).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"p" +
-				"recision\":19,\"scale\":4}},{\"name\":\"Total\",\"doc\":\"Subtotal + sum(VatLines.Amount)." +
-				" Must equal OrderConfirmedEvent.TotalAmount and PaymentCapturedEvent.Amount (cro" +
-				"ss-aggregate consistency, example-mapping 1.4).\",\"type\":{\"type\":\"bytes\",\"logical" +
-				"Type\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\":\"ISO 4217 cu" +
-				"rrency code shared by every line, VatLine, and the Total.\",\"type\":\"string\"},{\"na" +
-				"me\":\"VatLines\",\"doc\":\"Per-rate VAT breakdown. May be empty if every line is at 0" +
-				"% (still emitted as []), but non-null.\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"" +
-				"record\",\"name\":\"InvoiceVatLine\",\"doc\":\"Per-rate VAT breakdown line (e.g., 21% on" +
-				" a base of 200.00 -> amount 42.00).\",\"namespace\":\"Invoicing.Invoices\",\"fields\":[" +
-				"{\"name\":\"Rate\",\"doc\":\"VAT rate percentage in [0, 100], at most 2 decimal places " +
-				"(e.g., 21.00, 0.00, 12.50).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"pre" +
-				"cision\":5,\"scale\":2}},{\"name\":\"BaseAmount\",\"doc\":\"Base amount the rate applies t" +
-				"o (sum of LineTotal of lines taxed at this rate).\",\"type\":{\"type\":\"bytes\",\"logic" +
-				"alType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Amount\",\"doc\":\"VAT amount " +
-				"= BaseAmount * (Rate / 100).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"pr" +
-				"ecision\":19,\"scale\":4}}]}}},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical immutable blo" +
-				"b name (e.g., \'2026/05/INV-2026-000142.pdf\'). Consumers must call Invoicing\'s GE" +
-				"T endpoint (or re-mint via a shared IBlobStore for in-Invoicing readers) to get " +
-				"a fresh SAS URL — never embed long-lived URLs in this stream (issue #131).\",\"typ" +
-				"e\":\"string\"},{\"name\":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF bytes, lowercase" +
-				" hex (64 chars). Lets consumers verify integrity if they cache the PDF locally.\"" +
-				",\"type\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PDF blob in bytes (>" +
-				"0).\",\"type\":\"long\"},{\"name\":\"DeliveryChannel\",\"doc\":\"DeliveryChannel SmartEnum n" +
-				"ame: \'None\', \'Email\', or \'TaxAuthorityWebhook\' (v2). Indicates how the issuer in" +
-				"tends the invoice to be delivered downstream.\",\"type\":\"string\"},{\"name\":\"Occurre" +
-				"dOnUtc\",\"doc\":\"Domain event occurrence time (envelope timestamp). Matches Domain" +
-				"Event.OccurredOnUtc on the in-process record.\",\"type\":{\"type\":\"long\",\"logicalTyp" +
-				"e\":\"timestamp-millis\"}}]}");
+				"ype\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"IssueDate\",\"doc\":\"UTC timestamp wh" +
+				"en the invoice transitioned to Issued.\",\"type\":{\"type\":\"long\",\"logicalType\":\"tim" +
+				"estamp-millis\"}},{\"name\":\"BillingAddress\",\"doc\":\"Buyer billing address, snapshot" +
+				"ted from OrderConfirmedEvent.BillingAddress at issuance time and frozen on the I" +
+				"nvoice aggregate (PII per ADR-0011).\",\"type\":{\"type\":\"record\",\"name\":\"InvoiceBil" +
+				"lingAddress\",\"doc\":\"Buyer billing address snapshot at issuance. Field shape mirr" +
+				"ors Ordering.Orders.OrderBillingAddress; defined locally because avrogen process" +
+				"es each .avsc file in isolation (per ADR-0020).\",\"namespace\":\"Invoicing.Invoices" +
+				"\",\"fields\":[{\"name\":\"Street1\",\"doc\":\"Primary street line.\",\"type\":\"string\"},{\"na" +
+				"me\":\"Street2\",\"doc\":\"Optional second street line (apartment, suite, etc.).\",\"def" +
+				"ault\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"City\",\"doc\":\"City name.\",\"type\":\"s" +
+				"tring\"},{\"name\":\"State\",\"doc\":\"Optional state/province/region. Null for countrie" +
+				"s without this concept.\",\"default\":null,\"type\":[\"null\",\"string\"]},{\"name\":\"Posta" +
+				"lCode\",\"doc\":\"Postal or ZIP code.\",\"type\":\"string\"},{\"name\":\"CountryCode\",\"doc\":" +
+				"\"ISO 3166-1 alpha-2 country code (e.g., \'US\', \'CZ\').\",\"type\":\"string\"}]}},{\"name" +
+				"\":\"Subtotal\",\"doc\":\"Sum of InvoiceLine.LineTotal pre-VAT. Equal to Total minus t" +
+				"he sum of VatLines.Amount (Invariant I-1).\",\"type\":{\"type\":\"bytes\",\"logicalType\"" +
+				":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Total\",\"doc\":\"Subtotal + sum(VatL" +
+				"ines.Amount). Must equal OrderConfirmedEvent.TotalAmount and PaymentCapturedEven" +
+				"t.Amount (cross-aggregate consistency, example-mapping 1.4).\",\"type\":{\"type\":\"by" +
+				"tes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Currency\",\"doc\"" +
+				":\"ISO 4217 currency code shared by every line, VatLine, and the Total.\",\"type\":\"" +
+				"string\"},{\"name\":\"VatLines\",\"doc\":\"Per-rate VAT breakdown. May be empty if every" +
+				" line is at 0% (still emitted as []), but non-null.\",\"type\":{\"type\":\"array\",\"ite" +
+				"ms\":{\"type\":\"record\",\"name\":\"InvoiceVatLine\",\"doc\":\"Per-rate VAT breakdown line " +
+				"(e.g., 21% on a base of 200.00 -> amount 42.00).\",\"namespace\":\"Invoicing.Invoice" +
+				"s\",\"fields\":[{\"name\":\"Rate\",\"doc\":\"VAT rate percentage in [0, 100], at most 2 de" +
+				"cimal places (e.g., 21.00, 0.00, 12.50).\",\"type\":{\"type\":\"bytes\",\"logicalType\":\"" +
+				"decimal\",\"precision\":5,\"scale\":2}},{\"name\":\"BaseAmount\",\"doc\":\"Base amount the r" +
+				"ate applies to (sum of LineTotal of lines taxed at this rate).\",\"type\":{\"type\":\"" +
+				"bytes\",\"logicalType\":\"decimal\",\"precision\":19,\"scale\":4}},{\"name\":\"Amount\",\"doc\"" +
+				":\"VAT amount = BaseAmount * (Rate / 100).\",\"type\":{\"type\":\"bytes\",\"logicalType\":" +
+				"\"decimal\",\"precision\":19,\"scale\":4}}]}}},{\"name\":\"PdfBlobName\",\"doc\":\"Canonical " +
+				"immutable blob name (e.g., \'2026/05/INV-2026-000142.pdf\'). Consumers must call I" +
+				"nvoicing\'s GET endpoint (or re-mint via a shared IBlobStore for in-Invoicing rea" +
+				"ders) to get a fresh SAS URL — never embed long-lived URLs in this stream (issue" +
+				" #131).\",\"type\":\"string\"},{\"name\":\"PdfContentHash\",\"doc\":\"SHA-256 of the PDF byt" +
+				"es, lowercase hex (64 chars). Lets consumers verify integrity if they cache the " +
+				"PDF locally.\",\"type\":\"string\"},{\"name\":\"PdfSizeBytes\",\"doc\":\"Size of the PDF blo" +
+				"b in bytes (>0).\",\"type\":\"long\"},{\"name\":\"DeliveryChannel\",\"doc\":\"DeliveryChanne" +
+				"l SmartEnum name: \'None\', \'Email\', or \'TaxAuthorityWebhook\' (v2). Indicates how " +
+				"the issuer intends the invoice to be delivered downstream.\",\"type\":\"string\"},{\"n" +
+				"ame\":\"OccurredOnUtc\",\"doc\":\"Domain event occurrence time (envelope timestamp). M" +
+				"atches DomainEvent.OccurredOnUtc on the in-process record.\",\"type\":{\"type\":\"long" +
+				"\",\"logicalType\":\"timestamp-millis\"}}]}");
 		/// <summary>
 		/// Unique identifier of the Invoice aggregate.
 		/// </summary>
@@ -100,10 +98,6 @@ namespace Invoicing.Invoices
 		/// Reference to the Payments transaction this invoice settles.
 		/// </summary>
 		private System.Guid _PaymentId;
-		/// <summary>
-		/// Checkout saga correlation id (passed through from Order + Payment).
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// UTC timestamp when the invoice transitioned to Issued.
 		/// </summary>
@@ -223,20 +217,6 @@ namespace Invoicing.Invoices
 			set
 			{
 				this._PaymentId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id (passed through from Order + Payment).
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -402,18 +382,17 @@ namespace Invoicing.Invoices
 			case 2: return this.BuyerId;
 			case 3: return this.OrderId;
 			case 4: return this.PaymentId;
-			case 5: return this.CorrelationId;
-			case 6: return this.IssueDate;
-			case 7: return this.BillingAddress;
-			case 8: return this.Subtotal;
-			case 9: return this.Total;
-			case 10: return this.Currency;
-			case 11: return this.VatLines;
-			case 12: return this.PdfBlobName;
-			case 13: return this.PdfContentHash;
-			case 14: return this.PdfSizeBytes;
-			case 15: return this.DeliveryChannel;
-			case 16: return this.OccurredOnUtc;
+			case 5: return this.IssueDate;
+			case 6: return this.BillingAddress;
+			case 7: return this.Subtotal;
+			case 8: return this.Total;
+			case 9: return this.Currency;
+			case 10: return this.VatLines;
+			case 11: return this.PdfBlobName;
+			case 12: return this.PdfContentHash;
+			case 13: return this.PdfSizeBytes;
+			case 14: return this.DeliveryChannel;
+			case 15: return this.OccurredOnUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -426,18 +405,17 @@ namespace Invoicing.Invoices
 			case 2: this.BuyerId = (System.Guid)fieldValue; break;
 			case 3: this.OrderId = (System.Guid)fieldValue; break;
 			case 4: this.PaymentId = (System.Guid)fieldValue; break;
-			case 5: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 6: this.IssueDate = (System.DateTime)fieldValue; break;
-			case 7: this.BillingAddress = (Invoicing.Invoices.InvoiceBillingAddress)fieldValue; break;
-			case 8: this.Subtotal = (Avro.AvroDecimal)fieldValue; break;
-			case 9: this.Total = (Avro.AvroDecimal)fieldValue; break;
-			case 10: this.Currency = (System.String)fieldValue; break;
-			case 11: this.VatLines = (IList<Invoicing.Invoices.InvoiceVatLine>)fieldValue; break;
-			case 12: this.PdfBlobName = (System.String)fieldValue; break;
-			case 13: this.PdfContentHash = (System.String)fieldValue; break;
-			case 14: this.PdfSizeBytes = (System.Int64)fieldValue; break;
-			case 15: this.DeliveryChannel = (System.String)fieldValue; break;
-			case 16: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
+			case 5: this.IssueDate = (System.DateTime)fieldValue; break;
+			case 6: this.BillingAddress = (Invoicing.Invoices.InvoiceBillingAddress)fieldValue; break;
+			case 7: this.Subtotal = (Avro.AvroDecimal)fieldValue; break;
+			case 8: this.Total = (Avro.AvroDecimal)fieldValue; break;
+			case 9: this.Currency = (System.String)fieldValue; break;
+			case 10: this.VatLines = (IList<Invoicing.Invoices.InvoiceVatLine>)fieldValue; break;
+			case 11: this.PdfBlobName = (System.String)fieldValue; break;
+			case 12: this.PdfContentHash = (System.String)fieldValue; break;
+			case 13: this.PdfSizeBytes = (System.Int64)fieldValue; break;
+			case 14: this.DeliveryChannel = (System.String)fieldValue; break;
+			case 15: this.OccurredOnUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

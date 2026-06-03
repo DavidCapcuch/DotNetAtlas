@@ -47,7 +47,6 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
         var call = Outbox.ReceivedCalls().Single();
         var avro = (OrderCreatedEvent)call.GetArguments()[2]!;
         avro.OrderId.Should().Be(orderId);
-        avro.CorrelationId.Should().Be(correlationId);
         avro.BuyerId.Should().Be(buyerId);
         avro.PaymentMethodId.Should().Be(paymentMethodId);
         avro.Currency.Should().Be("USD");

@@ -32,7 +32,6 @@ public class OrderConfirmedConsumerTests
             var avro = new OrderConfirmedEvent
             {
                 OrderId = orderId,
-                CorrelationId = correlationId,
                 BuyerId = Guid.CreateVersion7(),
                 ConfirmedAtUtc = confirmedAt
             };

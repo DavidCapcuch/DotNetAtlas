@@ -60,7 +60,7 @@ public sealed class PendingCreditNoteProjectionTests
         var cancelClock = new FakeTimeProvider(CancelArrivalUtc);
         var refundClock = new FakeTimeProvider(RefundArrivalUtc);
 
-        var cancelEvent = BuildOrderCancelledEvent(correlationId, orderId, buyerId, CancelArrivalUtc);
+        var cancelEvent = BuildOrderCancelledEvent(orderId, buyerId, CancelArrivalUtc);
 
         await using (var cancelScope = _fixture.CreateScope())
         {
@@ -101,7 +101,7 @@ public sealed class PendingCreditNoteProjectionTests
 
             await refundHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -145,7 +145,7 @@ public sealed class PendingCreditNoteProjectionTests
 
             await refundHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -165,7 +165,7 @@ public sealed class PendingCreditNoteProjectionTests
         }
 
         var cancelEvent = BuildOrderCancelledEvent(
-            correlationId, orderId, buyerId, cancelClock.GetUtcNow());
+            orderId, buyerId, cancelClock.GetUtcNow());
         await using (var cancelScope = _fixture.CreateScope())
         {
             var db = cancelScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
@@ -218,7 +218,7 @@ public sealed class PendingCreditNoteProjectionTests
 
             await handler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
         }
 
         await using (var secondScope = _fixture.CreateScope())
@@ -232,7 +232,7 @@ public sealed class PendingCreditNoteProjectionTests
 
             await handler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(correlationId, paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -262,12 +262,12 @@ public sealed class PendingCreditNoteProjectionTests
         var firstClock = new FakeTimeProvider(CancelArrivalUtc);
         var secondClock = new FakeTimeProvider(CancelArrivalUtc.AddMinutes(2));
 
-        var firstEvent = BuildOrderCancelledEvent(correlationId, orderId, buyerId, CancelArrivalUtc);
+        var firstEvent = BuildOrderCancelledEvent(orderId, buyerId, CancelArrivalUtc);
         // Second arrival deliberately differs so the assertion proves the row
         // keeps the FIRST payload — locks in ADR-0020 / Wave 1.6 contract:
         // first-arrival wins, second arrival never overwrites OrderPayload.
         var secondEvent = BuildOrderCancelledEvent(
-            correlationId, orderId, buyerId, CancelArrivalUtc, totalOverride: 999.99m);
+            orderId, buyerId, CancelArrivalUtc, totalOverride: 999.99m);
 
         await using (var firstScope = _fixture.CreateScope())
         {
@@ -329,7 +329,6 @@ public sealed class PendingCreditNoteProjectionTests
     }
 
     private static AvroOrderCancelledEvent BuildOrderCancelledEvent(
-        Guid correlationId,
         Guid orderId,
         Guid buyerId,
         DateTimeOffset cancelledAt,
@@ -344,7 +343,6 @@ public sealed class PendingCreditNoteProjectionTests
         return new AvroOrderCancelledEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             Reason = "Customer requested",
             AtStatus = AvroOrderStatusAtTransition.Confirmed,
@@ -376,11 +374,10 @@ public sealed class PendingCreditNoteProjectionTests
     }
 
     private static AvroPaymentRefundedEvent BuildPaymentRefundedEvent(
-        Guid correlationId, Guid paymentTransactionId, Guid buyerId)
+        Guid paymentTransactionId, Guid buyerId)
     {
         return new AvroPaymentRefundedEvent
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentTransactionId,
             RefundTransactionId = Guid.CreateVersion7(),
@@ -396,7 +393,6 @@ public sealed class PendingCreditNoteProjectionTests
                   ?? throw new InvalidOperationException("OrderPayload failed to deserialise.");
 
         dto.OrderId.Should().Be(expected.OrderId);
-        dto.CorrelationId.Should().Be(expected.CorrelationId);
         dto.BuyerId.Should().Be(expected.BuyerId);
         dto.Reason.Should().Be(expected.Reason);
         dto.AtStatus.Should().Be(expected.AtStatus.ToString());

@@ -51,7 +51,6 @@ internal class PublishPaymentCaptureFailedEventEndpoint : Endpoint<PublishPaymen
     {
         var paymentCaptureFailedEvent = new PaymentCaptureFailedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             AuthorizationId = req.AuthorizationId,
             ErrorCode = req.ErrorCode,

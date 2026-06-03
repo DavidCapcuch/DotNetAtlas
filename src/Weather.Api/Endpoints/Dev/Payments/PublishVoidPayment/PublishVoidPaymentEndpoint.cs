@@ -50,7 +50,6 @@ internal class PublishVoidPaymentEndpoint : Endpoint<PublishVoidPaymentCommand>
     {
         var voidPaymentCommand = new VoidPaymentCommand
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             AuthorizationId = req.AuthorizationId,
             Reason = req.Reason,

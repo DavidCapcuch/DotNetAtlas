@@ -255,7 +255,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                                 var reservationId = tracking[group.ProductId].ReservationId!.Value;
                                 var command = new ReserveStockCommand
                                 {
-                                    CorrelationId = saga.CorrelationId,
                                     OrderId = saga.OrderId!.Value,
                                     ProductId = group.ProductId,
                                     ReservationId = reservationId,
@@ -312,7 +311,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => new MarkOrderFailedCommand
                     {
                         OrderId = ctx.Saga.OrderId!.Value,
-                        CorrelationId = ctx.Saga.CorrelationId,
                         ErrorCode = ctx.Saga.ErrorCode!,
                         ErrorMessage = ctx.Saga.ErrorMessage!,
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
@@ -417,7 +415,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => new ConfirmOrderCommand
                     {
                         OrderId = ctx.Saga.OrderId!.Value,
-                        CorrelationId = ctx.Saga.CorrelationId,
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
                 .Then(ctx => DispatchConfirmReservationsForActiveTracking(ctx))
@@ -477,7 +474,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new ApproveCaptureCommand
                     {
-                        CorrelationId = ctx.Saga.CorrelationId,
                         OrderId = ctx.Saga.OrderId!.Value,
                         UserId = ctx.Saga.UserId,
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
@@ -884,7 +880,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         {
             var release = new ReleaseReservationCommand
             {
-                CorrelationId = saga.CorrelationId,
                 ProductId = productId,
                 ReservationId = entry.ReservationId!.Value,
                 ReleaseReason = ReleaseReason.Compensation,
@@ -902,7 +897,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
             var cancel = new CancelOrderCommand
             {
                 OrderId = orderId,
-                CorrelationId = saga.CorrelationId,
                 Reason = saga.ErrorMessage ?? "Checkout saga compensation",
                 RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
             };
@@ -929,7 +923,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         {
             var confirm = new ConfirmReservationCommand
             {
-                CorrelationId = saga.CorrelationId,
                 ProductId = productId,
                 ReservationId = entry.ReservationId!.Value,
                 RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
@@ -1022,7 +1015,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
             // ADR-0029: the saga's CorrelationId == the pre-assigned OrderId; Ordering
             // persists the Order under this supplied id (client-assigned identity).
             OrderId = saga.CorrelationId,
-            CorrelationId = saga.CorrelationId,
             BuyerId = saga.UserId,
             Items = items.Select(MapBasketItem).ToList<CreateOrderItem>(),
             ShippingAddress = MapAddress(shipping),
@@ -1063,7 +1055,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     /// </summary>
     private RequestPaymentCommand BuildRequestPaymentCommand(CheckoutSagaState saga) => new()
     {
-        CorrelationId = saga.CorrelationId,
         OrderId = saga.OrderId!.Value,
         UserId = saga.UserId,
         // C-2 closeout: Payments-side PaymentMethodId is now a plain string token (was uuid).
@@ -1084,7 +1075,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     /// </summary>
     private AbortCaptureCommand BuildAbortCaptureCommand(CheckoutSagaState saga, string fallbackReason) => new()
     {
-        CorrelationId = saga.CorrelationId,
         OrderId = saga.OrderId!.Value,
         UserId = saga.UserId,
         Reason = saga.ErrorMessage ?? fallbackReason,
@@ -1093,7 +1083,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
 
     private static CheckoutCompletedEvent BuildCheckoutCompletedEvent(CheckoutSagaState saga) => new()
     {
-        CorrelationId = saga.CorrelationId,
         OrderId = saga.OrderId!.Value,
         UserId = saga.UserId,
         PaymentTransactionId = saga.PaymentTransactionId!.Value,
@@ -1106,7 +1095,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
 
     private static CheckoutFailedEvent BuildCheckoutFailedEvent(CheckoutSagaState saga, DateTimeOffset now) => new()
     {
-        CorrelationId = saga.CorrelationId,
         OrderId = saga.OrderId ?? Guid.Empty,
         UserId = saga.UserId,
         ErrorCode = saga.ErrorCode ?? "UNKNOWN",
@@ -1122,7 +1110,6 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
         string lastState,
         DateTimeOffset now) => new()
         {
-            CorrelationId = saga.CorrelationId,
             OrderId = saga.OrderId ?? Guid.Empty,
             UserId = saga.UserId,
             LastState = lastState,

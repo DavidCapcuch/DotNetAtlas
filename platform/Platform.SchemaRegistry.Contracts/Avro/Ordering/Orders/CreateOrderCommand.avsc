@@ -10,15 +10,7 @@
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "doc": "Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id; equals CorrelationId (ADR-0029)."
-        },
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Becomes Order.CorrelationId. Equals OrderId per ADR-0029."
+            "doc": "Pre-assigned Order identity (client-assigned UUID v7). Persisted as Order.Id (ADR-0029)."
         },
         {
             "name": "BuyerId",

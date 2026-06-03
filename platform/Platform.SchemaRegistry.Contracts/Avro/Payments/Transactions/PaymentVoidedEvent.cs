@@ -19,11 +19,7 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentVoidedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentVoidedEvent"",""doc"":""Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was voided."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was voided."",""type"":""string""},{""name"":""VoidedAtUtc"",""doc"":""UTC timestamp when the void was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""Reason"",""doc"":""Optional saga-supplied reason for the void (audit trail; null for forward-compatibility with consumers reading older writes). H-5 closeout follow-up."",""default"":null,""type"":[""null"",""string""]}]}");
-		/// <summary>
-		/// Correlation ID for tracking the payment workflow.
-		/// </summary>
-		private System.Guid _CorrelationId;
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentVoidedEvent"",""doc"":""Event emitted when an authorized payment has been voided (cancelled before capture). Used for compensation when business operation fails before capture."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was voided."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that was voided."",""type"":""string""},{""name"":""VoidedAtUtc"",""doc"":""UTC timestamp when the void was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""Reason"",""doc"":""Optional saga-supplied reason for the void (audit trail; null for forward-compatibility with consumers reading older writes). H-5 closeout follow-up."",""default"":null,""type"":[""null"",""string""]}]}");
 		/// <summary>
 		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
 		/// </summary>
@@ -49,20 +45,6 @@ namespace Payments.Transactions
 			get
 			{
 				return PaymentVoidedEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Correlation ID for tracking the payment workflow.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -139,12 +121,11 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.AuthorizationId;
-			case 4: return this.VoidedAtUtc;
-			case 5: return this.Reason;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.AuthorizationId;
+			case 3: return this.VoidedAtUtc;
+			case 4: return this.Reason;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -152,12 +133,11 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.AuthorizationId = (System.String)fieldValue; break;
-			case 4: this.VoidedAtUtc = (System.DateTime)fieldValue; break;
-			case 5: this.Reason = (System.String)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.AuthorizationId = (System.String)fieldValue; break;
+			case 3: this.VoidedAtUtc = (System.DateTime)fieldValue; break;
+			case 4: this.Reason = (System.String)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

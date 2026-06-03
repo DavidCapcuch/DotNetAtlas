@@ -31,7 +31,6 @@ public class PaymentFailedCheckoutConsumerTests
 
             var avro = new PaymentFailedEvent
             {
-                CorrelationId = correlationId,
                 OrderId = orderId,
                 UserId = Guid.CreateVersion7(),
                 ErrorCode = "PAYMENT_FAILED",

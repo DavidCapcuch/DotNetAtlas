@@ -48,7 +48,6 @@ public class OrderConfirmedOutboxPublisherDomainEventHandlerTests : HandlerTestB
         var avro = (OrderConfirmedEvent)call.GetArguments()[2]!;
 
         avro.OrderId.Should().Be(order.Id);
-        avro.CorrelationId.Should().Be(order.CorrelationId);
         avro.BuyerId.Should().Be(order.BuyerId);
         avro.ConfirmedAtUtc.Should().Be(TestAggregate.UtcNow.UtcDateTime);
 
