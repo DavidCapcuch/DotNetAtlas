@@ -36,6 +36,7 @@ public static class TestAggregate
 
     public static Order NewOrder(Guid? correlationId = null, Guid? buyerId = null) =>
         Order.CreateFromBasket(
+            orderId: Guid.CreateVersion7(),
             correlationId: correlationId ?? Guid.CreateVersion7(),
             buyerId: buyerId ?? Guid.CreateVersion7(),
             basket: Basket(buyerId),

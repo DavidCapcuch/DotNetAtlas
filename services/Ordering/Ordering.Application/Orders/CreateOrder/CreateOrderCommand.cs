@@ -17,6 +17,13 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// </remarks>
 public sealed record CreateOrderCommand : ICommand<Guid>
 {
+    /// <summary>
+    /// Pre-assigned Order identity (client-assigned UUID v7) — persisted as
+    /// <c>Order.Id</c> rather than minted by Ordering. Equals
+    /// <see cref="CorrelationId"/> (ADR-0029).
+    /// </summary>
+    public required Guid OrderId { get; init; }
+
     /// <summary>Checkout saga correlation id. Becomes <c>Order.CorrelationId</c>.</summary>
     public required Guid CorrelationId { get; init; }
 

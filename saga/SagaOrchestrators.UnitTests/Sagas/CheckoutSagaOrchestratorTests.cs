@@ -151,6 +151,9 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             state.TotalAmount.Should().BeGreaterThan(0m);
             state.Currency.Should().Be("USD");
             outboxMessages.Should().ContainSingle();
+            // ADR-0029: the pre-assigned OrderId travels on the command; it equals
+            // the saga's CorrelationId (== OrderId from the Initial transition).
+            outboxMessages[0].IntegrationEvent.OrderId.Should().Be(correlationId);
             outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             outboxMessages[0].IntegrationEvent.BuyerId.Should().Be(userId);
             outboxMessages[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);

@@ -7,8 +7,9 @@ namespace Ordering.UnitTests.Application.Orders.CreateOrder;
 
 public class CreateOrderCommandHandlerTests : HandlerTestBase
 {
-    private CreateOrderCommand ValidCommand(Guid? correlationId = null, Guid? buyerId = null) => new()
+    private CreateOrderCommand ValidCommand(Guid? orderId = null, Guid? correlationId = null, Guid? buyerId = null) => new()
     {
+        OrderId = orderId ?? Guid.CreateVersion7(),
         CorrelationId = correlationId ?? Guid.CreateVersion7(),
         BuyerId = buyerId ?? Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),
@@ -33,6 +34,27 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
         result.Value.Should().NotBeEmpty();
         (await DbContext.Orders.FindAsync([result.Value], TestContext.Current.CancellationToken))
             .Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// ADR-0029 client-assigned identity: the handler persists the order under
+    /// the pre-assigned <c>OrderId</c> the command carries (and returns it), so
+    /// the saga's <c>CorrelationId == OrderId</c> round-trips. OrderId is
+    /// deliberately distinct from CorrelationId here to prove the wiring.
+    /// </summary>
+    [Fact]
+    public async Task Handle_PersistsSuppliedOrderId_AsAggregateIdentity()
+    {
+        var orderId = Guid.CreateVersion7();
+        var command = ValidCommand(orderId: orderId);
+
+        var result = await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        result.Should().BeSuccess();
+        result.Value.Should().Be(orderId);
+        var saved = await DbContext.Orders.FindAsync([orderId], TestContext.Current.CancellationToken);
+        saved.Should().NotBeNull();
+        saved!.CorrelationId.Should().Be(command.CorrelationId);
     }
 
     [Fact]

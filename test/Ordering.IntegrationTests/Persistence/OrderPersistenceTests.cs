@@ -35,6 +35,7 @@ public sealed class OrderPersistenceTests
         using var scope = _fixture.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
+        var orderId = Guid.CreateVersion7();
         var correlationId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
@@ -61,6 +62,7 @@ public sealed class OrderPersistenceTests
         var nowSnapshot = DateTimeOffset.UtcNow;
 
         var order = Order.CreateFromBasket(
+            orderId,
             correlationId,
             buyerId,
             basket,
@@ -134,10 +136,12 @@ public sealed class OrderPersistenceTests
         static Address Addr() => Address.Create("1 Test Ln", null, "Palo Alto", "CA", "94301", "US").Value;
 
         var utcNow = DateTimeOffset.UtcNow;
+        // Distinct OrderIds (PKs) but the SAME CorrelationId — so the second
+        // save trips the correlation_id unique index, not the PK.
         var first = Order.CreateFromBasket(
-            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
+            Guid.CreateVersion7(), correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
         var second = Order.CreateFromBasket(
-            correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
+            Guid.CreateVersion7(), correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
 
         dbContext.Orders.Add(first);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -169,6 +173,7 @@ public sealed class OrderPersistenceTests
         var correlationId = Guid.CreateVersion7();
         var command = new CreateOrderCommand
         {
+            OrderId = Guid.CreateVersion7(),
             CorrelationId = correlationId,
             BuyerId = Guid.CreateVersion7(),
             PaymentMethodId = Guid.CreateVersion7(),

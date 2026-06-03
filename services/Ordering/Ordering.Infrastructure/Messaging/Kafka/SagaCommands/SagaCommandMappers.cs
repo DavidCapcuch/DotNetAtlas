@@ -41,6 +41,7 @@ internal static class SagaCommandMappers
 
         return new AppCreateOrderCommand
         {
+            OrderId = avro.OrderId,
             CorrelationId = correlationId,
             BuyerId = avro.BuyerId,
             PaymentMethodId = avro.PaymentMethodId,

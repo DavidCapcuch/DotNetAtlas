@@ -42,6 +42,7 @@ public sealed class CorrelationIdPropagationTests
 
         var avro = new AvroCreateOrderCommand
         {
+            OrderId = correlationId,
             CorrelationId = correlationId,
             BuyerId = Guid.CreateVersion7(),
             PaymentMethodId = Guid.CreateVersion7(),

@@ -100,6 +100,7 @@ internal sealed class OrderSeed
         var billing = Address.Create("1 Test Street", null, "Prague", null, "11000", "CZ").Value;
 
         return Order.CreateFromBasket(
+            orderId: Guid.CreateVersion7(),
             correlationId: correlationId ?? Guid.CreateVersion7(),
             buyerId: buyerId,
             basket: basket,
