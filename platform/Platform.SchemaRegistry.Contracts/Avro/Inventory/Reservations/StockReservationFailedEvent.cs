@@ -7,71 +7,139 @@
 // ------------------------------------------------------------------------------
 namespace Inventory.Reservations
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using global::Avro;
-    using global::Avro.Specific;
-
-    /// <summary>
-    /// Emitted when a reservation request cannot be fulfilled because Available &lt; RequestedQuantity. Consumed by the checkout saga to trigger compensation. No corresponding ES event (failed reservations do not mutate the aggregate).
-    /// </summary>
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-    public partial class StockReservationFailedEvent : global::Avro.Specific.ISpecificRecord
-    {
-        public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(
-            "{\"type\":\"record\",\"name\":\"StockReservationFailedEvent\",\"doc\":\"Emitted when a reser" +
-            "vation request cannot be fulfilled because Available < RequestedQuantity. Cons" +
-            "umed by the checkout saga to trigger compensation. No corresponding ES event (" +
-            "failed reservations do not mutate the aggregate).\",\"namespace\":\"Inventory.Reser" +
-            "vations\",\"fields\":[{\"name\":\"ProductId\",\"doc\":\"Product for which the reservation" +
-            " failed.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"OrderId\",\"doc\"" +
-            ":\"Owning order (saga correlation id).\",\"type\":{\"type\":\"string\",\"logicalType\":\"u" +
-            "uid\"}},{\"name\":\"RequestedQuantity\",\"doc\":\"Units the saga attempted to reserve.\"" +
-            ",\"type\":\"int\"},{\"name\":\"AvailableQuantity\",\"doc\":\"Units actually available at t" +
-            "he time of rejection (OnHand - Reserved). Included so the saga/UI can report t" +
-            "he shortfall precisely.\",\"type\":\"int\"},{\"name\":\"FailedAtUtc\",\"doc\":\"UTC timesta" +
-            "mp when the reservation attempt was rejected.\",\"type\":{\"type\":\"long\",\"logicalT" +
-            "ype\":\"timestamp-millis\"}}]}");
-
-        private System.Guid _ProductId;
-        private System.Guid _OrderId;
-        private int _RequestedQuantity;
-        private int _AvailableQuantity;
-        private System.DateTime _FailedAtUtc;
-
-        public virtual global::Avro.Schema Schema => StockReservationFailedEvent._SCHEMA;
-
-        public System.Guid ProductId { get => this._ProductId; set => this._ProductId = value; }
-        public System.Guid OrderId { get => this._OrderId; set => this._OrderId = value; }
-        public int RequestedQuantity { get => this._RequestedQuantity; set => this._RequestedQuantity = value; }
-        public int AvailableQuantity { get => this._AvailableQuantity; set => this._AvailableQuantity = value; }
-        public System.DateTime FailedAtUtc { get => this._FailedAtUtc; set => this._FailedAtUtc = value; }
-
-        public virtual object Get(int fieldPos)
-        {
-            switch (fieldPos)
-            {
-            case 0: return this.ProductId;
-            case 1: return this.OrderId;
-            case 2: return this.RequestedQuantity;
-            case 3: return this.AvailableQuantity;
-            case 4: return this.FailedAtUtc;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
-            }
-        }
-
-        public virtual void Put(int fieldPos, object fieldValue)
-        {
-            switch (fieldPos)
-            {
-            case 0: this.ProductId = (System.Guid)fieldValue; break;
-            case 1: this.OrderId = (System.Guid)fieldValue; break;
-            case 2: this.RequestedQuantity = (int)fieldValue; break;
-            case 3: this.AvailableQuantity = (int)fieldValue; break;
-            case 4: this.FailedAtUtc = (System.DateTime)fieldValue; break;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
-            }
-        }
-    }
+	using System;
+	using System.Collections.Generic;
+	using System.Text;
+	using global::Avro;
+	using global::Avro.Specific;
+	
+	/// <summary>
+	/// Emitted when a reservation request cannot be fulfilled because Available < RequestedQuantity. Consumed by the checkout saga to trigger compensation. No corresponding ES event (failed reservations do not mutate the aggregate).
+	/// </summary>
+	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
+	public partial class StockReservationFailedEvent : global::Avro.Specific.ISpecificRecord
+	{
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""StockReservationFailedEvent"",""doc"":""Emitted when a reservation request cannot be fulfilled because Available < RequestedQuantity. Consumed by the checkout saga to trigger compensation. No corresponding ES event (failed reservations do not mutate the aggregate)."",""namespace"":""Inventory.Reservations"",""fields"":[{""name"":""ProductId"",""doc"":""Product for which the reservation failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Owning order (saga correlation id)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RequestedQuantity"",""doc"":""Units the saga attempted to reserve."",""type"":""int""},{""name"":""AvailableQuantity"",""doc"":""Units actually available at the time of rejection (OnHand - Reserved). Included so the saga/UI can report the shortfall precisely."",""type"":""int""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when the reservation attempt was rejected."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		/// <summary>
+		/// Product for which the reservation failed.
+		/// </summary>
+		private System.Guid _ProductId;
+		/// <summary>
+		/// Owning order (saga correlation id).
+		/// </summary>
+		private System.Guid _OrderId;
+		/// <summary>
+		/// Units the saga attempted to reserve.
+		/// </summary>
+		private int _RequestedQuantity;
+		/// <summary>
+		/// Units actually available at the time of rejection (OnHand - Reserved). Included so the saga/UI can report the shortfall precisely.
+		/// </summary>
+		private int _AvailableQuantity;
+		/// <summary>
+		/// UTC timestamp when the reservation attempt was rejected.
+		/// </summary>
+		private System.DateTime _FailedAtUtc;
+		public virtual global::Avro.Schema Schema
+		{
+			get
+			{
+				return StockReservationFailedEvent._SCHEMA;
+			}
+		}
+		/// <summary>
+		/// Product for which the reservation failed.
+		/// </summary>
+		public System.Guid ProductId
+		{
+			get
+			{
+				return this._ProductId;
+			}
+			set
+			{
+				this._ProductId = value;
+			}
+		}
+		/// <summary>
+		/// Owning order (saga correlation id).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
+			}
+		}
+		/// <summary>
+		/// Units the saga attempted to reserve.
+		/// </summary>
+		public int RequestedQuantity
+		{
+			get
+			{
+				return this._RequestedQuantity;
+			}
+			set
+			{
+				this._RequestedQuantity = value;
+			}
+		}
+		/// <summary>
+		/// Units actually available at the time of rejection (OnHand - Reserved). Included so the saga/UI can report the shortfall precisely.
+		/// </summary>
+		public int AvailableQuantity
+		{
+			get
+			{
+				return this._AvailableQuantity;
+			}
+			set
+			{
+				this._AvailableQuantity = value;
+			}
+		}
+		/// <summary>
+		/// UTC timestamp when the reservation attempt was rejected.
+		/// </summary>
+		public System.DateTime FailedAtUtc
+		{
+			get
+			{
+				return this._FailedAtUtc;
+			}
+			set
+			{
+				this._FailedAtUtc = value;
+			}
+		}
+		public virtual object Get(int fieldPos)
+		{
+			switch (fieldPos)
+			{
+			case 0: return this.ProductId;
+			case 1: return this.OrderId;
+			case 2: return this.RequestedQuantity;
+			case 3: return this.AvailableQuantity;
+			case 4: return this.FailedAtUtc;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
+			};
+		}
+		public virtual void Put(int fieldPos, object fieldValue)
+		{
+			switch (fieldPos)
+			{
+			case 0: this.ProductId = (System.Guid)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.RequestedQuantity = (System.Int32)fieldValue; break;
+			case 3: this.AvailableQuantity = (System.Int32)fieldValue; break;
+			case 4: this.FailedAtUtc = (System.DateTime)fieldValue; break;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
+			};
+		}
+	}
 }
