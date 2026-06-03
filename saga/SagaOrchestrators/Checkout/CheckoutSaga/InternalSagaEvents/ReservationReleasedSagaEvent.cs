@@ -7,12 +7,12 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// reservation) as one of the gating events for transition to terminal <c>Compensated</c> per
 /// docs/bc-design/checkout-saga.md § 4 transition table; the saga discriminates on
 /// <see cref="ReleaseReason"/> to distinguish compensation-driven releases from TTL expiry.
-/// Correlated by <see cref="OrderId"/> (Inventory's Avro lacks <c>CorrelationId</c>).
+/// Correlated by <see cref="OrderId"/> — the saga key per ADR-0029.
 /// </summary>
 public sealed record ReservationReleasedSagaEvent
 {
     /// <summary>
-    /// Ordering aggregate id - the saga correlation key for this event under Path B.
+    /// Ordering aggregate id — the saga correlation key (ADR-0029).
     /// </summary>
     public required Guid OrderId { get; init; }
 

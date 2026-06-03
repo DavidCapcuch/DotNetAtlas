@@ -26,11 +26,13 @@ public class PaymentFailedCheckoutConsumerTests
         try
         {
             var correlationId = Guid.CreateVersion7();
+            var orderId = Guid.CreateVersion7();
             var failedAt = DateTime.SpecifyKind(new DateTime(2026, 5, 3, 13, 30, 0), DateTimeKind.Utc);
 
             var avro = new PaymentFailedEvent
             {
                 CorrelationId = correlationId,
+                OrderId = orderId,
                 UserId = Guid.CreateVersion7(),
                 ErrorCode = "PAYMENT_FAILED",
                 ErrorMessage = "Card declined.",
@@ -41,7 +43,7 @@ public class PaymentFailedCheckoutConsumerTests
 
             Assert.True(await harness.Published.Any<PaymentFailedSagaEvent>(TestContext.Current.CancellationToken));
             var published = await harness.Published.GetSinglePublishedMessageAsync<PaymentFailedSagaEvent>(TestContext.Current.CancellationToken);
-            Assert.Equal(correlationId, published.CorrelationId);
+            Assert.Equal(orderId, published.OrderId);
             Assert.Equal("PAYMENT_FAILED", published.ErrorCode);
             Assert.Equal("Card declined.", published.ErrorMessage);
             Assert.Equal(new DateTimeOffset(failedAt, TimeSpan.Zero), published.FailedAtUtc);

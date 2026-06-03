@@ -10,12 +10,8 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 public sealed record OrderCancelledSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - matches <c>CheckoutSagaState.CorrelationId</c>.
-    /// </summary>
-    public required Guid CorrelationId { get; init; }
-
-    /// <summary>
-    /// Ordering aggregate id that was cancelled.
+    /// Ordering aggregate id that was cancelled — the saga correlation key (ADR-0029); equals
+    /// <c>CheckoutSagaState.CorrelationId</c>.
     /// </summary>
     public required Guid OrderId { get; init; }
 

@@ -41,7 +41,6 @@ public class OrderConfirmedConsumerTests
 
             Assert.True(await harness.Published.Any<OrderConfirmedSagaEvent>(TestContext.Current.CancellationToken));
             var published = await harness.Published.GetSinglePublishedMessageAsync<OrderConfirmedSagaEvent>(TestContext.Current.CancellationToken);
-            Assert.Equal(correlationId, published.CorrelationId);
             Assert.Equal(orderId, published.OrderId);
             Assert.Equal(new DateTimeOffset(confirmedAt, TimeSpan.Zero), published.ConfirmedAtUtc);
         }

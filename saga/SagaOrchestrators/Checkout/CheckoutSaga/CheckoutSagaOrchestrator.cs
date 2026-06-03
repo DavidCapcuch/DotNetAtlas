@@ -131,7 +131,9 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 {
                     var saga = ctx.Saga;
                     var message = ctx.Message;
-                    saga.CorrelationId = message.CorrelationId;
+                    // ADR-0029: the saga is keyed on OrderId — MassTransit sets CorrelationId from
+                    // CorrelateById(m => m.OrderId); OrderId is the order's identity from birth.
+                    saga.OrderId = message.OrderId;
                     saga.UserId = message.UserId;
                     saga.TotalAmount = message.TotalAmount;
                     saga.Currency = message.Currency;
@@ -302,15 +304,14 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 })
                 .Activity(x => x.OfType<OrderCreationTimeoutActivity>())
                 // Defensive per § 3 row 4: tell Ordering to fail any silently-accepted Order.
-                // OrderId is always null at this point (Ordering's reply hasn't arrived) - we
-                // send Guid.Empty + the CorrelationId so Ordering can resolve by correlation id
-                // if it implements that path. Mirrors BuildCheckoutFailedEvent's OrderId fallback.
+                // ADR-0029: the OrderId is pre-assigned at checkout initiation, so it is known here
+                // even though Ordering's reply never arrived — the command carries it directly.
                 .PublishToOutbox(
                     _topicsOptions.OrderingOrderCommands,
-                    ctx => (ctx.Saga.OrderId ?? ctx.Saga.CorrelationId).ToString(),
+                    ctx => ctx.Saga.OrderId!.Value.ToString(),
                     ctx => new MarkOrderFailedCommand
                     {
-                        OrderId = ctx.Saga.OrderId ?? Guid.Empty,
+                        OrderId = ctx.Saga.OrderId!.Value,
                         CorrelationId = ctx.Saga.CorrelationId,
                         ErrorCode = ctx.Saga.ErrorCode!,
                         ErrorMessage = ctx.Saga.ErrorMessage!,
@@ -667,88 +668,86 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     }
 
     /// <summary>
-    /// Wires correlation rules per docs/bc-design/checkout-saga.md § 4.1. Most events
-    /// correlate by <c>CorrelationId</c>. The four Inventory events instead correlate by
-    /// <c>OrderId</c> — Inventory's Avro schemas don't carry <c>CorrelationId</c> (§ 8.1
-    /// Option B not yet landed); the state-machine sequence guarantees
-    /// <c>OrderCreatedSagaEvent</c> precedes any Stock* event so
-    /// <c>CheckoutSagaState.OrderId</c> is always set when correlation runs. All intermediate
-    /// events use <c>OnMissingInstance(m =&gt; m.Discard())</c> so events arriving for an
-    /// already-finalized (or out-of-order) saga are silently dropped — the spec-mandated
-    /// divergence from PaymentProcessingSaga, which uses <c>Fault()</c> for some events. The
-    /// initiator <see cref="BasketCheckoutInitiatedEvent"/> has no missing-instance policy
-    /// because the <c>Initially(...)</c> handler creates the instance on first arrival.
+    /// Wires correlation rules per docs/bc-design/checkout-saga.md § 4.1. Every event correlates
+    /// by <c>OrderId</c> via <c>CorrelateById(m =&gt; m.OrderId)</c> (ADR-0029) — the saga's
+    /// <c>CorrelationId == OrderId</c>, so this is a primary-key lookup across Ordering,
+    /// Inventory, and Payments events alike. All intermediate events use
+    /// <c>OnMissingInstance(m =&gt; m.Discard())</c> so events arriving for an already-finalized
+    /// (or out-of-order) saga are silently dropped — the spec-mandated divergence from
+    /// PaymentProcessingSaga, which uses <c>Fault()</c> for some events. The initiator
+    /// <see cref="BasketCheckoutInitiatedEvent"/> has no missing-instance policy because the
+    /// <c>Initially(...)</c> handler creates the instance on first arrival.
     /// </summary>
     private void ConfigureEvents()
     {
         Event(() => BasketCheckoutInitiatedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
         });
 
         Event(() => OrderCreatedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => OrderFailedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => OrderCancelledEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => OrderConfirmedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => StockReservedEvent, e =>
         {
-            e.CorrelateBy((state, ctx) => state.OrderId == ctx.Message.OrderId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => StockReservationFailedEvent, e =>
         {
-            e.CorrelateBy((state, ctx) => state.OrderId == ctx.Message.OrderId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => ReservationReleasedEvent, e =>
         {
-            e.CorrelateBy((state, ctx) => state.OrderId == ctx.Message.OrderId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => ReservationConfirmedEvent, e =>
         {
-            e.CorrelateBy((state, ctx) => state.OrderId == ctx.Message.OrderId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => PaymentAuthorizedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => PaymentCompletedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => PaymentFailedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
     }

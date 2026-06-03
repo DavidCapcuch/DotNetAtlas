@@ -75,7 +75,9 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     // — Ordering-side data (filled during AwaitingOrderCreation) —
 
     /// <summary>
-    /// Ordering aggregate id assigned after OrderCreatedEvent arrives. Required for confirm/cancel commands.
+    /// The order's identity — equals <see cref="CorrelationId"/> (the saga key) per ADR-0029.
+    /// Pre-assigned by Basket and set on the Initial transition, so it is present from saga birth;
+    /// nullable only because the persisted column predates the re-key (no migration per ADR-0029).
     /// </summary>
     public Guid? OrderId { get; set; }
 

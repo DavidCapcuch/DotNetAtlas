@@ -118,12 +118,9 @@ If snapshot size becomes a concern (baskets are capped at 50 items, so ~5 KB per
 
 ### 2.2 Where addresses come from
 
-`BasketCheckoutInitiatedEvent` as defined in `docs/bc-design/basket.md § 8.2` does **not** carry shipping/billing addresses — Basket is address-ignorant (per ADR-0003 it is a technical BC). There are two paths:
+`BasketCheckoutInitiatedEvent` carries the buyer's `ShippingAddress`, `BillingAddress`, and `PaymentMethodId` — collected by the BFF/client at checkout and passed through `CheckoutBasketCommand`. Basket does **not own** addresses (per [ADR-0003](../adr/0003-basket-as-technical-bc.md) it is a technical BC): it neither validates them deeply nor persists them beyond the event — it carries the payload to the saga unchanged. The saga snapshots them into its state (`ShippingAddressJson` / `BillingAddressJson`) and forwards them in `CreateOrderCommand`; Ordering re-snapshots them onto the Order aggregate as the authoritative checkout record (per [ADR-0005](../adr/0005-customer-data-in-ordering.md)).
 
-- **Option P (deferred to Stage 4 / ADR-0004):** the API caller (BFF) POSTs addresses alongside the checkout command and Basket's outbox-handler enriches `BasketCheckoutInitiatedEvent` with them.
-- **Option Q (alternative):** the Ordering service fetches the buyer's default addresses during `CreateOrderCommand` handling from a Profiles BC (deferred per Appendix C of the master design).
-
-This saga design **assumes Option P** — the event arrives with `ShippingAddress` and `BillingAddress`. Stage 2 Agent 5 (event catalog) must confirm this by updating the Avro schema, or the ADR must commit to Option Q and this saga would not store addresses at all (just pass the `BuyerId` to Ordering). For the reference solution, Option P is recommended — it keeps Ordering a plain command receiver.
+**Resolved** (was an open *Option P vs Option Q* question for Stage 2 Agent 5): the "carry it through the event" path (formerly *Option P*) is confirmed by the live [`BasketCheckoutInitiatedEvent.avsc`](../../platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc), whose `ShippingAddress` / `BillingAddress` records doc themselves as "collected by the BFF/client … Basket does NOT own addresses; it carries this payload to the saga unchanged." The alternative — *Option Q*, Ordering fetching addresses from a Profiles/Accounts BC — is dead: [ADR-0005](../adr/0005-customer-data-in-ordering.md) commits to **no Accounts BC in v1** (snapshot-in-Order, Keycloak as sole identity authority), so there is no Profiles BC to fetch from.
 
 ---
 
@@ -175,7 +172,7 @@ Current State | Triggering Event | Action(s) Taken | Next State
 
 ### 4.1 Event correlation policy
 
-All external events use `e.CorrelateById(ctx => ctx.Message.CorrelationId)` where `CorrelationId` is the saga correlation id. The `OrderCreatedSagaEvent`, `StockReservedSagaEvent`, `StockReservationFailedSagaEvent`, `ReservationReleasedSagaEvent`, `ReservationConfirmedSagaEvent` all carry this `CorrelationId` field — the consumer-adapters (§ 6) extract it from the Kafka message payload.
+All events correlate by `OrderId` — `e.CorrelateById(ctx => ctx.Message.OrderId)` (per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). The saga's `CorrelationId == OrderId` (Basket's pre-assigned UUID v7), so this is a primary-key lookup across Ordering, Inventory, and Payments events alike. Every internal saga event carries `OrderId`; the consumer-adapters (§ 6) source it from the inbound event's `OrderId`. This deletes the former `§ 8.1` Inventory mapping problem outright — the events already key on `OrderId`.
 
 **OnMissingInstance policy:** all intermediate events use `.OnMissingInstance(m => m.Discard())` — if no saga exists for that CorrelationId (because the saga has already finalized, or the event arrived before the saga was created due to out-of-order partitions), the event is dropped with a log entry. **Exception:** `BasketCheckoutInitiatedSagaEvent` is the initiator — `.Initially(...)` handles it on a missing instance.
 
@@ -362,12 +359,12 @@ Naming convention: `{EventName}CheckoutConsumer` (suffix `Checkout` so consumer 
 
 | External Event (Avro record) | Topic | Consumer Class | Internal Saga Event Produced |
 |---|---|---|---|
-| `Basket.Sessions.BasketCheckoutInitiatedEvent` | `basket.sessions` | `BasketCheckoutInitiatedConsumer` | `BasketCheckoutInitiatedSagaEvent` (maps `BasketCorrelationId` → `CorrelationId`; carries UserId, Items, TotalAmount, Currency, PaymentMethodId, ShippingAddress, BillingAddress, InitiatedAtUtc) |
+| `Basket.Sessions.BasketCheckoutInitiatedEvent` | `basket.sessions` | `BasketCheckoutInitiatedConsumer` | `BasketCheckoutInitiatedSagaEvent` (forwards the pre-assigned `OrderId` — the saga key per ADR-0029; carries UserId, Items, TotalAmount, Currency, PaymentMethodId, ShippingAddress, BillingAddress, InitiatedAtUtc) |
 | `Ordering.Orders.OrderCreatedEvent` | `ordering.orders` | `OrderCreatedConsumer` | `OrderCreatedSagaEvent` |
 | `Ordering.Orders.OrderCancelledEvent` | `ordering.orders` | `OrderCancelledConsumer` | `OrderCancelledSagaEvent` (only relevant during compensation; on all other states OnMissingInstance=Discard) |
 | `Ordering.Orders.OrderFailedEvent` | `ordering.orders` | `OrderFailedConsumer` | `OrderFailedSagaEvent` |
 | `Ordering.Orders.OrderConfirmedEvent` | `ordering.orders` | `OrderConfirmedConsumer` | `OrderConfirmedSagaEvent` |
-| `Inventory.Reservations.StockReservedEvent` | `inventory.reservations` | `StockReservedConsumer` | `StockReservedSagaEvent` (maps `OrderId` → saga correlation via a CorrelationId field; see § 8.1 for mapping strategy) |
+| `Inventory.Reservations.StockReservedEvent` | `inventory.reservations` | `StockReservedConsumer` | `StockReservedSagaEvent` (correlates by `OrderId`, the saga key — see § 8.1) |
 | `Inventory.Reservations.StockReservationFailedEvent` | `inventory.reservations` | `StockReservationFailedConsumer` | `StockReservationFailedSagaEvent` |
 | `Inventory.Reservations.ReservationReleasedEvent` | `inventory.reservations` | `ReservationReleasedConsumer` | `ReservationReleasedSagaEvent` (discriminates on `ReleaseReason` to distinguish compensation-driven vs expiry-driven) |
 | `Inventory.Reservations.ReservationConfirmedEvent` | `inventory.reservations` | `ReservationConfirmedConsumer` | `ReservationConfirmedSagaEvent` |
@@ -377,17 +374,9 @@ Naming convention: `{EventName}CheckoutConsumer` (suffix `Checkout` so consumer 
 
 **Total adapters: 12.** (The `PaymentRefundedEvent` adapter was removed and a `PaymentAuthorizedEvent` adapter added per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md): refund is no longer part of checkout compensation; the saga now drives confirmation off `PaymentAuthorizedEvent`.)
 
-### 8.1 CorrelationId mapping for Inventory events
+### 8.1 Correlation key
 
-Inventory's external events carry `OrderId` (not `CorrelationId`) as the saga-correlation key — because Inventory doesn't know it's part of a saga; it knows orders. The consumer-adapter MUST translate: the saga's `CorrelationId` is the Basket's `CorrelationId`, which is ALSO the Ordering aggregate's `CorrelationId`, which is different from `OrderId`.
-
-**Option A (mapping via Ordering):** the adapter queries Ordering's DB for `OrderId → CorrelationId`. Introduces a cross-service DB dependency from the saga service. **Rejected.**
-
-**Option B (carry CorrelationId in the external event):** add `CorrelationId` field to `Inventory.Reservations.StockReservedEvent` (and siblings). Inventory receives `CorrelationId` on `ReserveStockCommand` and echoes it back in the result event. **Recommended.** This is a schema addition for Stage 2 Agent 5 to land. The `ReserveStockCommand` already has a natural place for a correlation field.
-
-**Option C (keep OrderId, saga-side lookup by OrderId):** the saga indexes state by `CorrelationId`; at consumer level, translate `OrderId → CorrelationId` via a small side-table (`saga.order_correlation_map` populated when `OrderCreatedSagaEvent` is processed). Ugly and fragile. **Rejected.**
-
-This design assumes Option B. The master-design § 6 Event Catalog (Stage 2 Agent 5) will codify the `CorrelationId` field on all saga-participating events.
+Every event — Basket, Ordering, Inventory, Payments — correlates on `OrderId` (`CorrelateById(m => m.OrderId)`), which **is** the saga's `CorrelationId` (Basket's pre-assigned UUID v7 per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). Inventory's events already carried `OrderId` only; once the `OrderId` is pre-assigned at checkout initiation the whole flow keys on that one value, so the former Option A/B/C mapping debate — querying Ordering for `OrderId → CorrelationId`, echoing a `CorrelationId` field back on Inventory's events, or a saga-side `order_correlation_map` side-table — is **deleted**. There is nothing to map.
 
 ### 8.2 Adapter skeleton (not code, just shape)
 
@@ -396,14 +385,13 @@ public sealed class StockReservedConsumer : IConsumer<Inventory.Reservations.Sto
 {
     public async Task Consume(ConsumeContext<Inventory.Reservations.StockReservedEvent> ctx)
     {
-        _logger.LogInformation("Received StockReservedEvent for correlation {CorrelationId} product {ProductId}",
-                               ctx.Message.CorrelationId, ctx.Message.ProductId);
+        _logger.LogInformation("Received StockReservedEvent for order {OrderId} product {ProductId}",
+                               ctx.Message.OrderId, ctx.Message.ProductId);
 
         await ctx.Publish(new StockReservedSagaEvent {
-            CorrelationId   = ctx.Message.CorrelationId,
+            OrderId         = ctx.Message.OrderId,
             ProductId       = ctx.Message.ProductId,
             ReservationId   = ctx.Message.ReservationId,
-            OrderId         = ctx.Message.OrderId,
             Quantity        = ctx.Message.Quantity,
             ReservedAtUtc   = ctx.Message.ReservedAtUtc.ToDateTimeOffset(),
             ExpiresAtUtc    = ctx.Message.ExpiresAtUtc.ToDateTimeOffset()
@@ -436,7 +424,7 @@ Commands flow **outbound** from the saga via the transactional outbox. Every pub
 | `CheckoutFailedEvent` | `checkout.sagas` | `CorrelationId` | `AwaitingOrderCreation / CompensatingStockReservations → Failed / Compensated` | Saga-level terminal event recording the saga's overall outcome (distinct from Ordering's per-aggregate events). **No v1 consumer by design** — forensic record + future-consumer seam. See § 9.1. |
 | `CheckoutStuckEvent` | `checkout.sagas` | `CorrelationId` | `Compensating* → CompensationStuck` | Ops-alert sink. **No v1 consumer by design** — a future ops-alerting seam (PagerDuty / Slack); **not** consumed by Notifications in v1. See § 9.1. |
 
-**New topics introduced:** `ordering.order-commands`, `inventory.reservation-commands`, `checkout.sagas`. These need to land in `docker-compose.yaml` (kafka-init) and in the Schema Registry contracts — Stage 2 Agent 5's responsibility.
+**New topics introduced:** `ordering.order-commands`, `inventory.reservation-commands`, `checkout.sagas`. All three are created in [`docker-compose.yaml`](../../docker-compose.yaml) (`kafka-create-topic`: `ordering.order-commands` + `inventory.reservation-commands` at 7-day retention, `checkout.sagas` at 30-day forensic retention) and their Avro contracts live under [`platform/Platform.SchemaRegistry.Contracts`](../../platform/Platform.SchemaRegistry.Contracts) — landed by Stage 2 Agent 5.
 
 ### 9.1 Why `checkout.sagas` (saga-level terminal events)
 
@@ -745,8 +733,8 @@ This ADR **extends** ADR-0001. Same placement philosophy: centralized state mach
 
 These questions belong to Stage 4 / later stages and are explicitly out of scope for this design document:
 
-1. **Address source on `BasketCheckoutInitiatedEvent`** (§ 2.2) — does Basket carry addresses (Option P) or does Ordering fetch them (Option Q)? Stage 2 Agent 5 (event catalog) must commit.
-2. **CorrelationId field on Inventory external events** (§ 8.1) — this design assumes `Inventory.Reservations.*Event.CorrelationId` exists. Stage 2 Agent 5 must confirm.
+1. **Address source on `BasketCheckoutInitiatedEvent`** (§ 2.2) — ~~does Basket carry addresses (Option P) or does Ordering fetch them (Option Q)?~~ **Resolved:** Option P — the live [`BasketCheckoutInitiatedEvent.avsc`](../../platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc) carries `ShippingAddress` / `BillingAddress` (Basket as non-owning pass-through); Option Q is dead per [ADR-0005](../adr/0005-customer-data-in-ordering.md) (no Accounts BC). See § 2.2.
+2. **Correlation key for Inventory events** (§ 8.1) — **Closed.** The saga re-keys on `OrderId` per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md): every event correlates by `OrderId` (`CorrelateById(m => m.OrderId)`), which equals the saga's `CorrelationId`. Inventory's `OrderId`-only events need no mapping — the path chosen was "correlate on `OrderId`," not "echo `CorrelationId` back." § 4.1 / § 6 / § 8.1 now describe this uniform `OrderId` keying. (The now-redundant `CorrelationId` field still carried on the Basket/Ordering/Payments events is retired separately in [ADR-0030](../adr/0030-retire-dedicated-correlationid.md), Part B.)
 3. **Separate `checkout.sagas` topic** (§ 9.1) — ~~is the saga-level terminal event a new schema, or collapsed into Ordering events?~~ **Resolved by Stage 2 Agent 5:** a dedicated `checkout.sagas` topic with its own schemas, published with no v1 consumer (forensic record + future-consumer seam) — see [events-catalog.md § 2](events-catalog.md) footnote 3.
 4. **`MarkOrderFailedCommand`** (§ 9) — does Ordering need this as a separate command, or is `CancelOrderCommand` with a special reason sufficient? Stage 2 Agent 7 (use case catalog) closes this.
 5. **Payment capture-then-outer-timeout race** (§ 7 + § 13 Consequences) — with capture deferred to the pivot, this race is now confined to the `AwaitingPaymentCapture` wait. Is there a need for a "stale payment reconciliation worker" that detects late `PaymentCompletedSagaEvent`s for already-finalized sagas and triggers the deferred customer/admin refund flow? Deferred to Stage 4 (refund producer is itself future work per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).

@@ -143,6 +143,10 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             state.Should().NotBeNull();
+            // ADR-0029 re-key invariant: the saga is keyed on the pre-assigned OrderId, so
+            // CorrelationId == OrderId from the Initial transition.
+            state.CorrelationId.Should().Be(correlationId);
+            state.OrderId.Should().Be(correlationId);
             state.UserId.Should().Be(userId);
             state.TotalAmount.Should().BeGreaterThan(0m);
             state.Currency.Should().Be("USD");
@@ -160,7 +164,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingOrderCreation_OnOrderCreated_TransitionsToAwaitingStockReservation_AndFansOutOneReserveStockPerDistinctProduct()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -175,7 +179,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             OrderCreatedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -211,7 +214,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new OrderFailedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = correlationId,
             ErrorCode = "ORDER_VALIDATION_FAILED",
             ErrorMessage = "Buyer not found",
             FailedAtUtc = _fakeTimeProvider.GetUtcNow()
@@ -243,7 +246,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingStockReservation_WhenOneOfNStockReservedArrives_StaysInState_AndDecrementsPendingReservations()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
@@ -279,7 +282,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingStockReservation_WhenAllStockReservedArrive_TransitionsToAwaitingPaymentAuthorization_AndPublishesPaymentRequested()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
@@ -334,7 +337,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingStockReservation_OnStockReservationFailed_TransitionsToCompensating_AndReleasesAlreadyReservedAndCancelsOrder()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -406,7 +409,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingPaymentAuthorization_OnPaymentAuthorized_TransitionsToAwaitingConfirmation_AndPublishesConfirmOrderAndPerReservationConfirms()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
@@ -415,7 +418,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new PaymentAuthorizedCheckoutSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = orderId,
             AuthorizationId = $"auth-{Guid.CreateVersion7()}",
             AuthorizedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -446,7 +449,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingPaymentAuthorization_OnPaymentFailed_FastFailsToCompensatingStockReservations_AndDoesNotPublishRequestRefund()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingPaymentAuthorization(correlationId, orderId, product1);
@@ -454,7 +457,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new PaymentFailedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = orderId,
             ErrorCode = "PAYMENT_FAILED",
             ErrorMessage = "Card declined",
             FailedAtUtc = _fakeTimeProvider.GetUtcNow()
@@ -484,7 +487,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingConfirmation_OnOrderConfirmed_TransitionsToAwaitingPaymentCapture_AndPublishesApproveCapture()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingConfirmation(correlationId, orderId, product1);
@@ -492,7 +495,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new OrderConfirmedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             ConfirmedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -522,7 +524,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         // we can re-read state - that property is covered by static review of NullOutAddresses being
         // chained on every terminal TransitionTo and is more directly testable via an integration test.
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingPaymentCapture(correlationId, orderId, product1);
@@ -534,7 +536,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         var paymentTransactionId = Guid.CreateVersion7();
         await _testHarness.Bus.Publish(new PaymentCompletedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = orderId,
             PaymentTransactionId = paymentTransactionId,
             Amount = 9.99m,
             Currency = "USD",
@@ -561,7 +563,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingConfirmation_OnReservationConfirmed_StaysInState_AndPublishesNothing()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingConfirmation(correlationId, orderId, product1);
@@ -596,7 +598,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingConfirmation_OnOrderFailed_TransitionsToCompensatingStockReservations_AndPublishesAbortCapture_NotRefund()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingConfirmation(correlationId, orderId, product1);
@@ -604,7 +606,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new OrderFailedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             ErrorCode = "CONFIRMATION_FAILED",
             ErrorMessage = "Internal error confirming order",
@@ -638,7 +639,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task CompensatingStockReservations_AllReleasesPlusOrderCancelled_TransitionsToCompensated_AndPublishesCheckoutFailed()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachCompensatingStockReservations(correlationId, orderId, product1);
@@ -664,7 +665,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new OrderCancelledSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             CancelledAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -688,7 +688,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task DuplicateStockReservedForSameProduct_IsIdempotentNoOp()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingStockReservation(correlationId, orderId, BuildItem(product1));
@@ -724,7 +724,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task MultiItemFanOut_PartialFailure_ReleasesAlreadyReservedAndDoesNotReleaseTheFailed()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -789,7 +789,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         // Verifies pre-terminal invariant: addresses must still be present until both
         // gating events arrive. Complements the post-terminal scrub (covered by integration tests).
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachCompensatingStockReservations(correlationId, orderId, product1);
@@ -836,12 +836,12 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             failedEvents.Should().ContainSingle();
             failedEvents[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             failedEvents[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.OrderCreationTimeout);
-            // OrderId is null in AwaitingOrderCreation - the defensive command goes out with
-            // Guid.Empty + the CorrelationId for Ordering to resolve at its end (§ 3 row 4).
             markFailedCmds.Should().ContainSingle();
             markFailedCmds[0].IntegrationEvent.CorrelationId.Should().Be(correlationId);
             markFailedCmds[0].IntegrationEvent.ErrorCode.Should().Be(CheckoutSagaErrorCodes.OrderCreationTimeout);
-            markFailedCmds[0].IntegrationEvent.OrderId.Should().Be(Guid.Empty);
+            // ADR-0029: OrderId is pre-assigned at checkout initiation, so the defensive
+            // MarkOrderFailedCommand carries the real OrderId even though Ordering never replied.
+            markFailedCmds[0].IntegrationEvent.OrderId.Should().Be(correlationId);
         }
     }
 
@@ -849,7 +849,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingStockReservation_OnStockReservationTimeout_TransitionsToCompensatingStockReservations()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingStockReservation(correlationId, orderId, BuildItem(product1));
@@ -881,7 +881,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingPaymentAuthorization_OnPaymentTimeout_TransitionsToCompensatingStockReservations_AndDispatchesReleasesAndCancel()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
@@ -913,7 +913,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task AwaitingConfirmation_OnOrderConfirmationTimeout_TransitionsToCompensatingStockReservations_AndPublishesAbortCapture()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachAwaitingConfirmation(correlationId, orderId, product1);
@@ -945,7 +945,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     public async Task CompensatingStockReservations_OnCompensationTimeout_TransitionsToCompensationStuck_AndPublishesCheckoutStuck()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachCompensatingStockReservations(correlationId, orderId, product1);
@@ -989,7 +989,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await PublishInitiated(correlationId, items);
         await _testHarness.Bus.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             OrderCreatedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -1025,7 +1024,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await ReachAwaitingPaymentAuthorization(correlationId, orderId, productIds);
         await _testHarness.Bus.Publish(new PaymentAuthorizedCheckoutSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = orderId,
             AuthorizationId = $"auth-{Guid.CreateVersion7()}",
             AuthorizedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -1038,7 +1037,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await ReachAwaitingConfirmation(correlationId, orderId, productIds);
         await _testHarness.Bus.Publish(new OrderConfirmedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             ConfirmedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -1051,7 +1049,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await ReachAwaitingPaymentAuthorization(correlationId, orderId, productIds);
         await _testHarness.Bus.Publish(new PaymentFailedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = orderId,
             ErrorCode = "PAYMENT_FAILED",
             ErrorMessage = "Card declined",
             FailedAtUtc = _fakeTimeProvider.GetUtcNow()
@@ -1079,7 +1077,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
 
         return new BasketCheckoutInitiatedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             BasketSnapshotJson = basketJson,
             TotalAmount = items.Sum(i => i.LineTotal),

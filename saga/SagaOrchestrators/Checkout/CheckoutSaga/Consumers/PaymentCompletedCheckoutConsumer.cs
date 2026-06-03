@@ -32,7 +32,7 @@ public sealed class PaymentCompletedCheckoutConsumer : IConsumer<PaymentComplete
 
         await context.Publish(new PaymentCompletedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             PaymentTransactionId = message.PaymentTransactionId,
             Amount = (decimal)message.Amount,
             Currency = message.Currency,

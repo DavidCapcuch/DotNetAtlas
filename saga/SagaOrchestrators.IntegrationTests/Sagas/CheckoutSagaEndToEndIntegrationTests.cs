@@ -75,7 +75,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -213,6 +213,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         var paymentAuthorized = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             AuthorizationId = $"auth-{Guid.CreateVersion7():N}",
             Amount = amount.ToAvroDecimal(4),
@@ -229,6 +230,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         var paymentCompleted = new PaymentCompletedEvent
         {
             CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
             Amount = amount.ToAvroDecimal(4),

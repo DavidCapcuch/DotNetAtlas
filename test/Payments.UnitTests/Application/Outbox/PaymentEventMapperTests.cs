@@ -9,8 +9,9 @@ namespace Payments.UnitTests.Application.Outbox;
 /// <summary>
 /// Field-level mapping tests for the 6 outbox mappers. Each test verifies the locked Avro
 /// shape (per <c>events-catalog.md § 2</c>) is produced from the internal domain event under
-/// Path B in the plan: <c>BuyerId → UserId</c>; <c>GatewayTransactionId → AuthorizationId</c>;
-/// <c>OrderId</c> dropped; sentinels documented inline.
+/// Path B in the plan: <c>BuyerId → UserId</c>; <c>GatewayTransactionId → AuthorizationId</c>.
+/// The three Checkout-saga-consumed events (Authorized/Completed/Failed) now carry
+/// <c>OrderId</c> as the saga correlation key (ADR-0029); the rest still drop it.
 /// </summary>
 public class PaymentEventMapperTests
 {
@@ -49,6 +50,7 @@ public class PaymentEventMapperTests
         using (new AssertionScope())
         {
             avro.CorrelationId.Should().Be(CorrelationId);
+            avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);
             avro.Amount.Should().Be(new AvroDecimal(99.9900m));
@@ -274,6 +276,7 @@ public class PaymentEventMapperTests
         using (new AssertionScope())
         {
             avro.CorrelationId.Should().Be(CorrelationId);
+            avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
             avro.Amount.Should().Be(new AvroDecimal(149.9900m));
@@ -306,6 +309,7 @@ public class PaymentEventMapperTests
         using (new AssertionScope())
         {
             avro.CorrelationId.Should().Be(CorrelationId);
+            avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.ErrorCode.Should().Be("card_declined");
             avro.ErrorMessage.Should().Be("GatewayDeclined");

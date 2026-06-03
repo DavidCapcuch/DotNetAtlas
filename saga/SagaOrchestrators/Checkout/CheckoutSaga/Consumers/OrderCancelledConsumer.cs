@@ -31,7 +31,6 @@ public sealed class OrderCancelledConsumer : IConsumer<OrderCancelledEvent>
 
         await context.Publish(new OrderCancelledSagaEvent
         {
-            CorrelationId = message.CorrelationId,
             OrderId = message.OrderId,
             CancelledAtUtc = message.CancelledAtUtc.ToUtcDateTimeOffset()
         });
