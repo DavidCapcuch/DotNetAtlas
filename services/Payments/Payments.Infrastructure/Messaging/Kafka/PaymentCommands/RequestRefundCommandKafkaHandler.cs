@@ -39,7 +39,7 @@ internal sealed class RequestRefundCommandKafkaHandler
 
         return ExecuteAsync(context, correlationId, paymentId: message.PaymentTransactionId, async ct =>
         {
-            var appCommand = message.ToAppCommand(correlationId);
+            var appCommand = message.ToAppCommand();
             return await _appHandler.HandleAsync(appCommand, ct);
         });
     }

@@ -18,12 +18,10 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
         new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<VoidPaymentCommandHandler>.Instance);
 
     private static VoidPaymentCommand BuildCommand(
-        Guid? paymentId = null,
-        Guid? correlationId = null,
+        Guid? orderId = null,
         string? authorizationId = null) => new()
         {
-            PaymentId = paymentId ?? Guid.CreateVersion7(),
-            CorrelationId = correlationId ?? Guid.CreateVersion7(),
+            OrderId = orderId ?? Guid.CreateVersion7(),
             AuthorizationId = authorizationId ?? PaymentTransactionFactory.DefaultGatewayTransactionId,
             Reason = "saga_compensation",
         };
@@ -33,7 +31,7 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new VoidResponse(GatewayResponseCode.Create("ok", "Voided"))));
 
@@ -55,7 +53,7 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<VoidResponse>("infra-error"));
 
@@ -74,7 +72,7 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Voided(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -104,7 +102,7 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
         // would otherwise see a Void on an already-captured authorization (undefined behaviour).
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -122,7 +120,7 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
         // so the message routes to DLT for operator inspection.
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, authorizationId: "wrong-token");
+        var command = BuildCommand(existing.OrderId, authorizationId: "wrong-token");
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

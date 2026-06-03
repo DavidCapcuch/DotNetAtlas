@@ -72,7 +72,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
     }
 
     [Fact]
-    public async Task DuplicateCorrelationId_HandlerIsIdempotent_NoDoubleEmit()
+    public async Task DuplicateOrderId_HandlerIsIdempotent_NoDoubleEmit()
     {
         var avro = NewValidAvroCommand();
         var fakeOutbox = _fixture.GetFakeOutbox();
@@ -98,14 +98,13 @@ public sealed class CreateOrderCommandKafkaHandlerTests
 
         using (new AssertionScope())
         {
-            // Handler short-circuits on the CorrelationId pre-check
-            // (CreateOrderCommandHandler:46-55), so the second dispatch
-            // does NOT raise the OrderCreatedDomainEvent again. Filter
+            // Handler short-circuits on the OrderId pre-check (the client-assigned PK, ADR-0029),
+            // so the second dispatch does NOT raise the OrderCreatedDomainEvent again. Filter
             // by CorrelationId for parallel-safety (other tests in the
             // collection share the singleton FakeOutboxWriter).
             fakeOutbox.GetMessages<AvroOrderCreatedEvent>()
                 .Where(m => m.IntegrationEvent.CorrelationId == avro.CorrelationId)
-                .Should().HaveCount(1, "redelivery must short-circuit on the CorrelationId pre-check");
+                .Should().HaveCount(1, "redelivery must short-circuit on the OrderId pre-check");
 
             using var verifyScope = _fixture.CreateScope();
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();

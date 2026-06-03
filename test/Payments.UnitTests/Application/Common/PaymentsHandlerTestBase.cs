@@ -17,7 +17,7 @@ namespace Payments.UnitTests.Application.Common;
 /// <remarks>
 /// Replaces the former mocked-repository seam (ADR-0022 removed the hand-rolled persistence
 /// repository): handlers now load the aggregate directly off <see cref="IPaymentsDbContext"/>
-/// (PK lookups inline, CorrelationId via <c>PaymentByCorrelationIdSpec</c>), so tests seed the
+/// (PK lookups inline, OrderId via <c>PaymentByOrderIdSpec</c>), so tests seed the
 /// <c>Transactions</c> set and let the real InMemory query resolve it. Domain-event dispatch is
 /// owned by the persistence-boundary interceptor per ADR-0024, so this fixture intentionally
 /// does NOT carry an <c>IDomainEventDispatcher</c> substitute; tests assert aggregate-raised
@@ -48,7 +48,7 @@ public abstract class PaymentsHandlerTestBase : IDisposable
     protected ITransactionalOutbox<IPaymentsDbContext> Outbox { get; }
 
     /// <summary>
-    /// Persists an already-built aggregate so a handler's load (tracked, by Id or CorrelationId)
+    /// Persists an already-built aggregate so a handler's load (tracked, by Id or OrderId)
     /// resolves it through the identity map. The seeded instance stays tracked, so handler
     /// mutations are observable on the same reference the test holds.
     /// </summary>

@@ -8,8 +8,7 @@ public class VoidPaymentCommandValidatorTests
 
     private static VoidPaymentCommand Valid() => new()
     {
-        PaymentId = Guid.CreateVersion7(),
-        CorrelationId = Guid.CreateVersion7(),
+        OrderId = Guid.CreateVersion7(),
         AuthorizationId = "gw-tx-abc",
         Reason = "saga_compensation",
     };
@@ -21,15 +20,9 @@ public class VoidPaymentCommandValidatorTests
     }
 
     [Fact]
-    public void Validate_EmptyPaymentId_Fails()
+    public void Validate_EmptyOrderId_Fails()
     {
-        _validator.Validate(Valid() with { PaymentId = Guid.Empty }).IsValid.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Validate_EmptyCorrelationId_Fails()
-    {
-        _validator.Validate(Valid() with { CorrelationId = Guid.Empty }).IsValid.Should().BeFalse();
+        _validator.Validate(Valid() with { OrderId = Guid.Empty }).IsValid.Should().BeFalse();
     }
 
     [Fact]

@@ -1,6 +1,9 @@
 using Avro;
 using Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 using AvroAuthorizePaymentCommand = Payments.Transactions.AuthorizePaymentCommand;
+using AvroCapturePaymentCommand = Payments.Transactions.CapturePaymentCommand;
+using AvroRequestRefundCommand = Payments.Transactions.RequestRefundCommand;
+using AvroVoidPaymentCommand = Payments.Transactions.VoidPaymentCommand;
 
 namespace Payments.UnitTests.Infrastructure.Messaging.Kafka.PaymentCommands;
 
@@ -78,6 +81,78 @@ public class SagaCommandMappersTests
             app.Currency.Should().Be("EUR");
             app.PaymentMethodId.Should().Be("pm_abc123");
             app.IdempotencyKey.Should().Be("idem-abc");
+        }
+    }
+
+    [Fact]
+    public void ToAppCommand_CapturePayment_ResolvesByOrderId_NotCorrelationId()
+    {
+        // ADR-0030: Capture carries no PaymentTransactionId, so the handler resolves the aggregate
+        // by OrderId (the saga key, == OrderId per ADR-0029). The mapper sources it from the saga-key
+        // argument, not the retired correlation-id payload field.
+        var orderId = Guid.CreateVersion7();
+        var avro = new AvroCapturePaymentCommand
+        {
+            CorrelationId = Guid.CreateVersion7(),
+            UserId = Guid.CreateVersion7(),
+            AuthorizationId = "auth-123",
+            Amount = new AvroDecimal(42.50m),
+            RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
+        };
+
+        var app = avro.ToAppCommand(orderId);
+
+        using (new AssertionScope())
+        {
+            app.OrderId.Should().Be(orderId);
+            app.AuthorizationId.Should().Be("auth-123");
+        }
+    }
+
+    [Fact]
+    public void ToAppCommand_VoidPayment_ResolvesByOrderId_NotCorrelationId()
+    {
+        var orderId = Guid.CreateVersion7();
+        var avro = new AvroVoidPaymentCommand
+        {
+            CorrelationId = Guid.CreateVersion7(),
+            UserId = Guid.CreateVersion7(),
+            AuthorizationId = "auth-456",
+            Reason = "saga_compensation",
+            RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
+        };
+
+        var app = avro.ToAppCommand(orderId);
+
+        using (new AssertionScope())
+        {
+            app.OrderId.Should().Be(orderId);
+            app.AuthorizationId.Should().Be("auth-456");
+            app.Reason.Should().Be("saga_compensation");
+        }
+    }
+
+    [Fact]
+    public void ToAppCommand_RequestRefund_UsesWirePaymentTransactionId_AsPaymentId()
+    {
+        // RequestRefund targets a specific transaction by id, so the handler resolves the aggregate
+        // by primary key (ADR-0030: no correlation-id lookup).
+        var paymentTransactionId = Guid.CreateVersion7();
+        var avro = new AvroRequestRefundCommand
+        {
+            CorrelationId = Guid.CreateVersion7(),
+            UserId = Guid.CreateVersion7(),
+            PaymentTransactionId = paymentTransactionId,
+            Reason = "buyer_cancelled",
+            RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
+        };
+
+        var app = avro.ToAppCommand();
+
+        using (new AssertionScope())
+        {
+            app.PaymentId.Should().Be(paymentTransactionId);
+            app.Reason.Should().Be("buyer_cancelled");
         }
     }
 }

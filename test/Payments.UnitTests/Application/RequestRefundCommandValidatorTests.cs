@@ -9,7 +9,6 @@ public class RequestRefundCommandValidatorTests
     private static RequestRefundCommand Valid() => new()
     {
         PaymentId = Guid.CreateVersion7(),
-        CorrelationId = Guid.CreateVersion7(),
         Reason = "saga_compensation",
     };
 
