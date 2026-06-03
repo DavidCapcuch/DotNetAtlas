@@ -18,10 +18,9 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     private RequestRefundCommandHandler BuildHandler() =>
         new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<RequestRefundCommandHandler>.Instance);
 
-    private static RequestRefundCommand BuildCommand(Guid? paymentId = null, Guid? correlationId = null) => new()
+    private static RequestRefundCommand BuildCommand(Guid? paymentId = null) => new()
     {
         PaymentId = paymentId ?? Guid.CreateVersion7(),
-        CorrelationId = correlationId ?? Guid.CreateVersion7(),
         Reason = "saga_compensation",
     };
 
@@ -30,7 +29,7 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId);
+        var command = BuildCommand(existing.Id);
         Gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new RefundResponse(GatewayResponseCode.Create("ok", "Refunded"))));
 
@@ -52,7 +51,7 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId);
+        var command = BuildCommand(existing.Id);
         Gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<RefundResponse>("gateway-error"));
 
@@ -71,7 +70,7 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Refunded(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId);
+        var command = BuildCommand(existing.Id);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -101,7 +100,7 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
         // reject the refund or, worse, double-process. The Refund/Void asymmetry is a saga bug.
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId);
+        var command = BuildCommand(existing.Id);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

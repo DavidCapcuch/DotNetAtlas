@@ -58,8 +58,10 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
     }
 
     [Fact]
-    public async Task Handle_ReplayWithSameCorrelationId_ReturnsExistingId_NoDuplicate()
+    public async Task Handle_ReplayWithSameOrderId_ReturnsExistingId_NoDuplicate()
     {
+        // Idempotency keys on the client-assigned OrderId (the aggregate PK, ADR-0029): a replayed
+        // command resolves the existing order and returns its id rather than creating a duplicate.
         var command = ValidCommand();
         var first = await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
         first.Should().BeSuccess();

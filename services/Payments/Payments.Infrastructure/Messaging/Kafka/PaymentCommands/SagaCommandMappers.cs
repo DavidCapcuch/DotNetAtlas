@@ -14,8 +14,10 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 /// application-layer command DTOs. Pure functions, no DI, no side-effects.
 /// </summary>
 /// <remarks>
-/// ADR-0008: <c>correlationId</c> is passed in explicitly from the Kafka header rather than
-/// read from the Avro payload field — the header is the authoritative source.
+/// ADR-0008: the saga key is passed in explicitly from the Kafka header rather than read from the
+/// Avro payload field — the header is the authoritative source. Post-ADR-0029 that key equals the
+/// <c>OrderId</c>; ADR-0030 retires the dedicated correlation id, so Capture / Void resolve their
+/// aggregate by <c>OrderId</c> and RequestRefund by the wire <c>PaymentTransactionId</c>.
 /// </remarks>
 internal static class SagaCommandMappers
 {
@@ -44,29 +46,29 @@ internal static class SagaCommandMappers
 
     /// <summary>
     /// Maps <see cref="AvroCapturePaymentCommand"/> to the application-layer
-    /// <see cref="AppCapturePaymentCommand"/>. PaymentId derived from <c>correlationId</c>;
-    /// <c>AuthorizationId</c> propagated for handler-side validation against the stored
-    /// <c>GatewayTransactionId</c> (H-8 closeout).
+    /// <see cref="AppCapturePaymentCommand"/>. <c>OrderId</c> comes from the saga key
+    /// (== OrderId per ADR-0029) so the handler resolves the aggregate via the unique
+    /// <c>order_id</c> index; <c>AuthorizationId</c> propagated for handler-side validation
+    /// against the stored <c>GatewayTransactionId</c> (H-8 closeout).
     /// </summary>
-    internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro, Guid correlationId) =>
+    internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro, Guid orderId) =>
         new()
         {
-            PaymentId = correlationId,
-            CorrelationId = correlationId,
+            OrderId = orderId,
             AuthorizationId = avro.AuthorizationId,
         };
 
     /// <summary>
     /// Maps <see cref="AvroVoidPaymentCommand"/> to the application-layer
-    /// <see cref="AppVoidPaymentCommand"/>. PaymentId derived from <c>correlationId</c>;
-    /// <c>AuthorizationId</c> propagated for handler-side validation (H-8 closeout);
-    /// <c>Reason</c> propagated for aggregate persistence + outbound audit (H-5 closeout).
+    /// <see cref="AppVoidPaymentCommand"/>. <c>OrderId</c> comes from the saga key
+    /// (== OrderId per ADR-0029); <c>AuthorizationId</c> propagated for handler-side validation
+    /// (H-8 closeout); <c>Reason</c> propagated for aggregate persistence + outbound audit
+    /// (H-5 closeout).
     /// </summary>
-    internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro, Guid correlationId) =>
+    internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro, Guid orderId) =>
         new()
         {
-            PaymentId = correlationId,
-            CorrelationId = correlationId,
+            OrderId = orderId,
             AuthorizationId = avro.AuthorizationId,
             Reason = avro.Reason,
         };
@@ -74,14 +76,13 @@ internal static class SagaCommandMappers
     /// <summary>
     /// Maps <see cref="AvroRequestRefundCommand"/> to the application-layer
     /// <see cref="AppRequestRefundCommand"/>. PaymentId comes directly from the wire
-    /// <c>PaymentTransactionId</c> field (refund explicitly references an existing transaction);
-    /// <c>CorrelationId</c> comes from the Kafka header (ADR-0008).
+    /// <c>PaymentTransactionId</c> field (refund explicitly references an existing transaction),
+    /// so the handler resolves the aggregate by its primary key.
     /// </summary>
-    internal static AppRequestRefundCommand ToAppCommand(this AvroRequestRefundCommand avro, Guid correlationId) =>
+    internal static AppRequestRefundCommand ToAppCommand(this AvroRequestRefundCommand avro) =>
         new()
         {
             PaymentId = avro.PaymentTransactionId,
-            CorrelationId = correlationId,
             Reason = avro.Reason,
         };
 }

@@ -1,11 +1,9 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Ordering.Application.Common.Data;
 using Ordering.Domain.Baskets;
 using Ordering.Domain.Orders;
-using Ordering.Domain.Orders.Specifications;
 using Platform.CQRS;
 using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
@@ -15,8 +13,9 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// <summary>
 /// Handles <see cref="CreateOrderCommand"/>: translates the saga DTO to the
 /// domain <c>BasketSnapshot</c> ACL, calls <c>Order.CreateFromBasket</c>, and
-/// persists. Idempotent on <see cref="CreateOrderCommand.CorrelationId"/> so
-/// Kafka redelivery or saga retries cannot create duplicate orders.
+/// persists. Idempotent on the client-assigned <see cref="CreateOrderCommand.OrderId"/>
+/// — the aggregate primary key per ADR-0029 — so Kafka redelivery or saga retries
+/// cannot create duplicate orders.
 /// </summary>
 /// <remarks>
 /// Factory-side invariants (I-6..I-9) surface as <see cref="DataIntegrityException"/>
@@ -39,15 +38,16 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
 
     public async Task<Result<Guid>> HandleAsync(CreateOrderCommand command, CancellationToken ct)
     {
-        // Idempotency: if an order already exists for this CorrelationId, return its id.
+        // Idempotency: the client-assigned OrderId is the aggregate primary key (ADR-0029), so a
+        // replayed command resolves the existing order by PK inline. Replaces the retired
+        // correlation-id lookup (ADR-0030).
         var existing = await _dbContext.Orders
-            .WithSpecification(new OrderByCorrelationIdSpec(command.CorrelationId))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(o => o.Id == command.OrderId, ct);
         if (existing is not null)
         {
             _logger.LogInformation(
-                "CreateOrderCommand replayed for CorrelationId {CorrelationId} — returning existing OrderId {OrderId}",
-                command.CorrelationId, existing.Id);
+                "CreateOrderCommand replayed for OrderId {OrderId} — returning existing order.",
+                command.OrderId);
             return Result.Ok(existing.Id);
         }
 

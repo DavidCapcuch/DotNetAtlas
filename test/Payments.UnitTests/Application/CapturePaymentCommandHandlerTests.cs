@@ -22,12 +22,10 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
         new(DbContext, Gateway, Outbox, TimeProvider, NullLogger<CapturePaymentCommandHandler>.Instance);
 
     private static CapturePaymentCommand BuildCommand(
-        Guid? paymentId = null,
-        Guid? correlationId = null,
+        Guid? orderId = null,
         string? authorizationId = null) => new()
         {
-            PaymentId = paymentId ?? Guid.CreateVersion7(),
-            CorrelationId = correlationId ?? Guid.CreateVersion7(),
+            OrderId = orderId ?? Guid.CreateVersion7(),
             AuthorizationId = authorizationId ?? PaymentTransactionFactory.DefaultGatewayTransactionId,
         };
 
@@ -36,7 +34,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new CaptureResponse(PaymentTransactionFactory.DefaultGatewayTransactionId, GatewayResponseCode.Create("ok", "Captured"))));
 
@@ -60,7 +58,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new GatewayDeclinedError("declined", "fraud_suspected")));
 
@@ -84,7 +82,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
 
@@ -120,7 +118,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -140,7 +138,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
         // (or worse, silently re-process) on a Capture against a voided authorization.
         var existing = PaymentTransactionFactory.Voided(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, existing.GatewayTransactionId);
+        var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -157,7 +155,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
         // is bug-class — must throw before the gateway is touched.
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
-        var command = BuildCommand(existing.Id, existing.CorrelationId, authorizationId: "wrong-token");
+        var command = BuildCommand(existing.OrderId, authorizationId: "wrong-token");
 
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 

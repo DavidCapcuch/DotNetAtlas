@@ -31,6 +31,12 @@ namespace Payments.IntegrationTests.Infrastructure;
 /// roundtrip against a real Schema Registry is exercised by the docker-compose smoke test;
 /// the purpose is to prove the Infrastructure layer composes correctly.
 /// </summary>
+/// <remarks>
+/// ADR-0029 keys the saga on <c>OrderId</c> with <c>CorrelationId == OrderId</c>, so every
+/// scenario sets <c>orderId = correlationId</c>. This matters for Capture / Void, which carry no
+/// PaymentTransactionId and resolve the aggregate via the unique <c>order_id</c> index (ADR-0030
+/// retired the correlation-id lookup); the seeded OrderId must equal the saga key on the wire.
+/// </remarks>
 [Collection<IntegrationTestCollection>]
 public sealed class PaymentsKafkaConsumerIntegrationTests
 {
@@ -50,7 +56,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Authorize_HappyPath_PersistsAggregate_AndOutboxesPaymentAuthorizedEvent()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         var avro = NewAvroAuthorize(correlationId, orderId, amount: 100.00m);
 
         using var scope = _fixture.CreateScope();
@@ -85,7 +91,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Authorize_DeclineRule_TransitionsAggregateToFailed_AndOutboxesAuthorizationFailedAndTerminalFailedEvents()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         // Stub gateway rule: amount ending .99 declines (per M3 docs).
         var avro = NewAvroAuthorize(correlationId, orderId, amount: 9.99m);
 
@@ -126,7 +132,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Capture_AfterAuthorize_TransitionsToCompleted_AndOutboxesCapturedAndTerminalCompletedEvents()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
 
         using var scope = _fixture.CreateScope();
         var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
@@ -176,7 +182,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Void_AfterAuthorize_TransitionsToVoided_AndOutboxesPaymentVoidedEvent()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
 
         using var scope = _fixture.CreateScope();
         var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
@@ -216,12 +222,12 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Refund_AfterCapture_TransitionsToRefunded_AndOutboxesPaymentRefundedEvent()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
-        // For Authorize/Capture/Void the M5 mapper derives PaymentId from CorrelationId
-        // (one-payment-per-saga). For RequestRefund the mapper uses
-        // `avro.PaymentTransactionId` directly — the saga targets the existing aggregate
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
+        // Capture / Void resolve the aggregate by OrderId (ADR-0030); RequestRefund resolves it by
+        // primary key from `avro.PaymentTransactionId` — the saga targets the existing aggregate
         // explicitly. The persisted aggregate's `Id` was set by the Authorize step to
-        // `correlationId`, so the saga must echo that value here.
+        // `correlationId` (NewAvroAuthorize collapses PaymentTransactionId onto it), so the refund
+        // must echo that value here.
         var paymentId = correlationId;
 
         using var scope = _fixture.CreateScope();
@@ -280,7 +286,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // `Payments.MissingGatewayTransactionId` null-guard was removed in #250 — the aggregate's
         // FSM is the single source of truth and the handler-level guard was unreachable.
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         var paymentId = correlationId;
 
         using var scope = _fixture.CreateScope();
@@ -342,7 +348,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // terminal; replaying the same AuthorizePaymentCommand must short-circuit before the
         // gateway is touched and emit no new domain events / outbox rows.
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         var avro = NewAvroAuthorize(correlationId, orderId, amount: 9.99m);
 
         using var scope = _fixture.CreateScope();
@@ -397,7 +403,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // — the handler's CanTransitionTo pre-check (H-Cond-2) fires before any gateway call,
         // so a real PSP never sees the bogus Void.
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
 
         using var scope = _fixture.CreateScope();
         var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
@@ -463,7 +469,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // KafkaFlow retry middleware classifies DataIntegrityException as poison and routes
         // the message to the `payments.payment-commands` DLT for operator inspection.
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
 
         using var scope = _fixture.CreateScope();
         var authorizeHandler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
@@ -509,7 +515,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // application command record and reach IPaymentGateway.AuthorizeAsync, where a v2 real
         // adapter will forward it as the gateway's Idempotency-Key header.
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         var avro = NewAvroAuthorize(correlationId, orderId, amount: 50m);
 
         using var scope = _fixture.CreateScope();

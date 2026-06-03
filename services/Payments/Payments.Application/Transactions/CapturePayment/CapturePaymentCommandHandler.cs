@@ -46,17 +46,15 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // Post-cross-cutting wave1-followup #255: the aggregate PK is the saga-issued
-        // PaymentTransactionId, not the CorrelationId. AvroCapturePaymentCommand does not
-        // carry PaymentTransactionId (only Authorize + RequestRefund do), so we resolve the
-        // aggregate via the unique correlation_id index. command.PaymentId here is just the
-        // log-scope echo from the mapper.
+        // AvroCapturePaymentCommand carries no PaymentTransactionId (only Authorize + RequestRefund
+        // do), so we resolve the aggregate via the unique order_id index — OrderId is the saga
+        // business key (ADR-0029) and replaces the retired correlation-id lookup (ADR-0030).
         var tx = await _dbContext.Transactions
-            .WithSpecification(new PaymentByCorrelationIdSpec(command.CorrelationId))
+            .WithSpecification(new PaymentByOrderIdSpec(command.OrderId))
             .FirstOrDefaultAsync(ct);
         if (tx is null)
         {
-            return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));
+            return Result.Fail(PaymentsErrors.PaymentNotFound(command.OrderId));
         }
 
         // H-8: when an authorization token is on file, the wire AuthorizationId MUST match it.

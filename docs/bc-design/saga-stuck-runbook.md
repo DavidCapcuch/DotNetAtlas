@@ -2,7 +2,9 @@
 
 > When the Checkout saga reaches terminal state `CompensationStuck`, this runbook guides the on-call engineer from alert to resolution.
 >
-> Related: [checkout-saga.md](checkout-saga.md), [ADR-0004](../adr/0004-checkout-saga-topology.md), [error-taxonomy.md](error-taxonomy.md), [events-catalog.md](events-catalog.md).
+> Related: [checkout-saga.md](checkout-saga.md), [ADR-0004](../adr/0004-checkout-saga-topology.md), [error-taxonomy.md](error-taxonomy.md), [events-catalog.md](events-catalog.md), [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md), [ADR-0030](../adr/0030-retire-dedicated-correlationid.md).
+>
+> Triage keys on **`order_id`** — the durable business key after the saga was re-keyed on OrderId (ADR-0029) and the dedicated correlation id was retired (ADR-0030).
 
 ---
 
@@ -68,29 +70,32 @@ If any of the above are already paging alongside `CheckoutSagaStuck`, focus root
 ### Step 1 — Identify the stuck saga instances
 
 ```sql
-SELECT correlation_id,
+SELECT order_id,
        user_id,
        error_code,
        error_message,
        compensation_started_at_utc,
        last_modified_utc
-FROM saga.checkout_saga_states
+FROM saga.checkout_saga_state
 WHERE current_state = 'CompensationStuck'
 ORDER BY compensation_started_at_utc DESC
 LIMIT 100;
 ```
 
-Record the `correlation_id` values — every subsequent step hangs off these ids.
+Record the `order_id` values — the durable business key (ADR-0029/ADR-0030); every subsequent step hangs off these ids.
 
 ### Step 2 — Correlate across services
 
-Use the `correlation_id` as the **trace id** in Jaeger / Tempo. Look for:
+Correlate across services on the `order_id` — the durable business key (ADR-0030). For
+distributed traces, pull the `traceId` from the saga's logs/spans in Jaeger / Tempo; note it is a
+separate, **sampled** and short-retention key (ADR-0030), so it may be absent for older incidents.
+Look for:
 
 - Was **payment captured**? Check `payments.payment_transactions`:
   ```sql
   SELECT id, order_id, status, captured_at_utc, refunded_at_utc
   FROM payments.payment_transactions
-  WHERE correlation_id = '{uuid}';
+  WHERE order_id = '{order_id}';
   ```
 - Was **any reservation confirmed** before the saga got stuck?
   ```sql
@@ -105,7 +110,7 @@ Use the `correlation_id` as the **trace id** in Jaeger / Tempo. Look for:
     --topic inventory.reservation-commands.Inventory.DLT \
     --from-beginning \
     --max-messages 50 \
-    --property print.key=true | grep '{correlation_id}'
+    --property print.key=true | grep '{order_id}'
   ```
 - Are **refund commands in DLT**? Same command against `payments.payment-commands.Payments.DLT`.
 
@@ -153,7 +158,7 @@ Context: refund commands are piling up in `payments.payment-commands.Payments.DL
    ```bash
    # Internal tool — replays DLT messages to the live topic in batches
    ops-replay --source payments.payment-commands.Payments.DLT --dest payments.payment-commands \
-              --correlation-ids correlation-ids.txt --batch 50
+              --order-ids order-ids.txt --batch 50
    ```
 3. Watch `payments.payment_transactions.status` flip from `Captured` → `Refunded` for the affected orders.
 4. Saga will NOT auto-transition out of `CompensationStuck` after manual replay — follow § 4.5 to mark `Compensated` once all side-effects are verified clean.
@@ -167,7 +172,7 @@ Context: release commands in `inventory.reservation-commands.Inventory.DLT`; Inv
 3. Replay release commands from DLT:
    ```bash
    ops-replay --source inventory.reservation-commands.Inventory.DLT --dest inventory.reservation-commands \
-              --correlation-ids correlation-ids.txt --batch 50
+              --order-ids order-ids.txt --batch 50
    ```
 4. Verify each affected reservation row in `inventory.reservation_audit` has `Status='Released'` and `ReleaseReason='SagaCompensation'` (not `Expiry` — see § 4.3 if so).
 5. Apply § 4.5 to mark saga `Compensated`.
@@ -200,7 +205,7 @@ Context: `kubectl get pods -l app=saga-orchestrators` shows `CrashLoopBackOff` o
 2. MassTransit **resumes saga state on restart** from the saga state store — no action is usually needed after the pod is healthy again.
 3. If the saga is still `CompensationStuck` after the pod stabilizes for > `CompensationTimeout`, the in-flight compensation command was lost. Manually republish the relevant command:
    ```bash
-   ops-saga-kick --correlation-id {uuid} --action compensate
+   ops-saga-kick --order-id {order_id} --action compensate
    ```
 4. If repeated OOMs — scale vertically (bump memory limit) and file a performance bug. Do NOT just increase `CompensationTimeout`; that masks the problem.
 
@@ -210,17 +215,17 @@ Context: `kubectl get pods -l app=saga-orchestrators` shows `CrashLoopBackOff` o
 
 - Refund is completed (check `payments.payment_transactions.status='Refunded'`), OR was never captured.
 - All reservations are released (check `inventory.reservation_audit.status='Released'` for every row).
-- No commands for this correlation id remain in any DLT.
+- No commands for this order id remain in any DLT.
 
 Then, and only then:
 
 ```sql
 BEGIN;
-UPDATE saga.checkout_saga_states
+UPDATE saga.checkout_saga_state
 SET current_state = 'Compensated',
     compensation_completed_at_utc = now(),
     last_modified_utc = now()
-WHERE correlation_id = '{uuid}'
+WHERE order_id = '{order_id}'
   AND current_state = 'CompensationStuck';
 -- Verify 1 row affected before COMMIT.
 COMMIT;
@@ -230,8 +235,8 @@ Audit-log the manual update in the incident channel including a link to the § 3
 
 ### 4.6 What NEVER to do
 
-- **Never** delete a row from `saga.checkout_saga_states` to "reset" it. The order exists and cannot be un-created.
-- **Never** replay `CheckoutStartedEvent` to "restart" the saga for the same correlation id. Commands are not idempotent across saga runs.
+- **Never** delete a row from `saga.checkout_saga_state` to "reset" it. The order exists and cannot be un-created.
+- **Never** replay `CheckoutStartedEvent` to "restart" the saga for the same order id. Commands are not idempotent across saga runs.
 - **Never** adjust `CompensationTimeout` live to move a saga out of `CompensationStuck`. The state is assigned on entry; changing the setting does nothing for in-flight instances.
 
 ---

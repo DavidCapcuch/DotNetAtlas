@@ -46,15 +46,15 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // Post-cross-cutting wave1-followup #255: see analogous comment in
-        // CapturePaymentCommandHandler. AvroVoidPaymentCommand does not carry PaymentTransactionId,
-        // so we resolve the aggregate via the unique correlation_id index.
+        // AvroVoidPaymentCommand carries no PaymentTransactionId, so we resolve the aggregate via
+        // the unique order_id index — OrderId is the saga business key (ADR-0029) and replaces the
+        // retired correlation-id lookup (ADR-0030). See analogous comment in CapturePaymentCommandHandler.
         var tx = await _dbContext.Transactions
-            .WithSpecification(new PaymentByCorrelationIdSpec(command.CorrelationId))
+            .WithSpecification(new PaymentByOrderIdSpec(command.OrderId))
             .FirstOrDefaultAsync(ct);
         if (tx is null)
         {
-            return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));
+            return Result.Fail(PaymentsErrors.PaymentNotFound(command.OrderId));
         }
 
         // H-8: when an authorization token is on file, the wire AuthorizationId MUST match it.

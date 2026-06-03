@@ -7,7 +7,6 @@ internal sealed class RequestRefundCommandValidator : AbstractValidator<RequestR
     public RequestRefundCommandValidator()
     {
         RuleFor(c => c.PaymentId).NotEmpty();
-        RuleFor(c => c.CorrelationId).NotEmpty();
         RuleFor(c => c.Reason).NotEmpty().MaximumLength(500);
     }
 }

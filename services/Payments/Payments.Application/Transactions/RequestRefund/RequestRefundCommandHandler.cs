@@ -1,11 +1,9 @@
-using Ardalis.Specification.EntityFrameworkCore;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Payments.Application.Abstractions;
 using Payments.Application.Common.Data;
 using Payments.Domain.Errors;
-using Payments.Domain.Transactions.Specifications;
 using Payments.Domain.Transactions.ValueObjects;
 using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
@@ -46,13 +44,12 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // Resolve by CorrelationId for consistency with Capture / Void post-#255. RequestRefund's
-        // Avro contract DOES carry PaymentTransactionId (refund targets a specific transaction by
-        // id), but the aggregate row is still uniquely identified by the saga's CorrelationId via
-        // the unique index; loading either way returns the same row.
+        // PK lookup (ADR-0022): inline LINQ, tracked for mutation. RequestRefund's Avro contract
+        // carries PaymentTransactionId (a refund targets a specific transaction by id), so we load
+        // the aggregate by its primary key — matching AuthorizePaymentCommandHandler. This replaces
+        // the retired correlation-id lookup (ADR-0030).
         var tx = await _dbContext.Transactions
-            .WithSpecification(new PaymentByCorrelationIdSpec(command.CorrelationId))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(t => t.Id == command.PaymentId, ct);
         if (tx is null)
         {
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.PaymentId));
