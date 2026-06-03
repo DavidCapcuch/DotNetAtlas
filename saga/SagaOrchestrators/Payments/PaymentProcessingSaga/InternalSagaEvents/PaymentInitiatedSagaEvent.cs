@@ -2,21 +2,15 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 
 /// <summary>
 /// Internal saga event that initiates the payment saga. The eShop's Checkout saga always
-/// creates an Order before requesting payment, so <see cref="OrderId"/> is always present
-/// when the saga starts. The saga forwards it to the Payments BC on the outbound
-/// <c>AuthorizePaymentCommand</c> for aggregate-side persistence + admin-debugging lookups;
-/// downstream <c>Payments.*Event</c> emissions drop OrderId (cross-BC linkage stays
-/// CorrelationId).
+/// creates an Order before requesting payment, so <see cref="OrderId"/> — the saga correlation
+/// key (ADR-0029) — is always present when the saga starts. The saga forwards it to the Payments
+/// BC on the outbound <c>AuthorizePaymentCommand</c> as the aggregate's OrderId.
 /// </summary>
 public sealed record PaymentInitiatedSagaEvent
 {
     /// <summary>
-    /// Correlation ID shared across the entire business flow.
-    /// </summary>
-    public required Guid CorrelationId { get; init; }
-
-    /// <summary>
-    /// Ordering aggregate id this payment is attached to.
+    /// Ordering aggregate id this payment is attached to — the saga correlation key (ADR-0029);
+    /// equals <c>PaymentProcessingSagaState.CorrelationId</c>.
     /// </summary>
     public required Guid OrderId { get; init; }
 

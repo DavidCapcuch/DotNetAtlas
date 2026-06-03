@@ -19,11 +19,15 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class ApproveCaptureCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ApproveCaptureCommand"",""doc"":""Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) authorising capture of a previously-authorized payment, sent once the Checkout saga has confirmed stock + order (ADR-0026 capture-at-the-pivot). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues CapturePaymentCommand to the Payments service. Correlated by CorrelationId; the sub-saga already holds AuthorizationId / Amount / UserId in its persisted state, so the command carries only the correlation + audit fields."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment capture is being approved. Carried for log/audit context (the sub-saga authoritatively holds it in state)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the Checkout saga approved capture (after stock + order confirmation succeeded)."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ApproveCaptureCommand"",""doc"":""Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) authorising capture of a previously-authorized payment, sent once the Checkout saga has confirmed stock + order (ADR-0026 capture-at-the-pivot). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues CapturePaymentCommand to the Payments service. Correlated by CorrelationId; the sub-saga already holds AuthorizationId / Amount / UserId in its persisted state, so the command carries only the correlation + audit fields."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment capture is being approved. Carried for log/audit context (the sub-saga authoritatively holds it in state)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the Checkout saga approved capture (after stock + order confirmation succeeded)."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User whose payment capture is being approved. Carried for log/audit context (the sub-saga authoritatively holds it in state).
 		/// </summary>
@@ -51,6 +55,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -86,8 +104,9 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.RequestedAtUtc;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -96,8 +115,9 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

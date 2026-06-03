@@ -13,6 +13,14 @@
             "doc": "Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."
         },
         {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."
+        },
+        {
             "name": "UserId",
             "type": {
                 "type": "string",

@@ -30,7 +30,7 @@ public sealed class AbortCaptureCommandConsumer : IConsumer<AbortCaptureCommand>
 
         var abortCaptureSagaEvent = new AbortCaptureSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             UserId = message.UserId,
             Reason = message.Reason,
             RequestedAtUtc = message.RequestedAtUtc

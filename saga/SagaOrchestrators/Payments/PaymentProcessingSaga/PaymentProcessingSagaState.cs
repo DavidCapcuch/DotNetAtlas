@@ -5,16 +5,17 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga;
 
 /// <summary>
 /// Represents the state of the <see cref="PaymentProcessingSagaOrchestrator"/>. The eShop
-/// always creates an Order before initiating payment, so the saga state carries the
-/// <see cref="OrderId"/> from initialization through to the outbound
-/// <c>AuthorizePaymentCommand</c>. Lifecycle (ADR-0026 capture pivot): authorize -&gt; await
-/// capture approval -&gt; capture, with a pre-capture void on the compensation path.
+/// always creates an Order before initiating payment, so the saga is keyed on
+/// <see cref="OrderId"/> (ADR-0029): <see cref="CorrelationId"/> == <see cref="OrderId"/>, one
+/// payment process per order. Lifecycle (ADR-0026 capture pivot): authorize -&gt; await capture
+/// approval -&gt; capture, with a pre-capture void on the compensation path.
 /// </summary>
 public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableEntity
 {
     /// <summary>
-    /// Uniquely identifies the saga instance.
-    /// Correlates all events in the payment flow.
+    /// Uniquely identifies the saga instance. Equals the <see cref="OrderId"/> (ADR-0029) —
+    /// one payment process per order. Forwarded to the Payments BC as the cross-BC correlation id
+    /// on every outbound command.
     /// </summary>
     public Guid CorrelationId { get; set; }
 
@@ -24,7 +25,8 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
     public string CurrentState { get; set; } = ""; // always auto set by factory
 
     /// <summary>
-    /// Ordering aggregate id this payment is attached to. Frozen at saga start.
+    /// Ordering aggregate id this payment is attached to — the saga key (ADR-0029); equals
+    /// <see cref="CorrelationId"/>. Frozen at saga start.
     /// </summary>
     public Guid OrderId { get; set; }
 

@@ -91,7 +91,8 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(PaymentInitiatedEvent)
                 .Then(ctx =>
                 {
-                    ctx.Saga.CorrelationId = ctx.Message.CorrelationId;
+                    // ADR-0029: the saga is keyed on OrderId — MassTransit sets CorrelationId from
+                    // CorrelateById(m => m.OrderId); OrderId is the order's identity from birth.
                     ctx.Saga.OrderId = ctx.Message.OrderId;
                     ctx.Saga.UserId = ctx.Message.UserId;
                     ctx.Saga.PaymentMethodId = ctx.Message.PaymentMethodId;
@@ -101,9 +102,9 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx.Saga.InitiatedAtUtc = ctx.Message.InitiatedAtUtc;
                     // Cross-cutting wave1-followup #255: mint the Payments aggregate's PK up front
                     // so the AuthorizePaymentCommand wire contract carries it, retries reuse it, and
-                    // the v7 PK guarantee on PaymentTransaction.Id is genuine. CorrelationId stays
-                    // distinct — one-payment-per-saga is enforced by the unique index on
-                    // payment_transactions.correlation_id.
+                    // the v7 PK guarantee on PaymentTransaction.Id is genuine. PaymentTransactionId
+                    // stays distinct from the saga key (OrderId) — one-payment-per-order is enforced
+                    // by the unique index on payment_transactions.order_id (ADR-0029).
                     ctx.Saga.PaymentTransactionId = Guid.CreateVersion7();
                 })
                 .Activity(x => x.OfType<PaymentSagaStartedActivity>())
@@ -304,7 +305,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     if (ctx.Saga.PaymentTransactionId != ctx.Message.PaymentTransactionId)
                     {
                         throw new InvalidOperationException(
-                            $"PaymentTransactionId mismatch for CorrelationId {ctx.Saga.CorrelationId}: "
+                            $"PaymentTransactionId mismatch for OrderId {ctx.Saga.CorrelationId}: "
                             + $"saga minted {ctx.Saga.PaymentTransactionId}, Payments returned {ctx.Message.PaymentTransactionId}. "
                             + "Refusing to silently overwrite saga state — this indicates a wire-shape or Payments-side bug.");
                     }
@@ -420,18 +421,18 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
     {
         Event(() => PaymentInitiatedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
         });
 
         Event(() => PaymentAuthorizedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Fault());
         });
 
         Event(() => PaymentAuthorizationFailedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Fault());
         });
 
@@ -440,31 +441,31 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
         // silently rather than fault on a missing instance.
         Event(() => ApproveCaptureEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => AbortCaptureEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Discard());
         });
 
         Event(() => PaymentCapturedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Fault());
         });
 
         Event(() => PaymentCaptureFailedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             e.OnMissingInstance(m => m.Fault());
         });
 
         Event(() => PaymentVoidedEvent, e =>
         {
-            e.CorrelateById(ctx => ctx.Message.CorrelationId);
+            e.CorrelateById(ctx => ctx.Message.OrderId);
             // Compensation events can arrive after saga finalized
             e.OnMissingInstance(m => m.Discard());
         });

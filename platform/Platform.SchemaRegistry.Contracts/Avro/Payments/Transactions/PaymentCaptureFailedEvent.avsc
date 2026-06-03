@@ -13,6 +13,14 @@
             "doc": "Correlation ID for tracking the payment workflow."
         },
         {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."
+        },
+        {
             "name": "UserId",
             "type": {
                 "type": "string",

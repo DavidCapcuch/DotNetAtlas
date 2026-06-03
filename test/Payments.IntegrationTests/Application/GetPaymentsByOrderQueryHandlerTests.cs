@@ -26,11 +26,12 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_OrderWithPayments_ReturnsList()
+    public async Task Handle_OrderWithPayment_ReturnsSingletonList()
     {
+        // ADR-0029: one payment per order (unique ux_payment_transactions_order_id), so the
+        // by-order projection returns at most one row.
         var ct = TestContext.Current.CancellationToken;
         var orderId = Guid.CreateVersion7();
-        await SeedPaymentForOrderAsync(orderId, ct);
         await SeedPaymentForOrderAsync(orderId, ct);
 
         using var scope = _fixture.CreateScope();
@@ -43,7 +44,7 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
         {
             result.Should().BeSuccess();
             result.Value.OrderId.Should().Be(orderId);
-            result.Value.Payments.Should().HaveCount(2);
+            result.Value.Payments.Should().ContainSingle();
         }
     }
 

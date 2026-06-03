@@ -19,9 +19,8 @@ namespace Payments.Infrastructure.Persistence.Database.EntityConfigurations.Tran
 /// <item>Owned <see cref="Money"/>, <see cref="ValueObjects.GatewayResponseCode"/>, and
 /// <see cref="ValueObjects.FailureInfo"/> value objects flattened onto sibling columns.</item>
 /// <item>SmartEnum conversions for <see cref="PaymentStatus"/> + <see cref="FailureReason"/>.</item>
-/// <item>Indexes: unique <c>ux_payment_transactions_correlation_id</c> (saga-idempotency key),
-/// non-unique <c>ix_payment_transactions_buyer_id</c> + <c>ix_payment_transactions_order_id</c>
-/// for admin lookups.</item>
+/// <item>Indexes: unique <c>ux_payment_transactions_order_id</c> (one-payment-per-order,
+/// ADR-0029) + non-unique <c>ix_payment_transactions_buyer_id</c> for admin lookups.</item>
 /// </list>
 /// </summary>
 internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentTransaction>
@@ -34,7 +33,7 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
         builder.HasKey(t => t.Id);
         builder.Property(t => t.Id)
             .ValueGeneratedNever()
-            .HasComment("Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7).");
+            .HasComment("Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from the saga key (OrderId). One payment per order is enforced by the ux_payment_transactions_order_id unique index (ADR-0029). See docs/bc-design/payments.md § 2.2 (I-7).");
 
         // Optimistic concurrency via Postgres xmin system column. `Entity.RowVersion` is
         // inherited from Platform.SharedKernel; Npgsql's RowVersion convention maps it to
@@ -45,10 +44,7 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
             .HasComment("Optimistic concurrency token (Postgres xmin system column).");
 
         builder.Property(t => t.CorrelationId)
-            .HasComment("Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga.");
-        builder.HasIndex(t => t.CorrelationId)
-            .IsUnique()
-            .HasDatabaseName("ux_payment_transactions_correlation_id");
+            .HasComment("Originating saga correlation id (== OrderId per ADR-0029; links checkout / order / invoice).");
 
         builder.Property(t => t.BuyerId)
             .HasComment("JWT sub of the buyer the payment is for.");
@@ -56,9 +52,10 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
             .HasDatabaseName("ix_payment_transactions_buyer_id");
 
         builder.Property(t => t.OrderId)
-            .HasComment("Ordering aggregate id this payment is attached to (frozen at creation; debugging/admin-lookup convenience).");
+            .HasComment("Ordering aggregate id this payment is attached to (frozen at creation). Unique index enforces one payment per order (ADR-0029).");
         builder.HasIndex(t => t.OrderId)
-            .HasDatabaseName("ix_payment_transactions_order_id");
+            .IsUnique()
+            .HasDatabaseName("ux_payment_transactions_order_id");
 
         builder.Property(t => t.Status)
             .HasComment("Lifecycle status (Requested / Authorized / Captured / Completed / Failed / Voided / Refunded).")

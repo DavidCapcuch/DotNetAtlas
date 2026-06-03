@@ -25,6 +25,7 @@ internal static class PaymentAuthorizationFailedMapper
         return new PaymentAuthorizationFailedEvent
         {
             CorrelationId = source.CorrelationId,
+            OrderId = source.OrderId,
             UserId = source.BuyerId,
             ErrorCode = source.FailureInfo.GatewayCode ?? source.FailureInfo.Reason.Name,
             ErrorMessage = source.FailureInfo.Reason.Name,

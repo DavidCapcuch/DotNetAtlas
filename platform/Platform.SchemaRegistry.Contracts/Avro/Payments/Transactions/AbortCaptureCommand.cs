@@ -19,11 +19,15 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class AbortCaptureCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AbortCaptureCommand"",""doc"":""Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) aborting a previously-authorized payment because the Checkout saga's confirmation step (stock + order) failed (ADR-0026). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues VoidPaymentCommand to the Payments service — a free pre-capture void, never a refund. Correlated by CorrelationId."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization is being aborted. Carried for log/audit context (the sub-saga authoritatively holds it in state)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Reason"",""doc"":""Reason the Checkout saga aborted the capture (e.g. order-confirmation failure / timeout). Flows onto the sub-saga's VoidPaymentCommand.Reason for the gateway-void audit trail."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the Checkout saga aborted the capture."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""AbortCaptureCommand"",""doc"":""Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) aborting a previously-authorized payment because the Checkout saga's confirmation step (stock + order) failed (ADR-0026). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues VoidPaymentCommand to the Payments service — a free pre-capture void, never a refund. Correlated by CorrelationId."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization is being aborted. Carried for log/audit context (the sub-saga authoritatively holds it in state)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Reason"",""doc"":""Reason the Checkout saga aborted the capture (e.g. order-confirmation failure / timeout). Flows onto the sub-saga's VoidPaymentCommand.Reason for the gateway-void audit trail."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the Checkout saga aborted the capture."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User whose payment authorization is being aborted. Carried for log/audit context (the sub-saga authoritatively holds it in state).
 		/// </summary>
@@ -55,6 +59,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -104,9 +122,10 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.Reason;
-			case 3: return this.RequestedAtUtc;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.Reason;
+			case 4: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -115,9 +134,10 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.Reason = (System.String)fieldValue; break;
-			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.Reason = (System.String)fieldValue; break;
+			case 4: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}
