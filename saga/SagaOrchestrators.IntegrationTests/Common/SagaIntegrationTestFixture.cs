@@ -88,9 +88,17 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
 
         KafkaProducer = new KafkaTestProducer(_kafkaContainer.KafkaOptions);
 
-        // Start the MassTransit bus (includes SQL transport for internal saga messages/timeouts)
-        _busControl = Services.GetRequiredService<IBusControl>();
-        await _busControl.StartAsync();
+        // Start the MassTransit bus (includes SQL transport for internal saga messages/timeouts).
+        // Accessing Services builds + starts the WAF host, which runs the bus's hosted service, so the
+        // rider startup happens here. Bound it: a Kafka-rider startup hang would otherwise stall the
+        // entire shared collection indefinitely (the class of failure behind #306) — WaitAsync fails
+        // this fixture fast with a TimeoutException instead. 90s is generous headroom over a healthy
+        // start (seconds), so it never false-trips on slow CI/Docker.
+        await Task.Run(async () =>
+        {
+            _busControl = Services.GetRequiredService<IBusControl>();
+            await _busControl.StartAsync();
+        }).WaitAsync(TimeSpan.FromSeconds(90));
     }
 
     /// <summary>
