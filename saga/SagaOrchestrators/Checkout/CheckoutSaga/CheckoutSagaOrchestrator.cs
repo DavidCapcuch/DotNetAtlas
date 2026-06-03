@@ -478,6 +478,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                     ctx => new ApproveCaptureCommand
                     {
                         CorrelationId = ctx.Saga.CorrelationId,
+                        OrderId = ctx.Saga.OrderId!.Value,
                         UserId = ctx.Saga.UserId,
                         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
                     })
@@ -1084,6 +1085,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     private AbortCaptureCommand BuildAbortCaptureCommand(CheckoutSagaState saga, string fallbackReason) => new()
     {
         CorrelationId = saga.CorrelationId,
+        OrderId = saga.OrderId!.Value,
         UserId = saga.UserId,
         Reason = saga.ErrorMessage ?? fallbackReason,
         RequestedAtUtc = _timeProvider.GetUtcNow().UtcDateTime

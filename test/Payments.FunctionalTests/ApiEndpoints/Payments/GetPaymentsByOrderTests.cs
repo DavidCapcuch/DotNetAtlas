@@ -73,24 +73,7 @@ public class GetPaymentsByOrderTests : BaseApiTest
         }
     }
 
-    [Fact]
-    public async Task WhenAdminAndMultiplePaymentsForOrder_ReturnsOkWithAll()
-    {
-        var orderId = Guid.CreateVersion7();
-        var seedA = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
-        var seedB = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
-
-        var (response, payload) = await HttpClientRegistry.AdminClient
-            .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(
-                new GetPaymentsByOrderRequest { OrderId = orderId });
-
-        using (new AssertionScope())
-        {
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            payload.OrderId.Should().Be(orderId);
-            payload.Payments.Should().HaveCount(2)
-                .And.Contain(p => p.PaymentId == seedA.Id)
-                .And.Contain(p => p.PaymentId == seedB.Id);
-        }
-    }
+    // ADR-0029 establishes one payment per order (unique ux_payment_transactions_order_id), so a
+    // "multiple payments for one order" scenario is no longer representable — the admin projection
+    // returns at most the single payment (covered by WhenAdminAndOnePaymentForOrder above).
 }

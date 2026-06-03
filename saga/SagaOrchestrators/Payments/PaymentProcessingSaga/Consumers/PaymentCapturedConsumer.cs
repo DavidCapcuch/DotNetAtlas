@@ -29,7 +29,7 @@ public sealed class PaymentCapturedConsumer : IConsumer<PaymentCapturedEvent>
 
         var paymentCapturedSagaEvent = new PaymentCapturedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             UserId = message.UserId,
             PaymentTransactionId = message.PaymentTransactionId,
             AuthorizationId = message.AuthorizationId,

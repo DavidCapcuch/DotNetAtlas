@@ -6,9 +6,9 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga.InternalSagaEvents;
 public sealed record PaymentVoidedSagaEvent
 {
     /// <summary>
-    /// Correlation ID linking to the saga.
+    /// Ordering aggregate id — the saga correlation key (ADR-0029).
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// User whose payment was voided.

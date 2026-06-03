@@ -31,7 +31,7 @@ public sealed class ApproveCaptureCommandConsumer : IConsumer<ApproveCaptureComm
 
         var approveCaptureSagaEvent = new ApproveCaptureSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             UserId = message.UserId,
             RequestedAtUtc = message.RequestedAtUtc
         };

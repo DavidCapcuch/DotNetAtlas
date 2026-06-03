@@ -19,11 +19,15 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentCaptureFailedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentCaptureFailedEvent"",""doc"":""Event emitted when payment capture fails. The authorization should be voided."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment capture failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that failed to capture."",""type"":""string""},{""name"":""ErrorCode"",""doc"":""Error code from the payment provider."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""IsRetryable"",""doc"":""Indicates whether this failure is retryable."",""type"":""boolean""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when capture failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentCaptureFailedEvent"",""doc"":""Event emitted when payment capture fails. The authorization should be voided."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment capture failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID that failed to capture."",""type"":""string""},{""name"":""ErrorCode"",""doc"":""Error code from the payment provider."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""IsRetryable"",""doc"":""Indicates whether this failure is retryable."",""type"":""boolean""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when capture failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the payment workflow.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User whose payment capture failed.
 		/// </summary>
@@ -67,6 +71,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Order this payment is for; the PaymentProcessingSaga correlation key (ADR-0029).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -158,12 +176,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.AuthorizationId;
-			case 3: return this.ErrorCode;
-			case 4: return this.ErrorMessage;
-			case 5: return this.IsRetryable;
-			case 6: return this.FailedAtUtc;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.AuthorizationId;
+			case 4: return this.ErrorCode;
+			case 5: return this.ErrorMessage;
+			case 6: return this.IsRetryable;
+			case 7: return this.FailedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -172,12 +191,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.AuthorizationId = (System.String)fieldValue; break;
-			case 3: this.ErrorCode = (System.String)fieldValue; break;
-			case 4: this.ErrorMessage = (System.String)fieldValue; break;
-			case 5: this.IsRetryable = (System.Boolean)fieldValue; break;
-			case 6: this.FailedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.AuthorizationId = (System.String)fieldValue; break;
+			case 4: this.ErrorCode = (System.String)fieldValue; break;
+			case 5: this.ErrorMessage = (System.String)fieldValue; break;
+			case 6: this.IsRetryable = (System.Boolean)fieldValue; break;
+			case 7: this.FailedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

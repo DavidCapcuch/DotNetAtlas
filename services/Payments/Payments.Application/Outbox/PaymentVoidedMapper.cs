@@ -17,6 +17,7 @@ internal static class PaymentVoidedMapper
         return new PaymentVoidedEvent
         {
             CorrelationId = source.CorrelationId,
+            OrderId = source.OrderId,
             UserId = source.BuyerId,
             AuthorizationId = source.GatewayTransactionId,
             VoidedAtUtc = source.VoidedAtUtc.UtcDateTime,

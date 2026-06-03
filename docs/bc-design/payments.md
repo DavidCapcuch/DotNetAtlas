@@ -58,7 +58,7 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 - **I-4** `GatewayTransactionId` is append-only — once set, it never changes (even on refund/void, which reuse the same gateway transaction).
 - **I-5** Once `Status ∈ { Completed, Failed, Refunded, Voided }`, all mutations are rejected at the aggregate root. Saga retries become idempotent no-ops.
 - **I-6** `CorrelationId`, `BuyerId`, `OrderId` are immutable post-creation.
-- **I-7** One payment per saga is enforced by the unique index `UX_PaymentTransactions_CorrelationId` on `correlation_id`. `PaymentId` (saga-minted UUID v7) is the aggregate key; `CorrelationId` is the saga link — distinct values. The saga reuses the same `PaymentTransactionId` across `AuthorizePaymentCommand` retries, so it doubles as the command's idempotency anchor.
+- **I-7** One payment per order is enforced by the unique index `ux_payment_transactions_order_id` on `order_id` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md): the saga is keyed on `OrderId`, so `CorrelationId == OrderId`). `PaymentId` (saga-minted UUID v7) is the aggregate key, distinct from the saga key. The saga reuses the same `PaymentTransactionId` across `AuthorizePaymentCommand` retries, so it doubles as the command's idempotency anchor.
 
 ### 2.3 Factory
 
@@ -273,7 +273,7 @@ FSM guard violations (bug-class) throw `DataIntegrityException`, not `Result.Fai
 
 - **Unit tests** (`test/Payments.UnitTests/`) — `PaymentTransaction` state transitions, factory validation, invariants (I-1 through I-6), SmartEnum transition table.
 - **Architecture tests** (`test/Payments.ArchitectureTests/`) — no cross-BC references; no direct `StackExchange.Redis` imports in `Payments.Domain`; aggregates have private ctor + static factory; enforced `*DomainEvent` suffix on internal events.
-- **Integration tests** (`test/Payments.IntegrationTests/`) — Testcontainers Postgres + Kafka. Tests the outbox publisher chain: command → domain event → outbox row → Kafka message (with Avro schema registry stub); the one-payment-per-saga unique index (I-7).
+- **Integration tests** (`test/Payments.IntegrationTests/`) — Testcontainers Postgres + Kafka. Tests the outbox publisher chain: command → domain event → outbox row → Kafka message (with Avro schema registry stub); the one-payment-per-order unique index (I-7).
 - **Functional tests** (`test/Payments.FunctionalTests/`) — `WebApplicationFactory`-based full-stack admin HTTP endpoints with auth.
 - **Gateway stub** (`StubPaymentGateway`) — deterministic responses in test mode; swap via DI using options.
 

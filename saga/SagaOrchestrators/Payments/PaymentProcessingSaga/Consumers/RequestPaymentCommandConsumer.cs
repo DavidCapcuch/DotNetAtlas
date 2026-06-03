@@ -33,7 +33,6 @@ public sealed class RequestPaymentCommandConsumer : IConsumer<RequestPaymentComm
 
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
             OrderId = message.OrderId,
             UserId = message.UserId,
             PaymentMethodId = message.PaymentMethodId,

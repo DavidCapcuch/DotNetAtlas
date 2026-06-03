@@ -29,7 +29,7 @@ public sealed class PaymentCaptureFailedConsumer : IConsumer<PaymentCaptureFaile
 
         var paymentCaptureFailedSagaEvent = new PaymentCaptureFailedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             UserId = message.UserId,
             AuthorizationId = message.AuthorizationId,
             ErrorCode = message.ErrorCode,
