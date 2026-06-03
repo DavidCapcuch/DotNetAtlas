@@ -11,9 +11,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 public sealed record PaymentFailedSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - matches <c>CheckoutSagaState.CorrelationId</c>.
+    /// Order this payment is for — the saga correlation key (ADR-0029); equals
+    /// <c>CheckoutSagaState.CorrelationId</c>.
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Categorised failure code (e.g. <c>PAYMENT_FAILED</c>).

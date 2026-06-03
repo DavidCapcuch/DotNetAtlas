@@ -32,7 +32,7 @@ public sealed class PaymentFailedCheckoutConsumer : IConsumer<PaymentFailedEvent
 
         await context.Publish(new PaymentFailedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             ErrorCode = message.ErrorCode,
             ErrorMessage = message.ErrorMessage,
             FailedAtUtc = message.FailedAtUtc.ToUtcDateTimeOffset()

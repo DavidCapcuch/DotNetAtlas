@@ -55,4 +55,6 @@ Five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-fo
 Multi-context repo. `CONTEXT-MAP.md` at the root points to per-bounded-context `CONTEXT.md` files (one per service); system-wide ADRs live in `docs/adr/`, context-scoped ADRs in `services/<context>/docs/adr/`. Files are created lazily by `/grill-with-docs` — proceed silently if any are missing. See `docs/agents/domain.md`.
 
 
-This is a non-production reference solution. Breaking changes are always allowed.
+This is a non-production reference solution. Breaking changes are always allowed. Including ADRs, which can be rewritten inline after the fact.
+
+BFF service is not yet started and implemented.

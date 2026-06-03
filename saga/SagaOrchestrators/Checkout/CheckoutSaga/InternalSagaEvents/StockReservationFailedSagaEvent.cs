@@ -6,15 +6,15 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 /// consumer adapter. Consumed in <c>AwaitingStockReservation</c> (transition to
 /// <c>CompensatingStockReservations</c> per docs/bc-design/checkout-saga.md § 4 transition
 /// table); first arrival wins, releases any reservations already accumulated. Correlated by
-/// <see cref="OrderId"/> (Inventory's Avro lacks <c>CorrelationId</c>). The underlying
-/// schema does not carry <c>ReservationId</c>, <c>ErrorCode</c> or <c>ErrorMessage</c>, so
-/// the saga derives the in-flight tracking entry by <c>ProductId</c> instead (each ProductId
-/// has at most one in-flight reservation per saga).
+/// <see cref="OrderId"/> — the saga key per ADR-0029. The underlying schema does not carry
+/// <c>ReservationId</c>, <c>ErrorCode</c> or <c>ErrorMessage</c>, so the saga derives the
+/// in-flight tracking entry by <c>ProductId</c> instead (each ProductId has at most one
+/// in-flight reservation per saga).
 /// </summary>
 public sealed record StockReservationFailedSagaEvent
 {
     /// <summary>
-    /// Ordering aggregate id - the saga correlation key for this event under Path B.
+    /// Ordering aggregate id — the saga correlation key (ADR-0029).
     /// </summary>
     public required Guid OrderId { get; init; }
 

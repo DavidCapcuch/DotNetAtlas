@@ -30,7 +30,6 @@ public sealed class OrderCreatedConsumer : IConsumer<OrderCreatedEvent>
 
         await context.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
             OrderId = message.OrderId,
             OrderCreatedAtUtc = message.CreatedAtUtc.ToUtcDateTimeOffset()
         });

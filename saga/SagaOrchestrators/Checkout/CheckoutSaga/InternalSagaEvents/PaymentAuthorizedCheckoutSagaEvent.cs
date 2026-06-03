@@ -12,9 +12,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 public sealed record PaymentAuthorizedCheckoutSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - matches <c>CheckoutSagaState.CorrelationId</c>.
+    /// Order this payment is for — the saga correlation key (ADR-0029); equals
+    /// <c>CheckoutSagaState.CorrelationId</c>.
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Gateway authorization id. Carried for log/audit context; the sub-saga (not the Checkout

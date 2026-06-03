@@ -9,8 +9,8 @@ using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 namespace SagaOrchestrators.UnitTests.Consumers.Checkout;
 
 /// <summary>
-/// Asserts <see cref="BasketCheckoutInitiatedConsumer"/> maps Basket's pre-assigned
-/// <c>OrderId</c> onto the saga record's <c>CorrelationId</c>, serialises items +
+/// Asserts <see cref="BasketCheckoutInitiatedConsumer"/> forwards Basket's pre-assigned
+/// <c>OrderId</c> (the saga key, ADR-0029) onto the initiator record, serialises items +
 /// addresses to JSON, and never emits the Avro decimal byte-array shape (PII per ADR-0011 also
 /// covered by the consumer's log allowlist - not asserted here, see code review). Uses a
 /// mocked <see cref="ConsumeContext{T}"/> because <see cref="Avro.AvroDecimal"/> does not
@@ -79,7 +79,7 @@ public class BasketCheckoutInitiatedConsumerTests
         await consumer.Consume(ctx);
 
         Assert.NotNull(captured);
-        Assert.Equal(orderId, captured.CorrelationId);
+        Assert.Equal(orderId, captured.OrderId);
         Assert.Equal(userId, captured.UserId);
         Assert.Equal(39.98m, captured.TotalAmount);
         Assert.Equal("USD", captured.Currency);

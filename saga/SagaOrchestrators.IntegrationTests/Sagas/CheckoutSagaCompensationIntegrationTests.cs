@@ -63,7 +63,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -152,7 +152,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         // Arrange — drive saga to AwaitingConfirmation (reserve → authorize)
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -251,7 +251,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         // Arrange — drive saga into CompensatingStockReservations via stock-reservation-failure
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
@@ -316,7 +316,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         var basketCheckoutInitiated = CheckoutSagaTestPublishers.BuildBasketCheckoutInitiatedEvent(
@@ -353,7 +353,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             releaseCommands.Should().BeEmpty("nothing was reserved → nothing to release");
-            cancelCommands.Should().BeEmpty("OrderId is unknown on failure-before-AwaitingStockReservation → no cancel command");
+            cancelCommands.Should().BeEmpty("the AwaitingOrderCreation → Failed path runs no compensation, so no cancel command");
             checkoutFailedRows.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(correlationId.ToString());
 
@@ -427,6 +427,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         var paymentFailed = new PaymentFailedEvent
         {
             CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             ErrorCode = errorCode,
             ErrorMessage = $"Test-injected payment failure: {errorCode}",
@@ -443,6 +444,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         var paymentAuthorized = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             AuthorizationId = $"auth-{Guid.CreateVersion7():N}",
             Amount = amount.ToAvroDecimal(4),

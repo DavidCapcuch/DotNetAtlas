@@ -34,7 +34,7 @@ public sealed class PaymentAuthorizedCheckoutConsumer : IConsumer<PaymentAuthori
 
         await context.Publish(new PaymentAuthorizedCheckoutSagaEvent
         {
-            CorrelationId = message.CorrelationId,
+            OrderId = message.OrderId,
             AuthorizationId = message.AuthorizationId,
             AuthorizedAtUtc = message.AuthorizedAtUtc.ToUtcDateTimeOffset()
         });

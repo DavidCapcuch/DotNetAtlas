@@ -21,12 +21,14 @@ public class PaymentAuthorizedCheckoutConsumerTests
     public async Task Consume_publishes_internal_saga_event_with_mapped_fields()
     {
         var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var authorizationId = $"auth-{Guid.CreateVersion7()}";
         var authorizedAt = DateTime.SpecifyKind(new DateTime(2026, 6, 2, 9, 15, 0), DateTimeKind.Utc);
 
         var avro = new PaymentAuthorizedEvent
         {
             CorrelationId = correlationId,
+            OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             AuthorizationId = authorizationId,
             Amount = new Avro.AvroDecimal(149.99m),
@@ -46,7 +48,7 @@ public class PaymentAuthorizedCheckoutConsumerTests
         await consumer.Consume(ctx);
 
         Assert.NotNull(captured);
-        Assert.Equal(correlationId, captured.CorrelationId);
+        Assert.Equal(orderId, captured.OrderId);
         Assert.Equal(authorizationId, captured.AuthorizationId);
         Assert.Equal(new DateTimeOffset(authorizedAt, TimeSpan.Zero), captured.AuthorizedAtUtc);
     }

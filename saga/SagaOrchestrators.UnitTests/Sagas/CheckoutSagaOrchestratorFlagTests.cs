@@ -47,7 +47,7 @@ public class CheckoutSagaOrchestratorFlagTests
         await using var setup = await BuildHarnessAsync(paymentThenStockEnabled: false, fakeTime, fakeOutbox);
 
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 
@@ -57,7 +57,6 @@ public class CheckoutSagaOrchestratorFlagTests
 
         await setup.Harness.Bus.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             OrderCreatedAtUtc = fakeTime.GetUtcNow()
         });
@@ -90,7 +89,7 @@ public class CheckoutSagaOrchestratorFlagTests
         await using var setup = await BuildHarnessAsync(paymentThenStockEnabled: true, fakeTime, fakeOutbox);
 
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var userId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
         var product1 = Guid.CreateVersion7();
@@ -102,7 +101,6 @@ public class CheckoutSagaOrchestratorFlagTests
 
         await setup.Harness.Bus.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             OrderCreatedAtUtc = fakeTime.GetUtcNow()
         });
@@ -153,7 +151,7 @@ public class CheckoutSagaOrchestratorFlagTests
             fakeOutbox);
 
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await PublishInitiated(setup, fakeTime, correlationId, BuildItem(product1));
@@ -161,7 +159,6 @@ public class CheckoutSagaOrchestratorFlagTests
 
         await setup.Harness.Bus.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             OrderCreatedAtUtc = fakeTime.GetUtcNow()
         });
@@ -267,7 +264,7 @@ public class CheckoutSagaOrchestratorFlagTests
 
         return new BasketCheckoutInitiatedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             BasketSnapshotJson = basketJson,
             TotalAmount = items.Sum(i => i.LineTotal),

@@ -44,7 +44,6 @@ public class OrderFailedConsumerTests
 
             Assert.True(await harness.Published.Any<OrderFailedSagaEvent>(TestContext.Current.CancellationToken));
             var published = await harness.Published.GetSinglePublishedMessageAsync<OrderFailedSagaEvent>(TestContext.Current.CancellationToken);
-            Assert.Equal(correlationId, published.CorrelationId);
             Assert.Equal(orderId, published.OrderId);
             Assert.Equal("ORDER_VALIDATION_FAILED", published.ErrorCode);
             Assert.Equal("Buyer is suspended.", published.ErrorMessage);

@@ -8,10 +8,10 @@ namespace Payments.Application.Outbox;
 /// Maps <see cref="PaymentAuthorizedDomainEvent"/> to the external Avro
 /// <see cref="PaymentAuthorizedEvent"/>. Hand-written because the field-set diverges from the
 /// domain event (<c>BuyerId</c> → <c>UserId</c>; <c>GatewayTransactionId</c> →
-/// <c>AuthorizationId</c>; <c>OrderId</c> dropped — recoverable downstream via
-/// <c>CorrelationId</c>). <c>ExpiresAtUtc</c> is sourced from the gateway response (carried
-/// through the domain event); the v1 stub returns <c>now + 7 days</c>, real PSP adapters
-/// return the gateway's value.
+/// <c>AuthorizationId</c>). <c>OrderId</c> is carried as the Checkout saga correlation key
+/// (ADR-0029). <c>ExpiresAtUtc</c> is sourced from the gateway response (carried through the
+/// domain event); the v1 stub returns <c>now + 7 days</c>, real PSP adapters return the
+/// gateway's value.
 /// </summary>
 internal static class PaymentAuthorizedMapper
 {
@@ -24,6 +24,7 @@ internal static class PaymentAuthorizedMapper
         return new PaymentAuthorizedEvent
         {
             CorrelationId = source.CorrelationId,
+            OrderId = source.OrderId,
             UserId = source.BuyerId,
             AuthorizationId = source.GatewayTransactionId,
             Amount = source.Amount.Amount.ToAvroDecimal(DecimalScale),

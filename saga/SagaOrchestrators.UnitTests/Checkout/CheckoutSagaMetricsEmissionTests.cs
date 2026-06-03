@@ -89,7 +89,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
     public async Task CompensatingStockReservationsCompensationTimeout_EmitsStuckAndCompensationTimeoutCounters()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachCompensatingStockReservations(correlationId, orderId, product1);
@@ -129,7 +129,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
     public async Task CompensatedTerminal_EmitsCompensatedCounterAndCompensationDurationHistogram()
     {
         var correlationId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
 
         await ReachCompensatingStockReservations(correlationId, orderId, product1);
@@ -190,7 +190,6 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
 
         await _testHarness.Bus.Publish(new OrderCancelledSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             CancelledAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -256,7 +255,6 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
         await PublishInitiated(correlationId, items);
         await _testHarness.Bus.Publish(new OrderCreatedSagaEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             OrderCreatedAtUtc = _fakeTimeProvider.GetUtcNow()
         });
@@ -292,7 +290,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
         await ReachAwaitingPaymentAuthorization(correlationId, orderId, productIds);
         await _testHarness.Bus.Publish(new PaymentFailedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = orderId,
             ErrorCode = "PAYMENT_FAILED",
             ErrorMessage = "Card declined",
             FailedAtUtc = _fakeTimeProvider.GetUtcNow()
@@ -320,7 +318,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
 
         return new BasketCheckoutInitiatedSagaEvent
         {
-            CorrelationId = correlationId,
+            OrderId = correlationId,
             UserId = userId,
             BasketSnapshotJson = basketJson,
             TotalAmount = items.Sum(i => i.LineTotal),

@@ -48,7 +48,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -107,7 +107,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product = Guid.CreateVersion7();
 
         // Two lines, same ProductId, total quantity 2 + 3 = 5.
@@ -150,7 +150,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -195,7 +195,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
         var product3 = Guid.CreateVersion7();
@@ -275,7 +275,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
-        var orderId = Guid.CreateVersion7();
+        var orderId = correlationId;
         var product1 = Guid.CreateVersion7();
         var product2 = Guid.CreateVersion7();
 

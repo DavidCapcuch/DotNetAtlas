@@ -31,7 +31,6 @@ public sealed class OrderFailedConsumer : IConsumer<OrderFailedEvent>
 
         await context.Publish(new OrderFailedSagaEvent
         {
-            CorrelationId = message.CorrelationId,
             OrderId = message.OrderId,
             ErrorCode = message.ErrorCode,
             ErrorMessage = message.ErrorMessage,

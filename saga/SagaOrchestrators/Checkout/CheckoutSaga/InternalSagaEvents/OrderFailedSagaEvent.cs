@@ -10,19 +10,11 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 public sealed record OrderFailedSagaEvent
 {
     /// <summary>
-    /// Saga correlation id - matches <c>CheckoutSagaState.CorrelationId</c>.
+    /// Ordering aggregate id — the saga correlation key (ADR-0029); equals
+    /// <c>CheckoutSagaState.CorrelationId</c>. Always present because the <c>OrderId</c> is
+    /// pre-assigned at checkout initiation, so even an order-creation rejection carries it.
     /// </summary>
-    public required Guid CorrelationId { get; init; }
-
-    /// <summary>
-    /// Ordering aggregate id. Always populated by the Avro producer
-    /// (<c>Ordering.Orders.OrderFailedEvent.OrderId</c> is a non-nullable uuid); the field is
-    /// kept nullable here so the saga can null it deliberately during PII / state cleanup
-    /// if needed.
-    /// Producer convention for pre-creation validation rejects is to emit <c>Guid.Empty</c>,
-    /// which the saga discriminates via the producing-state context, not via null.
-    /// </summary>
-    public Guid? OrderId { get; init; }
+    public required Guid OrderId { get; init; }
 
     /// <summary>
     /// Categorised failure code (e.g. <c>ORDER_VALIDATION_FAILED</c>, <c>CONFIRMATION_FAILED</c>).

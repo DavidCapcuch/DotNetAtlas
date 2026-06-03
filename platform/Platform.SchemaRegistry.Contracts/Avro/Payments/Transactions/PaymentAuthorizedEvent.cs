@@ -19,11 +19,15 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentAuthorizedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentAuthorizedEvent"",""doc"":""Event emitted when a payment has been successfully authorized by the payment provider. The funds are reserved but not yet captured."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was authorized."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider. Used for capture or void operations."",""type"":""string""},{""name"":""Amount"",""doc"":""Authorized payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""AuthorizedAtUtc"",""doc"":""UTC timestamp when authorization was granted."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""ExpiresAtUtc"",""doc"":""UTC timestamp when the authorization expires. Must capture before this time."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentAuthorizedEvent"",""doc"":""Event emitted when a payment has been successfully authorized by the payment provider. The funds are reserved but not yet captured."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the Checkout saga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment was authorized."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider. Used for capture or void operations."",""type"":""string""},{""name"":""Amount"",""doc"":""Authorized payment amount."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""AuthorizedAtUtc"",""doc"":""UTC timestamp when authorization was granted."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}},{""name"":""ExpiresAtUtc"",""doc"":""UTC timestamp when the authorization expires. Must capture before this time."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Correlation ID for tracking the payment workflow.
 		/// </summary>
 		private System.Guid _CorrelationId;
+		/// <summary>
+		/// Order this payment is for; the Checkout saga correlation key (ADR-0029).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User whose payment was authorized.
 		/// </summary>
@@ -67,6 +71,20 @@ namespace Payments.Transactions
 			set
 			{
 				this._CorrelationId = value;
+			}
+		}
+		/// <summary>
+		/// Order this payment is for; the Checkout saga correlation key (ADR-0029).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -158,12 +176,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.AuthorizationId;
-			case 3: return this.Amount;
-			case 4: return this.Currency;
-			case 5: return this.AuthorizedAtUtc;
-			case 6: return this.ExpiresAtUtc;
+			case 1: return this.OrderId;
+			case 2: return this.UserId;
+			case 3: return this.AuthorizationId;
+			case 4: return this.Amount;
+			case 5: return this.Currency;
+			case 6: return this.AuthorizedAtUtc;
+			case 7: return this.ExpiresAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -172,12 +191,13 @@ namespace Payments.Transactions
 			switch (fieldPos)
 			{
 			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.AuthorizationId = (System.String)fieldValue; break;
-			case 3: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 4: this.Currency = (System.String)fieldValue; break;
-			case 5: this.AuthorizedAtUtc = (System.DateTime)fieldValue; break;
-			case 6: this.ExpiresAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.OrderId = (System.Guid)fieldValue; break;
+			case 2: this.UserId = (System.Guid)fieldValue; break;
+			case 3: this.AuthorizationId = (System.String)fieldValue; break;
+			case 4: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 5: this.Currency = (System.String)fieldValue; break;
+			case 6: this.AuthorizedAtUtc = (System.DateTime)fieldValue; break;
+			case 7: this.ExpiresAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}
