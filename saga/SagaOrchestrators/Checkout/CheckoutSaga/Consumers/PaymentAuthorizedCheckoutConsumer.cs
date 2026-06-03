@@ -28,9 +28,9 @@ public sealed class PaymentAuthorizedCheckoutConsumer : IConsumer<PaymentAuthori
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, authorization {AuthorizationId}",
+            "{ConsumerType} received {EventType} for order {OrderId}, authorization {AuthorizationId}",
             nameof(PaymentAuthorizedCheckoutConsumer), nameof(PaymentAuthorizedEvent),
-            message.CorrelationId, message.AuthorizationId);
+            message.OrderId, message.AuthorizationId);
 
         await context.Publish(new PaymentAuthorizedCheckoutSagaEvent
         {

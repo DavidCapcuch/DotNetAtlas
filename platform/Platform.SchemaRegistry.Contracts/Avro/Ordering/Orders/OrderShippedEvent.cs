@@ -19,15 +19,11 @@ namespace Ordering.Orders
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class OrderShippedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""OrderShippedEvent"",""doc"":""Emitted when the Order is handed to a carrier with a tracking number."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order that was shipped."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id (carried post-saga for forensic continuity; saga itself is finalised by this point)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""User who placed the order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Carrier"",""doc"":""Shipping carrier name (e.g., 'FedEx', 'DHL', 'UPS')."",""type"":""string""},{""name"":""TrackingNumber"",""doc"":""Carrier-assigned tracking number."",""type"":""string""},{""name"":""ShippedAtUtc"",""doc"":""UTC timestamp when the order was shipped."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""OrderShippedEvent"",""doc"":""Emitted when the Order is handed to a carrier with a tracking number."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order that was shipped."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""BuyerId"",""doc"":""User who placed the order."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""Carrier"",""doc"":""Shipping carrier name (e.g., 'FedEx', 'DHL', 'UPS')."",""type"":""string""},{""name"":""TrackingNumber"",""doc"":""Carrier-assigned tracking number."",""type"":""string""},{""name"":""ShippedAtUtc"",""doc"":""UTC timestamp when the order was shipped."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Unique identifier of the Order that was shipped.
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id (carried post-saga for forensic continuity; saga itself is finalised by this point).
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// User who placed the order.
 		/// </summary>
@@ -63,20 +59,6 @@ namespace Ordering.Orders
 			set
 			{
 				this._OrderId = value;
-			}
-		}
-		/// <summary>
-		/// Checkout saga correlation id (carried post-saga for forensic continuity; saga itself is finalised by this point).
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -140,11 +122,10 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.BuyerId;
-			case 3: return this.Carrier;
-			case 4: return this.TrackingNumber;
-			case 5: return this.ShippedAtUtc;
+			case 1: return this.BuyerId;
+			case 2: return this.Carrier;
+			case 3: return this.TrackingNumber;
+			case 4: return this.ShippedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -153,11 +134,10 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.BuyerId = (System.Guid)fieldValue; break;
-			case 3: this.Carrier = (System.String)fieldValue; break;
-			case 4: this.TrackingNumber = (System.String)fieldValue; break;
-			case 5: this.ShippedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.BuyerId = (System.Guid)fieldValue; break;
+			case 2: this.Carrier = (System.String)fieldValue; break;
+			case 3: this.TrackingNumber = (System.String)fieldValue; break;
+			case 4: this.ShippedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

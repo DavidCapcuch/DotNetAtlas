@@ -22,7 +22,6 @@ internal static class InvoiceCancelledMapper
             CancelledAtUtc = source.CancelledAtUtc.UtcDateTime,
             Reason = source.Reason.Name,
             CreditNoteId = source.CreditNoteId,
-            CorrelationId = source.CorrelationId,
             OccurredOnUtc = source.OccurredOnUtc.UtcDateTime,
         };
     }

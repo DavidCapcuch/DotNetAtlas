@@ -13,14 +13,6 @@
             "doc": "Unique identifier of the Order to fail. Also the Kafka message key."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
             "name": "ErrorCode",
             "type": "string",
             "doc": "Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)."

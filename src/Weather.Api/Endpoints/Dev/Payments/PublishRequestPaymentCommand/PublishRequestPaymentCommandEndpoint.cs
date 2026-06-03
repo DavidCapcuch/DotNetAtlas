@@ -55,7 +55,6 @@ internal class PublishRequestPaymentCommandEndpoint : Endpoint<PublishRequestPay
     {
         var requestPaymentCommand = new RequestPaymentCommand
         {
-            CorrelationId = req.CorrelationId,
             OrderId = req.OrderId,
             UserId = req.UserId,
             PaymentMethodId = req.PaymentMethodId,

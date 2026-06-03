@@ -83,7 +83,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             var msg = outbox.GetMessages<AvroPaymentAuthorizedEvent>().Single();
             msg.TopicName.Should().Be("payments.transactions");
             msg.KafkaKey.Should().Be(correlationId.ToString());
-            msg.IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
@@ -124,7 +123,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             var failed = outbox.GetMessages<AvroPaymentFailedEvent>().Single();
             failed.TopicName.Should().Be("payments.transactions");
             failed.KafkaKey.Should().Be(correlationId.ToString());
-            failed.IntegrationEvent.CorrelationId.Should().Be(correlationId);
         }
     }
 
@@ -149,7 +147,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
-                CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(100m),
@@ -198,7 +195,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroVoidPaymentCommand
             {
-                CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Reason = "saga compensation",
@@ -243,7 +239,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
-                CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(75m),
@@ -256,7 +251,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroRequestRefundCommand
             {
-                CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
                 PaymentTransactionId = paymentId,
                 Reason = "buyer cancelled after delivery",
@@ -315,7 +309,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var avroCapture = new AvroCapturePaymentCommand
         {
-            CorrelationId = correlationId,
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "stub-auth-ignored",
             Amount = new Avro.AvroDecimal(100m),
@@ -418,7 +411,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
-                CorrelationId = correlationId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(50m),
@@ -439,7 +431,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 new AvroVoidPaymentCommand
                 {
-                    CorrelationId = correlationId,
                     UserId = Guid.CreateVersion7(),
                     AuthorizationId = StoredGatewayTransactionId(correlationId),
                     Reason = "saga ordering bug — should have refunded",
@@ -487,7 +478,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 new AvroVoidPaymentCommand
                 {
-                    CorrelationId = correlationId,
                     UserId = Guid.CreateVersion7(),
                     AuthorizationId = "wire-token-stale",
                     Reason = "saga compensation",
@@ -537,7 +527,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     private AvroAuthorizePaymentCommand NewAvroAuthorize(Guid correlationId, Guid orderId, decimal amount) =>
         new()
         {
-            CorrelationId = correlationId,
             // Cross-cutting wave1-followup #255: the production saga mints a fresh v7
             // PaymentTransactionId at initial state and the Payments mapper uses it as the
             // aggregate PK. For this integration-test helper we deliberately collapse the two

@@ -187,7 +187,6 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             var captureCommands = _fakeOutboxWriter.GetMessages<CapturePaymentCommand>().ToList();
             captureCommands.Should().ContainSingle(
                 "approval triggers exactly one CapturePaymentCommand to Payments");
-            captureCommands[0].IntegrationEvent.CorrelationId.Should().Be(orderId);
             captureCommands[0].IntegrationEvent.AuthorizationId.Should().Be(authorizationId);
         }
     }
@@ -545,7 +544,6 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
                 "AuthorizePaymentCommand should be added to the outbox");
             outboxMessages.Should().ContainSingle();
             // ADR-0029: CorrelationId == OrderId; the outbound command carries both as the same value.
-            outboxMessages[0].IntegrationEvent.CorrelationId.Should().Be(orderId);
             outboxMessages[0].IntegrationEvent.OrderId.Should().Be(orderId);
             outboxMessages[0].IntegrationEvent.UserId.Should().Be(userId);
             outboxMessages[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId);

@@ -21,7 +21,6 @@ internal static class PaymentCaptureFailedMapper
 
         return new PaymentCaptureFailedEvent
         {
-            CorrelationId = source.CorrelationId,
             OrderId = source.OrderId,
             UserId = source.BuyerId,
             AuthorizationId = source.GatewayTransactionId,

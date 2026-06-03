@@ -32,7 +32,6 @@ public class OrderFailedConsumerTests
             var avro = new OrderFailedEvent
             {
                 OrderId = orderId,
-                CorrelationId = correlationId,
                 BuyerId = Guid.CreateVersion7(),
                 ErrorCode = "ORDER_VALIDATION_FAILED",
                 ErrorMessage = "Buyer is suspended.",

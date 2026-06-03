@@ -102,7 +102,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingConfirmation, DefaultTimeout);
 
         // Act 4 — OrderConfirmed → AwaitingPaymentCapture (saga approves capture — the pivot).
-        await PublishOrderConfirmedAsync(correlationId, userId, orderId);
+        await PublishOrderConfirmedAsync(userId, orderId);
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingPaymentCapture, DefaultTimeout);
 
         // Act 5 — PaymentCompleted (Payments owns this terminal per ADR-0026) → Confirmed (terminal, finalized).
@@ -185,7 +185,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         await KafkaTestProducer.ProduceAsync(TopicsOptions.BasketSessions, userId, basketCheckoutInitiated);
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingOrderCreation, DefaultTimeout);
 
-        var orderCreated = CheckoutSagaTestPublishers.BuildOrderCreatedEvent(correlationId, userId, orderId);
+        var orderCreated = CheckoutSagaTestPublishers.BuildOrderCreatedEvent(userId, orderId);
         await KafkaTestProducer.ProduceAsync(TopicsOptions.OrderingOrders, orderId, orderCreated);
 
         return await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingStockReservation, DefaultTimeout);
@@ -212,7 +212,6 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         // reacts by confirming order + reservations before approving capture.
         var paymentAuthorized = new PaymentAuthorizedEvent
         {
-            CorrelationId = correlationId,
             OrderId = correlationId,
             UserId = userId,
             AuthorizationId = $"auth-{Guid.CreateVersion7():N}",
@@ -229,7 +228,6 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
     {
         var paymentCompleted = new PaymentCompletedEvent
         {
-            CorrelationId = correlationId,
             OrderId = correlationId,
             UserId = userId,
             PaymentTransactionId = paymentTransactionId,
@@ -241,15 +239,14 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         await KafkaTestProducer.ProduceAsync(TopicsOptions.PaymentsTransactions, correlationId, paymentCompleted);
     }
 
-    private async Task PublishOrderConfirmedAsync(Guid correlationId, Guid buyerId, Guid orderId)
+    private async Task PublishOrderConfirmedAsync(Guid buyerId, Guid orderId)
     {
-        // The saga's OrderConfirmedConsumer reads only OrderId + CorrelationId + ConfirmedAtUtc;
+        // The saga's OrderConfirmedConsumer reads only OrderId + ConfirmedAtUtc;
         // the Items / TotalAmount / Currency / BillingAddress enrichment fields (Wave 1.5/1.6 ADR-0020)
         // are nullable for FORWARD_TRANSITIVE compatibility and are unused on the saga side.
         var orderConfirmed = new OrderConfirmedEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             ConfirmedAtUtc = TimeProvider.GetUtcNow().UtcDateTime,
             Items = new List<OrderItemConfirmed>(),

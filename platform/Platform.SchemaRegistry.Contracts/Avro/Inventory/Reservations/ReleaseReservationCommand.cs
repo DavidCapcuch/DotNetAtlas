@@ -7,75 +7,119 @@
 // ------------------------------------------------------------------------------
 namespace Inventory.Reservations
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using global::Avro;
-    using global::Avro.Specific;
-
-    /// <summary>
-    /// Command to release an Active reservation without confirming it (saga compensation, TTL expiry, or admin cancel). Inventory emits ReservationReleasedEvent with the specified ReleaseReason.
-    /// </summary>
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-    public partial class ReleaseReservationCommand : global::Avro.Specific.ISpecificRecord
-    {
-        public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(
-            "{\"type\":\"record\",\"name\":\"ReleaseReservationCommand\",\"doc\":\"Command to release an" +
-            " Active reservation without confirming it (saga compensation, TTL expiry, or a" +
-            "dmin cancel). Inventory emits ReservationReleasedEvent with the specified Rele" +
-            "aseReason.\",\"namespace\":\"Inventory.Reservations\",\"fields\":[{\"name\":\"Correlation" +
-            "Id\",\"doc\":\"Checkout saga correlation id (or internally generated for TTL expir" +
-            "y / admin flows). Also the Kafka message key.\",\"type\":{\"type\":\"string\",\"logic" +
-            "alType\":\"uuid\"}},{\"name\":\"ProductId\",\"doc\":\"Product whose reservation to relea" +
-            "se.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ReservationId\",\"d" +
-            "oc\":\"Reservation to release. Must refer to an Active reservation.\",\"type\":{\"t" +
-            "ype\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ReleaseReason\",\"doc\":\"Compensati" +
-            "on = saga rollback; Expiry = TTL worker auto-release; Cancellation = explicit " +
-            "customer/ops action. Propagates to ReservationReleasedEvent.ReleaseReason. Sha" +
-            "res the ReleaseReason enum defined by ReservationReleasedEvent.avsc.\",\"type\":{" +
-            "\"type\":\"enum\",\"name\":\"ReleaseReason\",\"namespace\":\"Inventory.Reservations\",\"sym" +
-            "bols\":[\"Compensation\",\"Expiry\",\"Cancellation\"]}},{\"name\":\"RequestedAtUtc\",\"doc" +
-            "\":\"UTC timestamp when the saga issued the command.\",\"type\":{\"type\":\"long\",\"lo" +
-            "gicalType\":\"timestamp-millis\"}}]}");
-
-        private System.Guid _CorrelationId;
-        private System.Guid _ProductId;
-        private System.Guid _ReservationId;
-        private Inventory.Reservations.ReleaseReason _ReleaseReason;
-        private System.DateTime _RequestedAtUtc;
-
-        public virtual global::Avro.Schema Schema => ReleaseReservationCommand._SCHEMA;
-
-        public System.Guid CorrelationId { get => this._CorrelationId; set => this._CorrelationId = value; }
-        public System.Guid ProductId { get => this._ProductId; set => this._ProductId = value; }
-        public System.Guid ReservationId { get => this._ReservationId; set => this._ReservationId = value; }
-        public Inventory.Reservations.ReleaseReason ReleaseReason { get => this._ReleaseReason; set => this._ReleaseReason = value; }
-        public System.DateTime RequestedAtUtc { get => this._RequestedAtUtc; set => this._RequestedAtUtc = value; }
-
-        public virtual object Get(int fieldPos)
-        {
-            switch (fieldPos)
-            {
-            case 0: return this.CorrelationId;
-            case 1: return this.ProductId;
-            case 2: return this.ReservationId;
-            case 3: return this.ReleaseReason;
-            case 4: return this.RequestedAtUtc;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
-            }
-        }
-
-        public virtual void Put(int fieldPos, object fieldValue)
-        {
-            switch (fieldPos)
-            {
-            case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-            case 1: this.ProductId = (System.Guid)fieldValue; break;
-            case 2: this.ReservationId = (System.Guid)fieldValue; break;
-            case 3: this.ReleaseReason = (Inventory.Reservations.ReleaseReason)fieldValue; break;
-            case 4: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
-            }
-        }
-    }
+	using System;
+	using System.Collections.Generic;
+	using System.Text;
+	using global::Avro;
+	using global::Avro.Specific;
+	
+	/// <summary>
+	/// Command to release an Active reservation without confirming it (saga compensation, TTL expiry, or admin cancel). Inventory emits ReservationReleasedEvent with the specified ReleaseReason.
+	/// </summary>
+	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
+	public partial class ReleaseReservationCommand : global::Avro.Specific.ISpecificRecord
+	{
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ReleaseReservationCommand"",""doc"":""Command to release an Active reservation without confirming it (saga compensation, TTL expiry, or admin cancel). Inventory emits ReservationReleasedEvent with the specified ReleaseReason."",""namespace"":""Inventory.Reservations"",""fields"":[{""name"":""ProductId"",""doc"":""Product whose reservation to release."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ReservationId"",""doc"":""Reservation to release. Must refer to an Active reservation."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ReleaseReason"",""doc"":""Compensation = saga rollback; Expiry = TTL worker auto-release; Cancellation = explicit customer/ops action. Propagates to ReservationReleasedEvent.ReleaseReason. Shares the ReleaseReason enum defined by ReservationReleasedEvent.avsc."",""type"":{""type"":""enum"",""name"":""ReleaseReason"",""namespace"":""Inventory.Reservations"",""symbols"":[""Compensation"",""Expiry"",""Cancellation""]}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the saga issued the command."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		/// <summary>
+		/// Product whose reservation to release.
+		/// </summary>
+		private System.Guid _ProductId;
+		/// <summary>
+		/// Reservation to release. Must refer to an Active reservation.
+		/// </summary>
+		private System.Guid _ReservationId;
+		/// <summary>
+		/// Compensation = saga rollback; Expiry = TTL worker auto-release; Cancellation = explicit customer/ops action. Propagates to ReservationReleasedEvent.ReleaseReason. Shares the ReleaseReason enum defined by ReservationReleasedEvent.avsc.
+		/// </summary>
+		private Inventory.Reservations.ReleaseReason _ReleaseReason;
+		/// <summary>
+		/// UTC timestamp when the saga issued the command.
+		/// </summary>
+		private System.DateTime _RequestedAtUtc;
+		public virtual global::Avro.Schema Schema
+		{
+			get
+			{
+				return ReleaseReservationCommand._SCHEMA;
+			}
+		}
+		/// <summary>
+		/// Product whose reservation to release.
+		/// </summary>
+		public System.Guid ProductId
+		{
+			get
+			{
+				return this._ProductId;
+			}
+			set
+			{
+				this._ProductId = value;
+			}
+		}
+		/// <summary>
+		/// Reservation to release. Must refer to an Active reservation.
+		/// </summary>
+		public System.Guid ReservationId
+		{
+			get
+			{
+				return this._ReservationId;
+			}
+			set
+			{
+				this._ReservationId = value;
+			}
+		}
+		/// <summary>
+		/// Compensation = saga rollback; Expiry = TTL worker auto-release; Cancellation = explicit customer/ops action. Propagates to ReservationReleasedEvent.ReleaseReason. Shares the ReleaseReason enum defined by ReservationReleasedEvent.avsc.
+		/// </summary>
+		public Inventory.Reservations.ReleaseReason ReleaseReason
+		{
+			get
+			{
+				return this._ReleaseReason;
+			}
+			set
+			{
+				this._ReleaseReason = value;
+			}
+		}
+		/// <summary>
+		/// UTC timestamp when the saga issued the command.
+		/// </summary>
+		public System.DateTime RequestedAtUtc
+		{
+			get
+			{
+				return this._RequestedAtUtc;
+			}
+			set
+			{
+				this._RequestedAtUtc = value;
+			}
+		}
+		public virtual object Get(int fieldPos)
+		{
+			switch (fieldPos)
+			{
+			case 0: return this.ProductId;
+			case 1: return this.ReservationId;
+			case 2: return this.ReleaseReason;
+			case 3: return this.RequestedAtUtc;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
+			};
+		}
+		public virtual void Put(int fieldPos, object fieldValue)
+		{
+			switch (fieldPos)
+			{
+			case 0: this.ProductId = (System.Guid)fieldValue; break;
+			case 1: this.ReservationId = (System.Guid)fieldValue; break;
+			case 2: this.ReleaseReason = (Inventory.Reservations.ReleaseReason)fieldValue; break;
+			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
+			};
+		}
+	}
 }

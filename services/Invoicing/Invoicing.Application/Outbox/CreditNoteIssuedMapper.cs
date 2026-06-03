@@ -24,7 +24,6 @@ internal static class CreditNoteIssuedMapper
             OriginalInvoiceId = source.OriginalInvoiceId,
             OriginalInvoiceNumber = source.OriginalInvoiceNumber.Value,
             BuyerId = source.BuyerId,
-            CorrelationId = source.CorrelationId,
             IssueDate = source.IssueDate.UtcDateTime,
             Total = source.Total.Amount.ToAvroDecimal(MoneyScale),
             Currency = source.Total.Currency.Name,

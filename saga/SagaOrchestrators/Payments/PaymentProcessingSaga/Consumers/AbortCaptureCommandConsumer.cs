@@ -24,9 +24,9 @@ public sealed class AbortCaptureCommandConsumer : IConsumer<AbortCaptureCommand>
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for user {UserId}, correlation {CorrelationId}, reason {Reason}",
+            "{ConsumerType} received {EventType} for user {UserId}, order {OrderId}, reason {Reason}",
             nameof(AbortCaptureCommandConsumer), nameof(AbortCaptureCommand),
-            message.UserId, message.CorrelationId, message.Reason);
+            message.UserId, message.OrderId, message.Reason);
 
         var abortCaptureSagaEvent = new AbortCaptureSagaEvent
         {

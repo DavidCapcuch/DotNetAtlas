@@ -19,11 +19,7 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class VoidPaymentCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""VoidPaymentCommand"",""doc"":""Command sent by Payment Saga to void (cancel) an authorized payment that has not yet been captured."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment authorization to void."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider to void."",""type"":""string""},{""name"":""Reason"",""doc"":""Reason for voiding the authorization."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when void was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
-		/// <summary>
-		/// Correlation ID for tracking the workflow.
-		/// </summary>
-		private System.Guid _CorrelationId;
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""VoidPaymentCommand"",""doc"":""Command sent by Payment Saga to void (cancel) an authorized payment that has not yet been captured."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""UserId"",""doc"":""User whose payment authorization to void."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider to void."",""type"":""string""},{""name"":""Reason"",""doc"":""Reason for voiding the authorization."",""type"":""string""},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when void was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// User whose payment authorization to void.
 		/// </summary>
@@ -45,20 +41,6 @@ namespace Payments.Transactions
 			get
 			{
 				return VoidPaymentCommand._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Correlation ID for tracking the workflow.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -121,11 +103,10 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.AuthorizationId;
-			case 3: return this.Reason;
-			case 4: return this.RequestedAtUtc;
+			case 0: return this.UserId;
+			case 1: return this.AuthorizationId;
+			case 2: return this.Reason;
+			case 3: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -133,11 +114,10 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.AuthorizationId = (System.String)fieldValue; break;
-			case 3: this.Reason = (System.String)fieldValue; break;
-			case 4: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.UserId = (System.Guid)fieldValue; break;
+			case 1: this.AuthorizationId = (System.String)fieldValue; break;
+			case 2: this.Reason = (System.String)fieldValue; break;
+			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

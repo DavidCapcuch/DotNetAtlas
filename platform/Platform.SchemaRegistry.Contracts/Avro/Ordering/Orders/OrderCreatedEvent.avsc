@@ -13,14 +13,6 @@
             "doc": "Unique identifier of the Order; the Checkout saga's correlation key (ADR-0029)."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Equals OrderId per ADR-0029."
-        },
-        {
             "name": "BuyerId",
             "type": {
                 "type": "string",

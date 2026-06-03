@@ -42,14 +42,6 @@
             "doc": "Reference to the Payments transaction this invoice settles."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id (passed through from Order + Payment)."
-        },
-        {
             "name": "IssueDate",
             "type": {
                 "type": "long",

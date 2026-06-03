@@ -22,7 +22,6 @@ public static class OrderConfirmedMapper
         new()
         {
             OrderId = source.OrderId,
-            CorrelationId = source.CorrelationId,
             BuyerId = source.BuyerId,
             ConfirmedAtUtc = source.ConfirmedAtUtc.UtcDateTime,
             Items = source.Items.Select(MapItem).ToList(),

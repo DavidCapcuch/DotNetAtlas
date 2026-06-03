@@ -27,7 +27,6 @@ public class PaymentCompletedCheckoutConsumerTests
 
         var avro = new PaymentCompletedEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             PaymentTransactionId = paymentTransactionId,

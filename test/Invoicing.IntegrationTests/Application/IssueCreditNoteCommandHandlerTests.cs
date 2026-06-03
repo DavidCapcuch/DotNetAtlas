@@ -115,8 +115,7 @@ public sealed class IssueCreditNoteCommandHandlerTests
             Arg.Is<global::Invoicing.CreditNotes.CreditNoteIssuedEvent>(e =>
                 e.CreditNoteId == creditNoteId
                 && e.OriginalInvoiceId == invoiceId
-                && e.BuyerId == buyerId
-                && e.CorrelationId == sagaCorrelationId));
+                && e.BuyerId == buyerId));
 
         _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
             "invoicing.invoices",
@@ -124,8 +123,7 @@ public sealed class IssueCreditNoteCommandHandlerTests
             Arg.Is<global::Invoicing.Invoices.InvoiceCancelledEvent>(e =>
                 e.InvoiceId == invoiceId
                 && e.CreditNoteId == creditNoteId
-                && e.BuyerId == buyerId
-                && e.CorrelationId == sagaCorrelationId));
+                && e.BuyerId == buyerId));
     }
 
     [Fact]

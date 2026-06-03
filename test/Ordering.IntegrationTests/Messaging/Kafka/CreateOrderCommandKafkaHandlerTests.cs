@@ -45,7 +45,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
         var ctx = FakeKafkaMessageContext.Create(
-            correlationId: avro.CorrelationId, cancellationToken: TestContext.Current.CancellationToken);
+            correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken);
 
         await handler.Handle(ctx, avro);
 
@@ -55,7 +55,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using (new AssertionScope())
         {
             var saved = await db.Orders.AsNoTracking()
-                .FirstAsync(o => o.CorrelationId == avro.CorrelationId, TestContext.Current.CancellationToken);
+                .FirstAsync(o => o.CorrelationId == avro.OrderId, TestContext.Current.CancellationToken);
             saved.Id.Should().Be(avro.OrderId,
                 "the client-assigned OrderId (ADR-0029) is persisted as the order's identity");
             saved.Status.Should().Be(OrderStatus.Created);
@@ -82,7 +82,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
             await handler.Handle(
-                FakeKafkaMessageContext.Create(correlationId: avro.CorrelationId, cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken),
                 avro);
         }
 
@@ -92,7 +92,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
             await handler.Handle(
-                FakeKafkaMessageContext.Create(correlationId: avro.CorrelationId, cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken),
                 avro);
         }
 
@@ -100,16 +100,16 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             // Handler short-circuits on the OrderId pre-check (the client-assigned PK, ADR-0029),
             // so the second dispatch does NOT raise the OrderCreatedDomainEvent again. Filter
-            // by CorrelationId for parallel-safety (other tests in the
+            // by OrderId for parallel-safety (other tests in the
             // collection share the singleton FakeOutboxWriter).
             fakeOutbox.GetMessages<AvroOrderCreatedEvent>()
-                .Where(m => m.IntegrationEvent.CorrelationId == avro.CorrelationId)
+                .Where(m => m.IntegrationEvent.OrderId == avro.OrderId)
                 .Should().HaveCount(1, "redelivery must short-circuit on the OrderId pre-check");
 
             using var verifyScope = _fixture.CreateScope();
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var orderCount = await db.Orders.AsNoTracking()
-                .CountAsync(o => o.CorrelationId == avro.CorrelationId, TestContext.Current.CancellationToken);
+                .CountAsync(o => o.CorrelationId == avro.OrderId, TestContext.Current.CancellationToken);
             orderCount.Should().Be(1);
         }
     }
@@ -134,7 +134,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
         var ctx = FakeKafkaMessageContext.Create(
-            correlationId: avro.CorrelationId, cancellationToken: TestContext.Current.CancellationToken);
+            correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken);
 
         // SagaCommandMappers.ResolveUniformCurrency throws
         // DataIntegrityException — bug-class, NOT wrapped by
@@ -152,11 +152,11 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             (await db.Orders.AsNoTracking()
-                .AnyAsync(o => o.CorrelationId == avro.CorrelationId, TestContext.Current.CancellationToken))
+                .AnyAsync(o => o.CorrelationId == avro.OrderId, TestContext.Current.CancellationToken))
                 .Should().BeFalse("multi-currency rejection must abort before persistence");
 
             fakeOutbox.GetMessages<AvroOrderCreatedEvent>()
-                .Where(m => m.IntegrationEvent.CorrelationId == avro.CorrelationId)
+                .Where(m => m.IntegrationEvent.OrderId == avro.OrderId)
                 .Should().BeEmpty();
         }
     }
@@ -170,7 +170,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
         var ctx = FakeKafkaMessageContext.Create(
-            correlationId: avro.CorrelationId, cancellationToken: TestContext.Current.CancellationToken);
+            correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken);
 
         // CreateOrderCommandValidator's "Items.NotEmpty" rule fails inside
         // the ValidationBehavior, which translates into Result.Fail. The
@@ -185,7 +185,6 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         // OrderId deliberately distinct from CorrelationId so HappyPath can prove
         // the client-assigned id (ADR-0029) flows into the persisted PK.
         OrderId = Guid.CreateVersion7(),
-        CorrelationId = Guid.CreateVersion7(),
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),
         Items = new List<AvroCreateOrderItem>

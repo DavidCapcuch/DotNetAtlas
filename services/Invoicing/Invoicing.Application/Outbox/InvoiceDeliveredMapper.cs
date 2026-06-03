@@ -18,7 +18,6 @@ public static partial class InvoiceDeliveredMapper
             BuyerId = source.BuyerId,
             DeliveredAtUtc = source.DeliveredAtUtc.UtcDateTime,
             Channel = source.Channel.Name,
-            CorrelationId = source.CorrelationId,
             OccurredOnUtc = source.OccurredOnUtc.UtcDateTime,
         };
 }

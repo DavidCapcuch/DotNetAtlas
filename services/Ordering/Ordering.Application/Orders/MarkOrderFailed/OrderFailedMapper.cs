@@ -18,7 +18,6 @@ internal static class OrderFailedMapper
         new()
         {
             OrderId = source.OrderId,
-            CorrelationId = source.CorrelationId,
             BuyerId = source.BuyerId,
             ErrorCode = source.ErrorCode,
             ErrorMessage = source.ErrorMessage,

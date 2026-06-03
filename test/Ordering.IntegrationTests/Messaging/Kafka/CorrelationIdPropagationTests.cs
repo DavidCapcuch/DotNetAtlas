@@ -13,15 +13,14 @@ using AvroOrderCreatedEvent = Ordering.Orders.OrderCreatedEvent;
 namespace Ordering.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// Pins the ADR-0008 / DoD line 121 chain: a saga-issued
-/// <c>CreateOrderCommand</c> with a specific <c>CorrelationId</c> must
-/// land in the <c>ordering.orders.correlation_id</c> column AND in the
-/// emitted external <c>OrderCreatedEvent.CorrelationId</c>. Tests invoke
+/// Pins the correlation-id persistence chain: the Kafka <c>correlation-id</c>
+/// header on a saga-issued <c>CreateOrderCommand</c> must land in the
+/// <c>ordering.orders.correlation_id</c> column. Tests invoke
 /// <see cref="CreateOrderCommandKafkaHandler"/> directly (no KafkaFlow
-/// middleware pipeline); per ADR-0008 the canonical source is the Kafka
-/// <c>correlation-id</c> header, which the synthetic context populates
-/// with the same value as the Avro payload so the propagation chain is
-/// observable end-to-end.
+/// middleware pipeline); the header is the canonical source. Post-ADR-0030 the
+/// dedicated correlation id is no longer carried on the Avro payload or the
+/// emitted <c>OrderCreatedEvent</c>; the durable cross-BC key on events is
+/// <c>OrderId</c> (ADR-0029).
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class CorrelationIdPropagationTests
@@ -34,7 +33,7 @@ public sealed class CorrelationIdPropagationTests
     }
 
     [Fact]
-    public async Task CorrelationIdFlowsFromAvroPayloadIntoDbColumnAndEmittedEvent()
+    public async Task HeaderCorrelationIdLandsInOrderCorrelationIdColumn()
     {
         var correlationId = Guid.CreateVersion7();
         var fakeOutbox = _fixture.GetFakeOutbox();
@@ -43,7 +42,6 @@ public sealed class CorrelationIdPropagationTests
         var avro = new AvroCreateOrderCommand
         {
             OrderId = correlationId,
-            CorrelationId = correlationId,
             BuyerId = Guid.CreateVersion7(),
             PaymentMethodId = Guid.CreateVersion7(),
             Items = new List<AvroCreateOrderItem>
@@ -80,12 +78,11 @@ public sealed class CorrelationIdPropagationTests
             var saved = await db.Orders.AsNoTracking()
                 .FirstAsync(o => o.CorrelationId == correlationId, TestContext.Current.CancellationToken);
             saved.CorrelationId.Should().Be(correlationId,
-                "the order's correlation_id column must mirror the Avro payload");
+                "the order's correlation_id column must mirror the Kafka correlation-id header");
 
-            var emitted = fakeOutbox.GetMessages<AvroOrderCreatedEvent>()
-                .Should().ContainSingle(m => m.IntegrationEvent.OrderId == saved.Id).Subject;
-            emitted.IntegrationEvent.CorrelationId.Should().Be(correlationId,
-                "the emitted external event must carry the same CorrelationId end-to-end");
+            fakeOutbox.GetMessages<AvroOrderCreatedEvent>()
+                .Should().ContainSingle(m => m.IntegrationEvent.OrderId == saved.Id,
+                    "the handler must emit exactly one OrderCreatedEvent for the created order");
         }
     }
 

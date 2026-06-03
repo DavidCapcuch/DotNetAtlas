@@ -336,7 +336,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         await KafkaTestProducer.ProduceAsync(TopicsOptions.BasketSessions, userId, basketCheckoutInitiated);
         await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingOrderCreation, DefaultTimeout);
 
-        var orderCreated = CreateOrderCreatedEvent(correlationId, userId, orderId);
+        var orderCreated = CreateOrderCreatedEvent(userId, orderId);
         await KafkaTestProducer.ProduceAsync(TopicsOptions.OrderingOrders, orderId, orderCreated);
 
         return await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingStockReservation, DefaultTimeout);
@@ -440,18 +440,16 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
 
     /// <summary>
     /// Builds a synthetic <see cref="OrderCreatedEvent"/> for the saga's <see cref="OrderCreatedConsumer"/>
-    /// to consume. The consumer only reads <c>OrderId</c>, <c>CorrelationId</c>, and <c>CreatedAtUtc</c>;
+    /// to consume. The consumer only reads <c>OrderId</c> and <c>CreatedAtUtc</c>;
     /// remaining fields are populated solely to satisfy the Avro schema.
     /// </summary>
     private static OrderCreatedEvent CreateOrderCreatedEvent(
-        Guid correlationId,
         Guid buyerId,
         Guid orderId)
     {
         return new OrderCreatedEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             Items = new List<OrderItemCreated>(),
             TotalAmount = 0m.ToAvroDecimal(4),

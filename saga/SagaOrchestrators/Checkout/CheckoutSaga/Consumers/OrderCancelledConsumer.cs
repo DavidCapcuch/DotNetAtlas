@@ -25,9 +25,9 @@ public sealed class OrderCancelledConsumer : IConsumer<OrderCancelledEvent>
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, order {OrderId}",
+            "{ConsumerType} received {EventType} for order {OrderId}",
             nameof(OrderCancelledConsumer), nameof(OrderCancelledEvent),
-            message.CorrelationId, message.OrderId);
+            message.OrderId);
 
         await context.Publish(new OrderCancelledSagaEvent
         {

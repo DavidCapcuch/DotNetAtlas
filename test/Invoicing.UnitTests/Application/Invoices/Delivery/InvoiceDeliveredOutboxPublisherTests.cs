@@ -65,7 +65,6 @@ public sealed class InvoiceDeliveredOutboxPublisherTests
                 e.BuyerId == buyerId &&
                 e.DeliveredAtUtc == deliveredAtUtc.UtcDateTime &&
                 e.Channel == DeliveryChannel.Email.Name &&
-                e.CorrelationId == correlationId &&
                 e.OccurredOnUtc == occurredOnUtc.UtcDateTime));
     }
 }

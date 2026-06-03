@@ -19,11 +19,7 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentFailedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentFailedEvent"",""doc"":""Event emitted by Payment Saga when payment processing fails terminally (after retries exhausted or non-retryable error). Business sagas listen to this to handle failure."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID shared with the business saga that initiated the payment."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""OrderId"",""doc"":""Order this payment is for; the Checkout saga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Error code from the payment provider (e.g., 'INSUFFICIENT_FUNDS', 'CARD_DECLINED', 'FRAUD_SUSPECTED')."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when payment failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
-		/// <summary>
-		/// Correlation ID shared with the business saga that initiated the payment.
-		/// </summary>
-		private System.Guid _CorrelationId;
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentFailedEvent"",""doc"":""Event emitted by Payment Saga when payment processing fails terminally (after retries exhausted or non-retryable error). Business sagas listen to this to handle failure."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""OrderId"",""doc"":""Order this payment is for; the Checkout saga correlation key (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment failed."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ErrorCode"",""doc"":""Error code from the payment provider (e.g., 'INSUFFICIENT_FUNDS', 'CARD_DECLINED', 'FRAUD_SUSPECTED')."",""type"":""string""},{""name"":""ErrorMessage"",""doc"":""Human-readable error message."",""type"":""string""},{""name"":""FailedAtUtc"",""doc"":""UTC timestamp when payment failed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Order this payment is for; the Checkout saga correlation key (ADR-0029).
 		/// </summary>
@@ -49,20 +45,6 @@ namespace Payments.Transactions
 			get
 			{
 				return PaymentFailedEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Correlation ID shared with the business saga that initiated the payment.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -139,12 +121,11 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.OrderId;
-			case 2: return this.UserId;
-			case 3: return this.ErrorCode;
-			case 4: return this.ErrorMessage;
-			case 5: return this.FailedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.ErrorCode;
+			case 3: return this.ErrorMessage;
+			case 4: return this.FailedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -152,12 +133,11 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.OrderId = (System.Guid)fieldValue; break;
-			case 2: this.UserId = (System.Guid)fieldValue; break;
-			case 3: this.ErrorCode = (System.String)fieldValue; break;
-			case 4: this.ErrorMessage = (System.String)fieldValue; break;
-			case 5: this.FailedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.ErrorCode = (System.String)fieldValue; break;
+			case 3: this.ErrorMessage = (System.String)fieldValue; break;
+			case 4: this.FailedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

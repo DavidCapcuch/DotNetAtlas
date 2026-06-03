@@ -50,7 +50,6 @@ internal class PublishPaymentAuthorizationFailedEventEndpoint : Endpoint<Publish
     {
         var paymentAuthorizationFailedEvent = new PaymentAuthorizationFailedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             ErrorCode = req.ErrorCode,
             ErrorMessage = req.ErrorMessage,

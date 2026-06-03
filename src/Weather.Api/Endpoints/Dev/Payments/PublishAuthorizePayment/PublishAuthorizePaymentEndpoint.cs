@@ -54,7 +54,6 @@ internal class PublishAuthorizePaymentEndpoint : Endpoint<PublishAuthorizePaymen
     {
         var authorizePaymentCommand = new AuthorizePaymentCommand
         {
-            CorrelationId = req.CorrelationId,
             OrderId = req.OrderId,
             UserId = req.UserId,
             PaymentMethodId = req.PaymentMethodId,

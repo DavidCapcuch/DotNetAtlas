@@ -139,7 +139,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Act - Capture the payment
         var capturedEvent = new PaymentCapturedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             PaymentTransactionId = sagaMintedPaymentTransactionId,
@@ -242,7 +241,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Step 2: Authorize payment → AwaitingCaptureApproval (no capture yet)
         var authorizedEvent = new PaymentAuthorizedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             AuthorizationId = authorizationId,
@@ -277,7 +275,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         var sagaMintedPaymentTransactionId = stateAfterAuthorization!.PaymentTransactionId!.Value;
         var capturedEvent = new PaymentCapturedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             PaymentTransactionId = sagaMintedPaymentTransactionId,
@@ -322,7 +319,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Act - Send non-retryable authorization failure
         var authFailedEvent = new PaymentAuthorizationFailedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             ErrorCode = "CARD_DECLINED",
@@ -386,7 +382,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Act - Send non-retryable capture failure
         var captureFailedEvent = new PaymentCaptureFailedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             AuthorizationId = authorizationId,
@@ -435,7 +430,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         // Act - Complete the void
         var voidedEvent = new PaymentVoidedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             AuthorizationId = authorizationId,
@@ -580,7 +574,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         return new RequestPaymentCommand
         {
             // ADR-0029: CorrelationId == OrderId — the saga is keyed on OrderId.
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             // C-2 closeout: Payments wire shape is string. Default to a Stripe-style token.
@@ -594,7 +587,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
     private ApproveCaptureCommand CreateApproveCaptureCommand(Guid orderId, Guid userId) => new()
     {
-        CorrelationId = orderId,
         OrderId = orderId,
         UserId = userId,
         RequestedAtUtc = TimeProvider.GetUtcNow().UtcDateTime
@@ -602,7 +594,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
     private AbortCaptureCommand CreateAbortCaptureCommand(Guid orderId, Guid userId, string reason) => new()
     {
-        CorrelationId = orderId,
         OrderId = orderId,
         UserId = userId,
         Reason = reason,
@@ -628,7 +619,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         var authorizedEvent = new PaymentAuthorizedEvent
         {
-            CorrelationId = orderId,
             OrderId = orderId,
             UserId = userId,
             AuthorizationId = authorizationId,

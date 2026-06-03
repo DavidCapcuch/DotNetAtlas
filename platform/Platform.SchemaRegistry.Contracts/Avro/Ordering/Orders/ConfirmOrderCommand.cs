@@ -19,15 +19,11 @@ namespace Ordering.Orders
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class ConfirmOrderCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ConfirmOrderCommand"",""doc"":""Command issued by the Checkout saga to confirm an Order after stock reservation and payment have both succeeded. Ordering transitions PaymentCompleted -> Confirmed and emits OrderConfirmedEvent."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order to confirm. Also the Kafka message key."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""CorrelationId"",""doc"":""Checkout saga correlation id."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the saga issued the command."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ConfirmOrderCommand"",""doc"":""Command issued by the Checkout saga to confirm an Order after stock reservation and payment have both succeeded. Ordering transitions PaymentCompleted -> Confirmed and emits OrderConfirmedEvent."",""namespace"":""Ordering.Orders"",""fields"":[{""name"":""OrderId"",""doc"":""Unique identifier of the Order to confirm. Also the Kafka message key."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the saga issued the command."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// Unique identifier of the Order to confirm. Also the Kafka message key.
 		/// </summary>
 		private System.Guid _OrderId;
-		/// <summary>
-		/// Checkout saga correlation id.
-		/// </summary>
-		private System.Guid _CorrelationId;
 		/// <summary>
 		/// UTC timestamp when the saga issued the command.
 		/// </summary>
@@ -54,20 +50,6 @@ namespace Ordering.Orders
 			}
 		}
 		/// <summary>
-		/// Checkout saga correlation id.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
-			}
-		}
-		/// <summary>
 		/// UTC timestamp when the saga issued the command.
 		/// </summary>
 		public System.DateTime RequestedAtUtc
@@ -86,8 +68,7 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: return this.OrderId;
-			case 1: return this.CorrelationId;
-			case 2: return this.RequestedAtUtc;
+			case 1: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -96,8 +77,7 @@ namespace Ordering.Orders
 			switch (fieldPos)
 			{
 			case 0: this.OrderId = (System.Guid)fieldValue; break;
-			case 1: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 2: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 1: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

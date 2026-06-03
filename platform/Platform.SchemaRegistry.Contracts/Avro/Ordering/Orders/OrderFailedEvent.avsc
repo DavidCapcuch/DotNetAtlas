@@ -13,14 +13,6 @@
             "doc": "Unique identifier of the Order that failed."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
             "name": "BuyerId",
             "type": {
                 "type": "string",

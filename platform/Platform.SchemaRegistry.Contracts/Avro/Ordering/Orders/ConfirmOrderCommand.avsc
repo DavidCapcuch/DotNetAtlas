@@ -13,14 +13,6 @@
             "doc": "Unique identifier of the Order to confirm. Also the Kafka message key."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id."
-        },
-        {
             "name": "RequestedAtUtc",
             "type": {
                 "type": "long",

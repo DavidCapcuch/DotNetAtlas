@@ -32,7 +32,6 @@ public class OrderCancelledConsumerTests
             var avro = new OrderCancelledEvent
             {
                 OrderId = orderId,
-                CorrelationId = correlationId,
                 BuyerId = Guid.CreateVersion7(),
                 CancelledAtUtc = cancelledAt
             };

@@ -13,14 +13,6 @@
             "doc": "Unique identifier of the Order to cancel. Also the Kafka message key."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Present for admin-driven cancellations too (null-sentinel omitted for v1)."
-        },
-        {
             "name": "Reason",
             "type": "string",
             "doc": "Human- or system-assigned cancellation reason (max 500 chars). Propagates to OrderCancelledEvent.Reason."

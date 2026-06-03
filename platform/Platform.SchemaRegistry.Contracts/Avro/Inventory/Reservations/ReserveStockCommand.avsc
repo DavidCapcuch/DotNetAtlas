@@ -5,14 +5,6 @@
     "doc": "Command issued by the Checkout saga to reserve N units of one product for an order. The saga issues one command per line item; Inventory responds asynchronously with StockReservedEvent on success or StockReservationFailedEvent on failure.",
     "fields": [
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Also the Kafka message key."
-        },
-        {
             "name": "OrderId",
             "type": {
                 "type": "string",

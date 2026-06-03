@@ -2,16 +2,8 @@
     "type": "record",
     "name": "ApproveCaptureCommand",
     "namespace": "Payments.Transactions",
-    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) authorising capture of a previously-authorized payment, sent once the Checkout saga has confirmed stock + order (ADR-0026 capture-at-the-pivot). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues CapturePaymentCommand to the Payments service. Correlated by CorrelationId; the sub-saga already holds AuthorizationId / Amount / UserId in its persisted state, so the command carries only the correlation + audit fields.",
+    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) authorising capture of a previously-authorized payment, sent once the Checkout saga has confirmed stock + order (ADR-0026 capture-at-the-pivot). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues CapturePaymentCommand to the Payments service. Correlated by OrderId per ADR-0029; the sub-saga already holds AuthorizationId / Amount / UserId in its persisted state, so the command carries only the correlation + audit fields.",
     "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."
-        },
         {
             "name": "OrderId",
             "type": {

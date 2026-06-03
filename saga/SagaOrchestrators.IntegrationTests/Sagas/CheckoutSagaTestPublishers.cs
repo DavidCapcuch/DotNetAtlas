@@ -61,18 +61,16 @@ internal static class CheckoutSagaTestPublishers
 
     /// <summary>
     /// Builds a synthetic <see cref="OrderCreatedEvent"/>. The saga's <c>OrderCreatedConsumer</c>
-    /// reads only <c>OrderId</c>, <c>CorrelationId</c>, and <c>CreatedAtUtc</c>; remaining fields
+    /// reads only <c>OrderId</c> and <c>CreatedAtUtc</c>; remaining fields
     /// are populated solely to satisfy the Avro schema.
     /// </summary>
     public static OrderCreatedEvent BuildOrderCreatedEvent(
-        Guid correlationId,
         Guid buyerId,
         Guid orderId)
     {
         return new OrderCreatedEvent
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             Items = new List<OrderItemCreated>(),
             TotalAmount = 0m.ToAvroDecimal(4),

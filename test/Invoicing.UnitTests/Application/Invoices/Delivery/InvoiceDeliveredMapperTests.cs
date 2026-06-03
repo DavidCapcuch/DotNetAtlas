@@ -38,7 +38,6 @@ public sealed class InvoiceDeliveredMapperTests
         avroEvent.BuyerId.Should().Be(buyerId);
         avroEvent.DeliveredAtUtc.Should().Be(deliveredAtUtc.UtcDateTime);
         avroEvent.Channel.Should().Be(DeliveryChannel.Email.Name);
-        avroEvent.CorrelationId.Should().Be(correlationId);
         avroEvent.OccurredOnUtc.Should().Be(occurredOnUtc.UtcDateTime);
     }
 }

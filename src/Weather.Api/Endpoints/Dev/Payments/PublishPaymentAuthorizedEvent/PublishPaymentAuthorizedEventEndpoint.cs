@@ -51,7 +51,6 @@ internal class PublishPaymentAuthorizedEventEndpoint : Endpoint<PublishPaymentAu
     {
         var paymentAuthorizedEvent = new PaymentAuthorizedEvent
         {
-            CorrelationId = req.CorrelationId,
             UserId = req.UserId,
             AuthorizationId = req.AuthorizationId,
             Amount = req.Amount.ToAvroDecimal(4),

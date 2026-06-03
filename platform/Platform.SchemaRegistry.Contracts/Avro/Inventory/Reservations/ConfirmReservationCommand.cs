@@ -7,67 +7,99 @@
 // ------------------------------------------------------------------------------
 namespace Inventory.Reservations
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using global::Avro;
-    using global::Avro.Specific;
-
-    /// <summary>
-    /// Command issued by the Checkout saga to confirm a reservation after payment has been captured. Inventory physically decrements OnHand by Quantity and emits ReservationConfirmedEvent. Idempotent on ReservationId.
-    /// </summary>
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
-    public partial class ConfirmReservationCommand : global::Avro.Specific.ISpecificRecord
-    {
-        public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(
-            "{\"type\":\"record\",\"name\":\"ConfirmReservationCommand\",\"doc\":\"Command issued by the" +
-            " Checkout saga to confirm a reservation after payment has been captured. Inven" +
-            "tory physically decrements OnHand by Quantity and emits ReservationConfirmedEv" +
-            "ent. Idempotent on ReservationId.\",\"namespace\":\"Inventory.Reservations\",\"field" +
-            "s\":[{\"name\":\"CorrelationId\",\"doc\":\"Checkout saga correlation id. Also the Kafk" +
-            "a message key.\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"Product" +
-            "Id\",\"doc\":\"Product whose reservation to confirm. Keys the event-sourced stream" +
-            ".\",\"type\":{\"type\":\"string\",\"logicalType\":\"uuid\"}},{\"name\":\"ReservationId\",\"doc" +
-            "\":\"Reservation to confirm. Must refer to an Active reservation; confirming a n" +
-            "on-Active reservation is a bug (DataIntegrityException).\",\"type\":{\"type\":\"stri" +
-            "ng\",\"logicalType\":\"uuid\"}},{\"name\":\"RequestedAtUtc\",\"doc\":\"UTC timestamp when t" +
-            "he saga issued the command.\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-mil" +
-            "lis\"}}]}");
-
-        private System.Guid _CorrelationId;
-        private System.Guid _ProductId;
-        private System.Guid _ReservationId;
-        private System.DateTime _RequestedAtUtc;
-
-        public virtual global::Avro.Schema Schema => ConfirmReservationCommand._SCHEMA;
-
-        public System.Guid CorrelationId { get => this._CorrelationId; set => this._CorrelationId = value; }
-        public System.Guid ProductId { get => this._ProductId; set => this._ProductId = value; }
-        public System.Guid ReservationId { get => this._ReservationId; set => this._ReservationId = value; }
-        public System.DateTime RequestedAtUtc { get => this._RequestedAtUtc; set => this._RequestedAtUtc = value; }
-
-        public virtual object Get(int fieldPos)
-        {
-            switch (fieldPos)
-            {
-            case 0: return this.CorrelationId;
-            case 1: return this.ProductId;
-            case 2: return this.ReservationId;
-            case 3: return this.RequestedAtUtc;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
-            }
-        }
-
-        public virtual void Put(int fieldPos, object fieldValue)
-        {
-            switch (fieldPos)
-            {
-            case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-            case 1: this.ProductId = (System.Guid)fieldValue; break;
-            case 2: this.ReservationId = (System.Guid)fieldValue; break;
-            case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
-            default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
-            }
-        }
-    }
+	using System;
+	using System.Collections.Generic;
+	using System.Text;
+	using global::Avro;
+	using global::Avro.Specific;
+	
+	/// <summary>
+	/// Command issued by the Checkout saga to confirm a reservation after payment has been captured. Inventory physically decrements OnHand by Quantity and emits ReservationConfirmedEvent. Idempotent on ReservationId.
+	/// </summary>
+	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
+	public partial class ConfirmReservationCommand : global::Avro.Specific.ISpecificRecord
+	{
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""ConfirmReservationCommand"",""doc"":""Command issued by the Checkout saga to confirm a reservation after payment has been captured. Inventory physically decrements OnHand by Quantity and emits ReservationConfirmedEvent. Idempotent on ReservationId."",""namespace"":""Inventory.Reservations"",""fields"":[{""name"":""ProductId"",""doc"":""Product whose reservation to confirm. Keys the event-sourced stream."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""ReservationId"",""doc"":""Reservation to confirm. Must refer to an Active reservation; confirming a non-Active reservation is a bug (DataIntegrityException)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when the saga issued the command."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		/// <summary>
+		/// Product whose reservation to confirm. Keys the event-sourced stream.
+		/// </summary>
+		private System.Guid _ProductId;
+		/// <summary>
+		/// Reservation to confirm. Must refer to an Active reservation; confirming a non-Active reservation is a bug (DataIntegrityException).
+		/// </summary>
+		private System.Guid _ReservationId;
+		/// <summary>
+		/// UTC timestamp when the saga issued the command.
+		/// </summary>
+		private System.DateTime _RequestedAtUtc;
+		public virtual global::Avro.Schema Schema
+		{
+			get
+			{
+				return ConfirmReservationCommand._SCHEMA;
+			}
+		}
+		/// <summary>
+		/// Product whose reservation to confirm. Keys the event-sourced stream.
+		/// </summary>
+		public System.Guid ProductId
+		{
+			get
+			{
+				return this._ProductId;
+			}
+			set
+			{
+				this._ProductId = value;
+			}
+		}
+		/// <summary>
+		/// Reservation to confirm. Must refer to an Active reservation; confirming a non-Active reservation is a bug (DataIntegrityException).
+		/// </summary>
+		public System.Guid ReservationId
+		{
+			get
+			{
+				return this._ReservationId;
+			}
+			set
+			{
+				this._ReservationId = value;
+			}
+		}
+		/// <summary>
+		/// UTC timestamp when the saga issued the command.
+		/// </summary>
+		public System.DateTime RequestedAtUtc
+		{
+			get
+			{
+				return this._RequestedAtUtc;
+			}
+			set
+			{
+				this._RequestedAtUtc = value;
+			}
+		}
+		public virtual object Get(int fieldPos)
+		{
+			switch (fieldPos)
+			{
+			case 0: return this.ProductId;
+			case 1: return this.ReservationId;
+			case 2: return this.RequestedAtUtc;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
+			};
+		}
+		public virtual void Put(int fieldPos, object fieldValue)
+		{
+			switch (fieldPos)
+			{
+			case 0: this.ProductId = (System.Guid)fieldValue; break;
+			case 1: this.ReservationId = (System.Guid)fieldValue; break;
+			case 2: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
+			};
+		}
+	}
 }

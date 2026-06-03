@@ -19,11 +19,7 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class PaymentRefundedEvent : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRefundedEvent"",""doc"":""Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""CorrelationId"",""doc"":""Correlation ID for tracking the payment workflow."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User who received the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Original payment transaction ID that was refunded."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundTransactionId"",""doc"":""New transaction ID for the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundedAmount"",""doc"":""Amount refunded."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""RefundedAtUtc"",""doc"":""UTC timestamp when refund was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
-		/// <summary>
-		/// Correlation ID for tracking the payment workflow.
-		/// </summary>
-		private System.Guid _CorrelationId;
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""PaymentRefundedEvent"",""doc"":""Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""UserId"",""doc"":""User who received the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""PaymentTransactionId"",""doc"":""Original payment transaction ID that was refunded."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundTransactionId"",""doc"":""New transaction ID for the refund."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""RefundedAmount"",""doc"":""Amount refunded."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""Currency"",""doc"":""ISO 4217 currency code."",""type"":""string""},{""name"":""RefundedAtUtc"",""doc"":""UTC timestamp when refund was completed."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
 		/// <summary>
 		/// User who received the refund.
 		/// </summary>
@@ -53,20 +49,6 @@ namespace Payments.Transactions
 			get
 			{
 				return PaymentRefundedEvent._SCHEMA;
-			}
-		}
-		/// <summary>
-		/// Correlation ID for tracking the payment workflow.
-		/// </summary>
-		public System.Guid CorrelationId
-		{
-			get
-			{
-				return this._CorrelationId;
-			}
-			set
-			{
-				this._CorrelationId = value;
 			}
 		}
 		/// <summary>
@@ -157,13 +139,12 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.CorrelationId;
-			case 1: return this.UserId;
-			case 2: return this.PaymentTransactionId;
-			case 3: return this.RefundTransactionId;
-			case 4: return this.RefundedAmount;
-			case 5: return this.Currency;
-			case 6: return this.RefundedAtUtc;
+			case 0: return this.UserId;
+			case 1: return this.PaymentTransactionId;
+			case 2: return this.RefundTransactionId;
+			case 3: return this.RefundedAmount;
+			case 4: return this.Currency;
+			case 5: return this.RefundedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -171,13 +152,12 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.CorrelationId = (System.Guid)fieldValue; break;
-			case 1: this.UserId = (System.Guid)fieldValue; break;
-			case 2: this.PaymentTransactionId = (System.Guid)fieldValue; break;
-			case 3: this.RefundTransactionId = (System.Guid)fieldValue; break;
-			case 4: this.RefundedAmount = (Avro.AvroDecimal)fieldValue; break;
-			case 5: this.Currency = (System.String)fieldValue; break;
-			case 6: this.RefundedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.UserId = (System.Guid)fieldValue; break;
+			case 1: this.PaymentTransactionId = (System.Guid)fieldValue; break;
+			case 2: this.RefundTransactionId = (System.Guid)fieldValue; break;
+			case 3: this.RefundedAmount = (Avro.AvroDecimal)fieldValue; break;
+			case 4: this.Currency = (System.String)fieldValue; break;
+			case 5: this.RefundedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

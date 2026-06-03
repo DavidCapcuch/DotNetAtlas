@@ -13,14 +13,6 @@
             "doc": "Unique identifier of the Order that was cancelled."
         },
         {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Checkout saga correlation id. Used by the saga to correlate compensation flows."
-        },
-        {
             "name": "BuyerId",
             "type": {
                 "type": "string",

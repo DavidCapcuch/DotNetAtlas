@@ -113,7 +113,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new AuthorizePaymentCommand
                     {
-                        CorrelationId = ctx.Saga.CorrelationId,
                         PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
                         OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
@@ -172,7 +171,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new AuthorizePaymentCommand
                             {
-                                CorrelationId = ctx.Saga.CorrelationId,
                                 // Reuse the PaymentTransactionId minted at initial state — the
                                 // Payments aggregate identifies the same row across retries
                                 // (one-payment-per-saga; idempotent re-authorize).
@@ -222,7 +220,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new CapturePaymentCommand
                     {
-                        CorrelationId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -247,7 +244,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
-                        CorrelationId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = ctx.Message.Reason,
@@ -272,7 +268,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
-                        CorrelationId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = "Capture approval timeout expired",
@@ -335,7 +330,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new CapturePaymentCommand
                             {
-                                CorrelationId = ctx.Saga.CorrelationId,
                                 UserId = ctx.Saga.UserId,
                                 AuthorizationId = ctx.Saga.AuthorizationId!,
                                 Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -355,7 +349,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new VoidPaymentCommand
                             {
-                                CorrelationId = ctx.Saga.CorrelationId,
                                 UserId = ctx.Saga.UserId,
                                 AuthorizationId = ctx.Saga.AuthorizationId!,
                                 Reason = $"Capture failed: {ctx.Message.ErrorMessage}",
@@ -380,7 +373,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
-                        CorrelationId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = "Capture timeout expired",

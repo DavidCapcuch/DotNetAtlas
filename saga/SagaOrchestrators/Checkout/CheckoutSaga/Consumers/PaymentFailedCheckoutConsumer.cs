@@ -26,9 +26,9 @@ public sealed class PaymentFailedCheckoutConsumer : IConsumer<PaymentFailedEvent
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, error {ErrorCode}",
+            "{ConsumerType} received {EventType} for order {OrderId}, error {ErrorCode}",
             nameof(PaymentFailedCheckoutConsumer), nameof(PaymentFailedEvent),
-            message.CorrelationId, message.ErrorCode);
+            message.OrderId, message.ErrorCode);
 
         await context.Publish(new PaymentFailedSagaEvent
         {

@@ -33,7 +33,6 @@ public class OrderCreatedConsumerTests
             var avro = new OrderCreatedEvent
             {
                 OrderId = orderId,
-                CorrelationId = correlationId,
                 BuyerId = Guid.CreateVersion7(),
                 Items = [],
                 TotalAmount = new Avro.AvroDecimal(100m),

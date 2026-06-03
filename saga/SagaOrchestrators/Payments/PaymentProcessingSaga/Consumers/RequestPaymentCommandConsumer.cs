@@ -27,9 +27,9 @@ public sealed class RequestPaymentCommandConsumer : IConsumer<RequestPaymentComm
         var message = context.Message;
 
         _logger.LogInformation(
-            "{ConsumerType} received {EventType} for user {UserId}, order {OrderId}, correlation {CorrelationId}, amount {Amount} {Currency}",
+            "{ConsumerType} received {EventType} for user {UserId}, order {OrderId}, amount {Amount} {Currency}",
             nameof(RequestPaymentCommandConsumer), nameof(RequestPaymentCommand),
-            message.UserId, message.OrderId, message.CorrelationId, message.Amount, message.Currency);
+            message.UserId, message.OrderId, message.Amount, message.Currency);
 
         var paymentInitiatedSagaEvent = new PaymentInitiatedSagaEvent
         {

@@ -27,7 +27,6 @@ public class PaymentAuthorizedCheckoutConsumerTests
 
         var avro = new PaymentAuthorizedEvent
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             AuthorizationId = authorizationId,

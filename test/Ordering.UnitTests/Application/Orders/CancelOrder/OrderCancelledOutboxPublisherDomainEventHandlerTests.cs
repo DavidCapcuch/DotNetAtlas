@@ -51,7 +51,6 @@ public class OrderCancelledOutboxPublisherDomainEventHandlerTests : HandlerTestB
         var avro = (OrderCancelledEvent)call.GetArguments()[2]!;
 
         avro.OrderId.Should().Be(order.Id);
-        avro.CorrelationId.Should().Be(order.CorrelationId);
         avro.BuyerId.Should().Be(order.BuyerId);
         avro.Reason.Should().Be("Customer requested");
         avro.AtStatus.Should().Be(OrderStatusAtTransition.Confirmed);

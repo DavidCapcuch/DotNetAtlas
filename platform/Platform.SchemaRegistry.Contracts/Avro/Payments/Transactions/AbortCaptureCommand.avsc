@@ -2,16 +2,8 @@
     "type": "record",
     "name": "AbortCaptureCommand",
     "namespace": "Payments.Transactions",
-    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) aborting a previously-authorized payment because the Checkout saga's confirmation step (stock + order) failed (ADR-0026). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues VoidPaymentCommand to the Payments service — a free pre-capture void, never a refund. Correlated by CorrelationId.",
+    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) aborting a previously-authorized payment because the Checkout saga's confirmation step (stock + order) failed (ADR-0026). On receipt the sub-saga leaves its AwaitingCaptureApproval wait-state and issues VoidPaymentCommand to the Payments service — a free pre-capture void, never a refund. Correlated by OrderId per ADR-0029.",
     "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Correlation ID shared across the entire business flow (checkout -> order -> payment). Also the Kafka message key for payments.payment-commands partitioning."
-        },
         {
             "name": "OrderId",
             "type": {

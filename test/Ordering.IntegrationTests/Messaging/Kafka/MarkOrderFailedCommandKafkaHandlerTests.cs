@@ -49,7 +49,6 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
         var avro = new AvroMarkOrderFailedCommand
         {
             OrderId = orderId,
-            CorrelationId = Guid.CreateVersion7(),
             ErrorCode = "STOCK_UNAVAILABLE",
             ErrorMessage = "Stock unavailable for one or more items.",
             RequestedAtUtc = DateTime.UtcNow,
@@ -101,7 +100,6 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
         var avro = new AvroMarkOrderFailedCommand
         {
             OrderId = orderId,
-            CorrelationId = Guid.CreateVersion7(),
             ErrorCode = "CONFIRMATION_TIMEOUT",
             ErrorMessage = "Should not happen post-Confirmed.",
             RequestedAtUtc = DateTime.UtcNow,

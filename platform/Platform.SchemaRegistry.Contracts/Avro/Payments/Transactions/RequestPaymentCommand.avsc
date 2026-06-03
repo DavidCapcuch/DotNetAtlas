@@ -2,24 +2,15 @@
     "type": "record",
     "name": "RequestPaymentCommand",
     "namespace": "Payments.Transactions",
-    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a payment through authorize → capture for the supplied order. The Checkout saga's state machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (correlated by CorrelationId) to advance. Renamed from PaymentRequestedEvent and moved to payments.payment-commands per ADR-0023; the wire shape is identical.",
+    "doc": "Imperative command from the Checkout saga to PaymentProcessingSaga (the sub-saga) asking it to drive a payment through authorize → capture for the supplied order. The Checkout saga's state machine awaits the matching PaymentCompletedEvent or PaymentFailedEvent (correlated by OrderId per ADR-0029) to advance. Renamed from PaymentRequestedEvent and moved to payments.payment-commands per ADR-0023; the wire shape is identical.",
     "fields": [
-        {
-            "name": "CorrelationId",
-            "type": {
-                "type": "string",
-                "logicalType": "uuid"
-            },
-            "doc": "Correlation ID shared across the entire business flow (e.g., checkout → order → payment → invoice). Also the Kafka message key for payments.payment-commands partitioning."
-        },
         {
             "name": "OrderId",
             "type": {
                 "type": "string",
                 "logicalType": "uuid"
             },
-            "default": "00000000-0000-0000-0000-000000000000",
-            "doc": "Ordering aggregate id this payment is attached to. Persisted on the Payments-side aggregate as a debugging/admin-lookup convenience; downstream Payments events drop it (cross-BC linkage stays CorrelationId)."
+            "doc": "Ordering aggregate id this payment is attached to. The durable cross-BC business key, carried through to the Payments aggregate and its downstream events (ADR-0029)."
         },
         {
             "name": "UserId",

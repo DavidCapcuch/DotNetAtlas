@@ -23,9 +23,9 @@ public sealed class PaymentCaptureFailedConsumer : IConsumer<PaymentCaptureFaile
         var message = context.Message;
 
         _logger.LogWarning(
-            "{ConsumerType} received {EventType} for correlation {CorrelationId}, error {ErrorCode}: {ErrorMessage}",
+            "{ConsumerType} received {EventType} for order {OrderId}, error {ErrorCode}: {ErrorMessage}",
             nameof(PaymentCaptureFailedConsumer), nameof(PaymentCaptureFailedEvent),
-            message.CorrelationId, message.ErrorCode, message.ErrorMessage);
+            message.OrderId, message.ErrorCode, message.ErrorMessage);
 
         var paymentCaptureFailedSagaEvent = new PaymentCaptureFailedSagaEvent
         {
