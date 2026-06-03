@@ -47,7 +47,7 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                     compensation_started_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true, comment: "UTC timestamp at first transition into any Compensating* state."),
                     compensation_completed_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true, comment: "UTC timestamp at transition into Compensated."),
                     compensation_triggered = table.Column<bool>(type: "boolean", nullable: false, comment: "Set true on the first Compensating* transition."),
-                    error_code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true, comment: "Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED)."),
+                    error_code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, comment: "Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED)."),
                     error_message = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true, comment: "Human-readable failure message."),
                     failed_at_state = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true, comment: "Name of the state when failure first occurred. Aids ops forensics."),
                     order_creation_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for the order-creation timeout scheduler - set when schedule is active."),
@@ -108,16 +108,15 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                     captured_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true, comment: "UTC timestamp when capture completed"),
                     authorization_retry_count = table.Column<int>(type: "integer", nullable: false, defaultValue: 0, comment: "Number of authorization retry attempts"),
                     capture_retry_count = table.Column<int>(type: "integer", nullable: false, defaultValue: 0, comment: "Number of capture retry attempts"),
-                    error_code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true, comment: "Error code for categorized failure handling"),
+                    error_code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, comment: "Error code for categorized failure handling"),
                     error_message = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true, comment: "Error message if failed"),
                     compensation_triggered = table.Column<bool>(type: "boolean", nullable: false, comment: "Whether compensation has been triggered"),
                     compensation_completed_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true, comment: "UTC timestamp when compensation completed"),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false, comment: "Optimistic concurrency token."),
                     authorization_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for authorization timeout scheduler - set when schedule is active"),
+                    capture_approval_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for capture-approval wait-state timeout scheduler - set when schedule is active"),
                     capture_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for capture timeout scheduler - set when schedule is active"),
-                    void_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for void timeout scheduler - set when schedule is active"),
-                    refund_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for refund timeout scheduler - set when schedule is active"),
-                    success_finalization_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for success finalization timeout scheduler - set when schedule is active")
+                    void_timeout_token_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Token ID for void timeout scheduler - set when schedule is active")
                 },
                 constraints: table =>
                 {

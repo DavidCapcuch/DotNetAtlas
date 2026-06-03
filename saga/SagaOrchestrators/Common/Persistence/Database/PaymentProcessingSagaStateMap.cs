@@ -106,7 +106,12 @@ public sealed class PaymentProcessingSagaStateMap :
         // Error handling
         entity.Property(x => x.ErrorCode)
             .HasComment("Error code for categorized failure handling")
-            .HasMaxLength(64);
+            // 100: also persists provider/gateway codes FORWARDED verbatim from
+            // PaymentAuthorizationFailedEvent / PaymentCaptureFailedEvent (open vocabulary — see the
+            // `ctx.Saga.ErrorCode = ctx.Message.ErrorCode` assignments in PaymentProcessingSagaOrchestrator)
+            // alongside saga-owned timeout codes. Aligned with the cross-BC error-code cap
+            // (Ordering's FailureInfo.MaxErrorCodeLength = 100) so a forwarded code can never overflow.
+            .HasMaxLength(100);
 
         entity.Property(x => x.ErrorMessage)
             .HasComment("Error message if failed")

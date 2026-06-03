@@ -12,8 +12,8 @@ using SagaOrchestrators.Common.Persistence.Database;
 namespace SagaOrchestrators.Common.Persistence.Database.Migrations
 {
     [DbContext(typeof(SagaDbContext))]
-    [Migration("20260602093928_CapturePivotSagaCaptureApprovalTokens")]
-    partial class CapturePivotSagaCaptureApprovalTokens
+    [Migration("20260602215520_CreateSagaTables")]
+    partial class CreateSagaTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -143,8 +143,8 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                         .HasComment("Current state of the saga state machine.");
 
                     b.Property<string>("ErrorCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("error_code")
                         .HasComment("Categorised failure code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED).");
 
@@ -414,8 +414,8 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                         .HasComment("Current state of the saga state machine");
 
                     b.Property<string>("ErrorCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("error_code")
                         .HasComment("Error code for categorized failure handling");
 
