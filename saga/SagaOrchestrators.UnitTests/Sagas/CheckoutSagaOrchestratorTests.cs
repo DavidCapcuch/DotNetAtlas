@@ -146,7 +146,6 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             // ADR-0029 re-key invariant: the saga is keyed on the pre-assigned OrderId, so
             // CorrelationId == OrderId from the Initial transition.
             state.CorrelationId.Should().Be(correlationId);
-            state.OrderId.Should().Be(correlationId);
             state.UserId.Should().Be(userId);
             state.TotalAmount.Should().BeGreaterThan(0m);
             state.Currency.Should().Be("USD");
@@ -194,7 +193,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         using (new AssertionScope())
         {
             state.Should().NotBeNull();
-            state.OrderId.Should().Be(orderId);
+            state.CorrelationId.Should().Be(orderId);
             state.ExpectedReservations.Should().Be(3, "3 distinct ProductIds");
             state.PendingReservations.Should().Be(3);
             reserveCommands.Should().HaveCount(3);

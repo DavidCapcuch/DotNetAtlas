@@ -15,7 +15,7 @@ namespace Payments.Infrastructure.Persistence.Database;
 /// EF Core DbContext for the Payments bounded context. Implements the
 /// <see cref="IPaymentsDbContext"/> application port and <see cref="IInboxDbContext"/> so the
 /// 4 saga-command consumers can participate in the inbox-dedup + outbox-write transaction
-/// (ADR-0008 correlation-id + reliable messaging).
+/// (reliable messaging).
 /// </summary>
 public sealed class PaymentsDbContext : DbContext, IPaymentsDbContext, IInboxDbContext
 {

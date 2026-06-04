@@ -29,7 +29,7 @@ This document enumerates every command and query exposed by the four new service
 
 ### Idempotency-Key header (all mutating HTTP commands)
 
-All HTTP **mutating** commands (`POST`, `PUT`, `DELETE`) MUST accept an optional `Idempotency-Key` header. Clients SHOULD supply a UUID (v7 recommended — matches the solution's correlation-id convention) on every retry-safe command. Applies to every command under `POST /api/{basket,catalog,ordering,inventory}/**` including `AddItemToBasket`, `ChangeItemQuantity`, `CheckoutBasket`, `CreateProduct`, `UpdateProductPrice`, `DiscontinueProduct`, `CreateCategory`, `ReceiveStock`, `AdjustStock`, `MarkOrderShipped`, `MarkOrderDelivered`, etc. Saga-issued commands (consumed from Kafka) use MessageId via the Inbox middleware and do NOT need the header.
+All HTTP **mutating** commands (`POST`, `PUT`, `DELETE`) MUST accept an optional `Idempotency-Key` header. Clients SHOULD supply a UUID (v7 recommended — matches the solution's UUID v7 id convention) on every retry-safe command. Applies to every command under `POST /api/{basket,catalog,ordering,inventory}/**` including `AddItemToBasket`, `ChangeItemQuantity`, `CheckoutBasket`, `CreateProduct`, `UpdateProductPrice`, `DiscontinueProduct`, `CreateCategory`, `ReceiveStock`, `AdjustStock`, `MarkOrderShipped`, `MarkOrderDelivered`, etc. Saga-issued commands (consumed from Kafka) use MessageId via the Inbox middleware and do NOT need the header.
 
 Mechanism:
 
@@ -1512,7 +1512,7 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 
 - **Trigger:** event-driven via `OrderConfirmedInvoiceProjectionKafkaHandler` after the convergent enrichment of `OrderConfirmedEvent` + `PaymentCapturedEvent` (from `payments.transactions`) on a single `pending_invoices` row keyed by `OrderId`. Not an HTTP command — Invoicing has no public POST `/invoices` surface.
 - **Handler:** `IssueInvoiceCommandHandler` (`services/Invoicing/Invoicing.Application/Invoices/IssueInvoice/`).
-- **Payload:** `{ OrderId }` — the handler loads the full data (BuyerId, IssuedAtUtc, BillingAddress, Lines[], Currency, VatLines[]) from the converged `PendingInvoice` projection row keyed by `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- **Payload:** `{ OrderId }` — the handler loads the full data (BuyerId, IssuedAtUtc, BillingAddress, Lines[], Currency, VatLines[]) from the converged `PendingInvoice` projection row keyed by `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)).
 - **Validator:** `IssueInvoiceCommandValidator` — `OrderId NotEmpty`.
 - **Side-effects:** allocates a gap-free invoice number (`InvoiceNumber.From(year, sequence)` via `PostgresInvoiceNumberAllocator` under `SELECT … FOR UPDATE`), renders the PDF (QuestPDF, byte-deterministic), uploads to Azure Blob (`invoices/{YYYY}/01/{number}.pdf`, SHA-256 content-addressed), then persists the `Invoice` aggregate in `Issued` state.
 - **Result paths:**
@@ -1526,7 +1526,7 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 
 - **Trigger:** event-driven via `OrderCancelledCreditNoteProjectionKafkaHandler` (cancellation path) or `PaymentRefundedCreditNoteProjectionKafkaHandler` (refund path). Both consume the converged `PendingCreditNote` projection.
 - **Handler:** `IssueCreditNoteCommandHandler` (`services/Invoicing/Invoicing.Application/CreditNotes/IssueCreditNote/`).
-- **Payload:** `{ OrderId }` — the handler resolves the original invoice, reason (`CreditNoteReason`), and sign-flipped reversal lines (`Invoice.LinesForReversal()`) from the converged `PendingCreditNote` projection row keyed by `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- **Payload:** `{ OrderId }` — the handler resolves the original invoice, reason (`CreditNoteReason`), and sign-flipped reversal lines (`Invoice.LinesForReversal()`) from the converged `PendingCreditNote` projection row keyed by `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)).
 - **Validator:** `IssueCreditNoteCommandValidator` — `OrderId NotEmpty`.
 - **Side-effects:** allocates credit-note number (`CreditNoteNumber` format `CN-YYYY-NNNNNN`), renders PDF, uploads to blob, persists `CreditNote` aggregate in `Issued` state, links to source `Invoice` (transitions invoice to `Cancelled` on full-amount path).
 - **Result paths:**

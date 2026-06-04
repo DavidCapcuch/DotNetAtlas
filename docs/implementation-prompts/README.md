@@ -79,7 +79,6 @@ This is the spec-driven-at-the-seams + discovery-driven-within-the-BC model. Age
 
 Each BC prompt has an `<applicable_adrs>` block listing the cross-cutting ADRs that apply to that BC. The agent reads each ADR once and refers back when implementing the relevant code path. Common applications:
 
-- **ADR-0008 Correlation-ID** — every Wave-1+ prompt
 - **ADR-0010 Service-to-Service Auth** — every BC that publishes commands or makes outbound HTTP
 - **ADR-0011 PII Handling** — Ordering, Payments, Invoicing, BFF (where addresses / payment tokens / buyer data flows)
 - **ADR-0012 API Versioning** — every BC with HTTP endpoints

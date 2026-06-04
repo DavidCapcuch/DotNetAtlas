@@ -32,7 +32,6 @@ public sealed class StockReservedActivity : IStateMachineActivity<CheckoutSagaSt
             CheckoutSagaActivitySource.StartActivity(nameof(StockReservedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, saga.OrderId?.ToString() ?? string.Empty);
             activity.SetTag(CheckoutSagaActivityTags.ProductId, message.ProductId.ToString());
             activity.SetTag(CheckoutSagaActivityTags.ReservationId, message.ReservationId.ToString());
             activity.SetTag(CheckoutSagaActivityTags.PendingReservations, saga.PendingReservations);

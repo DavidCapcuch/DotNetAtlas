@@ -39,7 +39,6 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
     public async Task TwoActiveReservations_BothReleased()
     {
         var orderId = Guid.NewGuid();
-        var correlationId = Guid.NewGuid();
         var productAId = Guid.NewGuid();
         var productBId = Guid.NewGuid();
         var reservationAId = Guid.NewGuid();

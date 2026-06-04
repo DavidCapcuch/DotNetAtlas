@@ -10,12 +10,10 @@ Accepted (2026-05-29)
 > `*Spec` suffix it references is now enforced by a `SpecificationTests` NetArchTest in every
 > spec-framework BC (Basket exempt — see the Enforcement note below).
 >
-> **Amended (2026-06-03):** [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) /
-> [ADR-0030](0030-retire-dedicated-correlationid.md) retired the dedicated `CorrelationId`. The
-> business-named saga-idempotency specs are re-keyed on `OrderId`: `PaymentByCorrelationIdSpec` →
-> `PaymentByOrderIdSpec`, and `OrderByCorrelationIdSpec` was **deleted** (`CreateOrderCommandHandler`
-> idempotency is now an inline `OrderId` primary-key lookup). The per-BC table and examples below
-> reflect this.
+> **Amended (2026-06-03):** [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) re-keyed
+> the saga on `OrderId`. The business-named saga-idempotency spec is keyed on `OrderId`
+> (`PaymentByOrderIdSpec`); `CreateOrderCommandHandler` idempotency is an inline `OrderId`
+> primary-key lookup (no spec). The per-BC table and examples below reflect this.
 
 Complements [ADR-0021](0021-read-side-no-specifications.md), which governs the **read** side
 ("query handlers must not depend on `Ardalis.Specification`"). This ADR governs the **write**
@@ -75,18 +73,16 @@ name (e.g. tracing a saga's idempotency check under Kafka redelivery) pays for i
 
 | BC | Outcome | Why |
 |----|---------|-----|
-| **Ordering** | Originally: keep `OrderByCorrelationIdSpec`, delete `OrderByIdSpec` → inline at 7 saga handlers (no tag). **Superseded by ADR-0029/0030:** `OrderByCorrelationIdSpec` was also deleted — `CreateOrderCommandHandler` idempotency is now an inline `OrderId` PK lookup. | `ByCorrelationId` was a business name (saga idempotency, criterion 1) until the dedicated id was retired; `ById` is a pure PK lookup over an owned-child aggregate. |
+| **Ordering** | Delete `OrderByIdSpec` → inline at 7 saga handlers (no tag); `CreateOrderCommandHandler` idempotency is an inline `OrderId` PK lookup (no spec). | `ById` is a pure PK lookup over an owned-child aggregate; the saga-idempotency check is a single PK lookup on the pre-assigned `OrderId`, not worth a spec. |
 | **Invoicing** | Delete `InvoiceByIdSpec` → inline at `ResendInvoiceCommandHandler`. No new specs. | The spec's `.Include`s were redundant (owned types auto-load) and unread; it was a PK lookup. |
-| **Payments** | Migrate off `IPaymentRepository`: add `PaymentByOrderIdSpec`; inline the PK + read-side lookups; delete `IPaymentRepository` + `PaymentRepository`. | `GetByCorrelationId` (Capture/Void/RequestRefund) is saga idempotency (criterion 1); `GetById` is PK; the read methods are read-side. |
+| **Payments** | Migrate off `IPaymentRepository`: add `PaymentByOrderIdSpec`; inline the PK + read-side lookups; delete `IPaymentRepository` + `PaymentRepository`. | The saga-idempotency lookup (Capture/Void/RequestRefund) keyed on `OrderId` is criterion 1; `GetById` is PK; the read methods are read-side. |
 | **Catalog** | No specs. | Cycle detection lives in `ICategoryAncestryService` (an algorithmic graph walk, not a query predicate); the category-subtree load is a read-side query handler; product lookups are PK. |
 | **Inventory** | No specs. | Command handlers are event-sourced (`IEventStore`, no EF aggregate load). The only EF query — the expiry-worker scan — targets `ReservationAuditRow`, an Application-layer read model: a spec over it would have no Domain home and is read-side (it already projects `.Select(...)`), so it stays inline. |
 | **Basket** | No specs. | Redis-primary aggregate; the `IBasketRepository` abstraction is the correct boundary. |
 | **Notifications** | No specs. | Worker BC with no aggregate loads. |
 
-**Net change:** deleted 2 specs (`OrderByIdSpec`, `InvoiceByIdSpec`), kept 1
-(`OrderByCorrelationIdSpec` — since deleted per ADR-0029/0030), created 1 (`PaymentByOrderIdSpec`,
-originally `PaymentByCorrelationIdSpec`), deleted the
-`IPaymentRepository`/`PaymentRepository` pair.
+**Net change:** deleted 2 specs (`OrderByIdSpec`, `InvoiceByIdSpec`), created 1
+(`PaymentByOrderIdSpec`), deleted the `IPaymentRepository`/`PaymentRepository` pair.
 
 ## Naming write-side load abstractions
 
@@ -141,9 +137,8 @@ not a name.
 ## Examples
 
 - **Good spec** —
-  [`PaymentByOrderIdSpec`](../../services/Payments/Payments.Domain/Transactions/Specifications/PaymentByOrderIdSpec.cs)
-  (renamed from `PaymentByCorrelationIdSpec` per ADR-0030; `OrderByCorrelationIdSpec` was the sibling
-  example until ADR-0029/0030 deleted it): business-named, write-side, `TagWith`-tagged for
+  [`PaymentByOrderIdSpec`](../../services/Payments/Payments.Domain/Transactions/Specifications/PaymentByOrderIdSpec.cs):
+  business-named (saga idempotency, keyed on `OrderId`), write-side, `TagWith`-tagged for
   saga-replay observability.
 - **Cleanup result** — `OrderByIdSpec` and `InvoiceByIdSpec` are gone; their loads are now
   `.Where(x => x.Id == id).FirstOrDefaultAsync(ct)` inline at each call site. The owned child

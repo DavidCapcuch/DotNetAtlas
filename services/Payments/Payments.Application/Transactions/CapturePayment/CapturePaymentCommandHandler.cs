@@ -48,7 +48,7 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
 
         // AvroCapturePaymentCommand carries no PaymentTransactionId (only Authorize + RequestRefund
         // do), so we resolve the aggregate via the unique order_id index — OrderId is the saga
-        // business key (ADR-0029) and replaces the retired correlation-id lookup (ADR-0030).
+        // business key (ADR-0029).
         var tx = await _dbContext.Transactions
             .WithSpecification(new PaymentByOrderIdSpec(command.OrderId))
             .FirstOrDefaultAsync(ct);

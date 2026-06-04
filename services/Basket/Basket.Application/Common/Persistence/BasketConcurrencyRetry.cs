@@ -39,7 +39,7 @@ public static class BasketConcurrencyRetry
     /// <summary>
     /// Executes <paramref name="attempt"/>, retrying once on
     /// <see cref="BasketConcurrencyError"/>. Generic overload for handlers that return
-    /// a value (e.g., <c>CheckoutBasketCommand</c> returns the correlation id).
+    /// a value (e.g., <c>CheckoutBasketCommand</c> returns the pre-assigned OrderId).
     /// </summary>
     public static async Task<Result<T>> ExecuteAsync<T>(
         Func<CancellationToken, Task<Result<T>>> attempt,

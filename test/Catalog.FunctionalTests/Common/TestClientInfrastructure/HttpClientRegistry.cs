@@ -42,8 +42,8 @@ public sealed class HttpClientRegistry<TEntryPoint>
 
     /// <summary>
     /// Builds a fresh <see cref="HttpClient"/> for the given <paramref name="clientType"/>,
-    /// useful when a test needs per-call isolation (e.g. attaching distinct
-    /// <c>Idempotency-Key</c> / <c>X-Correlation-Id</c> headers).
+    /// useful when a test needs per-call isolation (e.g. attaching a distinct
+    /// <c>Idempotency-Key</c> header).
     /// </summary>
     public HttpClient CreateFresh(ClientType clientType)
     {

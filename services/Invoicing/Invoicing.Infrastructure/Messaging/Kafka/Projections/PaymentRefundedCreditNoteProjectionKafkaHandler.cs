@@ -48,14 +48,14 @@ internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        // ADR-0029/0030 — OrderId is the cross-BC convergence key; both halves carry it.
+        // ADR-0029 — OrderId is the cross-BC convergence key; both halves carry it.
         var orderId = message.OrderId;
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
         var paymentJson = SerializePayload(message);
 
-        // ADR-0030 — the dedicated correlation id is retired; cross-process correlation is the
-        // W3C traceId (OpenTelemetry). Push OrderId so per-order log queries work in Seq.
+        // Cross-process correlation is the W3C traceId (OpenTelemetry); push OrderId so per-order
+        // log queries work in Seq.
         using var localScope = _logger.BeginScope(new Dictionary<string, object?>
         {
             ["OrderId"] = orderId,

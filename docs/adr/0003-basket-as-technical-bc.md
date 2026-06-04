@@ -87,7 +87,7 @@ We will use **Option 1: Basket as a standalone technical BC**, with Redis-only p
 
 - **Feature creep** — promotions, saved baskets, gift cards, or abandoned-cart rescues may demand a richer model. Mitigation: scope Basket v1 docs tightly; author a future ADR if/when these requirements actually land, rather than preemptively designing for them.
 - **Data loss surprises** — Redis AOF (`--appendonly yes`) is the documented persistence mode, with a sub-second loss window on crash and `allkeys-lru` eviction under memory pressure. Operators must understand that wiping Redis loses in-flight baskets, which is acceptable per the Basket design but surprising if unexamined.
-- **Outbox-then-delete ordering** — the SQL outbox commit is the source of truth for "did we publish?"; the Redis delete is a best-effort follow-up. If the service crashes between the two, the basket remains until the user re-checks out with the same correlation id. Handlers deduplicate on `(UserId, CorrelationId)`; the risk is bounded but must be covered by integration tests.
+- **Outbox-then-delete ordering** — the SQL outbox commit is the source of truth for "did we publish?"; the Redis delete is a best-effort follow-up. If the service crashes between the two, the basket remains until the next checkout or its TTL. An optimistic-concurrency CAS on the basket `Version` (each checkout pre-assigns a fresh `OrderId`, [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md)) stops two parallel checkouts from both emitting a `BasketCheckoutInitiatedEvent`; the risk is bounded but must be covered by integration tests.
 
 ## Implementation Notes
 

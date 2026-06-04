@@ -36,17 +36,13 @@ public sealed class OrderConfirmationTimeoutActivity
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
             activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.ConfirmationTimeout);
-            if (saga.OrderId is { } orderId)
-            {
-                activity.SetTag(CheckoutSagaActivityTags.OrderId, orderId.ToString());
-            }
         }
 
         CheckoutSagaMetrics.RecordConfirmationTimeout();
 
         _logger.LogWarning(
-            "{SagaType} {CorrelationId} order confirmation timeout fired - OrderConfirmedEvent never arrived for order {OrderId}",
-            nameof(CheckoutSagaOrchestrator), saga.CorrelationId, saga.OrderId);
+            "{SagaType} {CorrelationId} order confirmation timeout fired - OrderConfirmedEvent never arrived",
+            nameof(CheckoutSagaOrchestrator), saga.CorrelationId);
 
         await next.Execute(context);
     }

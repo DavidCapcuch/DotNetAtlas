@@ -26,7 +26,7 @@ On top of this file, every BC reads (in order):
 1. `CLAUDE.md` — repo rules (non-negotiable: locked-mode restore, format gates, no EF migration generation)
 2. `docs/eshop-master-design.md` — **especially § 3 event discipline, § 5 BC overview (find your BC), § 6 Kafka topics, § 10 diagrams, § 11 cross-cutting**
 3. `docs/eshop-general-plan.md` — solution tree
-4. `docs/adr/0001` through `0019` — **all 19 ADRs**. The first 7 are domain decisions; 0008–0019 are cross-cutting (correlation, target profile, service-auth, PII, versioning, idempotency, feature flags, time, Redis topology, blob storage, invoice numbering, PDF lib). Your BC prompt's `<applicable_adrs>` block tells you which apply directly.
+4. `docs/adr/0001` through `0019` — **all 19 ADRs**. The first 7 are domain decisions; 0009–0019 are cross-cutting (target profile, service-auth, PII, versioning, idempotency, feature flags, time, Redis topology, blob storage, invoice numbering, PDF lib). Your BC prompt's `<applicable_adrs>` block tells you which apply directly.
 5. Your BC's chapter + glossary + example-mapping under `docs/bc-design/`
 6. `docs/bc-design/events-catalog.md` + `use-cases.md` — find rows for your BC
 7. `docs/bc-design/error-taxonomy.md`, `kafka-dlt-strategy.md`, `architecture-tests.md` (Avro schema compatibility is now [ADR-0007](../adr/0007-avro-compatibility-modes.md) + `kafka-topology.md` — `avro-compatibility.md` was retired per ADR-0033)
@@ -84,11 +84,11 @@ The Weather service is a complete working reference. **Copy the shape, not the d
 - `Platform.ReliableMessaging.Outbox.EFCore` — `ITransactionalOutbox<TDbContext>.AddOutboxMessage(topic, key, ISpecificRecord)`
 - `Platform.ReliableMessaging.Inbox.EFCore` — `AddInbox<TDbContext>(typeof(...))` for Kafka dedup
 - `Platform.KafkaFlow.DeadLetter` — `.DLT` suffix convention (see kafka-dlq-strategy.md)
-- `Platform.KafkaFlow.Inbox.EFCore`, `Platform.KafkaFlow.ProducerHeaders` — Wave 0 extends with correlation-id producer + consumer middleware (ADR-0008)
+- `Platform.KafkaFlow.Inbox.EFCore`, `Platform.KafkaFlow.ProducerHeaders` — inbox dedup + producer headers (`message.id`, `origin`)
 - `Platform.Avro.UniversalSerDes` — Record-Name-Strategy subjects
 - `Platform.SchemaRegistry.Contracts` — all `.avsc` files live here
 - `Platform.OutboxRelay.WorkerService` — you ADD a container per service schema in docker-compose
-- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: correlation-id middleware, OAuth2 service-auth, OpenFeature DI**. Cross-service HTTP resilience is handled by YARP at the edge — no per-service Polly presets are shipped. BCs read the ambient correlation id via `CorrelationIdContextKeys` (public constants for the HTTP header name, `HttpContext.Items` key, OTel `Activity` tag, and Serilog property) — see `platform/Platform.ServiceDefaults/CorrelationId/CorrelationIdContextKeys.cs`. Time abstraction is BCL `System.TimeProvider` (auto-registered by Generic Host); use `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` in tests.
+- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: OAuth2 service-auth, OpenFeature DI**. Cross-service HTTP resilience is handled by YARP at the edge — no per-service Polly presets are shipped. Time abstraction is BCL `System.TimeProvider` (auto-registered by Generic Host); use `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` in tests.
 - `Platform.Test.Framework` — shared test fixtures
 
 If you hit a gap, **ASK** — adding platform code is an escalation.
@@ -152,7 +152,7 @@ You are not a transcription machine. Read critically, evolve when the code revea
 Beyond the BC-specific stop conditions in your prompt's `<stop_conditions>`, every agent stops and asks the user when:
 
 - A file referenced in `<reading_order>` does not exist or is empty.
-- Wave 0 (`docs/implementation-prompts/wave-0-platform-prep.md`) has not been merged but your BC depends on its outputs (correlation-id middleware, service-auth, redis-basket / redis-cache split, Azurite container, etc.).
+- Wave 0 (`docs/implementation-prompts/wave-0-platform-prep.md`) has not been merged but your BC depends on its outputs (service-auth, redis-basket / redis-cache split, Azurite container, etc.).
 - An ADR contradicts a BC design doc.
 - A `<contract>` item conflicts with `events-catalog.md` or `use-cases.md` (file:line).
 - An open design decision in `<design_open>` has implications you didn't expect — flag the trade-off, name your tentative choice, ask before committing.
@@ -197,7 +197,6 @@ Each BC adds specifics; these are universal.
 - [ ] 4 test projects compile + pass; architecture tests enforce the rules in architecture-tests.md § {your BC}
 - [ ] All HTTP routes under `/api/v1/{bc}/...` per ADR-0012
 - [ ] All timestamps `DateTimeOffset` (persisted as `timestamptz`); no `DateTime.UtcNow` in domain (arch test) — per ADR-0015
-- [ ] Correlation-id propagation working (HTTP → Kafka → DB column) per ADR-0008
 - [ ] `dotnet build -m`, `dotnet restore --locked-mode`, `dotnet format whitespace`, `dotnet format style` all green
 - [ ] `docker compose --profile full up -d` starts the container + healthcheck passes
 - [ ] Docs self-corrected if needed

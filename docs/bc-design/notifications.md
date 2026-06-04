@@ -70,7 +70,7 @@ Producers stay structurally unchanged from v1 — same outbox-atomic single writ
 | `Payload` | map<string,string> | Template rendering data. |
 | `OccurredOnUtc` | timestamp-millis | Producer creation time ([ADR-0015](../adr/0015-time-timezone-policy.md)). |
 
-There is **no `IdempotencyKey` and no `CorrelationId`** in the payload (see § 4 and [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+There is **no `IdempotencyKey` and no `CorrelationId`** in the payload (see § 4).
 
 ### 3.1 Handler — fan-out
 

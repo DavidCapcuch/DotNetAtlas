@@ -75,7 +75,7 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         using (new AssertionScope())
         {
             persistedState.Should().NotBeNull();
-            persistedState!.OrderId.Should().Be(orderId);
+            persistedState!.CorrelationId.Should().Be(orderId);
             persistedState.ExpectedReservations.Should().Be(3);
             persistedState.PendingReservations.Should().Be(3);
             persistedState.StockReservationStartedAtUtc.Should().NotBeNull();

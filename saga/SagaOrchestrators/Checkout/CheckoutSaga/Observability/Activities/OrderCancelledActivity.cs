@@ -26,18 +26,13 @@ public sealed class OrderCancelledActivity : IStateMachineActivity<CheckoutSagaS
         IBehavior<CheckoutSagaState, OrderCancelledSagaEvent> next)
     {
         var saga = context.Saga;
-        var message = context.Message;
 
         using var activity =
             CheckoutSagaActivitySource.StartActivity(nameof(OrderCancelledActivity), saga.CorrelationId);
-        if (activity?.IsAllDataRequested == true)
-        {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, message.OrderId.ToString());
-        }
 
         _logger.LogInformation(
-            "{SagaType} {CorrelationId} order cancelled during compensation. OrderId: {OrderId}",
-            nameof(CheckoutSagaOrchestrator), saga.CorrelationId, message.OrderId);
+            "{SagaType} {CorrelationId} order cancelled during compensation",
+            nameof(CheckoutSagaOrchestrator), saga.CorrelationId);
 
         await next.Execute(context);
     }

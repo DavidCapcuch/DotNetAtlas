@@ -21,7 +21,8 @@ namespace Inventory.IntegrationTests.Application;
 /// happy path (event-store append + both projections + outbox write commit
 /// atomically), the <c>InsufficientStock</c> business-failure path (outbox
 /// carries <c>StockReservationFailedEvent</c>, no stream mutation), and the
-/// correlation-id roundtrip from command → <c>stock_events.correlation_id</c>.
+/// OrderId roundtrip from command → <c>reservation_audit.order_id</c> + the
+/// OrderId-keyed outbox row.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest

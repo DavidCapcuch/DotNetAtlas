@@ -10,7 +10,7 @@
 |------|------------|
 | **PaymentTransaction** | The sole aggregate in the Payments BC. Wraps one saga-scoped payment lifecycle from request through terminal. Not to be confused with **Invoice** (Invoicing BC) or **Order** (Ordering BC) — those are separate aggregates in different BCs. |
 | **PaymentId** | UUID v7 identity for a `PaymentTransaction`. Time-sortable; assigned at aggregate creation. Different from `GatewayTransactionId` (gateway-issued). |
-| **OrderId** | The saga business key — the pre-assigned `BasketCheckoutInitiatedEvent.OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). Persisted on `PaymentTransaction`; threads through Checkout saga → PaymentProcessingSaga → Payments → Invoicing for end-to-end correlation. It is also the saga's MassTransit `CorrelationId`; the earlier dedicated `CorrelationId` was retired ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). |
+| **OrderId** | The saga business key — the pre-assigned `BasketCheckoutInitiatedEvent.OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). Persisted on `PaymentTransaction`; threads through Checkout saga → PaymentProcessingSaga → Payments → Invoicing for end-to-end correlation. It is also the saga's MassTransit `CorrelationId`. |
 | **GatewayTransactionId** | String token issued by the external payment gateway on the first successful call (authorize or capture). Reused for subsequent capture/refund/void operations. Immutable once set. |
 | **PaymentMethodId** | Gateway-issued reference token (not a PAN). Identifies *how* to charge without exposing card details. PCI-scope boundary — this is the highest-sensitivity data Payments holds. |
 | **Gateway** | The external payment processor (Stripe/Adyen/Braintree in production; `StubPaymentGateway` in v1). Abstracted via `IPaymentGateway` port in `Payments.Application`. |
@@ -59,7 +59,7 @@
 | Term | In Payments | In other BCs |
 |------|-------------|--------------|
 | **Transaction** | `PaymentTransaction` aggregate — a payment lifecycle | Ordering: implicit DB transaction scope on `Order`; Inventory: an event-stream append |
-| **OrderId** | The saga business key on `PaymentTransaction`; links the payment to its order/saga run | Ordering: the `Order` aggregate id; Invoicing: the `pending_invoices` convergence key — the same value across the flow ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md); dedicated `CorrelationId` retired per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)) |
+| **OrderId** | The saga business key on `PaymentTransaction`; links the payment to its order/saga run | Ordering: the `Order` aggregate id; Invoicing: the `pending_invoices` convergence key — the same value across the flow ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) |
 | **Amount** | `Money` VO on `PaymentTransaction` — equals the Order total at capture time | Ordering: `Order.Total`; Invoicing: `Invoice.Total` — all three should match for a given `OrderId` |
 | **Status** | `PaymentStatus` — 7-value FSM | Ordering: `OrderStatus` — 8-value FSM; Invoicing: `InvoiceStatus` — 5-value FSM |
 | **Completed** | Happy-path success state; not final — reversible to `Refunded` | Ordering has no `Completed`; its terminal success is `Delivered`. Checkout saga `Confirmed` is the equivalent happy-path terminal |

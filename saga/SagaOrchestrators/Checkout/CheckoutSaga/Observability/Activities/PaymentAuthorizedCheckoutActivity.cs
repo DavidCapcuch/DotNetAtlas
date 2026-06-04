@@ -34,10 +34,6 @@ public sealed class
 
         using var activity =
             CheckoutSagaActivitySource.StartActivity(nameof(PaymentAuthorizedCheckoutActivity), saga.CorrelationId);
-        if (activity?.IsAllDataRequested == true)
-        {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, saga.OrderId?.ToString() ?? string.Empty);
-        }
 
         _logger.LogInformation(
             "{SagaType} {CorrelationId} payment authorized - confirming order + reservations before capture. AuthorizationId: {AuthorizationId}",

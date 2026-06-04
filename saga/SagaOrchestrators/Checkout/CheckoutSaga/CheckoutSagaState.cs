@@ -6,10 +6,10 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga;
 
 /// <summary>
 /// Represents the state of the <see cref="CheckoutSagaOrchestrator"/>. The Checkout saga
-/// turns a <c>BasketCheckoutInitiatedEvent</c> into either a <see cref="OrderId"/>-bound
-/// confirmed order or a fully-compensated rollback. The <see cref="CorrelationId"/> equals
-/// the basket's pre-assigned <c>OrderId</c> (UUID v7) per ADR-0029 and threads through every
-/// downstream command/event.
+/// turns a <c>BasketCheckoutInitiatedEvent</c> into either a confirmed order or a
+/// fully-compensated rollback. The <see cref="CorrelationId"/> equals the basket's
+/// pre-assigned <c>OrderId</c> (UUID v7) per ADR-0029 and threads through every downstream
+/// command/event.
 /// </summary>
 public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
 {
@@ -73,13 +73,6 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
     public DateTimeOffset InitiatedAtUtc { get; set; }
 
     // — Ordering-side data (filled during AwaitingOrderCreation) —
-
-    /// <summary>
-    /// The order's identity — equals <see cref="CorrelationId"/> (the saga key) per ADR-0029.
-    /// Pre-assigned by Basket and set on the Initial transition, so it is present from saga birth;
-    /// nullable only because the persisted column predates the re-key (no migration per ADR-0029).
-    /// </summary>
-    public Guid? OrderId { get; set; }
 
     /// <summary>
     /// UTC timestamp when Ordering reported the order created.

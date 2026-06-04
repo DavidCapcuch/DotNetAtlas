@@ -11,8 +11,7 @@ namespace Payments.Domain.Transactions.Specifications;
 /// </summary>
 /// <remarks>
 /// Tagged with the spec class name for SQL-level observability (EF Core emits the tag as a query
-/// comment). Write-side only per ADR-0021. Supersedes the retired <c>PaymentByCorrelationIdSpec</c>
-/// (<see href="../../../../docs/adr/0030-retire-dedicated-correlationid.md">ADR-0030</see>).
+/// comment). Write-side only per ADR-0021.
 /// </remarks>
 public sealed class PaymentByOrderIdSpec : Specification<PaymentTransaction>, ISingleResultSpecification<PaymentTransaction>
 {

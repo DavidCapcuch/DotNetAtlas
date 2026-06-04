@@ -91,9 +91,8 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(PaymentInitiatedEvent)
                 .Then(ctx =>
                 {
-                    // ADR-0029: the saga is keyed on OrderId — MassTransit sets CorrelationId from
-                    // CorrelateById(m => m.OrderId); OrderId is the order's identity from birth.
-                    ctx.Saga.OrderId = ctx.Message.OrderId;
+                    // ADR-0029: the saga is keyed on the pre-assigned OrderId via
+                    // CorrelateById(m => m.OrderId), so CorrelationId == OrderId from birth.
                     ctx.Saga.UserId = ctx.Message.UserId;
                     ctx.Saga.PaymentMethodId = ctx.Message.PaymentMethodId;
                     ctx.Saga.Amount = ctx.Message.Amount;
@@ -110,11 +109,11 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<PaymentSagaStartedActivity>())
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.OrderId.ToString(),
+                    ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new AuthorizePaymentCommand
                     {
                         PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
-                        OrderId = ctx.Saga.OrderId,
+                        OrderId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         PaymentMethodId = ctx.Saga.PaymentMethodId,
                         Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -168,14 +167,14 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         .Then(ctx => ctx.Saga.AuthorizationRetryCount++)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPaymentCommands,
-                            ctx => ctx.Saga.OrderId.ToString(),
+                            ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new AuthorizePaymentCommand
                             {
                                 // Reuse the PaymentTransactionId minted at initial state — the
                                 // Payments aggregate identifies the same row across retries
                                 // (one-payment-per-saga; idempotent re-authorize).
                                 PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
-                                OrderId = ctx.Saga.OrderId,
+                                OrderId = ctx.Saga.CorrelationId,
                                 UserId = ctx.Saga.UserId,
                                 PaymentMethodId = ctx.Saga.PaymentMethodId,
                                 Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -217,10 +216,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Unschedule(CaptureApprovalTimeout)
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.OrderId.ToString(),
+                    ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new CapturePaymentCommand
                     {
-                        OrderId = ctx.Saga.OrderId,
+                        OrderId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -242,10 +241,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Unschedule(CaptureApprovalTimeout)
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.OrderId.ToString(),
+                    ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
-                        OrderId = ctx.Saga.OrderId,
+                        OrderId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = ctx.Message.Reason,
@@ -267,10 +266,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureApprovalTimeoutActivity>())
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.OrderId.ToString(),
+                    ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
-                        OrderId = ctx.Saga.OrderId,
+                        OrderId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = "Capture approval timeout expired",
@@ -330,10 +329,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         .Then(ctx => ctx.Saga.CaptureRetryCount++)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPaymentCommands,
-                            ctx => ctx.Saga.OrderId.ToString(),
+                            ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new CapturePaymentCommand
                             {
-                                OrderId = ctx.Saga.OrderId,
+                                OrderId = ctx.Saga.CorrelationId,
                                 UserId = ctx.Saga.UserId,
                                 AuthorizationId = ctx.Saga.AuthorizationId!,
                                 Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -350,10 +349,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         .Then(ctx => ctx.Saga.CompensationTriggered = true)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPaymentCommands,
-                            ctx => ctx.Saga.OrderId.ToString(),
+                            ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new VoidPaymentCommand
                             {
-                                OrderId = ctx.Saga.OrderId,
+                                OrderId = ctx.Saga.CorrelationId,
                                 UserId = ctx.Saga.UserId,
                                 AuthorizationId = ctx.Saga.AuthorizationId!,
                                 Reason = $"Capture failed: {ctx.Message.ErrorMessage}",
@@ -375,10 +374,10 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureTimeoutActivity>())
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.OrderId.ToString(),
+                    ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
-                        OrderId = ctx.Saga.OrderId,
+                        OrderId = ctx.Saga.CorrelationId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = "Capture timeout expired",

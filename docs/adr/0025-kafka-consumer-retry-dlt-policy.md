@@ -10,9 +10,9 @@ Every Kafka consumer in the solution wires the same middleware chain (outermost
 → innermost):
 
 ```
-AddSchemaRegistryAvroDeserializer → AddCorrelationIdConsumerMiddleware
-  → AddDeadLetter → RetryForever(Handle<DbUpdateException, NpgsqlException, TimeoutException>,
-                                 WithTimeBetweenTriesPlan(500ms, 1s, 2s, 5s))
+AddSchemaRegistryAvroDeserializer → AddDeadLetter
+  → RetryForever(Handle<DbUpdateException, NpgsqlException, TimeoutException>,
+                 WithTimeBetweenTriesPlan(500ms, 1s, 2s, 5s))
   → AddInbox → AddTypedHandlers
 ```
 

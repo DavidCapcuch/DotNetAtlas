@@ -34,8 +34,8 @@ namespace Payments.IntegrationTests.Infrastructure;
 /// <remarks>
 /// ADR-0029 keys the saga on <c>OrderId</c> with <c>CorrelationId == OrderId</c>, so every
 /// scenario sets <c>orderId = correlationId</c>. This matters for Capture / Void, which carry no
-/// PaymentTransactionId and resolve the aggregate via the unique <c>order_id</c> index (ADR-0030
-/// retired the correlation-id lookup); the seeded OrderId must equal the saga key on the wire.
+/// PaymentTransactionId and resolve the aggregate via the unique <c>order_id</c> index; the
+/// seeded OrderId must equal the saga key on the wire.
 /// </remarks>
 [Collection<IntegrationTestCollection>]
 public sealed class PaymentsKafkaConsumerIntegrationTests
@@ -221,7 +221,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     {
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
-        // Capture / Void resolve the aggregate by OrderId (ADR-0030); RequestRefund resolves it by
+        // Capture / Void resolve the aggregate by OrderId; RequestRefund resolves it by
         // primary key from `avro.PaymentTransactionId` — the saga targets the existing aggregate
         // explicitly. The persisted aggregate's `Id` was set by the Authorize step to
         // `correlationId` (NewAvroAuthorize collapses PaymentTransactionId onto it), so the refund

@@ -9,11 +9,6 @@ namespace SagaOrchestrators.Payments.PaymentProcessingSaga.Observability;
 public static class PaymentSagaActivityTags
 {
     /// <summary>
-    /// The Ordering aggregate id this payment is attached to.
-    /// </summary>
-    public const string OrderId = "saga.order_id";
-
-    /// <summary>
     /// The payment amount.
     /// </summary>
     public const string Amount = "saga.amount";

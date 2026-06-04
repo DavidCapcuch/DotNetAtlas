@@ -158,7 +158,7 @@ Full use-case catalog in [`use-cases.md § 6`](use-cases.md) (new § added along
 
 ### 7.1 Commands (event-triggered, internal)
 
-- `IssueInvoiceCommand(OrderId)` — triggered when both `OrderConfirmedEvent` AND `PaymentCapturedEvent` have arrived for the same `OrderId` (the `pending_invoices` key + idempotency key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). The handler loads both payloads from the converged projection row. Allocates `InvoiceNumber` from the Postgres sequence in the same transaction. Generates PDF. Uploads to Azurite (production: Azure Blob Storage). Writes aggregate + outbox atomically.
+- `IssueInvoiceCommand(OrderId)` — triggered when both `OrderConfirmedEvent` AND `PaymentCapturedEvent` have arrived for the same `OrderId` (the `pending_invoices` key + idempotency key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). The handler loads both payloads from the converged projection row. Allocates `InvoiceNumber` from the Postgres sequence in the same transaction. Generates PDF. Uploads to Azurite (production: Azure Blob Storage). Writes aggregate + outbox atomically.
 - `IssueCreditNoteCommand(OrderId)` — triggered when both `OrderCancelledEvent` AND `PaymentRefundedEvent` have arrived for the order matching a prior invoice; idempotent on `OrderId` (the `pending_credit_notes` key). The original invoice and reason are resolved from the converged projection row. Allocates `CreditNoteNumber`. Generates PDF. Uploads. Persists.
 
 ### 7.2 Commands (admin HTTP)
@@ -182,7 +182,7 @@ All HTTP routes under `/api/v1/invoicing/`.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `OrderId` | `uuid` | Primary key — the saga / business key, present on **both** halves ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md); re-keyed from the retired `correlation_id` per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). |
+| `OrderId` | `uuid` | Primary key — the saga / business key, present on **both** halves ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). |
 | `PaymentId` | `uuid?` | Populated when `PaymentCapturedEvent` arrives |
 | `OrderPayload` | `jsonb?` | Full Avro → JSON when `OrderConfirmedEvent` arrives; its non-null state is the "order half present" sentinel. |
 | `PaymentPayload` | `jsonb?` | Same |

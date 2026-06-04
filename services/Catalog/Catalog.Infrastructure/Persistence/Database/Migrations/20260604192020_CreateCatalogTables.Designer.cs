@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Catalog.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    [Migration("20260531234026_CreateCatalogTables")]
+    [Migration("20260604192020_CreateCatalogTables")]
     partial class CreateCatalogTables
     {
         /// <inheritdoc />
@@ -57,13 +57,6 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("category_path")
                         .HasComment("Materialized category path; rewritten on Reparent by CategoryPathService.");
-
-                    b.Property<Guid>("CorrelationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValue(new Guid("00000000-0000-0000-0000-000000000000"))
-                        .HasColumnName("correlation_id")
-                        .HasComment("Originating HTTP correlation id (ADR-0008). Populated from HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] by the API layer, or Guid.Empty when no HTTP pipeline is in play.");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")

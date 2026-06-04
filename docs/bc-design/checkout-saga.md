@@ -61,7 +61,7 @@ Implements `ISagaStateInstance, IAuditableEntity` (same base as `PaymentProcessi
 
 | Property | Type | When Populated | Notes |
 |----------|------|---------------|-------|
-| `CorrelationId` | `Guid` | Factory (init) | The MassTransit saga key; **equals `BasketCheckoutInitiatedEvent.OrderId`** (Basket's pre-assigned UUID v7, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). Immutable after first set. It **is** the Order aggregate's id — there is no separate dedicated `CorrelationId` ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). |
+| `CorrelationId` | `Guid` | Factory (init) | The MassTransit saga key; **equals `BasketCheckoutInitiatedEvent.OrderId`** (Basket's pre-assigned UUID v7, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). Immutable after first set. It **is** the Order aggregate's id. |
 | `CurrentState` | `string` | MassTransit (auto) | State machine state name. |
 | `RowVersion` | `uint` | EF Core interceptor | Optimistic concurrency token. |
 | **— Buyer/user data (captured at init) —** | | | |
@@ -440,7 +440,7 @@ Three reasons:
 
 ### 9.2 Partition-key choices
 
-- **`OrderId` for every order-scoped command/event.** The `OrderId` is pre-assigned at checkout initiation ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), so it exists before `CreateOrderCommand` is published; every saga-issued command/event co-partitions on `OrderId` (== the saga's `CorrelationId`), so Ordering / Payments process all commands for one checkout on the same partition and per-order ordering holds. This deletes the former split between a pre-order `CorrelationId` key and a post-creation `OrderId` key (the dedicated `CorrelationId` was retired — [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- **`OrderId` for every order-scoped command/event.** The `OrderId` is pre-assigned at checkout initiation ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), so it exists before `CreateOrderCommand` is published; every saga-issued command/event co-partitions on `OrderId` (== the saga's `CorrelationId`), so Ordering / Payments process all commands for one checkout on the same partition and per-order ordering holds.
 - **`ProductId` for the Inventory reservation commands** (`ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand`) — co-partitions per product for Inventory's per-`ProductId` event-stream model; the `OrderId` rides the payload for saga fan-in.
 - **`ProductId` for Inventory commands** — per Inventory's own design (§ 13.2 of `inventory.md`, keyed by ProductId), so reservations for the same SKU land on the same partition → Inventory's write-path serialization on the stream is preserved.
 
@@ -581,7 +581,7 @@ Follows the existing pattern established in `saga/SagaOrchestrators/Payments/Pay
 ### 11.1 OpenTelemetry activity source
 
 - **Name:** `SagaOrchestrators.Checkout` (file `Observability/CheckoutSagaActivitySource.cs`).
-- **Spans:** one activity per state transition, named `CheckoutSaga.StateTransition.{From}.{To}` (e.g., `CheckoutSaga.StateTransition.Initial.AwaitingOrderCreation`). Tags: `saga.correlation_id`, `saga.user_id`, `saga.order_id` (nullable until known), `saga.error_code` (on failure transitions), `saga.pending_reservations` (on `AwaitingStockReservation` transitions).
+- **Spans:** one activity per state transition, named `CheckoutSaga.StateTransition.{From}.{To}` (e.g., `CheckoutSaga.StateTransition.Initial.AwaitingOrderCreation`). Tags: `saga.correlation_id`, `saga.user_id`, `saga.error_code` (on failure transitions), `saga.pending_reservations` (on `AwaitingStockReservation` transitions).
 - **Per-transition activities** (one class per transition, in `Observability/Activities/`), mirroring `PaymentCompletedActivity`, `ActivationTimeoutActivity`, etc.:
   - `CheckoutSagaStartedActivity`
   - `OrderCreatedActivity`
@@ -734,7 +734,7 @@ This ADR **extends** ADR-0001. Same placement philosophy: centralized state mach
 These questions belong to Stage 4 / later stages and are explicitly out of scope for this design document:
 
 1. **Address source on `BasketCheckoutInitiatedEvent`** (§ 2.2) — ~~does Basket carry addresses (Option P) or does Ordering fetch them (Option Q)?~~ **Resolved:** Option P — the live [`BasketCheckoutInitiatedEvent.avsc`](../../platform/Platform.SchemaRegistry.Contracts/Avro/Basket/Sessions/BasketCheckoutInitiatedEvent.avsc) carries `ShippingAddress` / `BillingAddress` (Basket as non-owning pass-through); Option Q is dead per [ADR-0005](../adr/0005-customer-data-in-ordering.md) (no Accounts BC). See § 2.2.
-2. **Correlation key for Inventory events** (§ 8.1) — **Closed.** The saga re-keys on `OrderId` per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md): every event correlates by `OrderId` (`CorrelateById(m => m.OrderId)`), which equals the saga's `CorrelationId`. Inventory's `OrderId`-only events need no mapping — the path chosen was "correlate on `OrderId`," not "echo `CorrelationId` back." § 4.1 / § 6 / § 8.1 now describe this uniform `OrderId` keying. (The redundant `CorrelationId` field that the Basket/Ordering/Payments events once carried was retired in [ADR-0030](../adr/0030-retire-dedicated-correlationid.md), Part B.)
+2. **Correlation key for Inventory events** (§ 8.1) — **Closed.** The saga re-keys on `OrderId` per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md): every event correlates by `OrderId` (`CorrelateById(m => m.OrderId)`), which equals the saga's `CorrelationId`. Inventory's `OrderId`-only events need no mapping — the path chosen was "correlate on `OrderId`," not "echo `CorrelationId` back." § 4.1 / § 6 / § 8.1 now describe this uniform `OrderId` keying.
 3. **Separate `checkout.sagas` topic** (§ 9.1) — ~~is the saga-level terminal event a new schema, or collapsed into Ordering events?~~ **Resolved by Stage 2 Agent 5:** a dedicated `checkout.sagas` topic with its own schemas, published with no v1 consumer (forensic record + future-consumer seam) — see [events-catalog.md § 2](events-catalog.md) footnote 3.
 4. **`MarkOrderFailedCommand`** (§ 9) — does Ordering need this as a separate command, or is `CancelOrderCommand` with a special reason sufficient? Stage 2 Agent 7 (use case catalog) closes this.
 5. **Payment capture-then-outer-timeout race** (§ 7 + § 13 Consequences) — with capture deferred to the pivot, this race is now confined to the `AwaitingPaymentCapture` wait. Is there a need for a "stale payment reconciliation worker" that detects late `PaymentCompletedSagaEvent`s for already-finalized sagas and triggers the deferred customer/admin refund flow? Deferred to Stage 4 (refund producer is itself future work per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).

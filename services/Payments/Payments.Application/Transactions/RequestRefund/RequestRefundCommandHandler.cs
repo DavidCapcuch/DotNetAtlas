@@ -46,8 +46,7 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
 
         // PK lookup (ADR-0022): inline LINQ, tracked for mutation. RequestRefund's Avro contract
         // carries PaymentTransactionId (a refund targets a specific transaction by id), so we load
-        // the aggregate by its primary key — matching AuthorizePaymentCommandHandler. This replaces
-        // the retired correlation-id lookup (ADR-0030).
+        // the aggregate by its primary key — matching AuthorizePaymentCommandHandler.
         var tx = await _dbContext.Transactions
             .FirstOrDefaultAsync(t => t.Id == command.PaymentId, ct);
         if (tx is null)

@@ -116,8 +116,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     images_json = table.Column<string>(type: "jsonb", nullable: false, defaultValue: "[]"),
                     is_sellable = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false, comment: "Computed flag — wired up by the StockLevelChangedEvent Kafka inbox consumer."),
                     created_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    last_updated_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, defaultValue: new Guid("00000000-0000-0000-0000-000000000000"), comment: "Originating HTTP correlation id (ADR-0008). Populated from HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] by the API layer, or Guid.Empty when no HTTP pipeline is in play.")
+                    last_updated_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {

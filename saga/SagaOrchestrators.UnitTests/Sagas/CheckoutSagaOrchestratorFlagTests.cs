@@ -72,7 +72,7 @@ public class CheckoutSagaOrchestratorFlagTests
         using (new AssertionScope())
         {
             state.Should().NotBeNull("OFF branch must take the stock-then-payment path (ADR-0004 default)");
-            state!.OrderId.Should().Be(orderId);
+            state!.CorrelationId.Should().Be(orderId);
             state.ExpectedReservations.Should().Be(2, "two distinct ProductIds were in the basket");
             state.PendingReservations.Should().Be(2);
             reserveCommands.Should().HaveCount(2, "OFF branch fans out one ReserveStockCommand per distinct ProductId");
@@ -116,7 +116,7 @@ public class CheckoutSagaOrchestratorFlagTests
         using (new AssertionScope())
         {
             state.Should().NotBeNull("ON branch must take the experimental payment-then-stock path (ADR-0014)");
-            state!.OrderId.Should().Be(orderId);
+            state!.CorrelationId.Should().Be(orderId);
             state.ExpectedReservations.Should().Be(0, "ON branch skips stock reservation tracking init");
             state.PendingReservations.Should().Be(0);
             state.PaymentRequestedAtUtc.Should().NotBeNull("PaymentRequestedAtUtc is set when RequestPaymentCommand is dispatched");

@@ -6,17 +6,16 @@ using Platform.Messaging.Abstractions;
 namespace Platform.KafkaFlow.ProducerHeaders.UnitTests;
 
 /// <summary>
-/// Pins the surviving <see cref="ProducerHeadersMiddleware"/> contract after ADR-0030 retired the
-/// dedicated correlation id: every produced message carries <c>message.id</c> (a UUID v7 for
-/// idempotent processing) and <c>origin</c>, existing values are never overwritten, and NO
-/// <c>correlation.id</c> header is produced (cross-process correlation is W3C <c>traceparent</c>).
+/// Pins the <see cref="ProducerHeadersMiddleware"/> contract: every produced message carries
+/// <c>message.id</c> (a UUID v7 for idempotent processing) and <c>origin</c>, and existing values
+/// are never overwritten. Cross-process correlation rides W3C <c>traceparent</c> (OpenTelemetry).
 /// </summary>
 public class ProducerHeadersMiddlewareTests
 {
     private const string TestOrigin = "Platform.KafkaFlow.ProducerHeaders.UnitTests";
 
     [Fact]
-    public async Task Invoke_WhenHeadersAbsent_WritesMessageIdAndOrigin_AndNoCorrelationId()
+    public async Task Invoke_WhenHeadersAbsent_WritesMessageIdAndOrigin()
     {
         // Arrange
         var (context, headers) = BuildContext();
@@ -34,9 +33,6 @@ public class ProducerHeadersMiddlewareTests
             IsUuidV7(parsed).Should().BeTrue("message.id is a UUID v7 for idempotent processing");
 
             HeaderValue(headers, MessageHeaderKeys.Origin).Should().Be(TestOrigin);
-
-            HeaderValue(headers, "correlation.id").Should().BeNull(
-                "ADR-0030 retired the dedicated correlation id; the producer must not emit a correlation.id header");
         }
     }
 

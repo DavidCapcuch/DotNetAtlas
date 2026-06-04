@@ -64,12 +64,6 @@ public sealed class CheckoutSagaStateMap :
             .HasComment("UTC timestamp when the saga was initiated (copied from the Basket event).");
 
         // Ordering side
-        entity.Property(x => x.OrderId)
-            .HasComment("Ordering aggregate id assigned after OrderCreatedEvent. Null until OrderCreated arrives.");
-
-        entity.HasIndex(x => x.OrderId)
-            .HasDatabaseName("ix_checkout_saga_state_order_id");
-
         entity.Property(x => x.OrderCreatedAtUtc)
             .HasComment("UTC timestamp when Ordering reported the order created.");
 

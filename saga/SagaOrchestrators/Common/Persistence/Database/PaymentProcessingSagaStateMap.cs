@@ -15,7 +15,7 @@ public sealed class PaymentProcessingSagaStateMap :
 
         // Primary key - configured by MassTransit SagaClassMap base
         entity.Property(x => x.CorrelationId)
-            .HasComment("Unique correlation ID for the payment saga")
+            .HasComment("MassTransit saga instance id (ISaga.CorrelationId); equals the pre-assigned OrderId (ADR-0029).")
             .ValueGeneratedNever();
 
         // State
@@ -26,15 +26,6 @@ public sealed class PaymentProcessingSagaStateMap :
 
         entity.HasIndex(x => x.CurrentState)
             .HasDatabaseName("ix_payment_processing_saga_state_current_state");
-
-        // Ordering aggregate id this payment is attached to. Frozen at saga start
-        // (the Checkout saga always creates the Order before requesting payment).
-        // Indexed for admin lookups of "all payment sagas for order X".
-        entity.Property(x => x.OrderId)
-            .HasComment("Ordering aggregate id this payment is attached to. Frozen at saga start.");
-
-        entity.HasIndex(x => x.OrderId)
-            .HasDatabaseName("ix_payment_processing_saga_state_order_id");
 
         // User and Payment Method
         entity.Property(x => x.UserId)

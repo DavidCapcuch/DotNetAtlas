@@ -60,7 +60,7 @@ Apply the article's full 2-part test (specific logic + **guaranteed feedback**) 
 
 | Avro External Event | Specific logic at consumer? | Producer awaits guaranteed feedback? | Result |
 |---|---|---|---|
-| `PaymentRequestedEvent` | Yes (saga drives auth→capture FSM) | **Yes** — Checkout saga's `AwaitingPayment` blocks on `PaymentCompletedEvent` or `PaymentFailedEvent` correlated by `CorrelationId`. Without the reply the Checkout saga times out and compensates. | **Command** |
+| `PaymentRequestedEvent` | Yes (saga drives auth→capture FSM) | **Yes** — Checkout saga's `AwaitingPayment` blocks on `PaymentCompletedEvent` or `PaymentFailedEvent` correlated by `OrderId` (the saga's `CorrelationId`, [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md)). Without the reply the Checkout saga times out and compensates. | **Command** |
 | `PaymentAuthorizedEvent` | Yes (saga issues Capture) | **No** — Payments BC publishes after committing local state; doesn't care if saga acts. | Event |
 | `PaymentAuthorizationFailedEvent` | Yes | No | Event |
 | `PaymentCaptureFailedEvent` | Yes | No | Event |
@@ -197,7 +197,7 @@ If a future PR proposes adding a saga-response *that the producer awaits before 
 
 ### Out of scope for this ADR
 
-- The `PaymentId == CorrelationId` collapse (was out of scope of this ADR) — **resolved in cross-cutting wave1-followup #255**: the saga now mints a distinct UUID v7 `PaymentTransactionId` (carried on `AuthorizePaymentCommand`) and Payments uses it as the aggregate id, so `PaymentId` is independent of `CorrelationId`. The one-payment invariant is enforced by a unique index — since superseded by [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md), which re-keys the saga on `OrderId` and moves that index from `correlation_id` to `order_id` (see [payments.md § 2.2 I-7](../bc-design/payments.md)).
+- The `PaymentId == saga-key` collapse (was out of scope of this ADR) — **resolved in cross-cutting wave1-followup #255**: the saga now mints a distinct UUID v7 `PaymentTransactionId` (carried on `AuthorizePaymentCommand`) and Payments uses it as the aggregate id, so `PaymentId` is independent of the saga key. The one-payment invariant is enforced by a unique index on `order_id` ([ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) re-keys the saga on `OrderId`; see [payments.md § 2.2 I-7](../bc-design/payments.md)).
 - Notifications BC actually consuming any Payments events — currently aspirational; no v1 code path exists. If/when Notifications adds a consumer, the events catalog updates are mechanical; this ADR's classifications stay correct.
 - The `PaymentRefundCompletedSagaEvent` dead-code path in [`PaymentProcessingSagaOrchestrator.cs`](../../saga/SagaOrchestrators/Payments/PaymentProcessingSaga/PaymentProcessingSagaOrchestrator.cs) (the orchestrator references it but no consumer translates `PaymentRefundedEvent` → that saga-internal event because Checkout saga handles the refund flow directly). Worth a separate cleanup pass.
 

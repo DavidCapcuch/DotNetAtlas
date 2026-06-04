@@ -40,7 +40,6 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         var productId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
-        var correlationId = Guid.NewGuid();
 
         await Seed.ProductWithOnHandAsync(
             productId,
@@ -87,7 +86,6 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         var productId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
-        var correlationId = Guid.NewGuid();
 
         // Seed only 2 units, then request 5 -> InsufficientStock.
         await Seed.ProductWithOnHandAsync(

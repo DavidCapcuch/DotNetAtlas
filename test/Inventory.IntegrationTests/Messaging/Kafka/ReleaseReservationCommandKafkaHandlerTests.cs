@@ -40,7 +40,6 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegration
         var productId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
-        var correlationId = Guid.NewGuid();
 
         await Seed.ActiveReservationAsync(
             productId,

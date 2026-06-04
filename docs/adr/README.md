@@ -13,7 +13,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0005](0005-customer-data-in-ordering.md) | Customer Data in Ordering | Proposed | 2026-04-18 |
 | [0006](0006-event-sourcing-for-inventory.md) | Event Sourcing for Inventory | Proposed | 2026-04-18 |
 | [0007](0007-avro-compatibility-modes.md) | Avro Schema Compatibility Modes | Accepted | 2026-04-18 |
-| [0008](0008-correlation-id-propagation.md) | Correlation-ID Propagation Rule | Superseded by [0030](0030-retire-dedicated-correlationid.md) | 2026-04-19 |
+| [0008](0008-correlation-id-propagation.md) | Correlation-ID Propagation Rule | Deprecated | 2026-04-19 |
 | [0009](0009-reference-solution-target-profile.md) | Reference-Solution Target Profile | Accepted | 2026-04-19 |
 | [0010](0010-service-to-service-auth.md) | Service-to-Service Auth (OAuth2 Client Credentials) | Accepted | 2026-04-19 |
 | [0011](0011-pii-handling-gdpr.md) | PII Handling & GDPR Article 17 Path | Accepted | 2026-04-19 |
@@ -35,7 +35,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0027](0027-kafka-consumer-cooperative-rebalancing.md) | Kafka consumer partition-assignment strategy — CooperativeSticky for rolling/canary deploys | Accepted | 2026-06-02 |
 | [0028](0028-error-code-wire-fields-stay-string.md) | `ErrorCode` wire fields stay `string` (reject Avro enum migration) | Accepted | 2026-06-02 |
 | [0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) | Order-Keyed Saga & Pre-Assigned OrderId | Accepted | 2026-06-03 |
-| [0030](0030-retire-dedicated-correlationid.md) | Retire the Dedicated CorrelationId (OrderId as business key + traceId for telemetry) | Accepted | 2026-06-03 |
+| [0030](0030-removed.md) | Removed — kept to avoid a numbering gap | Removed | — |
 | [0031](0031-notify-user-command-and-notification-id.md) | Channel-Agnostic NotifyUserCommand & Producer-Assigned NotificationId | Accepted | 2026-06-03 |
 | [0032](0032-notifications-dispatch-and-channels.md) | Notifications v2 Dispatch & Channels (Hangfire fan-out, at-least-once ledger, SignalR bell) | Accepted | 2026-06-03 |
 | [0033](0033-kafka-topic-contract-doc-ssot.md) | SSOT for Kafka topic & event-contract documentation | Accepted | 2026-06-04 |

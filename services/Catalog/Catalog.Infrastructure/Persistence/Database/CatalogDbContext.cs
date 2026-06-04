@@ -17,7 +17,7 @@ namespace Catalog.Infrastructure.Persistence.Database;
 /// EF Core DbContext for the Catalog bounded context. Implements the
 /// <see cref="ICatalogDbContext"/> application port and <see cref="IInboxDbContext"/> so the
 /// <c>StockLevelChangedEvent</c> Kafka consumer can dedup messages atomically with the projection
-/// update (ADR-0008 + reliable messaging).
+/// update (reliable messaging).
 /// </summary>
 /// <remarks>
 /// The materialized read view <see cref="ProductSearchViewRow"/> is a separate

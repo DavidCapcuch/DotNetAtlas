@@ -1,6 +1,6 @@
 # Master System Prompt — Implement the **EShop.BFF**
 
-> **⚠ SUPERSEDED (2026-05-31) — historical wave prompt.** This prompt drove the original BFF implementation and is preserved verbatim. It references the deprecated cache-invalidator group `bff-cache-invalidator`. The current, authoritative consumer-group rule is **one group per service** (`bff-group`) per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md). Use the BC-design docs as ground truth; treat this file as background only.
+> **⚠ SUPERSEDED (2026-05-31) — historical wave prompt.** This prompt drove the original BFF implementation and is preserved verbatim. It references the deprecated cache-invalidator group `bff-cache-invalidator`. The current, authoritative consumer-group rule is **one group per service** (`bff-group`) per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md). Use the BC-design docs as ground truth; treat this file as background only — a BFF built today threads **`OrderId`** (the durable business key, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) and relies on W3C **`traceId`** for telemetry.
 
 > Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
 
@@ -22,7 +22,7 @@ You implement the **EShop BFF** (Backend-for-Frontend) at `src/EShop.BFF/`. The 
 <prerequisites>
 - **Wave 1 BCs scaffolded at minimum** (Catalog HTTP endpoints reachable; Basket + Ordering + Inventory + Payments + Invoicing optional but preferred).
 - **Wave 2 Checkout saga implemented** — BFF's `POST /api/v1/bff/checkout` triggers the saga flow.
-- Wave 0 platform prep merged. Specifically: `redis-cache` container running; `Platform.ServiceDefaults` has correlation-id + service-auth + feature-flags + JSON `DateTimeOffset` converter; Keycloak `bff` service client with scopes `catalog.read`, `inventory.read`, `ordering.read`, `invoicing.read`.
+- Wave 0 platform prep merged. Specifically: `redis-cache` container running; `Platform.ServiceDefaults` has service-auth + feature-flags + JSON `DateTimeOffset` converter; Keycloak `bff` service client with scopes `catalog.read`, `inventory.read`, `ordering.read`, `invoicing.read`.
 </prerequisites>
 
 <role_in_system>
@@ -76,7 +76,6 @@ You own these. Justify each in your session summary.
 <applicable_adrs>
 Cross-cutting decisions to apply:
 
-- [ADR-0008](../adr/0008-correlation-id-propagation.md) — **BFF is a workflow-entry boundary**: if a client request arrives without `X-Correlation-Id`, BFF (via Wave 0 middleware) generates UUID v7 and threads it into every outbound upstream call; invalidator consumer binds inbound correlation-id to logs/spans
 - [ADR-0010](../adr/0010-service-to-service-auth.md) — **BFF makes outbound HTTP to every BC** — each typed client uses `IHttpClientBuilder.AddServiceAuth("<scope>")` from Wave 0 (e.g., `catalog.read`, `inventory.read`); **user JWT is forwarded separately** via `DelegatingHandler` for buyer-scoped requests (both tokens travel together: user JWT identifies the buyer, service token identifies the BFF)
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — BFF composes addresses + buyer names into responses but **does NOT persist them**; OTEL allowlist forbids tagging spans with composed address fields; Serilog `[PII]` policy applies
 - [ADR-0012](../adr/0012-api-versioning.md) — all routes under `/api/v1/bff/...`
@@ -130,7 +129,6 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 - [ ] Architecture tests: no `DbSet<>` in BFF; no Kafka producer; only consumer + HTTP client + cache; FusionCache backplane ≠ `Redis:Basket`
 - [ ] Integration tests: (a) happy-path composition; (b) upstream timeout → fail-safe returns stale cache; (c) upstream 5xx → fallback; (d) invalidator consumer fires on fake `ProductPriceChanged` → tag removed; (e) checkout idempotency
 - [ ] Docker-compose: BFF container + healthcheck (no new topics, no outbox-relay)
-- [ ] Correlation-id roundtrips: client → BFF middleware (generate if absent) → outbound clients → upstream spans
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
 - [ ] Peer-review chain (`_shared.md § 11`) executed; HIGH findings fixed
 </dod>
@@ -219,7 +217,6 @@ Use the template in `_template.md § session_summary`, plus BFF-specifics:
 - Upstream endpoint coverage (which upstream endpoints existed? any missing that you flagged?)
 - Cache-invalidation verification (integration test for `ProductPriceChanged` → tag removal)
 - Payments/Invoicing v1 integration status (invoice link present, deferred, or stubbed)
-- ADR-0008 correlation-id — confirm BFF generates on missing + threads to all upstreams
 - ADR-0010 service-auth — every typed client carries service token AND user JWT (where authed)
 - ADR-0013 idempotency — checkout replay test evidence
 - ADR-0014 feature flag — `bff.home-page-eager-cache-warm` both states verified
