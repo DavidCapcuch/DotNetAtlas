@@ -12,20 +12,16 @@ namespace Ordering.Application.Orders.CreateOrder;
 /// <remarks>
 /// Returns the created <c>OrderId</c> so the saga can correlate the follow-up
 /// <c>OrderCreatedEvent</c> and arm its subsequent timeouts. The handler is
-/// idempotent on <see cref="CorrelationId"/> (see
+/// idempotent on <see cref="OrderId"/> (see
 /// <see cref="CreateOrderCommandHandler"/>).
 /// </remarks>
 public sealed record CreateOrderCommand : ICommand<Guid>
 {
     /// <summary>
     /// Pre-assigned Order identity (client-assigned UUID v7) — persisted as
-    /// <c>Order.Id</c> rather than minted by Ordering. Equals
-    /// <see cref="CorrelationId"/> (ADR-0029).
+    /// <c>Order.Id</c> rather than minted by Ordering (ADR-0029).
     /// </summary>
     public required Guid OrderId { get; init; }
-
-    /// <summary>Checkout saga correlation id. Becomes <c>Order.CorrelationId</c>.</summary>
-    public required Guid CorrelationId { get; init; }
 
     /// <summary>JWT <c>sub</c> claim of the buyer placing the order.</summary>
     public required Guid BuyerId { get; init; }

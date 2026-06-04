@@ -13,7 +13,6 @@ public sealed record OrderCreatedDomainEvent : DomainEvent
 {
     public required Guid OrderId { get; init; }
     public required Guid BuyerId { get; init; }
-    public required Guid CorrelationId { get; init; }
     public required Guid PaymentMethodId { get; init; }
     public required IReadOnlyCollection<OrderCreatedDomainEventItem> Items { get; init; }
     public required Address ShippingAddress { get; init; }

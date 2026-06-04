@@ -24,7 +24,6 @@ public class OrderConfirmedOutboxPublisherDomainEventHandlerTests : HandlerTestB
         var domainEvent = new OrderConfirmedDomainEvent
         {
             OrderId = order.Id,
-            CorrelationId = order.CorrelationId,
             BuyerId = order.BuyerId,
             Items = [.. order.Items],
             Total = order.Total,

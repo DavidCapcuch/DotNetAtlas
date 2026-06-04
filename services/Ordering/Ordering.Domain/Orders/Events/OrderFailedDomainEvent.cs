@@ -11,7 +11,6 @@ namespace Ordering.Domain.Orders.Events;
 public sealed record OrderFailedDomainEvent : DomainEvent
 {
     public required Guid OrderId { get; init; }
-    public required Guid CorrelationId { get; init; }
     public required Guid BuyerId { get; init; }
     public required string ErrorCode { get; init; }
     public required string ErrorMessage { get; init; }

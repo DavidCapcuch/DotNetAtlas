@@ -55,7 +55,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using (new AssertionScope())
         {
             var saved = await db.Orders.AsNoTracking()
-                .FirstAsync(o => o.CorrelationId == avro.OrderId, TestContext.Current.CancellationToken);
+                .FirstAsync(o => o.Id == avro.OrderId, TestContext.Current.CancellationToken);
             saved.Id.Should().Be(avro.OrderId,
                 "the client-assigned OrderId (ADR-0029) is persisted as the order's identity");
             saved.Status.Should().Be(OrderStatus.Created);
@@ -109,7 +109,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
             using var verifyScope = _fixture.CreateScope();
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var orderCount = await db.Orders.AsNoTracking()
-                .CountAsync(o => o.CorrelationId == avro.OrderId, TestContext.Current.CancellationToken);
+                .CountAsync(o => o.Id == avro.OrderId, TestContext.Current.CancellationToken);
             orderCount.Should().Be(1);
         }
     }
@@ -152,7 +152,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             (await db.Orders.AsNoTracking()
-                .AnyAsync(o => o.CorrelationId == avro.OrderId, TestContext.Current.CancellationToken))
+                .AnyAsync(o => o.Id == avro.OrderId, TestContext.Current.CancellationToken))
                 .Should().BeFalse("multi-currency rejection must abort before persistence");
 
             fakeOutbox.GetMessages<AvroOrderCreatedEvent>()
@@ -182,8 +182,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
 
     private AvroCreateOrderCommand NewValidAvroCommand() => new()
     {
-        // OrderId deliberately distinct from CorrelationId so HappyPath can prove
-        // the client-assigned id (ADR-0029) flows into the persisted PK.
+        // Client-assigned OrderId (ADR-0029) flows into the persisted PK.
         OrderId = Guid.CreateVersion7(),
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),

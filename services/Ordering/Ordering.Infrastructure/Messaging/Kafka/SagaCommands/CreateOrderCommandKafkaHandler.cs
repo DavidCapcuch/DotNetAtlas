@@ -14,7 +14,7 @@ namespace Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 /// Consumes the saga-issued <c>CreateOrderCommand</c> on
 /// <c>ordering.order-commands</c> and dispatches it to the application
 /// handler. Idempotency is enforced by KafkaFlow inbox middleware
-/// (message-id dedup) plus the handler's CorrelationId idempotency check.
+/// (message-id dedup) plus the handler's OrderId (aggregate PK) idempotency check.
 /// </summary>
 internal sealed class CreateOrderCommandKafkaHandler
     : SagaCommandHandlerBase<AvroCreateOrderCommand>, IMessageHandler<AvroCreateOrderCommand>
@@ -32,15 +32,9 @@ internal sealed class CreateOrderCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroCreateOrderCommand message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId source; Avro payload field
-        // is convenience metadata only.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
-        return ExecuteAsync(context, correlationId, orderId: null, async ct =>
+        return ExecuteAsync(context, message.OrderId, async ct =>
         {
-            var appCommand = message.ToAppCommand(correlationId);
+            var appCommand = message.ToAppCommand();
             var result = await _appHandler.HandleAsync(appCommand, ct);
             return result.ToResult();
         });

@@ -20,7 +20,6 @@ namespace Ordering.Domain.Orders.Events;
 public sealed record OrderConfirmedDomainEvent : DomainEvent
 {
     public required Guid OrderId { get; init; }
-    public required Guid CorrelationId { get; init; }
     public required Guid BuyerId { get; init; }
 
     /// <summary>

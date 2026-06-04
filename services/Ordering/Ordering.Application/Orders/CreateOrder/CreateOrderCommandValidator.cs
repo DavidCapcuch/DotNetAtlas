@@ -15,7 +15,6 @@ public sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderC
     public CreateOrderCommandValidator()
     {
         RuleFor(c => c.OrderId).NotEmpty();
-        RuleFor(c => c.CorrelationId).NotEmpty();
         RuleFor(c => c.BuyerId).NotEmpty();
         RuleFor(c => c.PaymentMethodId).NotEmpty();
 

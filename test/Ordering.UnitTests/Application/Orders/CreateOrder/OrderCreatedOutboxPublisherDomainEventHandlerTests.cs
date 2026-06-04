@@ -15,14 +15,12 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
     public async Task Handle_PublishesOrderCreatedEventToOutbox_WithOrderIdAsKey()
     {
         var orderId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
         var domainEvent = new OrderCreatedDomainEvent
         {
             OrderId = orderId,
             BuyerId = buyerId,
-            CorrelationId = correlationId,
             PaymentMethodId = paymentMethodId,
             Items = [new OrderCreatedDomainEventItem(
                 Guid.CreateVersion7(), "SKU", "Prod", 2, 10m, 20m)],

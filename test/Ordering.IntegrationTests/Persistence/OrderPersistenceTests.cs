@@ -36,7 +36,6 @@ public sealed class OrderPersistenceTests
         var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
         var orderId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
@@ -63,7 +62,6 @@ public sealed class OrderPersistenceTests
 
         var order = Order.CreateFromBasket(
             orderId,
-            correlationId,
             buyerId,
             basket,
             shipping,
@@ -86,7 +84,6 @@ public sealed class OrderPersistenceTests
 
         loaded.Should().NotBeNull();
         loaded!.BuyerId.Should().Be(buyerId);
-        loaded.CorrelationId.Should().Be(correlationId);
         loaded.PaymentMethodId.Should().Be(paymentMethodId);
         loaded.Status.Should().Be(OrderStatus.Created);
         loaded.Total.Amount.Should().Be(39.98m);
@@ -113,55 +110,16 @@ public sealed class OrderPersistenceTests
         loaded.LastModifiedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
     }
 
-    [Fact]
-    public async Task Given_same_CorrelationId_When_inserted_twice_Then_second_save_is_blocked_by_unique_index()
-    {
-        using var scope = _fixture.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
-
-        var correlationId = Guid.CreateVersion7();
-        var buyerId = Guid.CreateVersion7();
-        var paymentMethodId = Guid.CreateVersion7();
-        var basket = new BasketSnapshot(buyerId, CurrencyCode.Usd,
-        [
-            new BasketSnapshotItem(
-                ProductId: Guid.CreateVersion7(),
-                Sku: "SKU-1",
-                Name: "Duplicate test",
-                Quantity: 1,
-                UnitPriceAmount: 10m),
-        ]);
-        // EF's owned-entity change tracker requires distinct instances per owner slot,
-        // so construct fresh Addresses for shipping vs billing and for the two Orders.
-        static Address Addr() => Address.Create("1 Test Ln", null, "Palo Alto", "CA", "94301", "US").Value;
-
-        var utcNow = DateTimeOffset.UtcNow;
-        // Distinct OrderIds (PKs) but the SAME CorrelationId — so the second
-        // save trips the correlation_id unique index, not the PK.
-        var first = Order.CreateFromBasket(
-            Guid.CreateVersion7(), correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
-        var second = Order.CreateFromBasket(
-            Guid.CreateVersion7(), correlationId, buyerId, basket, Addr(), Addr(), paymentMethodId, utcNow);
-
-        dbContext.Orders.Add(first);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        dbContext.Orders.Add(second);
-
-        await FluentActions
-            .Awaiting(() => dbContext.SaveChangesAsync(TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<DbUpdateException>("CorrelationId is unique per Order");
-    }
-
     /// <summary>
     /// Exercises the <see cref="CreateOrderCommandHandler"/> idempotency branch
     /// against the real Postgres-backed <see cref="OrderingDbContext"/> — a
-    /// Kafka redelivery (or saga retry) of the same <c>CorrelationId</c> must
-    /// return the original <c>OrderId</c> without raising the unique-index
-    /// error (the pre-check short-circuits before insert).
+    /// Kafka redelivery (or saga retry) of the same <c>OrderId</c> (the
+    /// client-assigned aggregate PK per ADR-0029) must return the original
+    /// <c>OrderId</c> without a duplicate insert (the pre-check short-circuits
+    /// before the PK-violation insert).
     /// </summary>
     [Fact]
-    public async Task Given_duplicate_CorrelationId_When_handler_invoked_twice_Then_second_returns_existing_OrderId()
+    public async Task Given_duplicate_OrderId_When_handler_invoked_twice_Then_second_returns_existing_OrderId()
     {
         using var scope = _fixture.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
@@ -170,11 +128,9 @@ public sealed class OrderPersistenceTests
             (IOrderingDbContext)dbContext,
             logger);
 
-        var correlationId = Guid.CreateVersion7();
         var command = new CreateOrderCommand
         {
             OrderId = Guid.CreateVersion7(),
-            CorrelationId = correlationId,
             BuyerId = Guid.CreateVersion7(),
             PaymentMethodId = Guid.CreateVersion7(),
             Currency = CurrencyCode.Usd.Name,
@@ -197,18 +153,18 @@ public sealed class OrderPersistenceTests
         var first = await handler.HandleAsync(command, TestContext.Current.CancellationToken);
         first.IsSuccess.Should().BeTrue();
 
-        // Second dispatch with the same CorrelationId — handler's pre-check
+        // Second dispatch with the same OrderId — handler's pre-check
         // should short-circuit and return the same OrderId, NOT throw DbUpdateException.
         var second = await handler.HandleAsync(command, TestContext.Current.CancellationToken);
         second.IsSuccess.Should().BeTrue();
-        second.Value.Should().Be(first.Value, "replay must be idempotent on CorrelationId");
+        second.Value.Should().Be(first.Value, "replay must be idempotent on OrderId");
 
         // And only ONE row actually persisted.
         using var verifyScope = _fixture.CreateScope();
         var verifyContext = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
         var count = await verifyContext.Orders
             .AsNoTracking()
-            .CountAsync(o => o.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .CountAsync(o => o.Id == command.OrderId, TestContext.Current.CancellationToken);
         count.Should().Be(1);
     }
 }

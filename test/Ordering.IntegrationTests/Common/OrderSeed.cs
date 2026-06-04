@@ -35,11 +35,10 @@ internal sealed class OrderSeed
     /// </summary>
     public async Task<Order> CreateOrderAsync(
         Guid? buyerId = null,
-        Guid? correlationId = null,
         Guid? paymentMethodId = null,
         CancellationToken cancellationToken = default)
     {
-        var order = BuildCreatedOrder(buyerId ?? Guid.CreateVersion7(), correlationId, paymentMethodId);
+        var order = BuildCreatedOrder(buyerId ?? Guid.CreateVersion7(), paymentMethodId);
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(cancellationToken);
         return order;
@@ -106,7 +105,6 @@ internal sealed class OrderSeed
 
     private Order BuildCreatedOrder(
         Guid buyerId,
-        Guid? correlationId = null,
         Guid? paymentMethodId = null)
     {
         var basket = new BasketSnapshot(
@@ -130,7 +128,6 @@ internal sealed class OrderSeed
 
         return Order.CreateFromBasket(
             orderId: Guid.CreateVersion7(),
-            correlationId: correlationId ?? Guid.CreateVersion7(),
             buyerId: buyerId,
             basket: basket,
             shippingAddress: shipping,

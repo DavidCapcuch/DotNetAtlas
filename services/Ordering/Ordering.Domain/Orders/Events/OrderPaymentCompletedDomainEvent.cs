@@ -11,6 +11,5 @@ namespace Ordering.Domain.Orders.Events;
 public sealed record OrderPaymentCompletedDomainEvent : DomainEvent
 {
     public required Guid OrderId { get; init; }
-    public required Guid CorrelationId { get; init; }
     public required Guid PaymentTransactionId { get; init; }
 }

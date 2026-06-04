@@ -43,12 +43,6 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasComment("JWT sub of the buyer who placed the order.");
         builder.HasIndex(o => o.BuyerId).HasDatabaseName("ix_orders_buyer_id");
 
-        builder.Property(o => o.CorrelationId)
-            .HasComment("Checkout saga correlation id. Idempotency key for CreateOrderCommand.");
-        builder.HasIndex(o => o.CorrelationId)
-            .IsUnique()
-            .HasDatabaseName("ux_orders_correlation_id");
-
         builder.Property(o => o.PaymentMethodId)
             .HasComment("Payments-side payment method reference.");
 
