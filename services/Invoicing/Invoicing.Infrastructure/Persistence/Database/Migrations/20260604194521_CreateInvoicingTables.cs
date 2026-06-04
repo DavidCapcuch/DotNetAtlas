@@ -41,7 +41,6 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                     original_invoice_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Identifier of the Invoice this credit note reverses."),
                     original_invoice_number = table.Column<string>(type: "character varying(15)", maxLength: 15, nullable: false, comment: "Snapshot of the original Invoice's number for PDF rendering and reconciliation."),
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Buyer of the original invoice (and therefore the credit note)."),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Cancellation flow correlation id; used as idempotency key."),
                     issue_date = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, comment: "UTC timestamp when the credit note was issued (number stamped + PDF stored)."),
                     total_amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false),
                     total_currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
@@ -99,7 +98,6 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "JWT sub of the buyer the invoice is issued to."),
                     order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Reference to the Ordering Order the invoice settles."),
                     payment_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Reference to the Payments transaction the invoice settles."),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Checkout saga correlation id (passed through from Order + Payment)."),
                     issue_date = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, comment: "UTC timestamp when the invoice transitioned to Issued."),
                     billing_address_street1_enc = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false, comment: "PII (ADR-0011): street line 1. v1 plaintext; v2 encrypts."),
                     billing_address_street2_enc = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true, comment: "PII (ADR-0011): street line 2 (optional)."),
@@ -153,8 +151,7 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                 schema: "invoicing",
                 columns: table => new
                 {
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Saga / cross-BC correlation id. Primary key."),
-                    order_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "OrderCancelledEvent.OrderId; null until the order-cancel half arrives."),
+                    order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "OrderCancelledEvent.OrderId; the cross-BC convergence key. Primary key."),
                     payment_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "PaymentRefundedEvent.PaymentTransactionId — the original captured payment, not the refund txn id."),
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "OrderCancelledEvent.BuyerId; the outbox publisher uses this as the partition key."),
                     order_payload = table.Column<string>(type: "jsonb", nullable: true, comment: "PII: full OrderCancelledEvent serialised to JSON for issuance-time hydration."),
@@ -165,17 +162,16 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_pending_credit_notes", x => x.correlation_id);
+                    table.PrimaryKey("pk_pending_credit_notes", x => x.order_id);
                 },
-                comment: "Async-enrichment buffer: collects OrderCancelledEvent + PaymentRefundedEvent halves keyed on CorrelationId until IssueCreditNoteCommandHandler converts the converged row into a CreditNote aggregate.");
+                comment: "Async-enrichment buffer: collects OrderCancelledEvent + PaymentRefundedEvent halves keyed on OrderId until IssueCreditNoteCommandHandler converts the converged row into a CreditNote aggregate.");
 
             migrationBuilder.CreateTable(
                 name: "pending_invoices",
                 schema: "invoicing",
                 columns: table => new
                 {
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Saga / cross-BC correlation id. Primary key."),
-                    order_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "OrderConfirmedEvent.OrderId; null until the order half arrives."),
+                    order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "OrderConfirmedEvent.OrderId; the cross-BC convergence key. Primary key."),
                     payment_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "PaymentCapturedEvent.PaymentTransactionId; null until the payment half arrives."),
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "OrderConfirmedEvent.BuyerId; the outbox publisher uses this as the partition key on invoicing.invoices."),
                     order_payload = table.Column<string>(type: "jsonb", nullable: true, comment: "PII: full OrderConfirmedEvent serialised to JSON for issuance-time hydration."),
@@ -186,9 +182,9 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_pending_invoices", x => x.correlation_id);
+                    table.PrimaryKey("pk_pending_invoices", x => x.order_id);
                 },
-                comment: "Async-enrichment buffer: collects OrderConfirmedEvent + PaymentCapturedEvent halves keyed on CorrelationId until IssueInvoiceCommandHandler converts the converged row into an Invoice aggregate.");
+                comment: "Async-enrichment buffer: collects OrderConfirmedEvent + PaymentCapturedEvent halves keyed on OrderId until IssueInvoiceCommandHandler converts the converged row into an Invoice aggregate.");
 
             migrationBuilder.CreateTable(
                 name: "credit_note_lines",
@@ -284,13 +280,6 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                 column: "buyer_id");
 
             migrationBuilder.CreateIndex(
-                name: "ux_credit_notes_correlation_id",
-                schema: "invoicing",
-                table: "credit_notes",
-                column: "correlation_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "ux_credit_notes_credit_note_number",
                 schema: "invoicing",
                 table: "credit_notes",
@@ -318,13 +307,6 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                 column: "buyer_id");
 
             migrationBuilder.CreateIndex(
-                name: "ux_invoices_correlation_id",
-                schema: "invoicing",
-                table: "invoices",
-                column: "correlation_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "ux_invoices_invoice_number",
                 schema: "invoicing",
                 table: "invoices",
@@ -340,22 +322,10 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "ix_pending_credit_notes_order_id",
-                schema: "invoicing",
-                table: "pending_credit_notes",
-                column: "order_id");
-
-            migrationBuilder.CreateIndex(
                 name: "ix_pending_credit_notes_ready",
                 schema: "invoicing",
                 table: "pending_credit_notes",
                 columns: new[] { "completed_at_utc", "issued_credit_note_id" });
-
-            migrationBuilder.CreateIndex(
-                name: "ix_pending_invoices_order_id",
-                schema: "invoicing",
-                table: "pending_invoices",
-                column: "order_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_pending_invoices_ready",

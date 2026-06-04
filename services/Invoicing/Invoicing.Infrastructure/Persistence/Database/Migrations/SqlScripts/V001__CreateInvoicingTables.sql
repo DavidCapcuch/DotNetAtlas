@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS invoicing."__EFMigrationsHistory" (
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
         IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'invoicing') THEN
             CREATE SCHEMA invoicing;
         END IF;
@@ -22,7 +22,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.credit_note_number_allocator (
         year smallint NOT NULL,
         next_value bigint NOT NULL,
@@ -39,14 +39,13 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.credit_notes (
         id uuid NOT NULL,
         credit_note_number character varying(14),
         original_invoice_id uuid NOT NULL,
         original_invoice_number character varying(15) NOT NULL,
         buyer_id uuid NOT NULL,
-        correlation_id uuid NOT NULL,
         issue_date timestamp with time zone NOT NULL,
         total_amount numeric(19,4) NOT NULL,
         total_currency character varying(3) NOT NULL,
@@ -64,7 +63,6 @@ BEGIN
     COMMENT ON COLUMN invoicing.credit_notes.original_invoice_id IS 'Identifier of the Invoice this credit note reverses.';
     COMMENT ON COLUMN invoicing.credit_notes.original_invoice_number IS 'Snapshot of the original Invoice''s number for PDF rendering and reconciliation.';
     COMMENT ON COLUMN invoicing.credit_notes.buyer_id IS 'Buyer of the original invoice (and therefore the credit note).';
-    COMMENT ON COLUMN invoicing.credit_notes.correlation_id IS 'Cancellation flow correlation id; used as idempotency key.';
     COMMENT ON COLUMN invoicing.credit_notes.issue_date IS 'UTC timestamp when the credit note was issued (number stamped + PDF stored).';
     COMMENT ON COLUMN invoicing.credit_notes.reason IS 'CreditNoteReason (v1: OrderCancelled).';
     COMMENT ON COLUMN invoicing.credit_notes.pdf_content_hash IS 'SHA-256 of the PDF bytes, lowercase hex (64 chars).';
@@ -76,7 +74,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.inbox_messages (
         message_id uuid NOT NULL,
         processed_at_utc timestamp with time zone NOT NULL,
@@ -90,7 +88,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.invoice_number_allocator (
         year smallint NOT NULL,
         next_value bigint NOT NULL,
@@ -107,14 +105,13 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.invoices (
         id uuid NOT NULL,
         invoice_number character varying(15),
         buyer_id uuid NOT NULL,
         order_id uuid NOT NULL,
         payment_id uuid NOT NULL,
-        correlation_id uuid NOT NULL,
         issue_date timestamp with time zone NOT NULL,
         billing_address_street1_enc character varying(200) NOT NULL,
         billing_address_street2_enc character varying(200),
@@ -143,7 +140,6 @@ BEGIN
     COMMENT ON COLUMN invoicing.invoices.buyer_id IS 'JWT sub of the buyer the invoice is issued to.';
     COMMENT ON COLUMN invoicing.invoices.order_id IS 'Reference to the Ordering Order the invoice settles.';
     COMMENT ON COLUMN invoicing.invoices.payment_id IS 'Reference to the Payments transaction the invoice settles.';
-    COMMENT ON COLUMN invoicing.invoices.correlation_id IS 'Checkout saga correlation id (passed through from Order + Payment).';
     COMMENT ON COLUMN invoicing.invoices.issue_date IS 'UTC timestamp when the invoice transitioned to Issued.';
     COMMENT ON COLUMN invoicing.invoices.billing_address_street1_enc IS 'PII (ADR-0011): street line 1. v1 plaintext; v2 encrypts.';
     COMMENT ON COLUMN invoicing.invoices.billing_address_street2_enc IS 'PII (ADR-0011): street line 2 (optional).';
@@ -164,7 +160,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.outbox_messages (
         id bigint GENERATED BY DEFAULT AS IDENTITY,
         topic_name character varying(249) NOT NULL,
@@ -188,10 +184,9 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.pending_credit_notes (
-        correlation_id uuid NOT NULL,
-        order_id uuid,
+        order_id uuid NOT NULL,
         payment_id uuid,
         buyer_id uuid,
         order_payload jsonb,
@@ -199,11 +194,10 @@ BEGIN
         first_seen_at_utc timestamp with time zone NOT NULL,
         completed_at_utc timestamp with time zone,
         issued_credit_note_id uuid,
-        CONSTRAINT pk_pending_credit_notes PRIMARY KEY (correlation_id)
+        CONSTRAINT pk_pending_credit_notes PRIMARY KEY (order_id)
     );
-    COMMENT ON TABLE invoicing.pending_credit_notes IS 'Async-enrichment buffer: collects OrderCancelledEvent + PaymentRefundedEvent halves keyed on CorrelationId until IssueCreditNoteCommandHandler converts the converged row into a CreditNote aggregate.';
-    COMMENT ON COLUMN invoicing.pending_credit_notes.correlation_id IS 'Saga / cross-BC correlation id. Primary key.';
-    COMMENT ON COLUMN invoicing.pending_credit_notes.order_id IS 'OrderCancelledEvent.OrderId; null until the order-cancel half arrives.';
+    COMMENT ON TABLE invoicing.pending_credit_notes IS 'Async-enrichment buffer: collects OrderCancelledEvent + PaymentRefundedEvent halves keyed on OrderId until IssueCreditNoteCommandHandler converts the converged row into a CreditNote aggregate.';
+    COMMENT ON COLUMN invoicing.pending_credit_notes.order_id IS 'OrderCancelledEvent.OrderId; the cross-BC convergence key. Primary key.';
     COMMENT ON COLUMN invoicing.pending_credit_notes.payment_id IS 'PaymentRefundedEvent.PaymentTransactionId — the original captured payment, not the refund txn id.';
     COMMENT ON COLUMN invoicing.pending_credit_notes.buyer_id IS 'OrderCancelledEvent.BuyerId; the outbox publisher uses this as the partition key.';
     COMMENT ON COLUMN invoicing.pending_credit_notes.order_payload IS 'PII: full OrderCancelledEvent serialised to JSON for issuance-time hydration.';
@@ -216,10 +210,9 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.pending_invoices (
-        correlation_id uuid NOT NULL,
-        order_id uuid,
+        order_id uuid NOT NULL,
         payment_id uuid,
         buyer_id uuid,
         order_payload jsonb,
@@ -227,11 +220,10 @@ BEGIN
         first_seen_at_utc timestamp with time zone NOT NULL,
         completed_at_utc timestamp with time zone,
         issued_invoice_id uuid,
-        CONSTRAINT pk_pending_invoices PRIMARY KEY (correlation_id)
+        CONSTRAINT pk_pending_invoices PRIMARY KEY (order_id)
     );
-    COMMENT ON TABLE invoicing.pending_invoices IS 'Async-enrichment buffer: collects OrderConfirmedEvent + PaymentCapturedEvent halves keyed on CorrelationId until IssueInvoiceCommandHandler converts the converged row into an Invoice aggregate.';
-    COMMENT ON COLUMN invoicing.pending_invoices.correlation_id IS 'Saga / cross-BC correlation id. Primary key.';
-    COMMENT ON COLUMN invoicing.pending_invoices.order_id IS 'OrderConfirmedEvent.OrderId; null until the order half arrives.';
+    COMMENT ON TABLE invoicing.pending_invoices IS 'Async-enrichment buffer: collects OrderConfirmedEvent + PaymentCapturedEvent halves keyed on OrderId until IssueInvoiceCommandHandler converts the converged row into an Invoice aggregate.';
+    COMMENT ON COLUMN invoicing.pending_invoices.order_id IS 'OrderConfirmedEvent.OrderId; the cross-BC convergence key. Primary key.';
     COMMENT ON COLUMN invoicing.pending_invoices.payment_id IS 'PaymentCapturedEvent.PaymentTransactionId; null until the payment half arrives.';
     COMMENT ON COLUMN invoicing.pending_invoices.buyer_id IS 'OrderConfirmedEvent.BuyerId; the outbox publisher uses this as the partition key on invoicing.invoices.';
     COMMENT ON COLUMN invoicing.pending_invoices.order_payload IS 'PII: full OrderConfirmedEvent serialised to JSON for issuance-time hydration.';
@@ -244,7 +236,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.credit_note_lines (
         line_number integer GENERATED BY DEFAULT AS IDENTITY,
         credit_note_id uuid NOT NULL,
@@ -270,7 +262,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.invoice_lines (
         line_number integer GENERATED BY DEFAULT AS IDENTITY,
         invoice_id uuid NOT NULL,
@@ -296,7 +288,7 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE TABLE invoicing.invoice_vat_lines (
         invoice_id uuid NOT NULL,
         ordinal integer GENERATED BY DEFAULT AS IDENTITY,
@@ -315,99 +307,71 @@ END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE INDEX ix_credit_notes_buyer_id ON invoicing.credit_notes (buyer_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
-    CREATE UNIQUE INDEX ux_credit_notes_correlation_id ON invoicing.credit_notes (correlation_id);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE UNIQUE INDEX ux_credit_notes_credit_note_number ON invoicing.credit_notes (credit_note_number) WHERE credit_note_number IS NOT NULL;
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE UNIQUE INDEX ux_credit_notes_original_invoice_id ON invoicing.credit_notes (original_invoice_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE INDEX ix_inbox_messages_processed_at_utc ON invoicing.inbox_messages (processed_at_utc);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE INDEX ix_invoices_buyer_id ON invoicing.invoices (buyer_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
-    CREATE UNIQUE INDEX ux_invoices_correlation_id ON invoicing.invoices (correlation_id);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE UNIQUE INDEX ux_invoices_invoice_number ON invoicing.invoices (invoice_number) WHERE invoice_number IS NOT NULL;
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE UNIQUE INDEX ux_invoices_order_id ON invoicing.invoices (order_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
-    CREATE INDEX ix_pending_credit_notes_order_id ON invoicing.pending_credit_notes (order_id);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE INDEX ix_pending_credit_notes_ready ON invoicing.pending_credit_notes (completed_at_utc, issued_credit_note_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
-    CREATE INDEX ix_pending_invoices_order_id ON invoicing.pending_invoices (order_id);
-    END IF;
-END $EF$;
-
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     CREATE INDEX ix_pending_invoices_ready ON invoicing.pending_invoices (completed_at_utc, issued_invoice_id);
     END IF;
 END $EF$;
 
 DO $EF$
 BEGIN
-    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260531235302_CreateInvoicingTables') THEN
+    IF NOT EXISTS(SELECT 1 FROM invoicing."__EFMigrationsHistory" WHERE "migration_id" = '20260604194521_CreateInvoicingTables') THEN
     INSERT INTO invoicing."__EFMigrationsHistory" (migration_id, product_version)
-    VALUES ('20260531235302_CreateInvoicingTables', '10.0.8');
+    VALUES ('20260604194521_CreateInvoicingTables', '10.0.8');
     END IF;
 END $EF$;

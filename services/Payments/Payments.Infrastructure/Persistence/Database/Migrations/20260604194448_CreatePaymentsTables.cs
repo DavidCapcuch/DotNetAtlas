@@ -54,10 +54,9 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                 schema: "payments",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7)."),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga."),
+                    id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from the saga key (OrderId). One payment per order is enforced by the ux_payment_transactions_order_id unique index (ADR-0029). See docs/bc-design/payments.md § 2.2 (I-7)."),
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "JWT sub of the buyer the payment is for."),
-                    order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Ordering aggregate id this payment is attached to (frozen at creation; debugging/admin-lookup convenience)."),
+                    order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Ordering aggregate id this payment is attached to (frozen at creation). Unique index enforces one payment per order (ADR-0029)."),
                     amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount."),
                     amount_currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false, comment: "ISO 4217 currency code."),
                     payment_method_id_enc = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false, comment: "PII (ADR-0011): gateway-issued tokenised payment instrument. v1 plaintext; v2 encrypts."),
@@ -95,16 +94,10 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                 column: "buyer_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_payment_transactions_order_id",
+                name: "ux_payment_transactions_order_id",
                 schema: "payments",
                 table: "payment_transactions",
-                column: "order_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ux_payment_transactions_correlation_id",
-                schema: "payments",
-                table: "payment_transactions",
-                column: "correlation_id",
+                column: "order_id",
                 unique: true);
         }
 

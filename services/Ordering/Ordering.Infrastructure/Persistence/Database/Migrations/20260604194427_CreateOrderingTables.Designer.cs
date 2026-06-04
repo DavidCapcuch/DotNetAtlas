@@ -12,7 +12,7 @@ using Ordering.Infrastructure.Persistence.Database;
 namespace Ordering.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(OrderingDbContext))]
-    [Migration("20260531235507_CreateOrderingTables")]
+    [Migration("20260604194427_CreateOrderingTables")]
     partial class CreateOrderingTables
     {
         /// <inheritdoc />
@@ -42,11 +42,6 @@ namespace Ordering.Infrastructure.Persistence.Database.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("confirmed_at_utc")
                         .HasComment("UTC timestamp when the order was confirmed (nullable).");
-
-                    b.Property<Guid>("CorrelationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("correlation_id")
-                        .HasComment("Checkout saga correlation id. Idempotency key for CreateOrderCommand.");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -110,10 +105,6 @@ namespace Ordering.Infrastructure.Persistence.Database.Migrations
 
                     b.HasIndex("BuyerId")
                         .HasDatabaseName("ix_orders_buyer_id");
-
-                    b.HasIndex("CorrelationId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_orders_correlation_id");
 
                     b.HasIndex("BuyerId", "CreatedAtUtc")
                         .HasDatabaseName("ix_orders_buyer_id_created_at_utc");

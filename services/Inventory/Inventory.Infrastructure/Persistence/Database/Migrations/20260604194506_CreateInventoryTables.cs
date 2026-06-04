@@ -99,8 +99,7 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                     event_type = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false, comment: "CLR-type name discriminator (e.g. \"StockReservedDomainEvent\") used by the deserializer."),
                     payload = table.Column<string>(type: "jsonb", nullable: false, comment: "JSON-serialized internal event; stored as jsonb for legibility and indexability."),
                     occurred_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, comment: "UTC timestamp the domain event was produced; copied from event.OccurredOnUtc for temporal queries."),
-                    appended_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()", comment: "DB-side insert timestamp; distinguishes domain time from persisted time during replay/tests."),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Saga correlation id (ADR-0008); null for ops-originated events.")
+                    appended_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()", comment: "DB-side insert timestamp; distinguishes domain time from persisted time during replay/tests.")
                 },
                 constraints: table =>
                 {
@@ -133,13 +132,6 @@ namespace Inventory.Infrastructure.Persistence.Database.Migrations
                 schema: "inventory",
                 table: "reservation_audit",
                 column: "order_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_stock_events_correlation",
-                schema: "inventory",
-                table: "stock_events",
-                column: "correlation_id",
-                filter: "correlation_id IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "ix_stock_events_event_type",
