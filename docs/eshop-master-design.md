@@ -242,7 +242,7 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | Payments | CheckoutSaga | Published event (Payments outbox) | Kafka (`payments.transactions`) | `PaymentAuthorizedEvent` (drives confirmation), `PaymentCompletedEvent` (post-capture terminal), `PaymentFailedEvent` (fast-fail) — Payments-owned per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md) |
 | PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand` (after `ApproveCaptureCommand`), `VoidPaymentCommand` (on `AbortCaptureCommand` / timeout); `RequestRefundCommand` is deferred — no v1 producer (existing) |
 | Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChangedEvent` (crosses 0↔positive) |
-| Producing BCs (v1: Invoicing) | Notifications | Command-driven fan-in (D-5) | Kafka (`notifications.email-commands`) | `SendEmailNotificationCommand` — Notifications does **not** subscribe to `ordering.orders`; order-lifecycle emails would use this command path but ship no v1 producer |
+| Producing BCs (v1: Invoicing) | Notifications | Command-driven fan-in (D-5) | Kafka (notifications command topic — physical v1 `notifications.email-commands`, renames to `notify-commands` at #312) | Channel-agnostic `NotifyUserCommand` (v2; [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). Notifications does **not** subscribe to `ordering.orders`; contract canonical in [events-catalog.md § 2 + § 1.4 D-5](bc-design/events-catalog.md) |
 
 ### 4.3 BC Classification
 
@@ -329,39 +329,15 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 ## 6. Event Catalog — Overview
 
-> **Detail:** [bc-design/events-catalog.md](bc-design/events-catalog.md) — complete master catalog (34 events across 9 topics), full Avro `.avsc` per new event, docker-compose delta, outbox-relay and inbox registration strategy.
+> **Navigation stub.** The eShop's event/topic facts live in **two canonical anchors** per [ADR-0033](adr/0033-kafka-topic-contract-doc-ssot.md); this section no longer restates them. (The per-BC topic lists and the "events across N topics" counts that used to live here drifted — three different counts coexisted — and were removed.)
+> - **Per-event contract** — producer / consumer(s) / group / correlation key / trigger / schema path: [bc-design/events-catalog.md § 2](bc-design/events-catalog.md).
+> - **Per-topic physical topology** — partitions / retention / class (compat *derived* from class): [kafka-topology.md](kafka-topology.md).
+> - **Runtime topic definitions:** the `kafka-create-topic` block in [docker-compose.yaml](../docker-compose.yaml).
+> - **Avro schemas:** the `.avsc` files under `platform/Platform.SchemaRegistry.Contracts/Avro/**` (paths indexed in [events-catalog.md § 5](bc-design/events-catalog.md)).
 
-### 6.1 New Kafka Topics (summary)
+### 6.1 Outbox-relay & supporting containers
 
-> **Canonical registries:**
-> - [kafka-topology.md](kafka-topology.md) — topology (partitions, retention, class, key, rationale) per topic.
-> - [bc-design/events-catalog.md § 3](bc-design/events-catalog.md) — inverse view (each topic → events flowing through it).
->
-> This section is a per-BC quick reference; topology and event-mapping detail live in the canonical registries.
-
-12 new topics across the new BCs:
-
-- **Catalog:** `catalog.products`, `catalog.categories`
-- **Basket:** `basket.sessions`
-- **Ordering:** `ordering.orders`, `ordering.order-commands`
-- **Inventory:** `inventory.stock-events`, `inventory.reservations`, `inventory.reservation-commands`
-- **Payments:** `payments.transactions`, `payments.payment-commands`
-- **Invoicing:** `invoicing.invoices`
-- **Notifications:** `notifications.email-events` (new; outbound delivery confirmations)
-
-**Reuses existing:** `notifications.email-commands`.
-
-### 6.2 Master Event Table (high-level; full table in events-catalog.md § 2)
-
-38 events total across Catalog / Basket / Ordering / Inventory / Payments / Invoicing. Full Avro schemas for all new events are specified in [events-catalog.md § 5](bc-design/events-catalog.md).
-
-### 6.3 Docker-compose Delta
-
-New `kafka-topics --create ...` lines appended to [docker-compose.yaml](../docker-compose.yaml). Exact copy-paste block in [events-catalog.md § 4](bc-design/events-catalog.md), including the 10-year retention flag on `invoicing.invoices`.
-
-Also: one `outbox-relay-*` container per service schema (`outbox-relay-saga`, `outbox-relay-basket`, `outbox-relay-catalog`, `outbox-relay-inventory`, `outbox-relay-invoicing`, `outbox-relay-notifications`, `outbox-relay-ordering`, `outbox-relay-payments`). Each binds to its service's `OutboxRelay__SchemaName`.
-
-New containers: `azurite` (local Azure Blob Storage emulator for invoice PDFs; first-party Aspire integration via `AddAzureStorage().RunAsEmulator()`) + `nginx-cdn` (local CDN emulation fronting Azurite) — see [ADR-0017](adr/0017-blob-storage-cdn.md).
+One `outbox-relay-*` container per service schema (`outbox-relay-saga`, `outbox-relay-basket`, `outbox-relay-catalog`, `outbox-relay-inventory`, `outbox-relay-invoicing`, `outbox-relay-notifications`, `outbox-relay-ordering`, `outbox-relay-payments`), each bound to its service's `OutboxRelay__SchemaName` — detail in [events-catalog.md § 6](bc-design/events-catalog.md). Plus `azurite` (local Azure Blob Storage emulator for invoice PDFs; first-party Aspire integration via `AddAzureStorage().RunAsEmulator()`) + `nginx-cdn` (local CDN emulation fronting Azurite) — see [ADR-0017](adr/0017-blob-storage-cdn.md).
 
 ---
 
@@ -687,7 +663,7 @@ Each references `Platform.Test.Framework` for shared fixtures (Testcontainers se
 Add to [docker-compose.yaml](../docker-compose.yaml):
 - Per-service `{bc}-db` entry (if the service uses its own Postgres schema, likely not — all BCs share a single Postgres instance; schemas are per-BC).
 - One `outbox-relay-{bc}` container per service schema (saga, basket, catalog, inventory, invoicing, notifications, ordering, payments).
-- 8 new topics in `kafka-create-topic` command (full list: [events-catalog.md § 4](bc-design/events-catalog.md)).
+- New Kafka topics in the `kafka-create-topic` command — the runtime list is in [docker-compose.yaml](../docker-compose.yaml); per-topic topology in [kafka-topology.md](kafka-topology.md).
 
 ---
 
@@ -719,8 +695,9 @@ Per-BC features beyond current scope (low-stock thresholds, partial refunds, add
 | [0006](adr/0006-event-sourcing-for-inventory.md) | Event Sourcing for Inventory | Accepted (2026-04-18) |
 | [0007](adr/0007-avro-compatibility-modes.md) | Avro Schema Compatibility Modes | Accepted (2026-04-18) |
 | [0023](adr/0023-payments-event-vs-command-classification.md) | Payments Event-vs-Command Classification | Accepted (2026-05-30) |
+| [0033](adr/0033-kafka-topic-contract-doc-ssot.md) | SSOT for Kafka topic & event-contract docs (governs § 6) | Accepted (2026-06-04) |
 
-(ADRs 0008–0022 listed at [adr/README.md](adr/README.md); only the directly-master-design-related ADRs appear here.)
+(ADRs 0008–0022 + 0024–0032 listed at [adr/README.md](adr/README.md); only the directly-master-design-related ADRs appear here.)
 
 ---
 
@@ -805,7 +782,7 @@ No change required; design-intent note added here for implementation agents to r
 
 ### E.9 Kafka topic retention application
 
-**Clarification:** [events-catalog.md § 4](bc-design/events-catalog.md) specifies the authoritative `kafka-topics --create ...` block with explicit `--config retention.ms=...` flags per topic (`-1` for audit-log topics, `604800000` for 7-day commands, `2592000000` for 30-day basket sessions). Implementation agents must copy this block verbatim into [docker-compose.yaml](../docker-compose.yaml) after line 246. Broker default is 7 days; the explicit flags are REQUIRED to preserve audit-trail semantics for event-sourced and compliance-sensitive topics.
+**Clarification:** topic retention is applied by the explicit `--config retention.ms=...` flags in the `kafka-create-topic` block of [docker-compose.yaml](../docker-compose.yaml) (the runtime source of truth) and documented per-topic in [kafka-topology.md](kafka-topology.md) (`-1` for event-log/audit topics, `604800000` for 7-day commands, `2592000000` for 30-day basket sessions, `315360000000` for 10-year invoices). Broker default is 7 days; the explicit flags are REQUIRED to preserve audit-trail semantics for event-sourced and compliance-sensitive topics. (The copy-paste delta that used to live in events-catalog § 4 was removed per [ADR-0033](adr/0033-kafka-topic-contract-doc-ssot.md).)
 
 ### E.10 Consumer-group `inventory-stock-init` reuse — RETRACTED
 
@@ -860,13 +837,7 @@ Factual corrections made during authoring:
 
 ### F.4 Avro schema compatibility
 
-[bc-design/avro-compatibility.md](bc-design/avro-compatibility.md) + [ADR-0007](adr/0007-avro-compatibility-modes.md). Per-topic category decision:
-
-- **Event-log topics** → `FORWARD_TRANSITIVE` (infinite retention requires every historical version stay readable by current consumer code)
-- **Command topics** → `FULL_TRANSITIVE` (independent producer/consumer deploy cadence requires bidirectional compatibility)
-- **Subject naming**: Record Name Strategy (existing `UniversalAvroSerializer` convention)
-
-Breaking-change process: add-with-default only; deprecated fields retained forever within a subject; major versions require new subject names.
+Canonical: [ADR-0007](adr/0007-avro-compatibility-modes.md) (policy, breaking-change process, evolution anti-patterns) + [kafka-topology.md](kafka-topology.md) (the class → mode mapping). Compatibility mode is *derived* from topic class — event-log → `FORWARD_TRANSITIVE`, command → `FULL_TRANSITIVE` — and machine-enforced by `schema-registry-init` via the `.avsc` filename suffix; subject naming is Record-Name Strategy. The former `avro-compatibility.md` companion was retired into ADR-0007 per [ADR-0033](adr/0033-kafka-topic-contract-doc-ssot.md).
 
 ### F.5 Architecture test invariants
 
@@ -911,7 +882,7 @@ Iteration 1 and 2's fake-sticky Miro flowcharts have been removed from the board
 | Collaborative discovery | [example-mapping/](bc-design/example-mapping/) |
 | Error handling contracts | [error-taxonomy.md](bc-design/error-taxonomy.md) |
 | Kafka reliability | [kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md) |
-| Schema evolution | [avro-compatibility.md](bc-design/avro-compatibility.md), [ADR-0007](adr/0007-avro-compatibility-modes.md) |
+| Schema evolution | [ADR-0007](adr/0007-avro-compatibility-modes.md) + [kafka-topology.md](kafka-topology.md) (class → mode) |
 | Code-rule enforcement | [architecture-tests.md](bc-design/architecture-tests.md) |
 | Client retry safety | `use-cases.md` Idempotency-Key convention |
 | Saga incident response | [saga-stuck-runbook.md](bc-design/saga-stuck-runbook.md) |

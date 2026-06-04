@@ -93,7 +93,7 @@ This ADR specifies the per-topic-category compatibility policy and the breaking-
 - `FORWARD_TRANSITIVE` forbids removing fields entirely (historical messages with the field must remain deserializable by current code). Field deprecation must be multi-phase: add `@deprecated` doc → retain field forever OR register a new major-version subject.
 - `FULL_TRANSITIVE` adds the same no-removal constraint to commands — even though command retention is only 7 days, the transitive compatibility check examines ALL historical versions regardless of message lifetime.
 - A breaking change genuinely requires a new subject name (`ProductCreatedEventV2`), dual-publish migration period, and eventual cutover — heavier than a simple in-place rename.
-- Developers must understand the compatibility mode; onboarding docs must cover it (this ADR + [avro-compatibility.md](../bc-design/avro-compatibility.md)).
+- Developers must understand the compatibility mode; onboarding docs must cover it (this ADR — its former operational companion `avro-compatibility.md` was retired into this ADR per [ADR-0033](0033-kafka-topic-contract-doc-ssot.md)).
 
 ### Risks
 
@@ -140,8 +140,18 @@ This ADR specifies the per-topic-category compatibility policy and the breaking-
 
 - **Renames are new subjects.** Renaming a record (e.g., `PaymentRequestedEvent` → `RequestPaymentCommand` per ADR-0023) produces a new subject under Record Name Strategy and orphans the old one. In a non-production reference repo, hard cutover is acceptable (delete old `.avsc`, add new). In production, see ADR-0023's discussion of parallel-publish vs hard-cutover trade-offs.
 
+### Evolution anti-patterns (migrated from the retired `avro-compatibility.md`)
+
+Guard-rails for any `.avsc` change:
+
+- **Never change `namespace` on a registered record** — under Record-Name Strategy it changes the subject and orphans the prior one. A namespace move is a V2 migration, not an edit.
+- **Don't rely on Avro field aliases for renames under `FORWARD_TRANSITIVE`** — aliases work for BACKWARD scenarios but misbehave in forward-directional decoding; use add-new-field + deprecate-old instead.
+- **Never widen a field's union** (e.g. `["null","string"]` → `["null","string","int"]`) — rejected under FULL, breaks old consumers under FORWARD.
+- **Never change a field's `default`** — old data written without the field would decode to a different value.
+- **Never mix compatibility modes** — every `*Event` subject is `FORWARD_TRANSITIVE`, every `*Command` subject `FULL_TRANSITIVE`. The mode follows the **filename suffix**, not the topic's traffic pattern (so saga-state and audit topics, which carry `*Event` records, are also `FORWARD_TRANSITIVE`). The suffix-driven bootstrap above enforces this.
+
 ## Related Decisions
 
 - [ADR-0001: Centralized Saga Orchestration](0001-centralized-saga-orchestration.md) — the saga publishes commands; FULL_TRANSITIVE on command topics is what makes saga-service deploy independence work.
 - [ADR-0006: Event Sourcing for Inventory](0006-event-sourcing-for-inventory.md) — the infinite retention requirement on event-log topics is what makes FORWARD_TRANSITIVE necessary.
-- [avro-compatibility.md](../bc-design/avro-compatibility.md) — operational companion document: per-topic table, breaking-change process, developer workflow.
+- [ADR-0033: SSOT for Kafka topic & event-contract docs](0033-kafka-topic-contract-doc-ssot.md) — retired the former `avro-compatibility.md` companion into this ADR; per-subject compatibility is *derived* (suffix → class → mode) and never tabulated. The class → mode mapping lives in [kafka-topology.md](../kafka-topology.md).

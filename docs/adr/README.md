@@ -34,6 +34,11 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0026](0026-checkout-payment-flow-capture-pivot.md) | Checkout payment flow — defer capture to the pivot, Payments owns terminal events | Accepted | 2026-06-02 |
 | [0027](0027-kafka-consumer-cooperative-rebalancing.md) | Kafka consumer partition-assignment strategy — CooperativeSticky for rolling/canary deploys | Accepted | 2026-06-02 |
 | [0028](0028-error-code-wire-fields-stay-string.md) | `ErrorCode` wire fields stay `string` (reject Avro enum migration) | Accepted | 2026-06-02 |
+| [0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) | Order-Keyed Saga & Pre-Assigned OrderId | Accepted | 2026-06-03 |
+| [0030](0030-retire-dedicated-correlationid.md) | Retire the Dedicated CorrelationId (OrderId as business key + traceId for telemetry) | Accepted | 2026-06-03 |
+| [0031](0031-notify-user-command-and-notification-id.md) | Channel-Agnostic NotifyUserCommand & Producer-Assigned NotificationId | Accepted | 2026-06-03 |
+| [0032](0032-notifications-dispatch-and-channels.md) | Notifications v2 Dispatch & Channels (Hangfire fan-out, at-least-once ledger, SignalR bell) | Accepted | 2026-06-03 |
+| [0033](0033-kafka-topic-contract-doc-ssot.md) | SSOT for Kafka topic & event-contract documentation | Accepted | 2026-06-04 |
 
 ## Creating a New ADR
 

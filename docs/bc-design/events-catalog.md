@@ -1,10 +1,8 @@
 # Event Catalog & Kafka Topology
 
-> **Status:** Stage 2 Agent 5 authoritative output.
-> **Scope:** Consolidates every cross-service event in the eShop reference solution — every Avro schema, every Kafka topic, every outbox/inbox registration, every internal HTTP surface that matters for messaging. Implementation agents use this document as the sole input for creating `.avsc` files, `docker-compose` topic entries, outbox-relay workers, inbox registrations, and consumer bindings.
-> **Parent section:** `docs/eshop-master-design.md § 6`.
-> **Companion ADRs:** [0001](../adr/0001-centralized-saga-orchestration.md), [0004](../adr/0004-checkout-saga-topology.md), [0006](../adr/0006-event-sourcing-for-inventory.md).
-> **Hard ownership boundary:** this file. Nothing in `docs/eshop-master-design.md` or other BC-design files is touched by Stage 2 Agent 5.
+> **Role:** **§ 2 (Master Event Catalog) is the per-event contract SSOT** for the eShop — producer, consumer(s), consumer group(s), correlation key, trigger, and Avro schema path for every cross-service event/command. Per [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md) this is one of **two** canonical anchors; the other is [kafka-topology.md](../kafka-topology.md) (per-**topic** partitions / retention / class — compatibility mode is *derived* from class per [ADR-0007](../adr/0007-avro-compatibility-modes.md)). The two anchors join on the topic name. Everything else (master design § 6, per-BC topic restatements, the DLT runbook) **points here**; it does not restate.
+> **Scope:** every Avro schema (paths only — the `.avsc` is the source of truth, § 5), every outbox/inbox registration (§ 6–7), and the internal HTTP surfaces that matter for messaging (§ 8).
+> **SSOT decision:** [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md). **Companion ADRs:** [0001](../adr/0001-centralized-saga-orchestration.md), [0004](../adr/0004-checkout-saga-topology.md), [0006](../adr/0006-event-sourcing-for-inventory.md), [0007](../adr/0007-avro-compatibility-modes.md).
 
 ---
 
@@ -119,23 +117,7 @@ Sorted by topic then event name. All rows reflect Stage 1 BC designs plus the co
 
 ## 3. Kafka Topics
 
-> **Topology (partitions, retention, class, key, rationale) is canonical in [kafka-topology.md](../../kafka-topology.md).** This section provides the inverse view of § 2 — each topic mapped to the events/commands that flow through it.
-
-| Topic | Events / Commands |
-|-------|-------------------|
-| `basket.sessions` | `BasketCheckoutInitiatedEvent` |
-| `catalog.categories` | `CategoryCreatedEvent` |
-| `catalog.products` | `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` |
-| `inventory.reservation-commands` | `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` |
-| `inventory.reservations` | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` |
-| `inventory.stock-events` | `StockLevelChangedEvent` |
-| `ordering.order-commands` | `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` |
-| `ordering.orders` | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderFailedEvent` |
-| `payments.transactions` | `PaymentAuthorizedEvent`, `PaymentAuthorizationFailedEvent`, `PaymentCapturedEvent`, `PaymentCaptureFailedEvent`, `PaymentCompletedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentVoidedEvent` (`RequestPaymentCommand` was renamed from `PaymentRequestedEvent` and moved to `payments.payment-commands` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)) |
-| `payments.payment-commands` | `RequestPaymentCommand`, `ApproveCaptureCommand`, `AbortCaptureCommand` (Checkout saga → PaymentProcessingSaga); `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand` (PaymentProcessingSaga → Payments); `RequestRefundCommand` (deferred — no v1 producer; → Payments) |
-| `invoicing.invoices` | `InvoiceIssuedEvent`, `InvoiceDeliveredEvent`, `InvoiceCancelledEvent`, `CreditNoteIssuedEvent` |
-| `notifications.notify-commands` | `NotifyUserCommand` (v2; was `notifications.email-commands` / `SendEmailNotificationCommand`) |
-| `notifications.notify-events` | `NotificationDeliveryStatusChangedEvent` (v2; was `notifications.email-events` / `EmailNotificationSentEvent`) |
+> Per-topic **topology** (partitions, retention, class, compatibility) is canonical in [kafka-topology.md](../kafka-topology.md). The **topic → event/command** inverse mapping is **not** restated here: § 2 is sorted by topic, so it already *is* the per-topic grouping (read down the Topic column). The standalone inverse table was removed per [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md) — it duplicated § 2.
 
 ### 3.1 Consumer groups
 
@@ -145,60 +127,13 @@ The motivating concern: two groups consuming the SAME topic inside one service w
 
 **Sole exception — sagas.** Each MassTransitStateMachine in `saga/SagaOrchestrators/` is its own logical service (per [ADR-0001](../adr/0001-centralized-saga-orchestration.md)) and gets its own group, even though they share the saga-worker deployment. The two saga groups today are `saga-checkout` and `saga-payment-processing`. They share `payments.transactions` but subscribe to disjoint Avro event types on it (no observable interleaving risk).
 
-Examples from § 2:
-- `saga-checkout` — Checkout saga state machine. One offset cursor per `(saga-checkout, topic, partition)` across `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions`.
-- `saga-payment-processing` — PaymentProcessingSaga state machine. Consumes `payments.transactions` (lifecycle facts) and `payments.payment-commands` (`RequestPaymentCommand` + the capture-approval handshake `ApproveCaptureCommand` / `AbortCaptureCommand` from the Checkout saga, per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).
-- `inventory-group` — Inventory's sole consumer group. Spans `catalog.products` (stream-init), `ordering.orders` (release-on-cancel), and `inventory.reservation-commands` (saga commands). Per-topic offsets inside the group keep these independent for replay purposes.
-- `invoicing-group` — Invoicing's sole consumer group. Spans `ordering.orders`, `payments.transactions`, `notifications.notify-events`.
-- `bff-group` — BFF's sole consumer group. Spans `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions` (all for FusionCache invalidation). Registers **no inbox** — `RemoveByTagAsync` is idempotent, so at-least-once redelivery is harmless (see [bff.md § 2.2](bff.md) + § 7.7).
-- `catalog-group` — Catalog's sole consumer group on `inventory.stock-events` (the `IsSellable` projection).
-- `notifications-group` — Notifications' sole consumer group on `notifications.notify-commands`. No subscriptions to per-BC event topics — see D-5 + [notifications.md § 2](notifications.md).
-- `payments-group` — Payments' sole consumer group on `payments.payment-commands` (saga-issued commands).
-- `ordering-group` — Ordering's sole consumer group on `ordering.order-commands` (saga-issued commands).
+**Group membership is read off § 2 — not re-listed here.** Each group's topic span is exactly the set of § 2 rows carrying that group in the *Consumer Group(s)* column. The per-group span bullets that used to live here were deleted per [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md): restating the spans was the § 2 ↔ § 3.1 transpose drift that issue #299 spent three audit passes reconciling. The groups are the two saga groups (`saga-checkout`, `saga-payment-processing`) plus one per consuming service (`inventory-group`, `invoicing-group`, `bff-group`, `catalog-group`, `notifications-group`, `payments-group`, `ordering-group`); `bff-group` registers **no inbox** (idempotent cache invalidation — see § 7.7).
 
 ---
 
-## 4. Docker-compose Delta
+## 4. Topic Creation & Retention
 
-Append to `docker-compose.yaml` inside the `kafka-create-topic` command block, immediately **after** line 246 (`--topic healthchecks ...`) and **before** the closing `"` on line 247. Order: catalog → basket → ordering → inventory. Every line ends with `&& \` (or `&&` if inside a YAML `>` block — match the exact syntax already in use there, which uses `&&` with YAML multi-line folding).
-
-```yaml
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.categories --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic basket.sessions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=2592000000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.orders --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.order-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.stock-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservations --partitions 6 --replication-factor 1 --config min.insync.replicas=1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservation-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists
-```
-
-### 4.1 About `--config retention.ms`
-
-- `2592000000` ms = 30 days (basket.sessions).
-- `604800000` ms = 7 days (command topics).
-- Topics without `--config retention.ms` inherit the broker default, which Confluent 7.5 ships at 7 days (`log.retention.hours=168`). For the infinite-retention event-log topics (`catalog.products`, `catalog.categories`, `ordering.orders`, `inventory.stock-events`, `inventory.reservations`) this is **too short**. They need an explicit long retention. Two options:
-  - **Option (preferred for v1 reference):** add `--config retention.ms=-1` to each event-log topic. This sets infinite retention at topic-create time.
-  - **Option (cluster-wide):** bump `log.retention.hours` in the broker env. Rejected — it affects every topic including legacy Weather ones.
-
-**Revised delta (authoritative — use this block, not the one above):**
-
-```yaml
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.products --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic catalog.categories --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic basket.sessions --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=2592000000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.orders --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic ordering.order-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.stock-events --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservations --partitions 6 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=-1 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic inventory.reservation-commands --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=604800000 --if-not-exists &&
-        /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --topic invoicing.invoices --partitions 3 --replication-factor 1 --config min.insync.replicas=1 --config retention.ms=315360000000 --if-not-exists
-      "
-```
-
-`315360000000` ms = 10 years — EU VAT legal record-keeping retention per § 3 (Czech Republic, Germany, France, Slovakia all require 10-year invoice retention). PII policy per ADR-0011 applies.
-
-The final `"` closes the multi-line bash command. Implementation agents: when inserting, preserve the closing `"` at the right indentation so `kafka-create-topic.command` remains a valid YAML scalar.
+The live topics — names, partitions, `retention.ms` — are created by the `kafka-create-topic` block in [docker-compose.yaml](../../docker-compose.yaml) (the runtime source of truth) and documented per-topic in [kafka-topology.md](../kafka-topology.md) (the per-topic physical SSOT, including the class → retention / compatibility rule and the meaning of each `retention.ms` value). This section previously carried a copy-paste compose delta plus a retention-rationale list; both were removed per [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md) — they duplicated the runtime and the topology anchor.
 
 ---
 
@@ -408,7 +343,7 @@ Current scope ships all 4 LOCKED Invoicing Avro schemas. `IssueInvoiceCommandHan
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/CreditNoteIssuedEvent.avsc` | Invoicing → **no v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `NotifyUserCommand` per D-5). |
 | `platform/Platform.SchemaRegistry.Contracts/Avro/Invoicing/Invoices/InvoiceDeliveredEvent.avsc` | Invoicing → **no v1 consumer** (BFF "my invoices" cache is planned-not-v1). Emitted after Invoicing consumes `NotificationDeliveryStatusChangedEvent` and transitions `Issued → Delivered`. |
 
-All four target the `invoicing.invoices` topic (10-year retention, partition key `BuyerId`) per § 3 + § 4. Compatibility mode at the registry is `FORWARD_TRANSITIVE` (per-subject configured by the `schema-registry-init` companion service — see `cross-cutting-followups.md` H-1).
+All four target the `invoicing.invoices` topic — topology (partitions / retention / class) in [kafka-topology.md](../kafka-topology.md); partition key `BuyerId` per § 2. Compatibility is *derived* from class (event-log → `FORWARD_TRANSITIVE`), set per-subject by the `schema-registry-init` companion service ([ADR-0007](../adr/0007-avro-compatibility-modes.md)).
 
 ---
 
@@ -734,16 +669,6 @@ All BFF → internal calls use typed HttpClients (matching the `ProductCatalogHt
 
 ---
 
-## End of Event Catalog & Kafka Topology
+## End of Event Catalog
 
-All success criteria confirmed against the Stage 2 Agent 5 prompt:
-
-- [x] Master event catalog table with all required columns + every external event listed — § 2.
-- [x] Every new Avro schema has COMPLETE `.avsc` content in a json code fence — § 5.1–5.6.
-- [x] Every schema has namespace `{Domain}.{Aggregate}` matching existing patterns — verified.
-- [x] Docker-compose delta has exact copy-paste-ready bash lines — § 4 (revised authoritative block).
-- [x] Saga-to-service command schemas complete — § 5.5 (Ordering, 4 commands) + § 5.6 (Inventory, 3 commands).
-- [x] Outbox and inbox registration strategy documented per service — § 6 and § 7.
-- [x] HTTP endpoints per service listed for BFF consumption — § 8.
-- [x] Decisions documented — § 1.4 (D-1 through D-10).
-- [x] No code files written — only this markdown file.
+§ 2 is the per-event contract SSOT (producer / consumers / group / correlation key / trigger / schema path). Per-topic physical topology lives in [kafka-topology.md](../kafka-topology.md); the runtime topic definitions live in [docker-compose.yaml](../../docker-compose.yaml); compatibility mode is derived from topic class per [ADR-0007](../adr/0007-avro-compatibility-modes.md). See [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md) for how the two anchors fit together and what was de-duplicated.

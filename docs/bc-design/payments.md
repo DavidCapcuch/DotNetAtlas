@@ -15,7 +15,7 @@ Payments is the **authority for money movement state** — it is the only BC tha
 - **Upstream:** Checkout saga — publishes `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)) → consumed by `PaymentProcessingSaga`, which calls Payments commands.
 - **Downstream:**
   - **Invoicing** — consumes `PaymentCapturedEvent` to enrich and issue the invoice.
-  - **Notifications** — not wired in v1. A refund-confirmation email would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Payments would emit `SendEmailNotificationCommand` on `notifications.email-commands` rather than have Notifications subscribe to `payments.transactions`.
+  - **Notifications** — not wired in v1. A refund-confirmation email would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Payments would emit a `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) rather than have Notifications subscribe to `payments.transactions`.
   - **Checkout saga** — consumes `PaymentAuthorizedEvent` (to drive order + reservation confirmation) and the Payments-owned terminals `PaymentCompletedEvent` / `PaymentFailedEvent` (to finalize or fast-fail compensate). All three are published by the Payments BC's outbox, not by the sub-saga (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)).
 
 The distinction between Payments and PaymentProcessingSaga is deliberate:
@@ -143,9 +143,9 @@ All eight now have outbox-publisher handlers — including `PaymentCompletedDoma
 
 ## 6. External Events (Avro) + Topics
 
-**Topic:** `payments.transactions` — infinite retention (audit), partition key `CorrelationId`.
+**Topic:** `payments.transactions` — per-topic topology (partitions / retention / class) in [kafka-topology.md](../kafka-topology.md); partition / correlation key per [events-catalog.md § 2](events-catalog.md).
 
-The table below lists external lifecycle events on `payments.transactions`. Producer attribution matters: **all of them are Payments-BC-produced via the transactional outbox** — including the terminals `PaymentCompletedEvent` and `PaymentFailedEvent`, which gained outbox-publisher handlers symmetric with the existing Authorized/Captured/Voided/Refunded handlers (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md), resolving the previously-inert `PaymentCompletedDomainEvent` / `PaymentFailedDomainEvent`, [#262](https://github.com/DavidCapcuch/DotNetAtlas/issues/262)). `PaymentProcessingSaga` no longer publishes any payment-state events. The upstream message that **invokes** the Payments sub-orchestration is `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)); see § 7 below and [events-catalog.md § 2 / § 3](events-catalog.md).
+The table below lists external lifecycle events on `payments.transactions`. Producer attribution matters: **all of them are Payments-BC-produced via the transactional outbox** — including the terminals `PaymentCompletedEvent` and `PaymentFailedEvent`, which gained outbox-publisher handlers symmetric with the existing Authorized/Captured/Voided/Refunded handlers (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md), resolving the previously-inert `PaymentCompletedDomainEvent` / `PaymentFailedDomainEvent`, [#262](https://github.com/DavidCapcuch/DotNetAtlas/issues/262)). `PaymentProcessingSaga` no longer publishes any payment-state events. The upstream message that **invokes** the Payments sub-orchestration is `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)); see § 7 below and [events-catalog.md § 2](events-catalog.md).
 
 | External event | Producer | Triggered by | Consumer(s) |
 |---|---|---|---|
@@ -155,10 +155,10 @@ The table below lists external lifecycle events on `payments.transactions`. Prod
 | `PaymentCaptureFailedEvent` | Payments BC | `PaymentCaptureFailedDomainEvent` | PaymentProcessingSaga |
 | `PaymentCompletedEvent` | Payments BC | `PaymentCompletedDomainEvent` (co-raised with `PaymentCapturedDomainEvent` on a successful capture) | Checkout saga (drives `AwaitingPaymentCapture → Confirmed`) |
 | `PaymentFailedEvent` | Payments BC | `PaymentFailedDomainEvent` (co-raised on `MarkAuthorizationFailed` (auth decline) **and** `MarkCaptureFailed` (capture decline)) | Checkout saga (fast-fail compensation) |
-| `PaymentRefundedEvent` | Payments BC | `PaymentRefundedDomainEvent` | **Invoicing** (credit-note trigger). Part of the **deferred customer/admin refund flow** (no v1 producer for `RequestRefundCommand`); not consumed by the Checkout saga. Refund-confirmation email is deferred (would route as `SendEmailNotificationCommand` per [notifications.md § 2](notifications.md), not as a Notifications subscription to this topic). |
+| `PaymentRefundedEvent` | Payments BC | `PaymentRefundedDomainEvent` | **Invoicing** (credit-note trigger). Part of the **deferred customer/admin refund flow** (no v1 producer for `RequestRefundCommand`); not consumed by the Checkout saga. Refund-confirmation email is deferred (would route as a `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) per [notifications.md § 2](notifications.md), not as a Notifications subscription to this topic). |
 | `PaymentVoidedEvent` | Payments BC | `PaymentVoidedDomainEvent` | PaymentProcessingSaga |
 
-**Schema compatibility:** FORWARD_TRANSITIVE per [ADR-0007](../adr/0007-avro-compatibility-modes.md).
+**Consumers** are canonical in [events-catalog.md § 2](events-catalog.md) (§ 2 wins on any divergence; the column above mirrors it). **Schema compatibility** is *derived* from topic class — event-log → `FORWARD_TRANSITIVE` — see [ADR-0007](../adr/0007-avro-compatibility-modes.md).
 
 **Classification analysis:** the 1-consumer rows above are *fact-shaped* under [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)'s 2-part test (specific logic at consumer **+ producer awaits guaranteed feedback** — the second leg fails for every Payments-emitted lifecycle event, terminals included). They remain `*Event`-named. The one prior message in this BC that the test classifies as a **command** — what was `PaymentRequestedEvent` — has been renamed to `RequestPaymentCommand` and moved to `payments.payment-commands` (see § 7). See ADR-0023 for the per-message classification table and the rationale for deferring further renames.
 
@@ -166,7 +166,7 @@ The table below lists external lifecycle events on `payments.transactions`. Prod
 
 ## 7. Commands (Avro) + Command Topic
 
-**Topic:** `payments.payment-commands` — 7-day retention, partition key `CorrelationId`. Canonical name per [events-catalog.md § 3](events-catalog.md). Carries imperative intent toward the Payments aggregate (directly, or via its `PaymentProcessingSaga` sub-saga per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)).
+**Topic:** `payments.payment-commands` — per-topic topology in [kafka-topology.md](../kafka-topology.md); partition key per [events-catalog.md § 2](events-catalog.md). Carries imperative intent toward the Payments aggregate (directly, or via its `PaymentProcessingSaga` sub-saga per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)).
 
 | Command | Producer | Consumer | Trigger |
 |---|---|---|---|
@@ -178,7 +178,7 @@ The table below lists external lifecycle events on `payments.transactions`. Prod
 | `RequestRefundCommand` | *(deferred — no v1 producer; future customer/admin-initiated refund flow)* | Payments | `Completed → Refunded` off-ramp; a returns / post-purchase-cancellation trigger is future work (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) |
 | `VoidPaymentCommand` | PaymentProcessingSaga | Payments | Pre-capture compensation — issued on `AbortCaptureCommand` or a capture-approval-wait timeout |
 
-**Schema compatibility:** FULL_TRANSITIVE.
+**Consumers** are canonical in [events-catalog.md § 2](events-catalog.md). **Schema compatibility** is *derived* from topic class — command → `FULL_TRANSITIVE` — see [ADR-0007](../adr/0007-avro-compatibility-modes.md).
 
 ---
 

@@ -688,7 +688,7 @@ Basket:
 
 ### 14.4 Docker Compose additions
 
-- **Kafka topic (via `kafka-init`):** `basket.sessions` — 3 partitions, compact=false, 7-day retention (will be bikeshed in Stage 2 Event Catalog § 6.3).
+- **Kafka topic (via `kafka-init`):** `basket.sessions` — partitions / retention / class are canonical in [kafka-topology.md](../kafka-topology.md) (`saga-state` class, 30-day retention); producer / consumers / key in [events-catalog.md § 2](events-catalog.md).
 - **Outbox relay worker:** a new instance of the existing `Platform.OutboxRelay` worker pointed at the `basket` schema. Registered in `docker-compose.yaml` under the service `outbox-relay-basket`.
 
 ### 14.5 Observability

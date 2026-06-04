@@ -29,7 +29,7 @@ On top of this file, every BC reads (in order):
 4. `docs/adr/0001` through `0019` — **all 19 ADRs**. The first 7 are domain decisions; 0008–0019 are cross-cutting (correlation, target profile, service-auth, PII, versioning, idempotency, feature flags, time, Redis topology, blob storage, invoice numbering, PDF lib). Your BC prompt's `<applicable_adrs>` block tells you which apply directly.
 5. Your BC's chapter + glossary + example-mapping under `docs/bc-design/`
 6. `docs/bc-design/events-catalog.md` + `use-cases.md` — find rows for your BC
-7. `docs/bc-design/error-taxonomy.md`, `kafka-dlq-strategy.md`, `avro-compatibility.md`, `architecture-tests.md`
+7. `docs/bc-design/error-taxonomy.md`, `kafka-dlt-strategy.md`, `architecture-tests.md` (Avro schema compatibility is now [ADR-0007](../adr/0007-avro-compatibility-modes.md) + `kafka-topology.md` — `avro-compatibility.md` was retired per ADR-0033)
 8. Saga-affected BCs also read: `saga-stuck-runbook.md`. BFF reads: `rate-limiting.md`. Invoicing reads: ADR-0017/0018/0019.
 9. `docs/diagrams/context-map.md` + `bc-map-entities.md` (mermaid sources)
 
