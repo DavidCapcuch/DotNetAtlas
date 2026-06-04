@@ -3,7 +3,6 @@ using Basket.Application.Common;
 using Basket.Infrastructure.Common;
 using Basket.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
-using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -40,8 +39,6 @@ try
     }
 
     app.UseStatusCodePages();
-
-    app.UseCorrelationId();
 
     app.UseRouting()
         .UseCors(Basket.Api.Common.Config.BasketCorsOptions.DefaultCorsPolicyName)

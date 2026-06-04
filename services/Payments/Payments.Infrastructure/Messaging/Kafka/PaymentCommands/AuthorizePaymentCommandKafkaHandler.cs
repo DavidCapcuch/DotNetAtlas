@@ -32,20 +32,26 @@ internal sealed class AuthorizePaymentCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroAuthorizePaymentCommand message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId. Aggregate PK is the
-        // saga-issued PaymentTransactionId per cross-cutting wave1-followup #255 (the Payments
-        // mapper consumes it as PaymentId; the v1 collapse where PaymentId == CorrelationId is
-        // unwound). Pass message.PaymentTransactionId into the log scope so the LogContext line
-        // matches what the aggregate actually persists.
-        var correlationId = context.ExtractCorrelationId()
+        // The saga key (== OrderId per ADR-0029) is carried on the Kafka header until #310 retargets
+        // the Payments aggregate reads off it; the application command still stamps it onto the row.
+        // Aggregate PK is the saga-issued PaymentTransactionId (#255). The log scope uses the wire
+        // ids (OrderId + PaymentTransactionId) so it never depends on the retiring header.
+        var sagaKey = context.ExtractCorrelationId()
             ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+                "Saga key missing on the Kafka header for AuthorizePaymentCommand.");
 
-        return ExecuteAsync(context, correlationId, paymentId: message.PaymentTransactionId, async ct =>
-        {
-            var appCommand = message.ToAppCommand(correlationId);
-            var result = await _appHandler.HandleAsync(appCommand, ct);
-            return result.ToResult();
-        });
+        return ExecuteAsync(
+            context,
+            new Dictionary<string, object?>
+            {
+                ["OrderId"] = message.OrderId,
+                ["PaymentId"] = message.PaymentTransactionId,
+            },
+            async ct =>
+            {
+                var appCommand = message.ToAppCommand(sagaKey);
+                var result = await _appHandler.HandleAsync(appCommand, ct);
+                return result.ToResult();
+            });
     }
 }

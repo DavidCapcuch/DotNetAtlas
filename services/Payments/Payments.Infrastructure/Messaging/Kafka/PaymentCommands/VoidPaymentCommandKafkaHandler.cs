@@ -29,15 +29,21 @@ internal sealed class VoidPaymentCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroVoidPaymentCommand message)
     {
-        // ADR-0008 — see AuthorizePaymentCommandKafkaHandler for the rationale.
-        var correlationId = context.ExtractCorrelationId()
+        // Void carries no PaymentTransactionId on the wire — the aggregate is resolved by the saga
+        // key (== OrderId per ADR-0029), carried on the Kafka header until #310 retargets the read
+        // onto a wire field. The log scope is keyed on OrderId (previously mislabelled PaymentId
+        // though the value was always the OrderId).
+        var orderId = context.ExtractCorrelationId()
             ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
+                "Saga key (OrderId) missing on the Kafka header for VoidPaymentCommand.");
 
-        return ExecuteAsync(context, correlationId, paymentId: correlationId, async ct =>
-        {
-            var appCommand = message.ToAppCommand(correlationId);
-            return await _appHandler.HandleAsync(appCommand, ct);
-        });
+        return ExecuteAsync(
+            context,
+            new Dictionary<string, object?> { ["OrderId"] = orderId },
+            async ct =>
+            {
+                var appCommand = message.ToAppCommand(orderId);
+                return await _appHandler.HandleAsync(appCommand, ct);
+            });
     }
 }

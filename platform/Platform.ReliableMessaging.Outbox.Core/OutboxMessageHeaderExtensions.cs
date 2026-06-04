@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
-using Platform.Messaging.Abstractions;
 
 namespace Platform.ReliableMessaging.Outbox.Core;
 
@@ -33,8 +32,8 @@ public static class OutboxMessageHeaderExtensions
     /// <returns>JSON string representation of headers, or null if empty.</returns>
     /// <exception cref="InvalidOperationException">Thrown when serialized headers exceed <see cref="MaxHeaderSizeBytes"/>.</exception>
     /// <example>
-    /// Input: [("traceparent", "00-abc..."), ("correlation.id", "123")]<br/>
-    /// Output: {"traceparent":"00-abc...","correlation.id":"123"}.
+    /// Input: [("traceparent", "00-abc..."), ("tracestate", "rojo=00f067")]<br/>
+    /// Output: {"traceparent":"00-abc...","tracestate":"rojo=00f067"}.
     /// </example>
     public static string? SerializeHeaders(Dictionary<string, string> headers)
     {
@@ -62,8 +61,8 @@ public static class OutboxMessageHeaderExtensions
     /// <param name="message">The outbox message containing headers.</param>
     /// <returns>Dictionary of header key-value pairs, or null if no headers exist.</returns>
     /// <example>
-    /// Input: {"traceparent":"00-abc...","correlation.id":"123"}<br/>
-    /// Output: Dictionary with keys "traceparent", "correlation.id".
+    /// Input: {"traceparent":"00-abc...","tracestate":"rojo=00f067"}<br/>
+    /// Output: Dictionary with keys "traceparent", "tracestate".
     /// </example>
     public static Dictionary<string, string>? DeserializeHeaders(this OutboxMessage message)
     {
@@ -76,23 +75,14 @@ public static class OutboxMessageHeaderExtensions
     }
 
     /// <summary>
-    /// Builds the outbox-row headers dictionary from the ambient <see cref="Activity"/>. Two
-    /// sources are merged:
-    /// <list type="bullet">
-    /// <item><description>OpenTelemetry W3C Trace Context (<c>traceparent</c>, <c>tracestate</c>,
-    /// <c>baggage</c>) — injected by <c>Propagators.DefaultTextMapPropagator</c>.</description></item>
-    /// <item><description><c>correlation.id</c> — copied from the Activity tag set by
-    /// <c>Platform.ServiceDefaults.CorrelationId.CorrelationIdMiddleware</c> at the HTTP edge
-    /// (ADR-0008). Cross-cutting wave1-followup #256 promoted this to a top-level header so the
-    /// outbox-relay path produces it as a top-level Kafka header (the relay's
-    /// <c>BuildKafkaHeaders</c> copies the row's headers verbatim onto the Kafka message). Without
-    /// this, consumer-side <c>ConsumerCorrelationIdMiddleware</c> generates a fresh id and breaks
-    /// the cross-BC correlation chain the runbook depends on.</description></item>
-    /// </list>
+    /// Builds the outbox-row headers dictionary from the ambient <see cref="Activity"/>, injecting
+    /// the OpenTelemetry W3C Trace Context (<c>traceparent</c>, <c>tracestate</c>, <c>baggage</c>)
+    /// via <c>Propagators.DefaultTextMapPropagator</c>. The outbox-relay path copies the row's
+    /// headers verbatim onto the produced Kafka message (the relay's <c>BuildKafkaHeaders</c>), so
+    /// the trace stitches across the outbox boundary end-to-end.
     /// </summary>
     /// <param name="activity">The current Activity with tracing context.</param>
-    /// <returns>Headers dictionary ready for serialization, or null if no activity AND no
-    /// correlation.id tag could be sourced.</returns>
+    /// <returns>Headers dictionary ready for serialization, or null if no activity.</returns>
     public static Dictionary<string, string>? BuildOtelHeadersFromActivity(Activity? activity)
     {
         if (activity == null)
@@ -104,12 +94,6 @@ public static class OutboxMessageHeaderExtensions
         var propagationContext = new PropagationContext(activity.Context, Baggage.Current);
 
         OtelPropagator.Inject(propagationContext, headers, InjectTraceContext);
-
-        if (activity.GetTagItem(MessageHeaderKeys.CorrelationId) is string correlationId
-            && !string.IsNullOrEmpty(correlationId))
-        {
-            headers[MessageHeaderKeys.CorrelationId] = correlationId;
-        }
 
         return headers.Count > 0 ? headers : null;
     }

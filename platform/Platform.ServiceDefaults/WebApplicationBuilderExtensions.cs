@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
-using Platform.ServiceDefaults.CorrelationId;
 using Platform.ServiceDefaults.Exceptions;
 using Platform.ServiceDefaults.Logging;
 
@@ -17,10 +16,9 @@ namespace Platform.ServiceDefaults;
 public static class WebApplicationBuilderExtensions
 {
     /// <summary>
-    /// Configures all service defaults including host configuration, Serilog logging, and the
-    /// correlation-id HTTP edge DI surface (ADR-0008). Callers still need to invoke
-    /// <c>app.UseCorrelationId()</c> in the middleware pipeline. Time access uses the BCL
-    /// <see cref="TimeProvider"/> (registered by the Generic Host) per ADR-0015.
+    /// Configures all service defaults including host configuration and Serilog logging. Time
+    /// access uses the BCL <see cref="TimeProvider"/> (registered by the Generic Host) per
+    /// ADR-0015.
     /// </summary>
     /// <param name="builder">The web application builder.</param>
     /// <param name="configureOptions">Optional callback to configure Serilog options.</param>
@@ -31,8 +29,6 @@ public static class WebApplicationBuilderExtensions
     {
         builder.AddPlatformHostConfiguration();
         builder.UsePlatformSerilog(configureOptions);
-
-        builder.Services.AddCorrelationId();
 
         // Catch-all exception handler — auto-wired via IStartupFilter so BCs don't
         // need `app.UseExceptionHandler()` in Program.cs. AddProblemDetails is

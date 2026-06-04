@@ -5,7 +5,6 @@ using Ordering.Application.Common;
 using Ordering.Infrastructure.Common;
 using Ordering.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
-using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -42,8 +41,6 @@ try
     }
 
     app.UseStatusCodePages();
-
-    app.UseCorrelationId();
 
     // Order matters: OutputCache reads must happen before authn so cached
     // responses can short-circuit (FastEndpoints' .Idempotency() filter

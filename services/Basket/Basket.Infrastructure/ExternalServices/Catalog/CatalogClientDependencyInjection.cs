@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults.Auth;
-using Platform.ServiceDefaults.CorrelationId;
 
 namespace Basket.Infrastructure.ExternalServices.Catalog;
 
@@ -12,17 +11,15 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// DI wiring for the Catalog Anti-Corruption Layer — binds
 /// <see cref="CatalogServiceOptions"/> and registers
 /// <see cref="ProductCatalogHttpAdapter"/> as a typed <see cref="HttpClient"/>
-/// behind <see cref="IProductCatalogQueryPort"/>. The HttpClient carries
-/// correlation-id headers (ADR-0008) and OAuth2 bearer tokens for the
-/// configured scope (ADR-0010).
+/// behind <see cref="IProductCatalogQueryPort"/>. The HttpClient carries OAuth2
+/// bearer tokens for the configured scope (ADR-0010); W3C trace context
+/// propagates automatically via OpenTelemetry's HttpClient instrumentation.
 /// </summary>
 /// <remarks>
-/// Caller MUST have invoked <c>services.AddServiceAuth("basket-service")</c> and
-/// <c>services.AddCorrelationId()</c> before calling this extension — those
-/// register the delegating handlers that
-/// <c>IHttpClientBuilder.AddServiceAuth(scope)</c> and
-/// <c>IHttpClientBuilder.AddCorrelationIdPropagation()</c> attach. Those
-/// service-collection-level registrations live in <c>Program.cs</c>;
+/// Caller MUST have invoked <c>services.AddServiceAuth("basket-service")</c>
+/// before calling this extension — it registers the delegating handler that
+/// <c>IHttpClientBuilder.AddServiceAuth(scope)</c> attaches. That
+/// service-collection-level registration lives in <c>Program.cs</c>;
 /// this extension is intentionally not yet wired from the host.
 /// </remarks>
 public static class CatalogClientDependencyInjection
@@ -54,7 +51,6 @@ public static class CatalogClientDependencyInjection
                 http.BaseAddress = new Uri(opts.BaseUrl);
                 http.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
             })
-            .AddCorrelationIdPropagation()
             .AddServiceAuth(scope);
 
         return services;

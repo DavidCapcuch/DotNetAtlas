@@ -92,7 +92,6 @@ internal static class MessagingDependencyInjection
                     .AddMiddlewares(middlewares => middlewares
                         .AddSchemaRegistryAvroDeserializer()
                         // Middleware order -> outermost to innermost
-                        .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         .RetryForever(config => config
                             .Handle(ctx => ConsumerRetry.IsRetryable(ctx.Exception))

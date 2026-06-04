@@ -10,9 +10,9 @@ namespace Platform.Test.Framework.Kafka;
 /// enough for any BC's saga-command or domain-event Kafka handler tests.
 /// Stubs the bits handlers actually read:
 /// <list type="bullet">
-///   <item><c>Headers</c> — <c>MessageId</c>, <c>Origin</c>, <c>CorrelationId</c> populated per
-///   ADR-0008 so <c>ExtractMessageId</c> / <c>ExtractOrigin</c> / the
-///   correlation-id middleware never see a missing header in isolation.</item>
+///   <item><c>Headers</c> — <c>MessageId</c>, <c>Origin</c>, and (until ADR-0030 #310 retargets
+///   the BC consumer reads onto wire fields) <c>CorrelationId</c>, so <c>ExtractMessageId</c> /
+///   <c>ExtractOrigin</c> / <c>ExtractCorrelationId</c> never see a missing header in isolation.</item>
 ///   <item><c>ConsumerContext.WorkerStopped</c> — the cancellation token threaded through every
 ///   handler's async call chain.</item>
 ///   <item><c>ConsumerContext.Topic</c> / <c>Partition</c> / <c>Offset</c> — stubbed to
@@ -77,9 +77,9 @@ public static class FakeKafkaMessageContext
         {
             { MessageHeaderKeys.MessageId, Encoding.UTF8.GetBytes((messageId ?? Guid.CreateVersion7()).ToString()) },
             { MessageHeaderKeys.Origin, Encoding.UTF8.GetBytes(origin) },
-            // ADR-0008 — always set the correlation-id header. Production
-            // ConsumerCorrelationIdMiddleware generates a replacement when the inbound header
-            // is missing; the test fixture mirrors that shape so handlers never branch on
+            // Always set the correlation-id header: the BC saga-command / projection consumers
+            // still read it via ExtractCorrelationId() until ADR-0030 #310 retargets those reads
+            // onto wire fields, so the fixture keeps it populated so handlers never branch on
             // header-absence in isolation.
             {
                 MessageHeaderKeys.CorrelationId,

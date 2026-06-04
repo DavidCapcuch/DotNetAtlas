@@ -2,7 +2,6 @@ using KafkaFlow;
 using Microsoft.Extensions.Logging;
 using Payments.Application.Common.Data;
 using Platform.CQRS;
-using Platform.KafkaFlow.Inbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using AppRequestRefundCommand = Payments.Application.Transactions.RequestRefund.RequestRefundCommand;
 using AvroRequestRefundCommand = Payments.Transactions.RequestRefundCommand;
@@ -31,16 +30,16 @@ internal sealed class RequestRefundCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroRequestRefundCommand message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId; PaymentId comes from the
-        // wire field because a refund explicitly references an existing transaction.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
-        return ExecuteAsync(context, correlationId, paymentId: message.PaymentTransactionId, async ct =>
-        {
-            var appCommand = message.ToAppCommand();
-            return await _appHandler.HandleAsync(appCommand, ct);
-        });
+        // A refund explicitly references an existing transaction by its PaymentTransactionId, so
+        // the aggregate resolves by primary key — no saga-key / Kafka-header dependency. The log
+        // scope is keyed on that PaymentId.
+        return ExecuteAsync(
+            context,
+            new Dictionary<string, object?> { ["PaymentId"] = message.PaymentTransactionId },
+            async ct =>
+            {
+                var appCommand = message.ToAppCommand();
+                return await _appHandler.HandleAsync(appCommand, ct);
+            });
     }
 }
