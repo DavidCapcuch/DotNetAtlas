@@ -110,7 +110,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<PaymentSagaStartedActivity>())
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => ctx.Saga.OrderId.ToString(),
                     ctx => new AuthorizePaymentCommand
                     {
                         PaymentTransactionId = ctx.Saga.PaymentTransactionId!.Value,
@@ -168,7 +168,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         .Then(ctx => ctx.Saga.AuthorizationRetryCount++)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPaymentCommands,
-                            ctx => ctx.Saga.CorrelationId.ToString(),
+                            ctx => ctx.Saga.OrderId.ToString(),
                             ctx => new AuthorizePaymentCommand
                             {
                                 // Reuse the PaymentTransactionId minted at initial state — the
@@ -217,7 +217,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Unschedule(CaptureApprovalTimeout)
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => ctx.Saga.OrderId.ToString(),
                     ctx => new CapturePaymentCommand
                     {
                         OrderId = ctx.Saga.OrderId,
@@ -242,7 +242,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Unschedule(CaptureApprovalTimeout)
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => ctx.Saga.OrderId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
                         OrderId = ctx.Saga.OrderId,
@@ -267,7 +267,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureApprovalTimeoutActivity>())
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => ctx.Saga.OrderId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
                         OrderId = ctx.Saga.OrderId,
@@ -330,7 +330,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         .Then(ctx => ctx.Saga.CaptureRetryCount++)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPaymentCommands,
-                            ctx => ctx.Saga.CorrelationId.ToString(),
+                            ctx => ctx.Saga.OrderId.ToString(),
                             ctx => new CapturePaymentCommand
                             {
                                 OrderId = ctx.Saga.OrderId,
@@ -350,7 +350,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                         .Then(ctx => ctx.Saga.CompensationTriggered = true)
                         .PublishToOutbox(
                             _topicsOptions.PaymentsPaymentCommands,
-                            ctx => ctx.Saga.CorrelationId.ToString(),
+                            ctx => ctx.Saga.OrderId.ToString(),
                             ctx => new VoidPaymentCommand
                             {
                                 OrderId = ctx.Saga.OrderId,
@@ -375,7 +375,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                 .Activity(x => x.OfType<CaptureTimeoutActivity>())
                 .PublishToOutbox(
                     _topicsOptions.PaymentsPaymentCommands,
-                    ctx => ctx.Saga.CorrelationId.ToString(),
+                    ctx => ctx.Saga.OrderId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
                         OrderId = ctx.Saga.OrderId,
