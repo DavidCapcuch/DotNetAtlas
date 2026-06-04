@@ -1,5 +1,7 @@
 # Kafka topology
 
+> **Role:** the **per-topic physical SSOT** (partitions, retention, class) for the eShop, kept in lockstep with the `kafka-create-topic` block in [docker-compose.yaml](../docker-compose.yaml) (the runtime source of truth). Per [ADR-0033](adr/0033-kafka-topic-contract-doc-ssot.md) this is one of **two** canonical anchors; the per-**event** contract — producer, consumer(s), consumer group, correlation key, trigger, schema path — lives in [events-catalog.md § 2](bc-design/events-catalog.md). The two join on the topic name. **Compatibility mode is not a separate fact: it is *derived* from the class** (see the Topic-classes table below + [ADR-0007](adr/0007-avro-compatibility-modes.md)) and is never tabulated per topic.
+
 Reference for the Kafka topics defined in `docker-compose.yaml` (kafka-create-topic init block). Each topic belongs to one of five **classes**; the class fixes retention and Schema-Registry compatibility expectations. Add a new topic only after deciding which class it belongs to.
 
 ## Topic classes
@@ -29,10 +31,12 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 | `ordering.order-commands` | 3 | 604800000 | command | Saga → Ordering commands (`CreateOrder`, `ConfirmOrder`, `CancelOrder`, `MarkOrderFailed`). |
 | `inventory.reservation-commands` | 3 | 604800000 | command | Saga → Inventory commands (`ReserveStock`, `ConfirmReservation`, `ReleaseReservation`). |
 | `payments.payment-commands` | 3 | 604800000 | command | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
-| `notifications.email-commands` | 3 | 604800000 | command | Inbound email intent — producing BCs emit `SendEmailNotificationCommand` here with a deterministic `IdempotencyKey`. See [notifications.md § 2](bc-design/notifications.md). |
-| `notifications.email-events` | 3 | -1 | event-log | `EmailNotificationSentEvent` delivery confirmations from Notifications; carry-through `IdempotencyKey` lets producing BCs correlate back to their original outbox row. |
+| `notifications.email-commands` | 3 | 604800000 | command | **v1 — transitional.** Inbound `SendEmailNotificationCommand`. The v2 contract renames this to `notifications.notify-commands` / `NotifyUserCommand` ([events-catalog.md § 2](bc-design/events-catalog.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)); this physical row + compose flip together at the code switch (#312 / #318) per [ADR-0033](adr/0033-kafka-topic-contract-doc-ssot.md). |
+| `notifications.email-events` | 3 | -1 | event-log | **v1 — transitional.** `EmailNotificationSentEvent` delivery confirmations. Renames to `notifications.notify-events` / `NotificationDeliveryStatusChangedEvent` at the same v2 switch (#312 / #318). |
 | `invoicing.invoices` | 3 | 315360000000 | audit | Invoice issuance events; 10-year regulatory retention. |
 | `healthchecks` | **1** | default (~7d) | health-probe | Liveness signal only; single partition is correct. |
+
+> **DLT topics are not listed above.** They are *derived* (`{source-topic}.{consumer-bc}.DLT`, 14-day retention), governed by [kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md), and pre-created in the same `kafka-create-topic` block in [docker-compose.yaml](../docker-compose.yaml). The table above covers business + health topics only.
 
 ## Conventions
 
@@ -50,6 +54,7 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 
 ## Related decisions
 
+- [ADR-0033: SSOT for Kafka topic & event-contract docs](adr/0033-kafka-topic-contract-doc-ssot.md) — why this file is the per-topic anchor and `events-catalog.md § 2` the per-event anchor, with everything else pointing here.
 - [ADR-0004: Checkout Saga Topology](adr/0004-checkout-saga-topology.md) — names the consumer-group + topic pairing the Checkout saga relies on.
 - [ADR-0006: Event Sourcing for Inventory](adr/0006-event-sourcing-for-inventory.md) — defines the `inventory.stock-events` + `inventory.reservations` event-log contract.
 - [ADR-0007: Avro Schema Compatibility Modes](adr/0007-avro-compatibility-modes.md) — fixes the per-class compatibility expectation.

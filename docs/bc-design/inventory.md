@@ -424,7 +424,7 @@ Emitted 1:1 with internal `ReservationConfirmedDomainEvent` (ES).
 | `OrderId` | `uuid` | |
 | `ConfirmedAtUtc` | `timestamp-millis` | |
 
-**Consumer:** Checkout saga (informational). The saga's `ReservationConfirmedConsumer` updates its per-reservation tracking on `AwaitingConfirmation`, but it does **not** gate the transition — Ordering's `OrderConfirmedEvent` is the gate (see [checkout-saga.md § 4](checkout-saga.md) + [events-catalog.md § 2](events-catalog.md)). A "your order is being prepared" buyer notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` from a dedicated outbox publisher; not wired in v1.
+**Consumer:** Checkout saga (informational). The saga's `ReservationConfirmedConsumer` updates its per-reservation tracking on `AwaitingConfirmation`, but it does **not** gate the transition — Ordering's `OrderConfirmedEvent` is the gate (see [checkout-saga.md § 4](checkout-saga.md) + [events-catalog.md § 2](events-catalog.md)). A "your order is being prepared" buyer notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit a `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) from a dedicated outbox publisher; not wired in v1.
 
 **Avro schema (`Inventory.Reservations.ReservationConfirmedEvent.avsc`):**
 
@@ -729,7 +729,9 @@ Beyond these events, Inventory consumes the saga-issued reservation commands on 
 |----------|--------|---------|
 | **Catalog** | `StockLevelChangedEvent` | Update `IsSellable` / availability projection for product cards. Relationship pattern: Catalog is **downstream, OHS-consumer** of Inventory's stock-level topic. |
 | **Checkout saga** | `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` | Drives the reserve → pay → confirm OR compensate path. Relationship pattern: Saga is **Customer** of Inventory's reservation topic (Inventory is Supplier). Saga conforms to Inventory's schema. |
-| **Notifications** (deferred) | (none in v1) | "Your order is being prepared" notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit `SendEmailNotificationCommand` on `notifications.email-commands` rather than have Notifications subscribe to `inventory.reservations`. Not wired in v1. |
+| **Notifications** (deferred) | (none in v1) | "Your order is being prepared" notification would route via the command-driven pattern in [notifications.md § 2](notifications.md) — Inventory would emit a channel-agnostic `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) rather than have Notifications subscribe to `inventory.reservations`. Not wired in v1. |
+
+> **Consumers are canonical in [events-catalog.md § 2](events-catalog.md)** — the table above mirrors it for convenience; § 2 wins on any divergence.
 
 ### 12.3 Context map relationships
 
@@ -748,10 +750,9 @@ Beyond these events, Inventory consumes the saga-issued reservation commands on 
 - Tables: `inventory.stock_events` (write model), `inventory.current_stock_levels` (projection), `inventory.reservation_audit` (projection), `inventory.command_inbox` (idempotency), plus the standard outbox/inbox tables.
 - Migrations generated deterministically by the user (per CLAUDE.md — NEVER by agents).
 
-### 13.2 Kafka topics (to be added to `docker-compose.yaml` in Stage 2)
+### 13.2 Kafka topics
 
-- `inventory.stock-events` — 3 partitions, key = `ProductId`. Consumed by Catalog.
-- `inventory.reservations` — 6 partitions (higher saga traffic), key = `OrderId` (co-partitions by order — every reservation event for one order lands on one partition → preserves order). Consumed by the checkout saga.
+Inventory owns `inventory.stock-events` (consumed by Catalog) and `inventory.reservations` (consumed by the checkout saga). Per-topic partitions / retention / class are canonical in [kafka-topology.md](../kafka-topology.md); producers / consumers / keys in [events-catalog.md § 2](events-catalog.md). Design note: `inventory.reservations` is keyed by `OrderId` so every reservation event for one order co-partitions (preserving per-order ordering) and runs extra partitions for saga fan-out.
 
 ### 13.3 Outbox relay registration
 

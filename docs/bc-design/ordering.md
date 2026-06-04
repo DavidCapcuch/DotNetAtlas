@@ -264,7 +264,9 @@ Notation reminder from master-design § 3.2: external event C# name is `{Busines
 | `OrderDeliveredEvent` | `MarkDelivered` → handler | BFF (cache invalidation: `order-{orderId}` + `order-history-{buyerId}`, per [bff.md § 2.2](bff.md)). Sales analytics is planned scope. |
 | `OrderFailedEvent` | `Fail` → handler | **Checkout saga** (terminal failure); BFF (cache invalidation). |
 
-> **Notifications wiring (v1):** Ordering does NOT publish to a Notifications consumer. If a buyer-facing email is needed for any of these lifecycle moments, Ordering would publish `SendEmailNotificationCommand` on `notifications.email-commands` from a dedicated outbox publisher (per [notifications.md § 2](notifications.md) command-driven pattern). v1 ships no such publisher — order-lifecycle notifications are deferred.
+> **Consumers are canonical in [events-catalog.md § 2](events-catalog.md)** — the *Consumed by* column above mirrors it for convenience; § 2 wins on any divergence.
+
+> **Notifications wiring (v1):** Ordering does NOT publish to a Notifications consumer. If a buyer-facing email were needed for any of these lifecycle moments, Ordering would emit a channel-agnostic `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) via a dedicated outbox publisher — the command-driven pattern in [notifications.md § 2](notifications.md) + [events-catalog.md § 1.4 D-5](events-catalog.md). v1 ships no such publisher — order-lifecycle notifications are deferred.
 
 ### 7.2 Avro schemas
 
@@ -395,7 +397,7 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
 }
 ```
 
-> **Note:** `CorrelationId` is intentionally **omitted** from `OrderDeliveredEvent` — the checkout saga is already finalized by the time delivery occurs; delivery is a post-saga fulfillment milestone. A future delivery-email producer would carry `OrderId` only on its `SendEmailNotificationCommand` (per [notifications.md § 2](notifications.md)).
+> **Note:** `CorrelationId` is intentionally **omitted** from `OrderDeliveredEvent` — the checkout saga is already finalized by the time delivery occurs; delivery is a post-saga fulfillment milestone. A future delivery-email producer would carry `OrderId` only on its `NotifyUserCommand` (v2; per [notifications.md § 2](notifications.md) + [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)).
 
 #### 7.2.6 `OrderFailedEvent.avsc`
 
@@ -503,7 +505,7 @@ public Result Fail(string errorCode, string errorMessage, DateTimeOffset utcNow)
 | **Inventory** | Customer-Supplier (via the Checkout saga) | Inventory → Ordering | Inventory publishes `StockReservedEvent` / `StockReservationFailedEvent`; the saga correlates and issues `MarkOrderStockReservedCommand` (saga-internal app dispatch) on success or `MarkOrderFailedCommand` (Kafka on `ordering.order-commands`) on failure. Ordering does **not** consume Inventory events directly. |
 | **Payments** | Customer-Supplier (via the Checkout saga) | Payments → Ordering | Payments publishes `PaymentCompletedEvent` / `PaymentFailedEvent`; the saga issues `MarkOrderPaymentCompletedCommand` (saga-internal app dispatch) on success or `MarkOrderFailedCommand` (Kafka on `ordering.order-commands`) on failure. |
 | **Checkout saga** | Orchestration | Ordering ↔ saga | Saga is *the* consumer of Ordering's external events and *the* driver of status transitions post-creation. Centralized placement per ADR-0001 / ADR-0004. |
-| **Notifications** | Command-driven (deferred) | Ordering → Notifications | **v1 not wired.** Ordering does not subscribe Notifications to `ordering.orders`; the command-driven pattern in [notifications.md § 2](notifications.md) is the canonical path — when an order-lifecycle email is needed, Ordering would emit `SendEmailNotificationCommand` from a dedicated outbox publisher. |
+| **Notifications** | Command-driven (deferred) | Ordering → Notifications | **v1 not wired.** Ordering does not subscribe Notifications to `ordering.orders`; the command-driven pattern in [notifications.md § 2](notifications.md) is the canonical path — when an order-lifecycle email is needed, Ordering would emit a `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) from a dedicated outbox publisher. |
 | **BFF** | Open Host Service (Ordering exposes HTTP query API) + Published-Language (BFF consumes `ordering.orders` for cache invalidation) | BFF ↔ Ordering | BFF calls `GetOrderByIdQuery` / `GetOrdersByBuyerQuery` over HTTP; BFF also listens to `ordering.orders` to invalidate `order-history:{buyerId}` cache entries. |
 | **Catalog** | None (no direct relationship) | — | Ordering references products only through the snapshot captured by Basket; no direct call from Ordering to Catalog. |
 

@@ -61,20 +61,22 @@ A message on a DLT now means **"genuinely unprocessable (poison)"** — never "t
 
 ## 3. Per-Consumer DLT Table
 
-Rows are keyed by **(consumer BC × source topic)** because the live `DltTopicSuffix` is per-BC and produces a distinct DLT bucket per consumer. Source-topic partition counts and retention come from [events-catalog.md § 4 and § 6.1](events-catalog.md) (unchanged here). DLT retention is 14 days across the board; DLT partition count is whatever the broker defaults to on auto-create (see § 7 F-3).
+DLT topic names are **derived**, not an independent fact: `{source-topic}.{consumer-bc}.DLT` (§ 1), where `{consumer-bc}` is the BC's `DltTopicSuffix` (§ 1 table) and the consumer→source-topic set is the [events-catalog.md § 2](events-catalog.md) consumer registry. Source-topic partitions/retention live in [kafka-topology.md](../kafka-topology.md) and are **not** repeated here (per [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md)). DLT retention is **14 days** across the board (`retention.ms=1209600000`); the 10 live DLT topics below are pre-created with 3 partitions (matching source) in the `kafka-create-topic` block of [docker-compose.yaml](../../docker-compose.yaml).
 
-| Consumer BC | Source topic | DLT topic (broker name) | Source retention | Notes |
-|-------------|--------------|--------------------------|------------------|-------|
-| Catalog | `inventory.stock-events` | `inventory.stock-events.Catalog.DLT` | infinite (event-log) | `StockLevelChangedKafkaHandler` projects to `Catalog.IsSellable`. |
-| Inventory | `inventory.reservation-commands` | `inventory.reservation-commands.Inventory.DLT` | 7 days (command) | Saga → Inventory commands. DLT = saga state-timeout + compensation imminent. |
-| Inventory | `catalog.products` | `catalog.products.Inventory.DLT` | infinite (event-log) | Stock-init projection from Catalog product master. |
-| Inventory | `ordering.orders` | `ordering.orders.Inventory.DLT` | infinite (event-log) | `OrderCancelledEvent` consumer (release reserved stock). |
-| Invoicing | `ordering.orders` | `ordering.orders.Invoicing.DLT` | infinite (event-log) | `OrderConfirmedEvent` + `OrderCancelledEvent` → invoice issuance / credit-note. |
-| Invoicing | `payments.transactions` | `payments.transactions.Invoicing.DLT` | infinite (event-log) | `PaymentCapturedEvent` + `PaymentRefundedEvent` → invoice issuance trigger. |
-| Invoicing | `notifications.email-events` | `notifications.email-events.Invoicing.DLT` | (existing) | `EmailNotificationSentEvent` — delivery-confirmation projection. |
-| Notifications | `notifications.email-commands` | `notifications.email-commands.Notifications.DLT` | 7 days (command) | `SendEmailNotificationCommand` consumer (the sole inbound for Notifications). |
-| Ordering | `ordering.order-commands` | `ordering.order-commands.Ordering.DLT` | 7 days (command) | Saga → Ordering commands. DLT = urgent ops investigation (saga step blocked). |
-| Payments | `payments.payment-commands` | `payments.payment-commands.Payments.DLT` | 7 days (command) | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
+The table is the concrete on-call enumeration; it carries no fact not already derivable from the rule above + the two anchors.
+
+| Consumer BC | Source topic | DLT topic (broker name) | Notes |
+|-------------|--------------|--------------------------|-------|
+| Catalog | `inventory.stock-events` | `inventory.stock-events.Catalog.DLT` | `StockLevelChangedKafkaHandler` projects to `Catalog.IsSellable`. |
+| Inventory | `inventory.reservation-commands` | `inventory.reservation-commands.Inventory.DLT` | Saga → Inventory commands. DLT = saga state-timeout + compensation imminent. |
+| Inventory | `catalog.products` | `catalog.products.Inventory.DLT` | Stock-init projection from Catalog product master. |
+| Inventory | `ordering.orders` | `ordering.orders.Inventory.DLT` | `OrderCancelledEvent` consumer (release reserved stock). |
+| Invoicing | `ordering.orders` | `ordering.orders.Invoicing.DLT` | `OrderConfirmedEvent` + `OrderCancelledEvent` → invoice issuance / credit-note. |
+| Invoicing | `payments.transactions` | `payments.transactions.Invoicing.DLT` | `PaymentCapturedEvent` + `PaymentRefundedEvent` → invoice issuance trigger. |
+| Invoicing | `notifications.email-events` | `notifications.email-events.Invoicing.DLT` | **v1 — transitional.** `EmailNotificationSentEvent` delivery-confirmation projection. Renames to `notifications.notify-events.Invoicing.DLT` at the v2 switch (#312 / #318). |
+| Notifications | `notifications.email-commands` | `notifications.email-commands.Notifications.DLT` | **v1 — transitional.** `SendEmailNotificationCommand` consumer (the sole inbound for Notifications). Renames to `notifications.notify-commands.Notifications.DLT` at the v2 switch (#312 / #318). |
+| Ordering | `ordering.order-commands` | `ordering.order-commands.Ordering.DLT` | Saga → Ordering commands. DLT = urgent ops investigation (saga step blocked). |
+| Payments | `payments.payment-commands` | `payments.payment-commands.Payments.DLT` | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
 
 **Source topics with no DLT (saga-consumed):**
 
@@ -191,7 +193,8 @@ The items below are explicit gaps between this design document and the current p
 ## 8. Cross-References
 
 - [error-taxonomy.md](error-taxonomy.md) — which errors route to DLT vs. propagate as business outcomes
-- [events-catalog.md § 4](events-catalog.md) — authoritative topic / retention / partition-count table
+- [kafka-topology.md](../kafka-topology.md) — authoritative per-topic partitions / retention / class (the source-topic topology this DLT table no longer repeats)
+- [events-catalog.md § 2](events-catalog.md) — per-event consumer registry (which BC consumes which source topic → which DLT)
 - [events-catalog.md § 7](events-catalog.md) — inbox registration (dedup BEFORE handler — DLT comes after)
 - [use-cases.md § 3.3](use-cases.md) (Ordering saga consumers) and [§ 4.3](use-cases.md) (Inventory saga consumers) — consumer handler shape that converts `Result.Fail(userError)` to business outcome events instead of throwing
 - [checkout-saga.md](checkout-saga.md) — saga state timeouts that complement DLT (when a command message is stuck in DLT, the corresponding response event never arrives; the saga state timeout triggers compensation)

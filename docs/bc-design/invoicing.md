@@ -135,7 +135,7 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 
 ## 6. External Events (Avro) + Topic
 
-**Topic:** `invoicing.invoices` — **10-year retention** (per EU VAT norm; see [ADR-0018 Invoice numbering](../adr/0018-invoice-numbering.md) and retention ADR). Partition key `BuyerId` (keeps all of a buyer's invoices on one partition for efficient per-buyer consumer reads).
+**Topic:** `invoicing.invoices` — per-topic topology (partitions / retention / class) in [kafka-topology.md](../kafka-topology.md); its **10-year retention** reflects the EU VAT norm (see [ADR-0018 Invoice numbering](../adr/0018-invoice-numbering.md)). Partition key `BuyerId` ([events-catalog.md § 2](events-catalog.md)) keeps all of a buyer's invoices on one partition for efficient per-buyer consumer reads.
 
 | External event | Triggered by | Consumer(s) |
 |---|---|---|
@@ -144,7 +144,7 @@ Draft ──issue──▶ Issued ──deliver──▶ Delivered ──archive
 | `InvoiceCancelledEvent` | `InvoiceCancelledDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `NotifyUserCommand` per [notifications.md § 2](notifications.md)). |
 | `CreditNoteIssuedEvent` | `CreditNoteIssuedDomainEvent` | **No v1 consumer** (BFF invoice cache is planned-not-v1). Buyer email deferred (would route via `NotifyUserCommand` per [notifications.md § 2](notifications.md)). |
 
-**Schema compatibility:** FORWARD_TRANSITIVE.
+**Consumers** are canonical in [events-catalog.md § 2](events-catalog.md). **Schema compatibility** is *derived* from topic class — event-log → `FORWARD_TRANSITIVE` — see [ADR-0007](../adr/0007-avro-compatibility-modes.md).
 
 **Payload:** enriched — carries buyer address, total, VAT breakdown, PDF URL. Consumers can render or forward without a callback.
 
