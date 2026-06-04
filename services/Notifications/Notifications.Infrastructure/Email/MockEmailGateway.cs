@@ -4,7 +4,8 @@ using Notifications.Application.Email;
 
 namespace Notifications.Infrastructure.Email;
 
-/// <summary>Logs the email and returns success. Default DI registration in dev/test.</summary>
+/// <summary>Logs the email (without the recipient address) and returns success. Used directly by unit
+/// tests; production/dev DI registers <see cref="SmtpEmailGateway"/> (→ Mailpit).</summary>
 internal sealed class MockEmailGateway : IEmailGateway
 {
     private readonly ILogger<MockEmailGateway> _logger;
@@ -19,9 +20,10 @@ internal sealed class MockEmailGateway : IEmailGateway
     public Task<Result> SendAsync(EmailMessage message, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(message);
+        // Recipient address omitted — it is PII (ADR-0011).
         _logger.LogInformation(
-            "[MOCK EMAIL] to={ToUserId} subject='{Subject}' body-len={BodyLen} at={At:O}",
-            message.ToUserId, message.Subject, message.Body.Length, _clock.GetUtcNow());
+            "[MOCK EMAIL] subject='{Subject}' body-len={BodyLen} at={At:O}",
+            message.Subject, message.Body.Length, _clock.GetUtcNow());
         return Task.FromResult(Result.Ok());
     }
 }

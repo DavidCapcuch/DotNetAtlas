@@ -161,7 +161,7 @@
 
 - **R1** — `ResendInvoiceCommand` uses the `Idempotency-Key` HTTP header to dedup HTTP-level retries.
 - **R2** — Each resend increments `invoice_delivery_log.Attempt` for `(InvoiceId, Channel)`.
-- **R3** — The outbox row for the `SendEmailNotificationCommand` includes `Attempt` in its message key — Notifications consumer dedups on `(InvoiceId, Channel, Attempt)`.
+- **R3** — Each resend mints a fresh producer-assigned `NotificationId` (GUID v7) on the `NotifyUserCommand` ([ADR-0031](../../adr/0031-notify-user-command-and-notification-id.md)); Notifications dedups durably on its `notification_deliveries` ledger keyed `(NotificationId, Channel)` (transport-level redelivery is already deduped by the `message.id` inbox).
 - **R4** — Delivery attempt 1 is emitted automatically by `InvoiceIssuedDomainEvent` handler (no admin action needed).
 
 ### Example 4.1 — Admin resends invoice after SMTP bounce
@@ -169,8 +169,8 @@
 - **Given** `Invoice I1`, `invoice_delivery_log` has row `(I1, email, attempt=1, outcome=bounced)`
 - **When** admin POSTs `/api/v1/invoicing/invoices/{I1}/resend` with `Idempotency-Key: K1`
 - **Then** handler writes `invoice_delivery_log(I1, email, attempt=2, outcome=pending)`
-- **And** enqueues `SendEmailNotificationCommand` outbox row keyed `(I1, email, 2)`
-- **Verify** Notifications receives one `SendEmailNotificationCommand`; sends email
+- **And** enqueues a `NotifyUserCommand` outbox row carrying a fresh producer-assigned `NotificationId` (persisted on the invoice as `delivery_notification_id`)
+- **Verify** Notifications receives one `NotifyUserCommand`; dedups on `(NotificationId, email)`; sends email
 - **When** the admin (or a network-glitch retry) POSTs again with the SAME `Idempotency-Key: K1`
 - **Then** FastEndpoints' `.Idempotency()` filter (backed by ASP.NET Output Cache on `redis-cache`, per ADR-0013) returns the cached response
 - **Verify** `invoice_delivery_log.Attempt` still = 2 (not 3)

@@ -1,5 +1,6 @@
 using System.Reflection;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using NetArchTest.Rules;
 
@@ -16,6 +17,73 @@ public abstract class BaseTest
     protected static readonly Assembly ApplicationAssembly = typeof(global::Notifications.Application.IAssemblyMarker).Assembly;
     protected static readonly Assembly InfrastructureAssembly = typeof(global::Notifications.Infrastructure.IAssemblyMarker).Assembly;
     protected static readonly Assembly PresentationAssembly = typeof(global::Notifications.Api.IAssemblyMarker).Assembly;
+
+    /// <summary>
+    /// Walks the type and every nested compiler-generated type so IL-scanning rules see async
+    /// state machines, iterator state machines, and lambda closures. Without this, async method
+    /// bodies are invisible.
+    /// </summary>
+    internal static IEnumerable<MethodDefinition> AllMethodsIncludingNested(TypeDefinition type)
+    {
+        foreach (var method in type.Methods)
+        {
+            yield return method;
+        }
+
+        foreach (var nested in type.NestedTypes)
+        {
+            foreach (var method in AllMethodsIncludingNested(nested))
+            {
+                yield return method;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asserts the type's IL contains no calls to forbidden static "now" getters. Per ADR-0015,
+    /// domain code MUST resolve "now" through an injected <see cref="System.TimeProvider"/> or a
+    /// <c>DateTimeOffset</c>/<c>DateTime</c>/<c>TimeOnly</c> parameter — static accessors break
+    /// determinism and the <c>FakeTimeProvider</c> test seam. Mirrors the dominant Invoicing rule
+    /// (does NOT forbid bare <c>DateTime</c> params, so a future <c>QuietHoursCalculator</c> passes).
+    /// </summary>
+    protected sealed class NoStaticUtcNowRule : ICustomRule
+    {
+        private static readonly HashSet<string> ForbiddenGetters = new(StringComparer.Ordinal)
+        {
+            "System.DateTime System.DateTime::get_UtcNow()",
+            "System.DateTime System.DateTime::get_Now()",
+            "System.DateTime System.DateTime::get_Today()",
+            "System.DateTimeOffset System.DateTimeOffset::get_UtcNow()",
+            "System.DateTimeOffset System.DateTimeOffset::get_Now()",
+        };
+
+        public bool MeetsRule(TypeDefinition type)
+        {
+            foreach (var method in AllMethodsIncludingNested(type))
+            {
+                if (!method.HasBody)
+                {
+                    continue;
+                }
+
+                foreach (var instruction in method.Body.Instructions)
+                {
+                    if (instruction.OpCode != OpCodes.Call && instruction.OpCode != OpCodes.Callvirt)
+                    {
+                        continue;
+                    }
+
+                    if (instruction.Operand is MethodReference methodRef &&
+                        ForbiddenGetters.Contains(methodRef.FullName))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+    }
 
     protected sealed class PrivateConstructorsRule : ICustomRule
     {

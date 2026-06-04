@@ -1538,7 +1538,7 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 ### 6.3 ResendInvoiceCommand
 
 - **Trigger:** admin HTTP — `POST /api/v1/invoicing/invoices/{InvoiceId}/resend` with `Idempotency-Key` header (24 h Redis cache per ADR-0013).
-- **Handler:** `ResendInvoiceCommandHandler` — **STUB** (validates existence + resendable state, logs, returns 204; the `invoice_delivery_log` insert + outbox row keyed `(InvoiceId, Channel, Attempt)` described in `bc-design/invoicing.md § 12` is planned scope — see the `ResendInvoiceCommandHandler` production-handler item in [roadmap.md § 2.3 Invoicing](../roadmap.md); the OpenAPI `Description` carries a "stub" marker).
+- **Handler:** `ResendInvoiceCommandHandler` — **STUB** (validates existence + resendable state, logs, returns 204; the `invoice_delivery_log` insert (keyed `(InvoiceId, Channel)`, `Attempt` column) + outbox `NotifyUserCommand` carrying a fresh producer-assigned `NotificationId` described in `bc-design/invoicing.md § 12` is planned scope — see the `ResendInvoiceCommandHandler` production-handler item in [roadmap.md § 2.3 Invoicing](../roadmap.md); the OpenAPI `Description` carries a "stub" marker).
 - **Auth:** `AuthPolicies.InvoicingAdmin` (Keycloak realm role `Admin`; ADR-0010 scope-based gating is planned scope (v2+) — see [roadmap.md § 2.3 Invoicing](../roadmap.md)).
 - **Payload:** `{ InvoiceId, Channel (DeliveryChannel SmartEnum) }`.
 - **Validator:** `ResendInvoiceCommandValidator` — `InvoiceId NotEmpty`.

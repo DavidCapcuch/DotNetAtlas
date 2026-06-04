@@ -1,3 +1,4 @@
+using System.Globalization;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -53,9 +54,14 @@ public class IntegrationTestFixture : AppFixture<Program>
             SchemasToInclude = [NotificationsDbContext.DefaultSchemaName]
         });
 
+    private readonly MailpitTestContainer _mailpit = new();
+
     /// <summary>NSubstitute transactional-outbox stub. Tests assert on its <c>Received</c> AddOutboxMessage calls.</summary>
     public ITransactionalOutbox<INotificationsDbContext> OutboxSubstitute { get; } =
         Substitute.For<ITransactionalOutbox<INotificationsDbContext>>();
+
+    /// <summary>Mailpit SMTP sink the email dispatcher delivers to; assert captured mail via its REST API.</summary>
+    public MailpitTestContainer Mailpit => _mailpit;
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _dbContainer.ConnectionString;
@@ -66,6 +72,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
         // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
+        await _mailpit.StartAsync();
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -74,6 +81,9 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             webBuilder
                 .UseSetting("ConnectionStrings:Notifications", _dbContainer.ConnectionString)
+                // Point the email channel's SMTP transport at the Mailpit testcontainer.
+                .UseSetting("Smtp:Host", _mailpit.SmtpHost)
+                .UseSetting("Smtp:Port", _mailpit.SmtpPort.ToString(CultureInfo.InvariantCulture))
                 // Kafka cluster boot is guarded by !IsTesting() in Program.cs but
                 // AddInfrastructure still binds KafkaOptions at DI time. Point those
                 // at unreachable hosts so any accidental use blows up loudly rather
@@ -120,8 +130,12 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
     public AsyncServiceScope CreateScope() => Services.CreateAsyncScope();
 
-    /// <summary>Wipes every table in the Notifications schema between tests.</summary>
-    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
+    /// <summary>Wipes every table in the Notifications schema and the captured Mailpit mail between tests.</summary>
+    public async Task ResetFixtureStateAsync()
+    {
+        await _dbContainer.CleanDataAsync();
+        await _mailpit.DeleteAllAsync();
+    }
 
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
@@ -129,5 +143,6 @@ public class IntegrationTestFixture : AppFixture<Program>
     protected override async ValueTask TearDownAsync()
     {
         await _dbContainer.DisposeAsync();
+        await _mailpit.DisposeAsync();
     }
 }

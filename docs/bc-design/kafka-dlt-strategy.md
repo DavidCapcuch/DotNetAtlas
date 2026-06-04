@@ -73,8 +73,8 @@ The table is the concrete on-call enumeration; it carries no fact not already de
 | Inventory | `ordering.orders` | `ordering.orders.Inventory.DLT` | `OrderCancelledEvent` consumer (release reserved stock). |
 | Invoicing | `ordering.orders` | `ordering.orders.Invoicing.DLT` | `OrderConfirmedEvent` + `OrderCancelledEvent` → invoice issuance / credit-note. |
 | Invoicing | `payments.transactions` | `payments.transactions.Invoicing.DLT` | `PaymentCapturedEvent` + `PaymentRefundedEvent` → invoice issuance trigger. |
-| Invoicing | `notifications.email-events` | `notifications.email-events.Invoicing.DLT` | **v1 — transitional.** `EmailNotificationSentEvent` delivery-confirmation projection. Renames to `notifications.notify-events.Invoicing.DLT` at the v2 switch (#312 / #318). |
-| Notifications | `notifications.email-commands` | `notifications.email-commands.Notifications.DLT` | **v1 — transitional.** `SendEmailNotificationCommand` consumer (the sole inbound for Notifications). Renames to `notifications.notify-commands.Notifications.DLT` at the v2 switch (#312 / #318). |
+| Invoicing | `notifications.notify-events` | `notifications.notify-events.Invoicing.DLT` | `NotificationDeliveryStatusChangedEvent` delivery-confirmation projection. |
+| Notifications | `notifications.notify-commands` | `notifications.notify-commands.Notifications.DLT` | `NotifyUserCommand` consumer (the sole inbound for Notifications). |
 | Ordering | `ordering.order-commands` | `ordering.order-commands.Ordering.DLT` | Saga → Ordering commands. DLT = urgent ops investigation (saga step blocked). |
 | Payments | `payments.payment-commands` | `payments.payment-commands.Payments.DLT` | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
 
@@ -86,7 +86,7 @@ The Checkout saga in `saga/SagaOrchestrators/` consumes `basket.sessions`, `orde
 
 `catalog.categories`, `inventory.stock-events`, `inventory.reservations` (saga-only; see above) — no BC currently registers a `DeadLetterMiddleware`-wrapped consumer. If a consumer lands later it will produce to `<topic>.<BC>.DLT` per the convention in § 1.
 
-**Docker-compose note:** the DLT topics are NOT pre-created by the `kafka-create-topic` block; they are auto-created on first produce by the Kafka broker with cluster-default partitioning (3) and default retention (7 days). The 14-day retention target above is therefore aspirational; pre-creating each per-BC DLT with explicit `kafka-topics --create` is logged as F-3 in § 7.
+**Docker-compose note:** the 10 per-consumer-BC DLT topics from § 3 are pre-created by the `kafka-create-topic` block with 3 partitions (matching source) + **14-day** retention (`retention.ms=1209600000`) + `min.insync.replicas=1` — see resolved F-3 in § 7. Any DLT not in that list (e.g. a future consumer's) is auto-created on first produce at the cluster default (3 partitions, broker-default 7-day retention) until it is added to the pre-create block.
 
 ---
 

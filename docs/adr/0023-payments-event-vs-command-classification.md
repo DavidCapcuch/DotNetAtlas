@@ -41,7 +41,7 @@ This ADR closes the debt: confirms the actual consumer counts from code, separat
 | `PaymentFailedEvent` | **PaymentProcessingSaga** | Checkout saga | **1** |
 
 Two doc-drift observations against the older sources:
-- The events-catalog § 2 / payments.md § 6 / master-design § 3.5 references to `Notifications` consuming `PaymentRefundedEvent`, `PaymentCompletedEvent`, or `PaymentFailedEvent` are **stale** — `services/Notifications/` has no Avro Payment-* consumer of any kind (only `SendEmailNotificationCommandKafkaHandler`). The `notifications` consumer-group entries in those documents reflect aspirational v2 wiring, not v1 code.
+- The events-catalog § 2 / payments.md § 6 / master-design § 3.5 references to `Notifications` consuming `PaymentRefundedEvent`, `PaymentCompletedEvent`, or `PaymentFailedEvent` are **stale** — `services/Notifications/` has no Avro Payment-* consumer of any kind (only `SendEmailNotificationCommandKafkaHandler` (v1; renamed to NotifyUserCommandKafkaHandler in ADR-0031)). The `notifications` consumer-group entries in those documents reflect aspirational v2 wiring, not v1 code.
 - Master-design § 3.5's *"Known misnamed events in Payments"* list mentioned `PaymentCapturedEvent`. **Wrong** — code has 2 consumers (PaymentProcessingSaga + Invoicing); it is correctly classified as an event.
 
 ## Decision Drivers (ranked)

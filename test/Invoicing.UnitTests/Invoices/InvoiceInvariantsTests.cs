@@ -158,7 +158,12 @@ public class InvoiceInvariantsTests
         var events = invoice.PopDomainEvents();
 
         events.OfType<InvoiceIssuedDomainEvent>().Should().ContainSingle();
-        events.OfType<InvoiceDeliveryRequestedDomainEvent>().Should().ContainSingle();
+
+        // ADR-0031: a NotificationId is minted, carried on the event, and persisted on the aggregate
+        // (same save) so the delivery confirmation can correlate by delivery_notification_id.
+        var delivery = events.OfType<InvoiceDeliveryRequestedDomainEvent>().Should().ContainSingle().Subject;
+        delivery.NotificationId.Should().NotBeEmpty();
+        invoice.DeliveryNotificationId.Should().Be(delivery.NotificationId);
     }
 
     [Fact]

@@ -1,0 +1,45 @@
+{
+    "type": "record",
+    "name": "NotifyUserCommand",
+    "namespace": "Notifications",
+    "doc": "Channel-agnostic intent to notify a user. Notifications resolves the user's channels and fans out. Producer-assigned NotificationId. See ADR-0031.",
+    "fields": [
+        {
+            "name": "NotificationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Producer-assigned intent identity (client-assigned-id pattern). Keys the per-channel ledger and round-trips in the delivery event for correlation."
+        },
+        {
+            "name": "RecipientUserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Recipient (Keycloak sub). Channel adapters resolve the address from preferences."
+        },
+        {
+            "name": "TemplateKey",
+            "type": "string",
+            "doc": "Template identifier, lower-kebab {bounded-context}.{notification-type}, e.g. 'invoicing.invoice-delivered'."
+        },
+        {
+            "name": "Payload",
+            "type": {
+                "type": "map",
+                "values": "string"
+            },
+            "doc": "Template rendering data."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "Producer creation time (UTC)."
+        }
+    ]
+}

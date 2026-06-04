@@ -8,7 +8,7 @@ using Invoicing.Domain.Invoices.ValueObjects;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
-using Notifications.Email;
+using Notifications;
 using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.ValueObjects;
@@ -19,11 +19,12 @@ namespace Invoicing.UnitTests.Application.Invoices.Delivery;
 public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
 {
     [Fact]
-    public async Task Handle_QueuesSendEmailNotificationCommand_WithCorrectTopicKeyAndTemplateData()
+    public async Task Handle_QueuesNotifyUserCommand_WithCorrectTopicKeyAndPayload()
     {
         // Arrange
         var buyerId = Guid.CreateVersion7();
         var invoiceId = Guid.CreateVersion7();
+        var notificationId = Guid.CreateVersion7();
         var invoiceNumber = InvoiceNumber.Create(2026, 42).Value;
         var total = Money.Create(152.00m, CurrencyCode.Eur).Value;
 
@@ -33,8 +34,8 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
             Invoices = "invoicing.invoices",
             OrderingOrders = "n/a",
             PaymentsTransactions = "n/a",
-            NotificationsEmailCommands = "notifications.email-commands",
-            NotificationsEmailEvents = "notifications.email-events",
+            NotificationsNotifyCommands = "notifications.notify-commands",
+            NotificationsNotifyEvents = "notifications.notify-events",
             DltTopicSuffix = ".DLT",
         });
         var portal = Options.Create(new BuyerPortalOptions { BaseUrl = "https://invoicing.example.com" });
@@ -51,8 +52,8 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
         {
             InvoiceId = invoiceId,
             BuyerId = buyerId,
+            NotificationId = notificationId,
             Channel = DeliveryChannel.Email,
-            Attempt = 1,
             InvoiceNumber = invoiceNumber,
             Total = total,
             OccurredOnUtc = clock.GetUtcNow(),
@@ -64,15 +65,15 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
         // Assert
         using var _ = new AssertionScope();
         outbox.Received(1).AddOutboxMessage(
-            "notifications.email-commands",
+            "notifications.notify-commands",
             buyerId.ToString(),
-            Arg.Is<SendEmailNotificationCommand>(c =>
-                c.UserId == buyerId &&
-                c.TemplateId == "invoicing.invoice-delivered" &&
-                c.IdempotencyKey == $"invoice-delivered-{invoiceId}-1" &&
-                c.TemplateData["InvoiceNumber"] == "INV-2026-000042" &&
-                c.TemplateData["TotalAmount"] == "152.00" &&
-                c.TemplateData["Currency"] == "EUR" &&
-                c.TemplateData["ViewInvoiceUrl"] == $"https://invoicing.example.com/invoices/{invoiceId}"));
+            Arg.Is<NotifyUserCommand>(c =>
+                c.NotificationId == notificationId &&
+                c.RecipientUserId == buyerId &&
+                c.TemplateKey == "invoicing.invoice-delivered" &&
+                c.Payload["InvoiceNumber"] == "INV-2026-000042" &&
+                c.Payload["TotalAmount"] == "152.00" &&
+                c.Payload["Currency"] == "EUR" &&
+                c.Payload["ViewInvoiceUrl"] == $"https://invoicing.example.com/invoices/{invoiceId}"));
     }
 }

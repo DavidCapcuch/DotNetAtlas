@@ -13,7 +13,7 @@ DotNetAtlas is a distributed eShop reference solution with multiple services tha
 - **Inventory** — event-sourced reservation lifecycle: `ReserveStock` → `ConfirmReservation` (or `ReleaseReservation`) with a 15-min TTL.
 - **Payments** — executes payment commands (authorize, capture, void, refund) against an external gateway.
 - **Invoicing** — converges on `OrderConfirmedEvent` + `PaymentCapturedEvent` to issue an invoice; mirror on `OrderCancelledEvent` + `PaymentRefundedEvent` for credit notes.
-- **Notifications** — sends email notifications from `SendEmailNotificationCommand` (drained from Ordering / Invoicing).
+- **Notifications** — sends email notifications from `SendEmailNotificationCommand` (v1; renamed in ADR-0031) (drained from Ordering / Invoicing).
 
 The flagship business workflow — *"check out a basket"* — spans Basket → Ordering → Inventory → Payments → (Ordering confirm) and may need compensation (refund + stock release + order cancel) at any failure point after capture. This distributed transaction requires reliable orchestration with timeout handling and explicit compensation paths.
 

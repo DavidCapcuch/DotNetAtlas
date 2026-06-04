@@ -14,6 +14,7 @@ using Invoicing.Infrastructure.Persistence.Database;
 using KafkaFlow;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +42,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// schema is materialised by the same idempotent V*.sql scripts Flyway runs in compose
 /// (#269). Tests resolve handlers from <see cref="Services"/> and invoke them directly;
 /// Kafka consumers are skipped (Program.cs guards <c>CreateKafkaBus().StartAsync()</c> with
-/// <c>!app.Environment.IsTesting()</c>) and the <see cref="EmailNotificationSentEventKafkaHandler"/>
+/// <c>!app.Environment.IsTesting()</c>) and the <see cref="NotificationDeliveryStatusChangedEventKafkaHandler"/>
 /// is invoked synchronously via <c>TestKafkaMessageContext</c> instead of through a real broker.
 /// </summary>
 [DisableWafCache]
@@ -187,13 +188,16 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     /// <summary>
     /// Seeds a fully-delivered invoice. Issues first via <see cref="SeedIssuedInvoiceAsync"/>,
-    /// then simulates the Notifications ack by invoking <see cref="EmailNotificationSentEventKafkaHandler"/>
-    /// directly against the real Postgres container. Resets the outbox call-recorder
-    /// before returning so test assertions start from a clean baseline.
+    /// then simulates the Notifications ack by invoking
+    /// <see cref="NotificationDeliveryStatusChangedEventKafkaHandler"/> directly against the real
+    /// Postgres container, correlating on the invoice's minted <c>delivery_notification_id</c>
+    /// (ADR-0031). Resets the outbox call-recorder before returning so test assertions start from a
+    /// clean baseline.
     /// </summary>
     public async Task<(Guid InvoiceId, Guid BuyerId)> SeedDeliveredInvoiceAsync(TimeProvider clock, CancellationToken ct)
     {
         var (invoiceId, buyerId) = await SeedIssuedInvoiceAsync(clock, ct);
+        var notificationId = await GetDeliveryNotificationIdAsync(invoiceId, ct);
 
         await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
@@ -201,19 +205,20 @@ public class IntegrationTestFixture : AppFixture<Program>
         // Wire the outbox stub's Database so EnsureTransactionAsync can open a real transaction.
         OutboxSubstitute.Database.Returns(dbContext.Database);
 
-        var handler = scope.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
+        var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
 
         var ctx = Substitute.For<IMessageContext>();
         var consumerCtx = Substitute.For<IConsumerContext>();
         consumerCtx.WorkerStopped.Returns(ct);
         ctx.ConsumerContext.Returns(consumerCtx);
 
-        await handler.Handle(ctx, new Notifications.Email.EmailNotificationSentEvent
+        await handler.Handle(ctx, new Notifications.NotificationDeliveryStatusChangedEvent
         {
-            UserId = buyerId,
-            TemplateId = "invoicing.invoice-delivered",
-            IdempotencyKey = $"invoice-delivered-{invoiceId}-1",
-            SentAtUtc = DateTime.UtcNow,
+            NotificationId = notificationId,
+            RecipientUserId = buyerId,
+            TemplateKey = "invoicing.invoice-delivered",
+            Channel = "Email",
+            Status = Notifications.NotificationDeliveryStatus.Dispatched,
             OccurredOnUtc = DateTime.UtcNow,
         });
 
@@ -221,6 +226,16 @@ public class IntegrationTestFixture : AppFixture<Program>
         ResetOutboxSubstitute();
 
         return (invoiceId, buyerId);
+    }
+
+    /// <summary>Reads the NotificationId minted on the invoice when it was issued (ADR-0031).</summary>
+    public async Task<Guid> GetDeliveryNotificationIdAsync(Guid invoiceId, CancellationToken ct)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
+        var invoice = await db.Invoices.AsNoTracking().SingleAsync(i => i.Id == invoiceId, ct);
+        return invoice.DeliveryNotificationId
+            ?? throw new InvalidOperationException($"Issued invoice {invoiceId} has no DeliveryNotificationId.");
     }
 
     /// <summary>
