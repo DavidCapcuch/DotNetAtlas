@@ -16,6 +16,4 @@ public sealed record InvoiceDeliveredDomainEvent : DomainEvent
     public required DateTimeOffset DeliveredAtUtc { get; init; }
 
     public required DeliveryChannel Channel { get; init; }
-
-    public required Guid CorrelationId { get; init; }
 }

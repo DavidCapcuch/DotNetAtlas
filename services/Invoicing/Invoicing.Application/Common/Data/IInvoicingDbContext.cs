@@ -25,7 +25,7 @@ public interface IInvoicingDbContext : IOutboxDbContext
     DbSet<CreditNoteNumberAllocator> CreditNoteNumberAllocators { get; }
 
     /// <summary>
-    /// Async-enrichment buffer: one row per <c>CorrelationId</c> assembling
+    /// Async-enrichment buffer: one row per <c>OrderId</c> assembling
     /// <c>OrderConfirmedEvent</c> + <c>PaymentCapturedEvent</c> halves until
     /// <c>IssueInvoiceCommandHandler</c> consumes the converged row.
     /// </summary>

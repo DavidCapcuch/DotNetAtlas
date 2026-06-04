@@ -31,20 +31,19 @@ public sealed class InvoiceDeliveryFlowTests
     public async Task IssueInvoice_To_InvoiceDeliveredEvent_RoundTrips_WithSimulatedNotificationsAck()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
 
         await _fixture.SeedConvergedPendingInvoiceAsync(
-            TimeProvider.System, correlationId, orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
+            TimeProvider.System, orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
 
         // 1) IssueInvoice
         Guid invoiceId;
         await using (var s = _fixture.CreateScope())
         {
             var handler = s.ServiceProvider.GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
-            var result = await handler.HandleAsync(new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+            var result = await handler.HandleAsync(new IssueInvoiceCommand { OrderId = orderId }, ct);
             result.IsSuccess.Should().BeTrue();
             invoiceId = result.Value;
         }

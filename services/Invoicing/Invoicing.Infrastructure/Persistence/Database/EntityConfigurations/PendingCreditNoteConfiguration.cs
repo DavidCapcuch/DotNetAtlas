@@ -15,17 +15,14 @@ internal sealed class PendingCreditNoteConfiguration : IEntityTypeConfiguration<
     {
         builder.ToTable("pending_credit_notes", t => t.HasComment(
             "Async-enrichment buffer: collects OrderCancelledEvent + PaymentRefundedEvent "
-            + "halves keyed on CorrelationId until IssueCreditNoteCommandHandler converts "
+            + "halves keyed on OrderId until IssueCreditNoteCommandHandler converts "
             + "the converged row into a CreditNote aggregate."));
 
-        builder.HasKey(r => r.CorrelationId);
-
-        builder.Property(r => r.CorrelationId)
-            .ValueGeneratedNever()
-            .HasComment("Saga / cross-BC correlation id. Primary key.");
+        builder.HasKey(r => r.OrderId);
 
         builder.Property(r => r.OrderId)
-            .HasComment("OrderCancelledEvent.OrderId; null until the order-cancel half arrives.");
+            .ValueGeneratedNever()
+            .HasComment("OrderCancelledEvent.OrderId; the cross-BC convergence key. Primary key.");
 
         builder.Property(r => r.PaymentId)
             .HasComment("PaymentRefundedEvent.PaymentTransactionId — the original captured payment, not the refund txn id.");
@@ -53,8 +50,5 @@ internal sealed class PendingCreditNoteConfiguration : IEntityTypeConfiguration<
 
         builder.HasIndex(r => new { r.CompletedAtUtc, r.IssuedCreditNoteId })
             .HasDatabaseName("ix_pending_credit_notes_ready");
-
-        builder.HasIndex(r => r.OrderId)
-            .HasDatabaseName("ix_pending_credit_notes_order_id");
     }
 }

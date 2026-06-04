@@ -163,19 +163,18 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// </param>
     public async Task<(Guid InvoiceId, Guid BuyerId)> SeedIssuedInvoiceAsync(TimeProvider clock, CancellationToken ct)
     {
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         const decimal totalAmount = 100.00m;
         const string currency = "EUR";
 
-        await SeedConvergedPendingInvoiceAsync(clock, correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        await SeedConvergedPendingInvoiceAsync(clock, orderId, paymentId, buyerId, totalAmount, currency, ct);
 
         await using var scope = Services.CreateAsyncScope();
         var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
 
-        var result = await handler.HandleAsync(new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+        var result = await handler.HandleAsync(new IssueInvoiceCommand { OrderId = orderId }, ct);
 
         if (result.IsFailed)
         {
@@ -232,7 +231,6 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// </summary>
     public async Task<(Guid CreditNoteId, Guid BuyerId)> SeedIssuedCreditNoteAsync(TimeProvider clock, CancellationToken ct)
     {
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
@@ -243,23 +241,23 @@ public class IntegrationTestFixture : AppFixture<Program>
         // scope (matching SeedDeliveredInvoiceAsync's pattern) so the invoice handler's
         // SaveChanges-time domain-event dispatcher completes before the credit-note scope
         // opens its own DbContext / outbox publisher chain.
-        await SeedConvergedPendingInvoiceAsync(clock, correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
-        await IssueInvoiceForCreditNoteSeedAsync(correlationId, ct);
+        await SeedConvergedPendingInvoiceAsync(clock, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        await IssueInvoiceForCreditNoteSeedAsync(orderId, ct);
 
-        await SeedConvergedPendingCreditNoteAsync(clock, correlationId, orderId, paymentId, buyerId, totalAmount, currency, ct);
-        var creditNoteId = await IssueCreditNoteForSeedAsync(correlationId, ct);
+        await SeedConvergedPendingCreditNoteAsync(clock, orderId, paymentId, buyerId, totalAmount, currency, ct);
+        var creditNoteId = await IssueCreditNoteForSeedAsync(orderId, ct);
 
         ResetOutboxSubstitute();
         return (creditNoteId, buyerId);
     }
 
-    private async Task IssueInvoiceForCreditNoteSeedAsync(Guid correlationId, CancellationToken ct)
+    private async Task IssueInvoiceForCreditNoteSeedAsync(Guid orderId, CancellationToken ct)
     {
         await using var invoiceScope = Services.CreateAsyncScope();
         var invoiceHandler = invoiceScope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
         var invoiceResult = await invoiceHandler.HandleAsync(
-            new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+            new IssueInvoiceCommand { OrderId = orderId }, ct);
         if (invoiceResult.IsFailed)
         {
             throw new InvalidOperationException(
@@ -267,13 +265,13 @@ public class IntegrationTestFixture : AppFixture<Program>
         }
     }
 
-    private async Task<Guid> IssueCreditNoteForSeedAsync(Guid correlationId, CancellationToken ct)
+    private async Task<Guid> IssueCreditNoteForSeedAsync(Guid orderId, CancellationToken ct)
     {
         await using var creditScope = Services.CreateAsyncScope();
         var creditHandler = creditScope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueCreditNoteCommand, Guid>>();
         var creditResult = await creditHandler.HandleAsync(
-            new IssueCreditNoteCommand { CorrelationId = correlationId }, ct);
+            new IssueCreditNoteCommand { OrderId = orderId }, ct);
         if (creditResult.IsFailed)
         {
             throw new InvalidOperationException(
@@ -290,7 +288,6 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// </summary>
     private async Task SeedConvergedPendingCreditNoteAsync(
         TimeProvider clock,
-        Guid correlationId,
         Guid orderId,
         Guid paymentId,
         Guid buyerId,
@@ -305,7 +302,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             Reason = "BuyerCancelled",
             AtStatus = "Confirmed",
@@ -337,7 +333,6 @@ public class IntegrationTestFixture : AppFixture<Program>
 
         var paymentPayload = JsonSerializer.Serialize(new
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentId,
             RefundTransactionId = Guid.CreateVersion7(),
@@ -348,7 +343,6 @@ public class IntegrationTestFixture : AppFixture<Program>
 
         db.PendingCreditNotes.Add(new PendingCreditNote
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             PaymentId = paymentId,
             BuyerId = buyerId,
@@ -368,7 +362,6 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// </summary>
     public async Task SeedConvergedPendingInvoiceAsync(
         TimeProvider clock,
-        Guid correlationId,
         Guid orderId,
         Guid paymentId,
         Guid buyerId,
@@ -383,7 +376,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             ConfirmedAtUtc = stampUtc.UtcDateTime,
             Items = new[]
@@ -413,7 +405,6 @@ public class IntegrationTestFixture : AppFixture<Program>
 
         var paymentPayload = JsonSerializer.Serialize(new
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentId,
             AuthorizationId = "auth-seed",
@@ -424,7 +415,6 @@ public class IntegrationTestFixture : AppFixture<Program>
 
         db.PendingInvoices.Add(new PendingInvoice
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             PaymentId = paymentId,
             BuyerId = buyerId,

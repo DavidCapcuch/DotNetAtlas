@@ -78,7 +78,7 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var midRow = await db.PendingCreditNotes.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             midRow.OrderId.Should().Be(orderId);
@@ -101,14 +101,14 @@ public sealed class PendingCreditNoteProjectionTests
 
             await refundHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var converged = await db.PendingCreditNotes.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             converged.OrderId.Should().Be(orderId);
@@ -145,19 +145,21 @@ public sealed class PendingCreditNoteProjectionTests
 
             await refundHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var midRow = await db.PendingCreditNotes.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             midRow.PaymentId.Should().Be(paymentTransactionId);
             midRow.PaymentPayload.Should().NotBeNullOrEmpty();
-            midRow.OrderId.Should().BeNull();
+            // OrderId is the PK — set by whichever half arrives first (here, the refund half
+            // carries it post-ADR-0029). The "order-cancel half not yet seen" sentinel is OrderPayload.
+            midRow.OrderId.Should().Be(orderId);
             midRow.OrderPayload.Should().BeNull();
             midRow.BuyerId.Should().BeNull("buyer comes from the order-cancel half");
             midRow.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
@@ -182,7 +184,7 @@ public sealed class PendingCreditNoteProjectionTests
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var converged = await db.PendingCreditNotes.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             converged.OrderId.Should().Be(orderId);
@@ -201,6 +203,7 @@ public sealed class PendingCreditNoteProjectionTests
     {
         var ct = TestContext.Current.CancellationToken;
         var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
 
@@ -218,7 +221,7 @@ public sealed class PendingCreditNoteProjectionTests
 
             await handler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
         await using (var secondScope = _fixture.CreateScope())
@@ -232,7 +235,7 @@ public sealed class PendingCreditNoteProjectionTests
 
             await handler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentRefundedEvent(paymentTransactionId, buyerId));
+                BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -240,13 +243,15 @@ public sealed class PendingCreditNoteProjectionTests
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
 
             var rows = await db.PendingCreditNotes.AsNoTracking()
-                .Where(r => r.CorrelationId == correlationId)
+                .Where(r => r.OrderId == orderId)
                 .ToListAsync(ct);
 
             using var _ = new AssertionScope();
             rows.Should().HaveCount(1);
             rows[0].FirstSeenAtUtc.Should().Be(RefundArrivalUtc, "FirstSeenAtUtc is never overwritten");
-            rows[0].OrderId.Should().BeNull();
+            // OrderId is the PK (the refund half carries it); order-cancel sentinel is OrderPayload.
+            rows[0].OrderId.Should().Be(orderId);
+            rows[0].OrderPayload.Should().BeNull("order-cancel half never arrived");
             rows[0].CompletedAtUtc.Should().BeNull();
         }
     }
@@ -298,11 +303,11 @@ public sealed class PendingCreditNoteProjectionTests
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
 
             var rows = await db.PendingCreditNotes.AsNoTracking()
-                .Where(r => r.CorrelationId == correlationId)
+                .Where(r => r.OrderId == orderId)
                 .ToListAsync(ct);
 
             using var _ = new AssertionScope();
-            rows.Should().HaveCount(1, "duplicate same-CorrelationId arrival is absorbed");
+            rows.Should().HaveCount(1, "duplicate same-OrderId arrival is absorbed");
             rows[0].FirstSeenAtUtc.Should().Be(CancelArrivalUtc, "FirstSeenAtUtc is never overwritten");
             rows[0].PaymentId.Should().BeNull("refund half never arrived");
             rows[0].CompletedAtUtc.Should().BeNull();
@@ -374,10 +379,11 @@ public sealed class PendingCreditNoteProjectionTests
     }
 
     private static AvroPaymentRefundedEvent BuildPaymentRefundedEvent(
-        Guid paymentTransactionId, Guid buyerId)
+        Guid orderId, Guid paymentTransactionId, Guid buyerId)
     {
         return new AvroPaymentRefundedEvent
         {
+            OrderId = orderId,
             UserId = buyerId,
             PaymentTransactionId = paymentTransactionId,
             RefundTransactionId = Guid.CreateVersion7(),
@@ -428,7 +434,6 @@ public sealed class PendingCreditNoteProjectionTests
     /// </summary>
     private sealed record OrderPayloadDto(
         Guid OrderId,
-        Guid CorrelationId,
         Guid BuyerId,
         string Reason,
         string AtStatus,

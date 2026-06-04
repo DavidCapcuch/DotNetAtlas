@@ -53,7 +53,6 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
             BuyerId = buyerId,
             Channel = DeliveryChannel.Email,
             Attempt = 1,
-            CorrelationId = Guid.CreateVersion7(),
             InvoiceNumber = invoiceNumber,
             Total = total,
             OccurredOnUtc = clock.GetUtcNow(),

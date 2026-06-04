@@ -42,8 +42,6 @@ public sealed class CreditNote : AggregateRoot<Guid>
 
     public Guid BuyerId { get; private set; }
 
-    public Guid CorrelationId { get; private set; }
-
     public DateTimeOffset IssueDate { get; private set; }
 
     public IReadOnlyList<CreditNoteLine> Lines => _lines;
@@ -78,14 +76,10 @@ public sealed class CreditNote : AggregateRoot<Guid>
     public static Result<CreditNote> Create(
         InvoiceSnapshot originalInvoiceSnapshot,
         CreditNoteReason reason,
-        Guid correlationId,
         DateTimeOffset utcNow)
     {
         ArgumentNullException.ThrowIfNull(originalInvoiceSnapshot);
         ArgumentNullException.ThrowIfNull(reason);
-
-        Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
-            "Invoicing.InvalidCorrelationId", "CreditNote CorrelationId must not be empty."));
 
         // I-CN-2 \u2014 Total is negative. Negate the (positive) source invoice total.
         var negativeTotal = originalInvoiceSnapshot.Total.Negate();
@@ -105,7 +99,6 @@ public sealed class CreditNote : AggregateRoot<Guid>
             OriginalInvoiceId = originalInvoiceSnapshot.InvoiceId,
             OriginalInvoiceNumber = originalInvoiceSnapshot.InvoiceNumber,
             BuyerId = originalInvoiceSnapshot.BuyerId,
-            CorrelationId = correlationId,
             Total = negativeTotal,
             Reason = reason,
             Status = CreditNoteStatus.Issued,
@@ -117,7 +110,6 @@ public sealed class CreditNote : AggregateRoot<Guid>
         {
             CreditNoteId = creditNote.Id,
             OriginalInvoiceId = originalInvoiceSnapshot.InvoiceId,
-            CorrelationId = correlationId,
             OccurredOnUtc = utcNow,
         });
 
@@ -226,7 +218,6 @@ public sealed class CreditNote : AggregateRoot<Guid>
             OriginalInvoiceId = OriginalInvoiceId,
             OriginalInvoiceNumber = OriginalInvoiceNumber,
             BuyerId = BuyerId,
-            CorrelationId = CorrelationId,
             IssueDate = utcNow,
             Total = Total,
             Reason = Reason,

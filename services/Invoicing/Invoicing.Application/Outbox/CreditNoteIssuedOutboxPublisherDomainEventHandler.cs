@@ -43,11 +43,10 @@ public sealed class CreditNoteIssuedOutboxPublisherDomainEventHandler
             integrationEvent);
 
         _logger.LogInformation(
-            "Queued CreditNoteIssuedEvent to outbox. CreditNoteId: {CreditNoteId}, CreditNoteNumber: {CreditNoteNumber}, OriginalInvoiceId: {OriginalInvoiceId}, CorrelationId: {CorrelationId}",
+            "Queued CreditNoteIssuedEvent to outbox. CreditNoteId: {CreditNoteId}, CreditNoteNumber: {CreditNoteNumber}, OriginalInvoiceId: {OriginalInvoiceId}",
             domainEvent.CreditNoteId,
             domainEvent.CreditNoteNumber.Value,
-            domainEvent.OriginalInvoiceId,
-            domainEvent.CorrelationId);
+            domainEvent.OriginalInvoiceId);
 
         return Task.CompletedTask;
     }

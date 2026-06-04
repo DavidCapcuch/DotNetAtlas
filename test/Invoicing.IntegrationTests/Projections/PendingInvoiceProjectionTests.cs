@@ -79,7 +79,7 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var midRow = await db.PendingInvoices.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             midRow.OrderId.Should().Be(orderId);
@@ -105,14 +105,14 @@ public sealed class PendingInvoiceProjectionTests
 
             await paymentHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentCapturedEvent(paymentTransactionId, buyerId));
+                BuildPaymentCapturedEvent(orderId, paymentTransactionId, buyerId));
         }
 
         await using (var assertScope = _fixture.CreateScope())
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var converged = await db.PendingInvoices.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             converged.OrderId.Should().Be(orderId);
@@ -150,20 +150,22 @@ public sealed class PendingInvoiceProjectionTests
 
             await paymentHandler.Handle(
                 BuildContext(correlationId, ct),
-                BuildPaymentCapturedEvent(paymentTransactionId, buyerId));
+                BuildPaymentCapturedEvent(orderId, paymentTransactionId, buyerId));
         }
 
-        // Verify intermediate state: payment captured, OrderId still null.
+        // Verify intermediate state: payment captured, order-cancel half not yet seen.
         await using (var assertScope = _fixture.CreateScope())
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var midRow = await db.PendingInvoices.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             midRow.PaymentId.Should().Be(paymentTransactionId);
             midRow.PaymentPayload.Should().NotBeNullOrEmpty();
-            midRow.OrderId.Should().BeNull();
+            // OrderId is the PK — set by whichever half arrives first (here, the payment half
+            // carries it post-ADR-0029). The "order half not yet seen" sentinel is OrderPayload.
+            midRow.OrderId.Should().Be(orderId);
             midRow.OrderPayload.Should().BeNull();
             midRow.BuyerId.Should().BeNull("buyer comes from the order half");
             midRow.FirstSeenAtUtc.Should().Be(PaymentArrivalUtc);
@@ -189,7 +191,7 @@ public sealed class PendingInvoiceProjectionTests
         {
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var converged = await db.PendingInvoices.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct);
+                .SingleAsync(r => r.OrderId == orderId, ct);
 
             using var _ = new AssertionScope();
             converged.OrderId.Should().Be(orderId);
@@ -253,11 +255,11 @@ public sealed class PendingInvoiceProjectionTests
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
 
             var rows = await db.PendingInvoices.AsNoTracking()
-                .Where(r => r.CorrelationId == correlationId)
+                .Where(r => r.OrderId == orderId)
                 .ToListAsync(ct);
 
             using var _ = new AssertionScope();
-            rows.Should().HaveCount(1, "duplicate same-CorrelationId arrival is absorbed");
+            rows.Should().HaveCount(1, "duplicate same-OrderId arrival is absorbed");
             rows[0].FirstSeenAtUtc.Should().Be(OrderArrivalUtc, "FirstSeenAtUtc is never overwritten");
             rows[0].PaymentId.Should().BeNull("payment half never arrived");
             rows[0].CompletedAtUtc.Should().BeNull();
@@ -327,10 +329,11 @@ public sealed class PendingInvoiceProjectionTests
     }
 
     private static AvroPaymentCapturedEvent BuildPaymentCapturedEvent(
-        Guid paymentTransactionId, Guid buyerId)
+        Guid orderId, Guid paymentTransactionId, Guid buyerId)
     {
         return new AvroPaymentCapturedEvent
         {
+            OrderId = orderId,
             UserId = buyerId,
             PaymentTransactionId = paymentTransactionId,
             AuthorizationId = "auth-test",
@@ -379,7 +382,6 @@ public sealed class PendingInvoiceProjectionTests
     /// </summary>
     private sealed record OrderPayloadDto(
         Guid OrderId,
-        Guid CorrelationId,
         Guid BuyerId,
         DateTime ConfirmedAtUtc,
         IReadOnlyList<OrderPayloadItemDto>? Items,

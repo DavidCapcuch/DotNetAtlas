@@ -78,12 +78,6 @@ internal sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditN
             .HasComment("Buyer of the original invoice (and therefore the credit note).");
         builder.HasIndex(cn => cn.BuyerId).HasDatabaseName("ix_credit_notes_buyer_id");
 
-        builder.Property(cn => cn.CorrelationId)
-            .HasComment("Cancellation flow correlation id; used as idempotency key.");
-        builder.HasIndex(cn => cn.CorrelationId)
-            .IsUnique()
-            .HasDatabaseName("ux_credit_notes_correlation_id");
-
         builder.Property(cn => cn.IssueDate)
             .HasComment("UTC timestamp when the credit note was issued (number stamped + PDF stored).");
 

@@ -2,20 +2,17 @@ namespace Invoicing.Application.CreditNotes.Projections;
 
 /// <summary>
 /// Async-multi-source enrichment row: buffers <c>OrderCancelledEvent</c> and
-/// <c>PaymentRefundedEvent</c> for the same <c>CorrelationId</c> until both
+/// <c>PaymentRefundedEvent</c> for the same <c>OrderId</c> until both
 /// halves arrive, at which point <c>IssueCreditNoteCommandHandler</c>
-/// reads the row (keyed on <see cref="CorrelationId"/>) and constructs the
+/// reads the row (keyed on <see cref="OrderId"/>) and constructs the
 /// <c>CreditNote</c> aggregate. Mirrors
 /// <see cref="Invoices.Projections.PendingInvoice"/> per
 /// <c>docs/bc-design/invoicing.md § 8.3</c>.
 /// </summary>
 public sealed class PendingCreditNote
 {
-    /// <summary>Primary key. Derived from the inbound Avro event's <c>CorrelationId</c> field.</summary>
-    public Guid CorrelationId { get; set; }
-
-    /// <summary>Set once <c>OrderCancelledEvent</c> has been observed; null until then.</summary>
-    public Guid? OrderId { get; set; }
+    /// <summary>Primary key. The <c>OrderId</c> both Avro halves (OrderCancelledEvent / PaymentRefundedEvent) carry; post-ADR-0029 it is the cross-BC convergence key.</summary>
+    public Guid OrderId { get; set; }
 
     /// <summary>Set once <c>PaymentRefundedEvent</c> has been observed; null until then. Maps to <c>PaymentRefundedEvent.PaymentTransactionId</c> (the original captured payment, not the refund txn id — the credit note compensates the original capture).</summary>
     public Guid? PaymentId { get; set; }

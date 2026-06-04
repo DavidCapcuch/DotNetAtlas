@@ -15,7 +15,6 @@ public sealed class InvoiceDeliveredMapperTests
         // Arrange
         var invoiceId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
         var deliveredAtUtc = new DateTimeOffset(2026, 5, 22, 14, 30, 0, TimeSpan.Zero);
         var occurredOnUtc = new DateTimeOffset(2026, 5, 22, 14, 30, 1, TimeSpan.Zero);
 
@@ -25,7 +24,6 @@ public sealed class InvoiceDeliveredMapperTests
             BuyerId = buyerId,
             DeliveredAtUtc = deliveredAtUtc,
             Channel = DeliveryChannel.Email,
-            CorrelationId = correlationId,
             OccurredOnUtc = occurredOnUtc,
         };
 

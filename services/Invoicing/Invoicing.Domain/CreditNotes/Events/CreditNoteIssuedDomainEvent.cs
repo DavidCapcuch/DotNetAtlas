@@ -23,8 +23,6 @@ public sealed record CreditNoteIssuedDomainEvent : DomainEvent
 
     public required Guid BuyerId { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     public required DateTimeOffset IssueDate { get; init; }
 
     /// <summary>Negative monetary total (the reversal).</summary>
