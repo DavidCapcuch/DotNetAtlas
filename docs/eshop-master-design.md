@@ -160,7 +160,7 @@ Every `{BusinessMoment}Event` schema must satisfy (enforced in review):
 - [ ] Name is a **past-tense business moment**, not a state delta. Prefer `OrderShipped` over `OrderStatusChanged`.
 - [ ] Payload is **enriched** so a downstream consumer can act without another call. The article: *"Price calculation can be complex if we consider discounts, loyalty plans, taxes"* → include `TotalAmount` pre-computed, not raw line-by-line that forces consumer re-summation.
 - [ ] **Computed values** are pre-calculated in the event (`LineTotal`, `Available`, `TotalAmount`).
-- [ ] **Identity fields** are present for saga correlation + audit: `CorrelationId` where applicable, primary aggregate id, and `*AtUtc` timestamp.
+- [ ] **Identity fields** are present for saga correlation + audit: the primary aggregate id (and `OrderId` on order-scoped events — the saga business key per [ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) plus an `*AtUtc` timestamp. (The dedicated `CorrelationId` was retired — [ADR-0030](adr/0030-retire-dedicated-correlationid.md).)
 - [ ] Payload is **NOT the full aggregate** — only the facts relevant to the moment. Avoid dumping a 30-field aggregate into every event.
 - [ ] Schema is **FORWARD_TRANSITIVE** (event log) or **FULL_TRANSITIVE** (command topic) per [ADR-0007](adr/0007-avro-compatibility-modes.md).
 - [ ] **Idempotency** via the Kafka message id: consumers dedupe via the inbox middleware ([kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md)); you do not need a separate `EventId` field in the payload.
@@ -202,7 +202,7 @@ Additional anti-patterns beyond § 3.4:
 - **Over-enrichment** — dumping the entire aggregate into every event. Breaks forward compatibility (more fields to protect across versions) and wastes bandwidth.
 - **`*Changed` / `*Updated` suffixes** — symptomatic of missing ubiquitous language. When tempted to write `CustomerAddressChanged`, ask: *what business moment is this?* The answer might be `CustomerRelocated`, `CustomerBilledToNewAddress`, or `CustomerAddressCorrected` — each implies a different downstream reaction.
 - **Cross-schema enum references in Avro** — not portable across Schema Registry subjects; inline each enum per schema (see events-catalog.md § 5 — `OrderStatusAtTransition` is inlined in both `OrderCancelledEvent.avsc` and `OrderFailedEvent.avsc`, not shared).
-- **Assuming global ordering across topics** — Kafka guarantees per-partition ordering within a topic, NOT across topics or across partitions. Design sagas to tolerate out-of-order arrivals where possible (correlation-id-driven state machines do this correctly).
+- **Assuming global ordering across topics** — Kafka guarantees per-partition ordering within a topic, NOT across topics or across partitions. Design sagas to tolerate out-of-order arrivals where possible (saga state machines keyed on a stable business id — here `OrderId` — do this correctly).
 
 ---
 
@@ -283,7 +283,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 ### 5.3 Ordering → [bc-design/ordering.md](bc-design/ordering.md)
 
-**Aggregate:** `Order` (BuyerId, Items, ShippingAddress, BillingAddress, Status, PaymentTransactionId, CorrelationId, Total, timestamps).
+**Aggregate:** `Order` (BuyerId, Items, ShippingAddress, BillingAddress, Status, PaymentTransactionId, Total, timestamps). The Order's identity (`Id`) is the pre-assigned `OrderId` (UUID v7; [ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), which is also the saga key — there is no separate `CorrelationId` column ([ADR-0030](adr/0030-retire-dedicated-correlationid.md)).
 **Value objects:** `OrderItem`, `Address` (ISO 3166-1 alpha-2 country code), `Money`, `ProductSnapshot`.
 **SmartEnum:** `OrderStatus` (Created → StockReserved → PaymentCompleted → Confirmed → Shipped → Delivered; with Cancelled/Failed off-ramps per [ADR-0004](adr/0004-checkout-saga-topology.md)).
 **Internal events (8):** `OrderCreated`, `OrderStockReserved`, `OrderPaymentCompleted`, `OrderConfirmed`, `OrderShipped`, `OrderDelivered`, `OrderCancelled`, `OrderFailedDomainEvent`.
@@ -296,7 +296,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 **Aggregate:** `StockItem` (keyed by ProductId; state is the fold over the event stream).
 **ES events (6, persisted as write model):** `StockItemInitializedDomainEvent`, `StockReceivedDomainEvent`, `StockReservedDomainEvent`, `ReservationConfirmedDomainEvent`, `ReservationReleasedDomainEvent`, `StockAdjustedDomainEvent`.
 **Value objects:** `Quantity`, `ReservationId`, `ReservationInfo`, `StockItemSnapshot`.
-**Event store schema:** `inventory.stock_events (StreamId, Version, EventType, Payload, OccurredAtUtc, AppendedAtUtc, CorrelationId)` with PK `(StreamId, Version)`.
+**Event store schema:** `inventory.stock_events (StreamId, Version, EventType, Payload, OccurredAtUtc, AppendedAtUtc)` with PK `(StreamId, Version)`. (The dedicated `CorrelationId` column was dropped per [ADR-0030](adr/0030-retire-dedicated-correlationid.md); saga forensics key on `OrderId`, which the reservation events carry.)
 **Read projections:** `inventory.current_stock_levels` and `inventory.reservation_audit` built by in-process `IDomainEventHandler` upserts in the same transaction as event append.
 **External events (5):** `StockLevelChangedEvent` on `inventory.stock-events`; `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` on `inventory.reservations`.
 **Pattern:** Full Event Sourcing ([ADR-0006](adr/0006-event-sourcing-for-inventory.md)). Aggregate rehydrates from stream; commands append events; projections catch up asynchronously within same transaction. Reservation TTL = 15 min, background `ReservationExpiryWorker` publishes `ReservationReleasedEvent(reason: Expiry)`.
@@ -375,7 +375,7 @@ Full mechanism documented in [use-cases.md § Ordering § 3.3](bc-design/use-cas
 
 - **Placement:** `saga/SagaOrchestrators/Checkout/` (per ADR-0001 + ADR-0004).
 - **Trigger:** `BasketCheckoutInitiatedEvent` → `BasketCheckoutInitiatedConsumer`.
-- **Correlation:** `CorrelationId` = `BasketCheckoutInitiatedEvent.OrderId` (pre-assigned UUID v7; ADR-0029).
+- **Correlation key:** `OrderId` — the saga's MassTransit `CorrelationId` equals `BasketCheckoutInitiatedEvent.OrderId` (pre-assigned UUID v7; [ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). No separate dedicated id ([ADR-0030](adr/0030-retire-dedicated-correlationid.md)).
 - **Persistence:** MassTransit EF Core repository → PostgreSQL `saga` schema → `checkout_saga_states` table with `RowVersion` optimistic concurrency.
 - **Consumer group:** `saga-checkout`.
 
@@ -592,7 +592,7 @@ dotnet restore --locked-mode
 | **External Summary Event** | Enriched, coarse-grained event with Avro schema; published to Kafka via outbox; contractually stable (treated as API); suffix `Event`. |
 | **Transactional Outbox** | `ITransactionalOutbox<TDbContext>.AddOutboxMessage(topic, key, event)` persists outbox message in same DB transaction as aggregate save. Outbox relay dequeues and publishes to Kafka. |
 | **Inbox (idempotent consumer)** | KafkaFlow `InboxMiddleware` dedupes consumed messages by `MessageId`; stored in `InboxMessage` table per service. |
-| **Correlation ID** | UUID (v7) shared across all events in a single business workflow (checkout flow: the pre-assigned `BasketCheckoutInitiatedEvent.OrderId` propagates through Order, Payment, Reservation events; ADR-0029). |
+| **Correlation key** | `OrderId` (UUID v7) — the durable business key shared across a checkout workflow: pre-assigned on `BasketCheckoutInitiatedEvent` and propagated through Order, Payment, and Reservation events; it is also the saga's MassTransit `CorrelationId` ([ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). The earlier dedicated `CorrelationId` was retired ([ADR-0030](adr/0030-retire-dedicated-correlationid.md)); `traceId` covers cross-cutting telemetry. |
 | **Saga** | Centralized orchestrator (per ADR-0001) for multi-BC workflows. MassTransit state machine persisted to PostgreSQL `saga` schema; drives BCs via command topics; reassembles response events. |
 | **ACL (Anti-Corruption Layer)** | Adapter pattern that translates external model into internal model. Basket's `IProductCatalogQueryPort` / `ProductCatalogHttpAdapter` is the canonical example. |
 | **Money** | `(decimal Amount, string Currency)` VO. Currency is ISO 4217 (e.g., `USD`). Amount uses decimal(19,4) precision in Avro and DB. |
@@ -739,17 +739,11 @@ Files updated:
 
 This aligns with [ADR-0005](adr/0005-customer-data-in-ordering.md): no Accounts BC; customer data snapshotted per-order via the BFF.
 
-### E.3 `CreateOrderCommand` partition key — CorrelationId confirmed
+### E.3 `CreateOrderCommand` partition key — now `OrderId` (ADR-0029)
 
-**Problem:** The event catalog master table lists `CreateOrderCommand` keyed by `CorrelationId` (because OrderId doesn't exist yet), while the other three Ordering commands are keyed by `OrderId`. Reviewer flagged this as a potential per-order ordering-guarantee gap.
+**Original finding (2026-04-18):** The event catalog listed `CreateOrderCommand` keyed by `CorrelationId` (because `OrderId` did not exist yet at checkout-initiation), while the other three Ordering commands were keyed by `OrderId`. The original resolution accepted the `CorrelationId` keying as safe (one issuance per saga; consumers idempotent via inbox dedup on `MessageId`).
 
-**Resolution:** **`CorrelationId` keying for `CreateOrderCommand` is intentional and correct.** Analysis:
-
-- `CreateOrderCommand` is issued exactly ONCE per saga (no re-entry). Ordering consumers are idempotent via inbox dedup by `MessageId`. A second-copy delivery of the same `CorrelationId` is a no-op.
-- The other three commands (`ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand`) arrive AFTER `OrderCreatedEvent` → saga state contains `OrderId` → saga uses `OrderId` as the partition key, guaranteeing per-order order.
-- There is no scenario where `CreateOrderCommand` and a subsequent Ordering command compete for ordering within the same partition — they're separated by the `OrderCreatedEvent` → saga transition → subsequent-command-issuance sequence.
-
-Conclusion: the current keying is the correct design. No change required. Document this reasoning inline if someone re-flags it in review later.
+**Superseded by [ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](adr/0030-retire-dedicated-correlationid.md) (2026-06-03):** `OrderId` is now **pre-assigned** at checkout initiation, so it exists before `CreateOrderCommand` is published. All four Ordering commands — `CreateOrderCommand` included — are keyed by `OrderId`, and `CreateOrderCommand`'s idempotency check is an inline primary-key lookup on the pre-assigned `OrderId`. The dedicated `CorrelationId` was retired entirely. The ordering-guarantee question the original finding raised is moot — every Ordering command co-partitions on `OrderId`.
 
 ### E.4 ProductSnapshot boundary Basket → Ordering
 
@@ -762,11 +756,11 @@ Conclusion: the current keying is the correct design. No change required. Docume
 
 No change required; design-intent note added here for implementation agents to reference.
 
-### E.5 `OrderDeliveredEvent` missing `CorrelationId`
+### E.5 `OrderDeliveredEvent` correlation — `OrderId` only
 
-**Clarification:** `OrderDeliveredEvent` omits `CorrelationId` because the checkout saga is already terminal (`Confirmed`) well before delivery. Consumers correlating post-saga lifecycle (fulfillment analytics, customer-facing order timeline) should use `OrderId`, not `CorrelationId`.
+**Clarification:** `OrderDeliveredEvent` carries `OrderId` (the order is already terminal, `Confirmed`, well before delivery). Consumers correlating post-saga lifecycle (fulfillment analytics, customer-facing order timeline) correlate by `OrderId`.
 
-**Guidance for consumers:** `CorrelationId` is saga-scoped (Basket → Order creation → Payment → Confirmation). `OrderId` is lifecycle-scoped and present on every Ordering external event. Correlate lifecycle views by `OrderId`.
+**Note (ADR-0029/0030):** Originally this entry contrasted a saga-scoped `CorrelationId` against the lifecycle-scoped `OrderId`. After [ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](adr/0030-retire-dedicated-correlationid.md) there is no dedicated `CorrelationId` — `OrderId` **is** both the saga key and the lifecycle key, present on every Ordering external event including delivery. Correlate all lifecycle views by `OrderId`.
 
 ### E.6 BFF basket price-refresh flow
 

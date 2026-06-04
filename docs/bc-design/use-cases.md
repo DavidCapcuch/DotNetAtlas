@@ -687,13 +687,13 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
   - `PaymentMethodId` — NotEmpty.
 - **Flow:**
   1. Load basket; 404 if absent.
-  2. Call `basket.Checkout(correlationId, shippingAddress, billingAddress, paymentMethodId, utcNow)` — raises `BasketCheckedOutDomainEvent` carrying the full `BasketSnapshot` plus the three courier fields (see [ADR-0005](../adr/0005-customer-data-in-ordering.md); Basket ferries addresses + payment method but does not own them). `Result.Fail(BasketErrors.EmptyBasket)` if `Items.Count == 0`.
+  2. Pre-assign the Order's `orderId` (`Guid.CreateVersion7()`, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), then call `basket.Checkout(orderId, shippingAddress, billingAddress, paymentMethodId, utcNow)` — raises `BasketCheckedOutDomainEvent` carrying the full `BasketSnapshot` plus the three courier fields (see [ADR-0005](../adr/0005-customer-data-in-ordering.md); Basket ferries addresses + payment method but does not own them). `Result.Fail(BasketErrors.EmptyBasket)` if `Items.Count == 0`.
   3. **Transactional boundary:**
      - Open `BasketDbContext` transaction (only for outbox write).
      - `BasketCheckoutInitiatedOutboxPublisherDomainEventHandler` writes `BasketCheckoutInitiatedEvent` (Avro) to outbox, topic `basket.sessions`, key = `{UserId}`.
      - Commit SQL transaction.
-  4. After SQL commit succeeds: `_basketRepository.DeleteAsync(userId, ct)` — direct `IConnectionMultiplexer.GetDatabase().KeyDeleteAsync("basket:{userId}")`, bypassing FusionCache. If this step fails, the outbox is the source of truth; subsequent checkout attempts with the same `CorrelationId` dedupe on the outbox natural key.
-  5. Return `Result.Ok(correlationId)`.
+  4. After SQL commit succeeds: `_basketRepository.DeleteAsync(userId, ct)` — direct `IConnectionMultiplexer.GetDatabase().KeyDeleteAsync("basket:{userId}")`, bypassing FusionCache. If this step fails, the outbox is the source of truth; the stale Redis key is cleaned up on the next checkout attempt or at the 30-day TTL (parallel checkouts are serialized by optimistic concurrency on the basket version — see [basket.md § 6.4](basket.md)).
+  5. Return `Result.Ok(orderId)`.
 - **Emits internal event(s):** `BasketCheckedOutDomainEvent`. Fan-out:
   - `BasketCheckoutInitiatedOutboxPublisherDomainEventHandler` — writes external event (Avro) to outbox.
 
@@ -762,7 +762,7 @@ The following commands are **not** exposed via HTTP. Four of them enter the serv
 - **Request shape:**
   ```
   {
-    "correlationId": "Guid (= checkout saga correlation id)",
+    "orderId": "Guid (pre-assigned at checkout; the saga correlation key — ADR-0029)",
     "buyerId": "Guid (from BasketCheckoutInitiatedEvent.UserId)",
     "basket": {
       "buyerId": "Guid",
@@ -792,7 +792,7 @@ The following commands are **not** exposed via HTTP. Four of them enter the serv
 - **Response:** `Result.Ok(orderId)` on success; `Result.Fail` is not expected (all preconditions originate from saga data that is contractually valid). Any validation failure throws `DataIntegrityException` → routed to DLT by consumer middleware.
 - **Handler class:** `CreateOrderCommandHandler` in `Ordering.Application.Orders.CreateOrder`.
 - **Validator rules (`CreateOrderCommandValidator`):**
-  - `CorrelationId` — NotEmpty.
+  - `OrderId` — NotEmpty.
   - `BuyerId` — NotEmpty.
   - `Basket.Items` — NotEmpty; ForEach with inner item validator (`ProductId` NotEmpty, `Quantity >= 1`, `UnitPriceAmount > 0`, `Sku` length 1-64, `Name` length 1-200).
   - `Basket.Currency` — Matches `^[A-Z]{3}$`; must equal the currency of every item (enforced in domain; validator catches obvious schema violation).
@@ -800,10 +800,10 @@ The following commands are **not** exposed via HTTP. Four of them enter the serv
   - `BillingAddress` — same rules as shipping.
   - `PaymentMethodId` — NotEmpty.
 - **Flow:**
-  1. **Idempotency check:** look up existing order by `CorrelationId`: `await _dbContext.Orders.FirstOrDefaultAsync(o => o.CorrelationId == command.CorrelationId, ct)`. If present, return `Result.Ok(existing.Id)` (saga retry case).
+  1. **Idempotency check:** look up the existing order by primary key (the pre-assigned `OrderId`): `await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == command.OrderId, ct)`. If present, return `Result.Ok(existing.Id)` (saga retry case).
   2. Build `Address` VOs (shipping + billing) via `Address.Create`; cascade.
   3. Translate `Basket` DTO into domain `BasketSnapshot` (pure in-application transformation, no Catalog call).
-  4. Call `Order.CreateFromBasket(correlationId, buyerId, basketSnapshot, shippingAddress, billingAddress, paymentMethodId, utcNow)` — this may throw `DataIntegrityException` on I-7/I-8/I-9 violations.
+  4. Call `Order.CreateFromBasket(orderId, buyerId, basketSnapshot, shippingAddress, billingAddress, paymentMethodId, utcNow)` — this may throw `DataIntegrityException` on I-7/I-8/I-9 violations.
   5. `_dbContext.Orders.Add(order); await _dbContext.SaveChangesAsync(ct);`.
   6. Return `Result.Ok(order.Id)`.
 - **Emits internal event(s):** `OrderCreatedDomainEvent`. Fan-out:
@@ -1017,7 +1017,7 @@ public sealed class CreateOrderKafkaHandler
     {
         var cmd = new CreateOrderCommand
         {
-            CorrelationId = msg.CorrelationId,
+            OrderId = msg.OrderId,
             BuyerId = msg.BuyerId,
             Basket = Translate(msg.Basket),
             ShippingAddress = Translate(msg.ShippingAddress),
@@ -1050,7 +1050,6 @@ public sealed class CreateOrderKafkaHandler
   ```
   {
     "orderId": "Guid",
-    "correlationId": "Guid",
     "buyerId": "Guid",
     "status": "string (Created|StockReserved|PaymentCompleted|Confirmed|Shipped|Delivered|Cancelled|Failed)",
     "items": [
@@ -1511,14 +1510,14 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 
 ### 6.1 IssueInvoiceCommand
 
-- **Trigger:** event-driven via `OrderConfirmedInvoiceProjectionKafkaHandler` after correlation enrichment from `payments.transactions` (`PaymentCaptured`). Not an HTTP command — Invoicing has no public POST `/invoices` surface.
+- **Trigger:** event-driven via `OrderConfirmedInvoiceProjectionKafkaHandler` after the convergent enrichment of `OrderConfirmedEvent` + `PaymentCapturedEvent` (from `payments.transactions`) on a single `pending_invoices` row keyed by `OrderId`. Not an HTTP command — Invoicing has no public POST `/invoices` surface.
 - **Handler:** `IssueInvoiceCommandHandler` (`services/Invoicing/Invoicing.Application/Invoices/IssueInvoice/`).
-- **Payload:** `{ CorrelationId, OrderId, BuyerId, IssuedAtUtc, BillingAddress, Lines[], Currency, VatLines[] }` — fields drawn from the enriched `PendingInvoice` projection row.
-- **Validator:** `IssueInvoiceCommandValidator` — `CorrelationId NotEmpty`.
+- **Payload:** `{ OrderId }` — the handler loads the full data (BuyerId, IssuedAtUtc, BillingAddress, Lines[], Currency, VatLines[]) from the converged `PendingInvoice` projection row keyed by `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- **Validator:** `IssueInvoiceCommandValidator` — `OrderId NotEmpty`.
 - **Side-effects:** allocates a gap-free invoice number (`InvoiceNumber.From(year, sequence)` via `PostgresInvoiceNumberAllocator` under `SELECT … FOR UPDATE`), renders the PDF (QuestPDF, byte-deterministic), uploads to Azure Blob (`invoices/{YYYY}/01/{number}.pdf`, SHA-256 content-addressed), then persists the `Invoice` aggregate in `Issued` state.
 - **Result paths:**
   - `Result.Ok(InvoiceId)` — happy path.
-  - `Result.Fail(InvoicingErrors.InvoiceAlreadyIssued(correlationId))` — idempotent re-issue attempt (409 if surfaced as HTTP; consumer just commits the inbox row).
+  - `Result.Fail(InvoicingErrors.InvoiceAlreadyIssued(orderId))` — idempotent re-issue attempt (409 if surfaced as HTTP; consumer just commits the inbox row).
   - `Result.Fail(InvoicingErrors.BlobUploadFailed())` — after `Azure.Storage.Blobs` SDK retry exhaustion (5xx; DLT).
   - `Throw DataIntegrityException(Invoicing.TotalMismatch)` — bug-class; DLT.
 - **Domain events:** `InvoiceIssuedDomainEvent` (always) → outbox publisher emits Avro `InvoiceIssuedEvent` on `invoicing.invoices`; plus `InvoiceDeliveryRequestedDomainEvent` (channel `Email`) → `InvoiceDeliveryRequestedOutboxPublisher` fans out a `NotifyUserCommand` (v2; [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)) to Notifications.
@@ -1527,8 +1526,8 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 
 - **Trigger:** event-driven via `OrderCancelledCreditNoteProjectionKafkaHandler` (cancellation path) or `PaymentRefundedCreditNoteProjectionKafkaHandler` (refund path). Both consume the converged `PendingCreditNote` projection.
 - **Handler:** `IssueCreditNoteCommandHandler` (`services/Invoicing/Invoicing.Application/CreditNotes/IssueCreditNote/`).
-- **Payload:** `{ CorrelationId, InvoiceId, Reason (CreditNoteReason SmartEnum), Lines[] (sign-flipped via Invoice.LinesForReversal()) }`.
-- **Validator:** `IssueCreditNoteCommandValidator` — `InvoiceId NotEmpty`, `CorrelationId NotEmpty`.
+- **Payload:** `{ OrderId }` — the handler resolves the original invoice, reason (`CreditNoteReason`), and sign-flipped reversal lines (`Invoice.LinesForReversal()`) from the converged `PendingCreditNote` projection row keyed by `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- **Validator:** `IssueCreditNoteCommandValidator` — `OrderId NotEmpty`.
 - **Side-effects:** allocates credit-note number (`CreditNoteNumber` format `CN-YYYY-NNNNNN`), renders PDF, uploads to blob, persists `CreditNote` aggregate in `Issued` state, links to source `Invoice` (transitions invoice to `Cancelled` on full-amount path).
 - **Result paths:**
   - `Result.Ok(CreditNoteId)` — happy path.

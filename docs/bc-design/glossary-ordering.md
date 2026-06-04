@@ -37,11 +37,11 @@ The reversal of previously-applied effects when a downstream step of the Checkou
 ### Confirmed (status)
 The `OrderStatus` that marks the successful end of the Checkout saga — stock has been reserved AND payment has completed. `Confirm()` is the transition method. The Order is now ready for fulfillment (shipping). `OrderConfirmedEvent` is emitted here; Notifications sends a confirmation email; BFF invalidates the buyer's order-history cache.
 
-### CorrelationId
-A `Guid` that ties one Order to one run of the Checkout saga. Generated at saga initiation (i.e., by Basket checkout or the saga's initial event), passed into `Order.CreateFromBasket`, and immutable on the Order (I-5). Every external event that Ordering publishes during the saga window carries this id; the saga uses it to route events to its own state machine. Distinct from `OrderId`: CorrelationId is one-per-saga-instance; OrderId is one-per-order-aggregate. They happen to be 1:1 in v1 but are conceptually independent (a retry saga might reuse a CorrelationId while creating a new Order, though v1 does not do this).
+### OrderId (the saga correlation key)
+The Order's `Id` is pre-assigned at checkout ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) and **is** the Checkout saga's correlation key (the saga's MassTransit `CorrelationId == OrderId`). It is passed into `Order.CreateFromBasket`, immutable on the Order (I-5), and carried on every external event Ordering publishes — the saga routes events to its state machine by `OrderId`. The earlier dedicated, separate `CorrelationId` (one-per-saga-instance, conceptually distinct from `OrderId`) was **retired** ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)); one id now fills both roles.
 
 ### Delivered (status)
-The terminal happy-path `OrderStatus`. Set by `MarkDelivered(utcNow)`. In v1 this transition is triggered by admin / Dev tooling (there is no carrier-webhook adapter yet). `OrderDeliveredEvent` is emitted — note it does **not** carry `CorrelationId` because the saga is already finalized.
+The terminal happy-path `OrderStatus`. Set by `MarkDelivered(utcNow)`. In v1 this transition is triggered by admin / Dev tooling (there is no carrier-webhook adapter yet). `OrderDeliveredEvent` is emitted — it carries `OrderId` only (delivery is a post-saga milestone; no Ordering event carries a dedicated `CorrelationId` after [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
 
 ### Failed (status)
 A terminal `OrderStatus` indicating the order could not be fulfilled due to a system or business failure (stock unavailable, payment declined, payment timeout, activation failure after payment). The transition method is `Fail(errorCode, errorMessage, utcNow)`, typically called by the Checkout saga in response to an upstream failure. `OrderFailedEvent` is emitted, carrying `ErrorCode` + `ErrorMessage` + `AtStatus` so downstream can understand which compensation window applies.

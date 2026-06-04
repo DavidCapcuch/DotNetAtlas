@@ -14,7 +14,7 @@
 | **Subdomain type** | **Core** — order lifecycle is the commercial heart of the eShop. |
 | **Purpose** | Own the lifecycle of an **Order** from creation (at checkout) through fulfillment (delivery) or termination (cancellation / failure), acting as the system of record for what a customer agreed to buy, at what price, to what address, and at what point in the fulfillment journey the commitment currently sits. |
 | **Storage** | PostgreSQL, schema `ordering` (shared Postgres instance, per-BC schema — see [ADR-0000 not yet authored; follows general-plan § Infrastructure]). |
-| **Primary pattern showcase** | Rich **SmartEnum-guarded status FSM** with multi-event aggregate transitions, factory from `BasketSnapshot`. Write-side aggregate loading uses inline primary-key LINQ for by-id loads and `Ardalis.Specification` (`OrderByCorrelationIdSpec`) for the business-named saga-idempotency lookup; read side uses inline LINQ with SQL-side projection per [ADR-0021](../adr/0021-read-side-no-specifications.md) (adoption criteria in [ADR-0022](../adr/0022-specification-pattern-adoption.md)). |
+| **Primary pattern showcase** | Rich **SmartEnum-guarded status FSM** with multi-event aggregate transitions, factory from `BasketSnapshot`. Write-side aggregate loading uses inline primary-key LINQ for all by-id loads — including `CreateOrderCommand`'s idempotency check on the pre-assigned `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md) retired the former `OrderByCorrelationIdSpec`); read side uses inline LINQ with SQL-side projection per [ADR-0021](../adr/0021-read-side-no-specifications.md) (adoption criteria in [ADR-0022](../adr/0022-specification-pattern-adoption.md)). |
 | **Upstream inputs** | `BasketSnapshot` (ACL input from Basket BC at checkout); `StockReserved` / `PaymentCompleted` saga events (routed from the Checkout saga). |
 | **Downstream outputs** | `ordering.orders` topic — enriched external events consumed by the Checkout saga, BFF (cache invalidation), Inventory (release on cancel), and Invoicing (invoice-issuance / credit-note projections). Payments does **not** consume `ordering.orders` (refund left checkout compensation per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). Order-lifecycle email notifications are deferred (would route via the command-driven pattern in [notifications.md § 2](notifications.md) if added). |
 
@@ -28,7 +28,7 @@ Full glossary in [glossary-ordering.md](./glossary-ordering.md). Key terms:
 - **Buyer** — the authenticated user who placed the order (`BuyerId` from JWT `sub` claim; see ADR-0005).
 - **OrderItem** — a line inside an Order: one product, quantity, unit price, and a captured **ProductSnapshot**.
 - **OrderStatus** — the current lifecycle position of an Order; a SmartEnum with guarded transitions.
-- **CorrelationId** — the identifier that ties one Order to one run of the **Checkout saga**. Immutable after creation; equal to `SagaCorrelationId`.
+- **OrderId (saga key)** — the Order's identity (`Id`) is pre-assigned at checkout ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) and **is** the Checkout saga's correlation key. There is no separate `CorrelationId` ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
 - **StockReservation** — external Inventory concept referenced by `ReservationId` after `MarkStockReserved`. Not owned by Ordering.
 - **PaymentTransactionId** — Payments-side identifier persisted on the Order after the saga reports a completed payment.
 - **Compensation** — the process by which a cancelled Order triggers downstream reversals (release stock, refund payment) — *orchestrated by the saga, not by this BC*.
@@ -47,9 +47,8 @@ A single commitment to purchase, tracked from creation through delivery or termi
 
 | Property | Type | Mutability | Notes |
 |----------|------|-----------|-------|
-| `Id` | `Guid` (inherited from `AggregateRoot<Guid>`) | set once in factory (`Guid.CreateVersion7()`) | Order id; used as the outbox key for `ordering.orders` messages. |
+| `Id` | `Guid` (inherited from `AggregateRoot<Guid>`) | set once in factory from the pre-assigned `OrderId` | The pre-assigned `OrderId` (UUID v7 minted by Basket at checkout, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); the outbox key for `ordering.orders` messages **and** the Checkout saga's correlation key. |
 | `BuyerId` | `Guid` | **immutable after factory** | JWT `sub` claim, captured at creation. |
-| `CorrelationId` | `Guid` | **immutable after factory** | Equals the Checkout saga correlation id. |
 | `Items` | `IReadOnlyCollection<OrderItem>` (backed by `private readonly List<OrderItem>`) | **immutable after `MarkStockReserved` (see invariants)** | Line items with frozen product snapshots and prices. |
 | `ShippingAddress` | `Address` (VO) | immutable after factory | |
 | `BillingAddress` | `Address` (VO) | immutable after factory | |
@@ -79,7 +78,7 @@ The aggregate enforces the following invariants. Violations are classified as **
 | I-2 | **Items are immutable after `StockReserved`.** After stock is reserved at Inventory, the set of items, quantities, and prices are frozen. | Future methods that would mutate items must throw `DataIntegrityException` if `Status >= StockReserved` (no such methods exist in v1; this is a future-guard). | Bug. |
 | I-3 | **Addresses are immutable after creation.** | No mutator methods exist. Properties have `private` setters. | N/A. |
 | I-4 | **BuyerId is immutable.** | No mutator. Captured in factory. | N/A. |
-| I-5 | **CorrelationId is immutable and matches the Checkout saga.** | No mutator. Captured in factory. Saga MUST use this id when correlating later events. | N/A. |
+| I-5 | **The Order's `Id` is the pre-assigned `OrderId` and is the saga key.** | Set once in factory from the saga-supplied id ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); the saga correlates all later events by this id. No separate `CorrelationId` ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). | N/A. |
 | I-6 | **Total equals sum of line totals.** `Total.Amount == Σ Items.LineTotal.Amount`, single currency across all items. | Factory computes `Total` from items; subsequent immutability ensures it stays correct. | Bug (input validation). |
 | I-7 | **At least one item at creation.** | `Throw.If(basket.Items.Count == 0, DataIntegrityException)` in factory. | Bug — Basket should never emit an empty checkout. |
 | I-8 | **All line items have positive unit price and positive quantity.** | `Throw.If(item.UnitPrice.Amount <= 0, DataIntegrityException)` and `quantity > 0`. | Bug — Catalog/Basket should never produce non-positive prices. |
@@ -223,14 +222,14 @@ All live under `Ordering.Domain.Orders.Events`. All inherit `Platform.SharedKern
 
 | Event | Raised by | Payload |
 |-------|-----------|---------|
-| `OrderCreatedDomainEvent` | `CreateFromBasket` factory | `OrderId`, `BuyerId`, `CorrelationId`, `PaymentMethodId`, `Items` (item-level snapshot inline: `ProductId`, `Sku`, `Name`, `Quantity`, `UnitPriceAmount`, `LineTotalAmount`; currency travels on `Total`), `ShippingAddress`, `BillingAddress`, `Total`, `CreatedAtUtc` |
-| `OrderStockReservedDomainEvent` | `MarkStockReserved` | `OrderId`, `CorrelationId`, `ReservationId`, `OccurredOnUtc` |
-| `OrderPaymentCompletedDomainEvent` | `MarkPaymentCompleted` | `OrderId`, `CorrelationId`, `PaymentTransactionId`, `OccurredOnUtc` |
-| `OrderConfirmedDomainEvent` | `Confirm` | `OrderId`, `CorrelationId`, `BuyerId`, `Items`, `Total`, `BillingAddress`, `ConfirmedAtUtc`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for Invoicing) |
-| `OrderShippedDomainEvent` | `MarkShipped` | `OrderId`, `CorrelationId`, `BuyerId`, `Carrier`, `TrackingNumber`, `ShippedAtUtc`, `OccurredOnUtc` |
+| `OrderCreatedDomainEvent` | `CreateFromBasket` factory | `OrderId`, `BuyerId`, `PaymentMethodId`, `Items` (item-level snapshot inline: `ProductId`, `Sku`, `Name`, `Quantity`, `UnitPriceAmount`, `LineTotalAmount`; currency travels on `Total`), `ShippingAddress`, `BillingAddress`, `Total`, `CreatedAtUtc` |
+| `OrderStockReservedDomainEvent` | `MarkStockReserved` | `OrderId`, `ReservationId`, `OccurredOnUtc` |
+| `OrderPaymentCompletedDomainEvent` | `MarkPaymentCompleted` | `OrderId`, `PaymentTransactionId`, `OccurredOnUtc` |
+| `OrderConfirmedDomainEvent` | `Confirm` | `OrderId`, `BuyerId`, `Items`, `Total`, `BillingAddress`, `ConfirmedAtUtc`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for Invoicing) |
+| `OrderShippedDomainEvent` | `MarkShipped` | `OrderId`, `BuyerId`, `Carrier`, `TrackingNumber`, `ShippedAtUtc`, `OccurredOnUtc` |
 | `OrderDeliveredDomainEvent` | `MarkDelivered` | `OrderId`, `BuyerId`, `DeliveredAtUtc`, `OccurredOnUtc` |
-| `OrderCancelledDomainEvent` | `Cancel` | `OrderId`, `CorrelationId`, `BuyerId`, `Reason`, `AtStatus` (previous), `CancelledAtUtc`, `Items`, `Total`, `BillingAddress`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for the credit-note projection) |
-| `OrderFailedDomainEvent` | `Fail` | `OrderId`, `CorrelationId`, `BuyerId`, `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`, `OccurredOnUtc` |
+| `OrderCancelledDomainEvent` | `Cancel` | `OrderId`, `BuyerId`, `Reason`, `AtStatus` (previous), `CancelledAtUtc`, `Items`, `Total`, `BillingAddress`, `OccurredOnUtc` (summary event per ADR-0020 — carries full order state for the credit-note projection) |
+| `OrderFailedDomainEvent` | `Fail` | `OrderId`, `BuyerId`, `ErrorCode`, `ErrorMessage`, `AtStatus`, `FailedAtUtc`, `OccurredOnUtc` |
 
 **Consumers of internal events (handlers in `Ordering.Application.Orders.*.*DomainEventHandler`):**
 
@@ -257,7 +256,7 @@ Notation reminder from master-design § 3.2: external event C# name is `{Busines
 
 | External event | When produced | Consumed by |
 |----------------|--------------|-------------|
-| `OrderCreatedEvent` | `CreateFromBasket` → `OrderCreatedDomainEvent` handler | **Checkout saga** (starts saga instance; correlates by `CorrelationId`); BFF (cache invalidation: `order-history-{buyerId}` only — no `order-{orderId}` entry exists for a brand-new order yet, per [bff.md § 2.2](bff.md)). |
+| `OrderCreatedEvent` | `CreateFromBasket` → `OrderCreatedDomainEvent` handler | **Checkout saga** (starts saga instance; correlates by `OrderId`); BFF (cache invalidation: `order-history-{buyerId}` only — no `order-{orderId}` entry exists for a brand-new order yet, per [bff.md § 2.2](bff.md)). |
 | `OrderConfirmedEvent` | `Confirm` → handler | **Invoicing** (invoice-issuance projection — issues once `OrderConfirmedEvent` + `PaymentCapturedEvent` both arrive); **Checkout saga** (terminal success); BFF (cache invalidation: `order-history:{buyerId}`). Catalog aggregate sales analytics is planned scope — see [roadmap.md § 2.3 Ordering](../roadmap.md). |
 | `OrderCancelledEvent` | `Cancel` → handler | Inventory (release reservation if still held); **Invoicing** (credit-note projection — pairs with `PaymentRefundedEvent`); **Checkout saga** (compensation confirmation); BFF (cache invalidation). Payments does **not** consume this event — refund left checkout compensation per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
 | `OrderShippedEvent` | `MarkShipped` → handler | BFF (cache invalidation: `order-{orderId}` + `order-history-{buyerId}`, per [bff.md § 2.2](bff.md)). Sales analytics is planned scope. |
@@ -270,7 +269,7 @@ Notation reminder from master-design § 3.2: external event C# name is `{Busines
 
 ### 7.2 Avro schemas
 
-All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uuid`. All `*AtUtc` timestamp fields are `long + logicalType: timestamp-millis`. All monetary `Amount` fields use `bytes + logicalType: decimal, precision: 19, scale: 4`. Currency is ISO 4217 three-letter code.
+All `OrderId` / `BuyerId` fields are `string + logicalType: uuid`. All `*AtUtc` timestamp fields are `long + logicalType: timestamp-millis`. All monetary `Amount` fields use `bytes + logicalType: decimal, precision: 19, scale: 4`. Currency is ISO 4217 three-letter code.
 
 #### 7.2.1 `OrderCreatedEvent.avsc`
 
@@ -281,8 +280,7 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
   "namespace": "Ordering.Orders",
   "doc": "Emitted when a new Order is created from a Basket checkout. Starts the Checkout saga instance.",
   "fields": [
-    { "name": "OrderId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "Unique identifier of the Order." },
-    { "name": "CorrelationId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "Checkout saga correlation id." },
+    { "name": "OrderId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "Unique identifier of the Order (pre-assigned at checkout; also the Checkout saga key per ADR-0029)." },
     { "name": "BuyerId", "type": { "type": "string", "logicalType": "uuid" }, "doc": "User who placed the order (JWT sub)." },
     {
       "name": "Items",
@@ -321,7 +319,6 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
   "doc": "Emitted when the Order has been successfully confirmed (stock reserved AND payment completed).",
   "fields": [
     { "name": "OrderId", "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "CorrelationId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "BuyerId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "ConfirmedAtUtc", "type": { "type": "long", "logicalType": "timestamp-millis" } }
   ]
@@ -338,7 +335,6 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
   "doc": "Emitted when the Order is cancelled. Downstream consumers trigger compensation (release stock, refund, notify).",
   "fields": [
     { "name": "OrderId", "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "CorrelationId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "BuyerId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "Reason", "type": "string", "doc": "Human- or system-assigned cancellation reason." },
     {
@@ -372,7 +368,6 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
   "doc": "Emitted when the Order is handed to a carrier with a tracking number.",
   "fields": [
     { "name": "OrderId", "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "CorrelationId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "BuyerId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "Carrier", "type": "string", "doc": "Shipping carrier name (e.g., 'FedEx', 'DHL', 'UPS')." },
     { "name": "TrackingNumber", "type": "string", "doc": "Carrier-assigned tracking number." },
@@ -397,7 +392,7 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
 }
 ```
 
-> **Note:** `CorrelationId` is intentionally **omitted** from `OrderDeliveredEvent` — the checkout saga is already finalized by the time delivery occurs; delivery is a post-saga fulfillment milestone. A future delivery-email producer would carry `OrderId` only on its `NotifyUserCommand` (v2; per [notifications.md § 2](notifications.md) + [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)).
+> **Note:** No `ordering.orders` event carries a dedicated `CorrelationId` — it was retired ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). `OrderId` is the correlation key on every Ordering event; delivery is a post-saga fulfillment milestone, correlated (like all order events) by `OrderId`. A future delivery-email producer would carry `OrderId` on its `NotifyUserCommand` (v2; per [notifications.md § 2](notifications.md) + [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)).
 
 #### 7.2.6 `OrderFailedEvent.avsc`
 
@@ -409,7 +404,6 @@ All `OrderId` / `CorrelationId` / `BuyerId` fields are `string + logicalType: uu
   "doc": "Emitted when the Order transitions to a terminal Failed state. Downstream consumers notify the buyer and reverse any applied compensations.",
   "fields": [
     { "name": "OrderId", "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "CorrelationId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "BuyerId", "type": { "type": "string", "logicalType": "uuid" } },
     { "name": "ErrorCode", "type": "string", "doc": "Machine-readable error code (e.g., STOCK_UNAVAILABLE, PAYMENT_FAILED, PAYMENT_TIMEOUT, CONFIRMATION_TIMEOUT)." },
     { "name": "ErrorMessage", "type": "string", "doc": "Human-readable error message." },
@@ -465,7 +459,7 @@ Each handler tags its EF query with `.TagWith(nameof(<HandlerName>))` — emitte
 
 ```csharp
 public static Order CreateFromBasket(
-    Guid correlationId,
+    Guid orderId,
     Guid buyerId,
     BasketSnapshot basket,
     Address shippingAddress,
@@ -518,7 +512,7 @@ The saga **does not** mutate Ordering's database directly. Two options exist for
 
 This BC design **supports both**: commands are plain CQRS commands; whether they enter via HTTP or a Kafka consumer adapter is transport-only. Recommendation: **Option Y** for consistency with the saga's orchestration style. If chosen, the topic `ordering.order-commands` must be added to the docker-compose Kafka config (Stage 2 Agent 5).
 
-The command payload in either case uses **`OrderId`** (not `CorrelationId`) as the primary key so consumers can efficiently partition/dedupe. `CorrelationId` is carried alongside for saga alignment but is not the aggregate's identity.
+The command payload uses **`OrderId`** as the primary key so consumers can efficiently partition/dedupe. Post-[ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md) the `OrderId` is pre-assigned and **is** the saga key — there is no separate `CorrelationId` carried alongside.
 
 ### 10.3 Subscribes to
 
@@ -544,8 +538,8 @@ This BC does **not** produce to any other topic in v1.
 | **Kafka topics** | Produce: `ordering.orders`. Consume: (optional) `ordering.order-commands` from saga (§10.2). |
 | **Schema Registry** | Avro schemas under `platform/Platform.SchemaRegistry.Contracts/Avro/Ordering/Orders/*.avsc`, registered to Confluent Schema Registry; serialization via `Platform.Avro.UniversalSerDes` (mandatory — see general-plan § Messaging constraint). |
 | **Authentication** | All HTTP endpoints except the webhook-delivery variant (future) require a valid JWT. `BuyerId` is taken from the `sub` claim; admin endpoints additionally require an `admin` role claim (specifics: solution-architect). |
-| **Idempotency** | `CreateOrderCommand` is idempotent on `(CorrelationId)` — if a second create arrives with the same `CorrelationId`, the handler should no-op and return the existing `OrderId` (implementation detail for solution-architect). Saga retries are the driver. |
-| **Observability** | `OrderingActivitySource` (KEEP existing name) for tracing; structured logging via `ILogger<T>`; traces tagged with `Order.Id` and `CorrelationId` per existing `TraceTags` pattern. |
+| **Idempotency** | `CreateOrderCommand` is idempotent on the pre-assigned `OrderId` (the aggregate primary key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) — a replayed create resolves the existing order by primary-key lookup and returns its id. Saga retries are the driver. |
+| **Observability** | `OrderingActivitySource` (KEEP existing name) for tracing; structured logging via `ILogger<T>`; traces tagged with `Order.Id` per existing `TraceTags` pattern. |
 | **Migrations** | Per CLAUDE.md, "never touch or generate EF Core migrations — always let the user deterministically generate." This BC design only specifies the domain shape; the user generates migrations from the resulting model. |
 
 ---

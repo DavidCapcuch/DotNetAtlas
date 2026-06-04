@@ -138,5 +138,5 @@ Catalog's `Product` and Inventory's `StockItem` describe the same underlying thi
 ### OrderLine (Ordering) vs Reservation (Inventory)
 An Ordering `OrderLine` is a contract to deliver N units at a price. An Inventory `Reservation` is a physical hold of N units against an `OrderId`. The checkout saga is the translator — it creates one reservation per order line, fans in the outcomes, and drives the state machine.
 
-### CorrelationId
-A `Guid` carried on saga-initiated events and optionally stored on `inventory.stock_events.CorrelationId`. Not a domain concept — it's a diagnostics/tracing token that lets ops say "show me every event touched by checkout saga run X." Shared across BCs; Inventory neither generates nor interprets it, only persists it.
+### OrderId (on reservation events)
+The saga business key ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) carried on Inventory's reservation events (`StockReservedEvent`, etc.) and on the saga-issued reservation commands. Not an Inventory domain concept — Inventory neither generates nor interprets it beyond fan-in / forensics; it only ferries the value. The earlier dedicated `CorrelationId` (and the `inventory.stock_events.correlation_id` column) was **retired** ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)); saga-run forensics now filter on the `OrderId` inside the event payloads.

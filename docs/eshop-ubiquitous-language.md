@@ -123,7 +123,7 @@
 |------|------------|
 | Money | Value object: decimal amount + ISO 4217 currency code. Shared-kernel in `Platform.SharedKernel.ValueObjects.Money`. |
 | Address | Value object: `Street1`, `Street2?`, `City`, `State?`, `PostalCode`, `CountryCode` (ISO 3166-1 alpha-2). |
-| Correlation ID | UUID v7 shared across all events in a single business workflow (one checkout → one order → one payment → one invoice). Threaded through Kafka headers, HTTP `X-Correlation-Id`, span attributes, DB audit columns. |
+| Correlation key | `OrderId` (UUID v7) — the durable business key shared across a checkout workflow (one checkout → one order → one payment → one invoice); pre-assigned at checkout and also the saga's MassTransit `CorrelationId` ([ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). The earlier dedicated `CorrelationId` (its `X-Correlation-Id` header, span attribute, and DB columns) was retired ([ADR-0030](adr/0030-retire-dedicated-correlationid.md)); `traceId` (W3C / OpenTelemetry) covers cross-cutting telemetry. |
 | External event | Enriched summary event published to Kafka with an Avro contract. Naming: `{BusinessMoment}Event` (e.g. `ProductCreatedEvent`, `OrderShippedEvent`, `StockLevelChangedEvent`). All event schemas use the `Event` suffix; the convention is enforced at infrastructure bootstrap (see [bc-design/conventions.md § 1.1](bc-design/conventions.md)). |
 | Internal (domain) event | In-process event raised by an aggregate and dispatched via `IDomainEventHandler<T>`. Naming: `{State}DomainEvent`. Never published to Kafka directly. |
 | Command (Kafka) | Imperative intent published on a `{domain}.{aggregate}-commands` topic — exactly one known consumer, specific response expected. Avro namespace `{Domain}.{Aggregate}`. |

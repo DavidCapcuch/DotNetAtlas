@@ -32,9 +32,8 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 
 | Property | Type | Notes |
 |---|---|---|
-| `Id` | `Guid` | Aggregate root identity — UUID v7 (time-sortable). Minted by the saga and carried on `AuthorizePaymentCommand` as `PaymentTransactionId`; **distinct from `CorrelationId`** (see I-7). |
+| `Id` | `Guid` | Aggregate root identity — UUID v7 (time-sortable). Minted by the saga and carried on `AuthorizePaymentCommand` as `PaymentTransactionId`; **distinct from the saga key (`OrderId`)** (see I-7). |
 | `CompletedAtUtc` | `DateTimeOffset?` | Set on auto-advance from `Captured`. |
-| `CorrelationId` | `Guid` | The originating saga CorrelationId (links to checkout, order, invoice) |
 | `BuyerId` | `Guid` | JWT `sub` at checkout time; frozen |
 | `OrderId` | `Guid` | The Ordering aggregate this payment belongs to |
 | `Amount` | `Money` | Immutable after `Authorized` |
@@ -57,15 +56,14 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 - **I-3** `Status` transitions are guarded by `PaymentStatus.CanTransitionTo(target)` — invalid transitions throw `DataIntegrityException` (bug-class, see `error-taxonomy.md § 3.5`).
 - **I-4** `GatewayTransactionId` is append-only — once set, it never changes (even on refund/void, which reuse the same gateway transaction).
 - **I-5** Once `Status ∈ { Completed, Failed, Refunded, Voided }`, all mutations are rejected at the aggregate root. Saga retries become idempotent no-ops.
-- **I-6** `CorrelationId`, `BuyerId`, `OrderId` are immutable post-creation.
-- **I-7** One payment per order is enforced by the unique index `ux_payment_transactions_order_id` on `order_id` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md): the saga is keyed on `OrderId`, so `CorrelationId == OrderId`). `PaymentId` (saga-minted UUID v7) is the aggregate key, distinct from the saga key. The saga reuses the same `PaymentTransactionId` across `AuthorizePaymentCommand` retries, so it doubles as the command's idempotency anchor.
+- **I-6** `BuyerId`, `OrderId` are immutable post-creation.
+- **I-7** One payment per order is enforced by the unique index `ux_payment_transactions_order_id` on `order_id` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md): the saga is keyed on `OrderId`; the dedicated `CorrelationId` was retired per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). `PaymentId` (saga-minted UUID v7) is the aggregate key, distinct from the saga key. The saga reuses the same `PaymentTransactionId` across `AuthorizePaymentCommand` retries, so it doubles as the command's idempotency anchor.
 
 ### 2.3 Factory
 
 ```csharp
 public static Result<PaymentTransaction> Create(
     Guid paymentId,
-    Guid correlationId,
     Guid buyerId,
     Guid orderId,
     Money amount,
@@ -172,8 +170,8 @@ The table below lists external lifecycle events on `payments.transactions`. Prod
 |---|---|---|---|
 | `RequestPaymentCommand` | Checkout saga | PaymentProcessingSaga | Checkout saga reaches `AwaitingPaymentAuthorization`; renamed from `PaymentRequestedEvent` and moved off `payments.transactions` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md). |
 | `AuthorizePaymentCommand` | PaymentProcessingSaga | Payments | Sub-saga's first command after receiving `RequestPaymentCommand` |
-| `ApproveCaptureCommand` | Checkout saga | PaymentProcessingSaga | After the Checkout saga confirms stock + order; tells the sub-saga (in `AwaitingCaptureApproval`) to issue `CapturePaymentCommand`. Fields: `CorrelationId`, `UserId`, `RequestedAtUtc`. Per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
-| `AbortCaptureCommand` | Checkout saga | PaymentProcessingSaga | On confirmation failure; tells the sub-saga to take the pre-capture `Void` path (free) instead of capturing. Fields: `CorrelationId`, `UserId`, `Reason`, `RequestedAtUtc`. Per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
+| `ApproveCaptureCommand` | Checkout saga | PaymentProcessingSaga | After the Checkout saga confirms stock + order; tells the sub-saga (in `AwaitingCaptureApproval`) to issue `CapturePaymentCommand`. Fields: `OrderId`, `UserId`, `RequestedAtUtc`. Per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
+| `AbortCaptureCommand` | Checkout saga | PaymentProcessingSaga | On confirmation failure; tells the sub-saga to take the pre-capture `Void` path (free) instead of capturing. Fields: `OrderId`, `UserId`, `Reason`, `RequestedAtUtc`. Per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md). |
 | `CapturePaymentCommand` | PaymentProcessingSaga | Payments | After the Checkout saga approves capture (`ApproveCaptureCommand`) — capture is the pivot, deferred until stock + order are confirmed (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) |
 | `RequestRefundCommand` | *(deferred — no v1 producer; future customer/admin-initiated refund flow)* | Payments | `Completed → Refunded` off-ramp; a returns / post-purchase-cancellation trigger is future work (per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)) |
 | `VoidPaymentCommand` | PaymentProcessingSaga | Payments | Pre-capture compensation — issued on `AbortCaptureCommand` or a capture-approval-wait timeout |
@@ -255,7 +253,7 @@ FSM guard violations (bug-class) throw `DataIntegrityException`, not `Result.Fai
   - `payments.capture.count` (counter) tagged `outcome=success|failed`
   - `payments.refund.count` (counter)
   - `payments.gateway.latency.seconds` (histogram) tagged `operation=authorize|capture|refund|void`
-- Correlation-ID propagation: per ADR-0008 (when authored) — `X-Correlation-Id` HTTP header → Kafka message header → MDC on inbox consumers.
+- Correlation: `OrderId` is the durable business/audit key (the saga key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); cross-process correlation rides W3C `traceparent` / OpenTelemetry. The dedicated `CorrelationId` propagation (old ADR-0008) was retired per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md).
 - **PII rule:** never tag span attributes with `PaymentMethodId`, `BuyerId`, or `GatewayTransactionId`. Use a hashed token if cardinality matters.
 
 ---

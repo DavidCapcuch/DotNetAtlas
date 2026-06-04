@@ -13,11 +13,16 @@ Accepted (2026-05-25)
 > mandated below (Ordering + Invoicing) was deleted as overkill for a reference solution. The
 > read-side convention stands but is now documentation-only, not CI-enforced — references to the
 > arch-test in the body below are historical.
+>
+> **Further revisited by [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](0030-retire-dedicated-correlationid.md) (2026-06-03).**
+> The dedicated `CorrelationId` was retired. `OrderByCorrelationIdSpec` was **deleted** —
+> `CreateOrderCommandHandler`'s idempotency check is now an inline primary-key lookup on the
+> pre-assigned `OrderId`. `PaymentByCorrelationIdSpec` was **renamed** `PaymentByOrderIdSpec`
+> (same saga-idempotency criterion, re-keyed on `OrderId`). The "Specs that survive" list reflects this.
 
 ## Context
 
-The codebase uses `Ardalis.Specification` to factor reusable `Where / Include / OrderBy` predicates into single-purpose specification classes (e.g. `OrderByIdSpec`,
-[OrderByCorrelationIdSpec](../../services/Ordering/Ordering.Domain/Orders/Specifications/OrderByCorrelationIdSpec.cs)).
+The codebase uses `Ardalis.Specification` to factor reusable `Where / Include / OrderBy` predicates into single-purpose specification classes (e.g. `OrderByIdSpec`, `OrderByCorrelationIdSpec` — both since deleted; see the status note).
 The original intent was DRY: command handlers that load an aggregate by id and read handlers that fetch the same aggregate for projection could share one spec.
 
 Issue [#238](https://github.com/DavidCapcuch/DotNetAtlas/pull/238) measured what that sharing actually costs on the read side. The before-shape of
@@ -129,11 +134,13 @@ This preserves the SQL-side-projection contract (no full-aggregate materialisati
 ### Specs that survive (still used by write side)
 
 > Updated per [ADR-0022](0022-specification-pattern-adoption.md): the two pure-PK specs were
-> deleted and inlined; the business-named `OrderByCorrelationIdSpec` survives and
-> `PaymentByCorrelationIdSpec` was added on the same criterion.
+> deleted and inlined; one business-named saga-idempotency spec survives.
+> Further updated per [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) /
+> [ADR-0030](0030-retire-dedicated-correlationid.md): the surviving spec was re-keyed on `OrderId`
+> and the Ordering one was inlined away (see below).
 
-- [`OrderByCorrelationIdSpec`](../../services/Ordering/Ordering.Domain/Orders/Specifications/OrderByCorrelationIdSpec.cs) — `CreateOrderCommandHandler` (idempotency check).
-- [`PaymentByCorrelationIdSpec`](../../services/Payments/Payments.Domain/Transactions/Specifications/PaymentByCorrelationIdSpec.cs) — Capture / Void / RequestRefund handlers (saga idempotency).
+- [`PaymentByOrderIdSpec`](../../services/Payments/Payments.Domain/Transactions/Specifications/PaymentByOrderIdSpec.cs) — Capture / Void command handlers (saga idempotency, keyed on `OrderId`). Renamed from `PaymentByCorrelationIdSpec` per ADR-0030.
+- ~~`OrderByCorrelationIdSpec`~~ — deleted (ADR-0029/0030); `CreateOrderCommandHandler`'s idempotency check is now an inline primary-key lookup on the pre-assigned `OrderId`.
 - ~~`OrderByIdSpec`~~ — deleted (ADR-0022); the 7 write-side handlers now load by primary key inline.
 - ~~`InvoiceByIdSpec`~~ — deleted (ADR-0022); `ResendInvoiceCommandHandler` now loads by primary key inline.
 

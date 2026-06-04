@@ -53,7 +53,6 @@ classDiagram
         +Status: OrderStatus
         +ShippingAddress: Address
         +BillingAddress: Address
-        +CorrelationId: Guid
     }
     class OrderItem {
         +ProductId: Guid
