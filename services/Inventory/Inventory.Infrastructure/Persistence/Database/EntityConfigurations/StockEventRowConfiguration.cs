@@ -8,8 +8,8 @@ namespace Inventory.Infrastructure.Persistence.Database.EntityConfigurations;
 /// EF mapping for <see cref="StockEventRow"/>. Enforces the append-only ES
 /// write model defined in <c>docs/bc-design/inventory.md § 8.1</c>:
 /// composite PK <c>(StreamId, Version)</c> for optimistic concurrency,
-/// <c>jsonb</c> payload, DB-side <c>AppendedAtUtc</c>, and the three
-/// secondary indexes for temporal, correlation, and event-type queries.
+/// <c>jsonb</c> payload, DB-side <c>AppendedAtUtc</c>, and the two
+/// secondary indexes for temporal and event-type queries.
 /// </summary>
 internal sealed class StockEventRowConfiguration : IEntityTypeConfiguration<StockEventRow>
 {
@@ -46,18 +46,11 @@ internal sealed class StockEventRowConfiguration : IEntityTypeConfiguration<Stoc
             .ValueGeneratedOnAdd()
             .HasComment("DB-side insert timestamp; distinguishes domain time from persisted time during replay/tests.");
 
-        builder.Property(r => r.CorrelationId)
-            .HasComment("Saga correlation id (ADR-0008); null for ops-originated events.");
-
         // Secondary indexes per inventory.md § 8.1.
         builder.HasIndex(r => r.OccurredAtUtc)
             .HasDatabaseName("ix_stock_events_occurred_at");
 
         builder.HasIndex(r => r.EventType)
             .HasDatabaseName("ix_stock_events_event_type");
-
-        builder.HasIndex(r => r.CorrelationId)
-            .HasDatabaseName("ix_stock_events_correlation")
-            .HasFilter("correlation_id IS NOT NULL");
     }
 }

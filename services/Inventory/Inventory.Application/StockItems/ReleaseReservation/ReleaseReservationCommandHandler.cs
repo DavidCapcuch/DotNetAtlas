@@ -33,7 +33,6 @@ internal sealed class ReleaseReservationCommandHandler : ICommandHandler<Release
                 reservationIdResult.Value,
                 command.Reason,
                 command.OccurredOnUtc),
-            correlationId: command.CorrelationId,
             ct: ct).ConfigureAwait(false);
 
         if (result.IsSuccess)

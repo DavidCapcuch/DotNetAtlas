@@ -21,6 +21,4 @@ public sealed record AdjustStockCommand : ICommand<StockLevelResponse>
     public required Guid AdjustedByUserId { get; init; }
 
     public required DateTimeOffset OccurredOnUtc { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }

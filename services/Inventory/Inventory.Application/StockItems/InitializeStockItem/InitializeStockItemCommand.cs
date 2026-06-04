@@ -19,11 +19,4 @@ public sealed record InitializeStockItemCommand : ICommand
     public required Guid ProductId { get; init; }
 
     public required DateTimeOffset OccurredOnUtc { get; init; }
-
-    /// <summary>
-    /// Correlation id carried through to <c>stock_events.correlation_id</c>
-    /// (ADR-0008). Null when the command was issued internally (not from a
-    /// saga header).
-    /// </summary>
-    public Guid? CorrelationId { get; init; }
 }

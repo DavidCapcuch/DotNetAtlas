@@ -23,9 +23,7 @@ internal static class SagaCommandMappers
     /// the saga schema doesn't carry it; the application handler falls back to
     /// the service-default TTL (15 min per <c>inventory.md § 11</c>).
     /// </summary>
-    // ADR-0008 — CorrelationId is passed in explicitly from the Kafka header rather than read
-    // from the Avro payload field; the header is the authoritative source.
-    internal static AppReserveStockCommand ToAppCommand(this AvroReserveStockCommand avro, Guid correlationId) =>
+    internal static AppReserveStockCommand ToAppCommand(this AvroReserveStockCommand avro) =>
         new()
         {
             ReservationId = avro.ReservationId,
@@ -34,26 +32,23 @@ internal static class SagaCommandMappers
             OrderId = avro.OrderId,
             TimeToLive = null,
             OccurredOnUtc = ToOffset(avro.RequestedAtUtc),
-            CorrelationId = correlationId,
         };
 
-    internal static AppConfirmReservationCommand ToAppCommand(this AvroConfirmReservationCommand avro, Guid correlationId) =>
+    internal static AppConfirmReservationCommand ToAppCommand(this AvroConfirmReservationCommand avro) =>
         new()
         {
             ReservationId = avro.ReservationId,
             ProductId = avro.ProductId,
             OccurredOnUtc = ToOffset(avro.RequestedAtUtc),
-            CorrelationId = correlationId,
         };
 
-    internal static AppReleaseReservationCommand ToAppCommand(this AvroReleaseReservationCommand avro, Guid correlationId) =>
+    internal static AppReleaseReservationCommand ToAppCommand(this AvroReleaseReservationCommand avro) =>
         new()
         {
             ReservationId = avro.ReservationId,
             ProductId = avro.ProductId,
             Reason = MapReleaseReason(avro.ReleaseReason),
             OccurredOnUtc = ToOffset(avro.RequestedAtUtc),
-            CorrelationId = correlationId,
         };
 
     /// <summary>

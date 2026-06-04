@@ -67,7 +67,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
                 return item.ReceiveStock(100, StockSource.ReceivingDock, null, UtcNow);
             },
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         result.Should().BeSuccess();
@@ -126,7 +125,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
                 return reserve.ToResult();
             },
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         result.Should().BeSuccess();
@@ -158,7 +156,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
             var init = await setupRepo.AppendAsync(
                 productId,
                 a => a.Initialize(productId, UtcNow),
-                null,
                 TestContext.Current.CancellationToken);
             init.Should().BeSuccess();
         }
@@ -186,7 +183,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         var result = await raceRepo.AppendAsync(
             productId,
             a => a.ReceiveStock(100, StockSource.ReceivingDock, null, UtcNow),
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         result.Should().BeSuccess();
@@ -219,7 +215,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
             var init = await setupRepo.AppendAsync(
                 productId,
                 a => a.Initialize(productId, UtcNow),
-                null,
                 TestContext.Current.CancellationToken);
             init.Should().BeSuccess();
         }
@@ -250,7 +245,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         var result = await raceRepo.AppendAsync(
             productId,
             a => a.ReceiveStock(100, StockSource.ReceivingDock, null, UtcNow),
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         result.Should().BeFailure();
@@ -281,7 +275,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
                     return a.ReceiveStock(5, StockSource.ReceivingDock, null, UtcNow);
                 },
-                null,
                 TestContext.Current.CancellationToken);
             setup.Should().BeSuccess();
         }
@@ -294,7 +287,6 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         var result = await repo.AppendAsync(
             productId,
             a => a.Reserve(reservationId, quantity: 10, orderId, TimeSpan.FromMinutes(15), UtcNow).ToResult(),
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         result.Should().BeFailure();

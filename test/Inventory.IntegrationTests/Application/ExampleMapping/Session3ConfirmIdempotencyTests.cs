@@ -266,12 +266,10 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
             (await setupRepo.AppendAsync(
                 productId,
                 a => a.Initialize(productId, UtcNow.AddMinutes(-3)),
-                correlationId: null,
                 TestContext.Current.CancellationToken)).Should().BeSuccess();
             (await setupRepo.AppendAsync(
                 productId,
                 a => a.ReceiveStock(5, StockSource.ReceivingDock, null, UtcNow.AddMinutes(-2)),
-                correlationId: null,
                 TestContext.Current.CancellationToken)).Should().BeSuccess();
             (await setupRepo.AppendAsync(
                 productId,
@@ -281,7 +279,6 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
                     orderId,
                     ReservationTtl,
                     UtcNow.AddMinutes(-1)).ToResult(),
-                correlationId: null,
                 TestContext.Current.CancellationToken)).Should().BeSuccess();
         }
 
@@ -313,7 +310,6 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
         var loserResult = await raceRepo.AppendAsync(
             productId,
             a => a.ConfirmReservation(ReservationId.Create(reservationId).Value, UtcNow),
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         loserResult.Should().BeFailure();

@@ -37,17 +37,13 @@ internal sealed class StockEventRow
     /// <summary>DB-side insert timestamp (<c>now()</c>); distinguishes domain time from persisted time during replay/tests.</summary>
     public DateTimeOffset AppendedAtUtc { get; private set; }
 
-    /// <summary>Checkout-saga correlation id copied from the inbound command header (ADR-0008). Null for ops-originated events.</summary>
-    public Guid? CorrelationId { get; private set; }
-
     /// <summary>Repository-only factory — the only way a row enters the write pipeline.</summary>
     internal static StockEventRow Create(
         Guid streamId,
         int version,
         string eventType,
         string payload,
-        DateTimeOffset occurredAtUtc,
-        Guid? correlationId)
+        DateTimeOffset occurredAtUtc)
     {
         return new StockEventRow
         {
@@ -56,7 +52,6 @@ internal sealed class StockEventRow
             EventType = eventType,
             Payload = payload,
             OccurredAtUtc = occurredAtUtc,
-            CorrelationId = correlationId,
 
             // AppendedAtUtc is stamped DB-side via HasDefaultValueSql("now()");
             // the placeholder value here is never read.

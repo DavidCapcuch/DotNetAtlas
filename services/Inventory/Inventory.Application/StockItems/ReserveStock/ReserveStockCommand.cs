@@ -31,6 +31,4 @@ public sealed record ReserveStockCommand : ICommand
     public TimeSpan? TimeToLive { get; init; }
 
     public required DateTimeOffset OccurredOnUtc { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }

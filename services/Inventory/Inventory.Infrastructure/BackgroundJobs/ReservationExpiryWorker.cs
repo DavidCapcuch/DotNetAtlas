@@ -176,7 +176,6 @@ internal sealed class ReservationExpiryWorker : BackgroundService
                     ProductId = row.ProductId,
                     Reason = ReleaseReason.Expiry,
                     OccurredOnUtc = nowUtc,
-                    CorrelationId = null,
                 };
 
                 var result = await handler.HandleAsync(command, ct).ConfigureAwait(false);

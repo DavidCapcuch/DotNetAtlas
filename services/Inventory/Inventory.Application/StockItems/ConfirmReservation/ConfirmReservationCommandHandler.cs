@@ -32,7 +32,6 @@ internal sealed class ConfirmReservationCommandHandler : ICommandHandler<Confirm
             command: aggregate => aggregate.ConfirmReservation(
                 reservationIdResult.Value,
                 command.OccurredOnUtc),
-            correlationId: command.CorrelationId,
             ct: ct).ConfigureAwait(false);
 
         if (result.IsSuccess)

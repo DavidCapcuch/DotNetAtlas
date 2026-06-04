@@ -30,6 +30,4 @@ internal sealed class AdjustStockRequest
     public required string Reason { get; init; }
 
     public required Guid AdjustedByUserId { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }

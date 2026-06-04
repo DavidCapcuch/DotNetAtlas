@@ -148,46 +148,6 @@ public sealed class ReserveStockCommandHandlerTests : BaseIntegrationTest
         outboxRows.Should().ContainSingle(m => m.TopicName == "inventory.reservations");
     }
 
-    [Fact]
-    public async Task CorrelationIdRoundtripsFromCommandToStockEventsRow()
-    {
-        var productId = Guid.NewGuid();
-        var reservationId = Guid.NewGuid();
-        var orderId = Guid.NewGuid();
-        var correlationId = Guid.NewGuid();
-
-        await Seed.ProductWithOnHandAsync(productId, onHand: 10, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
-
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ReserveStockCommand>>();
-
-        var result = await handler.HandleAsync(
-            new ReserveStockCommand
-            {
-                ReservationId = reservationId,
-                ProductId = productId,
-                Quantity = 1,
-                OrderId = orderId,
-                TimeToLive = TimeSpan.FromMinutes(15),
-                OccurredOnUtc = UtcNow,
-                CorrelationId = correlationId,
-            },
-            TestContext.Current.CancellationToken);
-
-        result.Should().BeSuccess();
-
-        using var verifyScope = Fixture.CreateScope();
-        var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var reserveRow = await db.StockEvents
-            .AsNoTracking()
-            .Where(r => r.StreamId == productId && r.EventType == nameof(StockReservedDomainEvent))
-            .OrderByDescending(r => r.Version)
-            .FirstAsync(TestContext.Current.CancellationToken);
-
-        reserveRow.CorrelationId.Should().Be(correlationId);
-    }
-
     private async Task<int> CountStockEventsAsync(Guid productId)
     {
         using var scope = Fixture.CreateScope();

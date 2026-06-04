@@ -29,6 +29,4 @@ public sealed record ReceiveStockCommand : ICommand<StockLevelResponse>
     public Guid? ReceivedByUserId { get; init; }
 
     public required DateTimeOffset OccurredOnUtc { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }

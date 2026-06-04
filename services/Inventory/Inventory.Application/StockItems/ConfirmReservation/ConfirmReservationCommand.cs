@@ -15,6 +15,4 @@ public sealed record ConfirmReservationCommand : ICommand
     public required Guid ProductId { get; init; }
 
     public required DateTimeOffset OccurredOnUtc { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }

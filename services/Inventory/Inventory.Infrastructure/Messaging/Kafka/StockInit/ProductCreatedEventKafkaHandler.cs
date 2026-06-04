@@ -24,11 +24,6 @@ namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 /// envelope + DLT routing semantics, even though this is a domain event
 /// rather than a saga command — the wrapper's contract (one tx around the
 /// dispatch + DLT on <c>Result.Fail</c>) matches what we want here too.
-/// <see cref="AvroProductCreatedEvent"/> carries no <c>CorrelationId</c>
-/// field (Catalog's products-topic schema is event-driven, not saga-driven);
-/// the application command stamps <c>CorrelationId = null</c> so the
-/// resulting <c>stock_events.correlation_id</c> column is left null per
-/// ADR-0008's "no synthetic correlation ids".
 /// </remarks>
 internal sealed class ProductCreatedEventKafkaHandler
     : SagaCommandHandlerBase<AvroProductCreatedEvent>, IMessageHandler<AvroProductCreatedEvent>
@@ -47,11 +42,6 @@ internal sealed class ProductCreatedEventKafkaHandler
     public Task Handle(IMessageContext context, AvroProductCreatedEvent message) =>
         ExecuteAsync(
             context,
-            // Catalog's ProductCreatedEvent has no CorrelationId; use Empty
-            // for log-context consistency. The Application command's
-            // CorrelationId stays null so the stock_events row reflects the
-            // absence-of-saga-context rather than a synthetic id.
-            correlationId: Guid.Empty,
             new Dictionary<string, object?>
             {
                 ["ProductId"] = message.ProductId,
@@ -72,7 +62,6 @@ internal sealed class ProductCreatedEventKafkaHandler
                     OccurredOnUtc = new DateTimeOffset(
                         DateTime.SpecifyKind(message.CreatedAtUtc, DateTimeKind.Utc),
                         TimeSpan.Zero),
-                    CorrelationId = null,
                 },
                 ct));
 }

@@ -36,14 +36,9 @@ public interface IEventStore
     /// (e.g. <c>InsufficientStockError</c>) is surfaced to the caller
     /// unchanged and the stream is not mutated.
     /// </param>
-    /// <param name="correlationId">
-    /// Saga correlation id stamped on every appended row (ADR-0008). Null
-    /// for ops-originated writes.
-    /// </param>
     /// <param name="ct">Cancellation token.</param>
     Task<Result<StockItem>> AppendAsync(
         Guid streamId,
         Func<StockItem, Result> command,
-        Guid? correlationId,
         CancellationToken ct);
 }
