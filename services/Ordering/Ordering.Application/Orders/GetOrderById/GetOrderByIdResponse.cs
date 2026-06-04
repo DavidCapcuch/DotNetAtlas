@@ -14,8 +14,6 @@ public sealed class GetOrderByIdResponse
 
     public required Guid BuyerId { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     public required Guid PaymentMethodId { get; init; }
 
     public required string Status { get; init; }

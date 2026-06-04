@@ -31,12 +31,7 @@ internal sealed class MarkOrderFailedCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroMarkOrderFailedCommand message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId source.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
-        return ExecuteAsync(context, correlationId, message.OrderId,
+        return ExecuteAsync(context, message.OrderId,
             ct => _appHandler.HandleAsync(message.ToAppCommand(), ct));
     }
 }

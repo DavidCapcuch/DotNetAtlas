@@ -32,7 +32,6 @@ public class OrderTransitionTests
                 .Which.Should().BeOfType<OrderStockReservedDomainEvent>()
                 .Subject;
             evt.OrderId.Should().Be(order.Id);
-            evt.CorrelationId.Should().Be(order.CorrelationId);
             evt.ReservationId.Should().Be(reservationId);
             evt.OccurredOnUtc.Should().Be(now);
         }
@@ -59,7 +58,6 @@ public class OrderTransitionTests
                 .Which.Should().BeOfType<OrderPaymentCompletedDomainEvent>()
                 .Subject;
             evt.PaymentTransactionId.Should().Be(txId);
-            evt.CorrelationId.Should().Be(order.CorrelationId);
         }
     }
 

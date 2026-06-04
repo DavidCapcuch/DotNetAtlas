@@ -25,7 +25,6 @@ public class OrderCancelledOutboxPublisherDomainEventHandlerTests : HandlerTestB
         var domainEvent = new OrderCancelledDomainEvent
         {
             OrderId = order.Id,
-            CorrelationId = order.CorrelationId,
             BuyerId = order.BuyerId,
             Reason = "Customer requested",
             AtStatus = OrderStatus.Confirmed.Name,

@@ -20,13 +20,9 @@ namespace Ordering.Infrastructure.Messaging.Kafka.SagaCommands;
 /// <item>Wraps handler execution in <see cref="ITransactionalOutbox{TContext}"/>'s
 /// <c>EnsureTransactionAsync</c> so domain-event outbox writes are atomic
 /// with aggregate mutation.</item>
-/// <item>Pushes <c>OrderId</c> into the logger scope so every log line
-/// the handler emits — and every nested Application-layer log — is
-/// queryable by it in Seq. The <c>CorrelationId</c> Serilog property
-/// is pushed by <c>ConsumerCorrelationIdMiddleware</c> at the consumer
-/// pipeline edge from the Kafka header (ADR-0008 runbook-first
-/// operability); duplicating it here would risk drift between the
-/// header value and the Avro-payload value.</item>
+/// <item>Pushes <c>OrderId</c> (the saga key == OrderId per ADR-0029) into
+/// the logger scope so every log line the handler emits — and every nested
+/// Application-layer log — is queryable by it in Seq.</item>
 /// <item>On <see cref="Result.IsFailed"/>, throws a
 /// <see cref="SagaCommandDispatchException"/> so the KafkaFlow retry +
 /// DLT middleware can handle transient vs poison-pill classification.</item>
@@ -47,10 +43,7 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     }
 
     /// <param name="context">Inbound Kafka message context.</param>
-    /// <param name="correlationId">Saga correlation id from the Kafka header (ADR-0008 — the Avro
-    /// payload field is convenience metadata only; callers extract the header value via
-    /// <c>context.ExtractCorrelationId()</c>).</param>
-    /// <param name="orderId">Target order id, or <c>null</c> for <c>CreateOrderCommand</c>.</param>
+    /// <param name="orderId">Target order id (the saga key == OrderId per ADR-0029).</param>
     /// <param name="dispatchAsync">
     /// Dispatches the translated application command and returns the
     /// FluentResults outcome (short-form <see cref="Result"/> — callers with
@@ -58,24 +51,21 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     /// </param>
     protected async Task ExecuteAsync(
         IMessageContext context,
-        Guid correlationId,
         Guid? orderId,
         Func<CancellationToken, Task<Result>> dispatchAsync)
     {
         var origin = context.ExtractOrigin();
         var cancellationToken = context.ConsumerContext.WorkerStopped;
 
-        // CorrelationId is already in the Serilog LogContext via
-        // ConsumerCorrelationIdMiddleware (Kafka header is the source of truth);
-        // we only push OrderId here so per-order log queries work.
+        // Push OrderId into the scope so per-order log queries work in Seq.
         using var orderScope = _logger.BeginScope(new Dictionary<string, object?>
         {
             ["OrderId"] = orderId,
         });
 
         _logger.LogInformation(
-            "Handling {CommandType} from origin {Origin} (CorrelationId={CorrelationId}, OrderId={OrderId})",
-            typeof(TAvroCommand).Name, origin ?? "unknown", correlationId, orderId);
+            "Handling {CommandType} from origin {Origin} (OrderId={OrderId})",
+            typeof(TAvroCommand).Name, origin ?? "unknown", orderId);
 
         await _transactionalOutbox.Database.EnsureTransactionAsync(async () =>
         {
@@ -90,16 +80,16 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
             {
                 var errorSummary = string.Join("; ", result.Errors.Select(e => e.Message));
                 _logger.LogWarning(
-                    "{CommandType} dispatch failed (CorrelationId={CorrelationId}, OrderId={OrderId}): {Errors}",
-                    typeof(TAvroCommand).Name, correlationId, orderId, errorSummary);
+                    "{CommandType} dispatch failed (OrderId={OrderId}): {Errors}",
+                    typeof(TAvroCommand).Name, orderId, errorSummary);
 
                 throw new SagaCommandDispatchException(
                     $"Dispatch of {typeof(TAvroCommand).Name} failed: {errorSummary}");
             }
 
             _logger.LogInformation(
-                "{CommandType} handled successfully (CorrelationId={CorrelationId}, OrderId={OrderId})",
-                typeof(TAvroCommand).Name, correlationId, orderId);
+                "{CommandType} handled successfully (OrderId={OrderId})",
+                typeof(TAvroCommand).Name, orderId);
         }, cancellationToken);
     }
 }

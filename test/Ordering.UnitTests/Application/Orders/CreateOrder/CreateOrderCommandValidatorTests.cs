@@ -11,7 +11,6 @@ public class CreateOrderCommandValidatorTests
     private static CreateOrderCommand Valid() => new()
     {
         OrderId = Guid.CreateVersion7(),
-        CorrelationId = Guid.CreateVersion7(),
         BuyerId = Guid.CreateVersion7(),
         PaymentMethodId = Guid.CreateVersion7(),
         Currency = "USD",

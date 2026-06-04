@@ -12,12 +12,9 @@ public class OrderCreateFromBasketTests
     [Fact]
     public void CreateFromBasket_Valid_ReturnsCreatedOrder_RaisesOrderCreatedDomainEvent()
     {
-        // Arrange — orderId is deliberately distinct from correlationId so the
-        // assertions prove the factory persists the *supplied* OrderId as the
-        // aggregate identity (ADR-0029 client-assigned identity), not the
-        // correlation id and not a freshly-minted one.
+        // Arrange — the factory persists the *supplied* OrderId as the aggregate
+        // identity (ADR-0029 client-assigned identity), not a freshly-minted one.
         var orderId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
         var product1 = Guid.CreateVersion7();
@@ -32,14 +29,13 @@ public class OrderCreateFromBasketTests
 
         // Act
         var order = Order.CreateFromBasket(
-            orderId, correlationId, buyerId, basket, shipping, billing, paymentMethodId, OrderTestFactory.UtcNow);
+            orderId, buyerId, basket, shipping, billing, paymentMethodId, OrderTestFactory.UtcNow);
 
         // Assert
         using (new AssertionScope())
         {
             order.Id.Should().Be(orderId, "the client-assigned OrderId is persisted as the aggregate identity");
             order.BuyerId.Should().Be(buyerId);
-            order.CorrelationId.Should().Be(correlationId);
             order.PaymentMethodId.Should().Be(paymentMethodId);
             order.Status.Should().Be(OrderStatus.Created);
             order.CreatedAtUtc.Should().Be(OrderTestFactory.UtcNow);
@@ -61,7 +57,6 @@ public class OrderCreateFromBasketTests
                 .Subject;
             evt.OrderId.Should().Be(orderId, "the OrderCreatedEvent round-trips the pre-assigned id back to the saga");
             evt.BuyerId.Should().Be(buyerId);
-            evt.CorrelationId.Should().Be(correlationId);
             evt.Items.Should().HaveCount(2);
             evt.Total.Should().Be(order.Total);
             evt.CreatedAtUtc.Should().Be(OrderTestFactory.UtcNow);
@@ -78,7 +73,6 @@ public class OrderCreateFromBasketTests
 
         // Act
         var act = () => Order.CreateFromBasket(
-            Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             basket,
@@ -104,7 +98,6 @@ public class OrderCreateFromBasketTests
         var act = () => Order.CreateFromBasket(
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
-            Guid.CreateVersion7(),
             basket,
             OrderTestFactory.ShippingAddress(),
             OrderTestFactory.BillingAddress(),
@@ -128,7 +121,6 @@ public class OrderCreateFromBasketTests
         var act = () => Order.CreateFromBasket(
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
-            Guid.CreateVersion7(),
             basket,
             OrderTestFactory.ShippingAddress(),
             OrderTestFactory.BillingAddress(),
@@ -150,7 +142,6 @@ public class OrderCreateFromBasketTests
         var act = () => Order.CreateFromBasket(
             Guid.Empty,
             Guid.CreateVersion7(),
-            Guid.CreateVersion7(),
             basket,
             OrderTestFactory.ShippingAddress(),
             OrderTestFactory.BillingAddress(),
@@ -163,28 +154,6 @@ public class OrderCreateFromBasketTests
     }
 
     [Fact]
-    public void CreateFromBasket_EmptyCorrelationId_ThrowsDataIntegrityException()
-    {
-        // Arrange
-        var basket = OrderTestFactory.Basket();
-
-        // Act
-        var act = () => Order.CreateFromBasket(
-            Guid.CreateVersion7(),
-            Guid.Empty,
-            Guid.CreateVersion7(),
-            basket,
-            OrderTestFactory.ShippingAddress(),
-            OrderTestFactory.BillingAddress(),
-            Guid.CreateVersion7(),
-            OrderTestFactory.UtcNow);
-
-        // Assert (I-5 bug guard)
-        act.Should().Throw<DataIntegrityException>()
-            .WithMessage("*CorrelationId*");
-    }
-
-    [Fact]
     public void CreateFromBasket_EmptyBuyerId_ThrowsDataIntegrityException()
     {
         // Arrange
@@ -192,7 +161,6 @@ public class OrderCreateFromBasketTests
 
         // Act
         var act = () => Order.CreateFromBasket(
-            Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             Guid.Empty,
             basket,
@@ -217,7 +185,6 @@ public class OrderCreateFromBasketTests
 
         // Act
         var act = () => Order.CreateFromBasket(
-            Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             basket,

@@ -73,7 +73,6 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
         // saga and Ordering pods does not silently rewrite history.
         var order = Order.CreateFromBasket(
             command.OrderId,
-            command.CorrelationId,
             command.BuyerId,
             basket,
             shippingAddress,
@@ -85,8 +84,8 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
         await _dbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Order {OrderId} created from basket for Buyer {BuyerId} (CorrelationId {CorrelationId}); {ItemCount} items",
-            order.Id, order.BuyerId, order.CorrelationId, order.Items.Count);
+            "Order {OrderId} created from basket for Buyer {BuyerId}; {ItemCount} items",
+            order.Id, order.BuyerId, order.Items.Count);
 
         return Result.Ok(order.Id);
     }

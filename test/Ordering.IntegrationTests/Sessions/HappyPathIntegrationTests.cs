@@ -61,7 +61,7 @@ public sealed class HappyPathIntegrationTests
         {
             var db = lookupScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             orderId = (await db.Orders.AsNoTracking()
-                .FirstAsync(o => o.CorrelationId == correlationId, TestContext.Current.CancellationToken)).Id;
+                .FirstAsync(o => o.Id == correlationId, TestContext.Current.CancellationToken)).Id;
         }
 
         // 2) MarkStockReserved — application handler only (no Kafka in v1).

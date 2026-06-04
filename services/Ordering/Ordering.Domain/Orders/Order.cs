@@ -19,7 +19,7 @@ namespace Ordering.Domain.Orders;
 /// <list type="bullet">
 /// <item>I-1 status transitions gated by <see cref="OrderStatus.CanTransitionTo"/>.</item>
 /// <item>I-2 items immutable after <c>StockReserved</c> — <b>future-guard</b>; v1 has no item-mutation commands, so the invariant is enforced by the absence of mutators.</item>
-/// <item>I-3..I-5 addresses, buyer, correlation id immutable after factory.</item>
+/// <item>I-3..I-5 addresses, buyer immutable after factory.</item>
 /// <item>I-6 <see cref="Total"/> = Σ <c>OrderItem.LineTotal</c>, single currency.</item>
 /// <item>I-7 at least one item at creation.</item>
 /// <item>I-8 all line items have positive quantity and unit price.</item>
@@ -45,7 +45,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
     private readonly List<OrderItem> _items = [];
 
     public Guid BuyerId { get; private set; }
-    public Guid CorrelationId { get; private set; }
     public Guid PaymentMethodId { get; private set; }
     public Guid? PaymentTransactionId { get; private set; }
     public Guid? StockReservationId { get; private set; }
@@ -90,7 +89,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
     /// </remarks>
     public static Order CreateFromBasket(
         Guid orderId,
-        Guid correlationId,
         Guid buyerId,
         BasketSnapshot basket,
         Address shippingAddress,
@@ -111,9 +109,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         Throw.If(orderId == Guid.Empty, new DataIntegrityException(
             "Order.OrderIdEmpty",
             "OrderId must not be empty."));
-        Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
-            "Order.CorrelationIdEmpty",
-            "CorrelationId must not be empty."));
         Throw.If(buyerId == Guid.Empty, new DataIntegrityException(
             "Order.BuyerIdEmpty",
             "BuyerId must not be empty."));
@@ -170,7 +165,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         {
             Id = orderId,
             BuyerId = buyerId,
-            CorrelationId = correlationId,
             PaymentMethodId = paymentMethodId,
             ShippingAddress = shippingAddress,
             BillingAddress = billingAddress,
@@ -184,7 +178,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         {
             OrderId = order.Id,
             BuyerId = order.BuyerId,
-            CorrelationId = order.CorrelationId,
             PaymentMethodId = order.PaymentMethodId,
             Items = items.Select(i => new OrderCreatedDomainEventItem(
                 i.ProductId,
@@ -221,7 +214,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new OrderStockReservedDomainEvent
         {
             OrderId = Id,
-            CorrelationId = CorrelationId,
             ReservationId = reservationId,
             OccurredOnUtc = utcNow,
         });
@@ -246,7 +238,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new OrderPaymentCompletedDomainEvent
         {
             OrderId = Id,
-            CorrelationId = CorrelationId,
             PaymentTransactionId = paymentTransactionId,
             OccurredOnUtc = utcNow,
         });
@@ -268,7 +259,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new OrderConfirmedDomainEvent
         {
             OrderId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             Items = _items.ToList(),
             Total = Total,
@@ -300,7 +290,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new OrderShippedDomainEvent
         {
             OrderId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             Carrier = shipmentResult.Value.Carrier,
             TrackingNumber = shipmentResult.Value.TrackingNumber,
@@ -363,7 +352,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new OrderCancelledDomainEvent
         {
             OrderId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             Reason = cancellationResult.Value.Reason,
             AtStatus = previousStatus.Name,
@@ -399,7 +387,6 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         AddDomainEvent(new OrderFailedDomainEvent
         {
             OrderId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             ErrorCode = failureResult.Value.ErrorCode,
             ErrorMessage = failureResult.Value.ErrorMessage,

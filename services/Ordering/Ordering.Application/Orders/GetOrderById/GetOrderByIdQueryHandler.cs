@@ -38,7 +38,6 @@ public sealed class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, 
             {
                 OrderId = o.Id,
                 BuyerId = o.BuyerId,
-                CorrelationId = o.CorrelationId,
                 PaymentMethodId = o.PaymentMethodId,
                 Status = o.Status.Name,
                 TotalAmount = o.Total.Amount,

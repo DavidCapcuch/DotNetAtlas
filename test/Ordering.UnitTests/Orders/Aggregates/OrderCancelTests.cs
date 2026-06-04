@@ -36,7 +36,6 @@ public class OrderCancelTests
             evt.Reason.Should().Be("buyer abandoned");
             evt.CancelledAtUtc.Should().Be(now);
             evt.BuyerId.Should().Be(order.BuyerId);
-            evt.CorrelationId.Should().Be(order.CorrelationId);
         }
     }
 
