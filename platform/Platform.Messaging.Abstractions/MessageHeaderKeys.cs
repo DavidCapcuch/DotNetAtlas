@@ -22,16 +22,12 @@ public static class MessageHeaderKeys
     public const string Origin = "origin";
 
     /// <summary>
-    /// Header key for the business-workflow correlation identifier.
-    /// Threads a single workflow (e.g., one checkout) across HTTP + Kafka + DB boundaries.
-    /// Value should be a UUID v7 string. Per ADR-0008, the ASP.NET edge generates this
-    /// when absent on inbound HTTP; outbox publishers copy the ambient value; Kafka producer
-    /// middleware auto-generates only when originating a new workflow.
+    /// Header key for the legacy business-workflow correlation identifier (ADR-0008), retired by
+    /// ADR-0030. Nothing produces this header any more — the HTTP/Kafka middleware, the outbox
+    /// header path, and the Serilog enricher were removed in Part B. The constant survives only
+    /// because the Ordering/Inventory/Invoicing saga-command consumers still read it via
+    /// <c>ExtractCorrelationId()</c> until their reads are retargeted onto the wire <c>OrderId</c>;
+    /// it is deleted with them. Cross-process correlation is now W3C <c>traceparent</c> (OpenTelemetry).
     /// </summary>
-    /// <remarks>
-    /// Distinct from <c>traceparent</c> (OpenTelemetry) — correlation.id is a
-    /// long-lived business identifier persisted to DB rows and event payloads;
-    /// <c>traceparent</c> is ephemeral to the tracing pipeline.
-    /// </remarks>
     public const string CorrelationId = "correlation.id";
 }

@@ -5,7 +5,6 @@ using Payments.Application.Common;
 using Payments.Infrastructure.Common;
 using Payments.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
-using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -42,8 +41,6 @@ try
     }
 
     app.UseStatusCodePages();
-
-    app.UseCorrelationId();
 
     app.UseRouting()
         .UseAuthentication()

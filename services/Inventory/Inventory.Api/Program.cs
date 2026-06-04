@@ -5,7 +5,6 @@ using Inventory.Infrastructure.Common;
 using Inventory.Infrastructure.Persistence.Database;
 using KafkaFlow;
 using Platform.ServiceDefaults;
-using Platform.ServiceDefaults.CorrelationId;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -53,8 +52,6 @@ try
     }
 
     app.UseStatusCodePages();
-
-    app.UseCorrelationId();
 
     app.UseRouting()
         .UseCors(InventoryCorsOptions.DefaultCorsPolicyName)

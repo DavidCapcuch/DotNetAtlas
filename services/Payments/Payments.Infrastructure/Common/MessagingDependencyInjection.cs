@@ -90,7 +90,6 @@ internal static class MessagingDependencyInjection
                     .AddMiddlewares(middlewares => middlewares
                         .AddSchemaRegistryAvroDeserializer()
                         // Middleware order -> outermost to innermost.
-                        .AddCorrelationIdConsumerMiddleware()
                         .AddDeadLetter()
                         // ADR-0025: one classified RetryForever governs all consumers — no
                         // money-handling exception. Retry iff the failure is transient/retryable

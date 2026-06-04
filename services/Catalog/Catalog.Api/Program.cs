@@ -4,7 +4,6 @@ using Catalog.Application.Common;
 using Catalog.Infrastructure.Common;
 using Catalog.Infrastructure.Persistence.Database;
 using Platform.ServiceDefaults;
-using Platform.ServiceDefaults.CorrelationId;
 using Platform.ServiceDefaults.FeatureFlags;
 using Serilog;
 
@@ -48,8 +47,6 @@ try
     }
 
     app.UseStatusCodePages();
-
-    app.UseCorrelationId();
 
     app.UseRouting()
         .UseCors(CatalogCorsOptions.DefaultCorsPolicyName)

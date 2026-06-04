@@ -2,6 +2,10 @@
     <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props,
          imported via this project's Directory.Build.props). -->
     <ItemGroup>
+        <!-- OTel SDK is needed only by OutboxMessageHeaderExtensionsTests to install a real
+             TraceContextPropagator (Sdk.SetDefaultTextMapPropagator) and assert traceparent is
+             injected onto outbox-row headers — the W3C propagation that ADR-0030 keeps. -->
+        <PackageReference Include="OpenTelemetry"/>
         <PackageReference Include="NSubstitute"/>
         <PackageReference Include="NSubstitute.Analyzers.CSharp">
             <PrivateAssets>all</PrivateAssets>
