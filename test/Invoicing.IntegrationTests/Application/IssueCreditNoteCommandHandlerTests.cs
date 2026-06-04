@@ -46,25 +46,20 @@ public sealed class IssueCreditNoteCommandHandlerTests
         // ADR-0015: snapshot wall-clock before the act so the BeCloseTo IssueDate
         // assertion + dynamic-year regex line up with what the handler observed.
         var nowSnapshot = DateTimeOffset.UtcNow;
-        // Single saga correlation id threads through Order → Invoice → cancellation → CreditNote.
-        // OrderCancelledEvent / PaymentRefundedEvent reuse the original Checkout saga correlation
-        // per events-catalog § 5.3, so Invoice.CorrelationId equals the cancellation flow's
-        // pending_credit_notes.CorrelationId. The InvoiceCancelledEvent reflects this — its
-        // CorrelationId comes from the loaded Invoice's CorrelationId, identical to the credit
-        // note's correlation.
-        var sagaCorrelationId = Guid.CreateVersion7();
+        // Post-ADR-0029 the OrderId threads Order → Invoice → cancellation → CreditNote;
+        // it is the convergence key on both pending projection tables.
         const decimal Total = 152.00m;
         const string Currency = "EUR";
 
         // Seed a real Invoice via the M7 handler so the credit-note path operates
         // against production-shape state.
         var invoiceId = await IssueInvoiceAsync(
-            sagaCorrelationId, orderId, paymentId, buyerId, Total, Currency, ct);
+            orderId, paymentId, buyerId, Total, Currency, ct);
 
         _fixture.ResetOutboxSubstitute();
 
         await SeedConvergedPendingCreditNoteAsync(
-            sagaCorrelationId, orderId, paymentId, buyerId,
+            orderId, paymentId, buyerId,
             refundedAmount: Total, currency: Currency, ct);
 
         await using var scope = _fixture.CreateScope();
@@ -72,7 +67,7 @@ public sealed class IssueCreditNoteCommandHandlerTests
             .GetRequiredService<ICommandHandler<IssueCreditNoteCommand, Guid>>();
 
         var result = await handler.HandleAsync(
-            new IssueCreditNoteCommand { CorrelationId = sagaCorrelationId }, ct);
+            new IssueCreditNoteCommand { OrderId = orderId }, ct);
 
         using var _ = new AssertionScope();
         result.IsSuccess.Should().BeTrue();
@@ -105,7 +100,7 @@ public sealed class IssueCreditNoteCommandHandlerTests
 
         // Projection row updated.
         var pending = await db.PendingCreditNotes.AsNoTracking()
-            .SingleAsync(r => r.CorrelationId == sagaCorrelationId, ct);
+            .SingleAsync(r => r.OrderId == orderId, ct);
         pending.IssuedCreditNoteId.Should().Be(creditNoteId);
 
         // Both Avro events fired on the same outbox topic, keyed by buyer.
@@ -133,30 +128,38 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
-        var firstCnCorrelationId = Guid.CreateVersion7();
-        var secondCnCorrelationId = Guid.CreateVersion7();
         const decimal Total = 99.00m;
         const string Currency = "EUR";
 
         // Issue the invoice and then cancel it via the first credit note.
         var invoiceId = await IssueInvoiceAsync(
-            Guid.CreateVersion7(), orderId, paymentId, buyerId, Total, Currency, ct);
+            orderId, paymentId, buyerId, Total, Currency, ct);
 
+        // Post-ADR-0029 the pending_credit_notes PK is OrderId, so there is exactly one
+        // pending row per order. The first credit note converges on it and cancels the invoice.
         await SeedConvergedPendingCreditNoteAsync(
-            firstCnCorrelationId, orderId, paymentId, buyerId, Total, Currency, ct);
+            orderId, paymentId, buyerId, Total, Currency, ct);
 
         await using (var firstScope = _fixture.CreateScope())
         {
             var handler = firstScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<IssueCreditNoteCommand, Guid>>();
             var first = await handler.HandleAsync(
-                new IssueCreditNoteCommand { CorrelationId = firstCnCorrelationId }, ct);
+                new IssueCreditNoteCommand { OrderId = orderId }, ct);
             first.IsSuccess.Should().BeTrue("first credit note succeeds and cancels the invoice");
         }
 
-        // Seed a second pending_credit_notes row pointing to the SAME invoice (now Cancelled).
-        await SeedConvergedPendingCreditNoteAsync(
-            secondCnCorrelationId, orderId, paymentId, buyerId, Total, Currency, ct);
+        // Clear the issued-marker on the SAME pending row to simulate a redelivery that
+        // re-runs issuance after the invoice is already Cancelled (the idempotency
+        // short-circuit would otherwise return the existing credit note). This drives the
+        // handler into the I-CN-1 cancelled-invoice rejection branch.
+        await using (var resetScope = _fixture.CreateScope())
+        {
+            var resetDb = resetScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            var pending = await resetDb.PendingCreditNotes.SingleAsync(r => r.OrderId == orderId, ct);
+            pending.IssuedCreditNoteId = null;
+            await resetDb.SaveChangesAsync(ct);
+        }
 
         _fixture.ResetOutboxSubstitute();
 
@@ -164,7 +167,7 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var handler2 = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueCreditNoteCommand, Guid>>();
         var second = await handler2.HandleAsync(
-            new IssueCreditNoteCommand { CorrelationId = secondCnCorrelationId }, ct);
+            new IssueCreditNoteCommand { OrderId = orderId }, ct);
 
         using var _ = new AssertionScope();
         second.IsFailed.Should().BeTrue("I-CN-1 — credit note against a cancelled invoice is rejected");
@@ -183,7 +186,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
     }
 
     private async Task<Guid> IssueInvoiceAsync(
-        Guid correlationId,
         Guid orderId,
         Guid paymentId,
         Guid buyerId,
@@ -192,19 +194,18 @@ public sealed class IssueCreditNoteCommandHandlerTests
         CancellationToken ct)
     {
         await SeedConvergedPendingInvoiceAsync(
-            correlationId, orderId, paymentId, buyerId, total, currency, ct);
+            orderId, paymentId, buyerId, total, currency, ct);
 
         await using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
         var result = await handler.HandleAsync(
-            new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+            new IssueInvoiceCommand { OrderId = orderId }, ct);
         result.IsSuccess.Should().BeTrue("invoice seed must succeed for the credit-note tests to be meaningful");
         return result.Value;
     }
 
     private async Task SeedConvergedPendingInvoiceAsync(
-        Guid correlationId,
         Guid orderId,
         Guid paymentId,
         Guid buyerId,
@@ -218,7 +219,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             ConfirmedAtUtc = IntegrationTestFixture.FixedFakeNow.UtcDateTime,
             Items = new[]
@@ -248,7 +248,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
 
         var paymentPayload = JsonSerializer.Serialize(new
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentId,
             AuthorizationId = "auth-test",
@@ -259,7 +258,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
 
         db.PendingInvoices.Add(new PendingInvoice
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             PaymentId = paymentId,
             BuyerId = buyerId,
@@ -274,7 +272,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
     }
 
     private async Task SeedConvergedPendingCreditNoteAsync(
-        Guid correlationId,
         Guid orderId,
         Guid paymentId,
         Guid buyerId,
@@ -288,7 +285,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             Reason = "BuyerCancelled",
             AtStatus = "Confirmed",
@@ -320,7 +316,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
 
         var paymentPayload = JsonSerializer.Serialize(new
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentId,
             RefundTransactionId = Guid.CreateVersion7(),
@@ -331,7 +326,6 @@ public sealed class IssueCreditNoteCommandHandlerTests
 
         db.PendingCreditNotes.Add(new PendingCreditNote
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             PaymentId = paymentId,
             BuyerId = buyerId,

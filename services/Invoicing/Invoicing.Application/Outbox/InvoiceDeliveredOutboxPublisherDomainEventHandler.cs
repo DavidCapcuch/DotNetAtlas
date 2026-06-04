@@ -44,10 +44,9 @@ public sealed class InvoiceDeliveredOutboxPublisherDomainEventHandler
             integrationEvent);
 
         _logger.LogInformation(
-            "Queued InvoiceDeliveredEvent to outbox. InvoiceId: {InvoiceId}, Channel: {Channel}, CorrelationId: {CorrelationId}",
+            "Queued InvoiceDeliveredEvent to outbox. InvoiceId: {InvoiceId}, Channel: {Channel}",
             domainEvent.InvoiceId,
-            domainEvent.Channel.Name,
-            domainEvent.CorrelationId);
+            domainEvent.Channel.Name);
 
         return Task.CompletedTask;
     }

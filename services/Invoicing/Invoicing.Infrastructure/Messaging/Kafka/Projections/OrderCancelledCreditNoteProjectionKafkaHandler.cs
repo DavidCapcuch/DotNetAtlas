@@ -13,7 +13,7 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <summary>
 /// Inbound consumer for Ordering's <c>OrderCancelledEvent</c> on
 /// <c>ordering.orders</c>. Upserts a <see cref="PendingCreditNote"/> row
-/// keyed on <c>CorrelationId</c>, populating the order-cancel half. When
+/// keyed on <c>OrderId</c>, populating the order-cancel half. When
 /// the refund half is already present, marks the row converged AND dispatches
 /// <see cref="IssueCreditNoteCommand"/> in the same inbox transaction.
 /// </summary>
@@ -47,34 +47,28 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        // ADR-0008 — Kafka header is the authoritative CorrelationId source. Avro payload
-        // field is convenience metadata only.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
+        // ADR-0029/0030 — OrderId is the cross-BC convergence key; both halves carry it.
+        var orderId = message.OrderId;
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
-        var orderJson = SerializePayload(message, correlationId);
+        var orderJson = SerializePayload(message);
 
         // ADR-0008 — log/trace correlation flows from the Kafka header via
-        // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
-        // "CorrelationId" into this BeginScope; the inner-most scope would
-        // shadow the middleware-pushed (header-authoritative) value.
+        // Serilog LogContext. Do not push "CorrelationId" into this BeginScope;
+        // the inner-most scope would shadow the header-authoritative value.
         using var localScope = _logger.BeginScope(new Dictionary<string, object?>
         {
-            ["OrderId"] = message.OrderId,
+            ["OrderId"] = orderId,
             ["BuyerId"] = message.BuyerId,
             ["AtStatus"] = message.AtStatus.ToString(),
         });
 
         var (row, isNew) = await PendingProjectionUpsertHelper.GetOrAddAsync(
             _db.PendingCreditNotes,
-            correlationId,
+            orderId,
             () => new PendingCreditNote
             {
-                CorrelationId = correlationId,
-                OrderId = message.OrderId,
+                OrderId = orderId,
                 BuyerId = message.BuyerId,
                 OrderPayload = orderJson,
                 FirstSeenAtUtc = now,
@@ -84,15 +78,14 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
         var convergedNow = false;
         if (!isNew)
         {
-            if (row.OrderId is not null)
+            if (row.OrderPayload is not null)
             {
                 _logger.LogInformation(
-                    "OrderCancelledEvent already projected for CorrelationId {CorrelationId}; no-op.",
-                    correlationId);
+                    "OrderCancelledEvent already projected for OrderId {OrderId}; no-op.",
+                    orderId);
                 return;
             }
 
-            row.OrderId = message.OrderId;
             row.BuyerId = message.BuyerId;
             row.OrderPayload = orderJson;
 
@@ -117,19 +110,19 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
             // Result.Fail and are logged; the inbox row still commits so we don't loop.
             // Bug-class failures throw and roll back the whole transaction.
             var result = await _issueCreditNoteHandler.HandleAsync(
-                new IssueCreditNoteCommand { CorrelationId = correlationId },
+                new IssueCreditNoteCommand { OrderId = orderId },
                 ct);
             if (result.IsFailed)
             {
                 _logger.LogWarning(
-                    "IssueCreditNoteCommand returned Result.Fail after convergence on CorrelationId {CorrelationId}: {Errors}",
-                    correlationId,
+                    "IssueCreditNoteCommand returned Result.Fail after convergence on OrderId {OrderId}: {Errors}",
+                    orderId,
                     string.Join("; ", result.Errors.Select(e => e.Message)));
             }
         }
     }
 
-    private static string SerializePayload(AvroOrderCancelledEvent message, Guid correlationId)
+    private static string SerializePayload(AvroOrderCancelledEvent message)
     {
         // See OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload for the rationale
         // on the hand-rolled DTO. The AtStatus enum is explicitly stringified for jsonb readability.
@@ -141,7 +134,6 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
         return JsonSerializer.Serialize(new
         {
             message.OrderId,
-            CorrelationId = correlationId,
             message.BuyerId,
             message.Reason,
             AtStatus = message.AtStatus.ToString(),

@@ -48,7 +48,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
 
         creditNote.Total.Amount.Should().Be(-originalTotal);
@@ -64,7 +63,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
 
         var creditLine = creditNote.Lines[0];
@@ -80,7 +78,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
 
         var number = CreditNoteNumber.Create(2026, 8).Value;
@@ -101,7 +98,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
 
         creditNote.Issue(CreditNoteNumber.Create(2026, 8).Value, MakePdf(), TestDataFactory.FixedUtcNow);
@@ -120,7 +116,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
 
         creditNote.PopDomainEvents().OfType<CreditNoteCreatedDomainEvent>().Should().ContainSingle();
@@ -133,7 +128,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
         creditNote.PopDomainEvents(); // discard created event
 
@@ -149,7 +143,6 @@ public class CreditNoteInvariantsTests
         var creditNote = CreditNote.Create(
             invoice.ToReversalSnapshot(TestDataFactory.FixedUtcNow),
             CreditNoteReason.OrderCancelled,
-            Guid.CreateVersion7(),
             TestDataFactory.FixedUtcNow).Value;
         creditNote.Issue(CreditNoteNumber.Create(2026, 1).Value, MakePdf(), TestDataFactory.FixedUtcNow);
 

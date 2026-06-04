@@ -81,38 +81,38 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
         ArgumentNullException.ThrowIfNull(command);
 
         var pending = await _db.PendingCreditNotes
-            .FirstOrDefaultAsync(r => r.CorrelationId == command.CorrelationId, ct)
+            .FirstOrDefaultAsync(r => r.OrderId == command.OrderId, ct)
             ?? throw new DataIntegrityException(
                 "Invoicing.PendingCreditNoteMissing",
-                $"No pending_credit_notes row for CorrelationId '{command.CorrelationId}'.");
+                $"No pending_credit_notes row for OrderId '{command.OrderId}'.");
 
         if (pending.IssuedCreditNoteId is { } already)
         {
             _logger.LogInformation(
-                "IssueCreditNoteCommand replayed for CorrelationId {CorrelationId}; credit note {CreditNoteId} already issued.",
-                command.CorrelationId,
+                "IssueCreditNoteCommand replayed for OrderId {OrderId}; credit note {CreditNoteId} already issued.",
+                command.OrderId,
                 already);
             return Result.Ok(already);
         }
 
         if (pending.OrderPayload is null || pending.PaymentPayload is null
-            || pending.OrderId is null || pending.CompletedAtUtc is null)
+            || pending.CompletedAtUtc is null)
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingCreditNoteNotConverged",
-                $"pending_credit_notes row {command.CorrelationId} is not converged.");
+                $"pending_credit_notes row {command.OrderId} is not converged.");
         }
 
-        var orderPayload = DeserializeOrderPayload(pending.OrderPayload, command.CorrelationId);
-        var paymentPayload = DeserializePaymentPayload(pending.PaymentPayload, command.CorrelationId);
+        var orderPayload = DeserializeOrderPayload(pending.OrderPayload, command.OrderId);
+        var paymentPayload = DeserializePaymentPayload(pending.PaymentPayload, command.OrderId);
 
         // Find the prior Invoice for this OrderId. Per design § 7.1 the credit-note path
         // requires an Issued/Delivered invoice — absence is bug-class (DLT'd).
         var originalInvoice = await _db.Invoices
-            .FirstOrDefaultAsync(i => i.OrderId == pending.OrderId.Value, ct)
+            .FirstOrDefaultAsync(i => i.OrderId == pending.OrderId, ct)
             ?? throw new DataIntegrityException(
                 "Invoicing.OriginalInvoiceMissing",
-                $"No invoice found for OrderId '{pending.OrderId.Value}' (CorrelationId {command.CorrelationId}).");
+                $"No invoice found for OrderId '{pending.OrderId}'.");
 
         if (originalInvoice.Status == InvoiceStatus.Cancelled)
         {
@@ -155,7 +155,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
         var creditNoteNumber = await _numberAllocator.AllocateAsync(ct);
 
         var snapshot = originalInvoice.ToReversalSnapshot(utcNow);
-        var createResult = CreditNote.Create(snapshot, reason, command.CorrelationId, utcNow);
+        var createResult = CreditNote.Create(snapshot, reason, utcNow);
         if (createResult.IsFailed)
         {
             // Bug-class — Create's failure paths are all post-validation contract checks.
@@ -190,7 +190,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
 
         // Cancel the original invoice — emits InvoiceCancelledDomainEvent which fans out to
         // InvoiceCancelledEvent on the outbox alongside CreditNoteIssuedEvent. Both events
-        // carry the same CorrelationId so downstream consumers can correlate them.
+        // carry the same OrderId so downstream consumers can correlate them.
         var cancelResult = originalInvoice.Cancel(creditNote.Id, reason, utcNow);
         if (cancelResult.IsFailed)
         {
@@ -210,35 +210,35 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
         }
 
         _logger.LogInformation(
-            "Issued credit note {CreditNoteNumber} ({CreditNoteId}) reversing invoice {OriginalInvoiceId} for CorrelationId {CorrelationId}; total={Total} {Currency}.",
+            "Issued credit note {CreditNoteNumber} ({CreditNoteId}) reversing invoice {OriginalInvoiceId} for OrderId {OrderId}; total={Total} {Currency}.",
             creditNoteNumber.Value,
             creditNote.Id,
             originalInvoice.Id,
-            command.CorrelationId,
+            command.OrderId,
             creditNote.Total.Amount.ToString(CultureInfo.InvariantCulture),
             creditNote.Total.Currency.Name);
 
         return Result.Ok(creditNote.Id);
     }
 
-    private static OrderPayload DeserializeOrderPayload(string json, Guid correlationId)
+    private static OrderPayload DeserializeOrderPayload(string json, Guid orderId)
     {
         try
         {
             return JsonSerializer.Deserialize<OrderPayload>(json, JsonOptions.Default)
                 ?? throw new DataIntegrityException(
                     "Invoicing.PendingCreditNoteEmptyOrderPayload",
-                    $"OrderCancelledEvent payload for {correlationId} was empty.");
+                    $"OrderCancelledEvent payload for {orderId} was empty.");
         }
         catch (JsonException ex)
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingCreditNoteCorruptOrderPayload",
-                $"OrderCancelledEvent payload for {correlationId} is not valid JSON: {ex.Message}");
+                $"OrderCancelledEvent payload for {orderId} is not valid JSON: {ex.Message}");
         }
     }
 
-    private static PaymentPayload DeserializePaymentPayload(string json, Guid correlationId)
+    private static PaymentPayload DeserializePaymentPayload(string json, Guid orderId)
     {
         try
         {
@@ -247,7 +247,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
             {
                 throw new DataIntegrityException(
                     "Invoicing.PendingCreditNotePaymentPayloadIncomplete",
-                    $"PaymentRefundedEvent payload for {correlationId} is incomplete.");
+                    $"PaymentRefundedEvent payload for {orderId} is incomplete.");
             }
 
             return payload;
@@ -256,7 +256,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingCreditNoteCorruptPaymentPayload",
-                $"PaymentRefundedEvent payload for {correlationId} is not valid JSON: {ex.Message}");
+                $"PaymentRefundedEvent payload for {orderId} is not valid JSON: {ex.Message}");
         }
     }
 
@@ -272,8 +272,6 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
     {
         public required Guid OrderId { get; init; }
 
-        public required Guid CorrelationId { get; init; }
-
         public required Guid BuyerId { get; init; }
 
         public string? Reason { get; init; }
@@ -287,8 +285,6 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
     /// </remarks>
     private sealed record PaymentPayload
     {
-        public required Guid CorrelationId { get; init; }
-
         public Guid? UserId { get; init; }
 
         public required Guid PaymentTransactionId { get; init; }

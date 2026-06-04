@@ -44,7 +44,6 @@ public sealed class IssueInvoiceCommandHandlerTests
     public async Task Example_1_1_HappyPath_IssuesInvoice_AdvancesAllocator_AndEnqueuesOutbox()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
@@ -55,14 +54,14 @@ public sealed class IssueInvoiceCommandHandlerTests
         var nowSnapshot = DateTimeOffset.UtcNow;
 
         await SeedConvergedPendingInvoiceAsync(
-            correlationId, orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
+            orderId, paymentId, buyerId, totalAmount: 152.00m, currency: "EUR", ct);
 
         await using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
 
         var result = await handler.HandleAsync(
-            new IssueInvoiceCommand { CorrelationId = correlationId },
+            new IssueInvoiceCommand { OrderId = orderId },
             ct);
 
         using var _ = new AssertionScope();
@@ -84,7 +83,6 @@ public sealed class IssueInvoiceCommandHandlerTests
         invoice.OrderId.Should().Be(orderId);
         invoice.PaymentId.Should().Be(paymentId);
         invoice.BuyerId.Should().Be(buyerId);
-        invoice.CorrelationId.Should().Be(correlationId);
         invoice.Total.Amount.Should().Be(152.00m);
         invoice.Total.Currency.Name.Should().Be("EUR");
         invoice.Lines.Should().HaveCount(1);
@@ -94,7 +92,7 @@ public sealed class IssueInvoiceCommandHandlerTests
 
         // Projection row updated with the issued invoice id.
         var pending = await db.PendingInvoices.AsNoTracking()
-            .SingleAsync(r => r.CorrelationId == correlationId, ct);
+            .SingleAsync(r => r.OrderId == orderId, ct);
         pending.IssuedInvoiceId.Should().Be(invoiceId);
 
         // Allocator advanced by exactly one for the current fiscal year.
@@ -139,7 +137,6 @@ public sealed class IssueInvoiceCommandHandlerTests
     public async Task Example_1_3_AlreadyIssued_ShortCircuits_NoDuplicateInvoice()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
@@ -148,14 +145,14 @@ public sealed class IssueInvoiceCommandHandlerTests
         var fiscalYear = DateTimeOffset.UtcNow.Year;
 
         await SeedConvergedPendingInvoiceAsync(
-            correlationId, orderId, paymentId, buyerId, totalAmount: 99.00m, currency: "EUR", ct);
+            orderId, paymentId, buyerId, totalAmount: 99.00m, currency: "EUR", ct);
 
         await using (var firstScope = _fixture.CreateScope())
         {
             var handler = firstScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
             var first = await handler.HandleAsync(
-                new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+                new IssueInvoiceCommand { OrderId = orderId }, ct);
             first.IsSuccess.Should().BeTrue();
         }
 
@@ -168,7 +165,7 @@ public sealed class IssueInvoiceCommandHandlerTests
             allocatorBeforeReplay = (await db.InvoiceNumberAllocators.AsNoTracking()
                 .SingleAsync(a => a.Year == fiscalYear, ct)).NextValue;
             invoiceIdBefore = (await db.PendingInvoices.AsNoTracking()
-                .SingleAsync(r => r.CorrelationId == correlationId, ct)).IssuedInvoiceId!.Value;
+                .SingleAsync(r => r.OrderId == orderId, ct)).IssuedInvoiceId!.Value;
         }
 
         _fixture.ResetOutboxSubstitute();
@@ -179,7 +176,7 @@ public sealed class IssueInvoiceCommandHandlerTests
             var handler = replayScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
             var replay = await handler.HandleAsync(
-                new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+                new IssueInvoiceCommand { OrderId = orderId }, ct);
 
             using var _ = new AssertionScope();
             replay.IsSuccess.Should().BeTrue();
@@ -191,7 +188,7 @@ public sealed class IssueInvoiceCommandHandlerTests
             var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var invoiceCount = await db.Invoices
                 .AsNoTracking()
-                .Where(i => i.CorrelationId == correlationId)
+                .Where(i => i.OrderId == orderId)
                 .CountAsync(ct);
             invoiceCount.Should().Be(1, "no duplicate invoice on replay");
 
@@ -215,13 +212,12 @@ public sealed class IssueInvoiceCommandHandlerTests
         // on nested-begin or commit prematurely (so a rollback by the outer caller would not
         // undo the issuance).
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
 
         await SeedConvergedPendingInvoiceAsync(
-            correlationId, orderId, paymentId, buyerId, totalAmount: 99.00m, currency: "EUR", ct);
+            orderId, paymentId, buyerId, totalAmount: 99.00m, currency: "EUR", ct);
 
         Guid invoiceId;
         await using (var scope = _fixture.CreateScope())
@@ -234,7 +230,7 @@ public sealed class IssueInvoiceCommandHandlerTests
             await using var outer = await db.Database.BeginTransactionAsync(ct);
 
             var result = await handler.HandleAsync(
-                new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+                new IssueInvoiceCommand { OrderId = orderId }, ct);
 
             using (new AssertionScope())
             {
@@ -266,14 +262,13 @@ public sealed class IssueInvoiceCommandHandlerTests
     public async Task Example_1_4_TotalMismatch_ThrowsInvoiceTotalMismatchException_NoInvoiceIssued()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
 
         // Seed the projection row with mismatched amounts: order = €152, payment = €150.
         await SeedConvergedPendingInvoiceAsync(
-            correlationId, orderId, paymentId, buyerId,
+            orderId, paymentId, buyerId,
             totalAmount: 152.00m, currency: "EUR", ct, paymentAmountOverride: 150.00m);
 
         await using var scope = _fixture.CreateScope();
@@ -281,31 +276,30 @@ public sealed class IssueInvoiceCommandHandlerTests
             .GetRequiredService<ICommandHandler<IssueInvoiceCommand, Guid>>();
 
         var act = async () => await handler.HandleAsync(
-            new IssueInvoiceCommand { CorrelationId = correlationId }, ct);
+            new IssueInvoiceCommand { OrderId = orderId }, ct);
 
         using var _ = new AssertionScope();
         var thrown = await act.Should().ThrowAsync<InvoiceTotalMismatchException>();
         thrown.Which.OrderTotal.Should().Be(152.00m);
         thrown.Which.PaymentAmount.Should().Be(150.00m);
-        thrown.Which.CorrelationId.Should().Be(correlationId);
+        thrown.Which.OrderId.Should().Be(orderId);
         thrown.Which.ErrorCode.Should().Be("Invoicing.TotalMismatch");
 
         await using var assertScope = _fixture.CreateScope();
         var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
         var invoiceCount = await db.Invoices.AsNoTracking()
-            .Where(i => i.CorrelationId == correlationId)
+            .Where(i => i.OrderId == orderId)
             .CountAsync(ct);
         invoiceCount.Should().Be(0, "mismatch must NOT issue an invoice");
 
         var pending = await db.PendingInvoices.AsNoTracking()
-            .SingleAsync(r => r.CorrelationId == correlationId, ct);
+            .SingleAsync(r => r.OrderId == orderId, ct);
         pending.IssuedInvoiceId.Should().BeNull("projection row stays unissued on mismatch");
 
         _fixture.OutboxSubstitute.DidNotReceiveWithAnyArgs().AddOutboxMessage(default!, default, default!);
     }
 
     private async Task SeedConvergedPendingInvoiceAsync(
-        Guid correlationId,
         Guid orderId,
         Guid paymentId,
         Guid buyerId,
@@ -321,7 +315,6 @@ public sealed class IssueInvoiceCommandHandlerTests
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             ConfirmedAtUtc = IntegrationTestFixture.FixedFakeNow.UtcDateTime,
             Items = new[]
@@ -351,7 +344,6 @@ public sealed class IssueInvoiceCommandHandlerTests
 
         var paymentPayload = JsonSerializer.Serialize(new
         {
-            CorrelationId = correlationId,
             UserId = buyerId,
             PaymentTransactionId = paymentId,
             AuthorizationId = "auth-test",
@@ -362,7 +354,6 @@ public sealed class IssueInvoiceCommandHandlerTests
 
         db.PendingInvoices.Add(new PendingInvoice
         {
-            CorrelationId = correlationId,
             OrderId = orderId,
             PaymentId = paymentId,
             BuyerId = buyerId,

@@ -19,6 +19,4 @@ public sealed record InvoiceCancelledDomainEvent : DomainEvent
     public required CreditNoteReason Reason { get; init; }
 
     public required Guid CreditNoteId { get; init; }
-
-    public required Guid CorrelationId { get; init; }
 }

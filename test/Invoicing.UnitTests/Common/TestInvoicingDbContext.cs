@@ -89,8 +89,8 @@ public sealed class TestInvoicingDbContext : DbContext, IInvoicingDbContext
 
         modelBuilder.Entity<InvoiceNumberAllocator>(b => b.HasKey(a => a.Year));
         modelBuilder.Entity<CreditNoteNumberAllocator>(b => b.HasKey(a => a.Year));
-        modelBuilder.Entity<PendingInvoice>(b => b.HasKey(p => p.CorrelationId));
-        modelBuilder.Entity<PendingCreditNote>(b => b.HasKey(p => p.CorrelationId));
+        modelBuilder.Entity<PendingInvoice>(b => b.HasKey(p => p.OrderId));
+        modelBuilder.Entity<PendingCreditNote>(b => b.HasKey(p => p.OrderId));
         modelBuilder.Entity<OutboxMessage>(b => b.HasKey(m => m.Id));
     }
 }

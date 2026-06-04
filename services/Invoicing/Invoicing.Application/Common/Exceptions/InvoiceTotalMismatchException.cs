@@ -4,7 +4,7 @@ namespace Invoicing.Application.Common.Exceptions;
 
 /// <summary>
 /// Bug-class exception — surfaces through the DLT pipeline when the order total
-/// and the captured payment amount disagree for the same <see cref="CorrelationId"/>
+/// and the captured payment amount disagree for the same <see cref="OrderId"/>
 /// (example-mapping 1.4). Thrown by <c>IssueInvoiceCommandHandler</c> after the
 /// converged-projection precondition check.
 /// </summary>
@@ -25,14 +25,14 @@ namespace Invoicing.Application.Common.Exceptions;
 public sealed class InvoiceTotalMismatchException(
     decimal orderTotal,
     decimal paymentAmount,
-    Guid correlationId)
+    Guid orderId)
     : DataIntegrityException(
         "Invoicing.TotalMismatch",
-        $"Total mismatch on correlation {correlationId}: order total {orderTotal}, payment amount {paymentAmount}.")
+        $"Total mismatch on order {orderId}: order total {orderTotal}, payment amount {paymentAmount}.")
 {
     public decimal OrderTotal { get; } = orderTotal;
 
     public decimal PaymentAmount { get; } = paymentAmount;
 
-    public Guid CorrelationId { get; } = correlationId;
+    public Guid OrderId { get; } = orderId;
 }

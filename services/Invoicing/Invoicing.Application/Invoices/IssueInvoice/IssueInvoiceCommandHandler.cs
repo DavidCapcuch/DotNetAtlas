@@ -37,8 +37,8 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 /// </para>
 /// <para>
 /// Idempotency: short-circuits when <c>PendingInvoice.IssuedInvoiceId</c> is already set
-/// for this <see cref="IssueInvoiceCommand.CorrelationId"/>. The unique index on
-/// <c>invoices.correlation_id</c> is defence-in-depth — a successful insert past the
+/// for this <see cref="IssueInvoiceCommand.OrderId"/>. The unique index on
+/// <c>invoices.order_id</c> is defence-in-depth — a successful insert past the
 /// short-circuit would still trip the DB constraint if two consumers raced past
 /// the projection-row check.
 /// </para>
@@ -104,31 +104,31 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
 
         // Bug-class — the consumer raised this command, so the row must exist.
         var pending = await _db.PendingInvoices
-            .FirstOrDefaultAsync(r => r.CorrelationId == command.CorrelationId, ct)
+            .FirstOrDefaultAsync(r => r.OrderId == command.OrderId, ct)
             ?? throw new DataIntegrityException(
                 "Invoicing.PendingInvoiceMissing",
-                $"No pending_invoices row for CorrelationId '{command.CorrelationId}'.");
+                $"No pending_invoices row for OrderId '{command.OrderId}'.");
 
         if (pending.IssuedInvoiceId is { } already)
         {
             _logger.LogInformation(
-                "IssueInvoiceCommand replayed for CorrelationId {CorrelationId}; invoice {InvoiceId} already issued.",
-                command.CorrelationId,
+                "IssueInvoiceCommand replayed for OrderId {OrderId}; invoice {InvoiceId} already issued.",
+                command.OrderId,
                 already);
             return Result.Ok(already);
         }
 
         if (pending.OrderPayload is null || pending.PaymentPayload is null
-            || pending.OrderId is null || pending.PaymentId is null
+            || pending.PaymentId is null
             || pending.CompletedAtUtc is null)
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingInvoiceNotConverged",
-                $"pending_invoices row {command.CorrelationId} is not converged (Order/Payment payload missing).");
+                $"pending_invoices row {command.OrderId} is not converged (Order/Payment payload missing).");
         }
 
-        var orderPayload = DeserializeOrderPayload(pending.OrderPayload, command.CorrelationId);
-        var paymentPayload = DeserializePaymentPayload(pending.PaymentPayload, command.CorrelationId);
+        var orderPayload = DeserializeOrderPayload(pending.OrderPayload, command.OrderId);
+        var paymentPayload = DeserializePaymentPayload(pending.PaymentPayload, command.OrderId);
 
         // Cross-aggregate consistency (example-mapping 1.4): Order.Total == Payment.Amount.
         // TotalAmount is decimal? in the JSON shape because the underlying Avro field is a
@@ -138,14 +138,14 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         if (orderTotal != paymentPayload.Amount
             || !string.Equals(orderPayload.Currency, paymentPayload.Currency, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvoiceTotalMismatchException(orderTotal, paymentPayload.Amount, command.CorrelationId);
+            throw new InvoiceTotalMismatchException(orderTotal, paymentPayload.Amount, command.OrderId);
         }
 
         if (pending.BuyerId is null)
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingInvoiceMissingBuyer",
-                $"pending_invoices row {command.CorrelationId} has no BuyerId despite both halves present.");
+                $"pending_invoices row {command.OrderId} has no BuyerId despite both halves present.");
         }
 
         var billingAddress = ToAddress(orderPayload.BillingAddress!);
@@ -168,9 +168,8 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         var utcNow = _timeProvider.GetUtcNow();
         var createResult = Invoice.Create(
             buyerId: pending.BuyerId.Value,
-            orderId: pending.OrderId.Value,
+            orderId: pending.OrderId,
             paymentId: pending.PaymentId.Value,
-            correlationId: command.CorrelationId,
             billingAddress: billingAddress,
             lines: lines,
             vatLines: [],
@@ -239,10 +238,10 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         }
 
         _logger.LogInformation(
-            "Issued invoice {InvoiceNumber} ({InvoiceId}) for CorrelationId {CorrelationId}; total={Total} {Currency}.",
+            "Issued invoice {InvoiceNumber} ({InvoiceId}) for OrderId {OrderId}; total={Total} {Currency}.",
             invoiceNumber.Value,
             invoice.Id,
-            command.CorrelationId,
+            command.OrderId,
             invoice.Total.Amount.ToString(CultureInfo.InvariantCulture),
             invoice.Total.Currency.Name);
 
@@ -328,7 +327,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         return currency;
     }
 
-    private static OrderPayload DeserializeOrderPayload(string json, Guid correlationId)
+    private static OrderPayload DeserializeOrderPayload(string json, Guid orderId)
     {
         try
         {
@@ -341,7 +340,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
             {
                 throw new DataIntegrityException(
                     "Invoicing.PendingInvoiceMissingSummary",
-                    $"OrderConfirmedEvent payload for {correlationId} is missing required summary fields (Items / TotalAmount / Currency / BillingAddress).");
+                    $"OrderConfirmedEvent payload for {orderId} is missing required summary fields (Items / TotalAmount / Currency / BillingAddress).");
             }
 
             return payload;
@@ -350,11 +349,11 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingInvoiceCorruptOrderPayload",
-                $"OrderConfirmedEvent payload for {correlationId} is not valid JSON: {ex.Message}");
+                $"OrderConfirmedEvent payload for {orderId} is not valid JSON: {ex.Message}");
         }
     }
 
-    private static PaymentPayload DeserializePaymentPayload(string json, Guid correlationId)
+    private static PaymentPayload DeserializePaymentPayload(string json, Guid orderId)
     {
         try
         {
@@ -363,7 +362,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
             {
                 throw new DataIntegrityException(
                     "Invoicing.PendingInvoicePaymentPayloadIncomplete",
-                    $"PaymentCapturedEvent payload for {correlationId} is incomplete.");
+                    $"PaymentCapturedEvent payload for {orderId} is incomplete.");
             }
 
             return payload;
@@ -372,7 +371,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         {
             throw new DataIntegrityException(
                 "Invoicing.PendingInvoiceCorruptPaymentPayload",
-                $"PaymentCapturedEvent payload for {correlationId} is not valid JSON: {ex.Message}");
+                $"PaymentCapturedEvent payload for {orderId} is not valid JSON: {ex.Message}");
         }
     }
 
@@ -391,8 +390,6 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
     private sealed record OrderPayload
     {
         public required Guid OrderId { get; init; }
-
-        public required Guid CorrelationId { get; init; }
 
         public required Guid BuyerId { get; init; }
 
@@ -440,8 +437,6 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
     /// <summary>Mirrors the JSON shape emitted by <c>PaymentCapturedInvoiceProjectionKafkaHandler.SerializePayload</c>.</summary>
     private sealed record PaymentPayload
     {
-        public required Guid CorrelationId { get; init; }
-
         public required Guid UserId { get; init; }
 
         public required Guid PaymentTransactionId { get; init; }

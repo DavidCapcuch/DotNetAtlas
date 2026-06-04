@@ -6,7 +6,7 @@ namespace Invoicing.Infrastructure.Persistence.Database.EntityConfigurations;
 
 /// <summary>
 /// EF mapping for <see cref="PendingInvoice"/> per <c>docs/bc-design/invoicing.md § 8.1</c>.
-/// PK on <c>correlation_id</c> keeps consumer upserts atomic on a single row.
+/// PK on <c>order_id</c> keeps consumer upserts atomic on a single row.
 /// jsonb columns hold raw Avro→JSON envelopes for the issuance command handler to rehydrate.
 /// </summary>
 internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<PendingInvoice>
@@ -15,17 +15,14 @@ internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<Pen
     {
         builder.ToTable("pending_invoices", t => t.HasComment(
             "Async-enrichment buffer: collects OrderConfirmedEvent + PaymentCapturedEvent "
-            + "halves keyed on CorrelationId until IssueInvoiceCommandHandler converts "
+            + "halves keyed on OrderId until IssueInvoiceCommandHandler converts "
             + "the converged row into an Invoice aggregate."));
 
-        builder.HasKey(r => r.CorrelationId);
-
-        builder.Property(r => r.CorrelationId)
-            .ValueGeneratedNever()
-            .HasComment("Saga / cross-BC correlation id. Primary key.");
+        builder.HasKey(r => r.OrderId);
 
         builder.Property(r => r.OrderId)
-            .HasComment("OrderConfirmedEvent.OrderId; null until the order half arrives.");
+            .ValueGeneratedNever()
+            .HasComment("OrderConfirmedEvent.OrderId; the cross-BC convergence key. Primary key.");
 
         builder.Property(r => r.PaymentId)
             .HasComment("PaymentCapturedEvent.PaymentTransactionId; null until the payment half arrives.");
@@ -54,9 +51,5 @@ internal sealed class PendingInvoiceConfiguration : IEntityTypeConfiguration<Pen
         // Scan for ready-but-unissued rows uses this index.
         builder.HasIndex(r => new { r.CompletedAtUtc, r.IssuedInvoiceId })
             .HasDatabaseName("ix_pending_invoices_ready");
-
-        // GET /invoices/by-order/{orderId} short-path may key by OrderId before the aggregate is queryable.
-        builder.HasIndex(r => r.OrderId)
-            .HasDatabaseName("ix_pending_invoices_order_id");
     }
 }

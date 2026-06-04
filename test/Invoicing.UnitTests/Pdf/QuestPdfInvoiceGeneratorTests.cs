@@ -127,7 +127,6 @@ public sealed class QuestPdfInvoiceGeneratorTests
             buyerId: new Guid("00000000-0000-0000-0000-000000000001"),
             orderId: new Guid("00000000-0000-0000-0000-000000000002"),
             paymentId: new Guid("00000000-0000-0000-0000-000000000003"),
-            correlationId: new Guid("00000000-0000-0000-0000-000000000004"),
             billingAddress: address,
             lines: [line],
             vatLines: [vatLine],
@@ -149,7 +148,6 @@ public sealed class QuestPdfInvoiceGeneratorTests
         var creditNote = CreditNote.Create(
             originalInvoice.ToReversalSnapshot(utcNow),
             CreditNoteReason.OrderCancelled,
-            correlationId: new Guid("00000000-0000-0000-0000-000000000005"),
             utcNow: utcNow).Value;
 
         var number = CreditNoteNumber.Create(year: 2026, sequence: 8).Value;

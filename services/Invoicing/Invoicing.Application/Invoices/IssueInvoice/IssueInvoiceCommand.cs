@@ -5,9 +5,9 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 /// <summary>
 /// Internal command issued by the enrichment-projection consumers when both halves
 /// (<c>OrderConfirmedEvent</c> + <c>PaymentCapturedEvent</c>) for a given
-/// <see cref="CorrelationId"/> have been observed and the row in <c>pending_invoices</c>
+/// <see cref="OrderId"/> have been observed and the row in <c>pending_invoices</c>
 /// has just transitioned to <c>CompletedAtUtc</c>. Idempotent on
-/// <see cref="CorrelationId"/>: if the projection row already carries a non-null
+/// <see cref="OrderId"/>: if the projection row already carries a non-null
 /// <c>IssuedInvoiceId</c>, the handler short-circuits.
 /// </summary>
 /// <remarks>
@@ -19,8 +19,8 @@ namespace Invoicing.Application.Invoices.IssueInvoice;
 public sealed record IssueInvoiceCommand : ICommand<Guid>
 {
     /// <summary>
-    /// Saga / cross-BC correlation id; primary key into <c>pending_invoices</c> and
-    /// idempotency key for this command.
+    /// Order id; primary key into <c>pending_invoices</c> and idempotency key for this
+    /// command. Post-ADR-0029 it is also the cross-BC convergence key.
     /// </summary>
-    public required Guid CorrelationId { get; init; }
+    public required Guid OrderId { get; init; }
 }

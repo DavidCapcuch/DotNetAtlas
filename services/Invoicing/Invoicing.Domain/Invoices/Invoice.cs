@@ -40,8 +40,6 @@ public sealed class Invoice : AggregateRoot<Guid>
 
     public Guid PaymentId { get; private set; }
 
-    public Guid CorrelationId { get; private set; }
-
     public DateTimeOffset IssueDate { get; private set; }
 
     public Address BillingAddress { get; private set; } = default!;
@@ -83,7 +81,6 @@ public sealed class Invoice : AggregateRoot<Guid>
         Guid buyerId,
         Guid orderId,
         Guid paymentId,
-        Guid correlationId,
         Address billingAddress,
         IReadOnlyList<InvoiceLine> lines,
         IReadOnlyList<VatLine> vatLines,
@@ -101,8 +98,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             "Invoicing.InvalidOrderId", "Invoice OrderId must not be empty."));
         Throw.If(paymentId == Guid.Empty, new DataIntegrityException(
             "Invoicing.InvalidPaymentId", "Invoice PaymentId must not be empty."));
-        Throw.If(correlationId == Guid.Empty, new DataIntegrityException(
-            "Invoicing.InvalidCorrelationId", "Invoice CorrelationId must not be empty."));
 
         // I-2: Lines non-empty.
         if (lines.Count == 0)
@@ -141,7 +136,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             BuyerId = buyerId,
             OrderId = orderId,
             PaymentId = paymentId,
-            CorrelationId = correlationId,
             BillingAddress = billingAddress,
             Subtotal = subtotal,
             Total = total,
@@ -157,7 +151,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             InvoiceId = invoice.Id,
             BuyerId = buyerId,
             OrderId = orderId,
-            CorrelationId = correlationId,
             OccurredOnUtc = utcNow,
         });
 
@@ -276,7 +269,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             BuyerId = BuyerId,
             OrderId = OrderId,
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             IssueDate = utcNow,
             BillingAddress = BillingAddress,
             Subtotal = Subtotal,
@@ -295,7 +287,6 @@ public sealed class Invoice : AggregateRoot<Guid>
                 BuyerId = BuyerId,
                 Channel = DeliveryChannel,
                 Attempt = 1,
-                CorrelationId = CorrelationId,
                 InvoiceNumber = InvoiceNumber,
                 Total = Total,
                 OccurredOnUtc = utcNow,
@@ -326,7 +317,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             BuyerId = BuyerId,
             DeliveredAtUtc = deliveredAtUtc,
             Channel = DeliveryChannel,
-            CorrelationId = CorrelationId,
             OccurredOnUtc = deliveredAtUtc,
         });
 
@@ -377,7 +367,6 @@ public sealed class Invoice : AggregateRoot<Guid>
             CancelledAtUtc = utcNow,
             Reason = reason,
             CreditNoteId = creditNoteId,
-            CorrelationId = CorrelationId,
             OccurredOnUtc = utcNow,
         });
 

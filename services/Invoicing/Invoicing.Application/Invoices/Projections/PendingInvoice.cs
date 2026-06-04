@@ -2,9 +2,9 @@ namespace Invoicing.Application.Invoices.Projections;
 
 /// <summary>
 /// Async-multi-source enrichment row: buffers <c>OrderConfirmedEvent</c> and
-/// <c>PaymentCapturedEvent</c> for the same <c>CorrelationId</c> until both halves
+/// <c>PaymentCapturedEvent</c> for the same <c>OrderId</c> until both halves
 /// arrive, at which point <c>IssueInvoiceCommandHandler</c> reads the row
-/// (keyed on <see cref="CorrelationId"/>) and constructs the <c>Invoice</c>
+/// (keyed on <see cref="OrderId"/>) and constructs the <c>Invoice</c>
 /// aggregate. Schema mirrors <c>docs/bc-design/invoicing.md § 8.1</c>.
 /// </summary>
 /// <remarks>
@@ -25,11 +25,8 @@ namespace Invoicing.Application.Invoices.Projections;
 /// </remarks>
 public sealed class PendingInvoice
 {
-    /// <summary>Primary key. Derived from the inbound Avro event's <c>CorrelationId</c> field (Ordering / Payments both carry it).</summary>
-    public Guid CorrelationId { get; set; }
-
-    /// <summary>Set once <c>OrderConfirmedEvent</c> has been observed; null until then.</summary>
-    public Guid? OrderId { get; set; }
+    /// <summary>Primary key. The <c>OrderId</c> both Avro halves (OrderConfirmedEvent / PaymentCapturedEvent) carry; post-ADR-0029 it is the cross-BC convergence key.</summary>
+    public Guid OrderId { get; set; }
 
     /// <summary>Set once <c>PaymentCapturedEvent</c> has been observed; null until then.</summary>
     public Guid? PaymentId { get; set; }

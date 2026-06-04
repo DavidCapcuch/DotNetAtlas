@@ -92,7 +92,6 @@ internal sealed class InvoiceSeed
         var creditNote = CreditNote.Create(
             originalInvoiceSnapshot: invoice.ToReversalSnapshot(utcNow),
             reason: CreditNoteReason.OrderCancelled,
-            correlationId: invoice.CorrelationId,
             utcNow: utcNow).Value;
 
         var creditNoteNumber = CreditNoteNumber.Create(utcNow.Year, _nextCreditNoteSeq++).Value;
@@ -126,7 +125,6 @@ internal sealed class InvoiceSeed
             buyerId: buyerId,
             orderId: Guid.CreateVersion7(),
             paymentId: Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             billingAddress: BuildBillingAddress(),
             lines: [line],
             vatLines: [],
@@ -149,7 +147,6 @@ internal sealed class InvoiceSeed
             buyerId: buyerId,
             orderId: orderId,
             paymentId: Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             billingAddress: BuildBillingAddress(),
             lines: [line],
             vatLines: [],

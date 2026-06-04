@@ -46,7 +46,6 @@ public class InvoiceInvariantsTests
             buyerId: Guid.CreateVersion7(),
             orderId: Guid.CreateVersion7(),
             paymentId: Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             billingAddress: TestDataFactory.DefaultBillingAddress(),
             lines: [],
             vatLines: [],
@@ -64,7 +63,6 @@ public class InvoiceInvariantsTests
         var usd = TestDataFactory.BuildLine(lineNumber: 2, currency: "USD");
 
         var act = () => Invoice.Create(
-            Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),

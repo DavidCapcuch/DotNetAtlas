@@ -23,8 +23,6 @@ public sealed record InvoiceIssuedDomainEvent : DomainEvent
 
     public required Guid PaymentId { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     public required DateTimeOffset IssueDate { get; init; }
 
     public required Address BillingAddress { get; init; }

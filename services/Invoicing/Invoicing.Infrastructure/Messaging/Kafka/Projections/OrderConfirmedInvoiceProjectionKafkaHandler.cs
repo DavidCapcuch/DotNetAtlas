@@ -13,7 +13,7 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <summary>
 /// Inbound consumer for Ordering's <c>OrderConfirmedEvent</c> on
 /// <c>ordering.orders</c>. Upserts a <see cref="PendingInvoice"/> row keyed
-/// on <c>CorrelationId</c>, populating the order half. When the payment
+/// on <c>OrderId</c>, populating the order half. When the payment
 /// half is already present, marks the row converged via
 /// <see cref="PendingInvoice.CompletedAtUtc"/> AND dispatches
 /// <see cref="IssueInvoiceCommand"/> in the same inbox transaction so the
@@ -61,33 +61,27 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        // ADR-0008 — the Kafka correlation-id header is the contract; the Avro payload
-        // CorrelationId is convenience metadata only. Read from the header.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
+        // ADR-0029/0030 — OrderId is the cross-BC convergence key; both halves carry it.
+        var orderId = message.OrderId;
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
-        var orderJson = SerializePayload(message, correlationId);
+        var orderJson = SerializePayload(message);
 
         // ADR-0008 — log/trace correlation flows from the Kafka header via
-        // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
-        // "CorrelationId" into this BeginScope; the inner-most scope would
-        // shadow the middleware-pushed (header-authoritative) value.
+        // Serilog LogContext. Do not push "CorrelationId" into this BeginScope;
+        // the inner-most scope would shadow the header-authoritative value.
         using var localScope = _logger.BeginScope(new Dictionary<string, object?>
         {
-            ["OrderId"] = message.OrderId,
+            ["OrderId"] = orderId,
             ["BuyerId"] = message.BuyerId,
         });
 
         var (row, isNew) = await PendingProjectionUpsertHelper.GetOrAddAsync(
             _db.PendingInvoices,
-            correlationId,
+            orderId,
             () => new PendingInvoice
             {
-                CorrelationId = correlationId,
-                OrderId = message.OrderId,
+                OrderId = orderId,
                 BuyerId = message.BuyerId,
                 OrderPayload = orderJson,
                 FirstSeenAtUtc = now,
@@ -97,16 +91,15 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         var convergedNow = false;
         if (!isNew)
         {
-            if (row.OrderId is not null)
+            if (row.OrderPayload is not null)
             {
-                // Order half already captured under this CorrelationId — same-payload duplicate.
+                // Order half already captured for this OrderId — same-payload duplicate.
                 _logger.LogInformation(
-                    "OrderConfirmedEvent already projected for CorrelationId {CorrelationId}; no-op.",
-                    correlationId);
+                    "OrderConfirmedEvent already projected for OrderId {OrderId}; no-op.",
+                    orderId);
                 return;
             }
 
-            row.OrderId = message.OrderId;
             row.BuyerId = message.BuyerId;
             row.OrderPayload = orderJson;
 
@@ -132,18 +125,18 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
             // The command handler is idempotent on IssuedInvoiceId so a retry that
             // re-runs convergence from the OTHER half (PaymentCaptured) is safe.
             var result = await _issueInvoiceHandler.HandleAsync(
-                new IssueInvoiceCommand { CorrelationId = correlationId },
+                new IssueInvoiceCommand { OrderId = orderId },
                 ct);
             if (result.IsFailed)
             {
                 throw new InvalidOperationException(
-                    $"IssueInvoiceCommand failed after convergence on CorrelationId {correlationId}: "
+                    $"IssueInvoiceCommand failed after convergence on OrderId {orderId}: "
                         + string.Join("; ", result.Errors.Select(e => e.Message)));
             }
         }
     }
 
-    private static string SerializePayload(AvroOrderConfirmedEvent message, Guid correlationId)
+    private static string SerializePayload(AvroOrderConfirmedEvent message)
     {
         // Hand-rolled DTO instead of JsonSerializer.Serialize(message) — the auto-generated
         // Avro class exposes a Schema property of type Avro.Schema that breaks
@@ -164,7 +157,6 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         return JsonSerializer.Serialize(new
         {
             message.OrderId,
-            CorrelationId = correlationId,
             message.BuyerId,
             message.ConfirmedAtUtc,
             Items = message.Items?.Select(i => new

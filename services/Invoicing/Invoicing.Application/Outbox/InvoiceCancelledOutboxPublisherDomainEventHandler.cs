@@ -43,10 +43,9 @@ public sealed class InvoiceCancelledOutboxPublisherDomainEventHandler
             integrationEvent);
 
         _logger.LogInformation(
-            "Queued InvoiceCancelledEvent to outbox. InvoiceId: {InvoiceId}, CreditNoteId: {CreditNoteId}, CorrelationId: {CorrelationId}",
+            "Queued InvoiceCancelledEvent to outbox. InvoiceId: {InvoiceId}, CreditNoteId: {CreditNoteId}",
             domainEvent.InvoiceId,
-            domainEvent.CreditNoteId,
-            domainEvent.CorrelationId);
+            domainEvent.CreditNoteId);
 
         return Task.CompletedTask;
     }

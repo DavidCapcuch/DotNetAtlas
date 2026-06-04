@@ -27,8 +27,6 @@ public sealed record InvoiceDeliveryRequestedDomainEvent : DomainEvent
     /// <summary>Attempt number in the <c>invoice_delivery_log</c>. 1 for automatic issuance delivery.</summary>
     public required int Attempt { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     /// <summary>Allocated invoice number \u2014 used by the email template without a DB round-trip.</summary>
     public required InvoiceNumber InvoiceNumber { get; init; }
 

@@ -13,14 +13,14 @@ namespace Invoicing.Infrastructure.Messaging.Kafka.Projections;
 /// <summary>
 /// Inbound consumer for Payments' <c>PaymentCapturedEvent</c> on
 /// <c>payments.transactions</c>. Upserts a <see cref="PendingInvoice"/> row
-/// keyed on <c>CorrelationId</c>, populating the payment half. When the
+/// keyed on <c>OrderId</c>, populating the payment half. When the
 /// order half is already present, marks the row converged AND dispatches
 /// <see cref="IssueInvoiceCommand"/> in the same inbox transaction.
 /// </summary>
 /// <remarks>
 /// Mirror of <see cref="OrderConfirmedInvoiceProjectionKafkaHandler"/> for
 /// the other half of the convergence pair. Same idempotency guarantees
-/// (inbox dedup on <c>MessageId</c>; payment-half no-op on same-CorrelationId
+/// (inbox dedup on <c>MessageId</c>; payment-half no-op on same-OrderId
 /// re-arrival; the command is idempotent on <c>IssuedInvoiceId</c>).
 /// </remarks>
 internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
@@ -48,31 +48,27 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(message);
 
-        // ADR-0008 — Kafka header is the authoritative CorrelationId source. Avro payload
-        // field is convenience metadata only.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
+        // ADR-0029/0030 — OrderId is the cross-BC convergence key; both halves carry it.
+        var orderId = message.OrderId;
         var ct = context.ConsumerContext.WorkerStopped;
         var now = _timeProvider.GetUtcNow();
-        var paymentJson = SerializePayload(message, correlationId);
+        var paymentJson = SerializePayload(message);
 
         // ADR-0008 — log/trace correlation flows from the Kafka header via
-        // ConsumerCorrelationIdMiddleware → Serilog LogContext. Do not push
-        // "CorrelationId" into this BeginScope; the inner-most scope would
-        // shadow the middleware-pushed (header-authoritative) value.
+        // Serilog LogContext. Do not push "CorrelationId" into this BeginScope;
+        // the inner-most scope would shadow the header-authoritative value.
         using var localScope = _logger.BeginScope(new Dictionary<string, object?>
         {
+            ["OrderId"] = orderId,
             ["PaymentTransactionId"] = message.PaymentTransactionId,
         });
 
         var (row, isNew) = await PendingProjectionUpsertHelper.GetOrAddAsync(
             _db.PendingInvoices,
-            correlationId,
+            orderId,
             () => new PendingInvoice
             {
-                CorrelationId = correlationId,
+                OrderId = orderId,
                 PaymentId = message.PaymentTransactionId,
                 PaymentPayload = paymentJson,
                 FirstSeenAtUtc = now,
@@ -85,15 +81,15 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             if (row.PaymentId is not null)
             {
                 _logger.LogInformation(
-                    "PaymentCapturedEvent already projected for CorrelationId {CorrelationId}; no-op.",
-                    correlationId);
+                    "PaymentCapturedEvent already projected for OrderId {OrderId}; no-op.",
+                    orderId);
                 return;
             }
 
             row.PaymentId = message.PaymentTransactionId;
             row.PaymentPayload = paymentJson;
 
-            if (row.OrderId is not null && row.CompletedAtUtc is null)
+            if (row.OrderPayload is not null && row.CompletedAtUtc is null)
             {
                 row.CompletedAtUtc = now;
                 convergedNow = true;
@@ -112,25 +108,24 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
             // M7 — see OrderConfirmedInvoiceProjectionKafkaHandler for the convergence
             // dispatch rationale (inbox-transaction join + idempotent M7 handler).
             var result = await _issueInvoiceHandler.HandleAsync(
-                new IssueInvoiceCommand { CorrelationId = correlationId },
+                new IssueInvoiceCommand { OrderId = orderId },
                 ct);
             if (result.IsFailed)
             {
                 throw new InvalidOperationException(
-                    $"IssueInvoiceCommand failed after convergence on CorrelationId {correlationId}: "
+                    $"IssueInvoiceCommand failed after convergence on OrderId {orderId}: "
                         + string.Join("; ", result.Errors.Select(e => e.Message)));
             }
         }
     }
 
-    private static string SerializePayload(AvroPaymentCapturedEvent message, Guid correlationId)
+    private static string SerializePayload(AvroPaymentCapturedEvent message)
     {
         // See OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload for the rationale
         // on the hand-rolled DTO. Avro.AvroDecimal needs explicit conversion — System.Text.Json
         // doesn't know about it; cast to decimal first (AvroDecimal exposes an explicit cast).
         return JsonSerializer.Serialize(new
         {
-            CorrelationId = correlationId,
             message.UserId,
             message.PaymentTransactionId,
             message.AuthorizationId,

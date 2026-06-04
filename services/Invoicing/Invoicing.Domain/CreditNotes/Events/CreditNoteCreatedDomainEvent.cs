@@ -12,6 +12,4 @@ public sealed record CreditNoteCreatedDomainEvent : DomainEvent
     public required Guid CreditNoteId { get; init; }
 
     public required Guid OriginalInvoiceId { get; init; }
-
-    public required Guid CorrelationId { get; init; }
 }

@@ -79,13 +79,6 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(i => i.PaymentId)
             .HasComment("Reference to the Payments transaction the invoice settles.");
 
-        builder.Property(i => i.CorrelationId)
-            .HasComment("Checkout saga correlation id (passed through from Order + Payment).");
-        // Unique — gap-free correlation: M7 short-circuits on this in IssueInvoiceCommandHandler.
-        builder.HasIndex(i => i.CorrelationId)
-            .IsUnique()
-            .HasDatabaseName("ux_invoices_correlation_id");
-
         builder.Property(i => i.IssueDate)
             .HasComment("UTC timestamp when the invoice transitioned to Issued.");
 

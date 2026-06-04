@@ -19,8 +19,6 @@ public sealed class GetInvoiceByIdResponse
 
     public required Guid PaymentId { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     public required string Status { get; init; }
 
     public required DateTimeOffset IssueDate { get; init; }

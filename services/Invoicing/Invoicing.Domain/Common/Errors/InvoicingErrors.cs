@@ -33,10 +33,10 @@ public static class InvoicingErrors
     public static NotFoundError CreditNoteNotFound(Guid creditNoteId) =>
         new("CreditNote", creditNoteId, "Invoicing.CreditNoteNotFound");
 
-    public static ConflictError InvoiceAlreadyIssued(Guid correlationId) =>
+    public static ConflictError InvoiceAlreadyIssued(Guid orderId) =>
         new(
             entityName: "Invoice",
-            message: $"Invoice already issued for correlation '{correlationId}'.",
+            message: $"Invoice already issued for order '{orderId}'.",
             errorCode: "Invoicing.InvoiceAlreadyIssued");
 
     public static NotImplementedError PartialRefundNotSupportedV1() =>
