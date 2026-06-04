@@ -12,8 +12,8 @@ using SagaOrchestrators.Common.Persistence.Database;
 namespace SagaOrchestrators.Common.Persistence.Database.Migrations
 {
     [DbContext(typeof(SagaDbContext))]
-    [Migration("20260604173705_DropSagaOrderId")]
-    partial class DropSagaOrderId
+    [Migration("20260604200529_CreateSagaTables")]
+    partial class CreateSagaTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -20,7 +20,7 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                 schema: "saga",
                 columns: table => new
                 {
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Workflow correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId (ADR-0008)."),
+                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "MassTransit saga instance id (ISaga.CorrelationId); equals the pre-assigned OrderId (ADR-0029)."),
                     current_state = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false, comment: "Current state of the saga state machine."),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "User initiating checkout. Becomes Ordering's BuyerId."),
                     total_amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false, comment: "Sum of basket line totals captured at checkout initiation."),
@@ -30,7 +30,6 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                     shipping_address_json = table.Column<string>(type: "jsonb", nullable: true, comment: "Serialized shipping Address value object. Nulled out on terminal per ADR-0011."),
                     billing_address_json = table.Column<string>(type: "jsonb", nullable: true, comment: "Serialized billing Address value object. Nulled out on terminal per ADR-0011."),
                     initiated_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, comment: "UTC timestamp when the saga was initiated (copied from the Basket event)."),
-                    order_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Ordering aggregate id assigned after OrderCreatedEvent. Null until OrderCreated arrives."),
                     order_created_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true, comment: "UTC timestamp when Ordering reported the order created."),
                     reservation_ids_json = table.Column<string>(type: "jsonb", nullable: false, comment: "Serialized per-ProductId reservation tracking dictionary."),
                     expected_reservations = table.Column<int>(type: "integer", nullable: false, defaultValue: 0, comment: "Number of distinct ProductIds in the basket - target reservation count."),
@@ -90,9 +89,8 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                 schema: "saga",
                 columns: table => new
                 {
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Unique correlation ID for the payment saga"),
+                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "MassTransit saga instance id (ISaga.CorrelationId); equals the pre-assigned OrderId (ADR-0029)."),
                     current_state = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false, comment: "Current state of the saga state machine"),
-                    order_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Ordering aggregate id this payment is attached to. Frozen at saga start."),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "User initiating the payment"),
                     payment_method_id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false, comment: "Gateway-issued opaque payment-method token (Stripe 'pm_*', Adyen alphanumeric, …); 1-64 chars. Changed from uuid in the Wave-1 closeout C-2 fix."),
                     amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false, comment: "Payment amount"),
@@ -131,12 +129,6 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                 column: "current_state");
 
             migrationBuilder.CreateIndex(
-                name: "ix_checkout_saga_state_order_id",
-                schema: "saga",
-                table: "checkout_saga_state",
-                column: "order_id");
-
-            migrationBuilder.CreateIndex(
                 name: "ix_checkout_saga_state_state_created",
                 schema: "saga",
                 table: "checkout_saga_state",
@@ -159,12 +151,6 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                 schema: "saga",
                 table: "payment_processing_saga_state",
                 column: "current_state");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_payment_processing_saga_state_order_id",
-                schema: "saga",
-                table: "payment_processing_saga_state",
-                column: "order_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_payment_processing_saga_state_state_created",
