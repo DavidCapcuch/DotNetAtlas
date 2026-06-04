@@ -41,7 +41,7 @@ public class SagaCommandMappersTests
         using (new AssertionScope())
         {
             app.PaymentId.Should().Be(paymentTransactionId,
-                "ADR-0008 + wave1-followup #255: PaymentId is the saga-issued PaymentTransactionId field");
+                "wave1-followup #255: PaymentId is the saga-issued PaymentTransactionId field");
             app.PaymentId.Should().NotBe(orderId,
                 "regression net for the v1 collapse where PaymentId = OrderId");
             app.OrderId.Should().Be(orderId,
@@ -82,11 +82,10 @@ public class SagaCommandMappersTests
     }
 
     [Fact]
-    public void ToAppCommand_CapturePayment_ResolvesByOrderId_NotCorrelationId()
+    public void ToAppCommand_CapturePayment_ResolvesByOrderId()
     {
-        // ADR-0030: Capture carries no PaymentTransactionId, so the handler resolves the aggregate
-        // by OrderId (the saga key, == OrderId per ADR-0029). The mapper sources it from the saga-key
-        // argument, not the retired correlation-id payload field.
+        // Capture carries no PaymentTransactionId, so the handler resolves the aggregate by OrderId
+        // (the saga key, ADR-0029). The mapper sources it from the OrderId wire field.
         var orderId = Guid.CreateVersion7();
         var avro = new AvroCapturePaymentCommand
         {
@@ -107,7 +106,7 @@ public class SagaCommandMappersTests
     }
 
     [Fact]
-    public void ToAppCommand_VoidPayment_ResolvesByOrderId_NotCorrelationId()
+    public void ToAppCommand_VoidPayment_ResolvesByOrderId()
     {
         var orderId = Guid.CreateVersion7();
         var avro = new AvroVoidPaymentCommand
@@ -133,7 +132,7 @@ public class SagaCommandMappersTests
     public void ToAppCommand_RequestRefund_UsesWirePaymentTransactionId_AsPaymentId()
     {
         // RequestRefund targets a specific transaction by id, so the handler resolves the aggregate
-        // by primary key (ADR-0030: no correlation-id lookup).
+        // by primary key.
         var paymentTransactionId = Guid.CreateVersion7();
         var avro = new AvroRequestRefundCommand
         {

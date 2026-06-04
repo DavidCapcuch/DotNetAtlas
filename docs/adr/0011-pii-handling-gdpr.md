@@ -86,7 +86,7 @@ The cost of defining the contract now (column names, event shape, OTEL allowlist
 - **Leakage through logs / traces in v1** — before the allowlist middleware is mandatory, developers may log PII ad hoc. Mitigation: peer review + `log-pii-redaction-smoke-test` in the test suite that fails the build if known PII strings leak to serialised log output.
 - **Incomplete v2 implementation** — crypto-shredding is subtle (IV handling, key rotation, re-encryption). Mitigation: v2 ADR will supersede this with implementation-level detail.
 - **Non-erasable PII** — a buyer's name may appear in free-text fields (support chat notes, etc.). Scope: v1/v2 covers structured fields only.
-- **Re-identification via `OrderId`** — `OrderId` (the durable business/audit key after [ADR-0030](0030-retire-dedicated-correlationid.md) retired the dedicated `correlationId`) is not PII in isolation but can be joined to erased rows. Mitigation: `OrderId` is not an erasure target; it remains after key deletion and leaves an anonymous trail only. `traceId` carries the same non-PII property and is additionally sampled / short-retention.
+- **Re-identification via `OrderId`** — `OrderId` (the durable business/audit key) is not PII in isolation but can be joined to erased rows. Mitigation: `OrderId` is not an erasure target; it remains after key deletion and leaves an anonymous trail only. `traceId` carries the same non-PII property and is additionally sampled / short-retention.
 
 ## Implementation Notes
 
@@ -97,7 +97,7 @@ The cost of defining the contract now (column names, event shape, OTEL allowlist
   - Initial deletion list covers the highest-risk keys: `http.request.header.authorization`, `http.request.header.cookie`, `http.response.header.set-cookie`, `url.query`, `user.email`, `user.name`, `buyer.email`, `buyer.name`. Production extends this list as data shapes emerge.
   - For hardened GDPR workloads, a second in-process SDK processor (defense in depth) can be added back — not needed at the reference-solution profile.
   - Forbidden span attributes: raw `buyer.email`, `buyer.address.*`, `payment.method.token`, `customer.name`, raw request bodies.
-  - Allowed span attributes (examples of what we want to keep): `http.method`, `http.status_code`, `http.route`, `rpc.service`, `messaging.destination.name`, `messaging.kafka.consumer.group`, `db.system`, `db.name`, `order.id`, `payment.id`, `invoice.id`, `buyer.id.hash` (SHA-256 truncated to 16 hex chars). (`correlation.id` was removed when [ADR-0030](0030-retire-dedicated-correlationid.md) retired the dedicated `correlationId`; `trace_id`/`span_id` are carried by the OTel pipeline itself, and `order.id` covers durable business correlation.)
+  - Allowed span attributes (examples of what we want to keep): `http.method`, `http.status_code`, `http.route`, `rpc.service`, `messaging.destination.name`, `messaging.kafka.consumer.group`, `db.system`, `db.name`, `order.id`, `payment.id`, `invoice.id`, `buyer.id.hash` (SHA-256 truncated to 16 hex chars). (`trace_id`/`span_id` are carried by the OTel pipeline itself, and `order.id` covers durable business correlation.)
 - **Application logging**:
   - Serilog destructuring policy: `[PII]` attribute on models (in `Platform.SharedKernel`) causes the serialiser to emit `"***"`.
   - `Address`, `PaymentMethodId`, `GatewayTransactionId` VOs are `[PII]`-marked.
@@ -131,7 +131,6 @@ The cost of defining the contract now (column names, event shape, OTEL allowlist
 ## Related Decisions
 
 - [ADR-0005: Customer Data in Ordering](0005-customer-data-in-ordering.md) — supersedes its v2-redaction deferral
-- [ADR-0008: Correlation-ID Propagation](0008-correlation-id-propagation.md) — **superseded by [ADR-0030](0030-retire-dedicated-correlationid.md)**: the dedicated `correlationId` and its OTEL-allowlist exemption are retired. `OrderId` (durable business key) and `traceId` (telemetry) replace it — both non-PII; `order.id` is already on the allowlist.
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — v1 profile explicitly not GDPR-compliant
 - [ADR-0015: Time & Timezone Policy](0015-time-timezone-policy.md) — timestamps remain in plaintext (not PII)
 - [ADR-0017: Blob Storage + CDN](0017-blob-storage-cdn.md) — PDF invoices stored in Azurite/Azure Blob are out of scope for v1 encryption; v2 would use SSE-CMK (Azure Storage customer-managed keys)

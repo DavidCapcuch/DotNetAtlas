@@ -33,7 +33,6 @@ public sealed class
             CheckoutSagaActivitySource.StartActivity(nameof(ReservationReleasedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, saga.OrderId?.ToString() ?? string.Empty);
             activity.SetTag(CheckoutSagaActivityTags.ProductId, message.ProductId.ToString());
             activity.SetTag(CheckoutSagaActivityTags.ReservationId, message.ReservationId.ToString());
             activity.SetTag("saga.release_reason", message.ReleaseReason);

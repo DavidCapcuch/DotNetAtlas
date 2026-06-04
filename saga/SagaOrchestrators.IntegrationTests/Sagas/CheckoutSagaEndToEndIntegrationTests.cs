@@ -138,7 +138,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         {
             checkoutCompletedRows.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(correlationId.ToString(),
-                    "CheckoutCompletedEvent is keyed by saga CorrelationId per ADR-0008");
+                    "CheckoutCompletedEvent is keyed by saga CorrelationId per ADR-0029");
 
             confirmOrderRows.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(orderId.ToString(),

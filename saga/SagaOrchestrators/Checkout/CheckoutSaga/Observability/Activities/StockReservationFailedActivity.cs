@@ -33,7 +33,6 @@ public sealed class
             CheckoutSagaActivitySource.StartActivity(nameof(StockReservationFailedActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, saga.OrderId?.ToString() ?? string.Empty);
             activity.SetTag(CheckoutSagaActivityTags.ProductId, message.ProductId.ToString());
             activity.SetTag(SagaActivityTags.ErrorCode, CheckoutSagaErrorCodes.StockUnavailable);
         }

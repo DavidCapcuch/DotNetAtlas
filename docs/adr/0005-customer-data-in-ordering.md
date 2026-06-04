@@ -88,7 +88,8 @@ buyer's selection into `CreateOrderCommand`.
 ### Option 2: Customer data snapshotted into Order at creation (chosen)
 
 The client collects address and payment-method selection at checkout. The
-BFF packages that input together with the basket `CorrelationId` into
+BFF packages that input together with the pre-assigned `OrderId`
+([ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md)) into
 `CreateOrderCommand` that the Ordering service receives. The Order
 aggregate holds `ShippingAddress` and `BillingAddress` as value objects,
 immutable after creation. There is no Customer aggregate. Identity
@@ -234,7 +235,7 @@ submission captured on the aggregate that needs it.**
   v1.
 - **`BuyerId`** on the Order aggregate is the Keycloak user `sub` claim, captured at creation (immutable — see `docs/bc-design/ordering.md` invariant I-4). `BuyerId` never leaves Ordering's boundary for profile lookup — it is an identity pointer only, opaque to every BC except for row-level authorization ("does this JWT's `sub` equal the order's `BuyerId`?").
 - **`PaymentMethodId`** on the Order aggregate is a `Guid` reference to a payment method managed by the existing **Payments** service. Ordering treats it as opaque; no change to Payments is required. Buyers who want to add, list, or remove saved payment methods use Payments's endpoints, not an Accounts endpoint. This preserves the existing Payments-as-payment-vault pattern unchanged.
-- **`CreateOrderCommand`** (saga → Ordering, per [ADR-0004](0004-checkout-saga-topology.md)) carries: `CorrelationId`, `BuyerId`, `Items[]`, `ShippingAddress`, `BillingAddress`, `PaymentMethodId`, and `RequestedAtUtc`. The BFF is responsible for collecting address + payment-method input from the client and for populating these fields before handing the command off through the saga starting point. The BFF validates structurally (non-empty, length, ISO country format) before forwarding; Ordering's `Address.Create` re-validates on the aggregate side as defense-in-depth.
+- **`CreateOrderCommand`** (saga → Ordering, per [ADR-0004](0004-checkout-saga-topology.md)) carries: `OrderId` (the pre-assigned saga / business key, [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md)), `BuyerId`, `Items[]`, `ShippingAddress`, `BillingAddress`, `PaymentMethodId`, and `RequestedAtUtc`. The BFF is responsible for collecting address + payment-method input from the client and for populating these fields before handing the command off through the saga starting point. The BFF validates structurally (non-empty, length, ISO country format) before forwarding; Ordering's `Address.Create` re-validates on the aggregate side as defense-in-depth.
 - **GDPR / privacy redaction path** — to redact a user's orders, operators run a scoped update: `UPDATE ordering.orders SET shipping_address = '<redacted>', billing_address = '<redacted>' WHERE buyer_id = ?`. The Kafka event log retains the original event for audit lineage. For full redaction semantics, a compensating redaction-tombstone table may be needed in v2 to ensure projections downstream of the event log also drop the data. This work is out of v1 scope but is called out here so maintainers see the load-bearing assumption.
 - **Architecture tests** must continue to enforce that Ordering does not depend on any Accounts-shaped library; the `BuyerId` contract is a raw `Guid` derived from the JWT and nothing else. If v2 introduces Accounts, the architecture tests will need an explicit allowance and a matching ADR.
 

@@ -6,11 +6,10 @@ using Platform.ReliableMessaging.Outbox.Core;
 namespace Platform.ReliableMessaging.Outbox.EFCore.UnitTests;
 
 /// <summary>
-/// Pins OpenTelemetry W3C Trace Context propagation across the outbox boundary. After ADR-0030
-/// retired the dedicated correlation id, <c>traceparent</c> is the cross-process correlation key
-/// the outbox must carry: the relay's <c>BuildKafkaHeaders</c> copies the row's serialized headers
-/// verbatim onto the produced Kafka message, so a <c>traceparent</c> on the row stitches the trace
-/// end-to-end (HTTP → outbox → Kafka → consumer).
+/// Pins OpenTelemetry W3C Trace Context propagation across the outbox boundary. <c>traceparent</c>
+/// is the cross-process correlation key the outbox must carry: the relay's <c>BuildKafkaHeaders</c>
+/// copies the row's serialized headers verbatim onto the produced Kafka message, so a
+/// <c>traceparent</c> on the row stitches the trace end-to-end (HTTP → outbox → Kafka → consumer).
 /// </summary>
 public sealed class OutboxMessageHeaderExtensionsTests
 {
@@ -33,13 +32,13 @@ public sealed class OutboxMessageHeaderExtensionsTests
             var headers = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity);
 
             // Assert — the W3C traceparent must be present and carry the ambient trace id so the
-            // relay-produced Kafka message continues the same trace (the only cross-process
-            // correlation key post-ADR-0030).
+            // relay-produced Kafka message continues the same trace (the cross-process
+            // correlation key).
             using (new AssertionScope())
             {
                 headers.Should().NotBeNull();
                 headers.Should().ContainKey("traceparent",
-                    "ADR-0030 keeps W3C Trace Context as the cross-process correlation key; the outbox row must carry traceparent so the relay stitches the trace onto the Kafka message");
+                    "W3C Trace Context is the cross-process correlation key; the outbox row must carry traceparent so the relay stitches the trace onto the Kafka message");
                 headers!["traceparent"].Should().Contain(activity.TraceId.ToHexString(),
                     "the injected traceparent must carry the ambient trace id end-to-end");
             }

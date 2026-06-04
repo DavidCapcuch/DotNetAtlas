@@ -119,7 +119,7 @@ The topology swap flag is **intentionally kept OFF in v1** — it demonstrates t
 
 Every evaluation includes the `EvaluationContext`:
 
-- `TargetingKey` = `buyerId` (for user-facing flags) or `correlationId` (for workflow-level flags)
+- `TargetingKey` = `buyerId` (for user-facing flags) or `orderId` (for workflow-level flags)
 - Attributes: `service = <bc-name>`, `environment = Development|Staging|Production`, `featureGate.cohort = <optional>`
 
 ### JSON file format
@@ -182,6 +182,5 @@ Call sites (`featureClient.GetBooleanValueAsync("catalog.show-discontinued-in-se
 
 ## Related Decisions
 
-- [ADR-0008: Correlation-ID Propagation](0008-correlation-id-propagation.md) — CorrelationId can be a TargetingKey for workflow-level flags
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — profile explicitly does not require a SaaS feature-flag provider
 - [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — `checkout.payment-then-stock` flag demonstrates the alternative topology without changing the decision

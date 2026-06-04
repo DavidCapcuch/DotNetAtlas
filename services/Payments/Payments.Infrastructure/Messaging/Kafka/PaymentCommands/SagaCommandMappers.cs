@@ -24,8 +24,8 @@ internal static class SagaCommandMappers
     /// Maps <see cref="AvroAuthorizePaymentCommand"/> to the application-layer
     /// <see cref="AppAuthorizePaymentCommand"/>. Field renames: <c>UserId</c> → <c>BuyerId</c>;
     /// PaymentId comes from the saga-issued <c>PaymentTransactionId</c> Avro field (cross-cutting
-    /// wave1-followup #255 — the v1 collapse where PaymentId == CorrelationId was unwound to make
-    /// the "v7 PK" guarantee on the Payments aggregate genuine). One-payment-per-order stays
+    /// wave1-followup #255 — the v1 collapse where PaymentId was reused as the saga key was unwound
+    /// to make the "v7 PK" guarantee on the Payments aggregate genuine). One-payment-per-order stays
     /// enforced by the unique index on <c>payment_transactions.order_id</c> (ADR-0029).
     /// </summary>
     internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro) =>

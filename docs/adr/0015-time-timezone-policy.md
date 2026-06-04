@@ -189,7 +189,6 @@ Audit that every `*_at` / `*_utc` column in Postgres schemas is `timestamp with 
 
 ## Related Decisions
 
-- [ADR-0008: Correlation-ID Propagation](0008-correlation-id-propagation.md) — correlation columns pair with `*_at` timestamps; both use `timestamptz`
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — single-region simplifies the timezone story
 - [ADR-0006: Event Sourcing for Inventory](0006-event-sourcing-for-inventory.md) — event-stream `OccurredAtUtc` column uses this policy
 - [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — governs how these timestamp fields may evolve (`FORWARD_TRANSITIVE` on event topics); changing an existing field's logical type is a breaking change requiring a new subject

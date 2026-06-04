@@ -6,13 +6,13 @@ namespace Payments.Application.Transactions.VoidPayment;
 /// Internal CQRS command for the <c>Authorized → Voided</c> compensation path (saga pre-capture
 /// compensation). The aggregate is resolved by <see cref="OrderId"/> (the saga business key,
 /// ADR-0029) — the Void wire command carries no PaymentTransactionId, so the handler loads via the
-/// unique <c>order_id</c> index (ADR-0030 retires the old correlation-id lookup).
+/// unique <c>order_id</c> index.
 /// </summary>
 public sealed record VoidPaymentCommand : ICommand
 {
     /// <summary>
-    /// Order this payment belongs to — the saga key (ADR-0029). Sourced from the Kafka correlation
-    /// header (which equals the OrderId) until the dedicated correlation id is fully removed.
+    /// Order this payment belongs to — the saga key (ADR-0029). Sourced from the inbound
+    /// Avro Void wire command's <c>OrderId</c> field.
     /// </summary>
     public required Guid OrderId { get; init; }
 

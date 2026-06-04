@@ -33,14 +33,13 @@ public sealed class OrderCreatedActivity : IStateMachineActivity<CheckoutSagaSta
         if (activity?.IsAllDataRequested == true)
         {
             activity.SetTag(SagaActivityTags.UserId, saga.UserId.ToString());
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, message.OrderId.ToString());
         }
 
         CheckoutSagaMetrics.RecordOrderCreationDuration(message.OrderCreatedAtUtc - saga.InitiatedAtUtc);
 
         _logger.LogInformation(
-            "{SagaType} {CorrelationId} order created. OrderId: {OrderId}",
-            nameof(CheckoutSagaOrchestrator), saga.CorrelationId, message.OrderId);
+            "{SagaType} {CorrelationId} order created",
+            nameof(CheckoutSagaOrchestrator), saga.CorrelationId);
 
         await next.Execute(context);
     }

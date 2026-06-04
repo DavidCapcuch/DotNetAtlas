@@ -274,7 +274,7 @@ The basket lifecycle from birth to death:
 
 ### 6.4 Checkout (terminal)
 
-1. `CheckoutBasketCommand { UserId, ShippingAddress, BillingAddress, PaymentMethodId }` — the command carries **no** correlation/order id. The handler pre-assigns the Order's `OrderId` via `Guid.CreateVersion7()` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), which becomes the Checkout Saga's key (the dedicated `CorrelationId` was retired — [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). Addresses + `PaymentMethodId` are **pass-through courier data** per [ADR-0005](../adr/0005-customer-data-in-ordering.md): Basket validates only basic shape (non-empty strings, ISO 3166-1 alpha-2 country code, non-empty payment method id) and stamps the values onto the external event unchanged.
+1. `CheckoutBasketCommand { UserId, ShippingAddress, BillingAddress, PaymentMethodId }` — the command carries **no** correlation/order id. The handler pre-assigns the Order's `OrderId` via `Guid.CreateVersion7()` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), which becomes the Checkout Saga's key. Addresses + `PaymentMethodId` are **pass-through courier data** per [ADR-0005](../adr/0005-customer-data-in-ordering.md): Basket validates only basic shape (non-empty strings, ISO 3166-1 alpha-2 country code, non-empty payment method id) and stamps the values onto the external event unchanged.
 2. Handler loads the basket.
 3. `basket.Checkout(orderId, shipping, billing, paymentMethodId, utcNow)` is invoked:
    - Invariant: `Items.Count > 0`. Empty-basket checkout fails with `BasketErrors.EmptyBasket`.
@@ -285,7 +285,7 @@ The basket lifecycle from birth to death:
 7. The outbox relay (existing `Platform.OutboxRelay` worker) picks up the row and publishes to Kafka with schema-registry validation.
 8. No archive of the basket is kept. The full line-item history lives on the saga's Order aggregate downstream — that is Ordering's job, not Basket's. Checkout is a one-way door.
 
-**Idempotency / concurrency:** the command carries no client-supplied idempotency key (the dedicated `CorrelationId` was retired — [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). The handler pre-assigns the `OrderId` once (`Guid.CreateVersion7()`, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) **before** a single optimistic-concurrency retry, so the returned id is stable across that retry. Two parallel checkouts for the same `UserId` are serialized by a CAS on the basket version: the loser retries once and, on a second loss, surfaces `BasketConcurrencyError` (HTTP 409) — so exactly one outbox row (one `BasketCheckoutInitiatedEvent`) is written per checkout. If the post-commit Redis delete fails, the outbox is the source of truth; the stale key is cleaned on the next checkout or at the 30-day TTL.
+**Idempotency / concurrency:** the command carries no client-supplied idempotency key. The handler pre-assigns the `OrderId` once (`Guid.CreateVersion7()`, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) **before** a single optimistic-concurrency retry, so the returned id is stable across that retry. Two parallel checkouts for the same `UserId` are serialized by a CAS on the basket version: the loser retries once and, on a second loss, surfaces `BasketConcurrencyError` (HTTP 409) — so exactly one outbox row (one `BasketCheckoutInitiatedEvent`) is written per checkout. If the post-commit Redis delete fails, the outbox is the source of truth; the stale key is cleaned on the next checkout or at the 30-day TTL.
 
 ### 6.5 Expiry (silent)
 
@@ -516,7 +516,7 @@ interface IProductCatalogQueryPort
 - Returns `Result.Fail(BasketAclErrors.ProductNotFound(productId))` on HTTP 404.
 - `GetManyAsync` is **partial-tolerant**: if the Catalog response includes 9 of 10 requested products, the result is `Result.Ok(IReadOnlyList with 9 items)`. The missing `productId`s are silently dropped — the caller (e.g., `RefreshPricesCommandHandler`) decides what to do (here: leave the existing snapshot untouched).
 - Both methods are read-only and idempotent.
-- No retries or circuit-breaking at this layer. Cross-service HTTP resilience is handled by YARP at the edge, not by per-service Polly pipelines. The adapter configures only `BaseAddress`, request `Timeout`, and `AddServiceAuth("catalog.read")` (the correlation-id delegating handler was removed per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- No retries or circuit-breaking at this layer. Cross-service HTTP resilience is handled by YARP at the edge, not by per-service Polly pipelines. The adapter configures only `BaseAddress`, request `Timeout`, and `AddServiceAuth("catalog.read")`.
 
 ### 9.3 Adapter — `ProductCatalogHttpAdapter`
 

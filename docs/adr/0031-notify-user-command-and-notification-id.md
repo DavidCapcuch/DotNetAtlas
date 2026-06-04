@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-06-03) — supersedes the per-channel sibling-command proposal in [notifications.md § 12](../bc-design/notifications.md) and corrects the idempotency-key claim in [notifications.md § 4.2](../bc-design/notifications.md). Preserves the command-driven direction of [events-catalog.md § 1.4 D-5](../bc-design/events-catalog.md). Applies the client-assigned-id pattern of [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md); consistent with the `message.id`-as-infra-dedup model of [ADR-0030](0030-retire-dedicated-correlationid.md). The fan-out **dispatch** mechanics (Hangfire per-channel jobs, the per-channel ledger's send/record edge, quiet hours) are a **separate forthcoming ADR**; this ADR settles only the *contract* and the *idempotency-key identity*.
+Accepted (2026-06-03) — supersedes the per-channel sibling-command proposal in [notifications.md § 12](../bc-design/notifications.md) and corrects the idempotency-key claim in [notifications.md § 4.2](../bc-design/notifications.md). Preserves the command-driven direction of [events-catalog.md § 1.4 D-5](../bc-design/events-catalog.md). Applies the client-assigned-id pattern of [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md). The fan-out **dispatch** mechanics (Hangfire per-channel jobs, the per-channel ledger's send/record edge, quiet hours) are a **separate forthcoming ADR**; this ADR settles only the *contract* and the *idempotency-key identity*.
 
 ## Context
 
@@ -23,7 +23,7 @@ This is a non-production reference solution; breaking changes are free (root `CL
 1. **Idempotency correctness across fan-out** — one intent, redelivered or re-enqueued, must not double-send any single channel; the model must make this provable.
 2. **Honest separation of concerns** — a transport envelope id (infra) and a business intent id (domain) are different things and should not be overloaded into one field. This is the teachable shape (CloudEvents / idempotent-consumer).
 3. **Kill the parse smell** — recovering `InvoiceId` by string-parsing a key is a documented smell; correlation should be a field read.
-4. **Idiom + repo consistency** — match the just-shipped client-assigned-id pattern ([ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md)) and the `message.id`-is-infra model ([ADR-0030](0030-retire-dedicated-correlationid.md)).
+4. **Idiom + repo consistency** — match the just-shipped client-assigned-id pattern ([ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md)) and the `message.id`-is-infra model.
 5. **Minimal producer burden / no platform churn** — don't change the platform outbox contract for a need only Notifications has.
 
 ## Considered Options
@@ -51,7 +51,7 @@ The producer assigns an opaque `NotificationId` (GUID) — the identity of the n
 | 1. Fan-out idempotency | Per-channel works; no prod-dedup | Strong (all three) | Works, ugly | **Strong — ledger keyed `(NotificationId, Channel)`** |
 | 2. Honest separation | Conflates (no domain id) | **Overloads** infra id | Two keys, blurred | **Clean: infra id + domain id** |
 | 3. Kill parse smell | n/a (no correlation) | n/a | **Smell retained** | **Field read, no parse** |
-| 4. Idiom / repo consistency | partial | breaks platform idiom | off | **Matches ADR-0029 + ADR-0030** |
+| 4. Idiom / repo consistency | partial | breaks platform idiom | off | **Matches ADR-0029** |
 | 5. Producer burden / churn | none | **platform-wide footgun** | low | low (one GUID, like OrderId) |
 
 ## Decision
@@ -112,7 +112,6 @@ Adopt **Option 4**. Concretely:
 ## Related Decisions
 
 - [ADR-0029: Order-Keyed Saga & Pre-Assigned OrderId](0029-order-keyed-saga-and-pre-assigned-orderid.md) — the client-assigned-id precedent `NotificationId` follows.
-- [ADR-0030: Retire the Dedicated CorrelationId](0030-retire-dedicated-correlationid.md) — establishes `message.id` as the infra dedup token and removes payload correlation fields; this ADR adds no `CorrelationId`.
 - [ADR-0013: Idempotency-Key HTTP Pattern](0013-idempotency-key-http.md) — its inbox/HTTP table corroborates that the Kafka inbox keys on `MessageId`; Notifications adds a third, per-channel layer.
 - [ADR-0007: Avro Compatibility Modes](0007-avro-compatibility-modes.md) — governs the event-schema generalization.
 - [events-catalog.md § 1.4 D-5](../bc-design/events-catalog.md) — command-driven Notifications; preserved (producers still emit a command, now channel-agnostic).

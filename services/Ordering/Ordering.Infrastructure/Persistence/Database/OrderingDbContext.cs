@@ -15,7 +15,7 @@ namespace Ordering.Infrastructure.Persistence.Database;
 /// EF Core DbContext for the Ordering bounded context. Implements the
 /// <see cref="IOrderingDbContext"/> application port and <see cref="IInboxDbContext"/>
 /// so saga-command consumers can participate in the inbox-dedup + outbox-write
-/// transaction (ADR-0008 correlation-id + reliable messaging).
+/// transaction (reliable messaging).
 /// </summary>
 public sealed class OrderingDbContext : DbContext, IOrderingDbContext, IInboxDbContext
 {

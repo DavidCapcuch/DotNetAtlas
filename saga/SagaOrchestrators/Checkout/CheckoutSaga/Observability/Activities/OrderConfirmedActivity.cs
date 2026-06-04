@@ -30,10 +30,6 @@ public sealed class OrderConfirmedActivity : IStateMachineActivity<CheckoutSagaS
 
         using var activity =
             CheckoutSagaActivitySource.StartActivity(nameof(OrderConfirmedActivity), saga.CorrelationId);
-        if (activity?.IsAllDataRequested == true)
-        {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, message.OrderId.ToString());
-        }
 
         if (saga.OrderConfirmationRequestedAtUtc is { } requested)
         {
@@ -44,8 +40,8 @@ public sealed class OrderConfirmedActivity : IStateMachineActivity<CheckoutSagaS
         CheckoutSagaMetrics.DecrementActive();
 
         _logger.LogInformation(
-            "{SagaType} {CorrelationId} confirmed. OrderId: {OrderId}",
-            nameof(CheckoutSagaOrchestrator), saga.CorrelationId, message.OrderId);
+            "{SagaType} {CorrelationId} confirmed",
+            nameof(CheckoutSagaOrchestrator), saga.CorrelationId);
 
         await next.Execute(context);
     }

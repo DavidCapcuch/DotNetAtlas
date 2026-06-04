@@ -14,7 +14,7 @@
 | **Subdomain type** | **Core** — order lifecycle is the commercial heart of the eShop. |
 | **Purpose** | Own the lifecycle of an **Order** from creation (at checkout) through fulfillment (delivery) or termination (cancellation / failure), acting as the system of record for what a customer agreed to buy, at what price, to what address, and at what point in the fulfillment journey the commitment currently sits. |
 | **Storage** | PostgreSQL, schema `ordering` (shared Postgres instance, per-BC schema — see [ADR-0000 not yet authored; follows general-plan § Infrastructure]). |
-| **Primary pattern showcase** | Rich **SmartEnum-guarded status FSM** with multi-event aggregate transitions, factory from `BasketSnapshot`. Write-side aggregate loading uses inline primary-key LINQ for all by-id loads — including `CreateOrderCommand`'s idempotency check on the pre-assigned `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md) retired the former `OrderByCorrelationIdSpec`); read side uses inline LINQ with SQL-side projection per [ADR-0021](../adr/0021-read-side-no-specifications.md) (adoption criteria in [ADR-0022](../adr/0022-specification-pattern-adoption.md)). |
+| **Primary pattern showcase** | Rich **SmartEnum-guarded status FSM** with multi-event aggregate transitions, factory from `BasketSnapshot`. Write-side aggregate loading uses inline primary-key LINQ for all by-id loads — including `CreateOrderCommand`'s idempotency check on the pre-assigned `OrderId` ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); read side uses inline LINQ with SQL-side projection per [ADR-0021](../adr/0021-read-side-no-specifications.md) (adoption criteria in [ADR-0022](../adr/0022-specification-pattern-adoption.md)). |
 | **Upstream inputs** | `BasketSnapshot` (ACL input from Basket BC at checkout); `StockReserved` / `PaymentCompleted` saga events (routed from the Checkout saga). |
 | **Downstream outputs** | `ordering.orders` topic — enriched external events consumed by the Checkout saga, BFF (cache invalidation), Inventory (release on cancel), and Invoicing (invoice-issuance / credit-note projections). Payments does **not** consume `ordering.orders` (refund left checkout compensation per [ADR-0026](../adr/0026-checkout-payment-flow-capture-pivot.md)). Order-lifecycle email notifications are deferred (would route via the command-driven pattern in [notifications.md § 2](notifications.md) if added). |
 
@@ -28,7 +28,7 @@ Full glossary in [glossary-ordering.md](./glossary-ordering.md). Key terms:
 - **Buyer** — the authenticated user who placed the order (`BuyerId` from JWT `sub` claim; see ADR-0005).
 - **OrderItem** — a line inside an Order: one product, quantity, unit price, and a captured **ProductSnapshot**.
 - **OrderStatus** — the current lifecycle position of an Order; a SmartEnum with guarded transitions.
-- **OrderId (saga key)** — the Order's identity (`Id`) is pre-assigned at checkout ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) and **is** the Checkout saga's correlation key. There is no separate `CorrelationId` ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)).
+- **OrderId (saga key)** — the Order's identity (`Id`) is pre-assigned at checkout ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) and **is** the Checkout saga's correlation key (the saga's MassTransit `CorrelationId == OrderId`).
 - **StockReservation** — external Inventory concept referenced by `ReservationId` after `MarkStockReserved`. Not owned by Ordering.
 - **PaymentTransactionId** — Payments-side identifier persisted on the Order after the saga reports a completed payment.
 - **Compensation** — the process by which a cancelled Order triggers downstream reversals (release stock, refund payment) — *orchestrated by the saga, not by this BC*.
@@ -78,7 +78,7 @@ The aggregate enforces the following invariants. Violations are classified as **
 | I-2 | **Items are immutable after `StockReserved`.** After stock is reserved at Inventory, the set of items, quantities, and prices are frozen. | Future methods that would mutate items must throw `DataIntegrityException` if `Status >= StockReserved` (no such methods exist in v1; this is a future-guard). | Bug. |
 | I-3 | **Addresses are immutable after creation.** | No mutator methods exist. Properties have `private` setters. | N/A. |
 | I-4 | **BuyerId is immutable.** | No mutator. Captured in factory. | N/A. |
-| I-5 | **The Order's `Id` is the pre-assigned `OrderId` and is the saga key.** | Set once in factory from the saga-supplied id ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); the saga correlates all later events by this id. No separate `CorrelationId` ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). | N/A. |
+| I-5 | **The Order's `Id` is the pre-assigned `OrderId` and is the saga key.** | Set once in factory from the saga-supplied id ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); the saga correlates all later events by this id (its MassTransit `CorrelationId == OrderId`). | N/A. |
 | I-6 | **Total equals sum of line totals.** `Total.Amount == Σ Items.LineTotal.Amount`, single currency across all items. | Factory computes `Total` from items; subsequent immutability ensures it stays correct. | Bug (input validation). |
 | I-7 | **At least one item at creation.** | `Throw.If(basket.Items.Count == 0, DataIntegrityException)` in factory. | Bug — Basket should never emit an empty checkout. |
 | I-8 | **All line items have positive unit price and positive quantity.** | `Throw.If(item.UnitPrice.Amount <= 0, DataIntegrityException)` and `quantity > 0`. | Bug — Catalog/Basket should never produce non-positive prices. |
@@ -392,7 +392,7 @@ All `OrderId` / `BuyerId` fields are `string + logicalType: uuid`. All `*AtUtc` 
 }
 ```
 
-> **Note:** No `ordering.orders` event carries a dedicated `CorrelationId` — it was retired ([ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). `OrderId` is the correlation key on every Ordering event; delivery is a post-saga fulfillment milestone, correlated (like all order events) by `OrderId`. A future delivery-email producer would carry `OrderId` on its `NotifyUserCommand` (v2; per [notifications.md § 2](notifications.md) + [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)).
+> **Note:** `OrderId` is the correlation key on every Ordering event; delivery is a post-saga fulfillment milestone, correlated (like all order events) by `OrderId`. A future delivery-email producer would carry `OrderId` on its `NotifyUserCommand` (v2; per [notifications.md § 2](notifications.md) + [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md)).
 
 #### 7.2.6 `OrderFailedEvent.avsc`
 
@@ -512,7 +512,7 @@ The saga **does not** mutate Ordering's database directly. Two options exist for
 
 This BC design **supports both**: commands are plain CQRS commands; whether they enter via HTTP or a Kafka consumer adapter is transport-only. Recommendation: **Option Y** for consistency with the saga's orchestration style. If chosen, the topic `ordering.order-commands` must be added to the docker-compose Kafka config (Stage 2 Agent 5).
 
-The command payload uses **`OrderId`** as the primary key so consumers can efficiently partition/dedupe. Post-[ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md) the `OrderId` is pre-assigned and **is** the saga key — there is no separate `CorrelationId` carried alongside.
+The command payload uses **`OrderId`** as the primary key so consumers can efficiently partition/dedupe. Per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) the `OrderId` is pre-assigned and **is** the saga key.
 
 ### 10.3 Subscribes to
 

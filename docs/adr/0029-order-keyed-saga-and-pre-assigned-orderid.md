@@ -2,34 +2,29 @@
 
 ## Status
 
-Accepted (2026-06-03) — supersedes the correlation-key and naming decisions in [ADR-0004](0004-checkout-saga-topology.md); the step-ordering (reserve-before-pay) and centralized-placement decisions of ADR-0004 are **unchanged**. Paired with [ADR-0030](0030-retire-dedicated-correlationid.md) (retire the dedicated CorrelationId).
+Accepted (2026-06-03) — supersedes the correlation-key and naming decisions in [ADR-0004](0004-checkout-saga-topology.md); the step-ordering (reserve-before-pay) and centralized-placement decisions of ADR-0004 are **unchanged**.
 
 ## Context
 
-The checkout saga as built ([ADR-0004](0004-checkout-saga-topology.md)) keys its MassTransit state machine on a dedicated `CorrelationId` that equals Basket's `BasketCorrelationId` — a value minted at checkout-initiation, **before** any Order exists. The Ordering bounded context then mints its **own** `OrderId` when it creates the Order aggregate and returns it on `OrderCreatedEvent`. So two distinct identifiers travel the flow:
+The checkout saga is the order-processing process: one `BasketCheckoutInitiatedEvent` drives `CreateOrder → ReserveStock → Pay → Confirm` across Ordering, Inventory, and Payments. The dominant MassTransit idiom keys an order-processing saga **on the order's own id**: `Event(() => OrderSubmitted, x => x.CorrelateById(m => m.Message.OrderId))`, with `SagaState.CorrelationId == OrderId` (e.g. the canonical [Milan Jovanović MassTransit saga walkthrough](https://www.milanjovanovic.tech/blog/implementing-the-saga-pattern-with-masstransit)).
 
-- `CorrelationId` (= `BasketCorrelationId`) — the saga instance key, allocated first.
-- `OrderId` — the Ordering aggregate primary key, allocated later by Ordering.
-
-This split is the direct cause of the "how do Inventory result events correlate back to the saga?" problem documented in `checkout-saga.md § 8.1` (the Option A/B/C debate), because Inventory's events carry `OrderId` but the saga is keyed by `CorrelationId`. It also produces a conceptual mismatch: the saga **is** the order-processing process, yet it is not identified by the order.
-
-The dominant MassTransit idiom keys an order-processing saga **on the order's own id**: `Event(() => OrderSubmitted, x => x.CorrelateById(m => m.Message.OrderId))`, with `SagaState.CorrelationId == OrderId` (e.g. the canonical [Milan Jovanović MassTransit saga walkthrough](https://www.milanjovanovic.tech/blog/implementing-the-saga-pattern-with-masstransit)). That requires the OrderId to exist at saga start, which a **pre-assigned** (client/edge-generated) GUIDv7 id makes trivial — and GUIDv7 ids are explicitly designed for this allocate-early, time-sortable, index-friendly use.
+That requires the `OrderId` to exist at saga start. A **pre-assigned** (client/edge-generated) GUIDv7 id makes this trivial — GUIDv7 ids are explicitly designed for this allocate-early, time-sortable, index-friendly use. With the `OrderId` allocated at checkout initiation and carried through every event, every saga correlation is a primary-key lookup on `OrderId`; the "how do Inventory result events correlate back to the saga?" question raised in `checkout-saga.md § 8.1` disappears, because Inventory's events already carry `OrderId`.
 
 This is a non-production reference solution; breaking changes are free (root `CLAUDE.md`).
 
 ## Decision Drivers (ranked)
 
-1. **Conceptual honesty** — the saga is the order-processing process manager; its identity should be the order's identity, not a parallel correlation token.
+1. **Conceptual honesty** — the saga is the order-processing process manager; its identity should be the order's identity.
 2. **Eliminate the correlation-mapping problem** — keying on `OrderId` deletes the `§ 8.1` Option A/B/C mapping entirely; events already carry `OrderId`.
-3. **Idiom alignment + fewer identifiers** — match the MassTransit norm; reduce the per-flow identifier count.
+3. **Idiom alignment + fewer identifiers** — match the MassTransit norm; one identifier per order flow.
 4. **Name honesty** — the saga's scope is the *checkout/purchase* (basket → paid, confirmed order); its name should describe that process and not overclaim the full order lifecycle (ship/deliver live outside it).
 5. **Centralized placement is non-negotiable** — preserve [ADR-0001](0001-centralized-saga-orchestration.md): the saga stays a centralized orchestrator and is **not** embedded into Ordering.
 
 ## Considered Options
 
-### Option 1: Status quo — dedicated `CorrelationId` ≠ `OrderId`
+### Option 1: Ordering mints the `OrderId` at order creation
 
-Keep `CorrelationId = BasketCorrelationId`, minted before the order; map Inventory `OrderId` events back to the saga (the `§ 8.1` mapping). Rejected: carries the mapping complexity and the conceptual split for no benefit once OrderId can be pre-assigned.
+Ordering generates the `OrderId` when it creates the Order aggregate and returns it on `OrderCreatedEvent`. The saga cannot be keyed on `OrderId` at start (the id does not exist yet), so it must carry a separate start-time key and map Inventory `OrderId` events back to it (the `§ 8.1` mapping). Rejected: carries the mapping complexity and the conceptual split for no benefit once the `OrderId` can be pre-assigned.
 
 ### Option 2: Order-keyed saga with a pre-assigned `OrderId` (chosen)
 
@@ -41,9 +36,9 @@ Rejected for the same reasons as ADR-0004 Option 2: Ordering would consume Inven
 
 ## Evaluation Matrix
 
-| Driver (ranked) | Opt 1: dedicated CorrelationId | Opt 2: order-keyed (chosen) | Opt 3: embed in Ordering |
+| Driver (ranked) | Opt 1: Ordering-minted OrderId | Opt 2: order-keyed (chosen) | Opt 3: embed in Ordering |
 |---|---|---|---|
-| 1. Conceptual honesty | Saga not identified by the order | Saga id **is** the order id | Honest, but wrong host |
+| 1. Conceptual honesty | Saga not identified by the order at start | Saga id **is** the order id | Honest, but wrong host |
 | 2. Eliminate § 8.1 mapping | Mapping required | Mapping deleted | Deleted, but new event coupling |
 | 3. Idiom + fewer ids | Two ids, non-idiomatic | One id, MassTransit-idiomatic | One id |
 | 4. Name honesty | `CheckoutSaga` (accurate) | `CheckoutSaga` retained — rename to `OrderProcessingSaga` rejected as overclaiming | n/a |
@@ -53,10 +48,10 @@ Rejected for the same reasons as ADR-0004 Option 2: Ordering would consume Inven
 
 Adopt **Option 2**. Concretely:
 
-1. **Pre-assign `OrderId`** (UUID v7) at checkout initiation. It is the Order's identity from birth; Basket carries it through `BasketCheckoutInitiatedEvent` as a pass-through field (replacing `BasketCorrelationId`). Ordering persists the Order with the supplied id (client-assigned identity).
+1. **Pre-assign `OrderId`** (UUID v7) at checkout initiation. It is the Order's identity from birth; Basket carries it through `BasketCheckoutInitiatedEvent` as a pass-through field. Ordering persists the Order with the supplied id (client-assigned identity).
 2. **Saga `CorrelationId == OrderId`.** All saga events correlate via `CorrelateById(m => m.OrderId)`; `CreateOrderCommand` carries the pre-assigned `OrderId`.
 3. **Name retained — `CheckoutSaga`.** A rename to `OrderProcessingSaga` was **considered and rejected**: this saga's scope is the checkout/purchase (it ends at *paid + confirmed*; `Shipped` / `Delivered` are Order-aggregate transitions **outside** it), so `CheckoutSaga` is the more honest name and `OrderProcessingSaga` would overclaim the full order lifecycle. Re-keying on `OrderId` does **not** require a rename. The topic (`checkout.sagas`), consumer group (`saga-checkout`), folder, and class names are unchanged.
-4. **`PaymentProcessingSaga` re-keys on `OrderId`.** One payment process per order; the saga's `CorrelationId == OrderId`; the one-payment-per-order uniqueness constraint moves from `payment_transactions.correlation_id` to `order_id`. `PaymentTransactionId` remains the Payments aggregate's own primary key, distinct from the saga key.
+4. **`PaymentProcessingSaga` re-keys on `OrderId`.** One payment process per order; the saga's `CorrelationId == OrderId`; the one-payment-per-order uniqueness constraint is on `payment_transactions.order_id`. `PaymentTransactionId` remains the Payments aggregate's own primary key, distinct from the saga key.
 
 ## Rationale
 
@@ -69,8 +64,7 @@ The saga **keeps the name `CheckoutSaga`** because it models the checkout/purcha
 ### Positive
 
 - The `§ 8.1` Inventory-event correlation-mapping problem disappears; events correlate on `OrderId`, which they already carry.
-- One identifier per order flow instead of two; the model matches the MassTransit idiom new engineers bring with them.
-- `OrderProcessingSaga` / `PaymentProcessingSaga` naming is symmetric.
+- One identifier per order flow; the model matches the MassTransit idiom new engineers bring with them.
 
 ### Negative
 
@@ -86,12 +80,11 @@ The saga **keeps the name `CheckoutSaga`** because it models the checkout/purcha
 
 ## Implementation Notes
 
-- **Allocation point:** `OrderId` (UUID v7) generated in Basket's checkout command handler (replacing the `BasketCorrelationId` generation), carried on `BasketCheckoutInitiatedEvent`.
+- **Allocation point:** `OrderId` (UUID v7) generated in Basket's checkout command handler, carried on `BasketCheckoutInitiatedEvent`.
 - **Ordering:** `CreateOrderCommand` carries `OrderId`; the Order aggregate factory accepts the supplied id; architecture/unit tests updated to assert client-assigned identity.
-- **Saga:** `CheckoutSagaState.CorrelationId == OrderId`; every `Event(...).CorrelateById(m => m.OrderId)`; internal saga events carry `OrderId`; the consumer-adapters source the value from the inbound event's `OrderId`. No class/folder/topic/group rename; the saga state table keeps its `correlation_id` PK column (the *value* becomes `OrderId`) so no state-table migration is required for the re-key itself.
+- **Saga:** `CheckoutSagaState.CorrelationId == OrderId`; every `Event(...).CorrelateById(m => m.OrderId)`; internal saga events carry `OrderId`; the consumer-adapters source the value from the inbound event's `OrderId`. No class/folder/topic/group rename; the saga state exposes only its MassTransit `CorrelationId` (no separate `OrderId` column).
 - **PaymentProcessingSaga:** `CorrelateById(m => m.OrderId)`; migration moving the unique constraint to `order_id`; update `RequestPaymentCommand` correlation.
 - **Tests:** the saga unit + integration suites (`CheckoutSaga*Tests`) re-key (no rename); `Basket`/`Ordering` boundary tests updated.
-- **Sequencing:** this ADR (Part A) lands first; the dedicated-CorrelationId teardown ([ADR-0030](0030-retire-dedicated-correlationid.md), Part B) is staged separately.
 
 ## Related Decisions
 
@@ -99,4 +92,3 @@ The saga **keeps the name `CheckoutSaga`** because it models the checkout/purcha
 - [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — **superseded** on the correlation-key and naming choices; step-ordering and placement retained.
 - [ADR-0005: Customer Data in Ordering](0005-customer-data-in-ordering.md) — Basket-as-pass-through precedent for carrying the pre-assigned `OrderId`.
 - [ADR-0026: Checkout Payment Flow Capture Pivot](0026-checkout-payment-flow-capture-pivot.md) — unaffected; the capture-pivot flow re-keys on `OrderId` like every other transition.
-- [ADR-0030: Retire Dedicated CorrelationId](0030-retire-dedicated-correlationid.md) — the paired decision; `OrderId` becomes the business correlation key this ADR establishes.

@@ -8,7 +8,7 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Observability.Activities;
 /// Activity that fires on entry to the abnormal-terminal <c>CompensationStuck</c> state.
 /// Emits <c>saga.checkout.stuck</c> AND <c>saga.checkout.compensation_timeout</c> counters
 /// + a high-severity log line carrying the runbook fields per
-/// docs/bc-design/saga-stuck-runbook.md § 3 (correlation_id, last_state, stuck_since_utc,
+/// docs/bc-design/saga-stuck-runbook.md § 3 (order_id, last_state, stuck_since_utc,
 /// failure_reason).
 /// </summary>
 public sealed class CheckoutStuckActivity

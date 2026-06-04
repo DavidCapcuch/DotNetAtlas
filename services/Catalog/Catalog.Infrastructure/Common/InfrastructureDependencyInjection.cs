@@ -5,8 +5,8 @@ namespace Catalog.Infrastructure.Common;
 
 /// <summary>
 /// Composition root for the Catalog Infrastructure layer. Called from
-/// <c>Catalog.Api.Program.cs</c> after <c>AddServiceDefaults</c> (correlation-id +
-/// service-auth per ADR-0008/0010) and <c>AddApplication</c> (validators, CQRS
+/// <c>Catalog.Api.Program.cs</c> after <c>AddServiceDefaults</c> (service-auth
+/// per ADR-0010) and <c>AddApplication</c> (validators, CQRS
 /// handlers, projection handlers, outbox publishers).
 /// </summary>
 /// <remarks>
@@ -19,8 +19,7 @@ namespace Catalog.Infrastructure.Common;
 /// </description></item>
 /// <item><description>
 /// <see cref="MessagingDependencyInjection.AddKafkaMessaging"/> — KafkaFlow cluster
-/// with the <c>StockLevelChangedEvent</c> inbox consumer, transactional outbox + DLT producer,
-/// and correlation-id propagation middleware.
+/// with the <c>StockLevelChangedEvent</c> inbox consumer, transactional outbox + DLT producer.
 /// </description></item>
 /// <item><description>
 /// <see cref="ObservabilityDependencyInjection.AddOpenTelemetry"/> — OTel tracing +

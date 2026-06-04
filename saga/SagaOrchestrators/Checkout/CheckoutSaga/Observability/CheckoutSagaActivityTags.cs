@@ -9,11 +9,6 @@ namespace SagaOrchestrators.Checkout.CheckoutSaga.Observability;
 public static class CheckoutSagaActivityTags
 {
     /// <summary>
-    /// The Ordering aggregate id assigned after OrderCreatedSagaEvent arrives.
-    /// </summary>
-    public const string OrderId = "saga.order_id";
-
-    /// <summary>
     /// A specific Inventory product id - tagged on per-line StockReserved / ReservationReleased / ReservationConfirmed activities.
     /// </summary>
     public const string ProductId = "saga.product_id";

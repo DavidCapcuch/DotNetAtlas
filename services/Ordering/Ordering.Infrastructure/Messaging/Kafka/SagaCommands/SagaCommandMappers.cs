@@ -89,7 +89,7 @@ internal static class SagaCommandMappers
     /// Maps <see cref="AvroCancelOrderCommand"/> to the application layer
     /// <see cref="AppCancelOrderCommand"/>. Saga-originated cancellations
     /// run with <c>IsAdmin=true</c> and <c>BuyerId=Guid.Empty</c>: the saga
-    /// is a privileged caller whose correlation-id match is its
+    /// is a privileged caller whose <c>OrderId</c> match is its
     /// authorisation (the buyer-ownership check only applies to the HTTP
     /// surface per <c>ordering.md § 9.2</c>).
     /// </summary>

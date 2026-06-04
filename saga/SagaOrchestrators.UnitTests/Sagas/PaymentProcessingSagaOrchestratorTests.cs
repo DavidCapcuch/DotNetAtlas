@@ -105,7 +105,6 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             awaitingAuthorizationSagaState.Should().NotBeNull();
             // ADR-0029: the saga is keyed on OrderId — its CorrelationId equals the OrderId.
             awaitingAuthorizationSagaState.CorrelationId.Should().Be(orderId);
-            awaitingAuthorizationSagaState.OrderId.Should().Be(orderId);
             awaitingAuthorizationSagaState.UserId.Should().Be(userId);
             awaitingAuthorizationSagaState.Amount.Should().Be(9.99m);
             awaitingAuthorizationSagaState.Currency.Should().Be("USD");
@@ -581,7 +580,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
             awaitingAuthorizationSagaState.PaymentTransactionId.Value.Should().NotBe(orderId,
                 "PaymentTransactionId must be distinct from the saga key (OrderId) — no v1 collapse");
             IsUuidV7(awaitingAuthorizationSagaState.PaymentTransactionId.Value).Should().BeTrue(
-                "Guid.CreateVersion7() is required per ADR-0008 ID-format guidance");
+                "PaymentTransactionId is a UUID v7 (Guid.CreateVersion7), time-sortable for PK locality");
         }
     }
 

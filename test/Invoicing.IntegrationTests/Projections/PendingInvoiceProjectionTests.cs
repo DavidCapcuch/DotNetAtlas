@@ -51,7 +51,6 @@ public sealed class PendingInvoiceProjectionTests
     public async Task Example_1_1_OrderConfirmed_Then_PaymentCaptured_ConvergesPendingRow()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
@@ -130,7 +129,6 @@ public sealed class PendingInvoiceProjectionTests
     public async Task Example_1_2_PaymentCaptured_Then_OrderConfirmed_ConvergesPendingRow()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
@@ -210,7 +208,6 @@ public sealed class PendingInvoiceProjectionTests
     public async Task Example_1_3_DuplicateOrderConfirmedEvent_RowStaysIdempotent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var correlationId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
 
@@ -237,7 +234,7 @@ public sealed class PendingInvoiceProjectionTests
             await handler.Handle(BuildContext(ct), firstEvent);
         }
 
-        // Same CorrelationId redelivered — handler must no-op.
+        // Same OrderId redelivered — handler must no-op.
         await using (var secondScope = _fixture.CreateScope())
         {
             var db = secondScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
@@ -269,8 +266,8 @@ public sealed class PendingInvoiceProjectionTests
 
     private static IMessageContext BuildContext(CancellationToken ct)
     {
-        // ADR-0030 — projection handlers source the convergence key (OrderId) from the Avro
-        // payload, not a header; the context only needs the cancellation token.
+        // Projection handlers source the convergence key (OrderId) from the Avro payload, not a
+        // header; the context only needs the cancellation token.
         var context = Substitute.For<IMessageContext>();
         context.Headers.Returns(new MessageHeaders());
         var consumerContext = Substitute.For<IConsumerContext>();

@@ -21,9 +21,10 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// <see cref="BasketAclErrors.CatalogUnavailable"/>.
 /// </summary>
 /// <remarks>
-/// Configuration (<c>BaseAddress</c>, <c>Timeout</c>, service-auth, correlation-id
-/// propagation) is applied to the injected <see cref="HttpClient"/> in
-/// <see cref="CatalogClientDependencyInjection.AddBasketCatalogClient"/>; the
+/// Configuration (<c>BaseAddress</c>, <c>Timeout</c>, service-auth) is applied
+/// to the injected <see cref="HttpClient"/> in
+/// <see cref="CatalogClientDependencyInjection.AddBasketCatalogClient"/> (W3C
+/// trace context propagates automatically via OpenTelemetry); the
 /// adapter itself stays transport-policy-agnostic. No Polly — cross-service
 /// HTTP resilience is handled by YARP at the edge per basket.md &#xa7; 9.3.
 /// </remarks>

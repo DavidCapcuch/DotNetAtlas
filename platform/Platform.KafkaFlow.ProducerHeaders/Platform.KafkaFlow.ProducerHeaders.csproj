@@ -4,9 +4,6 @@
         <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
 
-        <!-- LogContext.PushProperty for consumer middleware correlation-id scoping (ADR-0008). -->
-        <PackageReference Include="Serilog"/>
-
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

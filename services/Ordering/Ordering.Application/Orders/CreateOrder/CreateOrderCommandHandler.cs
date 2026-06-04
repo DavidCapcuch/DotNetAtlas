@@ -39,8 +39,7 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
     public async Task<Result<Guid>> HandleAsync(CreateOrderCommand command, CancellationToken ct)
     {
         // Idempotency: the client-assigned OrderId is the aggregate primary key (ADR-0029), so a
-        // replayed command resolves the existing order by PK inline. Replaces the retired
-        // correlation-id lookup (ADR-0030).
+        // replayed command resolves the existing order by PK inline.
         var existing = await _dbContext.Orders
             .FirstOrDefaultAsync(o => o.Id == command.OrderId, ct);
         if (existing is not null)

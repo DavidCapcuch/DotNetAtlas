@@ -8,7 +8,7 @@ namespace Basket.Infrastructure.Common;
 /// <summary>
 /// Composition root for the Basket Infrastructure layer. Called from
 /// <c>Basket.Api.Program.cs</c> after <c>AddServiceDefaults</c> (which
-/// registers correlation-id + service-auth per ADR-0008/0010) and
+/// registers service-auth per ADR-0010) and
 /// <c>AddApplication</c> (which registers validators, CQRS handlers, and
 /// domain-event dispatch).
 /// </summary>
@@ -44,8 +44,9 @@ namespace Basket.Infrastructure.Common;
 /// <item><description>
 /// <c>AddBasketCatalogClient</c> — the Catalog Anti-Corruption Layer: a
 /// typed <see cref="HttpClient"/> fronting <c>IProductCatalogQueryPort</c>
-/// with correlation-id + service-auth delegating handlers. Requires
-/// <c>AddCorrelationId()</c> + <c>AddServiceAuth("basket-service")</c> to have been
+/// with the service-auth delegating handler (W3C trace context propagates
+/// automatically via OpenTelemetry). Requires
+/// <c>AddServiceAuth("basket-service")</c> to have been
 /// called upstream by ServiceDefaults.
 /// </description></item>
 /// <item><description>

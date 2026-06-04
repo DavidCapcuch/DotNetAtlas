@@ -47,8 +47,8 @@ internal sealed class VoidPaymentCommandHandler : ICommandHandler<VoidPaymentCom
         ArgumentNullException.ThrowIfNull(command);
 
         // AvroVoidPaymentCommand carries no PaymentTransactionId, so we resolve the aggregate via
-        // the unique order_id index — OrderId is the saga business key (ADR-0029) and replaces the
-        // retired correlation-id lookup (ADR-0030). See analogous comment in CapturePaymentCommandHandler.
+        // the unique order_id index — OrderId is the saga business key (ADR-0029). See analogous
+        // comment in CapturePaymentCommandHandler.
         var tx = await _dbContext.Transactions
             .WithSpecification(new PaymentByOrderIdSpec(command.OrderId))
             .FirstOrDefaultAsync(ct);

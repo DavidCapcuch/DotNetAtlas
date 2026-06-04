@@ -57,7 +57,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             persistedState.Should().NotBeNull();
             // ADR-0029: the saga is keyed on OrderId — its CorrelationId equals the OrderId.
             persistedState.CorrelationId.Should().Be(orderId);
-            persistedState.OrderId.Should().Be(orderId);
             persistedState.UserId.Should().Be(userId);
             persistedState.CurrentState.Should().Be(nameof(PaymentProcessingSagaOrchestrator.AwaitingAuthorization));
             persistedState.Amount.Should().Be(9.99m);

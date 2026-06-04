@@ -35,7 +35,6 @@ public sealed class
             CheckoutSagaActivitySource.StartActivity(nameof(PaymentCompletedCheckoutActivity), saga.CorrelationId);
         if (activity?.IsAllDataRequested == true)
         {
-            activity.SetTag(CheckoutSagaActivityTags.OrderId, saga.OrderId?.ToString() ?? string.Empty);
             activity.SetTag(SagaActivityTags.PaymentTransactionId, message.PaymentTransactionId.ToString());
         }
 

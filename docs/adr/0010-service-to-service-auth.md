@@ -108,7 +108,6 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 ## Related Decisions
 
-- [ADR-0008: Correlation-ID Propagation Rule](0008-correlation-id-propagation.md) — service-auth identity is separate from CorrelationId; both travel on the same hops
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — single-trust-zone runtime profile defines the auth envelope this ADR fits into
 - [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — the saga coordinates BCs via Kafka commands (no service token); the HTTP consumers of this mechanism are the BFF and inter-BC ACL calls (e.g. Basket→Catalog)
 - [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — Avro payloads carry no auth metadata; HTTP is the only application layer that inspects service-auth tokens

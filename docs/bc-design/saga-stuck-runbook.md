@@ -2,9 +2,9 @@
 
 > When the Checkout saga reaches terminal state `CompensationStuck`, this runbook guides the on-call engineer from alert to resolution.
 >
-> Related: [checkout-saga.md](checkout-saga.md), [ADR-0004](../adr/0004-checkout-saga-topology.md), [error-taxonomy.md](error-taxonomy.md), [events-catalog.md](events-catalog.md), [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md), [ADR-0030](../adr/0030-retire-dedicated-correlationid.md).
+> Related: [checkout-saga.md](checkout-saga.md), [ADR-0004](../adr/0004-checkout-saga-topology.md), [error-taxonomy.md](error-taxonomy.md), [events-catalog.md](events-catalog.md), [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md).
 >
-> Triage keys on **`order_id`** — the durable business key after the saga was re-keyed on OrderId (ADR-0029) and the dedicated correlation id was retired (ADR-0030).
+> Triage keys on **`order_id`** — the durable business key the saga is keyed on (ADR-0029).
 
 ---
 
@@ -70,7 +70,7 @@ If any of the above are already paging alongside `CheckoutSagaStuck`, focus root
 ### Step 1 — Identify the stuck saga instances
 
 ```sql
-SELECT order_id,
+SELECT correlation_id AS order_id,
        user_id,
        error_code,
        error_message,
@@ -82,13 +82,13 @@ ORDER BY compensation_started_at_utc DESC
 LIMIT 100;
 ```
 
-Record the `order_id` values — the durable business key (ADR-0029/ADR-0030); every subsequent step hangs off these ids.
+Record the `order_id` values — the durable business key (ADR-0029); every subsequent step hangs off these ids.
 
 ### Step 2 — Correlate across services
 
-Correlate across services on the `order_id` — the durable business key (ADR-0030). For
+Correlate across services on the `order_id` — the durable business key (ADR-0029). For
 distributed traces, pull the `traceId` from the saga's logs/spans in Jaeger / Tempo; note it is a
-separate, **sampled** and short-retention key (ADR-0030), so it may be absent for older incidents.
+separate, **sampled** and short-retention key, so it may be absent for older incidents.
 Look for:
 
 - Was **payment captured**? Check `payments.payment_transactions`:

@@ -291,10 +291,10 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         {
             checkoutStuckRows.Should().ContainSingle()
                 .Which.KafkaKey.Should().Be(correlationId.ToString(),
-                    "CheckoutStuckEvent is keyed by saga CorrelationId per ADR-0008");
+                    "CheckoutStuckEvent is keyed by saga CorrelationId per ADR-0029");
 
             // saga-stuck-runbook.md § 3 Investigation: every stuck-saga payload must surface
-            // correlation_id, last_state, stuck_since_utc, failure_reason for the on-call to
+            // order_id, last_state, stuck_since_utc, failure_reason for the on-call to
             // open Jaeger / Seq with. AvroPayload is binary but UTF-8 strings appear verbatim.
             var payload = Encoding.UTF8.GetString(checkoutStuckRows[0].AvroPayload);
             payload.Should().Contain(nameof(CheckoutSagaOrchestrator.CompensatingStockReservations),

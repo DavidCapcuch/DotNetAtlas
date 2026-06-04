@@ -191,8 +191,8 @@ If none of the above apply AND the domain has genuine auditability, temporal-que
 - **Event store table:** `inventory.stock_events` with primary key `(StreamId, Version)` — the UNIQUE constraint is the sole optimistic-append primitive (`inventory.md` § 8.1). No pessimistic locks, no `SELECT ... FOR UPDATE`.
 - **Projections:** `inventory.current_stock_levels` (hot path — product page, availability) and `inventory.reservation_audit` (ops queries, expiry-worker scan). Both live in the same schema as the event store.
 - **Payload format:** `jsonb` column for v1 (legible during debugging, greppable during incidents, simple to inspect with `psql`). A future move to `bytea` + MemoryPack is a pure encoding change — the event schema stays the same.
-- **Additional columns promoted from payload:** `OccurredAtUtc` (temporal index), `CorrelationId` (saga forensics), `EventType` (projection-rebuild filter, deserializer discriminator).
-- **Indexes:** clustered PK on `(StreamId, Version)` for range rehydration; `OccurredAtUtc` for temporal queries; partial `CorrelationId WHERE NOT NULL` for saga joins; `EventType` for selective projection rebuilds.
+- **Additional columns promoted from payload:** `OccurredAtUtc` (temporal index) and `EventType` (projection-rebuild filter, deserializer discriminator). Saga forensics key on the `OrderId` carried in the event payload (and surfaced on the `inventory.reservation_audit.order_id` projection column).
+- **Indexes:** clustered PK on `(StreamId, Version)` for range rehydration; `OccurredAtUtc` for temporal queries; `EventType` for selective projection rebuilds.
 
 ### Write path
 

@@ -7,7 +7,7 @@ namespace Invoicing.Application.Outbox;
 /// Maps <see cref="InvoiceCancelledDomainEvent"/> to the external Avro
 /// <see cref="InvoiceCancelledEvent"/>. No decimal fields — the cancellation event is a
 /// pure status transition with cross-references (<c>CreditNoteId</c>) to let consumers
-/// correlate with the matching <c>CreditNoteIssuedEvent</c> on the same correlation id.
+/// correlate with the matching <c>CreditNoteIssuedEvent</c>.
 /// </summary>
 internal static class InvoiceCancelledMapper
 {

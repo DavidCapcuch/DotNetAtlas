@@ -29,7 +29,7 @@ Convention: `{domain}.{aggregate}[.{kind}]` — all lowercase, dot-delimited.
 
 **Partitioning key rule:** the stable business identity that preserves the right invariant.
 - Per-aggregate ordering → aggregate id. Examples: `catalog.products` keyed by `ProductId`, `ordering.orders` keyed by `OrderId`.
-- Saga correlation → `OrderId` (the saga is keyed on `OrderId` per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md); the dedicated `CorrelationId` was retired — [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). Example: `inventory.reservations` keyed by `OrderId` so all reservation events for one saga run co-partition.
+- Saga correlation → `OrderId` (the saga is keyed on `OrderId` per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)). Example: `inventory.reservations` keyed by `OrderId` so all reservation events for one saga run co-partition.
 
 ### 1.3 Avro style rules
 

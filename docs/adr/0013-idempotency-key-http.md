@@ -38,7 +38,7 @@ Client generates a deterministic ID by hashing the request payload. Server dedup
 
 ### Option 4: Natural-key idempotency at the domain layer
 
-Each handler checks domain-level natural keys (e.g., "no order exists with this CorrelationId from this buyer in the last 5 min"). No platform mechanism.
+Each handler checks domain-level natural keys (e.g., "no order exists with this OrderId from this buyer in the last 5 min"). No platform mechanism.
 
 ## Evaluation Matrix
 
@@ -184,7 +184,6 @@ Both patterns apply in this solution. Neither subsumes the other.
 
 ## Related Decisions
 
-- [ADR-0008: Correlation-ID Propagation Rule](0008-correlation-id-propagation.md) — Idempotency-Key is distinct from CorrelationId; the former dedups a single HTTP attempt, the latter threads a workflow
 - [ADR-0009: Reference-Solution Target Profile](0009-reference-solution-target-profile.md) — storage and throughput budgets
 - [ADR-0012: API Versioning](0012-api-versioning.md) — idempotency middleware is attached per versioned route group
 - [ADR-0010: Service-to-Service Auth](0010-service-to-service-auth.md) — orthogonal; idempotency applies after authentication

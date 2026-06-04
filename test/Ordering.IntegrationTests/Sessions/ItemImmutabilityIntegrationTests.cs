@@ -3,7 +3,7 @@ namespace Ordering.IntegrationTests.Sessions;
 /// <summary>
 /// Session 3 of <c>docs/bc-design/example-mapping/ordering.md</c> documents
 /// item-immutability future-guards (R1: items locked after <c>StockReserved</c>;
-/// R5: addresses, buyer, correlation id, and total likewise immutable
+/// R5: addresses, buyer, and total likewise immutable
 /// after creation). V1 ships with NO item-mutation commands on the
 /// <c>Order</c> aggregate (per-item state is set inside
 /// <c>Order.CreateFromBasket</c> and frozen — <c>Items</c> is exposed as

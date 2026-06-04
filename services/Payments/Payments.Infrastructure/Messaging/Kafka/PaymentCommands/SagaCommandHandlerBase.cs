@@ -23,8 +23,7 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 /// <item>Pushes a caller-supplied set of business ids (<c>OrderId</c> and/or <c>PaymentId</c>)
 /// into the Serilog <c>BeginScope</c> so every log line the handler emits — and every nested
 /// Application-layer log — is queryable by those ids in Seq. Cross-process correlation is carried
-/// by the ambient <c>traceId</c> (W3C / OpenTelemetry); ADR-0030 retired the dedicated correlation
-/// id, so it is no longer part of the scope.</item>
+/// by the ambient <c>traceId</c> (W3C / OpenTelemetry).</item>
 /// <item>On <see cref="Result.IsFailed"/>, throws a <see cref="SagaCommandDispatchException"/>
 /// so the KafkaFlow retry + DLT middleware can handle transient vs poison-pill
 /// classification.</item>
