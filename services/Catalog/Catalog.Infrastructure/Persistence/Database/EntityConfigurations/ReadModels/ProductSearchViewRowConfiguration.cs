@@ -94,12 +94,5 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
 
         builder.Property(r => r.CreatedAtUtc);
         builder.Property(r => r.LastUpdatedAtUtc);
-
-        builder.Property(r => r.CorrelationId)
-            .HasComment(
-                "Originating HTTP correlation id (ADR-0008). Populated from "
-                + "HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey] by the API layer, "
-                + "or Guid.Empty when no HTTP pipeline is in play.")
-            .HasDefaultValue(Guid.Empty);
     }
 }

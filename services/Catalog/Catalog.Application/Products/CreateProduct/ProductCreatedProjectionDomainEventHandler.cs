@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Catalog.Application.Categories.Common.Services;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
@@ -18,12 +17,6 @@ namespace Catalog.Application.Products.CreateProduct;
 /// </summary>
 public sealed class ProductCreatedProjectionDomainEventHandler : IDomainEventHandler<ProductCreatedDomainEvent>
 {
-    // Mirrors Platform.ServiceDefaults.CorrelationId.CorrelationIdContextKeys.ActivityTagName.
-    // Inlined to avoid coupling Catalog.Application to Platform.ServiceDefaults. The
-    // AddCorrelationId middleware writes the request's correlation id onto
-    // Activity.Current via this tag.
-    private const string CorrelationIdActivityTag = "correlation.id";
-
     private readonly ICatalogDbContext _db;
     private readonly ILogger<ProductCreatedProjectionDomainEventHandler> _logger;
 
@@ -82,8 +75,6 @@ public sealed class ProductCreatedProjectionDomainEventHandler : IDomainEventHan
             IsSellable = product.Status.IsSellable,
             CreatedAtUtc = product.CreatedUtc,
             LastUpdatedAtUtc = product.LastModifiedUtc,
-
-            CorrelationId = ResolveCorrelationId(),
         };
 
         _db.ProductSearchView.Add(row);
@@ -91,17 +82,5 @@ public sealed class ProductCreatedProjectionDomainEventHandler : IDomainEventHan
         _logger.LogDebug(
             "Projected ProductCreatedDomainEvent to product_search_view for Product {ProductId}",
             product.Id);
-    }
-
-    private static Guid ResolveCorrelationId()
-    {
-        // Background / inbox-driven flows have no Activity tag — fall back to Guid.Empty
-        // rather than manufacture a synthetic id.
-        if (Activity.Current?.GetTagItem(CorrelationIdActivityTag) is not string tag)
-        {
-            return Guid.Empty;
-        }
-
-        return Guid.TryParse(tag, out var correlationId) ? correlationId : Guid.Empty;
     }
 }
