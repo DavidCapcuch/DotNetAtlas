@@ -71,7 +71,7 @@ public sealed class PendingCreditNoteProjectionTests
                 cancelClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await cancelHandler.Handle(BuildContext(correlationId, ct), cancelEvent);
+            await cancelHandler.Handle(BuildContext(ct), cancelEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -100,7 +100,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await refundHandler.Handle(
-                BuildContext(correlationId, ct),
+                BuildContext(ct),
                 BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
@@ -144,7 +144,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await refundHandler.Handle(
-                BuildContext(correlationId, ct),
+                BuildContext(ct),
                 BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
@@ -177,7 +177,7 @@ public sealed class PendingCreditNoteProjectionTests
                 cancelClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await cancelHandler.Handle(BuildContext(correlationId, ct), cancelEvent);
+            await cancelHandler.Handle(BuildContext(ct), cancelEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -220,7 +220,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(
-                BuildContext(correlationId, ct),
+                BuildContext(ct),
                 BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
@@ -234,7 +234,7 @@ public sealed class PendingCreditNoteProjectionTests
                 NullLogger<PaymentRefundedCreditNoteProjectionKafkaHandler>.Instance);
 
             await handler.Handle(
-                BuildContext(correlationId, ct),
+                BuildContext(ct),
                 BuildPaymentRefundedEvent(orderId, paymentTransactionId, buyerId));
         }
 
@@ -283,7 +283,7 @@ public sealed class PendingCreditNoteProjectionTests
                 firstClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await handler.Handle(BuildContext(correlationId, ct), firstEvent);
+            await handler.Handle(BuildContext(ct), firstEvent);
         }
 
         await using (var secondScope = _fixture.CreateScope())
@@ -295,7 +295,7 @@ public sealed class PendingCreditNoteProjectionTests
                 secondClock,
                 NullLogger<OrderCancelledCreditNoteProjectionKafkaHandler>.Instance);
 
-            await handler.Handle(BuildContext(correlationId, ct), secondEvent);
+            await handler.Handle(BuildContext(ct), secondEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -315,18 +315,12 @@ public sealed class PendingCreditNoteProjectionTests
         }
     }
 
-    private static IMessageContext BuildContext(Guid correlationId, CancellationToken ct)
+    private static IMessageContext BuildContext(CancellationToken ct)
     {
+        // ADR-0030 — projection handlers source the convergence key (OrderId) from the Avro
+        // payload, not a header; the context only needs the cancellation token.
         var context = Substitute.For<IMessageContext>();
-        // ADR-0008 — projection handlers source CorrelationId from this header; tests that
-        // assert on a specific value flowing through must pass it here so header == Avro payload.
-        context.Headers.Returns(new MessageHeaders
-        {
-            {
-                MessageHeaderKeys.CorrelationId,
-                System.Text.Encoding.UTF8.GetBytes(correlationId.ToString())
-            },
-        });
+        context.Headers.Returns(new MessageHeaders());
         var consumerContext = Substitute.For<IConsumerContext>();
         consumerContext.WorkerStopped.Returns(ct);
         context.ConsumerContext.Returns(consumerContext);

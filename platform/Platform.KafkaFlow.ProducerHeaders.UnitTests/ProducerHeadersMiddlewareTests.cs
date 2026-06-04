@@ -35,7 +35,7 @@ public class ProducerHeadersMiddlewareTests
 
             HeaderValue(headers, MessageHeaderKeys.Origin).Should().Be(TestOrigin);
 
-            HeaderValue(headers, MessageHeaderKeys.CorrelationId).Should().BeNull(
+            HeaderValue(headers, "correlation.id").Should().BeNull(
                 "ADR-0030 retired the dedicated correlation id; the producer must not emit a correlation.id header");
         }
     }

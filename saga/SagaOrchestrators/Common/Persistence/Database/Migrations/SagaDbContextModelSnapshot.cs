@@ -87,7 +87,7 @@ namespace SagaOrchestrators.Common.Persistence.Database.Migrations
                     b.Property<Guid>("CorrelationId")
                         .HasColumnType("uuid")
                         .HasColumnName("correlation_id")
-                        .HasComment("Workflow correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId (ADR-0008).");
+                        .HasComment("MassTransit saga instance id (ISaga.CorrelationId); equals the pre-assigned OrderId (ADR-0029).");
 
                     b.Property<string>("BasketSnapshotJson")
                         .IsRequired()

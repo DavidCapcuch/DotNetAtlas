@@ -15,7 +15,7 @@ public sealed class CheckoutSagaStateMap :
 
         // Primary key - configured by MassTransit SagaClassMap base
         entity.Property(x => x.CorrelationId)
-            .HasComment("Workflow correlation id - equals BasketCheckoutInitiatedEvent.BasketCorrelationId (ADR-0008).")
+            .HasComment("MassTransit saga instance id (ISaga.CorrelationId); equals the pre-assigned OrderId (ADR-0029).")
             .ValueGeneratedNever();
 
         // State
