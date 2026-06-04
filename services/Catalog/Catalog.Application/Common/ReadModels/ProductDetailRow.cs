@@ -6,7 +6,7 @@ namespace Catalog.Application.Common.ReadModels;
 
 /// <summary>
 /// SQL-side projection of <see cref="ProductSearchViewRow"/> carrying exactly the columns the
-/// product-detail response needs — everything except <c>IsSellable</c> and <c>CorrelationId</c>.
+/// product-detail response needs — everything except <c>IsSellable</c>.
 /// Shared by <c>GetProductByIdQueryHandler</c> and <c>GetProductsByIdsQueryHandler</c> (ADR-0021)
 /// so neither materializes the full read-model row. The raw <c>DimensionsJson</c>/<c>ImagesJson</c>
 /// strings are carried through and deserialized in <see cref="ToResponse"/> after the SQL projection.

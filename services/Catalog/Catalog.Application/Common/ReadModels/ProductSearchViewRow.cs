@@ -50,11 +50,4 @@ public sealed class ProductSearchViewRow
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
-
-    /// <summary>
-    /// Correlation-id of the originating HTTP request (ADR-0008). Populated from
-    /// <c>HttpContext.Items[CorrelationIdContextKeys.HttpContextItemsKey]</c> in the API
-    /// layer, or <see cref="Guid.Empty"/> when no HTTP pipeline is in play.
-    /// </summary>
-    public Guid CorrelationId { get; set; }
 }

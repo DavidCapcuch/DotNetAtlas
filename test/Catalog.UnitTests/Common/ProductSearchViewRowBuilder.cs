@@ -33,7 +33,6 @@ public static class ProductSearchViewRowBuilder
             IsSellable = true,
             CreatedAtUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             LastUpdatedAtUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            CorrelationId = Guid.Empty,
         };
     }
 
