@@ -18,7 +18,6 @@ public class PaymentEventMapperTests
 
     private static readonly DateTimeOffset Now = new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
     private static readonly Guid PaymentId = Guid.CreateVersion7();
-    private static readonly Guid CorrelationId = Guid.CreateVersion7();
     private static readonly Guid BuyerId = Guid.CreateVersion7();
     private static readonly Guid OrderId = Guid.CreateVersion7();
 
@@ -34,7 +33,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentAuthorizedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,
@@ -65,7 +63,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -91,7 +88,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -123,7 +119,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -145,7 +140,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentCaptureFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,
@@ -164,7 +158,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentCapturedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,
@@ -194,7 +187,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentCaptureFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,
@@ -224,7 +216,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentRefundedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,
@@ -239,6 +230,7 @@ public class PaymentEventMapperTests
 
         using (new AssertionScope())
         {
+            avro.OrderId.Should().Be(OrderId);
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
             avro.RefundTransactionId.Should().NotBe(PaymentId);
@@ -260,7 +252,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentCompletedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             Amount = UsdAmount(149.99m),
@@ -292,7 +283,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -319,7 +309,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentFailedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -338,7 +327,6 @@ public class PaymentEventMapperTests
         var domainEvent = new PaymentVoidedDomainEvent
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId,

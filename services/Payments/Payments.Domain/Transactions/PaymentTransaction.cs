@@ -38,11 +38,6 @@ namespace Payments.Domain.Transactions;
 public sealed class PaymentTransaction : AggregateRoot<Guid>
 {
     /// <summary>
-    /// Originating saga CorrelationId — links the payment to the checkout, order, and invoice. Immutable per I-6.
-    /// </summary>
-    public Guid CorrelationId { get; private set; }
-
-    /// <summary>
     /// Buyer identifier (JWT <c>sub</c> at checkout). Immutable per I-6.
     /// </summary>
     public Guid BuyerId { get; private set; }
@@ -105,7 +100,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// Creates a new <see cref="PaymentTransaction"/> in <see cref="PaymentStatus.Requested"/>.
     /// </summary>
     /// <param name="paymentId">Aggregate identity (UUID v7 recommended by caller).</param>
-    /// <param name="correlationId">Originating saga correlation id.</param>
     /// <param name="buyerId">Buyer JWT <c>sub</c>.</param>
     /// <param name="orderId">Associated Ordering aggregate id.</param>
     /// <param name="amount">Amount to charge (must be positive; enforces I-1 + I-2 through <see cref="Money"/>).</param>
@@ -121,7 +115,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// </remarks>
     public static Result<PaymentTransaction> Create(
         Guid paymentId,
-        Guid correlationId,
         Guid buyerId,
         Guid orderId,
         Money amount,
@@ -143,7 +136,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         var paymentTransaction = new PaymentTransaction
         {
             Id = paymentId,
-            CorrelationId = correlationId,
             BuyerId = buyerId,
             OrderId = orderId,
             Amount = amount,
@@ -194,7 +186,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentAuthorizedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = gatewayTransactionId,
@@ -240,7 +231,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentAuthorizationFailedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -250,7 +240,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentFailedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -295,7 +284,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentCapturedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = gatewayTransactionId,
@@ -311,7 +299,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentCompletedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             Amount = Amount,
@@ -359,7 +346,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentCaptureFailedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = gatewayTransactionId,
@@ -370,7 +356,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentFailedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             FailureInfo = failureInfo,
@@ -415,7 +400,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentVoidedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId!,
@@ -460,7 +444,6 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         AddDomainEvent(new PaymentRefundedDomainEvent
         {
             PaymentId = Id,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             GatewayTransactionId = GatewayTransactionId!,

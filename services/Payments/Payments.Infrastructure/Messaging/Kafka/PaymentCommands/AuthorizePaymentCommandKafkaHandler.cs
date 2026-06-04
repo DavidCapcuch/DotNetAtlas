@@ -32,14 +32,8 @@ internal sealed class AuthorizePaymentCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroAuthorizePaymentCommand message)
     {
-        // The saga key (== OrderId per ADR-0029) is carried on the Kafka header until #310 retargets
-        // the Payments aggregate reads off it; the application command still stamps it onto the row.
-        // Aggregate PK is the saga-issued PaymentTransactionId (#255). The log scope uses the wire
-        // ids (OrderId + PaymentTransactionId) so it never depends on the retiring header.
-        var sagaKey = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "Saga key missing on the Kafka header for AuthorizePaymentCommand.");
-
+        // The aggregate is keyed on the wire OrderId (== saga key per ADR-0029); the aggregate PK
+        // is the saga-issued PaymentTransactionId (#255). The log scope uses both wire ids.
         return ExecuteAsync(
             context,
             new Dictionary<string, object?>
@@ -49,7 +43,7 @@ internal sealed class AuthorizePaymentCommandKafkaHandler
             },
             async ct =>
             {
-                var appCommand = message.ToAppCommand(sagaKey);
+                var appCommand = message.ToAppCommand();
                 var result = await _appHandler.HandleAsync(appCommand, ct);
                 return result.ToResult();
             });

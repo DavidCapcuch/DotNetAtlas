@@ -5,6 +5,14 @@
     "doc": "Event emitted when a captured payment has been refunded. Used for compensation when business operation fails after capture.",
     "fields": [
         {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Order this refund is attached to; the durable business key Invoicing keys its credit-note projection on (ADR-0029/0030)."
+        },
+        {
             "name": "UserId",
             "type": {
                 "type": "string",

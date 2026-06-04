@@ -43,7 +43,7 @@ public sealed class TestPaymentsDbContext : DbContext, IPaymentsDbContext
 
         // Complex VO / SmartEnum / owned-value-object properties are ignored at the EF mapping
         // level. InMemory keeps them as live CLR references on the tracked entity, which is
-        // enough for the write-side handler tests (they query by Id / CorrelationId — both mapped
+        // enough for the write-side handler tests (they query by Id / OrderId — both mapped
         // scalars — and assert on the tracked instance). The production DbContext configures
         // these fully (owned Money, PII _enc columns per ADR-0011, SmartEnum conversions).
         builder.Ignore(t => t.Amount);

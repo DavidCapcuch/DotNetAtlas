@@ -29,7 +29,6 @@ internal static class PaymentTransactionFactory
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
-            Guid.CreateVersion7(),
             UsdAmount(amount),
             paymentMethodId);
 

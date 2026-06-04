@@ -5,6 +5,14 @@
     "doc": "Command sent by Payment Saga to capture an authorized payment.",
     "fields": [
         {
+            "name": "OrderId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Order this payment is attached to; the saga correlation key the handler resolves the aggregate by (ADR-0029)."
+        },
+        {
             "name": "UserId",
             "type": {
                 "type": "string",

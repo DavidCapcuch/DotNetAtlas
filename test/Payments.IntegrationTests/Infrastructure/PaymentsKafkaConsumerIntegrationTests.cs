@@ -68,7 +68,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         var outbox = _fixture.GetFakeOutbox();
 
@@ -103,7 +103,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         var outbox = _fixture.GetFakeOutbox();
 
@@ -147,6 +147,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
+                OrderId = orderId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(100m),
@@ -155,7 +156,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -195,6 +196,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroVoidPaymentCommand
             {
+                OrderId = orderId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Reason = "saga compensation",
@@ -203,7 +205,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
         var outbox = _fixture.GetFakeOutbox();
 
         using (new AssertionScope())
@@ -239,6 +241,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
+                OrderId = orderId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(75m),
@@ -259,7 +262,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
         var outbox = _fixture.GetFakeOutbox();
 
         using (new AssertionScope())
@@ -289,7 +292,6 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var amount = Money.Create(100m, "USD").Value;
         var tx = PaymentTransaction.Create(
             paymentId,
-            correlationId,
             buyerId: Guid.CreateVersion7(),
             orderId,
             amount,
@@ -309,6 +311,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var avroCapture = new AvroCapturePaymentCommand
         {
+            OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "stub-auth-ignored",
             Amount = new Avro.AvroDecimal(100m),
@@ -321,7 +324,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 avroCapture));
 
         var aggregateAfter = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -355,7 +358,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var afterFirst = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         afterFirst.Should().NotBeNull();
         afterFirst!.Status.Should().Be(PaymentStatus.Failed);
@@ -370,7 +373,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             avro);
 
         var afterRetry = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -411,6 +414,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
             {
+                OrderId = orderId,
                 UserId = Guid.CreateVersion7(),
                 AuthorizationId = StoredGatewayTransactionId(correlationId),
                 Amount = new Avro.AvroDecimal(50m),
@@ -419,7 +423,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var afterCapture = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
         afterCapture.Should().NotBeNull();
         afterCapture!.Status.Should().Be(PaymentStatus.Completed);
 
@@ -431,6 +435,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 new AvroVoidPaymentCommand
                 {
+                    OrderId = orderId,
                     UserId = Guid.CreateVersion7(),
                     AuthorizationId = StoredGatewayTransactionId(correlationId),
                     Reason = "saga ordering bug — should have refunded",
@@ -438,7 +443,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 }));
 
         var afterVoidAttempt = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {
@@ -478,6 +483,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 FakeKafkaMessageContext.Create(correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken),
                 new AvroVoidPaymentCommand
                 {
+                    OrderId = orderId,
                     UserId = Guid.CreateVersion7(),
                     AuthorizationId = "wire-token-stale",
                     Reason = "saga compensation",
@@ -486,7 +492,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregateAfter = await dbContext.Transactions.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId, TestContext.Current.CancellationToken);
+            .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
         {

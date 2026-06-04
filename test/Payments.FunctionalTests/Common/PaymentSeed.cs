@@ -32,7 +32,6 @@ internal static class PaymentSeed
 
         var aggregateResult = PaymentTransaction.Create(
             paymentId: paymentId ?? Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             buyerId: Guid.CreateVersion7(),
             orderId: orderId ?? Guid.CreateVersion7(),
             amount: moneyResult.Value,

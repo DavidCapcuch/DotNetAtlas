@@ -78,7 +78,6 @@ public class GetPaymentByIdTests : BaseApiTest
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             payload.PaymentId.Should().Be(seeded.Id);
-            payload.CorrelationId.Should().Be(seeded.CorrelationId);
             payload.OrderId.Should().Be(seeded.OrderId);
             payload.BuyerId.Should().Be(seeded.BuyerId);
             payload.Status.Should().Be("Requested");

@@ -9,7 +9,6 @@ public class AuthorizePaymentCommandValidatorTests
     private static AuthorizePaymentCommand Valid() => new()
     {
         PaymentId = Guid.CreateVersion7(),
-        CorrelationId = Guid.CreateVersion7(),
         BuyerId = Guid.CreateVersion7(),
         OrderId = Guid.CreateVersion7(),
         Amount = 100m,

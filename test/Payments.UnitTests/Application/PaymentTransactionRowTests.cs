@@ -54,7 +54,6 @@ public class PaymentTransactionRowTests
         new()
         {
             PaymentId = Guid.Empty,
-            CorrelationId = Guid.Empty,
             BuyerId = Guid.Empty,
             OrderId = Guid.Empty,
             Amount = 100m,
