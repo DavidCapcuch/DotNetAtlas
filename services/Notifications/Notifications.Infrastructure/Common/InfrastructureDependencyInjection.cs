@@ -11,7 +11,8 @@ public static class InfrastructureDependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         ConfigurationManager configuration,
-        bool isDeployedEnvironment)
+        bool isDeployedEnvironment,
+        bool enableBackgroundJobServer)
     {
         services
             .AddOpenTelemetry(isDeployedEnvironment, configuration)
@@ -19,7 +20,8 @@ public static class InfrastructureDependencyInjection
 
         services
             .AddDatabase(configuration, isDeployedEnvironment)
-            .AddKafkaMessaging(configuration);
+            .AddKafkaMessaging(configuration)
+            .AddBackgroundJobs(enableBackgroundJobServer);
 
         return services;
     }

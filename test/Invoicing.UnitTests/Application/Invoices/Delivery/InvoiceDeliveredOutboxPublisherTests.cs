@@ -31,8 +31,8 @@ public sealed class InvoiceDeliveredOutboxPublisherTests
             Invoices = "invoicing.invoices",
             OrderingOrders = "n/a",
             PaymentsTransactions = "n/a",
-            NotificationsEmailCommands = "n/a",
-            NotificationsEmailEvents = "n/a",
+            NotificationsNotifyCommands = "n/a",
+            NotificationsNotifyEvents = "n/a",
             DltTopicSuffix = ".DLT",
         });
 

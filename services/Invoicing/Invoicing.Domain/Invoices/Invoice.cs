@@ -62,6 +62,14 @@ public sealed class Invoice : AggregateRoot<Guid>
 
     public DateTimeOffset? DeliveredAtUtc { get; private set; }
 
+    /// <summary>
+    /// NotificationId (GUID v7) minted when delivery is requested on
+    /// <see cref="Issue(PdfBlobRef, DateTimeOffset)"/> — the producer-assigned correlation key
+    /// (ADR-0031) the delivery confirmation echoes back. Null until the invoice is issued with a
+    /// non-<see cref="DeliveryChannel.None"/> delivery channel.
+    /// </summary>
+    public Guid? DeliveryNotificationId { get; private set; }
+
     private Invoice()
     {
     }
@@ -281,12 +289,17 @@ public sealed class Invoice : AggregateRoot<Guid>
 
         if (DeliveryChannel != DeliveryChannel.None)
         {
+            // Client-assigned NotificationId (ADR-0031), persisted on the aggregate in this same
+            // save so the delivery confirmation correlates back by delivery_notification_id — a
+            // typed field read, replacing the v1 invoice-delivered-{guid}-{attempt} string parse.
+            DeliveryNotificationId = Guid.CreateVersion7();
+
             AddDomainEvent(new InvoiceDeliveryRequestedDomainEvent
             {
                 InvoiceId = Id,
                 BuyerId = BuyerId,
+                NotificationId = DeliveryNotificationId.Value,
                 Channel = DeliveryChannel,
-                Attempt = 1,
                 InvoiceNumber = InvoiceNumber,
                 Total = Total,
                 OccurredOnUtc = utcNow,

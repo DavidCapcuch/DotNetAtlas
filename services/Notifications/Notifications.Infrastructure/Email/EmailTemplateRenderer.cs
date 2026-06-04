@@ -3,24 +3,24 @@ using Notifications.Application.Email;
 
 namespace Notifications.Infrastructure.Email;
 
-/// <summary>Phase-1 in-process renderer. One hardcoded template (<c>invoicing.invoice-delivered</c>);
-/// future Phase-2 work introduces a template store + Razor/Liquid.</summary>
+/// <summary>Minimal in-process renderer for the walking skeleton (#312). One inline template
+/// (<c>invoicing.invoice-delivered</c>); a template store + engine is a later slice (ADR-0032 § 7).</summary>
 internal sealed class EmailTemplateRenderer : IEmailTemplateRenderer
 {
-    public Result<EmailMessage> Render(string toUserId, string templateId, IDictionary<string, string> data)
+    public Result<EmailMessage> Render(string to, string templateKey, IDictionary<string, string> data)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(toUserId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(to);
+        ArgumentException.ThrowIfNullOrWhiteSpace(templateKey);
         ArgumentNullException.ThrowIfNull(data);
 
-        return templateId switch
+        return templateKey switch
         {
-            "invoicing.invoice-delivered" => RenderInvoiceDelivered(toUserId, data),
-            _ => Result.Fail<EmailMessage>($"Unknown template '{templateId}'."),
+            "invoicing.invoice-delivered" => RenderInvoiceDelivered(to, data),
+            _ => Result.Fail<EmailMessage>($"Unknown template '{templateKey}'."),
         };
     }
 
-    private static Result<EmailMessage> RenderInvoiceDelivered(string toUserId, IDictionary<string, string> d)
+    private static Result<EmailMessage> RenderInvoiceDelivered(string to, IDictionary<string, string> d)
     {
         if (!d.TryGetValue("InvoiceNumber", out var num) || string.IsNullOrWhiteSpace(num))
         {
@@ -42,6 +42,6 @@ internal sealed class EmailTemplateRenderer : IEmailTemplateRenderer
             : $"Total: {total} {currency}\n";
 
         var body = $"Hello,\n\nYour invoice {num} is ready.\n{totalLine}Sign in to view & download: {url}\n";
-        return Result.Ok(new EmailMessage(toUserId, subject, body));
+        return Result.Ok(new EmailMessage(to, subject, body));
     }
 }

@@ -291,6 +291,11 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
                         .HasColumnName("delivery_channel")
                         .HasComment("Intended delivery channel (None|Email|TaxAuthorityWebhook).");
 
+                    b.Property<Guid?>("DeliveryNotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_notification_id")
+                        .HasComment("NotificationId (ADR-0031) minted when delivery was requested; correlates the delivery confirmation. Null until Issued with a delivery channel.");
+
                     b.Property<string>("InvoiceNumber")
                         .HasMaxLength(15)
                         .HasColumnType("character varying(15)")
@@ -329,6 +334,10 @@ namespace Invoicing.Infrastructure.Persistence.Database.Migrations
 
                     b.HasIndex("BuyerId")
                         .HasDatabaseName("ix_invoices_buyer_id");
+
+                    b.HasIndex("DeliveryNotificationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_invoices_delivery_notification_id");
 
                     b.HasIndex("InvoiceNumber")
                         .IsUnique()

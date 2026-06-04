@@ -19,12 +19,10 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// double-clicks before this handler ever runs again.
 /// </para>
 /// <para>
-/// Deferred to a later milestone: the <c>invoice_delivery_log</c> insert + outbox row
-/// keyed <c>(InvoiceId, Channel, Attempt)</c> described in <c>invoicing.md § 12</c>.
-/// The delivery-log table requires a user-generated EF migration (CLAUDE.md). When that
-/// table exists the handler will SELECT MAX(Attempt) and INSERT Attempt+1 inside a
-/// transaction; for now the resend is a no-op observability event with the 204
-/// representing acknowledgement rather than work performed.
+/// Deferred to a later milestone: a real re-send mints a fresh <c>NotificationId</c> and emits
+/// another <c>NotifyUserCommand</c> (ADR-0031) so the delivery is retried as a new notification
+/// intent. For now the resend is a no-op observability event with the 204 representing
+/// acknowledgement rather than work performed.
 /// </para>
 /// <para>
 /// Wave 1 closeout follow-up H2: the v1-stub disclosure now also flows into the

@@ -34,7 +34,7 @@ When renaming a schema, rename the `.avsc` file AND update its `"name"` field AN
 
 - **Event topics:** `{bc}.{aggregate-plural}` or `{bc}.{purpose}` — lowercase, dot-then-kebab (e.g., `catalog.products`, `inventory.stock-events`, `basket.sessions`)
 - **Command topics:** `{bc}.{aggregate}-commands` — explicit `-commands` suffix (e.g., `ordering.order-commands`, `payments.payment-commands`)
-- **DLT topics:** `{topic}.{Service}.DLT` with `{Service}` matching the consumer's service name (e.g., `notifications.email-commands.Notifications.DLT`) — per [kafka-dlt-strategy.md](kafka-dlt-strategy.md)
+- **DLT topics:** `{topic}.{Service}.DLT` with `{Service}` matching the consumer's service name (e.g., `notifications.notify-commands.Notifications.DLT`) — per [kafka-dlt-strategy.md](kafka-dlt-strategy.md)
 
 Canonical registries (per [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md)): per-**topic** physical topology (partitions / retention / class) → [kafka-topology.md](../kafka-topology.md); per-**event** contract (producer / consumers / group / correlation key / trigger / schema path) → [events-catalog.md § 2](events-catalog.md). The master design and individual BC docs MUST link to these rather than duplicate them.
 
@@ -85,8 +85,8 @@ The result-vs-exception split is mandatory per [CLAUDE.md](../../CLAUDE.md). Cro
 ## 6. Idempotency, outbox, inbox
 
 - **Outbox** (`Platform.ReliableMessaging.Outbox.EFCore`) — the outbox row is written **in the same DbContext transaction** as the aggregate save. The outbox relay sidecar later publishes to Kafka with schema-registry validation.
-- **Inbox** (`Platform.KafkaFlow.Inbox.EFCore`) — dedup primary key is the producer-supplied `IdempotencyKey` (or `MessageId` where the producer pattern hasn't been adapted yet). Redelivered messages short-circuit before the handler runs.
-- **At-least-once everywhere.** Consumers MUST be idempotent. Producers MUST mint deterministic idempotency keys derived from business state (NOT `Guid.NewGuid()`); see [notifications.md § 4.2](notifications.md) for the canonical example of producer-side key derivation.
+- **Inbox** (`Platform.KafkaFlow.Inbox.EFCore`) — transport-level dedup keys on the `message.id` header. Redelivered messages short-circuit before the handler runs.
+- **At-least-once everywhere.** Consumers MUST be idempotent. Transport dedup is the `message.id` inbox; durable per-channel dedup (where a handler has side effects beyond the inbox) is a domain ledger keyed by business identity — e.g. Notifications' `notification_deliveries` keyed `(NotificationId, Channel)` per [ADR-0031](../adr/0031-notify-user-command-and-notification-id.md).
 - **Domain-event dispatch is owned by the persistence boundary, not application handlers.** EF-Core BCs (Catalog, Ordering, Invoicing, Payments) dispatch via `DispatchDomainEventsInterceptor` on the BC's `DbContext`; command handlers MUST NOT inject `IDomainEventDispatcher`. The two exceptions are Basket (Redis primary, dispatch in handler after `SaveAsync`) and Inventory (event-sourced, dispatch inside `EventStoreRepository.AppendAsync`). Canonical detail and per-BC wiring table: [ADR-0024](../adr/0024-domain-event-dispatch-in-persistence-interceptor.md).
 
 ---

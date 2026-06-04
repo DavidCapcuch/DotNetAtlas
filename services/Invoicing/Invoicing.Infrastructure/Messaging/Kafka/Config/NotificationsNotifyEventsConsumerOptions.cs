@@ -4,13 +4,14 @@ using Confluent.Kafka;
 namespace Invoicing.Infrastructure.Messaging.Kafka.Config;
 
 /// <summary>
-/// Kafka consumer configuration for the inbound <c>TopicsOptions.NotificationsEmailEvents</c>
-/// topic. Invoicing subscribes to this generic event stream and filters by <c>TemplateId</c>
-/// prefix <c>"invoicing."</c> — see <c>EmailNotificationSentEventKafkaHandler</c>.
+/// Kafka consumer configuration for the inbound <c>TopicsOptions.NotificationsNotifyEvents</c>
+/// topic. Invoicing subscribes to this generic delivery-event stream and filters to email +
+/// Dispatched + the <c>TemplateKey</c> prefix <c>"invoicing."</c> — see
+/// <c>NotificationDeliveryStatusChangedEventKafkaHandler</c> (ADR-0031).
 /// </summary>
-public sealed class NotificationsEmailEventsConsumerOptions : ConsumerConfig
+public sealed class NotificationsNotifyEventsConsumerOptions : ConsumerConfig
 {
-    public const string Section = "KafkaNotificationsEmailEventsConsumer";
+    public const string Section = "KafkaNotificationsNotifyEventsConsumer";
 
     /// <summary>
     /// Consumer group id. Per the one-group-per-service rule in
@@ -18,7 +19,7 @@ public sealed class NotificationsEmailEventsConsumerOptions : ConsumerConfig
     /// Invoicing consumer group across every topic Invoicing subscribes to.
     /// </summary>
     [Required(
-        ErrorMessage = $"{nameof(GroupId)} for {nameof(NotificationsEmailEventsConsumerOptions)} is missing",
+        ErrorMessage = $"{nameof(GroupId)} for {nameof(NotificationsNotifyEventsConsumerOptions)} is missing",
         AllowEmptyStrings = false)]
     public new required string GroupId { get; set; }
 

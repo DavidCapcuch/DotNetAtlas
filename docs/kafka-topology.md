@@ -31,8 +31,8 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 | `ordering.order-commands` | 3 | 604800000 | command | Saga → Ordering commands (`CreateOrder`, `ConfirmOrder`, `CancelOrder`, `MarkOrderFailed`). |
 | `inventory.reservation-commands` | 3 | 604800000 | command | Saga → Inventory commands (`ReserveStock`, `ConfirmReservation`, `ReleaseReservation`). |
 | `payments.payment-commands` | 3 | 604800000 | command | Saga → Payments commands (`AuthorizePayment`, `CapturePayment`, `VoidPayment`, `RequestRefund`). |
-| `notifications.email-commands` | 3 | 604800000 | command | **v1 — transitional.** Inbound `SendEmailNotificationCommand`. The v2 contract renames this to `notifications.notify-commands` / `NotifyUserCommand` ([events-catalog.md § 2](bc-design/events-catalog.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)); this physical row + compose flip together at the code switch (#312 / #318) per [ADR-0033](adr/0033-kafka-topic-contract-doc-ssot.md). |
-| `notifications.email-events` | 3 | -1 | event-log | **v1 — transitional.** `EmailNotificationSentEvent` delivery confirmations. Renames to `notifications.notify-events` / `NotificationDeliveryStatusChangedEvent` at the same v2 switch (#312 / #318). |
+| `notifications.notify-commands` | 3 | 604800000 | command | Inbound `NotifyUserCommand` (channel-agnostic; [events-catalog.md § 2](bc-design/events-catalog.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). |
+| `notifications.notify-events` | 3 | -1 | event-log | `NotificationDeliveryStatusChangedEvent` delivery confirmations ([events-catalog.md § 2](bc-design/events-catalog.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). |
 | `invoicing.invoices` | 3 | 315360000000 | audit | Invoice issuance events; 10-year regulatory retention. |
 | `healthchecks` | **1** | default (~7d) | health-probe | Liveness signal only; single partition is correct. |
 

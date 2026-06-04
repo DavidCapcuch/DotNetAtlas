@@ -1,6 +1,6 @@
 namespace Notifications.Application.Email;
 
-/// <summary>Email envelope passed to <see cref="IEmailGateway"/>. ToUserId is the
-/// recipient user identity; the gateway is responsible for resolving the actual address
-/// (e.g., looking up the user-profile service). Mock gateway logs without delivering.</summary>
-public sealed record EmailMessage(string ToUserId, string Subject, string Body);
+/// <summary>Rendered email envelope passed to <see cref="IEmailGateway"/>. <see cref="To"/> is the
+/// resolved recipient email address (the dispatcher resolves it via the recipient resolver before
+/// rendering). The mock gateway logs without delivering; the SMTP gateway sends to Mailpit.</summary>
+public sealed record EmailMessage(string To, string Subject, string Body);

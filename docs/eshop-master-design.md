@@ -242,7 +242,7 @@ The BFF layer is not a bounded context; it is an ACL-like composition gateway ov
 | Payments | CheckoutSaga | Published event (Payments outbox) | Kafka (`payments.transactions`) | `PaymentAuthorizedEvent` (drives confirmation), `PaymentCompletedEvent` (post-capture terminal), `PaymentFailedEvent` (fast-fail) — Payments-owned per [ADR-0026](adr/0026-checkout-payment-flow-capture-pivot.md) |
 | PaymentProcessingSaga | Payments | Saga command | Kafka (`payments.payment-commands`) | `AuthorizePaymentCommand`, `CapturePaymentCommand` (after `ApproveCaptureCommand`), `VoidPaymentCommand` (on `AbortCaptureCommand` / timeout); `RequestRefundCommand` is deferred — no v1 producer (existing) |
 | Inventory | Catalog | Published Language (async) | Kafka (`inventory.stock-events`) | `StockLevelChangedEvent` (crosses 0↔positive) |
-| Producing BCs (v1: Invoicing) | Notifications | Command-driven fan-in (D-5) | Kafka (notifications command topic — physical v1 `notifications.email-commands`, renames to `notify-commands` at #312) | Channel-agnostic `NotifyUserCommand` (v2; [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). Notifications does **not** subscribe to `ordering.orders`; contract canonical in [events-catalog.md § 2 + § 1.4 D-5](bc-design/events-catalog.md) |
+| Producing BCs (Invoicing) | Notifications | Command-driven fan-in (D-5) | Kafka (`notifications.notify-commands`) | Channel-agnostic `NotifyUserCommand` ([ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). Notifications does **not** subscribe to `ordering.orders`; contract canonical in [events-catalog.md § 2 + § 1.4 D-5](bc-design/events-catalog.md) |
 
 ### 4.3 BC Classification
 

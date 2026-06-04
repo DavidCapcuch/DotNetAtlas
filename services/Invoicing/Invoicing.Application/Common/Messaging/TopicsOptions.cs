@@ -5,7 +5,7 @@ namespace Invoicing.Application.Common.Messaging;
 /// <summary>
 /// Kafka topic names for the Invoicing bounded context — both the inbound topics it
 /// subscribes to (Ordering + Payments + Notifications) and the outbound topics the outbox
-/// publishers emit to (<see cref="Invoices"/>, <see cref="NotificationsEmailCommands"/>).
+/// publishers emit to (<see cref="Invoices"/>, <see cref="NotificationsNotifyCommands"/>).
 /// Bound from configuration section <c>Topics</c> on startup; registered + validated eagerly
 /// in Infrastructure DI via <c>AddOptionsWithValidateOnStart</c>.
 /// </summary>
@@ -48,15 +48,15 @@ public sealed class TopicsOptions
     [Length(1, MaximumKafkaTopicLength)]
     public required string PaymentsTransactions { get; set; }
 
-    /// <summary>Outbound topic for SendEmailNotificationCommand to Notifications BC.</summary>
+    /// <summary>Outbound topic for NotifyUserCommand to the Notifications BC (ADR-0031).</summary>
     [Required(AllowEmptyStrings = false)]
     [Length(1, MaximumKafkaTopicLength)]
-    public required string NotificationsEmailCommands { get; set; }
+    public required string NotificationsNotifyCommands { get; set; }
 
-    /// <summary>Inbound topic carrying EmailNotificationSentEvent from Notifications BC.</summary>
+    /// <summary>Inbound topic carrying NotificationDeliveryStatusChangedEvent from the Notifications BC (ADR-0031).</summary>
     [Required(AllowEmptyStrings = false)]
     [Length(1, MaximumKafkaTopicLength)]
-    public required string NotificationsEmailEvents { get; set; }
+    public required string NotificationsNotifyEvents { get; set; }
 
     /// <summary>Suffix appended to each consumer's DLT (e.g. <c>.Invoicing.DLT</c>).</summary>
     [Required(AllowEmptyStrings = false)]

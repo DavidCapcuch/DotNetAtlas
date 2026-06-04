@@ -2,14 +2,13 @@ using AwesomeAssertions;
 using AwesomeAssertions.Execution;
 using Invoicing.Application.Common.Data;
 using Invoicing.Application.Invoices.IssueInvoice;
-using Invoicing.Domain.Invoices;
 using Invoicing.Domain.Invoices.ValueObjects;
 using Invoicing.Infrastructure.Messaging.Kafka.Notifications;
 using Invoicing.Infrastructure.Persistence.Database;
 using Invoicing.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Notifications.Email;
+using Notifications;
 using NSubstitute;
 using Platform.CQRS;
 using Xunit;
@@ -48,7 +47,9 @@ public sealed class InvoiceDeliveryFlowTests
             invoiceId = result.Value;
         }
 
-        // 2) Assert: InvoiceIssuedEvent + SendEmailNotificationCommand outbox rows.
+        var notificationId = await _fixture.GetDeliveryNotificationIdAsync(invoiceId, ct);
+
+        // 2) Assert: InvoiceIssuedEvent + NotifyUserCommand outbox rows.
         //    The OutboxSubstitute captures all AddOutboxMessage calls — verify both fired.
         using (new AssertionScope())
         {
@@ -58,30 +59,31 @@ public sealed class InvoiceDeliveryFlowTests
                 Arg.Any<global::Invoicing.Invoices.InvoiceIssuedEvent>());
 
             _fixture.OutboxSubstitute.Received().AddOutboxMessage(
-                "notifications.email-commands",
+                "notifications.notify-commands",
                 buyerId.ToString(),
-                Arg.Is<SendEmailNotificationCommand>(c =>
-                    c.UserId == buyerId
-                    && c.TemplateId == "invoicing.invoice-delivered"
-                    && c.IdempotencyKey == $"invoice-delivered-{invoiceId}-1"));
+                Arg.Is<NotifyUserCommand>(c =>
+                    c.RecipientUserId == buyerId
+                    && c.TemplateKey == "invoicing.invoice-delivered"
+                    && c.NotificationId == notificationId));
         }
 
-        // 3) Simulate Notifications BC ack by invoking the Invoicing-side handler directly.
+        // 3) Simulate the Notifications BC delivery ack by invoking the Invoicing-side handler directly,
+        //    correlating on the NotificationId the invoice minted at issuance (ADR-0031).
         await using (var s = _fixture.CreateScope())
         {
             // Wire the outbox stub's Database to the real DbContext so EnsureTransactionAsync
-            // can open a real Postgres transaction — mirrors the pattern in EmailNotificationSentEventKafkaHandlerTests.
+            // can open a real Postgres transaction.
             var dbContext = s.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
-            var handler = s.ServiceProvider.GetRequiredService<EmailNotificationSentEventKafkaHandler>();
-            var ctx = TestKafkaMessageContext.Create(ct: ct);
-            await handler.Handle(ctx, new EmailNotificationSentEvent
+            var handler = s.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
+            await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new NotificationDeliveryStatusChangedEvent
             {
-                UserId = buyerId,
-                TemplateId = "invoicing.invoice-delivered",
-                IdempotencyKey = $"invoice-delivered-{invoiceId}-1",
-                SentAtUtc = DateTime.UtcNow,
+                NotificationId = notificationId,
+                RecipientUserId = buyerId,
+                TemplateKey = "invoicing.invoice-delivered",
+                Channel = "Email",
+                Status = NotificationDeliveryStatus.Dispatched,
                 OccurredOnUtc = DateTime.UtcNow,
             });
         }

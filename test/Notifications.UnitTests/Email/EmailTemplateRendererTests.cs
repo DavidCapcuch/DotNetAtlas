@@ -21,12 +21,12 @@ public sealed class EmailTemplateRendererTests
             ["ViewInvoiceUrl"] = "https://invoicing.example.com/invoices/00000000-0000-0000-0000-000000000001",
         };
 
-        var result = _renderer.Render(toUserId: "00000000-0000-0000-0000-000000000099",
-            templateId: "invoicing.invoice-delivered",
+        var result = _renderer.Render(to: "buyer@example.com",
+            templateKey: "invoicing.invoice-delivered",
             data: data);
 
         result.Should().BeSuccess();
-        result.Value.ToUserId.Should().Be("00000000-0000-0000-0000-000000000099");
+        result.Value.To.Should().Be("buyer@example.com");
         result.Value.Subject.Should().Be("Invoice INV-2026-000142 — your copy is ready");
         result.Value.Body.Should().Contain("INV-2026-000142");
         result.Value.Body.Should().Contain("https://invoicing.example.com/invoices/00000000-0000-0000-0000-000000000001");
@@ -40,7 +40,7 @@ public sealed class EmailTemplateRendererTests
             ["ViewInvoiceUrl"] = "https://invoicing.example.com/invoices/abc",
         };
 
-        var result = _renderer.Render("user", "invoicing.invoice-delivered", data);
+        var result = _renderer.Render("buyer@example.com", "invoicing.invoice-delivered", data);
         result.Should().BeFailure();
         result.Errors.Should().Contain(e => e.Message.Contains("InvoiceNumber"));
     }
@@ -49,7 +49,7 @@ public sealed class EmailTemplateRendererTests
     public void Render_InvoicingInvoiceDelivered_MissingViewInvoiceUrl_Fails()
     {
         var data = new Dictionary<string, string> { ["InvoiceNumber"] = "INV-2026-000001" };
-        var result = _renderer.Render("user", "invoicing.invoice-delivered", data);
+        var result = _renderer.Render("buyer@example.com", "invoicing.invoice-delivered", data);
         result.Should().BeFailure();
         result.Errors.Should().Contain(e => e.Message.Contains("ViewInvoiceUrl"));
     }
@@ -57,7 +57,7 @@ public sealed class EmailTemplateRendererTests
     [Fact]
     public void Render_UnknownTemplate_Fails()
     {
-        var result = _renderer.Render("user", "unknown.template", new Dictionary<string, string>());
+        var result = _renderer.Render("buyer@example.com", "unknown.template", new Dictionary<string, string>());
         result.Should().BeFailure();
     }
 }

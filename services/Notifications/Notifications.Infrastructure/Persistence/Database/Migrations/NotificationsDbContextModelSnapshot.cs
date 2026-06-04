@@ -23,6 +23,45 @@ namespace Notifications.Infrastructure.Persistence.Database.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Notifications.Domain.Deliveries.NotificationDelivery", b =>
+                {
+                    b.Property<Guid>("NotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id")
+                        .HasComment("Producer-assigned notification intent identity (half of the ledger key).");
+
+                    b.Property<string>("Channel")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("channel")
+                        .HasComment("Delivery channel (Email|Sms|Bell) — the other half of the ledger key.");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc")
+                        .HasComment("UTC timestamp when the row was first inserted.");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status")
+                        .HasComment("Latest recorded outcome (Dispatched|Failed).");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc")
+                        .HasComment("UTC timestamp of the latest status write.");
+
+                    b.HasKey("NotificationId", "Channel")
+                        .HasName("pk_notification_deliveries");
+
+                    b.ToTable("notification_deliveries", "notifications", t =>
+                        {
+                            t.HasComment("Per-channel delivery ledger — idempotency + audit, keyed (notification_id, channel). ADR-0031/0032.");
+                        });
+                });
+
             modelBuilder.Entity("Platform.ReliableMessaging.Inbox.Core.InboxMessage", b =>
                 {
                     b.Property<Guid>("MessageId")

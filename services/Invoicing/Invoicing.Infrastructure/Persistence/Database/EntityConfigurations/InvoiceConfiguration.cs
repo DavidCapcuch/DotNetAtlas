@@ -85,6 +85,15 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(i => i.DeliveredAtUtc)
             .HasComment("UTC timestamp when the invoice transitioned to Delivered (nullable).");
 
+        builder.Property(i => i.DeliveryNotificationId)
+            .HasComment("NotificationId (ADR-0031) minted when delivery was requested; correlates the delivery confirmation. Null until Issued with a delivery channel.");
+
+        // Correlation lookup for the delivery confirmation (Postgres unique index treats NULLs as
+        // distinct, so the many Draft rows with NULL coexist with one row per issued NotificationId).
+        builder.HasIndex(i => i.DeliveryNotificationId)
+            .IsUnique()
+            .HasDatabaseName("ux_invoices_delivery_notification_id");
+
         builder.Property(i => i.Status)
             .HasComment("Invoice lifecycle status (Draft|Issued|Delivered|Archived|Cancelled).")
             .HasConversion(

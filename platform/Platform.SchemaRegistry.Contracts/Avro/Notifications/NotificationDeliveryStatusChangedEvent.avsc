@@ -1,0 +1,52 @@
+{
+    "type": "record",
+    "name": "NotificationDeliveryStatusChangedEvent",
+    "namespace": "Notifications",
+    "doc": "Per-channel delivery outcome for a notification, emitted by durable channels. Consumers correlate by NotificationId and route by TemplateKey prefix. See ADR-0031.",
+    "fields": [
+        {
+            "name": "NotificationId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Carry-through intent identity; the producer correlation key."
+        },
+        {
+            "name": "RecipientUserId",
+            "type": {
+                "type": "string",
+                "logicalType": "uuid"
+            },
+            "doc": "Recipient (Keycloak sub)."
+        },
+        {
+            "name": "TemplateKey",
+            "type": "string",
+            "doc": "Template id from the originating command; consumers filter by prefix (e.g. 'invoicing.*')."
+        },
+        {
+            "name": "Channel",
+            "type": "string",
+            "doc": "Channel that produced this outcome (e.g. 'Email', 'Sms')."
+        },
+        {
+            "name": "Status",
+            "type": {
+                "type": "enum",
+                "name": "NotificationDeliveryStatus",
+                "namespace": "Notifications",
+                "symbols": ["Dispatched", "Failed"]
+            },
+            "doc": "Dispatched = the channel send succeeded. Failed = the send failed (may flip to Dispatched on a later retry)."
+        },
+        {
+            "name": "OccurredOnUtc",
+            "type": {
+                "type": "long",
+                "logicalType": "timestamp-millis"
+            },
+            "doc": "UTC timestamp of the delivery outcome."
+        }
+    ]
+}

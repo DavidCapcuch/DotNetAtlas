@@ -5,13 +5,17 @@ using KafkaFlow.Retry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Common.Messaging;
+using Notifications.Application.Dispatch;
 using Notifications.Application.Email;
-using Notifications.Email;
+using Notifications.Application.Recipients;
+using Notifications.Domain.Channels;
 using Notifications.Infrastructure.Common.Config;
 using Notifications.Infrastructure.Common.Observability;
+using Notifications.Infrastructure.Dispatch;
 using Notifications.Infrastructure.Email;
+using Notifications.Infrastructure.NotifyUser;
 using Notifications.Infrastructure.Persistence.Database;
-using Notifications.Infrastructure.SendEmailNotification;
+using Notifications.Infrastructure.Recipients;
 using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
@@ -22,10 +26,12 @@ using Platform.ReliableMessaging.Outbox.EFCore.Common;
 namespace Notifications.Infrastructure.Common;
 
 /// <summary>
-/// DI wiring for Kafka — the inbound <c>TopicsOptions.EmailCommands</c> consumer that
-/// dispatches <c>SendEmailNotificationCommand</c> to <see cref="SendEmailNotificationCommandKafkaHandler"/>,
-/// the inbox dedup adapter against <see cref="NotificationsDbContext"/>, and the transactional-outbox
-/// writer for <c>EmailNotificationSentEvent</c> publishing (<c>TopicsOptions.EmailEvents</c>).
+/// DI wiring for Kafka — the inbound <c>TopicsOptions.NotifyCommands</c> consumer that dispatches
+/// <c>NotifyUserCommand</c> to <see cref="NotifyUserCommandKafkaHandler"/>, the inbox dedup adapter
+/// against <see cref="NotificationsDbContext"/>, the channel dispatchers (Keyed DI by
+/// <see cref="ChannelType"/>; only email this slice), and the transactional-outbox writer for
+/// <c>NotificationDeliveryStatusChangedEvent</c> publishing (<c>TopicsOptions.NotifyEvents</c>).
+/// See ADR-0031/0032.
 /// </summary>
 internal static class MessagingDependencyInjection
 {
@@ -54,8 +60,12 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(AvroSerializerOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<EmailCommandsConsumerOptions>()
-            .BindConfiguration(EmailCommandsConsumerOptions.Section)
+        services.AddOptionsWithValidateOnStart<NotifyCommandsConsumerOptions>()
+            .BindConfiguration(NotifyCommandsConsumerOptions.Section)
+            .ValidateDataAnnotations();
+
+        services.AddOptionsWithValidateOnStart<SmtpOptions>()
+            .BindConfiguration(SmtpOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
@@ -63,16 +73,25 @@ internal static class MessagingDependencyInjection
             .Get<KafkaOptions>()!;
 
         var consumerOptions = configuration
-            .GetRequiredSection(EmailCommandsConsumerOptions.Section)
-            .Get<EmailCommandsConsumerOptions>()!;
+            .GetRequiredSection(NotifyCommandsConsumerOptions.Section)
+            .Get<NotifyCommandsConsumerOptions>()!;
         consumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         var topicsOptions = configuration
             .GetRequiredSection(TopicsOptions.Section)
             .Get<TopicsOptions>()!;
 
-        services.AddScoped<IEmailGateway, MockEmailGateway>();
+        // Email channel collaborators. SmtpEmailGateway → Mailpit is the live transport;
+        // MockEmailGateway is retained for unit tests (constructed directly, not via DI).
+        services.AddScoped<IEmailGateway, SmtpEmailGateway>();
         services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
+        services.AddScoped<IRecipientResolver, StubRecipientResolver>();
+
+        // Channel dispatchers in Keyed DI by ChannelType. Only the email channel is wired in the
+        // walking skeleton (#312); SMS/bell dispatchers register additional keys in later slices.
+        services.AddKeyedScoped<IChannelDispatcher, EmailChannelDispatcher>(ChannelType.Email);
+        services.AddScoped<NotificationDispatchJob>();
+        services.AddSingleton<IChannelDispatchEnqueuer, HangfireChannelDispatchEnqueuer>();
 
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster
@@ -85,7 +104,7 @@ internal static class MessagingDependencyInjection
                             .AddProducerHeaders(KafkaProducerOrigin)
                             .AddSchemaRegistryAvroSerializer(kafkaOptions.AvroSerializer)))
                 .AddConsumer(consumer => consumer
-                    .Topic(topicsOptions.EmailCommands)
+                    .Topic(topicsOptions.NotifyCommands)
                     .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
@@ -98,10 +117,10 @@ internal static class MessagingDependencyInjection
                             .WithTimeBetweenTriesPlan(
                                 TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5)))
-                        .AddInbox(typeof(SendEmailNotificationCommand))
+                        .AddInbox(typeof(NotifyUserCommand))
                         .AddTypedHandlers(handlers => handlers
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
-                            .AddHandler<SendEmailNotificationCommandKafkaHandler>())
+                            .AddHandler<NotifyUserCommandKafkaHandler>())
                     )
                 ))
             .UseMicrosoftLog()

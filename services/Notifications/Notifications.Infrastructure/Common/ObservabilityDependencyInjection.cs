@@ -58,6 +58,7 @@ public static class ObservabilityDependencyInjection
                         })
                         .AddHttpClientInstrumentation()
                         .AddEntityFrameworkCoreInstrumentation()
+                        .AddHangfireInstrumentation() // per-channel dispatch jobs emit spans (ADR-0032)
                         .AddSource("*")
                         .AddPiiRedactionProcessor(); // ADR-0011 — redacts [Pii]-tagged span attributes before export
 

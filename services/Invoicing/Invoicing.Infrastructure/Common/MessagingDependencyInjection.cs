@@ -10,7 +10,7 @@ using KafkaFlow.Retry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Notifications.Email;
+using Notifications;
 using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
 using Platform.KafkaFlow.Inbox.EFCore.Common;
@@ -26,11 +26,11 @@ namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
 /// DI wiring for Kafka — three consumer registrations (<c>TopicsOptions.OrderingOrders</c>,
-/// <c>TopicsOptions.PaymentsTransactions</c>, <c>TopicsOptions.NotificationsEmailEvents</c>)
+/// <c>TopicsOptions.PaymentsTransactions</c>, <c>TopicsOptions.NotificationsNotifyEvents</c>)
 /// carrying five typed handlers in total (four enrichment-projection handlers for
 /// <c>OrderConfirmedEvent</c>/<c>OrderCancelledEvent</c>/<c>PaymentCapturedEvent</c>/
-/// <c>PaymentRefundedEvent</c>, plus one email-tracking handler for
-/// <c>EmailNotificationSentEvent</c>), the inbox dedup adapter against
+/// <c>PaymentRefundedEvent</c>, plus one delivery-tracking handler for
+/// <c>NotificationDeliveryStatusChangedEvent</c>), the inbox dedup adapter against
 /// <see cref="InvoicingDbContext"/>, and the transactional-outbox writer + outbox
 /// configuration for the issuance command handlers' external <c>InvoiceIssued</c> /
 /// <c>InvoiceCancelled</c> / <c>CreditNoteIssued</c> publishers.
@@ -77,8 +77,8 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(PaymentsTransactionsConsumerOptions.Section)
             .ValidateDataAnnotations();
 
-        services.AddOptionsWithValidateOnStart<NotificationsEmailEventsConsumerOptions>()
-            .BindConfiguration(NotificationsEmailEventsConsumerOptions.Section)
+        services.AddOptionsWithValidateOnStart<NotificationsNotifyEventsConsumerOptions>()
+            .BindConfiguration(NotificationsNotifyEventsConsumerOptions.Section)
             .ValidateDataAnnotations();
 
         var kafkaOptions = configuration
@@ -99,10 +99,10 @@ internal static class MessagingDependencyInjection
             .Get<PaymentsTransactionsConsumerOptions>()!;
         paymentsConsumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
-        var notificationsEmailEventsConsumerOptions = configuration
-            .GetRequiredSection(NotificationsEmailEventsConsumerOptions.Section)
-            .Get<NotificationsEmailEventsConsumerOptions>()!;
-        notificationsEmailEventsConsumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
+        var notificationsNotifyEventsConsumerOptions = configuration
+            .GetRequiredSection(NotificationsNotifyEventsConsumerOptions.Section)
+            .Get<NotificationsNotifyEventsConsumerOptions>()!;
+        notificationsNotifyEventsConsumerOptions.PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky;
 
         services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster
@@ -156,10 +156,10 @@ internal static class MessagingDependencyInjection
                             .AddHandler<PaymentCapturedInvoiceProjectionKafkaHandler>()
                             .AddHandler<PaymentRefundedCreditNoteProjectionKafkaHandler>())))
                 .AddConsumer(consumer => consumer
-                    .Topic(topicsOptions.NotificationsEmailEvents)
-                    .WithConsumerConfig(notificationsEmailEventsConsumerOptions)
-                    .WithBufferSize(notificationsEmailEventsConsumerOptions.BufferSize)
-                    .WithWorkersCount(notificationsEmailEventsConsumerOptions.WorkersCount)
+                    .Topic(topicsOptions.NotificationsNotifyEvents)
+                    .WithConsumerConfig(notificationsNotifyEventsConsumerOptions)
+                    .WithBufferSize(notificationsNotifyEventsConsumerOptions.BufferSize)
+                    .WithWorkersCount(notificationsNotifyEventsConsumerOptions.WorkersCount)
                     .AddMiddlewares(middlewares => middlewares
                         .AddSchemaRegistryAvroDeserializer()
                         .AddDeadLetter()
@@ -170,10 +170,10 @@ internal static class MessagingDependencyInjection
                                 TimeSpan.FromSeconds(1),
                                 TimeSpan.FromSeconds(2),
                                 TimeSpan.FromSeconds(5)))
-                        .AddInbox(typeof(EmailNotificationSentEvent))
+                        .AddInbox(typeof(NotificationDeliveryStatusChangedEvent))
                         .AddTypedHandlers(handlers => handlers
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
-                            .AddHandler<EmailNotificationSentEventKafkaHandler>())))
+                            .AddHandler<NotificationDeliveryStatusChangedEventKafkaHandler>())))
             )
             .UseMicrosoftLog()
             .AddOpenTelemetryInstrumentation());
