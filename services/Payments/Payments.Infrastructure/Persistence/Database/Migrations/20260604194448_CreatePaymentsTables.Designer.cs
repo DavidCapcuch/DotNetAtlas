@@ -12,7 +12,7 @@ using Payments.Infrastructure.Persistence.Database;
 namespace Payments.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(PaymentsDbContext))]
-    [Migration("20260531235922_CreatePaymentsTables")]
+    [Migration("20260604194448_CreatePaymentsTables")]
     partial class CreatePaymentsTables
     {
         /// <inheritdoc />
@@ -31,7 +31,7 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id")
-                        .HasComment("Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from CorrelationId. One payment per saga is enforced by the ux_payment_transactions_correlation_id unique index. See docs/bc-design/payments.md § 2.2 (I-7).");
+                        .HasComment("Primary key — saga-minted UUID v7 (time-ordered), carried on AuthorizePaymentCommand as PaymentTransactionId; distinct from the saga key (OrderId). One payment per order is enforced by the ux_payment_transactions_order_id unique index (ADR-0029). See docs/bc-design/payments.md § 2.2 (I-7).");
 
                     b.Property<DateTimeOffset?>("AuthorizedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -53,11 +53,6 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                         .HasColumnName("completed_at_utc")
                         .HasComment("UTC timestamp when capture auto-advanced to Completed (nullable).");
 
-                    b.Property<Guid>("CorrelationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("correlation_id")
-                        .HasComment("Originating saga correlation id (links checkout / order / invoice). Unique index enforces one payment per saga.");
-
                     b.Property<string>("GatewayTransactionId")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -67,7 +62,7 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid")
                         .HasColumnName("order_id")
-                        .HasComment("Ordering aggregate id this payment is attached to (frozen at creation; debugging/admin-lookup convenience).");
+                        .HasComment("Ordering aggregate id this payment is attached to (frozen at creation). Unique index enforces one payment per order (ADR-0029).");
 
                     b.Property<string>("PaymentMethodId")
                         .IsRequired()
@@ -110,12 +105,9 @@ namespace Payments.Infrastructure.Persistence.Database.Migrations
                     b.HasIndex("BuyerId")
                         .HasDatabaseName("ix_payment_transactions_buyer_id");
 
-                    b.HasIndex("CorrelationId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_payment_transactions_correlation_id");
-
                     b.HasIndex("OrderId")
-                        .HasDatabaseName("ix_payment_transactions_order_id");
+                        .IsUnique()
+                        .HasDatabaseName("ux_payment_transactions_order_id");
 
                     b.ToTable("payment_transactions", "payments", t =>
                         {

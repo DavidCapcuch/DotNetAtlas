@@ -36,7 +36,6 @@ namespace Ordering.Infrastructure.Persistence.Database.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Primary key (Guid v7 — time-ordered)."),
                     buyer_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "JWT sub of the buyer who placed the order."),
-                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Checkout saga correlation id. Idempotency key for CreateOrderCommand."),
                     payment_method_id = table.Column<Guid>(type: "uuid", nullable: false, comment: "Payments-side payment method reference."),
                     payment_transaction_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Payments-side transaction id after MarkPaymentCompleted (nullable pre-payment)."),
                     stock_reservation_id = table.Column<Guid>(type: "uuid", nullable: true, comment: "Inventory-side reservation id after MarkStockReserved (nullable pre-reservation)."),
@@ -147,13 +146,6 @@ namespace Ordering.Infrastructure.Persistence.Database.Migrations
                 schema: "ordering",
                 table: "orders",
                 columns: new[] { "buyer_id", "created_at_utc" });
-
-            migrationBuilder.CreateIndex(
-                name: "ux_orders_correlation_id",
-                schema: "ordering",
-                table: "orders",
-                column: "correlation_id",
-                unique: true);
         }
 
         /// <inheritdoc />

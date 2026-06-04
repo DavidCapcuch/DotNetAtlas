@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Inventory.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(InventoryDbContext))]
-    [Migration("20260604085223_DropDedicatedCorrelationId")]
-    partial class DropDedicatedCorrelationId
+    [Migration("20260604194506_CreateInventoryTables")]
+    partial class CreateInventoryTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

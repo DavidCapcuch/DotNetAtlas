@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Invoicing.Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(InvoicingDbContext))]
-    [Migration("20260604092351_DropDedicatedCorrelationId")]
-    partial class DropDedicatedCorrelationId
+    [Migration("20260604194521_CreateInvoicingTables")]
+    partial class CreateInvoicingTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
