@@ -10,9 +10,8 @@ namespace Platform.Test.Framework.Kafka;
 /// enough for any BC's saga-command or domain-event Kafka handler tests.
 /// Stubs the bits handlers actually read:
 /// <list type="bullet">
-///   <item><c>Headers</c> — <c>MessageId</c>, <c>Origin</c>, and (until ADR-0030 #310 retargets
-///   the BC consumer reads onto wire fields) <c>CorrelationId</c>, so <c>ExtractMessageId</c> /
-///   <c>ExtractOrigin</c> / <c>ExtractCorrelationId</c> never see a missing header in isolation.</item>
+///   <item><c>Headers</c> — <c>MessageId</c> and <c>Origin</c>, so <c>ExtractMessageId</c> /
+///   <c>ExtractOrigin</c> never see a missing header in isolation.</item>
 ///   <item><c>ConsumerContext.WorkerStopped</c> — the cancellation token threaded through every
 ///   handler's async call chain.</item>
 ///   <item><c>ConsumerContext.Topic</c> / <c>Partition</c> / <c>Offset</c> — stubbed to
@@ -53,13 +52,6 @@ public static class FakeKafkaMessageContext
     /// refactors that wire the middleware in.
     /// </param>
     /// <param name="origin">Producer origin string (Kafka <c>origin</c> header).</param>
-    /// <param name="correlationId">
-    /// Correlation id (Kafka <c>correlation-id</c> header). Per ADR-0008 the header is the
-    /// authoritative source for handlers; if the test asserts on a specific correlation id
-    /// flowing through to outbox / projection rows, callers MUST pass the same value here as
-    /// the Avro payload sets so header == payload. When <c>null</c>, a fresh UUID v7 is
-    /// generated and pushed onto the header so handlers never see a missing header.
-    /// </param>
     /// <param name="topic">Topic returned by <see cref="IConsumerContext.Topic"/>.</param>
     /// <param name="cancellationToken">
     /// Token returned by <c>ConsumerContext.WorkerStopped</c>. Tests pass
@@ -69,7 +61,6 @@ public static class FakeKafkaMessageContext
     public static IMessageContext Create(
         Guid? messageId = null,
         string origin = DefaultOrigin,
-        Guid? correlationId = null,
         string topic = DefaultTopic,
         CancellationToken cancellationToken = default)
     {
@@ -77,14 +68,6 @@ public static class FakeKafkaMessageContext
         {
             { MessageHeaderKeys.MessageId, Encoding.UTF8.GetBytes((messageId ?? Guid.CreateVersion7()).ToString()) },
             { MessageHeaderKeys.Origin, Encoding.UTF8.GetBytes(origin) },
-            // Always set the correlation-id header: the BC saga-command / projection consumers
-            // still read it via ExtractCorrelationId() until ADR-0030 #310 retargets those reads
-            // onto wire fields, so the fixture keeps it populated so handlers never branch on
-            // header-absence in isolation.
-            {
-                MessageHeaderKeys.CorrelationId,
-                Encoding.UTF8.GetBytes((correlationId ?? Guid.CreateVersion7()).ToString())
-            },
         };
 
         var consumerContext = Substitute.For<IConsumerContext>();

@@ -60,7 +60,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
-            correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         await handler.Handle(context, avroCommand);
 
@@ -108,7 +108,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
         var context = FakeKafkaMessageContext.Create(
-            correlationId: correlationId, cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // InsufficientStock is a business-expected outcome -> the handler
         // returns Result.Ok from the application layer (which itself wrote

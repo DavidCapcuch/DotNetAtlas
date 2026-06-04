@@ -48,25 +48,5 @@ public static class KafkaMessageHeaderExtensions
 
             return header.Value is null ? null : Encoding.UTF8.GetString(header.Value);
         }
-
-        /// <summary>
-        /// Extracts the authoritative <c>CorrelationId</c> from the Kafka header
-        /// (<see cref="MessageHeaderKeys.CorrelationId"/>) per ADR-0008. The header is the contract;
-        /// the Avro payload <c>CorrelationId</c> field is convenience metadata only and must NOT be
-        /// read for propagation — consumer business logic that needs the correlation key should call
-        /// this helper so the read side and the producer side cannot silently diverge.
-        /// </summary>
-        /// <returns>The <see cref="Guid"/> if the header is present and parses as a GUID; otherwise
-        /// <c>null</c>. UUID v7 validation is the consumer middleware's job — this helper only parses.</returns>
-        public Guid? ExtractCorrelationId()
-        {
-            var raw = context.ExtractHeader(MessageHeaderKeys.CorrelationId);
-            if (raw is null)
-            {
-                return null;
-            }
-
-            return Guid.TryParse(raw, out var id) ? id : null;
-        }
     }
 }

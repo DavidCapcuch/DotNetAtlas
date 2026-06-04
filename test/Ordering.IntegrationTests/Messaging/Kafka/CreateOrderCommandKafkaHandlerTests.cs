@@ -45,7 +45,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
         var ctx = FakeKafkaMessageContext.Create(
-            correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         await handler.Handle(ctx, avro);
 
@@ -82,7 +82,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
             await handler.Handle(
-                FakeKafkaMessageContext.Create(correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
                 avro);
         }
 
@@ -92,7 +92,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         {
             var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
             await handler.Handle(
-                FakeKafkaMessageContext.Create(correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken),
+                FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
                 avro);
         }
 
@@ -134,7 +134,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
         var ctx = FakeKafkaMessageContext.Create(
-            correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // SagaCommandMappers.ResolveUniformCurrency throws
         // DataIntegrityException — bug-class, NOT wrapped by
@@ -170,7 +170,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
         var ctx = FakeKafkaMessageContext.Create(
-            correlationId: avro.OrderId, cancellationToken: TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // CreateOrderCommandValidator's "Items.NotEmpty" rule fails inside
         // the ValidationBehavior, which translates into Result.Fail. The

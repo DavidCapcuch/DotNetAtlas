@@ -71,7 +71,7 @@ public sealed class PendingInvoiceProjectionTests
                 orderClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
-            await orderHandler.Handle(BuildContext(correlationId, ct), orderEvent);
+            await orderHandler.Handle(BuildContext(ct), orderEvent);
         }
 
         // Verify intermediate state: order half captured, payment half still null, NOT converged.
@@ -104,7 +104,7 @@ public sealed class PendingInvoiceProjectionTests
                 NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
 
             await paymentHandler.Handle(
-                BuildContext(correlationId, ct),
+                BuildContext(ct),
                 BuildPaymentCapturedEvent(orderId, paymentTransactionId, buyerId));
         }
 
@@ -149,7 +149,7 @@ public sealed class PendingInvoiceProjectionTests
                 NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
 
             await paymentHandler.Handle(
-                BuildContext(correlationId, ct),
+                BuildContext(ct),
                 BuildPaymentCapturedEvent(orderId, paymentTransactionId, buyerId));
         }
 
@@ -184,7 +184,7 @@ public sealed class PendingInvoiceProjectionTests
                 orderClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
-            await orderHandler.Handle(BuildContext(correlationId, ct), orderEvent);
+            await orderHandler.Handle(BuildContext(ct), orderEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -234,7 +234,7 @@ public sealed class PendingInvoiceProjectionTests
                 firstClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
-            await handler.Handle(BuildContext(correlationId, ct), firstEvent);
+            await handler.Handle(BuildContext(ct), firstEvent);
         }
 
         // Same CorrelationId redelivered — handler must no-op.
@@ -247,7 +247,7 @@ public sealed class PendingInvoiceProjectionTests
                 secondClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
-            await handler.Handle(BuildContext(correlationId, ct), secondEvent);
+            await handler.Handle(BuildContext(ct), secondEvent);
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -267,18 +267,12 @@ public sealed class PendingInvoiceProjectionTests
         }
     }
 
-    private static IMessageContext BuildContext(Guid correlationId, CancellationToken ct)
+    private static IMessageContext BuildContext(CancellationToken ct)
     {
+        // ADR-0030 — projection handlers source the convergence key (OrderId) from the Avro
+        // payload, not a header; the context only needs the cancellation token.
         var context = Substitute.For<IMessageContext>();
-        // ADR-0008 — projection handlers source CorrelationId from this header; tests that
-        // assert on a specific value flowing through must pass it here so header == Avro payload.
-        context.Headers.Returns(new MessageHeaders
-        {
-            {
-                MessageHeaderKeys.CorrelationId,
-                System.Text.Encoding.UTF8.GetBytes(correlationId.ToString())
-            },
-        });
+        context.Headers.Returns(new MessageHeaders());
         var consumerContext = Substitute.For<IConsumerContext>();
         consumerContext.WorkerStopped.Returns(ct);
         context.ConsumerContext.Returns(consumerContext);
