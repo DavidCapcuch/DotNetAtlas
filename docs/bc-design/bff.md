@@ -340,7 +340,6 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
   ```
   {
     "orderId": "Guid",
-    "correlationId": "Guid",
     "buyerId": "Guid",
     "status": "string (OrderStatus smart-enum name)",
     "items": [
@@ -616,7 +615,6 @@ public interface IOrderingClient
 ```text
 record OrderDto(
     Guid OrderId,
-    Guid CorrelationId,
     Guid BuyerId,
     string Status,
     IReadOnlyList<OrderItemDto> Items,

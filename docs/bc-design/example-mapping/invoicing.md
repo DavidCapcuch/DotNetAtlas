@@ -15,16 +15,16 @@
 - **R1** — The `pending_invoices` projection accepts either `OrderConfirmedEvent` or `PaymentCapturedEvent` first; order of arrival does not matter.
 - **R2** — `IssueInvoiceCommand` fires **only when both halves are present** AND `IssuedInvoiceId IS NULL` (idempotent guard).
 - **R3** — After successful issuance, `pending_invoices.IssuedInvoiceId` is set atomically with the aggregate insert.
-- **R4** — Duplicate events (same `CorrelationId` arriving twice) are absorbed by the inbox; the projection is idempotent.
+- **R4** — Duplicate events (same `OrderId` arriving twice) are absorbed by the inbox; the projection is idempotent.
 - **R5** — The invoice `Total` must equal `OrderConfirmedEvent.Total` — this is a consistency check; a mismatch is a bug and surfaces as `DataIntegrityException`.
 
 ### Example 1.1 — Order arrives first, payment second
 
-- **Given** no prior state for `CorrelationId = C1`
-- **When** `OrderConfirmedEvent(orderId=O1, correlationId=C1, total=€152.00, lines=...)` is consumed
+- **Given** no prior state for `OrderId = O1`
+- **When** `OrderConfirmedEvent(orderId=O1, total=€152.00, lines=...)` is consumed
 - **Then** row inserted in `pending_invoices` with `OrderId = O1`, `OrderPayload` populated, `PaymentId = NULL`
 - **And** `InvoiceIssuanceReadyDomainEvent` is NOT raised (only one half present)
-- **When** `PaymentCapturedEvent(paymentId=P1, correlationId=C1, amount=€152.00)` is consumed
+- **When** `PaymentCapturedEvent(paymentId=P1, orderId=O1, amount=€152.00)` is consumed
 - **Then** row updated: `PaymentId = P1`, `PaymentPayload` populated, `CompletedAtUtc` set
 - **And** `InvoiceIssuanceReadyDomainEvent` is raised
 - **And** `IssueInvoiceCommand` runs: number allocated (`INV-2026-000142`), PDF generated + uploaded, aggregate persisted, `IssuedInvoiceId` written to `pending_invoices`
@@ -38,8 +38,8 @@
 
 ### Example 1.3 — Duplicate OrderConfirmedEvent
 
-- **Given** `pending_invoices` row for `CorrelationId = C1` with both halves present and `IssuedInvoiceId = I1` (invoice already issued)
-- **When** `OrderConfirmedEvent(correlationId=C1, ...)` is consumed a second time
+- **Given** `pending_invoices` row for `OrderId = O1` with both halves present and `IssuedInvoiceId = I1` (invoice already issued)
+- **When** `OrderConfirmedEvent(orderId=O1, ...)` is consumed a second time
 - **Then** inbox dedups at the message-id level (if `MessageId` repeats) OR the handler observes `IssuedInvoiceId IS NOT NULL` and no-ops
 - **Verify** no new invoice issued; `InvoiceNumber` sequence NOT advanced
 - **Verify** no new outbox row

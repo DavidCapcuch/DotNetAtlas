@@ -13,7 +13,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0005](0005-customer-data-in-ordering.md) | Customer Data in Ordering | Proposed | 2026-04-18 |
 | [0006](0006-event-sourcing-for-inventory.md) | Event Sourcing for Inventory | Proposed | 2026-04-18 |
 | [0007](0007-avro-compatibility-modes.md) | Avro Schema Compatibility Modes | Accepted | 2026-04-18 |
-| [0008](0008-correlation-id-propagation.md) | Correlation-ID Propagation Rule | Accepted | 2026-04-19 |
+| [0008](0008-correlation-id-propagation.md) | Correlation-ID Propagation Rule | Superseded by [0030](0030-retire-dedicated-correlationid.md) | 2026-04-19 |
 | [0009](0009-reference-solution-target-profile.md) | Reference-Solution Target Profile | Accepted | 2026-04-19 |
 | [0010](0010-service-to-service-auth.md) | Service-to-Service Auth (OAuth2 Client Credentials) | Accepted | 2026-04-19 |
 | [0011](0011-pii-handling-gdpr.md) | PII Handling & GDPR Article 17 Path | Accepted | 2026-04-19 |

@@ -55,12 +55,12 @@
 | `PaymentsErrors.GatewayUnavailable` | Payments | Upstream | 503 | Saga retry via Polly; after exhaustion → `CompensatingStockReservations` | Yes (client) | No | [payments.md § IPaymentGateway adapter](payments.md) |
 | **Invalid payment-status transition** | Payments | Bug | 500 | DLT; ops investigates | No | **Yes** | [payments.md § PaymentStatus SmartEnum](payments.md) — aggregate throws `DataIntegrityException` |
 | `InvoicingErrors.InvoiceNotFound(invoiceId)` / `InvoiceForOrderNotFound(orderId)` / `CreditNoteNotFound(creditNoteId)` | Invoicing | User | 404 | N/A | No | No | Query target missing |
-| `InvoicingErrors.InvoiceAlreadyIssued(correlationId)` | Invoicing | User | 409 | N/A (idempotent re-issue attempt) | No | No | [invoicing.md § Issuance projection](invoicing.md) — `pending_invoices.IssuedInvoiceId` already set |
+| `InvoicingErrors.InvoiceAlreadyIssued(orderId)` | Invoicing | User | 409 | N/A (idempotent re-issue attempt) | No | No | [invoicing.md § Issuance projection](invoicing.md) — `pending_invoices.IssuedInvoiceId` already set |
 | `InvoicingErrors.CreditNoteRefersToCancelledInvoice(invoiceId)` | Invoicing | User | 409 | N/A | No | No | [invoicing.md § I-CN-1](invoicing.md) |
 | `InvoicingErrors.InvalidInvoiceTransition(from, to)` / `InvalidCreditNoteTransition(from, to)` | Invoicing | User | 409 | N/A | No | No | Aggregate FSM precondition surfaced as `Result.Fail` from the command layer |
 | `InvoicingErrors.BlobUploadFailed` | Invoicing | Upstream | 503 | Azure.Storage.Blobs SDK retries (exponential backoff); DLT after exhaustion | Yes (client) | **After retries** | [invoicing.md § Blob storage](invoicing.md) — Azurite/Azure Blob upload failure |
 | `InvoicingErrors.PartialRefundNotSupportedV1` | Invoicing | Feature-gate | 501 | Credit-note request with partial amount — rejected | No | No | [invoicing.md § Out of scope v1](invoicing.md) |
-| `InvoiceTotalMismatchException` (: `DataIntegrityException`) | Invoicing | Bug | 500 | DLT; ops alert (data integrity) | No | **Yes** | [invoicing.md § Example 1.4](invoicing.md) — Order.Total ≠ Payment.Amount for same CorrelationId |
+| `InvoiceTotalMismatchException` (: `DataIntegrityException`) | Invoicing | Bug | 500 | DLT; ops alert (data integrity) | No | **Yes** | [invoicing.md § Example 1.4](invoicing.md) — Order.Total ≠ Payment.Amount for same OrderId |
 | `PdfGenerationFailedException` (: `DataIntegrityException`) | Invoicing | Bug | 500 | DLT; alert | No | **Yes** | [invoicing.md § PDF generation](invoicing.md) — `QuestPdfInvoiceGenerator` wraps `QuestPDF.Drawing.Exceptions.DocumentLayoutException` |
 | `SagaErrors.PaymentRefundFailed` | CheckoutSaga | Ops | — | Terminal `CompensationStuck` — PagerDuty | Manual | **Yes** | [checkout-saga.md § Compensation matrix](checkout-saga.md) |
 | `SagaErrors.ReservationReleaseStuck` | CheckoutSaga | Ops | — | Terminal `CompensationStuck` | Manual | **Yes** | [checkout-saga.md § Compensation matrix](checkout-saga.md) |
@@ -74,7 +74,7 @@ This subsection is the architectural rule that the per-BC arch-tests (`test/<BC>
 
 - **Aggregates and saga-command handlers throw [`DataIntegrityException`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) (or a BC-scoped subclass) for state-corruption bugs — nothing else.** Aggregates must NOT throw `ArgumentException`, `InvalidOperationException`, `NotImplementedException`, `KeyNotFoundException`, or any other generic-CLR exception type for domain-state violations. Use a `DomainError` subclass and `Result.Fail` if the condition is user-actionable; use `DataIntegrityException` if the condition signals a bug that should never occur in a working system.
 - **`DataIntegrityException` is a subclass of [`CriticalException`](../../platform/Platform.SharedKernel/Exceptions/CriticalException.cs)** — `CriticalException` is the marker that the consumer DLT middleware and the API `PlatformExceptionHandler` both catch on. Subclassing `DataIntegrityException` (instead of catching, parsing, and re-throwing) is how BCs carry **typed payload fields** to logs and DLT messages.
-- **BC-scoped subclasses** live under the BC's own namespace and carry primary-ctor-backed properties for whatever values the throw site captured. Reference implementation: `Invoicing.Application.Common.Exceptions.InvoiceTotalMismatchException` carries `OrderTotal`, `PaymentAmount`, `CorrelationId`; `Invoicing.Application.Common.Exceptions.PdfGenerationFailedException` carries `Detail` and the inner QuestPDF exception. Both inherit `DataIntegrityException` directly so the existing `catch (CriticalException)` branches in middleware route them unchanged.
+- **BC-scoped subclasses** live under the BC's own namespace and carry primary-ctor-backed properties for whatever values the throw site captured. Reference implementation: `Invoicing.Application.Common.Exceptions.InvoiceTotalMismatchException` carries `OrderTotal`, `PaymentAmount`, `OrderId`; `Invoicing.Application.Common.Exceptions.PdfGenerationFailedException` carries `Detail` and the inner QuestPDF exception. Both inherit `DataIntegrityException` directly so the existing `catch (CriticalException)` branches in middleware route them unchanged.
 - **Argument-null / state-precondition pre-checks** at method entry (`ArgumentNullException.ThrowIfNull(...)`, `ArgumentOutOfRangeException.ThrowIfNegative(...)`) are exempt: they catch programmer errors at the call boundary before the aggregate's invariants come into play. The arch-tests allow these.
 
 The arch-tests enforce the rule by walking every public method on every aggregate and saga consumer and asserting that any `throw new` expression resolves to a `CriticalException` subclass (with the precondition-helper exemptions noted above).
@@ -237,7 +237,7 @@ Invalid FSM transitions on `PaymentTransaction` (e.g., calling `Capture` from `F
 | `InvoiceNotFound(Guid invoiceId)` | `NotFoundError` | 404 |
 | `InvoiceForOrderNotFound(Guid orderId)` | `NotFoundError` | 404 (variant for by-Order lookup; same error code) |
 | `CreditNoteNotFound(Guid creditNoteId)` | `NotFoundError` | 404 |
-| `InvoiceAlreadyIssued(Guid correlationId)` | `ConflictError` | 409 |
+| `InvoiceAlreadyIssued(Guid orderId)` | `ConflictError` | 409 |
 | `PartialRefundNotSupportedV1()` | `NotImplementedError` | 501 |
 | `BlobUploadFailed()` | `ServiceUnavailableError` | 503 |
 | `CreditNoteRefersToCancelledInvoice(Guid invoiceId)` | `ConflictError` | 409 |
@@ -246,7 +246,7 @@ Invalid FSM transitions on `PaymentTransaction` (e.g., calling `Capture` from `F
 
 **Bug-class typed exceptions** (live under `Invoicing.Application.Common.Exceptions`, both inherit `DataIntegrityException` so the consumer middleware's existing `catch (CriticalException)` branch DLTs them unchanged — see § 1.5):
 
-- [`InvoiceTotalMismatchException(decimal OrderTotal, decimal PaymentAmount, Guid CorrelationId)`](../../services/Invoicing/Invoicing.Application/Common/Exceptions/InvoiceTotalMismatchException.cs) — raised by `IssueInvoiceCommandHandler` when `OrderConfirmedEvent.TotalAmount ≠ PaymentCapturedEvent.Amount` for the same `CorrelationId` (example-mapping 1.4). `ErrorCode = "Invoicing.TotalMismatch"`.
+- [`InvoiceTotalMismatchException(decimal OrderTotal, decimal PaymentAmount, Guid OrderId)`](../../services/Invoicing/Invoicing.Application/Common/Exceptions/InvoiceTotalMismatchException.cs) — raised by `IssueInvoiceCommandHandler` when `OrderConfirmedEvent.TotalAmount ≠ PaymentCapturedEvent.Amount` for the same `OrderId` (example-mapping 1.4). `ErrorCode = "Invoicing.TotalMismatch"`.
 - [`PdfGenerationFailedException(string Detail, Exception innerException)`](../../services/Invoicing/Invoicing.Application/Common/Exceptions/PdfGenerationFailedException.cs) — raised by `QuestPdfInvoiceGenerator` wrapping `QuestPDF.Drawing.Exceptions.DocumentLayoutException` (QuestPDF's only publicly-thrown exception type as of v2026.5.0). `ErrorCode = "Invoicing.PdfGenerationFailed"`. The original QuestPDF exception is preserved as `InnerException` for diagnostics.
 
 Invariant violations on `Invoice` / `CreditNote` aggregates (e.g., issuing a credit note against a `Cancelled` invoice — I-CN-1) throw plain `DataIntegrityException`.
@@ -309,7 +309,7 @@ Cross-reference to [checkout-saga.md § 6 Compensation matrix](checkout-saga.md)
 | Upstream error (on saga-consumed event / command reply) | Saga state transition |
 |---|---|
 | `OrderCreatedEvent` never arrives within timeout | `AwaitingOrderCreation` → `Failed` (no side effects) |
-| `StockReservationFailedEvent(InsufficientStockError)` | `AwaitingStockReservation` → `CompensatingStockReservations` → release any prior reservations for this `CorrelationId` → `CancelOrder` → `Failed` |
+| `StockReservationFailedEvent(InsufficientStockError)` | `AwaitingStockReservation` → `CompensatingStockReservations` → release any prior reservations for this `OrderId` → `CancelOrder` → `Failed` |
 | `StockReservationFailedEvent` with bug-class error (reservation ID clash etc.) | Same as above — compensation path is identical; ops alert additionally raised due to DLT message on the ORIGINATING consumer |
 | `PaymentFailedEvent` (from `GatewayDeclinedError`) — Payments-owned terminal, authorization decline | `AwaitingPaymentAuthorization` → fast-fail → `CompensatingStockReservations` → `CancelOrder` → `Compensated` (nothing captured; no void needed) |
 | Confirmation fails (order FSM rejects `Confirm` after authorization) — ADR-0026 pre-capture | `AwaitingConfirmation` → `AbortCaptureCommand` (PaymentProcessingSaga voids the authorization — free, never a refund) + release reservations → `CompensatingStockReservations` → `CancelOrder` → `Compensated` |

@@ -548,15 +548,15 @@ Schema `inventory` in the shared PostgreSQL database (same DB as projections —
 | `Payload` | `jsonb` | NOT NULL | Serialized internal event (MemoryPack-encoded bytes round-tripped through base64 or native `bytea` — for v1 reference: serialize internal record to JSON in jsonb column for legibility during debugging). Contains everything: the event-specific fields AND `OccurredOnUtc`. |
 | `OccurredAtUtc` | `timestamptz` | NOT NULL | Copy of `event.OccurredOnUtc` — promoted to a column for efficient temporal queries (`WHERE OccurredAtUtc < @time`). |
 | `AppendedAtUtc` | `timestamptz` | NOT NULL DEFAULT `now()` | DB-side insert timestamp. Differs from `OccurredAtUtc` when an event is backdated (e.g., replayed during tests). |
-| `CorrelationId` | `uuid` | NULL | Checkout-saga correlation id when the command came from a saga. Enables "give me every event touched by this saga run" queries. |
 
 **Primary key:** `(StreamId, Version)`.
 
 **Indexes:**
 - PK (above) — clustered on StreamId for range rehydration.
 - `idx_stock_events_occurred_at ON (OccurredAtUtc)` — temporal queries.
-- `idx_stock_events_correlation ON (CorrelationId) WHERE CorrelationId IS NOT NULL` — saga forensics.
 - `idx_stock_events_event_type ON (EventType)` — projection rebuild by event kind.
+
+> The dedicated `CorrelationId` column + its `idx_stock_events_correlation` index were dropped per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md). Saga-run forensics ("every event touched by this saga run") now filter on the `OrderId` carried inside the reservation-event payloads — `OrderId` is the saga key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md).
 
 **Append rules (enforced in the write path, not purely by the DB):**
 

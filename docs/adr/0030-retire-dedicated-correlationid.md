@@ -95,6 +95,6 @@ Staged after ADR-0029. High-level inventory (the greps that scoped this hit the 
 
 - [ADR-0008: Correlation-ID Propagation Rule](0008-correlation-id-propagation.md) — **superseded** by this ADR.
 - [ADR-0029: Order-Keyed Saga & Pre-Assigned OrderId](0029-order-keyed-saga-and-pre-assigned-orderid.md) — establishes `OrderId` as the durable business key this ADR relies on; must land first.
-- [ADR-0007: Avro Compatibility Modes](0007-avro-compatibility-modes.md) — its note "the Kafka header is outside the Avro schema" becomes moot for correlation; amend.
+- [ADR-0007: Avro Compatibility Modes](0007-avro-compatibility-modes.md) — the dedicated `correlation.id` Kafka header sat outside the Avro schema, so ADR-0007's modes never governed it; the old [ADR-0008](0008-correlation-id-propagation.md) "schema evolution does not affect propagation" note is moot now the header is retired. Recorded in ADR-0007's Related Decisions.
 - [ADR-0011: PII Handling & GDPR](0011-pii-handling-gdpr.md) — the `correlationId` OTEL-allowlist exemption is removed; `OrderId`/`traceId` take its place.
 - [ADR-0015: Time & Timezone Policy](0015-time-timezone-policy.md) — unaffected; referenced only because correlated audit rows used `DateTimeOffset`.

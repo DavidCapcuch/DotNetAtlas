@@ -2,7 +2,20 @@
 
 ## Status
 
-Accepted (2026-04-19)
+**Superseded by [ADR-0030](0030-retire-dedicated-correlationid.md) (2026-06-03).**
+
+> The dedicated platform-wide `CorrelationId` described below was retired. After
+> [ADR-0029](0029-order-keyed-saga-and-pre-assigned-orderid.md) re-keyed the checkout saga on a
+> pre-assigned `OrderId`, the dedicated id became redundant for order flows: `OrderId` is now the
+> durable business/audit key and `traceId` (W3C Trace Context / OpenTelemetry) is the cross-process
+> telemetry key. The `X-Correlation-Id` HTTP header, the `correlation.id` Kafka header + middleware,
+> the `correlation_id` columns, the Avro payload fields, and the Serilog enricher were all removed.
+> This ADR is retained **unchanged below as the historical record** of why the dedicated id existed
+> and why it was accepted at the time; see [ADR-0030](0030-retire-dedicated-correlationid.md) for the
+> trade-off analysis behind retiring it (including the accepted loss of a durable key for pre-order /
+> non-order flows).
+
+Originally accepted (2026-04-19).
 
 ## Context
 

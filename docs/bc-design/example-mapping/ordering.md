@@ -69,7 +69,7 @@ As a **buyer or administrator** I want **the ability to cancel an order up to th
 - **R2** — Calling `Cancel` from `Shipped` or `Delivered` returns `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))` — this is a user-actionable error (409 Conflict at the HTTP surface), not a bug.
 - **R3** — The business justification: once goods are in a carrier's hands the checkout saga cannot unilaterally recall them; compensation through the saga (refund + release reservation) is no longer a closed loop.
 - **R4** — Post-ship issues (damaged parcel, wrong item, refused delivery) must go through the Returns/RMA flow — planned scope per [roadmap.md § 2.2](../../roadmap.md).
-- **R5** — A successful `Cancel` raises `OrderCancelledDomainEvent(OrderId, CorrelationId, BuyerId, Reason, AtStatus, CancelledAtUtc)` which is transformed into the external `OrderCancelledEvent` on `ordering.orders`; downstream consumers (Inventory, Payments) perform the compensation dictated by `AtStatus`.
+- **R5** — A successful `Cancel` raises `OrderCancelledDomainEvent(OrderId, BuyerId, Reason, AtStatus, CancelledAtUtc)` which is transformed into the external `OrderCancelledEvent` on `ordering.orders`; downstream consumers (Inventory, Payments) perform the compensation dictated by `AtStatus`.
 
 ### 🌱 Examples
 
@@ -116,7 +116,7 @@ As a **platform engineer** I want **the line items, quantities, and unit prices 
 - **R2** — Any future command that would mutate items while `Status >= StockReserved` must throw `DataIntegrityException` — this is a bug-class guard (I-2 in ordering.md § 3.1), not a user error.
 - **R3** — The business rationale: Inventory's `StockReservedEvent` commits a precise `(ProductId, Quantity)` hold against a `ReservationId`; mutating the Order's items desynchronizes the Inventory reservation from the commercial intent and breaks compensation.
 - **R4** — Today there are NO item-mutation commands on the Order aggregate (the Order is built from a `BasketSnapshot` in the factory and then frozen); R1/R2 are a **future-guard** so that any later-added command automatically inherits the invariant.
-- **R5** — The addresses, buyer, correlation id, and total are likewise immutable after creation (I-3, I-4, I-5, I-6) for the same synchronization reason.
+- **R5** — The addresses, buyer, the Order's `Id` (the pre-assigned `OrderId` / saga key), and total are likewise immutable after creation (I-3, I-4, I-5, I-6) for the same synchronization reason.
 
 ### 🌱 Examples
 

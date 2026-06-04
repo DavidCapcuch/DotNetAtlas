@@ -158,8 +158,8 @@ Full use-case catalog in [`use-cases.md § 6`](use-cases.md) (new § added along
 
 ### 7.1 Commands (event-triggered, internal)
 
-- `IssueInvoiceCommand(OrderId, CorrelationId)` — triggered when both `OrderConfirmedEvent` AND `PaymentCapturedEvent` have arrived for the same `OrderId` (dedup key `CorrelationId`). Allocates `InvoiceNumber` from the Postgres sequence in the same transaction. Generates PDF. Uploads to Azurite (production: Azure Blob Storage). Writes aggregate + outbox atomically.
-- `IssueCreditNoteCommand(OriginalInvoiceId, CorrelationId, Reason)` — triggered when both `OrderCancelledEvent` AND `PaymentRefundedEvent` have arrived for the order matching a prior invoice. Allocates `CreditNoteNumber`. Generates PDF. Uploads. Persists.
+- `IssueInvoiceCommand(OrderId)` — triggered when both `OrderConfirmedEvent` AND `PaymentCapturedEvent` have arrived for the same `OrderId` (the `pending_invoices` key + idempotency key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md) / [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). The handler loads both payloads from the converged projection row. Allocates `InvoiceNumber` from the Postgres sequence in the same transaction. Generates PDF. Uploads to Azurite (production: Azure Blob Storage). Writes aggregate + outbox atomically.
+- `IssueCreditNoteCommand(OrderId)` — triggered when both `OrderCancelledEvent` AND `PaymentRefundedEvent` have arrived for the order matching a prior invoice; idempotent on `OrderId` (the `pending_credit_notes` key). The original invoice and reason are resolved from the converged projection row. Allocates `CreditNoteNumber`. Generates PDF. Uploads. Persists.
 
 ### 7.2 Commands (admin HTTP)
 
@@ -176,16 +176,15 @@ All HTTP routes under `/api/v1/invoicing/`.
 
 ## 8. The enrichment projection — how `IssueInvoiceCommand` is triggered
 
-**The teaching problem:** Invoicing needs `OrderConfirmedEvent` + `PaymentCapturedEvent` for the same `CorrelationId`. They arrive in arbitrary order; either can be delayed minutes. Invoicing needs a **state projection** that buffers each half until the other arrives.
+**The teaching problem:** Invoicing needs `OrderConfirmedEvent` + `PaymentCapturedEvent` for the same `OrderId`. They arrive in arbitrary order; either can be delayed minutes. Invoicing needs a **state projection** that buffers each half until the other arrives.
 
 ### 8.1 Projection table: `invoicing.pending_invoices`
 
 | Column | Type | Purpose |
 |---|---|---|
-| `CorrelationId` | `uuid` | Primary key |
-| `OrderId` | `uuid?` | Populated when `OrderConfirmedEvent` arrives |
+| `OrderId` | `uuid` | Primary key — the saga / business key, present on **both** halves ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md); re-keyed from the retired `correlation_id` per [ADR-0030](../adr/0030-retire-dedicated-correlationid.md)). |
 | `PaymentId` | `uuid?` | Populated when `PaymentCapturedEvent` arrives |
-| `OrderPayload` | `jsonb?` | Full Avro → JSON on arrival |
+| `OrderPayload` | `jsonb?` | Full Avro → JSON when `OrderConfirmedEvent` arrives; its non-null state is the "order half present" sentinel. |
 | `PaymentPayload` | `jsonb?` | Same |
 | `FirstSeenAtUtc` | `timestamptz` | |
 | `CompletedAtUtc` | `timestamptz?` | Set when both halves present |
@@ -194,13 +193,13 @@ All HTTP routes under `/api/v1/invoicing/`.
 ### 8.2 Flow
 
 1. `OrderConfirmedConsumer` handles `OrderConfirmedEvent`:
-   - Upsert `pending_invoices` row (key `CorrelationId`), populate `OrderId` + `OrderPayload`.
+   - Upsert `pending_invoices` row (key `OrderId`), populate `OrderPayload`.
    - If `PaymentId` is already non-null, publish `InvoiceIssuanceReadyDomainEvent` → triggers `IssueInvoiceCommand`.
 2. `PaymentCapturedConsumer` handles `PaymentCapturedEvent`:
-   - Upsert `pending_invoices` row, populate `PaymentId` + `PaymentPayload`.
-   - If `OrderId` is already non-null, publish `InvoiceIssuanceReadyDomainEvent`.
+   - Upsert `pending_invoices` row (key `OrderId`), populate `PaymentId` + `PaymentPayload`.
+   - If `OrderPayload` is already non-null, publish `InvoiceIssuanceReadyDomainEvent`.
 3. `IssueInvoiceCommandHandler`:
-   - Load `pending_invoices` row by `CorrelationId`.
+   - Load `pending_invoices` row by `OrderId`.
    - If `CompletedAtUtc IS NOT NULL AND IssuedInvoiceId IS NOT NULL` → idempotent no-op (already issued).
    - Otherwise: create `Invoice` aggregate from both payloads (`OrderPayload` carries the order summary — `Items`, `TotalAmount`, `Currency`, `BillingAddress` — per the [ADR-0020](../adr/0020-summary-events.md) Summary Event contract on `OrderConfirmedEvent`; `PaymentPayload` carries `Amount`, `Currency`, `PaymentTransactionId`), allocate number, generate PDF, upload blob, persist aggregate + outbox + update `pending_invoices.IssuedInvoiceId` + `CompletedAtUtc` in one transaction.
 
@@ -295,13 +294,13 @@ Single source of truth: [`error-taxonomy.md § 3.6`](error-taxonomy.md) (`Invoic
 
 Key user-actionable errors (factory methods on `InvoicingErrors` returning typed `DomainError` subclasses):
 - `InvoicingErrors.InvoiceNotFound(Guid invoiceId)` — `NotFoundError`, 404
-- `InvoicingErrors.InvoiceAlreadyIssued(Guid correlationId)` — `ConflictError`, 409 (idempotent re-issue attempt)
+- `InvoicingErrors.InvoiceAlreadyIssued(Guid orderId)` — `ConflictError`, 409 (idempotent re-issue attempt)
 - `InvoicingErrors.CreditNoteRefersToCancelledInvoice(Guid invoiceId)` — `ConflictError`, 409 (I-CN-1 violation)
 - `InvoicingErrors.BlobUploadFailed()` — `ServiceUnavailableError`, 503 (Azure Blob SDK retries exhausted)
 - `InvoicingErrors.PartialRefundNotSupportedV1()` — `NotImplementedError`, 501
 
 Bug-class typed exceptions (live in `Invoicing.Application.Common.Exceptions`, inherit `DataIntegrityException` → consumer middleware DLTs them):
-- `InvoiceTotalMismatchException(decimal orderTotal, decimal paymentAmount, Guid correlationId)` — raised by `IssueInvoiceCommandHandler` when `OrderConfirmedEvent.TotalAmount ≠ PaymentCapturedEvent.Amount` (example-mapping 1.4).
+- `InvoiceTotalMismatchException(decimal orderTotal, decimal paymentAmount, Guid orderId)` — raised by `IssueInvoiceCommandHandler` when `OrderConfirmedEvent.TotalAmount ≠ PaymentCapturedEvent.Amount` (example-mapping 1.4).
 - `PdfGenerationFailedException(string detail, Exception innerException)` — raised by `QuestPdfInvoiceGenerator` wrapping `QuestPDF.Drawing.Exceptions.DocumentLayoutException`.
 
 ---
