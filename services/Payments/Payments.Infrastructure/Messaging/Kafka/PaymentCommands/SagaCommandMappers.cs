@@ -14,10 +14,9 @@ namespace Payments.Infrastructure.Messaging.Kafka.PaymentCommands;
 /// application-layer command DTOs. Pure functions, no DI, no side-effects.
 /// </summary>
 /// <remarks>
-/// ADR-0008: the saga key is passed in explicitly from the Kafka header rather than read from the
-/// Avro payload field — the header is the authoritative source. Post-ADR-0029 that key equals the
-/// <c>OrderId</c>; ADR-0030 retires the dedicated correlation id, so Capture / Void resolve their
-/// aggregate by <c>OrderId</c> and RequestRefund by the wire <c>PaymentTransactionId</c>.
+/// Post-ADR-0029/0030 the saga key is the <c>OrderId</c>, read from each command's own wire
+/// payload field: Authorize / Capture / Void resolve their aggregate by <c>OrderId</c>,
+/// RequestRefund by the wire <c>PaymentTransactionId</c>.
 /// </remarks>
 internal static class SagaCommandMappers
 {
@@ -26,14 +25,13 @@ internal static class SagaCommandMappers
     /// <see cref="AppAuthorizePaymentCommand"/>. Field renames: <c>UserId</c> → <c>BuyerId</c>;
     /// PaymentId comes from the saga-issued <c>PaymentTransactionId</c> Avro field (cross-cutting
     /// wave1-followup #255 — the v1 collapse where PaymentId == CorrelationId was unwound to make
-    /// the "v7 PK" guarantee on the Payments aggregate genuine). One-payment-per-saga stays
-    /// enforced by the unique index on <c>payment_transactions.correlation_id</c>.
+    /// the "v7 PK" guarantee on the Payments aggregate genuine). One-payment-per-order stays
+    /// enforced by the unique index on <c>payment_transactions.order_id</c> (ADR-0029).
     /// </summary>
-    internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro, Guid correlationId) =>
+    internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro) =>
         new()
         {
             PaymentId = avro.PaymentTransactionId,
-            CorrelationId = correlationId,
             OrderId = avro.OrderId,
             BuyerId = avro.UserId,
             Amount = (decimal)avro.Amount,
@@ -46,29 +44,29 @@ internal static class SagaCommandMappers
 
     /// <summary>
     /// Maps <see cref="AvroCapturePaymentCommand"/> to the application-layer
-    /// <see cref="AppCapturePaymentCommand"/>. <c>OrderId</c> comes from the saga key
-    /// (== OrderId per ADR-0029) so the handler resolves the aggregate via the unique
-    /// <c>order_id</c> index; <c>AuthorizationId</c> propagated for handler-side validation
-    /// against the stored <c>GatewayTransactionId</c> (H-8 closeout).
+    /// <see cref="AppCapturePaymentCommand"/>. <c>OrderId</c> comes from the wire payload field
+    /// (ADR-0029/0030) so the handler resolves the aggregate via the unique <c>order_id</c> index;
+    /// <c>AuthorizationId</c> propagated for handler-side validation against the stored
+    /// <c>GatewayTransactionId</c> (H-8 closeout).
     /// </summary>
-    internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro, Guid orderId) =>
+    internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro) =>
         new()
         {
-            OrderId = orderId,
+            OrderId = avro.OrderId,
             AuthorizationId = avro.AuthorizationId,
         };
 
     /// <summary>
     /// Maps <see cref="AvroVoidPaymentCommand"/> to the application-layer
-    /// <see cref="AppVoidPaymentCommand"/>. <c>OrderId</c> comes from the saga key
-    /// (== OrderId per ADR-0029); <c>AuthorizationId</c> propagated for handler-side validation
+    /// <see cref="AppVoidPaymentCommand"/>. <c>OrderId</c> comes from the wire payload field
+    /// (ADR-0029/0030); <c>AuthorizationId</c> propagated for handler-side validation
     /// (H-8 closeout); <c>Reason</c> propagated for aggregate persistence + outbound audit
     /// (H-5 closeout).
     /// </summary>
-    internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro, Guid orderId) =>
+    internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro) =>
         new()
         {
-            OrderId = orderId,
+            OrderId = avro.OrderId,
             AuthorizationId = avro.AuthorizationId,
             Reason = avro.Reason,
         };

@@ -10,8 +10,6 @@ public sealed record PaymentVoidedDomainEvent : DomainEvent
 {
     public required Guid PaymentId { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     public required Guid BuyerId { get; init; }
 
     public required Guid OrderId { get; init; }

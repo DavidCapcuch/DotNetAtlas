@@ -220,6 +220,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new CapturePaymentCommand
                     {
+                        OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -244,6 +245,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
+                        OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = ctx.Message.Reason,
@@ -268,6 +270,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
+                        OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = "Capture approval timeout expired",
@@ -330,6 +333,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new CapturePaymentCommand
                             {
+                                OrderId = ctx.Saga.OrderId,
                                 UserId = ctx.Saga.UserId,
                                 AuthorizationId = ctx.Saga.AuthorizationId!,
                                 Amount = ctx.Saga.Amount.ToAvroDecimal(4),
@@ -349,6 +353,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                             ctx => ctx.Saga.CorrelationId.ToString(),
                             ctx => new VoidPaymentCommand
                             {
+                                OrderId = ctx.Saga.OrderId,
                                 UserId = ctx.Saga.UserId,
                                 AuthorizationId = ctx.Saga.AuthorizationId!,
                                 Reason = $"Capture failed: {ctx.Message.ErrorMessage}",
@@ -373,6 +378,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx => ctx.Saga.CorrelationId.ToString(),
                     ctx => new VoidPaymentCommand
                     {
+                        OrderId = ctx.Saga.OrderId,
                         UserId = ctx.Saga.UserId,
                         AuthorizationId = ctx.Saga.AuthorizationId!,
                         Reason = "Capture timeout expired",

@@ -38,13 +38,13 @@ public sealed class PaymentCaptureFailedOutboxPublisherDomainEventHandler
 
         _outbox.AddOutboxMessage(
             _topics.Transactions,
-            domainEvent.CorrelationId.ToString(),
+            domainEvent.OrderId.ToString(),
             integrationEvent);
 
         _logger.LogInformation(
-            "Added PaymentCaptureFailedEvent to outbox. PaymentId: {PaymentId}, CorrelationId: {CorrelationId}, Reason: {Reason}",
+            "Added PaymentCaptureFailedEvent to outbox. PaymentId: {PaymentId}, OrderId: {OrderId}, Reason: {Reason}",
             domainEvent.PaymentId,
-            domainEvent.CorrelationId,
+            domainEvent.OrderId,
             domainEvent.FailureInfo.Reason.Name);
 
         return Task.CompletedTask;

@@ -19,7 +19,11 @@ namespace Payments.Transactions
 	[global::System.CodeDom.Compiler.GeneratedCodeAttribute("avrogen", "1.12.1+9110c693767c1dde2665b2b57939333478b12036")]
 	public partial class CapturePaymentCommand : global::Avro.Specific.ISpecificRecord
 	{
-		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""CapturePaymentCommand"",""doc"":""Command sent by Payment Saga to capture an authorized payment."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""UserId"",""doc"":""User whose payment to capture."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider to capture."",""type"":""string""},{""name"":""Amount"",""doc"":""Amount to capture (may be less than or equal to authorized amount)."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when capture was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse(@"{""type"":""record"",""name"":""CapturePaymentCommand"",""doc"":""Command sent by Payment Saga to capture an authorized payment."",""namespace"":""Payments.Transactions"",""fields"":[{""name"":""OrderId"",""doc"":""Order this payment is attached to; the saga correlation key the handler resolves the aggregate by (ADR-0029)."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""UserId"",""doc"":""User whose payment to capture."",""type"":{""type"":""string"",""logicalType"":""uuid""}},{""name"":""AuthorizationId"",""doc"":""Authorization ID from the payment provider to capture."",""type"":""string""},{""name"":""Amount"",""doc"":""Amount to capture (may be less than or equal to authorized amount)."",""type"":{""type"":""bytes"",""logicalType"":""decimal"",""precision"":19,""scale"":4}},{""name"":""RequestedAtUtc"",""doc"":""UTC timestamp when capture was requested."",""type"":{""type"":""long"",""logicalType"":""timestamp-millis""}}]}");
+		/// <summary>
+		/// Order this payment is attached to; the saga correlation key the handler resolves the aggregate by (ADR-0029).
+		/// </summary>
+		private System.Guid _OrderId;
 		/// <summary>
 		/// User whose payment to capture.
 		/// </summary>
@@ -41,6 +45,20 @@ namespace Payments.Transactions
 			get
 			{
 				return CapturePaymentCommand._SCHEMA;
+			}
+		}
+		/// <summary>
+		/// Order this payment is attached to; the saga correlation key the handler resolves the aggregate by (ADR-0029).
+		/// </summary>
+		public System.Guid OrderId
+		{
+			get
+			{
+				return this._OrderId;
+			}
+			set
+			{
+				this._OrderId = value;
 			}
 		}
 		/// <summary>
@@ -103,10 +121,11 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: return this.UserId;
-			case 1: return this.AuthorizationId;
-			case 2: return this.Amount;
-			case 3: return this.RequestedAtUtc;
+			case 0: return this.OrderId;
+			case 1: return this.UserId;
+			case 2: return this.AuthorizationId;
+			case 3: return this.Amount;
+			case 4: return this.RequestedAtUtc;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -114,10 +133,11 @@ namespace Payments.Transactions
 		{
 			switch (fieldPos)
 			{
-			case 0: this.UserId = (System.Guid)fieldValue; break;
-			case 1: this.AuthorizationId = (System.String)fieldValue; break;
-			case 2: this.Amount = (Avro.AvroDecimal)fieldValue; break;
-			case 3: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
+			case 0: this.OrderId = (System.Guid)fieldValue; break;
+			case 1: this.UserId = (System.Guid)fieldValue; break;
+			case 2: this.AuthorizationId = (System.String)fieldValue; break;
+			case 3: this.Amount = (Avro.AvroDecimal)fieldValue; break;
+			case 4: this.RequestedAtUtc = (System.DateTime)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

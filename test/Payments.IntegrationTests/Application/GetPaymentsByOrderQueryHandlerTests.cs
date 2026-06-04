@@ -74,7 +74,6 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
 
         var tx = PaymentTransaction.Create(
             Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             buyerId: Guid.CreateVersion7(),
             orderId: orderId,
             Money.Create(100m, "USD").Value,

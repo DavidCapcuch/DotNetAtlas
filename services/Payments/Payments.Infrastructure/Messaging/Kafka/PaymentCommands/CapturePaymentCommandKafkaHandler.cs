@@ -31,19 +31,13 @@ internal sealed class CapturePaymentCommandKafkaHandler
     public Task Handle(IMessageContext context, AvroCapturePaymentCommand message)
     {
         // Capture carries no PaymentTransactionId on the wire — the aggregate is resolved by the
-        // saga key (== OrderId per ADR-0029), carried on the Kafka header until #310 retargets the
-        // read onto a wire field. The log scope is keyed on OrderId (previously mislabelled
-        // PaymentId though the value was always the OrderId).
-        var orderId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "Saga key (OrderId) missing on the Kafka header for CapturePaymentCommand.");
-
+        // wire OrderId (the saga key == OrderId per ADR-0029), which also keys the log scope.
         return ExecuteAsync(
             context,
-            new Dictionary<string, object?> { ["OrderId"] = orderId },
+            new Dictionary<string, object?> { ["OrderId"] = message.OrderId },
             async ct =>
             {
-                var appCommand = message.ToAppCommand(orderId);
+                var appCommand = message.ToAppCommand();
                 return await _appHandler.HandleAsync(appCommand, ct);
             });
     }

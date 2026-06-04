@@ -39,13 +39,13 @@ public sealed class PaymentAuthorizationFailedOutboxPublisherDomainEventHandler
 
         _outbox.AddOutboxMessage(
             _topics.Transactions,
-            domainEvent.CorrelationId.ToString(),
+            domainEvent.OrderId.ToString(),
             integrationEvent);
 
         _logger.LogInformation(
-            "Added PaymentAuthorizationFailedEvent to outbox. PaymentId: {PaymentId}, CorrelationId: {CorrelationId}, Reason: {Reason}",
+            "Added PaymentAuthorizationFailedEvent to outbox. PaymentId: {PaymentId}, OrderId: {OrderId}, Reason: {Reason}",
             domainEvent.PaymentId,
-            domainEvent.CorrelationId,
+            domainEvent.OrderId,
             domainEvent.FailureInfo.Reason.Name);
 
         return Task.CompletedTask;

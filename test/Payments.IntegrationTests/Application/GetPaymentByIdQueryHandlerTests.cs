@@ -97,7 +97,6 @@ public sealed class GetPaymentByIdQueryHandlerTests
 
         var tx = PaymentTransaction.Create(
             Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             buyerId: Guid.CreateVersion7(),
             orderId: Guid.CreateVersion7(),
             Money.Create(100m, "USD").Value,
@@ -118,7 +117,6 @@ public sealed class GetPaymentByIdQueryHandlerTests
 
         var tx = PaymentTransaction.Create(
             Guid.CreateVersion7(),
-            correlationId: Guid.CreateVersion7(),
             buyerId: Guid.CreateVersion7(),
             orderId: Guid.CreateVersion7(),
             Money.Create(100m, "USD").Value,

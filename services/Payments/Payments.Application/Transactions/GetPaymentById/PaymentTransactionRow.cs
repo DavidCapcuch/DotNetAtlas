@@ -24,8 +24,6 @@ internal sealed record PaymentTransactionRow
 {
     public required Guid PaymentId { get; init; }
 
-    public required Guid CorrelationId { get; init; }
-
     public required Guid BuyerId { get; init; }
 
     public required Guid OrderId { get; init; }
@@ -62,7 +60,6 @@ internal sealed record PaymentTransactionRow
         new PaymentTransactionRow
         {
             PaymentId = tx.Id,
-            CorrelationId = tx.CorrelationId,
             BuyerId = tx.BuyerId,
             OrderId = tx.OrderId,
             Amount = tx.Amount.Amount,
@@ -85,7 +82,6 @@ internal sealed record PaymentTransactionRow
         new()
         {
             PaymentId = PaymentId,
-            CorrelationId = CorrelationId,
             BuyerId = BuyerId,
             OrderId = OrderId,
             Amount = Amount,

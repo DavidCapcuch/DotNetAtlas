@@ -41,13 +41,13 @@ public sealed class PaymentCapturedOutboxPublisherDomainEventHandler
 
         _outbox.AddOutboxMessage(
             _topics.Transactions,
-            domainEvent.CorrelationId.ToString(),
+            domainEvent.OrderId.ToString(),
             integrationEvent);
 
         _logger.LogInformation(
-            "Added PaymentCapturedEvent to outbox. PaymentId: {PaymentId}, CorrelationId: {CorrelationId}",
+            "Added PaymentCapturedEvent to outbox. PaymentId: {PaymentId}, OrderId: {OrderId}",
             domainEvent.PaymentId,
-            domainEvent.CorrelationId);
+            domainEvent.OrderId);
 
         return Task.CompletedTask;
     }

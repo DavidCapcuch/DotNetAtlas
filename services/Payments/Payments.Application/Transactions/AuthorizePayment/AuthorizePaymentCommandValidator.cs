@@ -7,7 +7,6 @@ internal sealed class AuthorizePaymentCommandValidator : AbstractValidator<Autho
     public AuthorizePaymentCommandValidator()
     {
         RuleFor(c => c.PaymentId).NotEmpty();
-        RuleFor(c => c.CorrelationId).NotEmpty();
         RuleFor(c => c.BuyerId).NotEmpty();
         RuleFor(c => c.OrderId).NotEmpty();
         RuleFor(c => c.Amount).GreaterThan(0m);

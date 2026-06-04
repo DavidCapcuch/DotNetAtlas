@@ -43,9 +43,6 @@ internal sealed class PaymentTransactionConfiguration : IEntityTypeConfiguration
             .HasColumnName("xmin")
             .HasComment("Optimistic concurrency token (Postgres xmin system column).");
 
-        builder.Property(t => t.CorrelationId)
-            .HasComment("Originating saga correlation id (== OrderId per ADR-0029; links checkout / order / invoice).");
-
         builder.Property(t => t.BuyerId)
             .HasComment("JWT sub of the buyer the payment is for.");
         builder.HasIndex(t => t.BuyerId)

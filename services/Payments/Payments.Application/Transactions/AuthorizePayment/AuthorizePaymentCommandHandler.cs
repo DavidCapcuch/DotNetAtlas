@@ -86,7 +86,6 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
 
             var createResult = PaymentTransaction.Create(
                 command.PaymentId,
-                command.CorrelationId,
                 command.BuyerId,
                 command.OrderId,
                 moneyResult.Value,

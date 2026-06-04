@@ -17,20 +17,18 @@ public class PaymentTransactionCreateTests
         // The Payments-internal PaymentRequestedDomainEvent had no in-process handler and no
         // outbox publisher; it was scaffolding and has been removed.
         var paymentId = Guid.CreateVersion7();
-        var correlationId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var amount = Money.Create(100m, "USD").Value;
 
         var result = PaymentTransaction.Create(
-            paymentId, correlationId, buyerId, orderId, amount, "tok_visa_4242");
+            paymentId, buyerId, orderId, amount, "tok_visa_4242");
 
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             var tx = result.Value;
             tx.Id.Should().Be(paymentId);
-            tx.CorrelationId.Should().Be(correlationId);
             tx.BuyerId.Should().Be(buyerId);
             tx.OrderId.Should().Be(orderId);
             tx.Amount.Should().Be(amount);
@@ -57,7 +55,7 @@ public class PaymentTransactionCreateTests
         var nonPositiveAmount = Money.Create(amount, "USD").Value;
 
         var result = PaymentTransaction.Create(
-            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
+            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
             nonPositiveAmount, "tok_visa_4242");
 
         using (new AssertionScope())
@@ -78,7 +76,7 @@ public class PaymentTransactionCreateTests
         var amount = Money.Create(100m, "USD").Value;
 
         var result = PaymentTransaction.Create(
-            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
+            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
             amount, paymentMethodId!);
 
         using (new AssertionScope())
@@ -97,7 +95,7 @@ public class PaymentTransactionCreateTests
         var tooLong = new string('x', 65);
 
         var result = PaymentTransaction.Create(
-            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
+            Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
             amount, tooLong);
 
         using (new AssertionScope())

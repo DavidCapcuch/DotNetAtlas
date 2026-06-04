@@ -19,15 +19,15 @@ public class SagaCommandMappersTests
     [Fact]
     public void ToAppCommand_AuthorizePayment_UsesAvroPaymentTransactionId_AsPaymentId()
     {
-        var correlationId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
-        paymentTransactionId.Should().NotBe(correlationId,
+        paymentTransactionId.Should().NotBe(orderId,
             "the two ids must differ for the test to prove the saga-issued PaymentTransactionId is used");
 
         var avro = new AvroAuthorizePaymentCommand
         {
             PaymentTransactionId = paymentTransactionId,
-            OrderId = Guid.CreateVersion7(),
+            OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             PaymentMethodId = "pm_test",
             Amount = new AvroDecimal(99.99m),
@@ -36,23 +36,22 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
-        var app = avro.ToAppCommand(correlationId);
+        var app = avro.ToAppCommand();
 
         using (new AssertionScope())
         {
             app.PaymentId.Should().Be(paymentTransactionId,
                 "ADR-0008 + wave1-followup #255: PaymentId is the saga-issued PaymentTransactionId field");
-            app.PaymentId.Should().NotBe(correlationId,
-                "regression net for the v1 collapse where PaymentId = CorrelationId");
-            app.CorrelationId.Should().Be(correlationId,
-                "CorrelationId comes from the authoritative Kafka header argument (ADR-0008)");
+            app.PaymentId.Should().NotBe(orderId,
+                "regression net for the v1 collapse where PaymentId = OrderId");
+            app.OrderId.Should().Be(orderId,
+                "OrderId comes from the wire payload field (ADR-0029/0030)");
         }
     }
 
     [Fact]
     public void ToAppCommand_AuthorizePayment_CopiesAllOtherFieldsVerbatim()
     {
-        var correlationId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
@@ -69,7 +68,7 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
-        var app = avro.ToAppCommand(correlationId);
+        var app = avro.ToAppCommand();
 
         using (new AssertionScope())
         {
@@ -91,13 +90,14 @@ public class SagaCommandMappersTests
         var orderId = Guid.CreateVersion7();
         var avro = new AvroCapturePaymentCommand
         {
+            OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "auth-123",
             Amount = new AvroDecimal(42.50m),
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
-        var app = avro.ToAppCommand(orderId);
+        var app = avro.ToAppCommand();
 
         using (new AssertionScope())
         {
@@ -112,13 +112,14 @@ public class SagaCommandMappersTests
         var orderId = Guid.CreateVersion7();
         var avro = new AvroVoidPaymentCommand
         {
+            OrderId = orderId,
             UserId = Guid.CreateVersion7(),
             AuthorizationId = "auth-456",
             Reason = "saga_compensation",
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
-        var app = avro.ToAppCommand(orderId);
+        var app = avro.ToAppCommand();
 
         using (new AssertionScope())
         {
