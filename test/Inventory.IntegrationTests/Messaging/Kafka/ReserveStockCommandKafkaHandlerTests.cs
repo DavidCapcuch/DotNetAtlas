@@ -74,13 +74,6 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
         audit.OrderId.Should().Be(orderId);
         audit.Quantity.Should().Be(3);
 
-        var reserveRow = await db.StockEvents
-            .AsNoTracking()
-            .Where(r => r.StreamId == productId && r.EventType == nameof(StockReservedDomainEvent))
-            .OrderByDescending(r => r.Version)
-            .FirstAsync(TestContext.Current.CancellationToken);
-        reserveRow.CorrelationId.Should().Be(correlationId);
-
         var outboxRows = await db.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString())

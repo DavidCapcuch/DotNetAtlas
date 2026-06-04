@@ -106,15 +106,10 @@ public sealed class EventStoreRepository : IEventStore
     /// <see cref="Result.Ok"/> on success; any failure is returned to the
     /// caller unchanged.
     /// </param>
-    /// <param name="correlationId">
-    /// Saga correlation id stamped on every appended row (ADR-0008). Null for
-    /// ops-originated writes.
-    /// </param>
     /// <param name="ct">Cancellation token.</param>
     public async Task<Result<StockItem>> AppendAsync(
         Guid streamId,
         Func<StockItem, Result> command,
-        Guid? correlationId,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -167,8 +162,7 @@ public sealed class EventStoreRepository : IEventStore
                     version: startVersion + 1 + i,
                     eventType: eventType,
                     payload: payload,
-                    occurredAtUtc: @event.OccurredOnUtc,
-                    correlationId: correlationId);
+                    occurredAtUtc: @event.OccurredOnUtc);
 
                 _ctx.StockEvents.Add(row);
             }

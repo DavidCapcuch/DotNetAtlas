@@ -81,7 +81,6 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
             Reason = request.Reason,
             AdjustedByUserId = request.AdjustedByUserId,
             OccurredOnUtc = _timeProvider.GetUtcNow(),
-            CorrelationId = request.CorrelationId,
         };
 
         var result = await _handler.HandleAsync(command, ct);

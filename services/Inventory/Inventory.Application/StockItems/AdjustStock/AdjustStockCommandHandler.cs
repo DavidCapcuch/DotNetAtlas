@@ -33,7 +33,6 @@ internal sealed class AdjustStockCommandHandler : ICommandHandler<AdjustStockCom
                 command.Reason,
                 command.AdjustedByUserId,
                 command.OccurredOnUtc),
-            correlationId: command.CorrelationId,
             ct: ct).ConfigureAwait(false);
 
         if (appendResult.IsFailed)

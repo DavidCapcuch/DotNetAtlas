@@ -67,7 +67,6 @@ internal sealed class ReserveStockCommandHandler : ICommandHandler<ReserveStockC
                 command.OrderId,
                 ttl,
                 command.OccurredOnUtc).ToResult(),
-            correlationId: command.CorrelationId,
             ct: ct).ConfigureAwait(false);
 
         if (result.IsSuccess)

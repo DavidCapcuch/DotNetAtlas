@@ -163,7 +163,6 @@ public sealed class EventStoreRepositoryRehydrationMetricsTests : BaseIntegratio
 
                 return FluentResults.Result.Ok();
             },
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeTrue("seeding the 1000-event stream is a precondition for the p99 measurement");

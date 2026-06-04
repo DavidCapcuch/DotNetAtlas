@@ -63,8 +63,7 @@ internal static class EventStoreTestExtensions
             version: version,
             eventType: eventType,
             payload: payload,
-            occurredAtUtc: @event.OccurredOnUtc,
-            correlationId: null);
+            occurredAtUtc: @event.OccurredOnUtc);
 
         ctx.StockEvents.Add(row);
         await ctx.SaveChangesAsync(ct);

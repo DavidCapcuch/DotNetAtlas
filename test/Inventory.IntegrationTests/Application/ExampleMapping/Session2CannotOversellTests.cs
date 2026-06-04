@@ -103,14 +103,12 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
             var init = await setupRepo.AppendAsync(
                 productId,
                 a => a.Initialize(productId, UtcNow.AddMinutes(-2)),
-                correlationId: null,
                 TestContext.Current.CancellationToken);
             init.Should().BeSuccess();
 
             var receive = await setupRepo.AppendAsync(
                 productId,
                 a => a.ReceiveStock(7, StockSource.ReceivingDock, null, UtcNow.AddMinutes(-1)),
-                correlationId: null,
                 TestContext.Current.CancellationToken);
             receive.Should().BeSuccess();
         }
@@ -145,7 +143,6 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
                 losingOrderId,
                 TimeSpan.FromMinutes(15),
                 UtcNow).ToResult(),
-            correlationId: null,
             TestContext.Current.CancellationToken);
 
         loserResult.Should().BeFailure();

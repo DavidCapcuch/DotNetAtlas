@@ -24,7 +24,7 @@ namespace Inventory.Infrastructure.Messaging.Kafka.StockInit;
 /// <remarks>
 /// <para>
 /// Avro <see cref="AvroOrderCancelledEvent"/> carries only
-/// <c>OrderId</c>+<c>CorrelationId</c>+<c>Reason</c>+<c>AtStatus</c>+<c>CancelledAtUtc</c>
+/// <c>OrderId</c>+<c>Reason</c>+<c>AtStatus</c>+<c>CancelledAtUtc</c>
 /// — there is no per-reservation list. The handler queries
 /// <c>reservation_audit WHERE OrderId = msg.OrderId AND Status = Active</c>
 /// and dispatches one <see cref="ReleaseReservationCommand"/> per row with
@@ -68,18 +68,11 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
 
     public async Task Handle(IMessageContext context, AvroOrderCancelledEvent message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId source; Avro payload field
-        // is convenience metadata only.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
         var origin = context.ExtractOrigin();
         var cancellationToken = context.ConsumerContext.WorkerStopped;
 
         using var correlationScope = _logger.BeginScope(new Dictionary<string, object?>
         {
-            ["CorrelationId"] = correlationId,
             ["OrderId"] = message.OrderId,
             ["AtStatus"] = message.AtStatus,
         });
@@ -121,7 +114,6 @@ internal sealed class OrderCancelledEventKafkaHandler : IMessageHandler<AvroOrde
                     ProductId = reservation.ProductId,
                     Reason = ReleaseReason.Cancellation,
                     OccurredOnUtc = occurredOnUtc,
-                    CorrelationId = correlationId,
                 };
 
                 var result = await _appHandler.HandleAsync(releaseCommand, cancellationToken).ConfigureAwait(false);

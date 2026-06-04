@@ -40,7 +40,6 @@ internal sealed class InitializeStockItemCommandHandler : ICommandHandler<Initia
 
                 return aggregate.Initialize(command.ProductId, command.OccurredOnUtc);
             },
-            correlationId: command.CorrelationId,
             ct: ct).ConfigureAwait(false);
 
         if (result.IsSuccess)

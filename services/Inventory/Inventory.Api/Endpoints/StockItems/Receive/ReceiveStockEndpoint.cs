@@ -53,7 +53,6 @@ internal sealed class ReceiveStockEndpoint : Endpoint<ReceiveStockRequest, Stock
             Source = request.Source,
             ReceivedByUserId = request.ReceivedByUserId,
             OccurredOnUtc = _timeProvider.GetUtcNow(),
-            CorrelationId = request.CorrelationId,
         };
 
         var result = await _handler.HandleAsync(command, ct);

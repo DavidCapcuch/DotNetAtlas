@@ -31,12 +31,11 @@ namespace Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 /// <item>Pushes a caller-supplied set of log-context keys into the Serilog
 /// <c>BeginScope</c> so every log line the handler emits — and every
 /// nested Application-layer log — is queryable by those ids in Seq
-/// (ADR-0008 runbook-first operability). Inventory's saga commands have
+/// (runbook-first operability). Inventory's saga commands have
 /// variable id shape (<c>ReserveStock</c> carries <c>OrderId</c>;
 /// <c>Confirm</c>/<c>Release</c> carry only
 /// <c>ProductId</c>+<c>ReservationId</c>), so callers pass exactly the
-/// ids they care about — generalising over Ordering's fixed
-/// (<c>CorrelationId</c>, <c>OrderId</c>) shape.</item>
+/// ids they care about.</item>
 /// <item>On <see cref="Result.IsFailed"/> from the dispatch delegate,
 /// throws a <see cref="SagaCommandDispatchException"/> so the KafkaFlow
 /// retry + DLT middleware classifies the message as poison (non-transient)
@@ -93,14 +92,11 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     }
 
     /// <param name="context">Inbound Kafka message context.</param>
-    /// <param name="correlationId">Saga correlation id from the Kafka header (ADR-0008 — the Avro
-    /// payload field is convenience metadata only; callers extract the header value via
-    /// <c>context.ExtractCorrelationId()</c>).</param>
     /// <param name="logContext">
     /// Caller-chosen log-context keys (e.g. <c>{"OrderId", orderId,
     /// "ReservationId", reservationId}</c>). Pushed into the Serilog
     /// <c>BeginScope</c> for the duration of dispatch so nested logs
-    /// inherit them. <c>CorrelationId</c> is added automatically.
+    /// inherit them.
     /// </param>
     /// <param name="dispatchAsync">
     /// Dispatches the translated application command and returns the
@@ -108,20 +104,17 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
     /// </param>
     protected async Task ExecuteAsync(
         IMessageContext context,
-        Guid correlationId,
         Dictionary<string, object?> logContext,
         Func<CancellationToken, Task<Result>> dispatchAsync)
     {
         var origin = context.ExtractOrigin();
         var cancellationToken = context.ConsumerContext.WorkerStopped;
 
-        logContext["CorrelationId"] = correlationId;
-
         using var correlationScope = _logger.BeginScope(logContext);
 
         _logger.LogInformation(
-            "Handling {CommandType} from origin {Origin} (CorrelationId={CorrelationId})",
-            typeof(TAvroCommand).Name, origin ?? "unknown", correlationId);
+            "Handling {CommandType} from origin {Origin}",
+            typeof(TAvroCommand).Name, origin ?? "unknown");
 
         await _transactionalOutbox.Database.EnsureTransactionAsync(async () =>
         {
@@ -139,16 +132,16 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
                 if (IsBusinessExpectedFailure(result.Errors))
                 {
                     _logger.LogInformation(
-                        "{CommandType} returned business-expected failure (CorrelationId={CorrelationId}); committing staged saga response: {Errors}",
-                        typeof(TAvroCommand).Name, correlationId, errorSummary);
+                        "{CommandType} returned business-expected failure; committing staged saga response: {Errors}",
+                        typeof(TAvroCommand).Name, errorSummary);
 
                     await _transactionalOutbox.SaveChangesAsync(cancellationToken);
                     return;
                 }
 
                 _logger.LogWarning(
-                    "{CommandType} dispatch failed (CorrelationId={CorrelationId}): {Errors}",
-                    typeof(TAvroCommand).Name, correlationId, errorSummary);
+                    "{CommandType} dispatch failed: {Errors}",
+                    typeof(TAvroCommand).Name, errorSummary);
 
                 throw new SagaCommandDispatchException(
                     $"Dispatch of {typeof(TAvroCommand).Name} failed: {errorSummary}");
@@ -157,8 +150,8 @@ internal abstract class SagaCommandHandlerBase<TAvroCommand>
             await _transactionalOutbox.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
-                "{CommandType} handled successfully (CorrelationId={CorrelationId})",
-                typeof(TAvroCommand).Name, correlationId);
+                "{CommandType} handled successfully",
+                typeof(TAvroCommand).Name);
         }, cancellationToken);
     }
 

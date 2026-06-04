@@ -36,21 +36,14 @@ internal sealed class ReserveStockCommandKafkaHandler
 
     public Task Handle(IMessageContext context, AvroReserveStockCommand message)
     {
-        // ADR-0008 — Kafka header is the authoritative CorrelationId source; Avro payload field
-        // is convenience metadata only.
-        var correlationId = context.ExtractCorrelationId()
-            ?? throw new InvalidOperationException(
-                "CorrelationId header missing on Kafka message — ConsumerCorrelationIdMiddleware should have populated it.");
-
         return ExecuteAsync(
             context,
-            correlationId,
             new Dictionary<string, object?>
             {
                 ["OrderId"] = message.OrderId,
                 ["ProductId"] = message.ProductId,
                 ["ReservationId"] = message.ReservationId,
             },
-            ct => _appHandler.HandleAsync(message.ToAppCommand(correlationId), ct));
+            ct => _appHandler.HandleAsync(message.ToAppCommand(), ct));
     }
 }

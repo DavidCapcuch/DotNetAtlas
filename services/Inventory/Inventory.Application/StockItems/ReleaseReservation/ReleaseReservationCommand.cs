@@ -18,6 +18,4 @@ public sealed record ReleaseReservationCommand : ICommand
     public required ReleaseReason Reason { get; init; }
 
     public required DateTimeOffset OccurredOnUtc { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }

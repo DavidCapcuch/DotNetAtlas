@@ -16,6 +16,4 @@ internal sealed class ReceiveStockRequest
     public required string Source { get; init; }
 
     public Guid? ReceivedByUserId { get; init; }
-
-    public Guid? CorrelationId { get; init; }
 }
