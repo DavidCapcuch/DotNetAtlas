@@ -20,7 +20,7 @@ As a **shopper** I want **the price I saw when adding an item to my basket to re
 - **R1** — `ProductSnapshot.Price` is frozen at the moment the item is added; the Basket aggregate has no mutator that changes a snapshot's price.
 - **R2** — Basket does NOT subscribe to Catalog's `ProductPriceChangedEvent` and does NOT auto-refresh prices in v1 — stale prices are intentional and the frozen-pricing contract is the whole point.
 - **R3** — The only way to replace snapshots with current Catalog prices is for the user to explicitly issue `RefreshBasketPricesCommand`, which calls the ACL in batch and raises `BasketPricesRefreshedDomainEvent` listing only items whose price actually changed.
-- **R4** — The BFF's `/api/bff/basket` fetches the Basket snapshot AND current Catalog prices and surfaces the delta to the UI; the Basket aggregate itself is not involved in delta rendering.
+- **R4** — The BFF's `/api/v1/bff/basket` fetches the Basket snapshot AND current Catalog prices and surfaces the delta to the UI; the Basket aggregate itself is not involved in delta rendering.
 - **R5** — `Checkout` commits to the snapshot prices currently in the basket — it does NOT re-call Catalog or re-validate prices; snapshot price is the legally binding amount passed to the saga.
 - **R6** — A discontinued Catalog product does NOT retroactively block Basket — Basket operates on its own snapshot; downstream services (Inventory, Ordering, saga) decide whether the checkout can complete.
 

@@ -53,22 +53,22 @@ YARP validates the JWT signature and expiry before applying any per-user policy.
 
 | Endpoint family | Limit | Per | Notes |
 |-----------------|-------|-----|-------|
-| `GET /api/bff/home-page` | 100 req/min | IP | Public, aggressively cached — burst-tolerant |
-| `GET /api/bff/product-page/{id}` | 100 req/min | IP | Public |
-| `GET /api/catalog/**` | 200 req/min | IP | Read-only, higher limit |
-| `GET /api/catalog/products?q=...` (search) | 60 req/min | IP | More expensive query — lower limit |
-| `GET /api/bff/basket` | 60 req/min | UserId | Authenticated |
-| `POST /api/basket/items` (add) | 30 req/min | UserId | Write |
-| `DELETE /api/basket/items/{id}` | 30 req/min | UserId | Write |
-| `POST /api/basket/checkout` | 5 req/min | UserId | Rare but expensive — kicks off saga |
-| `GET /api/bff/order-summary/{id}` | 60 req/min | UserId | Authenticated; owner or admin |
-| `GET /api/ordering/orders` | 60 req/min | UserId | Buyer order history |
-| `POST /api/ordering/orders/{id}/cancel` | 10 req/min | UserId | Rare write, compensation-triggering |
-| `POST /api/catalog/products` (admin write) | 30 req/min | Admin UserId | Higher trust → higher limit per-admin |
-| `PUT /api/catalog/products/{id}` (admin write) | 30 req/min | Admin UserId | |
-| `POST /api/inventory/stock-adjustments` | 30 req/min | Admin UserId | |
-| `POST /api/ordering/orders/{id}/mark-shipped` | 60 req/min | Admin UserId | Bulk-ship operation expected |
-| `POST /api/ordering/orders/{id}/mark-delivered` | 60 req/min | Admin UserId | |
+| `GET /api/v1/bff/home-page` | 100 req/min | IP | Public, aggressively cached — burst-tolerant |
+| `GET /api/v1/bff/product-page/{id}` | 100 req/min | IP | Public |
+| `GET /api/v1/catalog/**` | 200 req/min | IP | Read-only, higher limit |
+| `GET /api/v1/catalog/products?q=...` (search) | 60 req/min | IP | More expensive query — lower limit |
+| `GET /api/v1/bff/basket` | 60 req/min | UserId | Authenticated |
+| `POST /api/v1/basket/items` (add) | 30 req/min | UserId | Write |
+| `DELETE /api/v1/basket/items/{id}` | 30 req/min | UserId | Write |
+| `POST /api/v1/basket/checkout` | 5 req/min | UserId | Rare but expensive — kicks off saga |
+| `GET /api/v1/bff/order-summary/{id}` | 60 req/min | UserId | Authenticated; owner or admin |
+| `GET /api/v1/ordering/orders` | 60 req/min | UserId | Buyer order history |
+| `POST /api/v1/ordering/orders/{id}/cancel` | 10 req/min | UserId | Rare write, compensation-triggering |
+| `POST /api/v1/catalog/products` (admin write) | 30 req/min | Admin UserId | Higher trust → higher limit per-admin |
+| `PUT /api/v1/catalog/products/{id}/price` (admin write) | 30 req/min | Admin UserId | Representative admin product mutation (also `/description`, `/discontinue`, `/reactivate`) |
+| `POST /api/v1/inventory/stock-items/{id}/adjust` | 30 req/min | Admin UserId | |
+| `POST /api/v1/ordering/orders/{id}/ship` | 60 req/min | Admin UserId | Bulk-ship operation expected |
+| `POST /api/v1/ordering/orders/{id}/deliver` | 60 req/min | Admin UserId | |
 | `/api/auth/login` | 10 req/min | IP | Brute-force protection; Keycloak also limits |
 | `/api/auth/register` | 5 req/min | IP | Abuse protection |
 
@@ -110,7 +110,7 @@ Content-Type: application/problem+json
   "type": "https://httpstatuses.io/429",
   "title": "Too Many Requests",
   "status": 429,
-  "detail": "Rate limit exceeded for /api/basket/items. Try again after 30 seconds.",
+  "detail": "Rate limit exceeded for /api/v1/basket/items. Try again after 30 seconds.",
   "retryAfter": 30
 }
 ```
@@ -140,17 +140,17 @@ These are useful in staging / integration tests and should be disabled in produc
     "Routes": {
       "basket-checkout": {
         "ClusterId": "basket",
-        "Match": { "Path": "/api/basket/checkout" },
+        "Match": { "Path": "/api/v1/basket/checkout" },
         "RateLimiterPolicy": "basket-checkout-strict"
       },
       "catalog-search": {
         "ClusterId": "catalog",
-        "Match": { "Path": "/api/catalog/products", "QueryParameters": [ { "Name": "q", "Mode": "Exists" } ] },
+        "Match": { "Path": "/api/v1/catalog/products", "QueryParameters": [ { "Name": "q", "Mode": "Exists" } ] },
         "RateLimiterPolicy": "catalog-search"
       },
       "bff-home": {
         "ClusterId": "bff",
-        "Match": { "Path": "/api/bff/home-page" },
+        "Match": { "Path": "/api/v1/bff/home-page" },
         "RateLimiterPolicy": "public-ip"
       }
     },

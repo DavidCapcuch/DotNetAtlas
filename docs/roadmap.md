@@ -54,7 +54,6 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 #### Catalog
 - **Search indexer consumer.** Would land under `search-group` per [events-catalog § 3.1](bc-design/events-catalog.md), subscribing to `catalog.products` + `catalog.categories`.
 - **Product dimensions for shipping estimation.** `Dimensions` VO already exists (`Length`/`Width`/`Height`/`Unit`); shipping-estimator consumer is the missing piece.
-- **`ProductImageAdded` read-view projection.** `ProductImageAddedDomainEvent` fires today, but the `ProductImageAddedProjectionDomainEventHandler` that updates `ImagesJson` on `product_search_view` is not implemented in v1 (the `RemoveProductImage` counterpart projection is). See [use-cases.md § 1.1.6](bc-design/use-cases.md).
 - **Category breadcrumb projection seeding.** `CategoryCreatedProjectionDomainEventHandler` is a no-op placeholder today; future breadcrumb seeding per [catalog.md § 9](bc-design/catalog.md).
 - **`CategoryReparentedEvent` external publication.** Reparenting raises `CategoryReparentedDomainEvent` (in-process descendant-path cascade) but publishes no external event in v1; reserved for later. See [use-cases.md § 1.1.9](bc-design/use-cases.md).
 
@@ -65,7 +64,7 @@ These BCs are explicitly out of current scope. The architectural seams that allo
 #### Ordering
 - **Carrier SmartEnum.** `Carrier` is a free-form string today; bounded carrier set → SmartEnum migration.
 - **Aggregate sales analytics.** Catalog consumer of `OrderConfirmedEvent` to power "top-selling products" surfaces.
-- **Real-time order-status updates** (WebSocket / SSE). The current BFF `/api/bff/order-summary/{orderId}` endpoint has 30 s soft TTL + 5 min fail-safe; real-time push replaces the polling model.
+- **Real-time order-status updates** (WebSocket / SSE). The current BFF `/api/v1/bff/order-summary/{orderId}` endpoint has 30 s soft TTL + 5 min fail-safe; real-time push replaces the polling model.
 - **Order-history pagination — keyset.** Today offset/limit (`Skip`/`Take`) per [ADR-0021 (read-side spec-less)](adr/0021-read-side-no-specifications.md); migration to keyset when per-buyer history grows large enough that offset's `O(skip)` matters.
 
 #### Inventory
