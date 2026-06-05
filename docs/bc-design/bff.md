@@ -1,13 +1,13 @@
 # BFF Aggregation — eShop Reference Solution
 
-> **Status:** DRAFT (Stage 2 Agent 7)
+> **Status:** DRAFT (Stage 2 Agent 7) — **reconciled** to the dispatch spec ([implementation-prompts/bff.md](../implementation-prompts/bff.md)) and ADRs **[0012](../adr/0012-api-versioning.md)** (routes under `/api/v1/bff/`), **[0013](../adr/0013-idempotency-key-http.md)** (idempotent `POST /checkout`), **[0016](../adr/0016-redis-topology.md)** (`redis-cache` backplane), **[0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)** (pre-assigned `OrderId` as the durable business key). When this file and the dispatch spec disagree, the dispatch spec + ADRs win.
 > **Target section in master design:** [eshop-master-design.md § 9](../eshop-master-design.md)
 > **Companion file:** [use-cases.md](./use-cases.md) (commands/queries of the four upstream services)
 > **Stage 1 inputs:** [catalog.md](./catalog.md), [basket.md](./basket.md), [ordering.md](./ordering.md), [inventory.md](./inventory.md)
 
-This document specifies the **Backend-for-Frontend** (BFF) service: the public-facing aggregation HTTP API consumed by the eShop web/mobile clients. The BFF lives in `src/EShop.BFF/` and composes responses from the four internal services (Catalog, Basket, Ordering, Inventory). The BFF has no own database and no own domain — it is a pure composition + caching + resilience layer.
+This document specifies the **Backend-for-Frontend** (BFF) service: the public-facing aggregation HTTP API consumed by the eShop web/mobile clients. The BFF lives in `src/EShop.BFF/` and composes responses from the four internal services (Catalog, Basket, Ordering, Inventory). The BFF has no own database and no own domain — it is a composition + caching + resilience layer, plus **one** state-changing seam: the idempotent `POST /api/v1/bff/checkout` that triggers the Checkout saga (ADR-0013 / ADR-0029).
 
-**Design lineage:** BFF positioning and relationship to YARP are already fixed in [eshop-general-plan.md](../eshop-general-plan.md) (YARP handles routing/SSL; BFF handles response aggregation). This document specifies the four endpoints, the HTTP client contracts, the resilience pipeline, the caching strategy, and the Kafka invalidation consumer.
+**Design lineage:** BFF positioning and relationship to YARP are already fixed in [eshop-general-plan.md](../eshop-general-plan.md) (YARP handles routing/SSL; BFF handles response aggregation). This document specifies the five endpoints (four read-composition GETs + the idempotent `POST /api/v1/bff/checkout`), the HTTP client contracts, the resilience pipeline, the caching strategy, and the Kafka invalidation consumer. All BFF routes live under `/api/v1/bff/...` ([ADR-0012](../adr/0012-api-versioning.md)).
 
 ---
 
@@ -20,12 +20,16 @@ src/EShop.BFF/
 │   │   ├── ProductPageEndpoint.cs
 │   │   ├── BasketEndpoint.cs
 │   │   ├── OrderSummaryEndpoint.cs
-│   │   └── HomePageEndpoint.cs
+│   │   ├── HomePageEndpoint.cs
+│   │   └── CheckoutEndpoint.cs           # POST /api/v1/bff/checkout — .Idempotency() (ADR-0013)
+│   ├── Requests/
+│   │   └── CheckoutRequest.cs            # shipping + billing address + paymentMethodId
 │   ├── Responses/
 │   │   ├── ProductPageResponse.cs
 │   │   ├── BasketPageResponse.cs
 │   │   ├── OrderSummaryResponse.cs
-│   │   └── HomePageResponse.cs
+│   │   ├── HomePageResponse.cs
+│   │   └── CheckoutResponse.cs           # { orderId } — pre-assigned OrderId (ADR-0029)
 │   ├── Common/
 │   │   ├── BffGroup.cs                  # FastEndpoints group with shared policies
 │   │   └── ResponseExtensions.cs        # HasStaleData header helpers
@@ -134,7 +138,7 @@ Registered before the resilience handler so retry copies of the request preserve
 
 ### 2.4 Observability
 
-- **OpenTelemetry tracing** is already wired via existing `Platform.*` observability packages. The typed `HttpClient` automatically propagates `traceparent` on every call, so the trace spans end-to-end: Client → BFF endpoint → upstream service handler → DB.
+- **OpenTelemetry tracing** is already wired via existing `Platform.*` observability packages. The typed `HttpClient` automatically propagates `traceparent` on every call, so the trace spans end-to-end: Client → BFF endpoint → upstream service handler → DB. The W3C **`traceId`** is the cross-service correlation identifier — there is no separate application-level correlation id to thread through BFF requests.
 - **Custom span tags** per endpoint:
   - `bff.endpoint` — one of `product-page`, `basket`, `order-summary`, `home-page`.
   - `bff.cache.hit` — bool (did the BFF return from cache without upstream calls?).
@@ -151,7 +155,7 @@ Registered before the resilience handler so retry copies of the request preserve
 YARP (per `eshop-general-plan.md`) handles coarse routing concerns — SSL termination, rate limiting (public-facing), and path-based routing that selects BFF vs. admin APIs. YARP does NOT do response aggregation. The request flow for a consumer request is:
 
 ```
-Client → YARP (TLS, rate limit, routing) → BFF /api/bff/... → (internal services) → BFF → YARP → Client
+Client → YARP (TLS, rate limit, routing) → BFF /api/v1/bff/... → (internal services) → BFF → YARP → Client
 ```
 
 Admin/ops tools bypass the BFF and call service endpoints directly through YARP admin routes. YARP config is out of this document's scope (Stage 3 / platform-architect).
@@ -160,13 +164,13 @@ Admin/ops tools bypass the BFF and call service endpoints directly through YARP 
 
 ## 3. Endpoints
 
-### 3.1 `GET /api/bff/product-page/{productId}`
+### 3.1 `GET /api/v1/bff/product-page/{productId}`
 
 Public product-detail page — composes Catalog (product info) + Inventory (stock availability) with optional Basket (has the current user already added this?).
 
 #### 3.1.1 Surface
 
-- **HTTP route and method:** `GET /api/bff/product-page/{productId}`.
+- **HTTP route and method:** `GET /api/v1/bff/product-page/{productId}` ([ADR-0012](../adr/0012-api-versioning.md)).
 - **Authentication/authorization:** **Optional auth.** Anonymous users get the public product page; authenticated users additionally receive `AlreadyInBasket` populated from the Basket service.
 - **Request params:**
   - `productId` (route, Guid).
@@ -213,7 +217,7 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
   - FailSafeMaxDuration: 30 minutes (stale cache may be served up to 30 min past soft TTL when upstream unavailable).
   - JitterMaxDuration: 30 seconds (prevents thundering herd on cache expiry).
   - The *cached* portion is the anonymous `Product + InStock + AvailableQty` composite. The `AlreadyInBasket` enrichment is computed per-request without caching — basket is ephemeral.
-  - Storage: FusionCache with Redis backplane already wired in `PersistenceDependencyInjection.AddCache` of the reference services; BFF reuses this pattern with its own named cache `"bff"` (so its policy and eviction are independent of the service-level caches).
+  - **Storage (canonical for every BFF cache, all endpoints):** FusionCache with a Redis L2 distributed cache **and** backplane pointed at **`redis-cache`** (connection string `Redis:Cache`) per [ADR-0016](../adr/0016-redis-topology.md) — the volatile, `allkeys-lru` instance. The BFF backplane MUST NOT point at `redis-basket` (the authoritative basket store, `noeviction`); an **architecture test asserts** `EShop.BFF.Infrastructure` resolves only `Redis:Cache`, never `Redis:Basket`. The same `redis-cache` instance also backs the `POST /api/v1/bff/checkout` idempotency store (§ 3.5, ADR-0013). The FusionCache instance is namespaced to the BFF so its policy and eviction stay independent of any service-level caches.
 - **Failure modes:**
 
   | Failure | Behavior | Headers |
@@ -230,13 +234,13 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
   - `catalog.products` topic: on `ProductPriceChangedEvent` or `ProductDiscontinuedEvent` with matching `ProductId` → `RemoveByTagAsync("product-{ProductId}")`.
   - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("product-{ProductId}")`. This is the BFF's sole availability-invalidation signal; reservation-level `Available` shifts (the saga-internal `inventory.reservations` stream) are **not** subscribed — they are absorbed by the short product-page TTL, per the published-language-only subscription principle in § 2.2.
 
-### 3.2 `GET /api/bff/basket`
+### 3.2 `GET /api/v1/bff/basket`
 
 Authenticated user's current basket enriched with *current* Catalog prices and *current* Inventory availability — so the UI can flag "price changed since you added" and "out of stock since you added" without the user needing to refresh.
 
 #### 3.2.1 Surface
 
-- **HTTP route and method:** `GET /api/bff/basket`.
+- **HTTP route and method:** `GET /api/v1/bff/basket` ([ADR-0012](../adr/0012-api-versioning.md)).
 - **Authentication/authorization:** **Required.** `UserId` from JWT `ClaimTypes.NameIdentifier`.
 - **Request params:** none (user identity is the entire implicit filter).
 - **Upstream service calls** (sequential + parallel):
@@ -289,8 +293,8 @@ Authenticated user's current basket enriched with *current* Catalog prices and *
   - Tag: `"basket-bff-{userId}"`.
   - TTL (soft): 15 seconds — baskets are ephemeral; users want near-real-time feedback after mutations.
   - FailSafeMaxDuration: 2 minutes.
-  - Cache is **per-user** and **bypasses automatically on any basket mutation** via `RemoveByTagAsync` triggered by the `basket.sessions` cache invalidator (see § 2.2). Since the BFF does not run basket mutations through itself (clients call `/api/basket/*` directly), the invalidation has a ≤ seconds delay.
-  - Tradeoff documented: the 15-second TTL means a user's successive `POST /api/basket/items` followed by `GET /api/bff/basket` may see the pre-mutation state for up to 15 seconds if the basket mutation happened out-of-band and the Kafka invalidation event has not arrived. In practice the client SHOULD call `GET /api/basket` (direct) immediately after a mutation for up-to-date state; the BFF-level view is for page loads, not post-mutation freshness. This is a deliberate choice favoring backend reuse over per-request overhead.
+  - Cache is **per-user** and **bypasses automatically on any basket mutation** via `RemoveByTagAsync` triggered by the `basket.sessions` cache invalidator (see § 2.2). Since the BFF does not run basket mutations through itself (clients call `/api/v1/basket/*` directly), the invalidation has a ≤ seconds delay.
+  - Tradeoff documented: the 15-second TTL means a user's successive `POST /api/v1/basket/items` followed by `GET /api/v1/bff/basket` may see the pre-mutation state for up to 15 seconds if the basket mutation happened out-of-band and the Kafka invalidation event has not arrived. In practice the client SHOULD call `GET /api/v1/basket` (direct) immediately after a mutation for up-to-date state; the BFF-level view is for page loads, not post-mutation freshness. This is a deliberate choice favoring backend reuse over per-request overhead.
 - **Failure modes:**
 
   | Failure | Behavior | Notes |
@@ -307,13 +311,13 @@ Authenticated user's current basket enriched with *current* Catalog prices and *
   - `catalog.products` topic: on `ProductPriceChangedEvent` → `RemoveByTagAsync("basket-bff-*")` is **too aggressive** (would invalidate every basket on every price change). Instead, `PriceDrifted` is computed freshly on each (non-cached) request. The 15-second TTL absorbs the in-window drift.
   - `inventory.stock-events`: similarly, per-user basket invalidation on stock events would fan out too broadly. Accepted as stale within TTL.
 
-### 3.3 `GET /api/bff/order-summary/{orderId}`
+### 3.3 `GET /api/v1/bff/order-summary/{orderId}`
 
-Authenticated user's detailed order view — composes Ordering (order record) + Catalog (current product snapshots, optional) + Payments (payment status, future).
+Authenticated user's detailed order view — composes Ordering (order record) + Catalog (current product snapshots, optional) + Payments (payment status, future). `orderId` is the pre-assigned, saga-correlating business key ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) returned by `POST /api/v1/bff/checkout`.
 
 #### 3.3.1 Surface
 
-- **HTTP route and method:** `GET /api/bff/order-summary/{orderId}`.
+- **HTTP route and method:** `GET /api/v1/bff/order-summary/{orderId}` ([ADR-0012](../adr/0012-api-versioning.md)).
 - **Authentication/authorization:** **Required.** User must own the order (`BuyerId == claim.sub`) unless `admin` role — enforced upstream by Ordering's `GetOrderByIdQuery` handler (BFF just forwards the JWT).
 - **Request params:**
   - `orderId` (route, Guid).
@@ -391,13 +395,13 @@ Authenticated user's detailed order view — composes Ordering (order record) + 
   - `ordering.orders` topic: on `OrderConfirmedEvent`, `OrderShippedEvent`, `OrderDeliveredEvent`, `OrderCancelledEvent`, `OrderFailedEvent` → `RemoveByTagAsync("order-{OrderId}")` AND `RemoveByTagAsync("order-history-{BuyerId}")`.
   - `catalog.products` topic: on `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → too broad to invalidate every order containing the product. Stale enrichment accepted within TTL.
 
-### 3.4 `GET /api/bff/home-page`
+### 3.4 `GET /api/v1/bff/home-page`
 
 Public landing page — featured products + full category tree + stock highlights.
 
 #### 3.4.1 Surface
 
-- **HTTP route and method:** `GET /api/bff/home-page`.
+- **HTTP route and method:** `GET /api/v1/bff/home-page` ([ADR-0012](../adr/0012-api-versioning.md)).
 - **Authentication/authorization:** **Public.** No JWT required.
 - **Request params:** none today (no per-user personalization; optional `language` / `region` are planned scope — see [roadmap.md § 2.3 BFF](../roadmap.md)).
 - **Upstream service calls** (parallel):
@@ -467,6 +471,48 @@ Public landing page — featured products + full category tree + stock highlight
   - `catalog.products` topic: on `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → `RemoveByTagAsync("home-page")`.
   - `catalog.categories` topic: on `CategoryCreatedEvent` → `RemoveByTagAsync("home-page")`.
   - `inventory.stock-events` topic: on `StockLevelChangedEvent` → `RemoveByTagAsync("home-page")` — ideally only when the product is in the featured set. Current simplification: always invalidate on any stock event; accepts occasional over-invalidation to keep the handler simple. A "featured-products-now" set + filter is planned scope — see [roadmap.md § 2.3 BFF](../roadmap.md).
+
+### 3.5 `POST /api/v1/bff/checkout`
+
+The BFF's **only** state-changing endpoint and the system's **#1 idempotency target** ([ADR-0013](../adr/0013-idempotency-key-http.md) — a customer double-clicking "Pay now" must not place two orders). It triggers the Checkout saga by forwarding to Basket's checkout command; the BFF adds the idempotency seam, dual-token auth, and returns the pre-assigned `OrderId`.
+
+> **Supersedes the earlier "BFF exposes no mutation endpoint" stance.** Item-level basket mutations (add / remove / change quantity) are *still* not exposed by the BFF — those go direct to `/api/v1/basket/*` (no aggregation value; see § 4.2). Checkout is the one deliberate exception: it is the saga-triggering, idempotency-bearing seam, not a passthrough duplicate of a basket CRUD call.
+
+#### 3.5.1 Surface
+
+- **HTTP route and method:** `POST /api/v1/bff/checkout` ([ADR-0012](../adr/0012-api-versioning.md)).
+- **Authentication/authorization:** **Required.** User JWT identifies the buyer; the BFF also attaches its service-auth token (the Basket-scope granted to the `bff` service client; exact scope name is a Wave-0 concern) on the outbound call — both tokens travel together ([ADR-0010](../adr/0010-service-to-service-auth.md), § 2.3).
+- **Idempotency:** **Required `Idempotency-Key` header** (UUID v4/v7). FastEndpoints `.Idempotency()` backed by the **`redis-cache`** output-cache store ([ADR-0013](../adr/0013-idempotency-key-http.md)); `CacheDuration` 24h; `AdditionalCacheKey` = buyer `sub` claim (so two buyers reusing a key cannot see each other's response). Missing header → 400. Replay with same key + same body → original `202` response replayed (handler not re-invoked). Replay with same key + **different** body → 409.
+- **Request shape** (`CheckoutRequest`) — the client collects addresses + payment method at checkout (Basket does not own them, [ADR-0005](../adr/0005-customer-data-in-ordering.md)):
+  ```
+  {
+    "shippingAddress": { "street1": "string", "street2": "string?", "city": "string", "state": "string?", "postalCode": "string", "countryCode": "string (ISO 3166-1 alpha-2)" },
+    "billingAddress": "{ same shape as shippingAddress }",
+    "paymentMethodId": "Guid"
+  }
+  ```
+  `UserId` is **never** taken from the body — it is the JWT `sub`.
+- **Upstream call (single — not an aggregation):**
+  - `BasketClient.CheckoutAsync(request, ct)` → Basket's `POST /api/v1/basket/checkout` (`CheckoutBasketCommand`, [use-cases.md § 2.1.6](use-cases.md)). Basket's handler **pre-assigns** the `OrderId` (`Guid.CreateVersion7()`, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)), raises `BasketCheckedOutDomainEvent`, and writes `BasketCheckoutInitiatedEvent` to its outbox on topic `basket.sessions`. The Checkout saga (`saga-checkout`) consumes that event and runs `CreateOrder → ReserveStock → Pay → Confirm`, every step correlated on `OrderId`.
+- **Response shape** (`CheckoutResponse`):
+  ```
+  {
+    "orderId": "Guid (pre-assigned UUID v7 — the durable saga-correlating business key, ADR-0029)"
+  }
+  ```
+  - **Status:** `202 Accepted` — checkout is now the saga's asynchronous responsibility. Clients poll `GET /api/v1/bff/order-summary/{orderId}` for progress.
+- **Caching:** **None.** A mutation is never cached and never serves stale data; the only Redis interaction is the idempotency store above.
+- **Failure modes:**
+
+  | Failure | Behavior | Notes |
+  |---------|----------|-------|
+  | `Idempotency-Key` header missing | 400 (FastEndpoints problem-detail). | — |
+  | Replay, same key + same body | Original `202 { orderId }` replayed from `redis-cache`; Basket NOT re-called. | The whole point — double-click safety. |
+  | Replay, same key + different body | 409 Conflict. | Hash mismatch. |
+  | Basket 404 (no basket) | Surface 404. | Nothing to check out. |
+  | Basket 409 (empty basket) | Surface 409. | `BasketErrors.EmptyBasket`. |
+  | Basket timeout / 5xx / circuit-open | 502/503 — **no** stale fallback (mutations never serve stale). Client retries with the **same** `Idempotency-Key`. | Resilience pipeline (§ 2.1) still applies; a retry that lands after the first call committed replays the cached `202`. |
+- **Cache invalidation hooks:** the endpoint emits nothing itself. The downstream `BasketCheckoutInitiatedEvent` reaches the BFF's own `bff-group` basket invalidator (§ 2.2), which clears `basket-bff-{UserId}` — so the post-checkout basket view is wiped promptly.
 
 ---
 
@@ -554,10 +600,10 @@ record MoneyDto(decimal Amount, string Currency);
 
 | Client method | Upstream HTTP route | Upstream query / command |
 |---------------|---------------------|--------------------------|
-| `GetProductByIdAsync` | `GET /api/catalog/products/{productId}` | `GetProductByIdQuery` |
+| `GetProductByIdAsync` | `GET /api/v1/catalog/products/{productId}` | `GetProductByIdQuery` |
 | `GetProductsByIdsAsync` | `GET /api/v1/catalog/products/by-ids?ids=id1,id2,...` — query string `ids` (comma-separated Guids, 1..100) | *(endpoint added in Catalog Stage 2 — required by the ACL in `basket.md` § 9.3 and the BFF here; must be added to Catalog's use-case catalog as `GetProductsByIdsQuery` with route `GET /api/v1/catalog/products/by-ids`)*. See § 5 below. |
-| `SearchProductsAsync` | `GET /api/catalog/products/search` with query params | `SearchProductsQuery` |
-| `GetCategoryTreeAsync` | `GET /api/catalog/categories` | `GetCategoryTreeQuery` |
+| `SearchProductsAsync` | `GET /api/v1/catalog/products` (products-collection root + query params — **not** a `/search` sub-path) | `SearchProductsQuery` |
+| `GetCategoryTreeAsync` | `GET /api/v1/catalog/categories/tree` | `GetCategoryTreeQuery` |
 
 ### 4.2 `IBasketClient`
 
@@ -565,6 +611,10 @@ record MoneyDto(decimal Amount, string Currency);
 public interface IBasketClient
 {
     Task<Result<BasketDto>> GetBasketAsync(CancellationToken ct);
+
+    // Backs POST /api/v1/bff/checkout (§ 3.5). Returns the pre-assigned OrderId (ADR-0029).
+    Task<Result<CheckoutResultDto>> CheckoutAsync(
+        CheckoutRequestDto request, CancellationToken ct);
 }
 ```
 
@@ -587,15 +637,24 @@ record BasketItemDto(
     int Quantity,
     DateTimeOffset CapturedAtUtc,
     MoneyDto LineTotal);
+
+record CheckoutRequestDto(
+    AddressDto ShippingAddress,
+    AddressDto BillingAddress,
+    Guid PaymentMethodId);       // UserId is the JWT sub, never in the body
+
+record CheckoutResultDto(
+    Guid OrderId);               // pre-assigned UUID v7 (ADR-0029)
 ```
 
 **Upstream mapping:**
 
-| Client method | Upstream HTTP route | Query |
-|---------------|---------------------|-------|
-| `GetBasketAsync` | `GET /api/basket` | `GetBasketByUserIdQuery` (user from forwarded JWT) |
+| Client method | Upstream HTTP route | Query / Command |
+|---------------|---------------------|-----------------|
+| `GetBasketAsync` | `GET /api/v1/basket` | `GetBasketByUserIdQuery` (user from forwarded JWT) |
+| `CheckoutAsync` | `POST /api/v1/basket/checkout` | `CheckoutBasketCommand` → pre-assigns `OrderId` (`Guid.CreateVersion7()`), emits `BasketCheckoutInitiatedEvent` ([use-cases.md § 2.1.6](use-cases.md), [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) |
 
-**Note:** BFF does NOT expose basket *mutation* APIs. Clients call `POST/DELETE/PUT /api/basket/*` directly (through YARP). BFF-level basket mutations would duplicate Basket's own endpoints with no aggregation value; they are deliberately omitted.
+**Note:** The BFF exposes exactly **one** basket-related mutation: `POST /api/v1/bff/checkout` (§ 3.5), because checkout is the saga-triggering + idempotency seam (the system's #1 idempotency target, [ADR-0013](../adr/0013-idempotency-key-http.md)) — not a CRUD passthrough. *Item-level* basket mutations (`POST/DELETE/PUT /api/v1/basket/items*`) remain **un-exposed**: clients call `/api/v1/basket/*` directly (through YARP); BFF-level wrappers would duplicate Basket's own endpoints with no aggregation value, so they are deliberately omitted.
 
 ### 4.3 `IOrderingClient`
 
@@ -671,8 +730,8 @@ record FailureDto(string ErrorCode, string ErrorMessage, string AtStatus, DateTi
 
 | Client method | Upstream HTTP route | Query |
 |---------------|---------------------|-------|
-| `GetOrderByIdAsync` | `GET /api/ordering/orders/{orderId}` | `GetOrderByIdQuery` |
-| `GetOrdersByBuyerAsync` | `GET /api/ordering/orders?status=...&pageNumber=...&pageSize=...` | `GetOrdersByBuyerQuery` |
+| `GetOrderByIdAsync` | `GET /api/v1/ordering/orders/{orderId}` | `GetOrderByIdQuery` |
+| `GetOrdersByBuyerAsync` | `GET /api/v1/ordering/orders?status=...&pageNumber=...&pageSize=...` | `GetOrdersByBuyerQuery` |
 
 ### 4.4 `IInventoryClient`
 
@@ -707,8 +766,8 @@ record StockLevelsBulkDto(
 
 | Client method | Upstream HTTP route | Query |
 |---------------|---------------------|-------|
-| `GetStockLevelAsync` | `GET /api/inventory/stock-items/{productId}` | `GetStockLevelQuery` |
-| `GetStockLevelsBulkAsync` | `POST /api/inventory/stock-items/bulk` — body `{ productIds: [] }` | `GetStockLevelsBulkQuery` |
+| `GetStockLevelAsync` | `GET /api/v1/inventory/stock-items/{productId}` | `GetStockLevelQuery` |
+| `GetStockLevelsBulkAsync` | `POST /api/v1/inventory/stock-items/bulk` — body `{ productIds: [] }` | `GetStockLevelsBulkQuery` |
 
 ### 4.5 `IPaymentsClient` (planned scope — forward-compat stub)
 
@@ -736,23 +795,23 @@ Today the BFF derives `OrderSummaryResponse.PaymentStatus` purely from Ordering 
 
 ## 5. Dependency on New Upstream Endpoints
 
-Two upstream endpoints needed by the BFF are introduced by this document that were not explicitly enumerated in Stage 1 per-BC designs. They MUST be added to `use-cases.md` in the same stage (this document and `use-cases.md` are written in the same pass):
+Two batch upstream endpoints the BFF depends on. **Build status verified against the code** (the BFF dispatch must confirm before relying on either):
 
-1. **Catalog: `GetProductsByIdsQuery`** — `GET /api/v1/catalog/products/by-ids?ids=id1,id2,...`, query param `ids: Guid[] (1..100, comma-separated)`, returns `{ products: CatalogProductDto[], missingProductIds: Guid[] }`. Required by:
-   - Basket's ACL (`IProductCatalogQueryPort.GetManyAsync`) — already documented in `basket.md` § 9.2.
+1. **Catalog: `GetProductsByIdsQuery`** — `GET /api/v1/catalog/products/by-ids?ids=id1,id2,...`, query param `ids: Guid[] (1..100, comma-separated)`, returns `{ products: CatalogProductDto[], missingProductIds: Guid[] }`. **✅ Built and shipping** (`Catalog.Api` `GetProductsByIdsEndpoint`, `Get("by-ids")` under the `/catalog/products` group). Consumed by:
+   - Basket's ACL (`IProductCatalogQueryPort.GetManyAsync`) — also documented in `basket.md` § 9.2.
    - BFF's `ICatalogClient.GetProductsByIdsAsync`.
 
-   *This endpoint is a partial-tolerant batch variant of `GetProductByIdQuery` reading from the same `product_search_view`. Validator: `ProductIds` NotEmpty, 1..200; ForEach NotEmpty. Handler returns `Result.Ok(new { Products, MissingProductIds })` with a single SQL `WHERE ProductId = ANY(@ids)` read.*
+   *Partial-tolerant batch variant of `GetProductByIdQuery` reading from the same `product_search_view` via a single SQL `WHERE ProductId = ANY(@ids)`.*
 
-2. **Inventory: `GetStockLevelsBulkQuery`** — `POST /api/inventory/stock-items/bulk` — **already defined** in § 4.4.2 of `use-cases.md`.
+2. **Inventory: `GetStockLevelsBulkQuery`** — `POST /api/v1/inventory/stock-items/bulk`. Spec'd (`use-cases.md` § 4.4.2) and the **committed design is [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)** (Inventory-owned read-through cache behind the API; the BFF never materializes availability from `stock-events`). **⚠️ Not yet implemented in `Inventory.Api`** (it exposes only `GET /stock-items/{productId}`, `.../receive`, `.../adjust`, `GET /reservations/{reservationId}`). The BFF's `/basket` + `/home-page` need it for availability overlays — **build it first (or a BFF dispatch must STOP and flag the gap** per `<stop_conditions>` in [implementation-prompts/bff.md](../implementation-prompts/bff.md)); never the N-single-call workaround.
 
-Future maintainers: when extending BFF endpoints, first check whether the upstream query exists; if not, add it to `use-cases.md` alongside this file.
+Future maintainers: when extending BFF endpoints, first check whether the upstream query exists **in code**; if not, build it (or flag the gap) rather than assuming the doc implies an implementation.
 
 ---
 
 ## 6. Failure-Mode Summary Table (cross-endpoint)
 
-One table combining all four endpoints' behavior under common failure scenarios, for quick reference:
+One table combining the four **read** endpoints' behavior under common failure scenarios, for quick reference. The `POST /api/v1/bff/checkout` mutation is **not** in this table — it never serves stale data and its failure / idempotent-replay matrix lives in [§ 3.5](#35-post-apiv1bffcheckout).
 
 | Scenario | product-page | basket | order-summary | home-page |
 |----------|--------------|--------|---------------|-----------|
@@ -771,10 +830,11 @@ One table combining all four endpoints' behavior under common failure scenarios,
 |-------|-------|
 | Unit | Response composition logic (merging Catalog + Inventory + Basket with partial-success scenarios); resilience pipeline correctness (not the Polly internals). |
 | Integration | Each typed client against WireMock simulating every failure mode above. |
-| Integration | FusionCache hit/miss/tag-invalidation behavior against Testcontainers Redis. |
+| Integration | FusionCache hit/miss/tag-invalidation behavior against Testcontainers Redis (`redis-cache`). |
 | Integration | Kafka cache-invalidation handlers against Testcontainers Kafka, verifying each topic → tag mapping. |
-| Architecture | No direct references to `Catalog.*`, `Basket.*`, `Ordering.*`, `Inventory.*` assemblies from either BFF project. |
-| Functional | Full HTTP stack via `WebApplicationFactory` with Testcontainers for Redis + Kafka, using WireMock for upstream services; exercise each of the four endpoints end-to-end including stale-fail-over. |
+| Integration | `POST /api/v1/bff/checkout` idempotency: first call forwards to Basket and returns `202 { orderId }`; replay with same `Idempotency-Key` + same body returns the cached `202` without re-calling Basket; same key + different body → 409 (ADR-0013). |
+| Architecture | No direct references to `Catalog.*`, `Basket.*`, `Ordering.*`, `Inventory.*` assemblies from either BFF project. No `DbSet<>` / no Kafka producer. BFF cache + idempotency store resolve only `Redis:Cache`, **never** `Redis:Basket` ([ADR-0016](../adr/0016-redis-topology.md)). |
+| Functional | Full HTTP stack via `WebApplicationFactory` with Testcontainers for Redis + Kafka, using WireMock for upstream services; exercise all five endpoints end-to-end including stale-fail-over and checkout idempotent replay. |
 
 ---
 

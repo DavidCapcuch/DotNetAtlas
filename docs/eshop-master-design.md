@@ -349,10 +349,10 @@ One `outbox-relay-*` container per service schema (`outbox-relay-saga`, `outbox-
 
 | Service | Commands | Queries |
 |---------|----------|---------|
-| Catalog | 10 (CreateProduct, UpdatePrice, Describe, Discontinue, Reactivate, AddImage, RemoveImage, CreateCategory, ReparentCategory, DeleteCategory) | 4 (GetProductById, SearchProducts, GetCategoryTree, GetProductsByCategory) |
+| Catalog | 7 (CreateProduct, UpdatePrice, Describe, Discontinue, Reactivate, CreateCategory, ReparentCategory) | 6 (GetProductById, SearchProducts, GetProductsByIds, GetCategoryTree, GetProductsByCategory, SearchAdminProducts) |
 | Basket | 6 (AddItem, RemoveItem, ChangeQuantity, RefreshPrices, Clear, Checkout) | 1 (GetBasketByUserId) |
 | Ordering | 8 total — 5 saga-driven (CreateOrder, ConfirmOrder, CancelOrder, MarkOrderFailed) + 3 HTTP admin (MarkOrderShipped, MarkOrderDelivered) | 2 (GetOrderById, GetOrdersByBuyer) |
-| Inventory | 6 total — 1 event-driven (InitializeStockItem) + 3 saga-driven (ReserveStock, ConfirmReservation, ReleaseReservation) + 2 HTTP admin (ReceiveStock, AdjustStock) | 4 (GetStockLevel, GetStockLevelsBulk, GetReservationById, GetReservationsByOrder) |
+| Inventory | 6 total — 1 event-driven (InitializeStockItem) + 3 saga-driven (ReserveStock, ConfirmReservation, ReleaseReservation) + 2 HTTP admin (ReceiveStock, AdjustStock) | 3 (GetStockLevel, GetStockLevelsBulk, GetReservationById) |
 
 ### 7.2 Saga-Command Intake Pattern (per service)
 
@@ -426,10 +426,11 @@ Per [ADR-0004](adr/0004-checkout-saga-topology.md) + [ADR-0026](adr/0026-checkou
 
 | Endpoint | Auth | Upstream calls | Caching |
 |----------|------|----------------|---------|
-| `GET /api/bff/product-page/{productId}` | Public | Catalog + Inventory (parallel) | Tag `product-{id}`, 5 min TTL, fail-safe 30 min |
-| `GET /api/bff/basket` | Required (UserId from JWT) | Basket + Catalog (current prices) + Inventory (availability) | Tag `basket-bff-{userId}`, 15 s TTL, fail-safe 2 min |
-| `GET /api/bff/order-summary/{orderId}` | Required (own orders or admin) | Ordering + Catalog (item details) + Payments (payment status) | Tag `order-{id}`, 30 s TTL, fail-safe 5 min |
-| `GET /api/bff/home-page` | Public | Catalog (featured) + Inventory (stock highlights) | Tag `home-page`, 5 min TTL, fail-safe 30 min |
+| `GET /api/v1/bff/product-page/{productId}` | Public | Catalog + Inventory (parallel) | Tag `product-{id}`, 5 min TTL, fail-safe 30 min |
+| `GET /api/v1/bff/basket` | Required (UserId from JWT) | Basket + Catalog (current prices) + Inventory (availability) | Tag `basket-bff-{userId}`, 15 s TTL, fail-safe 2 min |
+| `GET /api/v1/bff/order-summary/{orderId}` | Required (own orders or admin) | Ordering + Catalog (item details) + Payments (payment status) | Tag `order-{id}`, 30 s TTL, fail-safe 5 min |
+| `GET /api/v1/bff/home-page` | Public | Catalog (featured) + Inventory (stock highlights) | Tag `home-page`, 5 min TTL, fail-safe 30 min |
+| `POST /api/v1/bff/checkout` | Required (buyer JWT) | Basket checkout → triggers Checkout saga | None — idempotent via FastEndpoints `.Idempotency()` on `redis-cache` ([ADR-0013](adr/0013-idempotency-key-http.md)); returns pre-assigned `OrderId` ([ADR-0029](adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) |
 
 ### 9.2 Cross-cutting
 
@@ -696,6 +697,7 @@ Per-BC features beyond current scope (low-stock thresholds, partial refunds, add
 | [0007](adr/0007-avro-compatibility-modes.md) | Avro Schema Compatibility Modes | Accepted (2026-04-18) |
 | [0023](adr/0023-payments-event-vs-command-classification.md) | Payments Event-vs-Command Classification | Accepted (2026-05-30) |
 | [0033](adr/0033-kafka-topic-contract-doc-ssot.md) | SSOT for Kafka topic & event-contract docs (governs § 6) | Accepted (2026-06-04) |
+| [0034](adr/0034-inventory-stock-availability-read-path.md) | Inventory stock-availability read path — read-through cache behind the API; BFF composed cache; oversell-safe via ES (governs § 9 BFF availability) | Accepted (2026-06-05) |
 
 (ADRs 0008–0022 + 0024–0032 listed at [adr/README.md](adr/README.md); only the directly-master-design-related ADRs appear here.)
 
@@ -710,7 +712,7 @@ Per-BC features beyond current scope (low-stock thresholds, partial refunds, add
 - [x] Checkout saga state machine has ≥ 6 happy states, ≥ 3 terminal states, ≥ 4 compensation paths, timeouts per awaiting state ([checkout-saga.md](bc-design/checkout-saga.md))
 - [x] Stock reserved BEFORE payment in saga flow ([ADR-0004](adr/0004-checkout-saga-topology.md))
 - [x] Every command has request shape + response type + validation rules; every query has request + response DTO ([use-cases.md](bc-design/use-cases.md))
-- [x] BFF documents 4 aggregation endpoints with service-call pattern, caching, fallback ([bff.md](bc-design/bff.md))
+- [x] BFF documents 5 endpoints (4 read-composition GETs + the idempotent `POST /api/v1/bff/checkout`) with service-call pattern, caching, fallback ([bff.md](bc-design/bff.md))
 - [x] Inventory design uses Event Sourcing explicitly; event store table schema included ([inventory.md](bc-design/inventory.md), [ADR-0006](adr/0006-event-sourcing-for-inventory.md))
 - [x] Basket design uses Redis with AOF (no SQL state table); post-checkout deletion documented ([basket.md](bc-design/basket.md), [ADR-0003](adr/0003-basket-as-technical-bc.md))
 - [x] All new Kafka topics follow `{domain}.{aggregate}[.{kind}]` naming (§ 6.1)
@@ -762,11 +764,11 @@ No change required; design-intent note added here for implementation agents to r
 
 ### E.6 BFF basket price-refresh flow
 
-**Clarification:** The BFF's `/api/bff/basket` endpoint fetches (a) the Basket snapshot (snapshot prices as captured) + (b) current Catalog prices for each item, and surfaces the delta to the client as a "price drift" indicator. Basket itself does NOT auto-refresh — refresh is always client-initiated via `RefreshBasketPricesCommand`. This preserves the frozen-pricing contract until the user explicitly acknowledges a change.
+**Clarification:** The BFF's `/api/v1/bff/basket` endpoint fetches (a) the Basket snapshot (snapshot prices as captured) + (b) current Catalog prices for each item, and surfaces the delta to the client as a "price drift" indicator. Basket itself does NOT auto-refresh — refresh is always client-initiated via `RefreshBasketPricesCommand`. This preserves the frozen-pricing contract until the user explicitly acknowledges a change.
 
 ### E.7 BFF stale-order cache window
 
-**Clarification:** The BFF's `/api/bff/order-summary/{orderId}` endpoint has a 30 s soft TTL and 5 min fail-safe. During a status transition (e.g., `Confirmed` just emitted), the cache invalidator removes the tag on receipt of `OrderConfirmedEvent`. However, if the BFF enters fail-safe mode due to an Ordering outage immediately after the transition, a client could see a status up to 5 minutes stale. This is **acceptable UX** (bounded staleness vs hard failure). Document this in client-facing API contract. Real-time push-based updates are planned scope — see [roadmap.md § 2.3 Ordering](roadmap.md).
+**Clarification:** The BFF's `/api/v1/bff/order-summary/{orderId}` endpoint has a 30 s soft TTL and 5 min fail-safe. During a status transition (e.g., `Confirmed` just emitted), the cache invalidator removes the tag on receipt of `OrderConfirmedEvent`. However, if the BFF enters fail-safe mode due to an Ordering outage immediately after the transition, a client could see a status up to 5 minutes stale. This is **acceptable UX** (bounded staleness vs hard failure). Document this in client-facing API contract. Real-time push-based updates are planned scope — see [roadmap.md § 2.3 Ordering](roadmap.md).
 
 ### E.8 Outbox-relay containers
 

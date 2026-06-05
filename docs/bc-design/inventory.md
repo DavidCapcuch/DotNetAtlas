@@ -616,9 +616,11 @@ Always set `LastUpdatedUtc = event.OccurredAtUtc`, `LastVersion = event.Version`
 - PK on `ProductId`.
 - `idx_current_stock_levels_available ON (Available) WHERE Available <= 10` — partial index for low-stock alerts.
 
+**Read-through cache (display path only).** Both display queries over this projection — `GetStockLevelQuery` (single) and `GetStockLevelsBulkQuery` (batch, backs the BFF) — are served through an Inventory-owned **FusionCache read-through on `redis-cache`** ([ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)). Freshness is *invalidate-on-projection-update*: the same `IDomainEventHandler<T>` that upserts a row above also evicts `inventory:stock:{ProductId}` in the same transaction, plus a short fail-safe TTL. The cache is hidden behind Inventory's HTTP API (no other service reads its keys). It is **oversell-safe by construction** — the reservation *decision* (`ReserveStockCommand`) rehydrates the event-sourced aggregate (§ 4 / `ADR-0006`) and never reads this projection or its cache, so display staleness can never cause a double-sell.
+
 ### 9.2 `ReservationAuditView` — table `inventory.reservation_audit`
 
-**Purpose:** Ops query — "what's the status of reservation R?" and "all reservations for order O?" Also the source of truth for the `ReservationExpiryWorker` to find expired reservations.
+**Purpose:** Ops query — "what's the status of reservation R?" (`GetReservationByIdQuery`). Also backs the **internal** by-order fan-in (`OrderCancelledEventKafkaHandler` releases an order's active reservations) and is the source of truth for the `ReservationExpiryWorker` to find expired reservations.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -638,13 +640,13 @@ Always set `LastUpdatedUtc = event.OccurredAtUtc`, `LastVersion = event.Version`
 - `ReservationReleasedDomainEvent` → UPDATE `Status='Released', ResolvedAtUtc=event.OccurredAtUtc, ReleaseReason=event.ReleaseReason`.
 
 **Queries:**
-- `GetReservationByIdQuery(ReservationId) : ReservationDto`.
-- `GetReservationsByOrderQuery(OrderId) : IReadOnlyList<ReservationDto>` — saga debugging.
+- `GetReservationByIdQuery(ReservationId) : ReservationDto` — the one public (admin) read.
+- By-order fan-in (`WHERE OrderId = … AND Status = Active`) — **internal only**, run by `OrderCancelledEventKafkaHandler` to release an order's reservations. (A public `GetReservationsByOrderQuery` was specced but cut — no consumer; see [use-cases.md § 4.4.4](use-cases.md).)
 - Worker: `SELECT ReservationId, ProductId FROM inventory.reservation_audit WHERE Status = 'Active' AND ExpiresAtUtc < now()`.
 
 **Indexes:**
 - PK on `ReservationId`.
-- `idx_reservation_audit_order ON (OrderId)` — fan-in by order.
+- `idx_reservation_audit_order ON (OrderId)` — fan-in by order (used by the internal cancel-handler release path).
 - `idx_reservation_audit_active_expiry ON (ExpiresAtUtc) WHERE Status = 'Active'` — expiry-worker scan.
 
 ### 9.3 Projection rebuild

@@ -41,7 +41,7 @@ Mechanism:
 4. Clients that do not supply the header get normal semantics (no dedupe). For strictly-non-retryable operations (rare — e.g., admin one-shots), endpoints may document "Idempotency-Key recommended but not enforced".
 
 Error if missing on a strictly-critical endpoint (decided per endpoint — default: header is optional but recommended):
-- `POST /api/basket/checkout` **requires** `Idempotency-Key` → 400 Bad Request if missing (double-checkout is the most damaging retry mistake).
+- `POST /api/v1/basket/checkout` **requires** `Idempotency-Key` → 400 Bad Request if missing (double-checkout is the most damaging retry mistake).
 - Other mutating commands accept-without-header.
 
 Implementation: one shared middleware `Platform.Api.Idempotency.IdempotencyMiddleware` (to be added to Platform in the implementation wave) + per-service `idempotency_keys` table via the existing migration pattern.
@@ -77,7 +77,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 ## 1. Catalog Service Use Cases
 
-**Base HTTP path:** `/api/catalog/`
+**Base HTTP path:** `/api/v1/catalog/`
 **Storage:** PostgreSQL schema `catalog` (write model + `product_search_view` projection).
 **Consumes (Kafka):** *none in v1*. Catalog is the upstream authority; it has no saga-driven inbound command path.
 **Produces (Kafka):** `catalog.products`, `catalog.categories` via outbox.
@@ -86,7 +86,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.1.1 `CreateProductCommand`
 
-- **HTTP:** `POST /api/catalog/products`
+- **HTTP:** `POST /api/v1/catalog/products`
 - **Authorization:** `AuthPolicies.Admin` (only catalog operators may create products).
 - **Interface:** `ICommand<Guid>` (returns the created `ProductId`).
 - **Request shape:**
@@ -113,7 +113,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
     ]
   }
   ```
-- **Response:** `{ "productId": "Guid" }` — HTTP 201 Created with `Location: /api/catalog/products/{productId}`.
+- **Response:** `{ "productId": "Guid" }` — HTTP 201 Created with `Location: /api/v1/catalog/products/{productId}`.
 - **Handler class:** `CreateProductCommandHandler` in `Catalog.Application.Products.CreateProduct`.
 - **Validator rules (`CreateProductCommandValidator`):**
   - `Sku` — NotEmpty; Length(1,32); Matches `^[A-Za-z0-9][A-Za-z0-9-]*$`.
@@ -138,7 +138,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.1.2 `UpdateProductPriceCommand`
 
-- **HTTP:** `PUT /api/catalog/products/{productId}/price`
+- **HTTP:** `PUT /api/v1/catalog/products/{productId}/price`
 - **Authorization:** `AuthPolicies.Admin`.
 - **Interface:** `ICommand` (no response body; 204 No Content).
 - **Request shape:**
@@ -165,7 +165,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.1.3 `DescribeProductCommand`
 
-- **HTTP:** `PUT /api/catalog/products/{productId}/description`
+- **HTTP:** `PUT /api/v1/catalog/products/{productId}/description`
 - **Authorization:** `AuthPolicies.Admin`.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -192,7 +192,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.1.4 `DiscontinueProductCommand`
 
-- **HTTP:** `POST /api/catalog/products/{productId}/discontinue`
+- **HTTP:** `POST /api/v1/catalog/products/{productId}/discontinue`
 - **Authorization:** `AuthPolicies.Admin`.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -217,7 +217,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.1.5 `ReactivateProductCommand`
 
-- **HTTP:** `POST /api/catalog/products/{productId}/reactivate`
+- **HTTP:** `POST /api/v1/catalog/products/{productId}/reactivate`
 - **Authorization:** `AuthPolicies.Admin` — reactivation is an admin override of a discontinued-product state.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -240,60 +240,17 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   - `ProductReactivatedProjectionDomainEventHandler` — UPDATE `Status`, `LastUpdatedAtUtc`.
   - *No external event* in v1.
 
-#### 1.1.6 `AddProductImageCommand`
+#### 1.1.6 `AddProductImageCommand` — **removed (out of reference-repo scope)**
 
-- **HTTP:** `POST /api/catalog/products/{productId}/images`
-- **Authorization:** `AuthPolicies.Admin`.
-- **Interface:** `ICommand`.
-- **Request shape:**
-  ```
-  {
-    "productId": "Guid (from route)",
-    "url": "string (absolute URL, http/https)",
-    "altText": "string (1-200 chars)",
-    "displayOrder": "int (>= 0)"
-  }
-  ```
-- **Response:** 204 on success; 404 if missing; 409 if another image already uses the same `DisplayOrder`; 422 on VO failure.
-- **Handler class:** `AddProductImageCommandHandler`.
-- **Validator rules:**
-  - `ProductId` — NotEmpty.
-  - `Url` — NotEmpty; MustBeAbsoluteUri.
-  - `AltText` — NotEmpty; MaximumLength(200).
-  - `DisplayOrder` — GreaterThanOrEqualTo(0).
-- **Flow:**
-  1. Load product; 404 if missing.
-  2. Build `ImageReference.Create(url, altText, displayOrder)`; cascade.
-  3. Call `product.AddImage(imageReference)` — if duplicate `DisplayOrder`, returns `Result.Fail(ProductErrors.DuplicateImageDisplayOrder)`.
-  4. `SaveChangesAsync`.
-- **Emits internal event(s):** `ProductImageAddedDomainEvent` (in-process only — consumed by a future `ProductImageAddedProjectionDomainEventHandler` to UPDATE `ImagesJson`; not implemented in v1 — see [roadmap.md § 2.3 Catalog](../roadmap.md)). No external event.
+Post-creation image management was never built in `Catalog.Api` — the `Product` aggregate carries only the images supplied at `CreateProduct` (no `AddImage`/`RemoveImage` methods, no `ProductImageAdded`/`RemovedDomainEvent` in code). The add/remove-image command pair is cut; reinstate only when a real consumer needs post-creation image editing.
 
-#### 1.1.7 `RemoveProductImageCommand`
+#### 1.1.7 `RemoveProductImageCommand` — **removed (out of reference-repo scope)**
 
-- **HTTP:** `DELETE /api/catalog/products/{productId}/images/{displayOrder}`
-- **Authorization:** `AuthPolicies.Admin`.
-- **Interface:** `ICommand`.
-- **Request shape:**
-  ```
-  {
-    "productId": "Guid (from route)",
-    "displayOrder": "int (from route, >= 0)"
-  }
-  ```
-- **Response:** 204 on success; 404 if product or image not found.
-- **Handler class:** `RemoveProductImageCommandHandler`.
-- **Validator rules:**
-  - `ProductId` — NotEmpty.
-  - `DisplayOrder` — GreaterThanOrEqualTo(0).
-- **Flow:**
-  1. Load product; 404 if missing.
-  2. Call `product.RemoveImage(displayOrder)` — `Result.Fail(ProductErrors.ImageNotFound)` if no matching image.
-  3. `SaveChangesAsync`.
-- **Emits internal event(s):** `ProductImageRemovedDomainEvent` (in-process only). Projection updates `ImagesJson`.
+See § 1.1.6 — the add/remove-image pair was never implemented and is cut together.
 
 #### 1.1.8 `CreateCategoryCommand`
 
-- **HTTP:** `POST /api/catalog/categories`
+- **HTTP:** `POST /api/v1/catalog/categories`
 - **Authorization:** `AuthPolicies.Admin`.
 - **Interface:** `ICommand<Guid>` — returns the created `CategoryId`.
 - **Request shape:**
@@ -303,7 +260,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
     "parentCategoryId": "Guid | null"
   }
   ```
-- **Response:** 201 Created `{ "categoryId": "Guid" }` with `Location: /api/catalog/categories/{categoryId}`; 404 if `ParentCategoryId` provided but not found; 422 if new path would exceed depth 5 or slug is malformed.
+- **Response:** 201 Created `{ "categoryId": "Guid" }` with `Location: /api/v1/catalog/categories/{categoryId}`; 404 if `ParentCategoryId` provided but not found; 422 if new path would exceed depth 5 or slug is malformed.
 - **Handler class:** `CreateCategoryCommandHandler`.
 - **Validator rules:**
   - `Name` — NotEmpty; MaximumLength(100).
@@ -319,7 +276,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.1.9 `ReparentCategoryCommand`
 
-- **HTTP:** `PUT /api/catalog/categories/{categoryId}/parent`
+- **HTTP:** `PUT /api/v1/catalog/categories/{categoryId}/reparent`
 - **Authorization:** `AuthPolicies.Admin`.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -345,34 +302,15 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   - `CategoryReparentedProjectionDomainEventHandler` — log-only seam; the descendant-row cascade (bulk UPDATE of `CategoryPath` + `CategoryBreadcrumb` for every affected `product_search_view` row) runs inside `CategoryPathService.RewriteDescendantPathsAsync` in the same UoW.
   - *No external event* in v1 (reserved for later — see [roadmap.md § 2.3 Catalog](../roadmap.md)).
 
-#### 1.1.10 `DeleteCategoryCommand`
+#### 1.1.10 `DeleteCategoryCommand` — **removed (out of reference-repo scope)**
 
-- **HTTP:** `DELETE /api/catalog/categories/{categoryId}`
-- **Authorization:** `AuthPolicies.Admin`.
-- **Interface:** `ICommand`.
-- **Request shape:**
-  ```
-  {
-    "categoryId": "Guid (from route)"
-  }
-  ```
-- **Response:** 204 on success; 404 if missing; 409 if category has children or is referenced by any `Product.CategoryId`.
-- **Handler class:** `DeleteCategoryCommandHandler`.
-- **Validator rules:**
-  - `CategoryId` — NotEmpty.
-- **Flow:**
-  1. Load category; 404 if missing.
-  2. Check dependents:
-     - `await _dbContext.Categories.AnyAsync(c => c.ParentCategoryId == categoryId, ct)` — if any child → `Result.Fail(CategoryErrors.HasChildren)`.
-     - `await _dbContext.Products.AnyAsync(p => p.CategoryId == categoryId, ct)` — if any product → `Result.Fail(CategoryErrors.HasProducts)`.
-  3. `_dbContext.Categories.Remove(category); await _dbContext.SaveChangesAsync(ct);`.
-- **Emits internal event(s):** `CategoryDeletedDomainEvent` (in-process only). No external event in v1.
+Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `CategoryDeletedDomainEvent`). Categories are created and reparented but not deleted in v1; cut to keep the docs honest to the code.
 
 ### 1.2 Queries
 
 #### 1.2.1 `GetProductByIdQuery`
 
-- **HTTP:** `GET /api/catalog/products/{productId}`
+- **HTTP:** `GET /api/v1/catalog/products/{productId}`
 - **Authorization:** `AllowAnonymous` (public product detail).
 - **Interface:** `IQuery<GetProductByIdResponse>`.
 - **Request shape (query params + route):**
@@ -406,7 +344,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.2.2 `SearchProductsQuery`
 
-- **HTTP:** `GET /api/catalog/products/search`
+- **HTTP:** `GET /api/v1/catalog/products` (products-collection root + query params — **not** a `/search` sub-path; matches `SearchProductsEndpoint`'s `Get(string.Empty)` under the `/catalog/products` group)
 - **Authorization:** `AllowAnonymous`.
 - **Interface:** `IQuery<SearchProductsResponse>`.
 - **Request shape (query params):**
@@ -462,7 +400,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.2.3 `GetCategoryTreeQuery`
 
-- **HTTP:** `GET /api/catalog/categories`
+- **HTTP:** `GET /api/v1/catalog/categories/tree`
 - **Authorization:** `AllowAnonymous`.
 - **Interface:** `IQuery<GetCategoryTreeResponse>`.
 - **Request shape (query params):**
@@ -492,7 +430,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 #### 1.2.4 `GetProductsByCategoryQuery`
 
-- **HTTP:** `GET /api/catalog/categories/{categoryId}/products`
+- **HTTP:** `GET /api/v1/catalog/categories/{categoryId}/products`
 - **Authorization:** `AllowAnonymous`.
 - **Interface:** `IQuery<GetProductsByCategoryResponse>`.
 - **Request shape (query params + route):**
@@ -525,7 +463,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 
 ## 2. Basket Service Use Cases
 
-**Base HTTP path:** `/api/basket/`
+**Base HTTP path:** `/api/v1/basket/`
 **Storage:** Redis (primary aggregate store via `IBasketRepository` → FusionCache `"basket"`). PostgreSQL schema `basket` holds only outbox/inbox tables.
 **Consumes (Kafka):** *none in v1* (per `basket.md` § 13). Basket has no inbound commands; all mutations are HTTP-driven by the authenticated user.
 **Produces (Kafka):** `basket.sessions` via outbox (one event: `BasketCheckoutInitiatedEvent`).
@@ -536,7 +474,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.1.1 `AddItemToBasketCommand`
 
-- **HTTP:** `POST /api/basket/items`
+- **HTTP:** `POST /api/v1/basket/items`
 - **Authorization:** Authenticated (any authenticated user). `UserId` from JWT claim.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -565,7 +503,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.1.2 `RemoveItemFromBasketCommand`
 
-- **HTTP:** `DELETE /api/basket/items/{productId}`
+- **HTTP:** `DELETE /api/v1/basket/items/{productId}`
 - **Authorization:** Authenticated.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -588,7 +526,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.1.3 `ChangeItemQuantityCommand`
 
-- **HTTP:** `PUT /api/basket/items/{productId}/quantity`
+- **HTTP:** `PUT /api/v1/basket/items/{productId}/quantity`
 - **Authorization:** Authenticated.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -613,7 +551,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.1.4 `RefreshBasketPricesCommand`
 
-- **HTTP:** `POST /api/basket/refresh-prices`
+- **HTTP:** `POST /api/v1/basket/refresh-prices`
 - **Authorization:** Authenticated.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -636,7 +574,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.1.5 `ClearBasketCommand`
 
-- **HTTP:** `DELETE /api/basket/items`
+- **HTTP:** `DELETE /api/v1/basket/items`
 - **Authorization:** Authenticated.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -657,7 +595,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.1.6 `CheckoutBasketCommand`
 
-- **HTTP:** `POST /api/basket/checkout`
+- **HTTP:** `POST /api/v1/basket/checkout`
 - **Authorization:** Authenticated. User may only check out their own basket.
 - **Interface:** `ICommand<Guid>` — returns the pre-assigned `OrderId` (UUID v7 allocated by the handler; ADR-0029).
 - **Request shape:**
@@ -701,7 +639,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 #### 2.2.1 `GetBasketByUserIdQuery`
 
-- **HTTP:** `GET /api/basket`
+- **HTTP:** `GET /api/v1/basket`
 - **Authorization:** Authenticated. Returns only the caller's own basket (JWT `sub` = `UserId`).
 - **Interface:** `IQuery<GetBasketResponse>`.
 - **Request shape (query params + JWT claims):**
@@ -745,7 +683,7 @@ All commands below operate on the caller's own basket (keyed by JWT `sub` claim 
 
 ## 3. Ordering Service Use Cases
 
-**Base HTTP path:** `/api/ordering/`
+**Base HTTP path:** `/api/v1/ordering/`
 **Storage:** PostgreSQL schema `ordering`.
 **Consumes (Kafka):** `ordering.order-commands` (saga → Ordering inbox consumer). See § 3.3 for command dispatch plumbing.
 **Produces (Kafka):** `ordering.orders` via outbox (six external events).
@@ -909,7 +847,7 @@ These commands enter via HTTP; the buyer or admin initiates them through the BFF
 
 #### 3.2.1 `CancelOrderCommand`
 
-- **HTTP:** `POST /api/ordering/orders/{orderId}/cancel`
+- **HTTP:** `POST /api/v1/ordering/orders/{orderId}/cancel`
 - **Authorization:** Authenticated. Buyer may cancel their own order (`BuyerId == claim.sub`) up to `Confirmed` status; admin may cancel any order up to `Confirmed`. Nobody may cancel `Shipped` / `Delivered` / `Cancelled` / `Failed`.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -937,7 +875,7 @@ These commands enter via HTTP; the buyer or admin initiates them through the BFF
 
 #### 3.2.2 `MarkOrderShippedCommand`
 
-- **HTTP:** `POST /api/ordering/orders/{orderId}/ship`
+- **HTTP:** `POST /api/v1/ordering/orders/{orderId}/ship`
 - **Authorization:** `AuthPolicies.Admin` — warehouse/fulfillment operator.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -963,7 +901,7 @@ These commands enter via HTTP; the buyer or admin initiates them through the BFF
 
 #### 3.2.3 `MarkOrderDeliveredCommand`
 
-- **HTTP:** `POST /api/ordering/orders/{orderId}/deliver`
+- **HTTP:** `POST /api/v1/ordering/orders/{orderId}/deliver`
 - **Authorization:** `AuthPolicies.Admin` — in v1, human-triggered. A future carrier-webhook adapter would invoke the same handler.
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -1035,7 +973,7 @@ public sealed class CreateOrderKafkaHandler
 
 #### 3.4.1 `GetOrderByIdQuery`
 
-- **HTTP:** `GET /api/ordering/orders/{orderId}`
+- **HTTP:** `GET /api/v1/ordering/orders/{orderId}`
 - **Authorization:** Authenticated. Buyer must own the order (`BuyerId == claim.sub`) unless `admin` role.
 - **Interface:** `IQuery<GetOrderByIdResponse>`.
 - **Request shape:**
@@ -1088,7 +1026,7 @@ public sealed class CreateOrderKafkaHandler
 
 #### 3.4.2 `GetOrdersByBuyerQuery`
 
-- **HTTP:** `GET /api/ordering/orders`
+- **HTTP:** `GET /api/v1/ordering/orders`
 - **Authorization:** Authenticated. Buyer reads only their own orders; admin reads anyone by passing `?buyerId=` query param (enforced in handler — non-admin with `buyerId != claim.sub` gets their own anyway).
 - **Interface:** `IQuery<GetOrdersByBuyerResponse>`.
 - **Request shape:**
@@ -1137,7 +1075,7 @@ public sealed class CreateOrderKafkaHandler
 
 ## 4. Inventory Service Use Cases
 
-**Base HTTP path:** `/api/inventory/`
+**Base HTTP path:** `/api/v1/inventory/`
 **Storage:** PostgreSQL schema `inventory` — event store (`inventory.stock_events`), projections (`current_stock_levels`, `reservation_audit`), inbox (for Catalog event consumption), outbox (for reservation + stock-level events), command inbox (idempotency per `inventory.md` § 10.3).
 **Consumes (Kafka):**
 - `catalog.products` → `InitializeStockItemCommand` (on `ProductCreatedEvent`).
@@ -1263,7 +1201,7 @@ public sealed class CreateOrderKafkaHandler
 
 #### 4.2.1 `ReceiveStockCommand`
 
-- **HTTP:** `POST /api/inventory/stock-items/{productId}/receive`
+- **HTTP:** `POST /api/v1/inventory/stock-items/{productId}/receive`
 - **Authorization:** `AuthPolicies.Admin` (warehouse receiving-dock operator).
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -1292,7 +1230,7 @@ public sealed class CreateOrderKafkaHandler
 
 #### 4.2.2 `AdjustStockCommand`
 
-- **HTTP:** `POST /api/inventory/stock-items/{productId}/adjust`
+- **HTTP:** `POST /api/v1/inventory/stock-items/{productId}/adjust`
 - **Authorization:** `AuthPolicies.Admin` (ops adjustment — damage write-off, recount).
 - **Interface:** `ICommand`.
 - **Request shape:**
@@ -1349,8 +1287,8 @@ Plus a separate consumer for the Catalog event inbox:
 
 #### 4.4.1 `GetStockLevelQuery`
 
-- **HTTP:** `GET /api/inventory/stock-items/{productId}`
-- **Authorization:** `AllowAnonymous` (public product-page overlay). Admin ops variant at `/api/inventory/admin/stock-items/{productId}` includes reservation list; v1 exposes the public one only.
+- **HTTP:** `GET /api/v1/inventory/stock-items/{productId}`
+- **Authorization:** `AllowAnonymous` (public product-page overlay). Admin ops variant at `/api/v1/inventory/admin/stock-items/{productId}` includes reservation list; v1 exposes the public one only.
 - **Interface:** `IQuery<GetStockLevelResponse>`.
 - **Request shape:**
   ```
@@ -1377,7 +1315,7 @@ Plus a separate consumer for the Catalog event inbox:
 
 #### 4.4.2 `GetStockLevelsBulkQuery`
 
-- **HTTP:** `POST /api/inventory/stock-items/bulk` (POST because the list of ids may exceed URL length for basket-sized collections; body is read-only despite the verb).
+- **HTTP:** `POST /api/v1/inventory/stock-items/bulk` (POST because the list of ids may exceed URL length for basket-sized collections; body is read-only despite the verb).
 - **Authorization:** `AllowAnonymous` (called by BFF for basket/home-page enrichment).
 - **Interface:** `IQuery<GetStockLevelsBulkResponse>`.
 - **Request shape:**
@@ -1405,11 +1343,11 @@ Plus a separate consumer for the Catalog event inbox:
 - **Validator rules:**
   - `ProductIds` — NotEmpty; Must.Count.InclusiveBetween(1, 200); ForEach NotEmpty.
 - **Filter/paging:** bulk read; no paging.
-- **Read source:** single query `SELECT * FROM inventory.current_stock_levels WHERE ProductId = ANY(@ids)`. Ids absent from result appear in `MissingProductIds` (indicates uninitialized or unknown product). Partial-tolerant by design — matches BFF's batch pattern.
+- **Read source:** Inventory-owned **read-through cache** (FusionCache over `redis-cache`) in front of `SELECT * FROM inventory.current_stock_levels WHERE ProductId = ANY(@ids)` — see [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md) and [inventory.md § 9.1](inventory.md). Ids absent from result appear in `MissingProductIds` (uninitialized or unknown product). Partial-tolerant by design — matches BFF's batch pattern. The cache is hidden behind this HTTP endpoint; the BFF calls the API and never the cache, and the reservation decision path bypasses it (oversell-safe via ES).
 
 #### 4.4.3 `GetReservationByIdQuery`
 
-- **HTTP:** `GET /api/inventory/reservations/{reservationId}`
+- **HTTP:** `GET /api/v1/inventory/reservations/{reservationId}`
 - **Authorization:** `AuthPolicies.Admin` (ops/auditing tool).
 - **Interface:** `IQuery<GetReservationByIdResponse>`.
 - **Request shape:**
@@ -1438,40 +1376,9 @@ Plus a separate consumer for the Catalog event inbox:
 - **Filter/paging:** none.
 - **Read source:** `inventory.reservation_audit` projection. Missing → `Result.Fail(ReservationErrors.NotFound)` → 404.
 
-#### 4.4.4 `GetReservationsByOrderQuery`
+#### 4.4.4 `GetReservationsByOrderQuery` — **removed (out of reference-repo scope)**
 
-- **HTTP:** `GET /api/inventory/orders/{orderId}/reservations`
-- **Authorization:** `AuthPolicies.Admin` (saga debugging and ops).
-- **Interface:** `IQuery<GetReservationsByOrderResponse>`.
-- **Request shape:**
-  ```
-  {
-    "orderId": "Guid (from route)"
-  }
-  ```
-- **Response shape:**
-  ```
-  {
-    "orderId": "Guid",
-    "reservations": [
-      {
-        "reservationId": "Guid",
-        "productId": "Guid",
-        "quantity": "int",
-        "status": "string",
-        "reservedAtUtc": "DateTimeOffset",
-        "expiresAtUtc": "DateTimeOffset",
-        "resolvedAtUtc": "DateTimeOffset | null",
-        "releaseReason": "string | null"
-      }
-    ]
-  }
-  ```
-- **Handler class:** `GetReservationsByOrderQueryHandler`.
-- **Validator rules:**
-  - `OrderId` — NotEmpty.
-- **Filter/paging:** no paging (bounded by number of items in a single order, typically <50).
-- **Read source:** `inventory.reservation_audit` filtered `WHERE OrderId = @orderId ORDER BY ReservedAtUtc ASC`. Empty result → 200 with empty list (not 404; an order may have had no reservations if it failed at the basket validation stage).
+An admin "all reservations for order O" HTTP read was specced but never built, and had no programmatic consumer — the saga correlates over Kafka (events carry `OrderId`), the BFF doesn't use it, and ops can use Jaeger / direct SQL. The by-order *access pattern* still lives **internally** (`OrderCancelledEventKafkaHandler` queries `reservation_audit WHERE OrderId = … AND Status = Active`), so the `idx_reservation_audit_order` index is retained; only the public endpoint is dropped.
 
 ---
 

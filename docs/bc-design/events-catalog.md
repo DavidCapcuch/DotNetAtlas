@@ -599,42 +599,45 @@ All endpoints below are **internal** (service-to-service), routed through YARP /
 
 | Method | Path | Purpose | Response |
 |--------|------|---------|----------|
-| GET | `/api/catalog/products/{productId}` | Single product detail. Backs BFF product-detail page. | `CatalogProductResponse` — full product with category path, brand, price, images, status |
-| GET | `/api/catalog/products?q=&categoryPrefix=&minPrice=&maxPrice=&currency=&status=&page=&size=` | Paged search. Backs BFF browse/search. | `Paged<CatalogProductResponse>` |
+| GET | `/api/v1/catalog/products/{productId}` | Single product detail. Backs BFF product-detail page. | `CatalogProductResponse` — full product with category path, brand, price, images, status |
+| GET | `/api/v1/catalog/products?q=&categoryPrefix=&minPrice=&maxPrice=&currency=&status=&page=&size=` | Paged search — the products-collection root with query params (**not** a `/search` sub-path). Backs BFF browse/search. | `Paged<CatalogProductResponse>` |
 | GET | `/api/v1/catalog/products/by-ids?ids=...` | Fetch by IDs (max 100, comma-separated). Used by Basket ACL's `GetProductsByIdsAsync` (see `basket.md § 9.3`). | `IReadOnlyList<CatalogProductResponse>` — partial-tolerant |
-| GET | `/api/catalog/categories/tree` | Full category tree for navigation UI. Backs BFF category menu. | `CategoryTreeNode` (recursive) |
-| GET | `/api/catalog/categories/{categoryId}` | Single category metadata. | `CategoryResponse` |
+| GET | `/api/v1/catalog/categories/tree` | Full category tree for navigation UI. Backs BFF category menu. | `CategoryTreeNode` (recursive) |
+| GET | `/api/v1/catalog/categories/{categoryId}/products` | Products within a category. | `Paged<CatalogProductResponse>` |
 
 **Admin/write endpoints** (not BFF-consumed, listed for completeness so implementation agents don't miss them):
-- `POST /api/admin/catalog/products` — create product (admin only).
-- `PATCH /api/admin/catalog/products/{id}/price` — update price.
-- `PATCH /api/admin/catalog/products/{id}/discontinue` — discontinue with reason.
-- `POST /api/admin/catalog/categories` — create category.
-- `PATCH /api/admin/catalog/categories/{id}` — rename/reparent.
+- `POST /api/v1/catalog/products` — create product (admin only).
+- `PUT /api/v1/catalog/products/{id}/price` — update price.
+- `PUT /api/v1/catalog/products/{id}/description` — update description.
+- `POST /api/v1/catalog/products/{id}/discontinue` — discontinue with reason.
+- `POST /api/v1/catalog/products/{id}/reactivate` — reactivate.
+- `GET /api/v1/catalog/admin/products` — admin product search (includes Draft / Discontinued).
+- `POST /api/v1/catalog/categories` — create category.
+- `PUT /api/v1/catalog/categories/{id}/reparent` — reparent a category.
 
 ### 8.2 Basket Service
 
 | Method | Path | Purpose | Response |
 |--------|------|---------|----------|
-| GET | `/api/basket/me` | Get current user's basket (UserId from JWT `sub` claim). Backs BFF "view cart" page. | `BasketDto` — items + total, or 404 if basket doesn't exist |
-| POST | `/api/basket/me/items` | Add item. Body: `{ productId, quantity }`. Internal call goes through the ACL to Catalog. | `BasketDto` |
-| DELETE | `/api/basket/me/items/{productId}` | Remove item. | `BasketDto` |
-| PATCH | `/api/basket/me/items/{productId}` | Change quantity. Body: `{ quantity }`. | `BasketDto` |
-| POST | `/api/basket/me/refresh-prices` | User-initiated price refresh (per `basket.md § 6.3`). | `BasketDto` (with refreshed snapshots) |
-| DELETE | `/api/basket/me` | Clear basket. | `BasketDto` (empty) |
-| POST | `/api/basket/me/checkout` | Trigger checkout saga. Body: `{ shippingAddress, billingAddress, paymentMethodId }`. | `202 Accepted` — `{ orderId }` (pre-assigned UUID v7 allocated server-side; becomes the saga key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) |
+| GET | `/api/v1/basket` | Get current user's basket (UserId from JWT `sub` claim). Backs BFF "view cart" page. | `BasketDto` — items + total, or 404 if basket doesn't exist |
+| POST | `/api/v1/basket/items` | Add item. Body: `{ productId, quantity }`. Internal call goes through the ACL to Catalog. | `BasketDto` |
+| DELETE | `/api/v1/basket/items/{productId}` | Remove item. | `BasketDto` |
+| PUT | `/api/v1/basket/items/{productId}/quantity` | Change quantity. Body: `{ quantity }`. | `BasketDto` |
+| POST | `/api/v1/basket/refresh-prices` | User-initiated price refresh (per `basket.md § 6.3`). | `BasketDto` (with refreshed snapshots) |
+| DELETE | `/api/v1/basket/items` | Clear basket (removes all items). | `BasketDto` (empty) |
+| POST | `/api/v1/basket/checkout` | Trigger checkout saga. Body: `{ shippingAddress, billingAddress, paymentMethodId }`. | `202 Accepted` — `{ orderId }` (pre-assigned UUID v7 allocated server-side; becomes the saga key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) |
 
 ### 8.3 Ordering Service
 
 | Method | Path | Purpose | Response |
 |--------|------|---------|----------|
-| GET | `/api/orders/{orderId}` | Single order detail (row-level auth: buyer sees only their own, admin bypass). Backs BFF order-detail page. | `OrderResponse` |
-| GET | `/api/orders?buyerId=&status=&page=&size=` | Paged order history. BuyerId enforced from JWT unless admin. Backs BFF order-history page. | `Paged<OrderSummaryResponse>` |
-| POST | `/api/orders/{orderId}/cancel` | Buyer-initiated cancel. Body: `{ reason }`. Order must be pre-shipped. | `OrderResponse` (with Cancelled status) |
+| GET | `/api/v1/ordering/orders/{orderId}` | Single order detail (row-level auth: buyer sees only their own, admin bypass). Backs BFF order-detail page. | `OrderResponse` |
+| GET | `/api/v1/ordering/orders?buyerId=&status=&page=&size=` | Paged order history. BuyerId enforced from JWT unless admin. Backs BFF order-history page. | `Paged<OrderSummaryResponse>` |
+| POST | `/api/v1/ordering/orders/{orderId}/cancel` | Buyer-initiated cancel. Body: `{ reason }`. Order must be pre-shipped. | `OrderResponse` (with Cancelled status) |
 
 **Admin/Dev endpoints:**
-- `POST /api/admin/orders/{orderId}/mark-shipped` — Body: `{ carrier, trackingNumber }`.
-- `POST /api/admin/orders/{orderId}/mark-delivered`.
+- `POST /api/v1/ordering/orders/{orderId}/ship` — Body: `{ carrier, trackingNumber }`.
+- `POST /api/v1/ordering/orders/{orderId}/deliver`.
 
 **Saga-to-Ordering transport is Kafka** (`ordering.order-commands`), not HTTP — per D-1. `CreateOrderCommand`, `ConfirmOrderCommand`, `CancelOrderCommand`, `MarkOrderFailedCommand` are **not** exposed as HTTP endpoints.
 
@@ -642,28 +645,19 @@ All endpoints below are **internal** (service-to-service), routed through YARP /
 
 | Method | Path | Purpose | Response |
 |--------|------|---------|----------|
-| GET | `/api/inventory/stock-levels/{productId}` | Single product stock level. Backs BFF product-detail page availability badge. | `StockLevelResponse` — `{ productId, onHand, reserved, available, lastUpdatedUtc }` |
-| POST | `/api/inventory/stock-levels/batch` | Batch fetch (product ids in body). Backs BFF browse/search for availability overlays. | `IReadOnlyList<StockLevelResponse>` — partial-tolerant |
-| GET | `/api/inventory/reservations/{reservationId}` | Single reservation detail (ops/audit). | `ReservationResponse` |
-| GET | `/api/inventory/reservations?orderId=` | All reservations for an order (ops/saga debugging). | `IReadOnlyList<ReservationResponse>` |
+| GET | `/api/v1/inventory/stock-items/{productId}` | Single product stock level. Backs BFF product-detail page availability badge. | `StockLevelResponse` — `{ productId, onHand, reserved, available, lastUpdatedUtc }` |
+| POST | `/api/v1/inventory/stock-items/bulk` | Batch fetch (product ids in body). Backs BFF browse/basket availability overlays. Committed design: [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md) (Inventory-owned read-through cache). **Spec'd (use-cases.md § 4.4.2); NOT yet built in Inventory** — build before BFF dispatch. | `IReadOnlyList<StockLevelResponse>` — partial-tolerant |
+| GET | `/api/v1/inventory/reservations/{reservationId}` | Single reservation detail (ops/audit). | `ReservationResponse` |
 
 **Admin/Ops endpoints:**
-- `POST /api/admin/inventory/stock-items/{productId}/receive` — Body: `{ quantity, source }`. Recorded as `StockReceivedDomainEvent`.
-- `POST /api/admin/inventory/stock-items/{productId}/adjust` — Body: `{ delta, reason }`. Recorded as `StockAdjustedDomainEvent`.
+- `POST /api/v1/inventory/stock-items/{productId}/receive` — Body: `{ quantity, source }`. Recorded as `StockReceivedDomainEvent`.
+- `POST /api/v1/inventory/stock-items/{productId}/adjust` — Body: `{ delta, reason }`. Recorded as `StockAdjustedDomainEvent`.
 
 **Saga-to-Inventory transport is Kafka** (`inventory.reservation-commands`), not HTTP — per D-2. `ReserveStockCommand`, `ConfirmReservationCommand`, `ReleaseReservationCommand` are **not** exposed as HTTP endpoints.
 
-### 8.5 BFF composition map (informational)
+### 8.5 BFF composition map
 
-| BFF endpoint (indicative — Stage 2 Agent 7 finalises) | Calls internally |
-|---------|------------------|
-| `GET /bff/product/{id}` | `Catalog.GET /products/{id}` + `Inventory.GET /stock-levels/{id}` — composed into a single product-detail response |
-| `GET /bff/browse?q=&category=&page=&size=` | `Catalog.GET /products?...` + `Inventory.POST /stock-levels/batch` (for availability overlays) |
-| `GET /bff/my-basket` | `Basket.GET /me` (pass-through) |
-| `POST /bff/my-basket/add` | `Basket.POST /me/items` (with prior Catalog product-existence check optional since Basket's ACL already does it) |
-| `POST /bff/checkout` | `Basket.POST /me/checkout` (pass-through) |
-| `GET /bff/my-orders` | `Ordering.GET /orders?buyerId={me}` (pass-through with JWT-forwarded buyer id) |
-| `GET /bff/my-orders/{id}` | `Ordering.GET /orders/{id}` (pass-through) |
+The BFF's five endpoints (`/api/v1/bff/home-page`, `/product-page/{id}`, `/basket`, `/order-summary/{id}`, and `POST /checkout`) and their upstream-call composition are **canonical in [bff.md § 3](bff.md) (per-endpoint composition) + [§ 4](bff.md) (typed-client → upstream-route mapping)** — finalised there, so they are not re-listed here (the earlier indicative sketch in this slot drifted from the upstream route shapes above; duplication is the drift source this catalog avoids — cf. § 7.7).
 
 All BFF → internal calls use typed HttpClients (matching the `ProductCatalogHttpAdapter` pattern in `basket.md § 9.3`), with ~2-second timeouts, and JSON response contracts.
 

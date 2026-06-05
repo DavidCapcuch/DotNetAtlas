@@ -592,7 +592,7 @@ This is the single performance layer for Catalog reads — per the success crite
 **Consumers of Catalog external events:**
 - **Basket** (general-plan context map: "Catalog → Basket: Anti-Corruption Layer") — consumes `ProductPriceChangedEvent` and `ProductDiscontinuedEvent` to flag stale basket-line snapshots. Because Basket is Redis-backed and ephemeral, v1 implementations may rely on on-demand refresh at checkout instead of eager consumption; that tactical choice is Basket's to make, not Catalog's.
 - **Inventory** (general-plan: "Inventory → Catalog: Events — stock changes update product availability", reversed for initialization) — consumes `ProductCreatedEvent` on `catalog.products` to initialize stock items at zero availability for the new product. Inventory's own events flow back the other way but do **not** mutate Catalog; Catalog remains the product-information authority.
-- **EShop.BFF** — prefers synchronous HTTP query (`GET /api/catalog/products/{id}` and `/api/catalog/products/search`) for consumer-facing reads. Optional future: subscribe to `catalog.products` to warm a local cache.
+- **EShop.BFF** — prefers synchronous HTTP query (`GET /api/v1/catalog/products/{id}` and `GET /api/v1/catalog/products` search-via-query-params) for consumer-facing reads. Optional future: subscribe to `catalog.products` to warm a local cache.
 - **Ordering** — does **not** consume Catalog events directly in v1. Ordering receives already-snapshotted product data in `OrderCreated` events from the Checkout saga; see [ADR-0005 — Customer Data in Ordering](../adr/0005-customer-data-in-ordering.md) for the snapshot pattern extension to product data.
 
 **External dependencies:**
