@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(**/Persistence/Database/Migrations/*.cs)",
+      "Write(**/Persistence/Database/Migrations/*.cs)",
+      "Edit(**/Persistence/Database/Migrations/*ModelSnapshot.cs)",
+      "Write(**/Persistence/Database/Migrations/*ModelSnapshot.cs)",
+      "Edit(**/Persistence/Database/Migrations/SqlScripts/V*.sql)",
+      "Write(**/Persistence/Database/Migrations/SqlScripts/V*.sql)"
+    ]
+  }
+}

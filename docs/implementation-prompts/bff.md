@@ -1,6 +1,6 @@
-# Master System Prompt — Implement the **EShop.BFF**
+# Master System Prompt — Implement the **EShop.BFF** (Backend-for-Frontend, Wave 3)
 
-> **⚠ SUPERSEDED (2026-05-31) — historical wave prompt.** This prompt drove the original BFF implementation and is preserved verbatim. It references the deprecated cache-invalidator group `bff-cache-invalidator`. The current, authoritative consumer-group rule is **one group per service** (`bff-group`) per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md). Use the BC-design docs as ground truth; treat this file as background only — a BFF built today threads **`OrderId`** (the durable business key, [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) and relies on W3C **`traceId`** for telemetry.
+> **The live exemplar of this kit.** The BFF is the one unbuilt unit; this prompt is both its dispatch spec and the worked example of `_template.md` — pointer-based DDD/EDA contract, non-negotiable gates with pasted output, and `daca-bc-consistency-reviewer` as the final DoD step (archetype: 2-layer aggregation gateway). Current truths it threads: **one consumer group per service** = `bff-group` ([`events-catalog.md § 3.1`](../bc-design/events-catalog.md)); the durable business key is **`OrderId`** ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); telemetry correlates on W3C **`traceId`**; the FusionCache backplane is **`redis-cache`**, never `redis-basket` ([ADR-0016](../adr/0016-redis-topology.md)).
 
 > Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
 
@@ -37,23 +37,25 @@ The BFF sits between clients (SPA / mobile / YARP) and internal services. Teachi
 <contract>
 LOCKED at the seams.
 
-- 4 endpoints per `bff.md § 4`: `GET /api/v1/bff/home-page`, `GET /api/v1/bff/product-page/{id}`, `GET /api/v1/bff/basket`, `GET /api/v1/bff/order-summary/{id}`; plus `POST /api/v1/bff/checkout` (per ADR-0013)
-- Response shapes per `bff.md § 4` (each endpoint documents its composed JSON)
-- Cache invalidator consumer group: **`bff-cache-invalidator`** (unique)
+- 4 endpoints per `bff.md § 3`: `GET /api/v1/bff/home-page`, `GET /api/v1/bff/product-page/{id}`, `GET /api/v1/bff/basket`, `GET /api/v1/bff/order-summary/{id}`; plus `POST /api/v1/bff/checkout` (per ADR-0013)
+- Response shapes per `bff.md § 3` (each endpoint documents its composed JSON)
+- Cache-invalidator consumer group: **`bff-group`** — one group per service per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md) (NOT a per-purpose `bff-cache-invalidator` group)
 - Invalidation topic → FusionCache tag map per `bff.md § 2.2`
-- Topics consumed: `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`, `invoicing.invoices`
+- Topics consumed (five — the v1 `bff-group` set per [`events-catalog.md § 2`](../bc-design/events-catalog.md)): `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`. **NOT `invoicing.invoices`** — a BFF invoice view is *planned-not-v1* (events-catalog § 5: `InvoiceIssuedEvent` has **no v1 BFF consumer** by design); if you add it, see `<autonomous_evolution>`
 - JWT pass-through via `DelegatingHandler` (public endpoints bypass; authed endpoints forward user JWT + attach service-auth token per ADR-0010)
 - NO outbox, NO new Avro schemas, NO `DbSet<>` — BFF is stateless
 - Rate limiting lives in YARP (NOT the BFF) — see `rate-limiting.md`
 - HTTP routes under `/api/v1/bff/...` per ADR-0012
 - File ownership: see `<boundaries>`
+
+> **EDA / architecture discipline is contract, not taste.** Consumer-group naming (`bff-group`), the consume-only (no outbox / no producer) rule, result-returning typed clients, and Api→Infrastructure layering are SSOT in [`conventions.md`](../bc-design/conventions.md) and **executably enforced** by the BFF's arch tests (no `DbSet<>`, no Kafka producer, backplane ≠ `redis-basket`). A change that would fail an arch test is a real failure, not a style nit.
 </contract>
 
 <design_open>
 You own these. Justify each in your session summary.
 
 - Polly pipeline composition (order + granularity of timeout / retry / circuit-breaker — `bff.md § 2.1` gives target values; use Wave 0's named resilience presets from `Platform.ServiceDefaults` where applicable)
-- Typed client interfaces + DTOs (method signatures per `bff.md § 5`; DTO shapes are yours, with Result-returning methods)
+- Typed client interfaces + DTOs (method signatures per `bff.md § 4`; DTO shapes are yours, with Result-returning methods)
 - FusionCache configuration (tags, TTLs, FailSafeMaxDuration — defaults in `bff.md`; tune if justified)
 - Endpoint handler composition strategy (manual aggregation vs mediator pipeline)
 - Fallback response shape when an upstream fails (include `HasStaleData: true` indicator? — ADR-worthy if you introduce it)
@@ -67,10 +69,10 @@ You own these. Justify each in your session summary.
 2. `docs/bc-design/bff.md` — the full spec
 3. `docs/bc-design/rate-limiting.md` — YARP is in front of you; the BFF itself is unrestricted
 4. `docs/bc-design/events-catalog.md` — your invalidator consumes these topics
-5. `docs/bc-design/use-cases.md` — **§ "Service HTTP surfaces for BFF"** — your upstream contract. **Note: Catalog's bulk `GetProductsByIdsQuery` is required for `/api/v1/bff/basket`.** If Catalog didn't implement it, FLAG per `<stop_conditions>`.
-6. `docs/eshop-master-design.md` § 3 + § 11.7 + § 9 (BFF overview) + § 11.3 (observability)
+5. `docs/bc-design/bff.md § 5` (Dependency on New Upstream Endpoints) + the per-BC **HTTP surface** subsections in `use-cases.md` — your upstream contract. Catalog's bulk `GetProductsByIdsQuery` (`GET /api/v1/catalog/products/by-ids`) backs `/api/v1/bff/basket` and **already ships**; if any required upstream endpoint were actually missing, FLAG per `<stop_conditions>` rather than working around it.
+6. `docs/eshop-master-design.md` — the BFF-relevant sections (§ 3 event discipline, § 9 BFF overview, § 11.3 observability, § 11.7 async/sync). **Additive to `_shared.md § 2`'s universal reads, not a replacement.**
 7. **All ADRs in `<applicable_adrs>` below**
-8. Weather references: `src/Weather.Infrastructure/Common/PersistenceDependencyInjection.cs` (FusionCache+Redis setup to mirror), existing typed HttpClient usage (`grep -r "AddHttpClient" src/`)
+8. Golden reference (`_shared.md § 4`): **Basket** (`services/Basket/`) for the FusionCache + Redis wiring, and existing BCs' typed-client setup (`grep -rn "AddHttpClient" services/`). Do **not** mirror `src/Weather`.
 </reading_order>
 
 <applicable_adrs>
@@ -92,8 +94,8 @@ Universal skills per `_shared.md § 7`. BFF-specific:
 |---|---|---|
 | Designing endpoint composition | `backend-development:api-design-principles` | before wiring the 4 endpoints — REST aggregation, response composition, content negotiation |
 | Pattern depth for BFF | `backend-development:microservices-patterns` | BFF-pattern specifically; when to aggregate vs orchestrate |
-| Polly + cache tuning | `application-performance:performance-engineer` | when tuning timeouts, retry policies, cache TTLs, circuit-breaker thresholds — performance observability |
-| Invalidation-consumer composition | `superpowers:brainstorming` | invalidator has subtle semantics (ordering vs fan-out); explore before committing |
+| Polly + cache tuning | `Agent(subagent_type="application-performance:performance-engineer")` | when tuning timeouts, retry policies, cache TTLs, circuit-breaker thresholds — this is an **agent**, not a Skill; dispatch it, don't `Skill(...)` it |
+| Invalidation-consumer semantics | `grill-with-docs` (phase 0) | invalidator has subtle ordering / fan-out semantics — sharpen against `bff.md § 2.2` + the events-catalog before committing |
 </skills>
 
 <autonomous_evolution>
@@ -101,7 +103,7 @@ BFF-specific triggers:
 
 - **Catalog's by-ids endpoint** — if `GetProductsByIdsQuery` / `GET /api/v1/catalog/products/by-ids?ids=…` does not exist in Catalog, STOP and report per `<stop_conditions>`. Do NOT implement a workaround (e.g., N concurrent single-product calls) without user approval.
 - **Payments/Invoicing BFF integration** — `/api/v1/bff/order-summary/{id}` may need invoice link (`GET /api/v1/invoicing/invoices/by-order/{orderId}`). Confirm whether Invoicing is in scope for v1 of BFF or stubbed; leave clear TODO + feature flag if deferred.
-- **Stale-data response header** — if you introduce `HasStaleData` / `X-BFF-Stale: true` semantics, document in `bff.md § 4` (self-correction) before implementation.
+- **Stale-data response header** — if you introduce `HasStaleData` / `X-BFF-Stale: true` semantics, document in `bff.md § 3` (Endpoints / response shapes) or § 6 (Failure-Mode table) as a self-correction before implementation.
 - **Cache-stampede** on home-page FusionCache expiry — confirm FusionCache's stampede protection is enabled (default with `EagerRefreshThreshold`); coordinates with `bff.home-page-eager-cache-warm` feature flag.
 - **Feature-flag-gated path** — verify `bff.home-page-eager-cache-warm` controls the startup `IHostedService` that warms the cache; flipping it OFF must cleanly skip the warm (no half-baked state).
 </autonomous_evolution>
@@ -121,7 +123,7 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 - [ ] 4 GET endpoints + 1 POST `/checkout` + typed HTTP clients + response DTOs
 - [ ] Polly resilience pipeline using Wave 0's named presets where applicable: per-call 2s (batch 10s) timeout, max 2 retries with exponential backoff, CB opens after 5/10s fail-rate
 - [ ] `AuthForwardingHandler` attached to clients that require user auth; service-auth token attached to ALL outbound calls (per ADR-0010)
-- [ ] Kafka cache-invalidator consumer (group `bff-cache-invalidator`) — topic→tag map per `bff.md § 2.2`
+- [ ] Kafka cache-invalidator consumer (group `bff-group`) — topic→tag map per `bff.md § 2.2`
 - [ ] FusionCache + Redis distributed cache + backplane pointed at `redis-cache` (per ADR-0016)
 - [ ] `POST /api/v1/bff/checkout` has `.Idempotency()` (per ADR-0013)
 - [ ] `bff.home-page-eager-cache-warm` feature flag wired + both states tested
@@ -129,8 +131,9 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 - [ ] Architecture tests: no `DbSet<>` in BFF; no Kafka producer; only consumer + HTTP client + cache; FusionCache backplane ≠ `Redis:Basket`
 - [ ] Integration tests: (a) happy-path composition; (b) upstream timeout → fail-safe returns stale cache; (c) upstream 5xx → fallback; (d) invalidator consumer fires on fake `ProductPriceChanged` → tag removed; (e) checkout idempotency
 - [ ] Docker-compose: BFF container + healthcheck (no new topics, no outbox-relay)
+- [ ] Every new behaviour has a new test (`_shared.md § 12`)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] Peer-review chain (`_shared.md § 11`) executed; HIGH findings fixed
+- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); `docs/DoD.md` Self-attested bucket attested
 </dod>
 
 <boundaries>
@@ -157,7 +160,7 @@ Per `_shared.md § 10`. Suggested commit milestones:
 3. FusionCache config against `redis-cache` + backplane + arch test
 4. 4 aggregation GET endpoints + response DTOs + happy-path integration test
 5. `POST /api/v1/bff/checkout` with `.Idempotency()` + integration test
-6. Kafka invalidator consumer (group `bff-cache-invalidator`) + tag-map + invalidation integration test
+6. Kafka invalidator consumer (group `bff-group`) + tag-map + invalidation integration test
 7. `bff.home-page-eager-cache-warm` feature flag + startup warmer + both-state tests
 8. Fail-safe / stale-data integration tests (kill upstream containers mid-flight)
 9. Architecture tests + functional tests
@@ -165,17 +168,10 @@ Per `_shared.md § 10`. Suggested commit milestones:
 </session_management>
 
 <verification>
+Run the **non-negotiable gates** in [`docs/verification-gates.md`](../verification-gates.md) (build / restore / format / the four `EShop.BFF.*Tests` projects / compose health), then the BFF smoke below. **Paste the actual output** into the session summary.
+
 ```bash
-dotnet build -m
-dotnet restore --locked-mode
-dotnet format whitespace --no-restore --verify-no-changes
-dotnet format style --no-restore --verify-no-changes
-dotnet test test/EShop.BFF.UnitTests/
-dotnet test test/EShop.BFF.ArchitectureTests/
-dotnet test test/EShop.BFF.IntegrationTests/
-dotnet test test/EShop.BFF.FunctionalTests/
-docker compose --profile full up -d
-# Manual smoke:
+# BFF smoke, after the standard gates:
 curl -s http://localhost:8080/api/v1/bff/home-page | jq .
 curl -s http://localhost:8080/api/v1/bff/product-page/<productId> | jq .
 curl -s -H "Authorization: Bearer <user-jwt>" http://localhost:8080/api/v1/bff/basket | jq .
@@ -203,11 +199,12 @@ That's the depth expected for **every** `<design_open>` resolution.
 </example_design_decision>
 
 <peer_review>
-Per `_shared.md § 11`. Before declaring DoD met:
+Per `_shared.md § 11` (three roles). Before declaring DoD met:
 
-1. Run every command in `<verification>`; paste pass/fail output in session summary.
-2. Invoke `superpowers:verification-before-completion`.
-3. Invoke `nw-software-crafter-reviewer` with your session summary as input — fix any HIGH-severity findings.
+1. **Role 1** — Opus `feature-dev:code-reviewer` ran pre-commit on every ≥ 5-file milestone; CRITICAL/HIGH fixed.
+2. **Role 2 (gate)** — run every command in `<verification>`; paste the **actual** output; invoke `superpowers:verification-before-completion`.
+3. **Role 3 (DoD gate)** — self-attest the `docs/DoD.md` **Self-attested** bucket in your summary, then run `daca-dod-reviewer` on your diff with its delegates run as siblings: Architecture/DDD → `daca-bc-consistency-reviewer` (archetype: 2-layer aggregation gateway) vs the golden reference + `conventions.md` + the BFF arch tests; Documentation → `daca-documentation-reviewer`. Fix every blocker.
+4. **Security pass** — run `/security-review` scoped to the auth-forwarding (user-JWT + service-token attachment) and PII-composition paths. The BFF is the system's highest-risk surface and arch tests won't catch a leaked token, a JWT written to a log, or a span tagged with a composed address (ADR-0011 forbids it). (This is the `daca-dod-reviewer`'s applicability-gated `/security-review` trigger — auth / PII / secrets / new external endpoint — firing here; the BFF is its highest-risk instance, not a special case.)
 </peer_review>
 
 <session_summary>
