@@ -22,8 +22,8 @@ Before writing any code, do these in your **first response** — explicitly, in 
 </mission>
 
 <prerequisites>
-- Wave 0 platform prep merged (`docs/implementation-prompts/wave-0-platform-prep.md`)
-- {Any other BCs that must precede this one — usually empty for Wave 1, populated for Wave 2/3}
+- Platform foundations present (service-auth, redis split, Azurite, feature flags — all built in Wave 0)
+- {Any other units that must precede this one — e.g. upstream BCs whose HTTP surface or events this one consumes}
 </prerequisites>
 
 <role_in_system>
@@ -39,6 +39,8 @@ LOCKED at the seams. Do not change any of these without raising the issue first 
 - {Topic retention policies}
 - {Cross-BC consumer groups (if BC produces events others consume)}
 - {File ownership — see `<boundaries>`}
+
+> **DDD/EDA discipline is contract, not taste.** Bounded-context isolation, aggregate invariants, outbox-only event seams, result-pattern-not-exceptions, and layering are the SSOT in [`conventions.md`](../bc-design/conventions.md) and are **executably enforced** by [`architecture-tests.md`](../bc-design/architecture-tests.md) (NetArchTest, CI-blocking). They are not restated here — a change that would fail an arch test is a real failure, not a style nit.
 </contract>
 
 <design_open>
@@ -51,6 +53,8 @@ You own these. Justify each in your session summary.
 - {Test-split depth}
 - {Architecture-test tooling}
 - {Additional `example-mapping` sessions when integration tests surface gaps}
+
+> Open, but not *unconstrained* — each must still match the golden reference (`_shared.md § 4`) + `conventions.md`. These open choices are exactly the dimensions `daca-bc-consistency-reviewer` checks at DoD (DI / behaviour-decorator order, error-factory placement, outbox-dispatch path, topic topology, options shape, persistence layout, test-split). Justify each in the summary; **drift from the golden BC is a finding, not a preference.**
 </design_open>
 
 <reading_order>
@@ -62,7 +66,7 @@ You own these. Justify each in your session summary.
 6. `docs/bc-design/error-taxonomy.md` § {your BC's section}
 7. {Other relevant cross-cutting docs — ADRs, runbooks, rate-limiting}
 8. **All cross-cutting ADRs in `<applicable_adrs>`** — read each once, refer back when implementing the relevant code
-9. {Existing Weather references the BC mirrors per `_shared.md § 4`}
+9. The golden reference this unit mirrors (per `_shared.md § 4`) — read the closest built BC for the shape
 </reading_order>
 
 <applicable_adrs>
@@ -101,8 +105,9 @@ Concrete deliverables. Extends `_shared.md § 12`.
 
 - [ ] {Specific deliverable for this BC, observable as a test or compose state}
 - [ ] {Repeat per BC-specific outcome}
+- [ ] Every new behaviour has a new test (`_shared.md § 12`)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] Peer-review chain (`_shared.md § 11`) executed; HIGH findings fixed
+- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); `docs/DoD.md` Self-attested bucket attested
 </dod>
 
 <boundaries>
@@ -114,13 +119,11 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - `Directory.Packages.props` (your packages only)
 - `docs/bc-design/{bc}.md` + glossary + example-mapping (self-correction only — record it in the session summary)
 
-**Do not touch:**
+**Ask before touching:**
 - Other BCs' services
 - Other BCs' Avro schemas
-- Saga orchestrators (Wave 2 owns them)
+- Saga orchestrators
 - Platform libraries (only your `.avsc` files)
-- Weather business code
-- EF Core migrations (per CLAUDE.md — user-generated only)
 </boundaries>
 
 <stop_conditions>
@@ -147,20 +150,12 @@ Adjust to your BC's shape.
 </session_management>
 
 <verification>
-```bash
-dotnet build -m
-dotnet restore --locked-mode
-dotnet format whitespace --no-restore --verify-no-changes
-dotnet format style --no-restore --verify-no-changes
-dotnet test test/{BC}.UnitTests/
-dotnet test test/{BC}.ArchitectureTests/
-dotnet test test/{BC}.IntegrationTests/
-dotnet test test/{BC}.FunctionalTests/
-docker compose --profile full up -d
-# {BC}-specific smoke checks (see <dod>)
-```
+Run the **non-negotiable gates** in [`docs/verification-gates.md`](../verification-gates.md) (build / restore / format / the four `{BC}.*Tests` projects / compose health), then the `{BC}`-specific smoke checks below. **Paste the actual output** — pass/fail per command — into the session summary, not a description. No "done" claim until all are green.
 
-Paste actual command output (pass/fail per command) into your session summary, not a summary.
+```bash
+# {BC}-specific smoke checks, after the standard gates:
+# {e.g. curl a new endpoint and assert the composed response}
+```
 </verification>
 
 <example_design_decision>
@@ -176,13 +171,7 @@ That's the depth expected for **every** `<design_open>` resolution.
 </example_design_decision>
 
 <peer_review>
-Per `_shared.md § 11`. Before declaring DoD met:
-
-1. Run every command in `<verification>`; paste pass/fail output in session summary.
-2. Invoke `superpowers:verification-before-completion`.
-3. Invoke `nw-software-crafter-reviewer` with your session summary as input — fix any HIGH-severity findings.
-
-Do NOT mark `<dod>` complete until all three are done.
+Run the three-role review stack in `_shared.md § 11` end-to-end before declaring DoD met: Role 1 (Opus `feature-dev:code-reviewer` pre-commit) → Role 2 (gates, with pasted output) → Role 3 (`daca-dod-reviewer`, which delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`; self-attest the `docs/DoD.md` Self-attested bucket first). Do NOT mark `<dod>` complete until all three are done.
 </peer_review>
 
 <session_summary>
@@ -220,10 +209,9 @@ Post at the end of the session:
 - `dotnet test`: <output>
 - ...
 
-### Peer-review findings (`nw-software-crafter-reviewer`)
-- HIGH (fixed): ...
-- MEDIUM (deferred): ...
-- LOW (deferred): ...
+### Review-stack findings
+- Role 1 (Opus pre-commit) — CRITICAL/HIGH (fixed): ...
+- Role 3 (`daca-dod-reviewer` → `daca-bc-consistency-reviewer` / `daca-documentation-reviewer`) — DoD blockers + drift confirmed + fixed / accepted: ...
 
 ### Open questions
 - ...

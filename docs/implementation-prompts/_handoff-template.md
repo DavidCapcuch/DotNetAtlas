@@ -9,8 +9,10 @@ session.
 
 Execute milestone **M{N}** of the **{BC}** bounded context per
 `docs/implementation-prompts/{BC}.md` and `docs/implementation-prompts/_shared.md`.
-Keep the four gates green per `_shared.md § 12`. Invoke
-`feature-dev:code-reviewer` (model=opus) pre-commit per `_shared.md § 11`.
+Keep the gates green per `_shared.md § 12`. Invoke
+`feature-dev:code-reviewer` (model=opus) pre-commit per `_shared.md § 11` Role 1.
+On the **final** milestone, also run Role 2 (gates, with pasted output) and
+Role 3 (`daca-dod-reviewer`, which delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`) before declaring DoD met.
 Stop-ask if you'd touch anything outside M{N}'s boundary as defined in that
 BC's `<session_management>` section.
 After the commit lands, emit the M{N+1} handoff block from

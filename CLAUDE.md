@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+Standing behavioral rules (loaded every session): @.claude/rules.md
+
 ## Build & Restore
 
 ```bash

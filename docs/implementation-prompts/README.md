@@ -4,23 +4,26 @@
 
 ## How the kit fits together
 
-- **`_shared.md`** — universal operating manual. Reading order, stack conventions, Weather catalog, platform libraries, async/sync rule, universal skills, autonomous-evolution protocol, universal stop conditions, session-management rules, peer-review chain, shared DoD. Every prompt tells the agent to read this FIRST.
+- **`_shared.md`** — universal operating manual. Reading order, stack conventions, **golden-reference model** (§ 4), platform libraries, async/sync rule, **the dispatch lifecycle + its skills** (§ 7), autonomous-evolution protocol, stop conditions, session-management, **the three-role review stack** (§ 11), shared DoD. Every prompt tells the agent to read this FIRST.
 - **`_template.md`** — the canonical prompt structure (XML-tagged sections + `<thinking_first>` directive). Every dispatch prompt follows it. New prompts copy this template and fill the brackets.
-- **`{prompt}.md`** — one prompt per dispatch unit. Lean (≤ 250 lines, including XML structure). Follows `_template.md` exactly.
+- **`bff.md`** — the one live dispatch prompt (the unbuilt **BFF**, Wave 3) and the worked exemplar of the current template.
 
-The 8 prompts:
+The Wave 0–2 per-BC prompts (catalog / basket / ordering / inventory / payments / invoicing / checkout-saga) were **retired after their BCs shipped** — they had rotted into history. To dispatch a *new* BC, copy `_template.md` and fill it from the BC's `bc-design` chapter; `bff.md` is the model.
 
-| Prompt | Wave | Depends on |
-|---|---|---|
-| [`wave-0-platform-prep.md`](wave-0-platform-prep.md) | 0 | — |
-| [`catalog.md`](catalog.md) | 1 | Wave 0 |
-| [`basket.md`](basket.md) | 1 | Wave 0 |
-| [`ordering.md`](ordering.md) | 1 | Wave 0 |
-| [`inventory.md`](inventory.md) | 1 | Wave 0, Catalog (event consumer) |
-| [`payments.md`](payments.md) | 1 | Wave 0 |
-| [`invoicing.md`](invoicing.md) | 1 | Wave 0 (consumes Ordering + Payments events but can scaffold independently) |
-| [`checkout-saga.md`](checkout-saga.md) | 2 | Wave 1 BCs |
-| [`bff.md`](bff.md) | 3 | Wave 1 + Wave 2 |
+## The dispatch lifecycle
+
+A dispatch is a phased pipeline, not just a build session. The authoritative phase→skill→trigger table is `_shared.md § 7`; the diagram below is the quick view:
+
+```
+0. sharpen design   grill-with-docs                ← stress-test the bc-design chapter vs glossary + ADRs
+1. decompose        to-prd → to-issues             ← tracer-bullet vertical slices, each demoable
+2. dispatch         _template.md / bff.md          ← the locked-contract spec the build session runs
+3. build loop       tdd                            ← red → green → refactor, per behaviour
+4. gate             verification-before-completion ← the four hard gates, actual output pasted
+5. DoD gate         daca-dod-reviewer (+ delegates)     ← diff vs docs/DoD.md; arch/DDD → daca-bc-consistency-reviewer, docs → daca-documentation-reviewer
+```
+
+Phases 0–1 happen with the owner before a fresh session is spawned; phases 2–5 run inside the dispatch. This mirrors [Anthropic's harness-design guidance](https://www.anthropic.com/engineering/harness-design-long-running-apps): agree the scope + verification contract *before* implementation, and keep the agent that **builds** separate from the agent that **judges**.
 
 ## Dispatching a session
 
@@ -40,31 +43,18 @@ Follow the prompt's <thinking_first> directive — your first response is the pl
 
 The stored MD is the **reusable contract**; the session notes are **per-dispatch delta**. Version-controlled stability + session-specific tailoring.
 
-## Dispatch order
+## What's left to dispatch
 
-```
-Wave 0 (alone):       wave-0-platform-prep
-Wave 1 (parallel):    Catalog ∥ Basket ∥ Ordering ∥ Inventory ∥ Payments ∥ Invoicing
-Wave 2 (depends 1):   Checkout saga
-Wave 3 (depends 1+2): BFF
-```
-
-Wave 0 must merge before Wave 1 dispatches. Within Wave 1, the six BCs are independent at the contract level; Inventory consumes `ProductCreatedEvent` from Catalog so wire-up testing benefits from Catalog landing first, but they can scaffold + unit-test in parallel.
-
-Ordering is greenfield under `services/Ordering/` (the former `services/Order/` was deleted pre-dispatch with the Weather cleanup).
+Waves 0–2 are **built** (platform + the six Wave-1 BCs + the checkout saga). The only remaining dispatch is **Wave 3 — the BFF** (`bff.md`), which depends on the Wave 1 BCs (HTTP-reachable) + the Wave 2 saga. The wave model is retained as the **file-ownership discipline** that kept parallel sessions conflict-free, not as a live schedule.
 
 ## Evaluating a completed prompt
 
-When an agent reports completion, the agent MUST have already done the peer-review chain (`_shared.md § 11`). Re-verify:
+When an agent reports completion, the agent MUST have already run the three-role review stack (`_shared.md § 11`): Opus pre-commit review, the gates with pasted output, and `daca-dod-reviewer` (which delegates drift → `daca-bc-consistency-reviewer` and docs → `daca-documentation-reviewer`). Re-verify:
 
-1. `dotnet build -m` → succeeds
-2. `dotnet restore --locked-mode` → succeeds with committed lock files
-3. `dotnet format whitespace --no-restore --verify-no-changes` → clean
-4. `dotnet format style --no-restore --verify-no-changes` → clean
-5. `dotnet test test/{Bc}.*.Tests/` → all green
-6. `docker compose --profile full up -d` → service container starts + healthcheck passes
-7. Docs self-corrected if needed (`docs/bc-design/{bc}.md`, glossary, example-mapping)
-8. Session-summary posted with the full template from `_template.md § session_summary` — including ADR application notes, verification output (not a summary — the actual output), and peer-review findings
+1. All [verification gates](../verification-gates.md) green (build / restore `--locked-mode` / format / the four test projects / compose health) — actual output, not a summary.
+2. Docs self-corrected if needed (`docs/bc-design/{bc}.md`, glossary, example-mapping).
+3. `daca-dod-reviewer` blockers fixed; `docs/DoD.md` Self-attested bucket attested.
+4. Session-summary posted with the full template from `_template.md § session_summary` — ADR notes, pasted verification output, and review-stack findings.
 
 ## Contract-locked vs Design-open — the core idea
 
@@ -73,7 +63,7 @@ Each prompt explicitly splits:
 - **`<contract>`** — the seams between BCs (events, topics, Avro, cross-BC HTTP calls). These are inviolate; changing any requires user approval + doc update + ADR if material.
 - **`<design_open>`** — everything inside the BC (code shape, specification composition, validator mechanics, error-class API, test-split depth, tooling choices). These are the agent's own.
 
-This is the spec-driven-at-the-seams + discovery-driven-within-the-BC model. Agents are expected to invoke `superpowers:brainstorming` before designing any open area and `nw-roadmap` before starting to write code.
+This is the spec-driven-at-the-seams + discovery-driven-within-the-BC model. The open interior is grounded by `grill-with-docs` (phase 0) and built behaviour-by-behaviour with `tdd` (phase 3) — see the lifecycle above and `_shared.md § 7`.
 
 ## Cross-cutting ADRs (0008–0019) — the `<applicable_adrs>` block
 
@@ -92,14 +82,7 @@ Each BC prompt has an `<applicable_adrs>` block listing the cross-cutting ADRs t
 
 ## Skill integration
 
-Every prompt has a `<skills>` block. Universal skills (in `_shared.md § 7`):
-
-- `superpowers:using-superpowers`, `brainstorming`, `test-driven-development`, `systematic-debugging`, `verification-before-completion`, `requesting-code-review`, `receiving-code-review`
-- `nw-roadmap`, `nw-execute`, `nw-mutation-test`, `nw-refactor`
-- `nw-software-crafter-reviewer` — final peer review before declaring done
-- `dotnet-contribution:dotnet-backend-patterns`
-
-BC-specific extras are in each prompt's `<skills>` block.
+The authoritative phase→skill→trigger mapping is the build lifecycle (`_shared.md § 7`) + the review stack (`_shared.md § 11`) — not restated here. Two notes that aren't in those tables: `superpowers:using-superpowers` auto-establishes skill usage at session start, and `requesting`/`receiving-code-review` are craft guidance, not gates. Each prompt's `<skills>` block adds unit-specific extras.
 
 ## Self-correction expectations
 
@@ -111,3 +94,26 @@ Every prompt's `<autonomous_evolution>` tells the agent to:
 4. Ask on non-obvious tradeoffs rather than silently guessing
 
 The session summary is the evidence trail — every dispatch ends with one (template in `_template.md § session_summary`).
+
+## Failure modes → guardrails
+
+The kit is built to defeat the common agent-dispatch failure modes. Each maps to a concrete mechanism:
+
+| Failure mode | Guardrail in this kit |
+|---|---|
+| **Context drift** (long session contradicts itself) | Context-window discipline + handoff at ~80% (`_shared.md § 9–10`); one unit per dispatch |
+| **Over-editing** (touches unmentioned things) | `<boundaries>` file ownership + the migration `permissions.deny` (`.claude/settings.json`) |
+| **Vague scoping** | Locked `<contract>` + `<mission>`/`<dod>`; phase-1 `to-issues` tracer-bullet slices |
+| **Missing test coverage** | "Every new behaviour ships a new test" (`_shared.md § 12`); `tdd` build loop |
+| **Architecture drift** | `conventions.md` + CI-blocking `architecture-tests.md` (NetArchTest); `daca-bc-consistency-reviewer` (via `daca-dod-reviewer`) at DoD |
+| **Stale docs** | Doc self-correction *in the same session* (`_shared.md § 8`) |
+| **False certainty** (confident-but-wrong) | The gate's *prove-don't-claim* rule (actual pasted output) + a separate **judge** (`daca-dod-reviewer`, a fresh subagent) auditing the diff vs `docs/DoD.md`, never self-attestation |
+
+## Basis (cited)
+
+The kit's discipline is evidence-backed, not priors:
+
+- **Plan-first, locked-contract-at-the-seams, separate builder from judge, hard verification thresholds** — [Anthropic, *Harness design for long-running application development*](https://www.anthropic.com/engineering/harness-design-long-running-apps).
+- **Fan-out review + evaluator-optimizer** (the `daca-bc-consistency-reviewer`'s per-dimension fan-out with adversarial verification of findings) — [Anthropic, *Building Effective Agents*](https://www.anthropic.com/research/building-effective-agents).
+- **Architecture-as-tests / fitness functions** make conventions executable rather than tribal — [ArchUnit](https://www.archunit.org/) (the NetArchTest model); project-specific [Roslyn analyzers](https://learn.microsoft.com/en-us/dotnet/csharp/roslyn-sdk/tutorials/how-to-write-csharp-analyzer-code-fix) enforce house style at compile time.
+- **Aggregate = transactional consistency boundary, reference-by-identity** — Vaughn Vernon, *Implementing DDD* (ch. 10). **Outbox-only event seams** — [Chris Richardson, Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html).

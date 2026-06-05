@@ -4,20 +4,13 @@
 
 ## 1. Who you are + the setup
 
-You implement **one bounded context (or one cross-cutting wave)** of the DotNetAtlas eShop. You work in a fresh Claude Code session at `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`. You coordinate with agents in other BCs ONLY through the version-controlled design docs. The BC-specific prompt tells you which folder is yours and what's off-limits.
+You implement **one bounded context (or one cross-cutting wave)** of the DotNetAtlas eShop. You work in a fresh Claude Code session at `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`. You coordinate with agents in other BCs ONLY through the version-controlled design docs. The unit-specific prompt tells you which folder is yours and what's off-limits.
 
-**Spec-driven discipline:** Contracts at the seams (events, topics, Avro schemas, cross-BC calls) are **LOCKED**. Everything inside your BC (code structure, specification classes, validator mechanics, error-class API, test-split depth, tooling choices) is **OPEN** — you design it, justify it in the session summary.
+**Spec-driven discipline:** Contracts at the seams (events, topics, Avro schemas, cross-BC calls) are **LOCKED**. Everything inside your unit (code structure, specification classes, validator mechanics, error-class API, test-split depth, tooling choices) is **OPEN** — you design it, justify it in the session summary. (Per [Anthropic's harness-design guidance](https://www.anthropic.com/engineering/harness-design-long-running-apps), the scope + verification contract is agreed *before* implementation — this kit is that contract.)
 
-**The 8-prompt dispatch sequence:**
+**Build status + the wave model.** Wave 0 (platform) + Wave 1 (Catalog ∥ Basket ∥ Ordering ∥ Inventory ∥ Payments ∥ Invoicing, plus **Notifications** added later) + Wave 2 (the **Checkout** and **Payments-processing** sagas, under `saga/SagaOrchestrators/`) are **built** — seven convention-current BCs in `services/`. The one remaining dispatch is **Wave 3 — the BFF** (`bff.md`), this kit's live exemplar. The wave model still matters as the **file-ownership discipline** that kept parallel sessions conflict-free: each unit owns disjoint `services/{BC}/**` (or `src/EShop.BFF/**`) and touches shared seams only through the design docs.
 
-```
-Wave 0 (foundation):  wave-0-platform-prep                                              ← run first, alone
-Wave 1 (parallel):    Catalog ∥ Basket ∥ Ordering ∥ Inventory ∥ Payments ∥ Invoicing
-Wave 2 (depends 1):   Checkout saga
-Wave 3 (depends 1+2): BFF
-```
-
-The new template file `_template.md` codifies the canonical prompt structure (XML-tagged sections, `<thinking_first>` directive, `<stop_conditions>`, `<session_management>`, `<peer_review>`). Every BC prompt follows it.
+`_template.md` codifies the canonical prompt structure (XML-tagged sections + `<thinking_first>`, `<stop_conditions>`, `<session_management>`, `<verification>`, `<peer_review>`). Every dispatch prompt follows it; § 7 below is the lifecycle those prompts run.
 
 ## 2. Canonical reading order
 
@@ -26,10 +19,10 @@ On top of this file, every BC reads (in order):
 1. `CLAUDE.md` — repo rules (non-negotiable: locked-mode restore, format gates, no EF migration generation)
 2. `docs/eshop-master-design.md` — **especially § 3 event discipline, § 5 BC overview (find your BC), § 6 Kafka topics, § 10 diagrams, § 11 cross-cutting**
 3. `docs/eshop-general-plan.md` — solution tree
-4. `docs/adr/0001` through `0019` — **all 19 ADRs**. The first 7 are domain decisions; 0009–0019 are cross-cutting (target profile, service-auth, PII, versioning, idempotency, feature flags, time, Redis topology, blob storage, invoice numbering, PDF lib). Your BC prompt's `<applicable_adrs>` block tells you which apply directly.
+4. `docs/adr/` — **read every ADR your `<applicable_adrs>` block names; skim the rest from the directory** (don't trust a hardcoded count — the set currently spans `0001`–`0033`, with `0030` a tombstone). 0001–0007 domain decisions, 0008 a deprecated stub, 0009+ cross-cutting (service-auth, PII, versioning, idempotency, feature flags, time, Redis, blob, invoice numbering, PDF, **0024 dispatch-in-interceptor**, **0029 order-keyed saga**, **0033 topic-contract SSOT**, …). The directory is the source of truth.
 5. Your BC's chapter + glossary + example-mapping under `docs/bc-design/`
 6. `docs/bc-design/events-catalog.md` + `use-cases.md` — find rows for your BC
-7. `docs/bc-design/error-taxonomy.md`, `kafka-dlt-strategy.md`, `architecture-tests.md` (Avro schema compatibility is now [ADR-0007](../adr/0007-avro-compatibility-modes.md) + `kafka-topology.md` — `avro-compatibility.md` was retired per ADR-0033)
+7. `docs/bc-design/error-taxonomy.md`, `kafka-dlt-strategy.md`, `architecture-tests.md` (Avro schema compatibility is now [ADR-0007](../adr/0007-avro-compatibility-modes.md) + `kafka-topology.md`; `avro-compatibility.md` is a redirect stub per ADR-0033 — don't read it)
 8. Saga-affected BCs also read: `saga-stuck-runbook.md`. BFF reads: `rate-limiting.md`. Invoicing reads: ADR-0017/0018/0019.
 9. `docs/diagrams/context-map.md` + `bc-map-entities.md` (mermaid sources)
 
@@ -52,30 +45,23 @@ On top of this file, every BC reads (in order):
     - xunit.v3 enforces `xUnit1051` — pass `TestContext.Current.CancellationToken` to every async call in a test body, otherwise the build fails.
     - ASP.NET middleware tests built on `DefaultHttpContext` do **not** fire `Response.OnStarting` callbacks (the callbacks are registered but never invoked without a real pipeline). Either set response headers eagerly, or stand up `Microsoft.AspNetCore.TestHost` for the assertion.
 
-Do not introduce new libraries without documenting rationale + asking.
+**Schema application — three strategies by environment.** Dev (laptop `dotnet run` + compose) applies the EF model via `MigrateAsync`, Development-gated (`Platform.ServiceDefaults/MigrationStartupExtensions`); Testing replays the committed `V*.sql` scripts through **Evolve** via `Platform.Test.Framework/Database/PostgreSqlTestContainer`; Deployed replays the same `V*.sql` through **Flyway** (the compose `flyway` service). So **test fixtures never call `MigrateAsync` / `EnsureCreatedAsync`** — they exercise the exact SQL prod runs.
 
-## 4. Weather reference catalog — file paths to mirror
+Do not introduce new libraries without documenting rationale + asking. When an added package **is** approved: add it to the correct-level `Directory.Packages.props`, run `dotnet restore` once **without** `--locked-mode` to regenerate `packages.lock.json`, then commit the lock delta — otherwise the locked-mode gate fails on the next restore.
 
-The Weather service is a complete working reference. **Copy the shape, not the domain.**
+## 4. Golden reference — read a real built BC, don't mirror by eye
 
-| Concept | Weather file | Purpose |
+Seven convention-current BCs exist. **Read the closest one for the shape; copy the structure, not the domain.** Do **not** mirror `src/Weather` — it predates the current conventions and is slated for deletion (see CLAUDE.md). Mirroring-by-eye is what let cross-BC consistency drift; the rules below, not a file list, are the source of truth.
+
+| Your unit's shape | Golden reference | Why it's the model |
 |---|---|---|
-| Aggregate root | `src/Weather.Domain/Alerts/AlertSubscriber.cs` | Private ctor, static factories, `AddDomainEvent` |
-| SmartEnum | `src/Weather.Domain/Alerts/ValueObjects/SubscriptionTier.cs` | Business-rule properties on values |
-| Value object | `src/Weather.Domain/Alerts/ValueObjects/` | `ValueObject` base; `Create` returning `Result<T>` |
-| Internal domain event | `src/Weather.Domain/Alerts/Events/` | `sealed record {Name}DomainEvent : DomainEvent` |
-| Command handler + validator | `src/Weather.Application/WeatherAlerts/PurchaseSubscription/` | Command class + `{Name}CommandHandler` + `{Name}CommandValidator` |
-| Query handler | `src/Weather.Application/WeatherForecast/GetForecasts/` | Query + handler + response DTO |
-| Outbox publisher | `src/Weather.Application/WeatherAlerts/PurchaseSubscription/SubscriptionActivatedOutboxPublisherDomainEventHandler.cs` | Internal→external event mapping + outbox add |
-| Application DI | `src/Weather.Application/Common/ApplicationDependencyInjection.cs` | Validators, CQRS handlers, domain-event dispatcher, behaviours |
-| Infrastructure DI | `src/Weather.Infrastructure/Common/MessagingDependencyInjection.cs` | Outbox + inbox + KafkaFlow consumer setup |
-| Persistence DI | `src/Weather.Infrastructure/Common/PersistenceDependencyInjection.cs` | DbContext + `DispatchDomainEventsInterceptor` + FusionCache |
-| Kafka consumer | `src/Weather.Infrastructure/Messaging/Kafka/Subscriptions/ActivateSubscriptionCommandKafkaHandler.cs` | `IMessageHandler<T>` + inbox dedup + transactional handler |
-| API endpoint | `src/Weather.Api/Endpoints/` | FastEndpoints subclasses |
-| Result → Problem-Details | `src/Weather.Api/Common/Extensions/ResultsExtensions.cs` | `SendErrorResponseAsync` |
-| Arch tests | `test/Weather.ArchitectureTests/` | NetArchTest assertions |
-| Integration tests | `test/Weather.IntegrationTests/` | `WebApplicationFactory` + Testcontainers |
-| Functional tests | `test/Weather.FunctionalTests/` | End-to-end HTTP |
+| Standard 4-layer, EF Core + outbox (default) | **Catalog** (`services/Catalog/`) | Clean aggregate BC: domain events, projections, `DispatchDomainEventsInterceptor`, FastEndpoints, the 4 test projects |
+| Event-sourced aggregate | **Inventory** (`services/Inventory/`) | `IEventStore` + append-only `EventStoreRepository`; domain-event dispatch inside `AppendAsync` |
+| Redis-primary aggregate | **Basket** (`services/Basket/`) | Redis-backed persistence, dispatch in handler after `SaveAsync`, `ProductCatalog` ACL HTTP adapter |
+| PII / external gateway | **Payments** (`services/Payments/`) | `_enc` column convention (ADR-0011), outbox-only publish path (arch-tested) |
+| 2-layer aggregation gateway | **BFF** (`bff.md` in this kit) | Stateless composition, typed clients, FusionCache; no domain model |
+
+**The shape is the SSOT, not the paths.** Conventions are canonical in `docs/bc-design/conventions.md` (its §8 map points at the authoritative doc per topic), and the executable rules are in `docs/bc-design/architecture-tests.md` (NetArchTest, CI-blocking). **A change that would fail an arch test is a real failure, not a style nit.**
 
 ## 5. Platform libraries (consume, don't modify — Wave 0 extends `ServiceDefaults`)
 
@@ -83,12 +69,12 @@ The Weather service is a complete working reference. **Copy the shape, not the d
 - `Platform.CQRS` — `ICommand[<T>]`, `IQuery<T>`, handler + dispatcher + behaviour chain (Tracing → Logging → Metrics → Validation → Handler)
 - `Platform.ReliableMessaging.Outbox.EFCore` — `ITransactionalOutbox<TDbContext>.AddOutboxMessage(topic, key, ISpecificRecord)`
 - `Platform.ReliableMessaging.Inbox.EFCore` — `AddInbox<TDbContext>(typeof(...))` for Kafka dedup
-- `Platform.KafkaFlow.DeadLetter` — `.DLT` suffix convention (see kafka-dlq-strategy.md)
+- `Platform.KafkaFlow.DeadLetter` — `.DLT` suffix convention (see `kafka-dlt-strategy.md`)
 - `Platform.KafkaFlow.Inbox.EFCore`, `Platform.KafkaFlow.ProducerHeaders` — inbox dedup + producer headers (`message.id`, `origin`)
 - `Platform.Avro.UniversalSerDes` — Record-Name-Strategy subjects
 - `Platform.SchemaRegistry.Contracts` — all `.avsc` files live here
 - `Platform.OutboxRelay.WorkerService` — you ADD a container per service schema in docker-compose
-- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: OAuth2 service-auth, OpenFeature DI**. Cross-service HTTP resilience is handled by YARP at the edge — no per-service Polly presets are shipped. Time abstraction is BCL `System.TimeProvider` (auto-registered by Generic Host); use `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` in tests.
+- `Platform.ServiceDefaults` — OTel + health checks + problem details + **Wave 0 additions: OAuth2 service-auth, OpenFeature DI**. Cross-service HTTP resilience is handled by YARP at the edge — no per-service Polly presets are shipped.
 - `Platform.Test.Framework` — shared test fixtures
 
 If you hit a gap, **ASK** — adding platform code is an escalation.
@@ -111,28 +97,26 @@ Forbidden: sync HTTP across a saga-coordinated boundary; publishing external eve
 
 **When in doubt → ask.**
 
-## 7. Skills you invoke during the session (universal)
+## 7. The dispatch lifecycle + the skills at each phase
 
-Every BC prompt extends this list with BC-specific skills. Invoke skills proactively at the trigger.
+A dispatch runs the same lifecycle whether the unit is a BC or a cross-cutting wave. Invoke each skill proactively at its trigger; the BC-specific prompt extends this with any unit-specific skills.
 
 | Phase | Skill | Trigger |
 |---|---|---|
 | Session start | `superpowers:using-superpowers` | auto — establishes how you find and use skills |
-| Before design | `superpowers:brainstorming` | before writing code for a new feature — explores the unspecified internal shape |
-| Phased planning | `nw-roadmap` | decompose your BC into phased TDD steps aligned with the example-mapping scenarios |
-| Per step | `superpowers:test-driven-development` | red → green → refactor discipline on each roadmap step |
-| Step dispatch | `nw-execute` | optional — delegate one roadmap step to a specialised agent |
+| **0 — sharpen the design** | `grill-with-docs` | before writing the spec/code: stress-test the unit's design against its `bc-design` chapter, glossary, and the applicable ADRs; sharpen terminology, kill ambiguity. (Replaces a generic brainstorm — it grounds the open-interior design in the documented model.) |
+| **1 — decompose** | `to-prd` → `to-issues` | turn the sharpened design into a PRD, then into independently-grabbable **tracer-bullet** issues (thin vertical slices, each demoable end-to-end). Decomposition lives here, not in a separate roadmap tool. |
+| **2 — dispatch** | this kit (`_template.md` / the unit's prompt) | the spec the build session executes |
+| **3 — build loop** | `tdd` | red → green → refactor per **behaviour** (not per step); deep-module + interface-design discipline. Each test responds to what the previous cycle taught you. |
 | When stuck | `superpowers:systematic-debugging` | unexpected behaviour, flaky test, inconsistent reproduction |
-| Post-green quality | `nw-mutation-test` | feature-scoped mutation testing; target ≥ 80% kill rate |
-| Refactor pass | `nw-refactor` | RPP L1–L6 after tests are green |
-| Before PR | `superpowers:requesting-code-review` | structured review request |
-| On feedback | `superpowers:receiving-code-review` | rigour before implementing review suggestions |
-| **Pre-commit, every milestone** | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **mandatory** on any milestone commit touching ≥ 5 files — brief with file list + test list + what's intentionally deferred. Validated precedent: this pass caught one CRITICAL + three IMPORTANT findings that would otherwise have shipped. Use `opus` explicitly; the default model is weaker. |
-| Before claiming done | `superpowers:verification-before-completion` | evidence-first claim of completion (run all `<verification>` commands; paste output in summary) |
-| Final peer review | `nw-software-crafter-reviewer` | invoke with your session summary BEFORE declaring DoD met; fix any HIGH-severity findings. Runs on Haiku — complement the Opus pre-commit review, don't substitute for it. |
+| **Pre-commit, every milestone (≥ 5 files)** | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **mandatory** correctness/quality review before staging — brief with the exact file list + test list + what's intentionally deferred. Validated precedent: caught one CRITICAL + three IMPORTANT findings that would otherwise have shipped. Use `opus` explicitly; the default model is weaker. |
+| **4 — gate** | `superpowers:verification-before-completion` | evidence-first: run every `<verification>` command and paste the **actual output** (not a summary) before any "done" claim |
+| **5 — DoD gate (final step)** | `daca-dod-reviewer` (+ `daca-bc-consistency-reviewer` / `daca-documentation-reviewer`) | self-attest the `docs/DoD.md` **Self-attested** bucket in your summary, then run `daca-dod-reviewer` on your diff: an applicability-gated audit of the **Reviewer-audited** bucket that **delegates Architecture/DDD to `daca-bc-consistency-reviewer`** (golden-BC drift vs §4 + `conventions.md` + `architecture-tests.md`, judgment dimensions: DI/decorator order, error-factory placement, outbox-dispatch path, topic topology, options shape, persistence layout, test-split) **and Documentation to `daca-documentation-reviewer`** (vs `documentation-conventions.md`). Objective violations block; judgment concerns warn. |
 | .NET idioms | `dotnet-contribution:dotnet-backend-patterns` | continuous — C#/.NET pattern reference |
 
-> **Reviewer choice note.** Some older prompts reference `code-documentation:code-reviewer` for the pre-commit review step. The concrete `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` call above is the validated path — use it unless you have specific reason to pick a different reviewer skill.
+> **Optional quality check:** a feature-scoped mutation-testing pass (target ≥ 80% kill) is a good sanity-check on test strength after green — recommended, not a gate.
+>
+> **Code-review craft:** for *how* to ask for and act on review, `superpowers:requesting-code-review` / `receiving-code-review` are available; they're craft guidance, not gates.
 
 ## 8. Autonomous evolution protocol
 
@@ -152,13 +136,13 @@ You are not a transcription machine. Read critically, evolve when the code revea
 Beyond the BC-specific stop conditions in your prompt's `<stop_conditions>`, every agent stops and asks the user when:
 
 - A file referenced in `<reading_order>` does not exist or is empty.
-- Wave 0 (`docs/implementation-prompts/wave-0-platform-prep.md`) has not been merged but your BC depends on its outputs (service-auth, redis-basket / redis-cache split, Azurite container, etc.).
+- A prerequisite your dispatch depends on isn't actually present in the repo — e.g. the platform foundations (service-auth, redis-basket / redis-cache split, Azurite container) or an upstream BC's HTTP surface or events.
 - An ADR contradicts a BC design doc.
 - A `<contract>` item conflicts with `events-catalog.md` or `use-cases.md` (file:line).
 - An open design decision in `<design_open>` has implications you didn't expect — flag the trade-off, name your tentative choice, ask before committing.
 - You're about to introduce a new platform library or NuGet package not listed in `<reading_order>` or this `_shared.md` § 3.
 - You're about to skip a step in the dispatch sequence (e.g., starting Wave 2 before Wave 1 is verified).
-- Your context window approaches 80% full — summarise progress and ask whether to continue or hand off.
+- Your context window approaches 80% full — stop, summarise, and suggest using /handoff skill (see § 10).
 
 ## 10. Session management
 
@@ -170,45 +154,39 @@ Every BC implementation is multi-file, multi-hour work. Manage the session as yo
 - **Context-window discipline.** When approaching 80% full (≈ 30 large files read), stop, summarise, and ask whether to continue or hand off the remainder to a follow-up session with a context-summary.
 - **Emit a handoff prompt at every milestone boundary.** After a milestone commit lands and before ending the session, print the block from `docs/implementation-prompts/_handoff-template.md` with `{BC}` and `{N+1}` substituted for the next milestone. The user pastes it into a fresh session to continue.
 
-## 11. Peer review before declaring done
+## 11. The review stack — three roles
 
-**Pre-commit, every milestone** (not only at DoD):
+Three review touchpoints ([Anthropic's harness-design guidance](https://www.anthropic.com/engineering/harness-design-long-running-apps): the agent that *builds* should be separate from the agent that *judges* — self-evaluation lets a model confidently praise its own mediocre work). Role 1 is a high-frequency per-milestone sweep; Roles 2–3 are the final gate. Role 1 overlaps Role 3 on quality/correctness **by design** — its value is *frequency* (catching a bug at milestone 3, not milestone 9), not a distinct concern.
 
-0. Before `git commit` on any milestone that touches ≥ 5 files, invoke `Agent(subagent_type="feature-dev:code-reviewer", model="opus")`. Brief it with the exact file list, test list, design decisions taken, and what's intentionally deferred. Fix all CRITICAL/HIGH findings before staging; document accepted MEDIUM/LOW findings in the commit body. Use `model="opus"` — the default Sonnet has historically surfaced one CRITICAL + three IMPORTANT findings on a precedent review; Opus is strictly stronger for the same cost posture on a single review call.
+**Role 1 — per-milestone correctness sweep (≥ 5 files).**
+Before `git commit` on any milestone touching ≥ 5 files, invoke `Agent(subagent_type="feature-dev:code-reviewer", model="opus")`. It's a generic reviewer with **no repo context**, so brief it: the exact file list + test list + design decisions + what's intentionally deferred, **plus a two-line repo preamble** — "Golden reference: `_shared.md § 4`. Outbox-only event seams, result-pattern-not-exceptions, and layer boundaries are arch-tested (`architecture-tests.md`) — flag any violation as a real failure." Fix all CRITICAL/HIGH before staging; document accepted MEDIUM/LOW in the commit body. Use `model="opus"` — precedent surfaced one CRITICAL + three IMPORTANT on a single review; the default is weaker. (The `Agent` tool honours the `model` override; if a harness ever ignores it, have the reviewer state the model it actually ran in its output so the opus assumption isn't silently lost.)
 
-Before posting your session summary as "complete":
+**Role 2 — the gate (before any "done" claim).**
+Run the gates in [`docs/verification-gates.md`](../verification-gates.md) and paste the **actual pass/fail output — not a summary** — into your session summary, then invoke `superpowers:verification-before-completion` (its checklist catches the "I claimed done but never ran X" gap). The gates are **non-negotiable exit conditions** — no "done" without all of them green and pasted.
 
-1. Run every command in `<verification>` and paste the pass/fail output (not a summary — the actual output) into your session summary.
-2. Invoke `superpowers:verification-before-completion` (per § 7) — its checklist catches the common "I claimed done but didn't actually run X" gap.
-3. Invoke `nw-software-crafter-reviewer` with your session summary as input — it reviews against the BC's contract, applicable ADRs, and code quality. Fix any HIGH-severity findings before declaring done. MEDIUM/LOW findings can be documented as follow-ups in the summary. This reviewer runs on Haiku for cost; it complements but does not substitute for step 0's Opus pre-commit pass.
+**Role 3 — the DoD gate, final step.**
+First, **self-attest the `## Self-attested` bucket of `docs/DoD.md`** in your session summary (clarified assumptions, divergent pass run, existing patterns evaluated first, gates green) — a reviewer subagent can't see the conversation, so only you can confirm these.
 
-## 12. Shared Definition of Done
+Then run the DoD audit. **You — the main session — orchestrate it.** In standard Claude Code a subagent can't spawn its own subagents, so the reliable path is to invoke the reviewers as **siblings** from here and aggregate their findings: **`daca-dod-reviewer`** (audits the `## Reviewer-audited` bucket, applicability-gated), **`daca-bc-consistency-reviewer`** (Architecture/DDD golden-BC drift vs § 4 + `conventions.md` + `architecture-tests.md`, ADR-adherence folded in), and **`daca-documentation-reviewer`** (docs vs `documentation-conventions.md`). Each reviewer walks its own rubric **inline**. Objective DoD violations block; judgment concerns warn. Fix every blocker before declaring DoD met.
 
-Each BC adds specifics; these are universal.
+> **Opt-in accelerator (same findings, faster — not required):** if your harness lets a subagent spawn its own, `daca-dod-reviewer` self-delegates to the other two and `daca-bc-consistency-reviewer` fans its seven dimensions out in true parallel. Absent that, sibling-inline is the default.
 
-- [ ] 4-layer project (`Api`, `Application`, `Domain`, `Infrastructure`) compiles; BFF has 2 layers only (`Api`, `Infrastructure`), saga has none (only `saga/SagaOrchestrators/Checkout/`).
-- [ ] All commands + queries from use-cases.md § {your BC} implemented
+## 12. Shared Definition of Done — dispatch-structural
+
+The **structural deliverables** unique to a dispatch. The repo-wide quality bar is [`docs/DoD.md`](../DoD.md) (audited at Role 3); the executable gates are [`verification-gates.md`](../verification-gates.md) (Role 2). **Don't restate their items here** — timestamps, route versioning, new-behaviour-tests, and the gate commands live there, not in this list.
+
+- [ ] 4-layer project (`Api`, `Application`, `Domain`, `Infrastructure`) compiles; BFF has 2 layers only (`Api`, `Infrastructure`); sagas have none (orchestrators only, under `saga/SagaOrchestrators/{Checkout,Payments}/`).
+- [ ] All commands + queries from `use-cases.md § {your BC}` implemented
 - [ ] All internal `*DomainEvent` types declared in Domain layer
 - [ ] All external `*Event` Avro schemas created under `platform/Platform.SchemaRegistry.Contracts/Avro/{Domain}/{Aggregate}/`
 - [ ] Outbox publishers map internal → external per BC chapter
 - [ ] DbContext + naming conventions scaffolded (migration user-generated per CLAUDE.md)
 - [ ] Messaging DI: outbox, inbox, Kafka consumers per BC
 - [ ] docker-compose delta: topics + outbox-relay-{bc} container
-- [ ] 4 test projects compile + pass; architecture tests enforce the rules in architecture-tests.md § {your BC}
-- [ ] All HTTP routes under `/api/v1/{bc}/...` per ADR-0012
-- [ ] All timestamps `DateTimeOffset` (persisted as `timestamptz`); no `DateTime.UtcNow` in domain (arch test) — per ADR-0015
-- [ ] `dotnet build -m`, `dotnet restore --locked-mode`, `dotnet format whitespace`, `dotnet format style` all green
-- [ ] `docker compose --profile full up -d` starts the container + healthcheck passes
+- [ ] 4 test projects exist + pass; architecture tests enforce the rules in `architecture-tests.md § {your BC}`
 - [ ] Docs self-corrected if needed
-- [ ] Peer-review chain (§ 11) executed; HIGH-severity findings fixed
+- [ ] **Quality bar cleared** — `docs/DoD.md` Reviewer-audited bucket has no open blockers (Role 3), Self-attested bucket attested, all [verification gates](../verification-gates.md) green with pasted output (Role 2)
+- [ ] Review stack (§ 11) run end-to-end (Role 1 → Role 2 → Role 3)
 - [ ] Session summary posted
 
-## 13. What "done" is NOT
-
-- Uncommented code that compiles. Run tests. Start the container.
-- Silent deviation from the BC chapter. Flag + justify.
-- Missed external events — event catalog is contract; every listed event has a schema file AND an outbox publisher.
-- Handwaved validators — every command has one OR a documented reason for skipping.
-- Out-of-date docs after self-correction — if code disagrees with doc and code is right, the doc MUST be updated in the same session.
-- "Tests passed locally" without paste of `dotnet test` output in the session summary.
-- ADR violations — if you decide an ADR doesn't apply to your BC, document the rationale, don't silently skip.
+**Not "done" if** — code is uncommitted/untested or the container never started; you silently deviated from the BC chapter; a listed external event lacks its schema file + outbox publisher; a command's validator is handwaved with no documented reason; docs disagree with the (correct) code; you claimed green without pasting the gate output; or an ADR was skipped without a written rationale.
