@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-04-19) · **Amended 2026-05-27** — see [Amendment: Fail-closed audience contract](#amendment-2026-05-27--fail-closed-audience-contract).
+Accepted (2026-04-19) · **Amended 2026-05-27** — see [Amendment: Fail-closed audience contract](#amendment-2026-05-27--fail-closed-audience-contract) · **Amended 2026-06-06** — see [Amendment: BFF token exchange for buyer-scoped callees](#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees).
 
 ## Context
 
@@ -252,3 +252,59 @@ already satisfies the corresponding read policy.
   role gate is pinned by a negative test (correct scope / authenticated non-admin → 403).
 - The `service-scope-matrix.md` companion documents the swagger client's admin-scope provisioning
   and Payments' human-admin reachability alongside the seven service clients.
+
+## Amendment 2026-06-06 — BFF token exchange for buyer-scoped callees
+
+### Context
+
+The Implementation Notes describe one outbound mechanism — `ClientCredentialsTokenHandler`
+attaching a `client_credentials` service token to every outbound HTTP call — and the BFF was
+expected to "forward the user JWT alongside" for buyer-scoped requests ("both tokens travel
+together"). That mental model does not survive contact with the code:
+
+- `ClientCredentialsTokenHandler.SendAsync` **overwrites** `Authorization` with the service token;
+  there is no second-header / on-behalf-of channel, so exactly one token reaches the callee.
+- Three BFF-fronted BCs derive the **resource owner from the token `sub`** and enforce buyer-self:
+  Basket (`GetUserIdFromSubClaim`), Ordering and Invoicing (`User.GetBuyerIdOrNull()`). A
+  `client_credentials` token's `sub` is the BFF **service-account**, so it resolves the wrong buyer
+  — and does so **silently**: the audience passes, the wrong `sub` is simply read.
+- Those three BCs enforce **no scope policy** on the buyer-scoped routes; the `basket.read` /
+  `basket.write` / `ordering.read` / `invoicing.read` scopes exist only to stamp the callee
+  **audience** (2026-05-27 amendment). So nothing rejects a service token there — it authenticates
+  and mis-resolves the owner.
+
+Surfaced by [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323) (whether the `bff`
+client needs a Basket scope); the answer generalizes to every buyer-scoped callee.
+
+### Decision (amendment)
+
+The BFF uses **two** outbound shapes, selected by whether the callee owner-scopes on `sub`:
+
+| Callee + routes | Owner from `sub`? | BFF token | Scope's role |
+|---|---|---|---|
+| Catalog reads; Inventory reads | No (scope-policy-gated) | `client_credentials` service token (`AddServiceAuth`) | gate **and** audience |
+| Basket `GET /basket` + `POST /checkout`; Ordering order reads; Invoicing invoice reads | Yes (buyer-self) | **RFC 8693 token exchange** of the user JWT, preserving `sub` | audience only |
+
+The exchange re-audiences the user's token to the callee via the requested scope's
+`oidc-audience-mapper` (2026-05-27 amendment) while keeping the user `sub`, so the callee's
+`ValidateAudience` passes **and** its `sub`-based owner resolution stays correct. Plain
+`client_credentials` is reserved for callees that do not owner-scope.
+
+### Status / pending
+
+The `bff` client already carries all six outbound scopes
+([`service-scope-matrix.md`](../../src/keycloak/service-scope-matrix.md)). Outstanding, landing
+with the BFF (the one unbuilt unit): the BFF's exchange handler, and the Keycloak-side enablement
+(turn on the `token-exchange` feature + grant the `bff` client exchange permission per callee).
+Until then, Basket / Ordering / Invoicing FunctionalTests mint a synthetic token fusing buyer `sub`
++ the callee audience — a combination no real Keycloak flow yet produces — so their green status is
+**not** end-to-end proof of the exchange path.
+
+### Consequences
+
+- The "both tokens travel together" framing in the Implementation Notes is **superseded** for
+  buyer-scoped callees: one exchanged token carries both the buyer `sub` and the callee audience.
+- Decision rule for a future callee: if the BC resolves the owner from `sub` (buyer-self), the BFF
+  must token-exchange; if it only scope-gates a non-owner-scoped read, a plain service token is
+  correct.
+- BFF endpoint spec: [bff.md § 2.3 / § 3.5](../bc-design/bff.md).

@@ -97,7 +97,7 @@ Notifications v2 ([notifications.md](bc-design/notifications.md), [ADR-0031](adr
 - **Preference HTTP + marketing consent.** Preferences are seeded (no API), transactional-only; a read/mutate HTTP surface and a marketing-consent system-of-record are deferred seams.
 
 #### BFF
-- **Service-to-service token-exchange fallback** (`IdentityServerTokenExchange`). Today the BFF forwards user-token-only; if no user token is present and an upstream requires auth, the upstream returns 401 and the BFF surfaces 401.
+- **RFC 8693 token-exchange handler** (decided [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323); implemented when the BFF lands). Buyer-scoped upstream calls (Basket `GET /basket` + `POST /checkout`; the buyer-owned Ordering / Invoicing reads) exchange the user JWT for a callee-audienced token that preserves the buyer `sub`; non-buyer-scoped reads (Catalog, Inventory) use plain `client_credentials` service tokens. The `bff` client already carries all six scopes ([`service-scope-matrix.md`](../src/keycloak/service-scope-matrix.md)); outstanding are the BFF exchange handler **and** the realm-side enablement (`token-exchange` feature + per-callee exchange permission for the `bff` client).
 - **Language / region forwarding.** `Accept-Language` propagation through HTTP pipeline.
 - **Personalized home page.** Requires auth + a "featured per buyer" service surface.
 - **`IPaymentsClient` (Payments-as-BFF-query source).** Today `PaymentStatus` is derived from order fields (`Completed` / `Pending` / `Failed`); future moves to read `payments.transactions` projection or a Payments HTTP endpoint.
