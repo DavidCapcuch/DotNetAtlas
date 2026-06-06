@@ -1,6 +1,7 @@
 using Inventory.Application.Common.Data;
 using Inventory.Application.Common.Messaging;
 using Inventory.Application.Common.ReadModels;
+using Inventory.Application.StockItems.Common;
 using Inventory.Domain.StockItems.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,9 +14,10 @@ namespace Inventory.Application.StockItems;
 
 /// <summary>
 /// Maintains <c>inventory.current_stock_levels</c> — the hot-path projection
-/// described in <c>inventory.md</c> § 9.1 — and emits the threshold-crossing
+/// described in <c>inventory.md</c> § 9.1 — emits the threshold-crossing
 /// external <c>StockLevelChangedEvent</c> when <c>Available</c> transitions
-/// between zero and positive.
+/// between zero and positive, and evicts the Inventory-owned read-through display
+/// cache so the next read rebuilds from the fresh row (ADR-0034).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -36,6 +38,11 @@ namespace Inventory.Application.StockItems;
 /// Per <c>inventory.md</c> § 6.1 the external <c>StockLevelChangedEvent</c> fires
 /// ONLY on <c>0 &lt;-&gt; positive</c> transitions, not on every stock movement.
 /// </para>
+/// <para>
+/// After applying each event the handler evicts the read-through display cache key
+/// (<see cref="EvictCacheAsync"/>) — best-effort, so a volatile-cache outage cannot fail
+/// the append (ADR-0034 + ADR-0016).
+/// </para>
 /// </remarks>
 internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
     IDomainEventHandler<StockItemInitializedDomainEvent>,
@@ -47,22 +54,25 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
 {
     private readonly IInventoryDbContext _db;
     private readonly ITransactionalOutbox<IInventoryDbContext> _outbox;
+    private readonly IStockLevelCache _cache;
     private readonly TopicsOptions _topics;
     private readonly ILogger<CurrentStockLevelsProjectionDomainEventHandler> _logger;
 
     public CurrentStockLevelsProjectionDomainEventHandler(
         IInventoryDbContext db,
         ITransactionalOutbox<IInventoryDbContext> outbox,
+        IStockLevelCache cache,
         IOptions<TopicsOptions> topics,
         ILogger<CurrentStockLevelsProjectionDomainEventHandler> logger)
     {
         _db = db;
         _outbox = outbox;
+        _cache = cache;
         _topics = topics.Value;
         _logger = logger;
     }
 
-    public Task Handle(StockItemInitializedDomainEvent domainEvent, CancellationToken ct)
+    public async Task Handle(StockItemInitializedDomainEvent domainEvent, CancellationToken ct)
     {
         // First event on a brand-new stream — insert a zeroed row. No threshold
         // fires here: the row goes to Available=0 from "no row" (never
@@ -79,7 +89,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         };
 
         _db.CurrentStockLevels.Add(row);
-        return Task.CompletedTask;
+        await EvictCacheAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
     }
 
     public async Task Handle(StockReceivedDomainEvent domainEvent, CancellationToken ct)
@@ -91,6 +101,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
         MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
+        await EvictCacheAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
     }
 
     public async Task Handle(StockReservedDomainEvent domainEvent, CancellationToken ct)
@@ -102,6 +113,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
         MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
+        await EvictCacheAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
     }
 
     public async Task Handle(ReservationConfirmedDomainEvent domainEvent, CancellationToken ct)
@@ -119,6 +131,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
         MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
+        await EvictCacheAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
     }
 
     public async Task Handle(ReservationReleasedDomainEvent domainEvent, CancellationToken ct)
@@ -131,6 +144,7 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
         MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
+        await EvictCacheAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
     }
 
     public async Task Handle(StockAdjustedDomainEvent domainEvent, CancellationToken ct)
@@ -142,7 +156,16 @@ internal sealed class CurrentStockLevelsProjectionDomainEventHandler :
         Apply(row, prev, domainEvent.OccurredOnUtc);
 
         MaybeEmitStockLevelChangedEvent(row, prev, domainEvent.OccurredOnUtc);
+        await EvictCacheAsync(domainEvent.ProductId, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Evicts the read-through display cache for this ProductId so the next read rebuilds from
+    /// the just-upserted row (ADR-0034). Best-effort and cannot fail the append — see
+    /// <see cref="IStockLevelCache.RemoveAsync"/>.
+    /// </summary>
+    private Task EvictCacheAsync(Guid productId, CancellationToken ct) =>
+        _cache.RemoveAsync(productId, ct);
 
     private async Task<CurrentStockLevelRow> LoadAsync(Guid productId, CancellationToken ct)
     {

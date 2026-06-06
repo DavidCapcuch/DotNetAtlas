@@ -8,6 +8,7 @@ namespace Inventory.Infrastructure.Common;
 /// Composition root for the Inventory Infrastructure layer. Called from
 /// <c>Inventory.Api.Program.cs</c> after <c>AddApplication</c>. Wires the
 /// persistence slice (DbContext, EF Core, event-store repository), the
+/// read-through stock-availability cache on <c>redis-cache</c> (ADR-0034), the
 /// messaging slice (KafkaFlow cluster + 3 consumers + transactional outbox
 /// + inbox dedup), and the health-check surface (Self / DB / Kafka per
 /// <c>eshop-master-design.md § 11</c>).
@@ -29,6 +30,7 @@ public static class InfrastructureDependencyInjection
         services
             .AddOpenTelemetry(isDeployedEnvironment, configuration)
             .AddDatabase(configuration, isDeployedEnvironment)
+            .AddStockLevelCache(configuration)
             .AddKafkaMessaging(configuration)
             .AddInventoryHealthChecks(configuration);
 

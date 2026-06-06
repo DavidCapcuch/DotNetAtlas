@@ -1,4 +1,5 @@
 using FastEndpoints.Testing;
+using Inventory.Application.StockItems.Common;
 using Inventory.Infrastructure.Persistence.Database;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -44,6 +45,11 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// in <c>ConfigureTestServices</c> so writes don't touch Schema Registry —
 /// the fake preserves topic + key + CLR type, which is enough for the
 /// "the right message landed in the right topic" assertions.
+/// </para>
+/// <para>
+/// <see cref="IStockLevelCache"/> is swapped for the in-memory
+/// <see cref="FakeStockLevelCache"/> so the suite stays Redis-free; cache behaviour
+/// against real <c>redis-cache</c> is covered by the functional tests.
 /// </para>
 /// </remarks>
 [DisableWafCache]
@@ -109,8 +115,18 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // tests; integration tests only need to verify "the right outbox
                 // row landed".
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
+
+                // Replace the FusionCache/redis-cache stock-level cache with an in-memory
+                // fake so integration tests need no Redis container (ADR-0034 read-through +
+                // eviction against real redis-cache is covered by the functional tests).
+                services.AddSingleton<FakeStockLevelCache>();
+                services.Replace(ServiceDescriptor.Singleton<IStockLevelCache>(
+                    sp => sp.GetRequiredService<FakeStockLevelCache>()));
             });
     }
+
+    /// <summary>The in-memory stock-level cache backing this fixture (see <see cref="FakeStockLevelCache"/>).</summary>
+    internal FakeStockLevelCache StockLevelCache => Services.GetRequiredService<FakeStockLevelCache>();
 
     /// <summary>Creates a per-test DI scope; caller disposes.</summary>
     public IServiceScope CreateScope() => Services.CreateScope();
@@ -121,7 +137,11 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// after each test so per-test isolation no longer relies solely on
     /// <see cref="Guid.NewGuid"/> discipline.
     /// </summary>
-    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
+    public Task ResetFixtureStateAsync()
+    {
+        StockLevelCache.Clear();
+        return _dbContainer.CleanDataAsync();
+    }
 
     /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
     public string ConnectionString => _dbContainer.ConnectionString;

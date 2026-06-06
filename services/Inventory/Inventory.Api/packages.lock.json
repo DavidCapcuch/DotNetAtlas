@@ -263,6 +263,20 @@
         "resolved": "2.14.0",
         "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
       },
+      "MemoryPack": {
+        "type": "Transitive",
+        "resolved": "1.21.4",
+        "contentHash": "wy3JTBNBsO8LfQcBvvYsWr3lm2Oakolrfu0UQ3oSJSEiD+7ye0GUhYTaXuYYBowqsXBXWD9gf2218ae0JRiYVQ==",
+        "dependencies": {
+          "MemoryPack.Core": "1.21.4",
+          "MemoryPack.Generator": "1.21.4"
+        }
+      },
+      "MemoryPack.Generator": {
+        "type": "Transitive",
+        "resolved": "1.21.4",
+        "contentHash": "g14EsSS85yn0lHTi0J9ivqlZMf09A2iI51fmI+0KkzIzyCbWOBWPi5mdaY7YWmXprk12aYh9u/qfWHQUYthlwg=="
+      },
       "Microsoft.AspNetCore.OutputCaching.StackExchangeRedis": {
         "type": "Transitive",
         "resolved": "10.0.8",
@@ -1003,6 +1017,7 @@
           "KafkaFlow.Retry": "[3.1.0, )",
           "KafkaFlow.Serializer.ApacheAvro": "[1.5.8, )",
           "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
+          "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.8, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.8, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.1, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.15.3, )",
@@ -1023,7 +1038,10 @@
           "Platform.ReliableMessaging.Outbox.Core": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",
-          "Platform.ServiceDefaults": "[1.0.0, )"
+          "Platform.ServiceDefaults": "[1.0.0, )",
+          "StackExchange.Redis": "[2.13.1, )",
+          "ZiggyCreatures.FusionCache": "[2.6.0, )",
+          "ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack": "[2.6.0, )"
         }
       },
       "platform.api": {
@@ -1077,8 +1095,7 @@
         "dependencies": {
           "KafkaFlow": "[4.2.0, )",
           "KafkaFlow.Microsoft.DependencyInjection": "[4.2.0, )",
-          "Platform.Messaging.Abstractions": "[1.0.0, )",
-          "Serilog": "[4.3.1, )"
+          "Platform.Messaging.Abstractions": "[1.0.0, )"
         }
       },
       "platform.messaging.abstractions": {
@@ -1099,8 +1116,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.15.3, )",
-          "Platform.Messaging.Abstractions": "[1.0.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
@@ -1355,6 +1371,12 @@
           "KafkaFlow.SchemaRegistry": "4.2.0"
         }
       },
+      "MemoryPack.Core": {
+        "type": "CentralTransitive",
+        "requested": "[1.21.4, )",
+        "resolved": "1.21.4",
+        "contentHash": "6RszGorZ0ejNmp37ZcboPBMvvPCuNW2jlrdQfcs/lMzE5b3pmPF6hsm/laDc34hRlbAST1ZxaX/DvYu2DF5sBQ=="
+      },
       "Microsoft.AspNetCore.Authentication.JwtBearer": {
         "type": "CentralTransitive",
         "requested": "[10.0.8, )",
@@ -1362,6 +1384,15 @@
         "contentHash": "oGnE+X/SN6jdqao9WOkOIfyZ5+a0AtluJWy1Mxndq+kcWG6sx5k6l6tucu8/wJ7o9fHfLgVCzm/c4v/KVgVk6w==",
         "dependencies": {
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.0.1"
+        }
+      },
+      "Microsoft.Extensions.Caching.StackExchangeRedis": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "fle9ns3q2kk63vt/wHFtLw1U9kiEbM42vTk2Sar8VBjiGJFkXAgm0QEKFx15YMHkJIPRVdknWaovpvgGEgn10g==",
+        "dependencies": {
+          "StackExchange.Redis": "2.7.27"
         }
       },
       "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": {
@@ -1495,6 +1526,22 @@
         "dependencies": {
           "Pipelines.Sockets.Unofficial": "2.2.16",
           "System.IO.Hashing": "10.0.2"
+        }
+      },
+      "ZiggyCreatures.FusionCache": {
+        "type": "CentralTransitive",
+        "requested": "[2.6.0, )",
+        "resolved": "2.6.0",
+        "contentHash": "BCe+/SkwQZfaMpq2ZGDZB2pyx6BdGnP+zxqjMM/5K+4PBuH6hljZeIqH4KVzQ26khSbPsQ7IiYZl0Fve4OZOog=="
+      },
+      "ZiggyCreatures.FusionCache.Serialization.CysharpMemoryPack": {
+        "type": "CentralTransitive",
+        "requested": "[2.6.0, )",
+        "resolved": "2.6.0",
+        "contentHash": "TodjwVxn6JUuf2CN0GF7goFsF5tR6n7K6dTD4t/iaohTlYTmCSAnWO16g1KoMz87epqYJUf+8uXxDw2/cvqpwQ==",
+        "dependencies": {
+          "MemoryPack": "1.21.4",
+          "ZiggyCreatures.FusionCache": "2.6.0"
         }
       }
     },
