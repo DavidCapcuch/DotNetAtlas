@@ -105,7 +105,7 @@ The aggregate does NOT expose setters. External callers go through commands hand
 | `ReservationStatus` | `enum { Active, Confirmed, Released }` | Drives state transitions on `ConfirmReservation` / `ReleaseReservation`. |
 | `ReleaseReason` | `enum { Compensation, Expiry, Cancellation }` | Carried on `ReservationReleasedDomainEvent` and `ReleaseReservationCommand`. Critical for ops/auditing — a release is never "just a release." |
 | `StockSource` | `string` wrapper (e.g., `"receiving-dock"`, `"returns"`, `"transfer-in"`) | Light enum-like token; free-form for the v1 reference. |
-| `StockItemSnapshot` | `record StockItemSnapshot(Guid ProductId, int OnHand, int Reserved, int Available, int Version)` | Read-only projection DTO for queries that don't need the full reservation list. Also the shape returned by `GetStockLevelQuery`. |
+| `StockItemSnapshot` | `record StockItemSnapshot(Guid ProductId, int OnHand, int Reserved, int Available, int Version)` | Read-only projection DTO for queries that don't need the full reservation list. Also the shape returned by `GetStockLevelByProductIdQuery`. |
 
 ---
 
@@ -610,7 +610,7 @@ Each projection is updated by an in-process `IDomainEventHandler<T>` that subscr
 - `StockAdjustedDomainEvent` → `OnHand += delta`.
 Always set `LastUpdatedUtc = event.OccurredAtUtc`, `LastVersion = event.Version`.
 
-**Query:** `GetStockLevelQuery(ProductId) : StockLevelDto` — returns `StockItemSnapshot` value object.
+**Query:** `GetStockLevelByProductIdQuery(ProductId)` — returns the `StockLevelResponse` projection DTO (the `StockItemSnapshot` shape).
 
 **Indexes:**
 - PK on `ProductId`.

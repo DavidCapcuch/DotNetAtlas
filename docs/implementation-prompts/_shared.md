@@ -35,7 +35,7 @@ On top of this file, every BC reads (in order):
 - **KafkaFlow** for Kafka consumers/producers
 - **Confluent Schema Registry** + **Avro** via `Platform.Avro.UniversalSerDes`
 - **FluentValidation** (validators), **FluentResults** (`Result` / `Result<T>`), **Ardalis.SmartEnum**, **Ardalis.Specification.EntityFrameworkCore**, **Riok.Mapperly**
-- **Redis** (split: `redis-basket` AOF for Basket primary; `redis-cache` volatile for BFF backplane + ASP.NET Output Cache backing per ADR-0013/0016) + **FusionCache** (Basket + BFF only)
+- **Redis** (split: `redis-basket` AOF for Basket primary; `redis-cache` volatile for BFF backplane + ASP.NET Output Cache backing per ADR-0013/0016) + **FusionCache** (Basket primary store, Inventory stock read-through cache per ADR-0034, BFF composed cache)
 - **MassTransit** + EF Core saga persistence (saga/ only)
 - **OpenTelemetry** + OTLP collector; Seq dev sink
 - **Azure.Storage.Blobs** + **Azurite** (local) for blob storage (Invoicing)
