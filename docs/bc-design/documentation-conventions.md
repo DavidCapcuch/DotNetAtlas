@@ -6,6 +6,8 @@ The **doc-style SSOT** — what good documentation looks like in this repo. The 
 
 Docs exist only to help a future engineer **decide, understand, operate, or safely change** the system. Litmus: delete the code → the docs still add value; delete the docs → no non-obvious knowledge is lost.
 
+**Audience** — write for an engineer who is sharp but has never seen this codebase: spell out the terms, context, and non-obvious decisions they'd lack; assume the general competence they'd have.
+
 ## XML doc-comments
 
 - **Intent, not boilerplate** — a `<summary>` on public domain API explains the *why* / invariants; it never restates the member name (`CS1591` is silenced, so a doc is a deliberate choice — a name-restating doc is worse than none).
