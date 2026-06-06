@@ -1005,8 +1005,6 @@ public sealed class CreateOrderKafkaHandler
     "shippingAddress": "Address",
     "billingAddress": "Address",
     "paymentMethodId": "Guid",
-    "paymentTransactionId": "Guid | null",
-    "stockReservationId": "Guid | null",
     "shipment": { "carrier": "string", "trackingNumber": "string", "shippedAtUtc": "DateTimeOffset" } | null,
     "cancellation": { "reason": "string", "atStatus": "string", "cancelledAtUtc": "DateTimeOffset" } | null,
     "failure": { "errorCode": "string", "errorMessage": "string", "atStatus": "string", "failedAtUtc": "DateTimeOffset" } | null,
@@ -1027,17 +1025,15 @@ public sealed class CreateOrderKafkaHandler
 #### 3.4.2 `GetOrdersByBuyerQuery`
 
 - **HTTP:** `GET /api/v1/ordering/orders`
-- **Authorization:** Authenticated. Buyer reads only their own orders; admin reads anyone by passing `?buyerId=` query param (enforced in handler — non-admin with `buyerId != claim.sub` gets their own anyway).
+- **Authorization:** Authenticated. v1 lists only the caller's own orders (`BuyerId` from the JWT `sub`). The admin `?buyerId=` override is **deferred to v2+** (`ordering.md` Appendix B); the v1 request DTO (`GetOrdersByBuyerRequest`) binds no `buyerId` param.
 - **Interface:** `IQuery<GetOrdersByBuyerResponse>`.
 - **Request shape:**
   ```
   {
-    "buyerId": "Guid? (query param; admin-only override; otherwise JWT claim wins)",
     "status": "string? (Created|StockReserved|PaymentCompleted|Confirmed|Shipped|Delivered|Cancelled|Failed)",
     "pageNumber": "int (default 1)",
     "pageSize": "int (default 20, max 100)",
-    "callerBuyerId": "Guid (from JWT claim)",
-    "isAdmin": "bool (from role claim)"
+    "buyerId": "Guid (from JWT sub claim; never a wire param in v1)"
   }
   ```
 - **Response shape:**
@@ -1065,7 +1061,7 @@ public sealed class CreateOrderKafkaHandler
   - `PageSize` — InclusiveBetween(1, 100).
   - `Status` — when provided, MustBeValidOrderStatus (parses into `OrderStatus` SmartEnum).
 - **Filter/paging:**
-  - Effective `buyerId = isAdmin ? (command.BuyerId ?? callerBuyerId) : callerBuyerId`.
+  - v1: `buyerId = caller's JWT sub` (no admin override; the `?buyerId=` admin path is v2+ per `ordering.md` Appendix B).
   - `WHERE BuyerId = @buyerId AND (@status IS NULL OR Status = @status)`.
   - `ORDER BY CreatedAtUtc DESC, OrderId DESC`.
   - `LIMIT @pageSize OFFSET ((@pageNumber - 1) * @pageSize)`.
@@ -1202,18 +1198,18 @@ public sealed class CreateOrderKafkaHandler
 #### 4.2.1 `ReceiveStockCommand`
 
 - **HTTP:** `POST /api/v1/inventory/stock-items/{productId}/receive`
-- **Authorization:** `AuthPolicies.Admin` (warehouse receiving-dock operator).
-- **Interface:** `ICommand`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`InventoryWriteScope`: requires the `admin` realm role **and** the `inventory.write` scope — ADR-0010). Warehouse receiving-dock operator.
+- **Interface:** `ICommand<StockLevelResponse>` — returns the post-mutation projection snapshot.
 - **Request shape:**
   ```
   {
     "productId": "Guid (from route)",
     "quantity": "int (>= 1)",
     "source": "string (1-100 chars, e.g. 'receiving-dock', 'returns', 'transfer-in')",
-    "userId": "Guid? (from JWT claim; nullable for system-initiated receipts)"
+    "receivedByUserId": "Guid? (body; nullable for system-initiated receipts)"
   }
   ```
-- **Response:** 204 on success; 404 if `StockItem` does not exist (product never initialized — Catalog event didn't propagate); 422 on quantity <= 0.
+- **Response:** **200 OK** with `StockLevelResponse` `{ productId, onHand, reserved, available, lastUpdatedUtc, lastVersion }` (post-mutation snapshot). Declared error responses: 400, 401, 403, 409.
 - **Handler class:** `ReceiveStockCommandHandler`.
 - **Validator rules:**
   - `ProductId` — NotEmpty.
@@ -1231,18 +1227,19 @@ public sealed class CreateOrderKafkaHandler
 #### 4.2.2 `AdjustStockCommand`
 
 - **HTTP:** `POST /api/v1/inventory/stock-items/{productId}/adjust`
-- **Authorization:** `AuthPolicies.Admin` (ops adjustment — damage write-off, recount).
-- **Interface:** `ICommand`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`InventoryWriteScope`: requires the `admin` realm role **and** the `inventory.write` scope — ADR-0010). Ops adjustment — damage write-off, recount.
+- **Idempotency-Key:** **required** — the endpoint returns 400 (`Inventory.IdempotencyKeyMissing`) when the header is absent; cached 24 h per ADR-0013.
+- **Interface:** `ICommand<StockLevelResponse>` — returns the post-mutation projection snapshot.
 - **Request shape:**
   ```
   {
     "productId": "Guid (from route)",
     "delta": "int (signed; cannot be zero)",
     "reason": "string (1-500 chars)",
-    "userId": "Guid (from JWT claim)"
+    "adjustedByUserId": "Guid (body; admin id for audit — bound from the body, not the JWT)"
   }
   ```
-- **Response:** 204 on success; 404 if stock item missing; 409 if adjustment would make `OnHand < 0` or `Available < 0`; 422 on empty reason or zero delta.
+- **Response:** **200 OK** with `StockLevelResponse` `{ productId, onHand, reserved, available, lastUpdatedUtc, lastVersion }` (post-mutation snapshot). Declared error responses: 400, 401, 403, 409.
 - **Handler class:** `AdjustStockCommandHandler`.
 - **Validator rules:**
   - `ProductId` — NotEmpty.
@@ -1288,26 +1285,26 @@ Plus a separate consumer for the Catalog event inbox:
 #### 4.4.1 `GetStockLevelQuery`
 
 - **HTTP:** `GET /api/v1/inventory/stock-items/{productId}`
-- **Authorization:** `AllowAnonymous` (public product-page overlay). Admin ops variant at `/api/v1/inventory/admin/stock-items/{productId}` includes reservation list; v1 exposes the public one only.
-- **Interface:** `IQuery<GetStockLevelResponse>`.
+- **Authorization:** ⚠ **spec-vs-build conflict (pending human decision).** Code gates this read with `AuthPolicies.ReadPolicy` (`InventoryReadScope` — requires the `inventory.read` *or* `inventory.write` scope); it is **not** anonymous. The original "public product-page overlay" intent expects this single read to be `AllowAnonymous` (and ADR-0034 § Implementation Notes makes its sibling bulk read anonymous). Resolve by making the read endpoints anonymous (fix code) or by ratifying scope-gating (amend ADR-0034 + this section). No separate `/admin/stock-items/{productId}` variant exists.
+- **Interface:** `IQuery<StockLevelResponse>`.
 - **Request shape:**
   ```
   {
     "productId": "Guid (from route)"
   }
   ```
-- **Response shape:**
+- **Response shape (`StockLevelResponse`):**
   ```
   {
     "productId": "Guid",
     "onHand": "int",
     "reserved": "int",
     "available": "int",
-    "version": "int",
-    "lastUpdatedUtc": "DateTimeOffset"
+    "lastUpdatedUtc": "DateTimeOffset",
+    "lastVersion": "int"
   }
   ```
-- **Handler class:** `GetStockLevelQueryHandler`.
+- **Handler class:** `GetStockLevelByProductIdQueryHandler`.
 - **Validator rules:**
   - `ProductId` — NotEmpty.
 - **Filter/paging:** none.
@@ -1315,8 +1312,10 @@ Plus a separate consumer for the Catalog event inbox:
 
 #### 4.4.2 `GetStockLevelsBulkQuery`
 
+> ⚠ **NOT YET BUILT — specified + accepted ([ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)), pending implementation.** No `stock-items/bulk` endpoint exists in `Inventory.Api` today, and the BFF consumer that depends on it is also not yet built. ADR-0034 § Decision (1) resolves to **build** it, so this spec is retained (not tombstoned like § 4.4.4). **Flagged for human decision:** build now, or keep as planned-pending-BFF (gated on the BFF build)?
+
 - **HTTP:** `POST /api/v1/inventory/stock-items/bulk` (POST because the list of ids may exceed URL length for basket-sized collections; body is read-only despite the verb).
-- **Authorization:** `AllowAnonymous` (called by BFF for basket/home-page enrichment).
+- **Authorization:** `AllowAnonymous` per ADR-0034 § Implementation Notes — ⚠ subject to the same anonymous-vs-scope conflict as § 4.4.1 (the only built read, `GET /stock-items/{productId}`, is scope-gated in code).
 - **Interface:** `IQuery<GetStockLevelsBulkResponse>`.
 - **Request shape:**
   ```
@@ -1348,7 +1347,7 @@ Plus a separate consumer for the Catalog event inbox:
 #### 4.4.3 `GetReservationByIdQuery`
 
 - **HTTP:** `GET /api/v1/inventory/reservations/{reservationId}`
-- **Authorization:** `AuthPolicies.Admin` (ops/auditing tool).
+- **Authorization:** `AuthPolicies.ReadPolicy` (`InventoryReadScope` — requires the `inventory.read` *or* `inventory.write` scope). ⚠ Code gates this on the **read** scope, not admin-only as previously documented; any `inventory.read` caller can read reservation-audit rows (which carry `orderId`). Flagged: confirm read-scope is the intended posture or tighten to admin.
 - **Interface:** `IQuery<GetReservationByIdResponse>`.
 - **Request shape:**
   ```
@@ -1461,7 +1460,7 @@ Commands and queries shipped in Wave 1 under `services/Invoicing/Invoicing.Appli
 - **Auth:** authenticated; manual `User.GetBuyerIdOrNull()` short-circuit + IDOR check in the handler (returns `InvoiceNotFound` on cross-buyer reads). Admin (`User.IsInvoicingAdmin()`) bypasses the buyer scope.
 - **Payload:** `{ InvoiceId }`.
 - **Validator:** `GetInvoiceByIdQueryValidator` — `InvoiceId NotEmpty`.
-- **Response:** `{ InvoiceId, InvoiceNumber, IssueDate, Status, Subtotal, VatLines[], Total, PdfSasUrl, SasExpiresAtUtc, … }` — `PdfSasUrl` is re-minted on every read via `IBlobStore.GetSasUrlAsync(...)` with 10-min TTL.
+- **Response (`GetInvoiceByIdResponse`):** `{ InvoiceId, InvoiceNumber, IssueDate, Status, SubtotalAmount, VatLines[], TotalAmount, Currency, PdfPresignedUrl, PdfPresignedUrlExpiresAtUtc, … }` — `PdfPresignedUrl` is a SAS URL freshly minted on every read (10-min TTL, ADR-0017).
 - **Result paths:** `Result.Ok(response)` / `Result.Fail(InvoicingErrors.InvoiceNotFound)`.
 
 ### 6.5 GetInvoiceByOrderIdQuery
