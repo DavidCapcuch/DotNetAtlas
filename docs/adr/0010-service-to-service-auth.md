@@ -307,4 +307,11 @@ Until then, Basket / Ordering / Invoicing FunctionalTests mint a synthetic token
 - Decision rule for a future callee: if the BC resolves the owner from `sub` (buyer-self), the BFF
   must token-exchange; if it only scope-gates a non-owner-scoped read, a plain service token is
   correct.
+- Consumer access to buyer-scoped BCs is **BFF-mediated** — there is no direct consumer→BC path.
+  So the user-facing app client (`e9fdb985`) provisions **no** BC scope and a user JWT never carries
+  a BC audience; the BFF's exchanged token is the only token those BCs accept. (This is why the
+  scope question raised by [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323) does not
+  recur on the app client: the gap is closed by routing through the BFF, not by widening the user
+  token's audience.) The BFF therefore fronts the full basket surface — read, item mutations, and
+  checkout — see [bff.md § 2.5 / § 3.6 / § 4.2](../bc-design/bff.md).
 - BFF endpoint spec: [bff.md § 2.3 / § 3.5](../bc-design/bff.md).

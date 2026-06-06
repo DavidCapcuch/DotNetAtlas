@@ -163,7 +163,7 @@ YARP (per `eshop-general-plan.md`) handles coarse routing concerns — SSL termi
 Client → YARP (TLS, rate limit, routing) → BFF /api/v1/bff/... → (internal services) → BFF → YARP → Client
 ```
 
-Admin/ops tools bypass the BFF and call service endpoints directly through YARP admin routes. YARP config is out of this document's scope (Stage 3 / platform-architect).
+**Consumer traffic is BFF-mediated.** YARP exposes only `/api/v1/bff/*` to consumers, plus the admin/ops routes that reach services directly (admin-role only). There is **no** public consumer route to a BC's own API — in particular **no `/api/v1/basket/*` for the SPA**. Because YARP is a *transparent* reverse proxy (it neither mints nor exchanges tokens), the only token that reaches Basket is the BFF's exchanged one (§ 2.3); the user-facing app client carries no BC scope, so a user JWT is never a Basket credential. YARP config is out of this document's scope (Stage 3 / platform-architect).
 
 ---
 
@@ -298,8 +298,8 @@ Authenticated user's current basket enriched with *current* Catalog prices and *
   - Tag: `"basket-bff-{userId}"`.
   - TTL (soft): 15 seconds — baskets are ephemeral; users want near-real-time feedback after mutations.
   - FailSafeMaxDuration: 2 minutes.
-  - Cache is **per-user** and **bypasses automatically on any basket mutation** via `RemoveByTagAsync` triggered by the `basket.sessions` cache invalidator (see § 2.2). Since the BFF does not run basket mutations through itself (clients call `/api/v1/basket/*` directly), the invalidation has a ≤ seconds delay.
-  - Tradeoff documented: the 15-second TTL means a user's successive `POST /api/v1/basket/items` followed by `GET /api/v1/bff/basket` may see the pre-mutation state for up to 15 seconds if the basket mutation happened out-of-band and the Kafka invalidation event has not arrived. In practice the client SHOULD call `GET /api/v1/basket` (direct) immediately after a mutation for up-to-date state; the BFF-level view is for page loads, not post-mutation freshness. This is a deliberate choice favoring backend reuse over per-request overhead.
+  - Cache is **per-user** and **invalidated synchronously on every BFF-mediated mutation**. Because basket mutations flow through the BFF (§ 3.6) — there is no direct consumer→Basket path (§ 2.5) — each successful `add` / `change-quantity` / `remove` / `clear` / `checkout` calls `RemoveByTagAsync("basket-bff-{userId}")` in the same request, and the `redis-cache` backplane ([ADR-0016](../adr/0016-redis-topology.md)) propagates the eviction across BFF instances. So a `GET /api/v1/bff/basket` issued immediately after a mutation reflects it — no stale-window workaround needed.
+  - The 15-second TTL is a **backstop** for out-of-band changes (e.g. the basket cleared by the checkout consumer), not the primary freshness mechanism. This is the value the BFF adds by fronting the mutations rather than leaving them direct: it owns the read cache, so it can keep it coherent.
 - **Failure modes:**
 
   | Failure | Behavior | Notes |
@@ -312,7 +312,7 @@ Authenticated user's current basket enriched with *current* Catalog prices and *
   | Inventory returns partial (products in `MissingProductIds`) | Those items get `AvailableQty = null`. | Same. |
   | Network unavailable | Serve from cache with `HasStaleData = true`. If no cache, 503. | — |
 - **Cache invalidation hooks:**
-  - `basket.sessions` topic: on `BasketCheckoutInitiatedEvent` → `RemoveByTagAsync("basket-bff-{UserId}")`. (Other basket mutations don't emit Kafka events; the 15-second TTL is the freshness guarantee for those.)
+  - `basket.sessions` topic: on `BasketCheckoutInitiatedEvent` → `RemoveByTagAsync("basket-bff-{UserId}")` — defense-in-depth for the checkout transition. (Item mutations are invalidated synchronously by the BFF endpoints that forward them, § 3.6, not via Kafka.)
   - `catalog.products` topic: on `ProductPriceChangedEvent` → `RemoveByTagAsync("basket-bff-*")` is **too aggressive** (would invalidate every basket on every price change). Instead, `PriceDrifted` is computed freshly on each (non-cached) request. The 15-second TTL absorbs the in-window drift.
   - `inventory.stock-events`: similarly, per-user basket invalidation on stock events would fan out too broadly. Accepted as stale within TTL.
 
@@ -479,9 +479,9 @@ Public landing page — featured products + full category tree + stock highlight
 
 ### 3.5 `POST /api/v1/bff/checkout`
 
-The BFF's **only** state-changing endpoint and the system's **#1 idempotency target** ([ADR-0013](../adr/0013-idempotency-key-http.md) — a customer double-clicking "Pay now" must not place two orders). It triggers the Checkout saga by forwarding to Basket's checkout command; the BFF adds the idempotency seam, dual-token auth, and returns the pre-assigned `OrderId`.
+The BFF's **only** state-changing endpoint and the system's **#1 idempotency target** ([ADR-0013](../adr/0013-idempotency-key-http.md) — a customer double-clicking "Pay now" must not place two orders). It triggers the Checkout saga by forwarding to Basket's checkout command; the BFF adds the idempotency seam, the buyer-scoped token exchange (§ 2.3), and returns the pre-assigned `OrderId`.
 
-> **Supersedes the earlier "BFF exposes no mutation endpoint" stance.** Item-level basket mutations (add / remove / change quantity) are *still* not exposed by the BFF — those go direct to `/api/v1/basket/*` (no aggregation value; see § 4.2). Checkout is the one deliberate exception: it is the saga-triggering, idempotency-bearing seam, not a passthrough duplicate of a basket CRUD call.
+> **Checkout is the saga seam — the BFF *owns* its idempotency here.** The item-level mutations (§ 3.6) are thin forwarders the BFF runs only so it can keep its basket-read cache coherent; their idempotency stays in Basket. Checkout is different: it is the system's #1 idempotency target ([ADR-0013](../adr/0013-idempotency-key-http.md)) and the Checkout-saga trigger, so the BFF owns the idempotency seam at this hop rather than forwarding it to Basket.
 
 #### 3.5.1 Surface
 
@@ -518,6 +518,24 @@ The BFF's **only** state-changing endpoint and the system's **#1 idempotency tar
   | Basket 409 (empty basket) | Surface 409. | `BasketErrors.EmptyBasket`. |
   | Basket timeout / 5xx / circuit-open | 502/503 — **no** stale fallback (mutations never serve stale). Client retries with the **same** `Idempotency-Key`. | Resilience pipeline (§ 2.1) still applies; a retry that lands after the first call committed replays the cached `202`. |
 - **Cache invalidation hooks:** the endpoint emits nothing itself. The downstream `BasketCheckoutInitiatedEvent` reaches the BFF's own `bff-group` basket invalidator (§ 2.2), which clears `basket-bff-{UserId}` — so the post-checkout basket view is wiped promptly.
+
+### 3.6 Basket item mutations — `/api/v1/bff/basket/items*`
+
+Consumer basket access is **BFF-mediated** — there is no direct consumer→Basket path (§ 2.5). So the BFF fronts the item mutations as **thin forwarders** to Basket (one-to-one, no aggregation, no response composition):
+
+| BFF route | Forwards to (Basket) | Command |
+|-----------|----------------------|---------|
+| `POST /api/v1/bff/basket/items` | `POST /api/v1/basket/items` | `AddItemToBasketCommand` |
+| `PUT /api/v1/bff/basket/items/{productId}/quantity` | `PUT /api/v1/basket/items/{productId}/quantity` | `ChangeItemQuantityCommand` |
+| `DELETE /api/v1/bff/basket/items/{productId}` | `DELETE /api/v1/basket/items/{productId}` | `RemoveItemFromBasketCommand` |
+| `DELETE /api/v1/bff/basket/items` | `DELETE /api/v1/basket/items` | `ClearBasketCommand` |
+
+(The same forwarding shape applies to any further consumer basket operation, e.g. `POST /refresh-prices`.)
+
+- **Authentication/authorization:** **Required.** Reached via the **RFC 8693 token exchange** (§ 2.3) on the `bff` client's **`basket.write`** scope — re-audiences the user JWT to `basket-service` while preserving the buyer `sub`, so Basket's `ValidateAudience` passes and `GetUserIdFromSubClaim` resolves the buyer. Identical to checkout's exchange (§ 3.5).
+- **Why through the BFF, not direct:** these forward verbatim, but routing them through the BFF buys two things a direct path cannot — (1) **synchronous invalidation** of the `basket-bff-{userId}` read cache (§ 3.2), so there is no stale-window workaround; (2) a **single auth boundary** — the user JWT never carries a BC audience, so the app client provisions no BC scope ([ADR-0010](../adr/0010-service-to-service-auth.md) minimalism) and Basket's write surface stays off the public edge. This is the canonical record superseding the earlier "item mutations go direct" stance, reconciling this doc with the master-design integration map ([eshop-master-design.md § 4.2](../eshop-master-design.md), which already models `AddItemToBasketCommand` as a BFF→Basket call).
+- **Idempotency:** `AddItem` carries Basket-side `.Idempotency()`; the BFF forwards the `Idempotency-Key` header unchanged. `change-quantity` (PUT) and `remove` / `clear` (DELETE) are idempotent by HTTP-method semantics. Only **checkout's** idempotency is BFF-owned (§ 3.5, [ADR-0013](../adr/0013-idempotency-key-http.md)).
+- **Behavior:** forward → on Basket success, `RemoveByTagAsync("basket-bff-{userId}")` → return Basket's status (`204` / `404` / `409` / `422`) verbatim. The mutation itself is never cached.
 
 ---
 
@@ -617,6 +635,12 @@ public interface IBasketClient
 {
     Task<Result<BasketDto>> GetBasketAsync(CancellationToken ct);
 
+    // Item mutations forwarded for the BFF basket endpoints (§ 3.6) — thin passthroughs.
+    Task<Result> AddItemAsync(AddItemDto item, CancellationToken ct);
+    Task<Result> ChangeItemQuantityAsync(Guid productId, int quantity, CancellationToken ct);
+    Task<Result> RemoveItemAsync(Guid productId, CancellationToken ct);
+    Task<Result> ClearAsync(CancellationToken ct);
+
     // Backs POST /api/v1/bff/checkout (§ 3.5). Returns the pre-assigned OrderId (ADR-0029).
     Task<Result<CheckoutResultDto>> CheckoutAsync(
         CheckoutRequestDto request, CancellationToken ct);
@@ -643,6 +667,10 @@ record BasketItemDto(
     DateTimeOffset CapturedAtUtc,
     MoneyDto LineTotal);
 
+record AddItemDto(
+    Guid ProductId,
+    int Quantity);               // snapshot price is captured server-side by Basket at add-time
+
 record CheckoutRequestDto(
     AddressDto ShippingAddress,
     AddressDto BillingAddress,
@@ -656,10 +684,14 @@ record CheckoutResultDto(
 
 | Client method | Upstream HTTP route | Query / Command |
 |---------------|---------------------|-----------------|
-| `GetBasketAsync` | `GET /api/v1/basket` | `GetBasketByUserIdQuery` (user from forwarded JWT) |
+| `GetBasketAsync` | `GET /api/v1/basket` | `GetBasketByUserIdQuery` (buyer from the exchanged token's `sub`) |
+| `AddItemAsync` | `POST /api/v1/basket/items` | `AddItemToBasketCommand` |
+| `ChangeItemQuantityAsync` | `PUT /api/v1/basket/items/{productId}/quantity` | `ChangeItemQuantityCommand` |
+| `RemoveItemAsync` | `DELETE /api/v1/basket/items/{productId}` | `RemoveItemFromBasketCommand` |
+| `ClearAsync` | `DELETE /api/v1/basket/items` | `ClearBasketCommand` |
 | `CheckoutAsync` | `POST /api/v1/basket/checkout` | `CheckoutBasketCommand` → pre-assigns `OrderId` (`Guid.CreateVersion7()`), emits `BasketCheckoutInitiatedEvent` ([use-cases.md § 2.1.6](use-cases.md), [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) |
 
-**Note:** The BFF exposes exactly **one** basket-related mutation: `POST /api/v1/bff/checkout` (§ 3.5), because checkout is the saga-triggering + idempotency seam (the system's #1 idempotency target, [ADR-0013](../adr/0013-idempotency-key-http.md)) — not a CRUD passthrough. *Item-level* basket mutations (`POST/DELETE/PUT /api/v1/basket/items*`) remain **un-exposed**: clients call `/api/v1/basket/*` directly (through YARP); BFF-level wrappers would duplicate Basket's own endpoints with no aggregation value, so they are deliberately omitted.
+**Note:** Consumer basket access is **BFF-mediated** — there is no direct consumer→Basket path (§ 2.5). The BFF fronts the full basket surface: the enriched read (`GET /api/v1/bff/basket`, § 3.2), the item mutations (§ 3.6, thin forwarders), and checkout (`POST /api/v1/bff/checkout`, § 3.5 — the saga + idempotency seam). Forwarding the item mutations is **not** value-less passthrough: it lets the BFF invalidate its own basket-read cache synchronously *and* keeps the user JWT off Basket's audience, so the user-facing app client (`e9fdb985`) provisions **no** `basket.*` scope ([ADR-0010](../adr/0010-service-to-service-auth.md) "no provisioned-for-someday dead config"). This supersedes the earlier "item mutations go direct" stance and reconciles this doc with the master-design integration map ([eshop-master-design.md § 4.2](../eshop-master-design.md), which already models `AddItemToBasketCommand` as a BFF→Basket call).
 
 ### 4.3 `IOrderingClient`
 
