@@ -56,7 +56,7 @@ Adopt **Option 3**. Concretely:
 
 1. **Build `POST /api/v1/inventory/stock-items/bulk`** (`GetStockLevelsBulkQuery`, `use-cases.md § 4.4.2`) — the batch contract the BFF depends on. The BFF MUST NOT work around its absence with N single-item calls.
 2. **Inventory owns a read-through cache** (FusionCache over `redis-cache`, `Redis:Cache` per `ADR-0016`) fronting the `current_stock_levels` projection for **both** `GET /stock-items/{productId}` and `POST /stock-items/bulk`. The cache is an Inventory implementation detail behind its HTTP API; no other service reads its keys.
-3. **Freshness = invalidate-on-projection-update + short fail-safe TTL.** The existing `IDomainEventHandler<T>` that upserts `current_stock_levels` (§ 9.1) also evicts the affected cache key in the same transaction; the next read rebuilds (FusionCache stampede protection collapses the rebuild). A short fail-safe TTL bounds staleness if an invalidation is ever missed.
+3. **Freshness = invalidate-on-projection-update + short fail-safe TTL.** The existing `IDomainEventHandler<T>` that upserts `current_stock_levels` (§ 9.1) also evicts the affected cache key in the same handler flow as the upsert; the next read rebuilds (FusionCache stampede protection collapses the rebuild). The eviction is **best-effort**: `redis-cache` is volatile / non-critical (`ADR-0016`), so a transient eviction failure is logged and swallowed — it does NOT fail the stock-mutating transaction. A short fail-safe TTL bounds staleness if an invalidation is ever missed or lost.
 4. **`inventory.stock-events` is an invalidation signal only** for the BFF — it invalidates the BFF's *composed* cache; it is never the source the BFF materializes availability from (driver 1).
 5. **Oversell safety is structural, not conventional.** The command side (`ReserveStockCommand`) reads the event-sourced aggregate, so the display cache — at any staleness — cannot cause an oversell. No code rule is needed to "remember not to reserve from the cache"; the CQRS/ES split already guarantees it.
 6. **The BFF→Inventory hop is accepted.** It is paid only on a BFF *composed-cache miss* (cold path), and it is the price of the service boundary — Inventory can retune or remove its cache without the BFF knowing.
@@ -85,7 +85,7 @@ Option 3 keeps each cache owned by exactly one service and reachable only throug
 ### Risks
 
 - **Missed invalidation → stale display.** Mitigation: the short fail-safe TTL bounds it; and it is display-only (driver 2 unaffected).
-- **Cache/projection divergence on partial failure.** Mitigation: evict (not write-through) inside the same transaction that upserts the projection; a failed evict fails the transaction.
+- **Cache/projection divergence on partial failure.** Mitigation: evict (not write-through) in the same handler flow that upserts the projection. The eviction is best-effort — it does NOT fail the write (the write path must stay available when the volatile cache is down, `ADR-0016`) — so the **short fail-safe TTL is the divergence backstop**: any missed or failed eviction self-heals within the TTL, and divergence is display-only (driver 2 unaffected: the reservation decision never reads the cache).
 - **Over-caching a cheap read.** The single-row PK read is already cheap; the cache earns its keep only at the targeted RPS. Accepted deliberately given the scale premise (`ADR-0009`); revisit if load tests show the projection read is not hot.
 
 ## Implementation Notes
