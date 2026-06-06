@@ -262,7 +262,7 @@ All under `/api/v1/invoicing/`. Buyer-scoped authorization using JWT `sub`.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/invoicing/invoices/{id}` | Get invoice metadata + presigned PDF URL. Buyer or admin. |
-| `GET` | `/api/v1/invoicing/invoices?page=…&limit=…` | Paginated list for authenticated buyer |
+| `GET` | `/api/v1/invoicing/invoices?pageNumber=…&pageSize=…&buyerId=…` | Paginated list (caller-scoped; admin may pass `?buyerId=` to list another buyer) |
 | `GET` | `/api/v1/invoicing/invoices/by-order/{orderId}` | Find the invoice for a given order (buyer-scoped) |
 | `GET` | `/api/v1/invoicing/credit-notes/{id}` | Get credit note metadata + presigned PDF URL |
 | `POST` | `/api/v1/invoicing/invoices/{id}/resend` | Admin: re-deliver invoice (idempotent on `Idempotency-Key` header) |
