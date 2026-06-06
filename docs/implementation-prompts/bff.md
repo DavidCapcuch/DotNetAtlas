@@ -16,7 +16,7 @@ Before writing any code, do these in your **first response** — explicitly, in 
 </thinking_first>
 
 <mission>
-You implement the **EShop BFF** (Backend-for-Frontend) at `src/EShop.BFF/`. The BFF is NOT a bounded context — it's an **aggregation gateway** that composes responses from Catalog + Basket + Ordering + Inventory (+ Invoicing + Payments in follow-ups). Your output is a new service that exposes 4 public aggregation endpoints, consumes BC events for cache invalidation, and pass-through-forwards auth. When the session ends, the BFF runs alongside the BCs in `docker compose --profile full`, serves home-page + product-detail + basket + order-summary with reasonable caching and fail-safe behaviour.
+You implement the **EShop BFF** (Backend-for-Frontend) at `src/EShop.BFF/`. The BFF is NOT a bounded context — it's an **aggregation gateway** that composes responses from Catalog + Basket + Ordering + Inventory (+ Invoicing + Payments in follow-ups). Your output is a new service that exposes 4 public aggregation endpoints **plus the basket write surface** (item mutations + checkout, forwarded to Basket — consumer basket access is BFF-mediated, there is **no** direct SPA→Basket path), consumes BC events for cache invalidation, and reaches buyer-scoped BCs via RFC 8693 token exchange. When the session ends, the BFF runs alongside the BCs in `docker compose --profile full`, serves home-page + product-detail + basket + order-summary with reasonable caching and fail-safe behaviour, and fronts the basket mutations + checkout.
 </mission>
 
 <prerequisites>
@@ -37,12 +37,13 @@ The BFF sits between clients (SPA / mobile / YARP) and internal services. Teachi
 <contract>
 LOCKED at the seams.
 
-- 4 endpoints per `bff.md § 3`: `GET /api/v1/bff/home-page`, `GET /api/v1/bff/product-page/{id}`, `GET /api/v1/bff/basket`, `GET /api/v1/bff/order-summary/{id}`; plus `POST /api/v1/bff/checkout` (per ADR-0013)
+- 4 aggregation GET endpoints per `bff.md § 3`: `GET /api/v1/bff/home-page`, `GET /api/v1/bff/product-page/{id}`, `GET /api/v1/bff/basket`, `GET /api/v1/bff/order-summary/{id}`; plus `POST /api/v1/bff/checkout` (per ADR-0013)
+- Basket write surface forwarded to Basket (`bff.md § 3.6`) — consumer basket access is BFF-mediated, no direct SPA→Basket path (`bff.md § 2.5`): `POST /api/v1/bff/basket/items`, `PUT /api/v1/bff/basket/items/{productId}/quantity`, `DELETE /api/v1/bff/basket/items/{productId}`, `DELETE /api/v1/bff/basket/items` — thin forwarders via `basket.write` token exchange; the BFF invalidates `basket-bff-{userId}` synchronously on success
 - Response shapes per `bff.md § 3` (each endpoint documents its composed JSON)
 - Cache-invalidator consumer group: **`bff-group`** — one group per service per [`events-catalog.md § 3.1`](../bc-design/events-catalog.md) (NOT a per-purpose `bff-cache-invalidator` group)
 - Invalidation topic → FusionCache tag map per `bff.md § 2.2`
 - Topics consumed (five — the v1 `bff-group` set per [`events-catalog.md § 2`](../bc-design/events-catalog.md)): `catalog.products`, `catalog.categories`, `inventory.stock-events`, `ordering.orders`, `basket.sessions`. **NOT `invoicing.invoices`** — a BFF invoice view is *planned-not-v1* (events-catalog § 5: `InvoiceIssuedEvent` has **no v1 BFF consumer** by design); if you add it, see `<autonomous_evolution>`
-- JWT pass-through via `DelegatingHandler` (public endpoints bypass; authed endpoints forward user JWT + attach service-auth token per ADR-0010)
+- Outbound auth per ADR-0010 (§ 2.3): public endpoints send no token; non-buyer-scoped reads (Catalog, Inventory) attach a `client_credentials` service token via `AddServiceAuth`; buyer-scoped calls (Basket read + mutations + checkout; Ordering / Invoicing reads) use an **RFC 8693 token exchange** of the user JWT — preserves the buyer `sub`, re-audiences to the callee. (Supersedes the pre-#323 "forward user JWT + attach service token" model: one exchanged token reaches the callee, not two.)
 - NO outbox, NO new Avro schemas, NO `DbSet<>` — BFF is stateless
 - Rate limiting lives in YARP (NOT the BFF) — see `rate-limiting.md`
 - HTTP routes under `/api/v1/bff/...` per ADR-0012
@@ -92,7 +93,7 @@ Universal skills per `_shared.md § 7`. BFF-specific:
 
 | Phase | Skill | When |
 |---|---|---|
-| Designing endpoint composition | `backend-development:api-design-principles` | before wiring the 4 endpoints — REST aggregation, response composition, content negotiation |
+| Designing endpoint composition | `backend-development:api-design-principles` | before wiring the 4 aggregation endpoints — REST aggregation, response composition, content negotiation |
 | Pattern depth for BFF | `backend-development:microservices-patterns` | BFF-pattern specifically; when to aggregate vs orchestrate |
 | Polly + cache tuning | `Agent(subagent_type="application-performance:performance-engineer")` | when tuning timeouts, retry policies, cache TTLs, circuit-breaker thresholds — this is an **agent**, not a Skill; dispatch it, don't `Skill(...)` it |
 | Invalidation-consumer semantics | `grill-with-docs` (phase 0) | invalidator has subtle ordering / fan-out semantics — sharpen against `bff.md § 2.2` + the events-catalog before committing |
@@ -120,9 +121,9 @@ BFF-specific triggers:
 Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 
 - [ ] `EShop.BFF.Api` + `EShop.BFF.Infrastructure` projects compile
-- [ ] 4 GET endpoints + 1 POST `/checkout` + typed HTTP clients + response DTOs
+- [ ] 4 aggregation GET endpoints + `POST /checkout` + the basket write forwarders (`POST/PUT/DELETE /api/v1/bff/basket/items*`, `bff.md § 3.6`) + typed HTTP clients + response DTOs
 - [ ] Polly resilience pipeline using Wave 0's named presets where applicable: per-call 2s (batch 10s) timeout, max 2 retries with exponential backoff, CB opens after 5/10s fail-rate
-- [ ] `AuthForwardingHandler` attached to clients that require user auth; service-auth token attached to ALL outbound calls (per ADR-0010)
+- [ ] Outbound auth per ADR-0010 (§ 2.3): `client_credentials` service token on non-buyer-scoped reads (Catalog, Inventory); RFC 8693 token exchange on buyer-scoped calls (Basket read + mutations + checkout; Ordering / Invoicing reads) preserving the buyer `sub`; public endpoints send no token
 - [ ] Kafka cache-invalidator consumer (group `bff-group`) — topic→tag map per `bff.md § 2.2`
 - [ ] FusionCache + Redis distributed cache + backplane pointed at `redis-cache` (per ADR-0016)
 - [ ] `POST /api/v1/bff/checkout` has `.Idempotency()` (per ADR-0013)
@@ -156,10 +157,10 @@ STOP and ask the user (in addition to `_shared.md § 9` universal stops) if:
 Per `_shared.md § 10`. Suggested commit milestones:
 
 1. Scaffold 2 layers + project references; `dotnet build` green
-2. Typed clients (one per upstream BC) with Polly presets + auth forwarding + service-auth
+2. Typed clients (one per upstream BC) with Polly presets + outbound auth (service token for non-buyer-scoped reads; token exchange for buyer-scoped calls, § 2.3)
 3. FusionCache config against `redis-cache` + backplane + arch test
 4. 4 aggregation GET endpoints + response DTOs + happy-path integration test
-5. `POST /api/v1/bff/checkout` with `.Idempotency()` + integration test
+5. `POST /api/v1/bff/checkout` with `.Idempotency()` + basket write forwarders (`bff.md § 3.6`, sync cache invalidation) + integration tests
 6. Kafka invalidator consumer (group `bff-group`) + tag-map + invalidation integration test
 7. `bff.home-page-eager-cache-warm` feature flag + startup warmer + both-state tests
 8. Fail-safe / stale-data integration tests (kill upstream containers mid-flight)

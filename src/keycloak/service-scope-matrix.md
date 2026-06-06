@@ -83,8 +83,8 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Outbound:** `catalog.read`
   - `catalog.read` — Basket's `IProductCatalogQueryPort` ACL adapter reads product snapshots from Catalog.
 - **Inbound:** `basket.read`, `basket.write`
-  - BFF reads sessions via `basket.read`; BFF mutates (add/remove/checkout) via `basket.write`.
-- **Cross-refs:** `bff.md §3.2`, `basket.md`.
+  - **All** basket access is via the BFF (RFC 8693 token exchange): reads via `basket.read`, mutations + checkout via `basket.write`. The user-facing app client (`e9fdb985`) carries **no** `basket.*` scope — consumer basket access is BFF-mediated, there is no direct SPA→Basket path ([bff.md §2.5/§3.6/§4.2](../../docs/bc-design/bff.md)). So a user JWT never carries `aud: basket-service`; the only token Basket accepts is the BFF's exchanged one.
+- **Cross-refs:** `bff.md §3.2/§3.6`, `basket.md`.
 
 ### `ordering-service`
 
