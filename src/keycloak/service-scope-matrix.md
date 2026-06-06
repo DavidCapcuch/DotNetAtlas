@@ -124,6 +124,7 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Outbound:** 6 scopes — every cross-BC read + `basket.write`:
   - `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read`
   - The BFF is the primary HTTP caller of the five BCs it fronts (Catalog, Basket, Ordering, Inventory, Invoicing); it does **not** call Payments over HTTP (payment commands/results are async via Kafka). Catalog has one other service-to-service caller — `basket-service`'s ACL adapter reads product snapshots via `catalog.read`.
+  - **Buyer-scoped callees** (`basket.read`, `basket.write`, `ordering.read`, `invoicing.read` — Basket / Ordering / Invoicing derive the resource owner from the token `sub`) are reached via **RFC 8693 token exchange** so the buyer `sub` is preserved; a plain `client_credentials` token would carry the BFF service account's `sub` and resolve the wrong buyer. The non-buyer-scoped reads (`catalog.read`, `inventory.read`) take a plain service token. See [ADR-0010 § BFF token exchange](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees) + [bff.md § 2.3](../../docs/bc-design/bff.md), decided [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323).
 - **Inbound:** none — user-facing only; inbound requests carry user JWTs (validated against `dotnetatlas` realm user-auth, not service-auth).
 - **Cross-refs:** `bff.md §3.1–3.4`.
 

@@ -22,7 +22,7 @@ You implement the **EShop BFF** (Backend-for-Frontend) at `src/EShop.BFF/`. The 
 <prerequisites>
 - **Wave 1 BCs scaffolded at minimum** (Catalog HTTP endpoints reachable; Basket + Ordering + Inventory + Payments + Invoicing optional but preferred).
 - **Wave 2 Checkout saga implemented** — BFF's `POST /api/v1/bff/checkout` triggers the saga flow.
-- Wave 0 platform prep merged. Specifically: `redis-cache` container running; `Platform.ServiceDefaults` has service-auth + feature-flags + JSON `DateTimeOffset` converter; Keycloak `bff` service client with scopes `catalog.read`, `inventory.read`, `ordering.read`, `invoicing.read`.
+- Wave 0 platform prep merged. Specifically: `redis-cache` container running; `Platform.ServiceDefaults` has service-auth + feature-flags + JSON `DateTimeOffset` converter; Keycloak `bff` service client with scopes `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read` (the buyer-scoped Basket/Ordering/Invoicing routes are reached via RFC 8693 token exchange so the buyer `sub` is preserved — see [bff.md § 2.3](../bc-design/bff.md), decided [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323)).
 </prerequisites>
 
 <role_in_system>
@@ -78,7 +78,7 @@ You own these. Justify each in your session summary.
 <applicable_adrs>
 Cross-cutting decisions to apply:
 
-- [ADR-0010](../adr/0010-service-to-service-auth.md) — **BFF makes outbound HTTP to every BC** — each typed client uses `IHttpClientBuilder.AddServiceAuth("<scope>")` from Wave 0 (e.g., `catalog.read`, `inventory.read`); **user JWT is forwarded separately** via `DelegatingHandler` for buyer-scoped requests (both tokens travel together: user JWT identifies the buyer, service token identifies the BFF)
+- [ADR-0010](../adr/0010-service-to-service-auth.md) — **BFF makes outbound HTTP to every BC.** Non-buyer-scoped reads (Catalog, Inventory) use a `client_credentials` service token via `IHttpClientBuilder.AddServiceAuth("<scope>")` (`catalog.read`, `inventory.read`). **Buyer-scoped calls** (Basket `GET /basket` + `POST /checkout`; buyer-owned Ordering / Invoicing reads) use an **RFC 8693 token exchange** via the `bff` client's matching scope (`basket.read` / `basket.write` / `ordering.read` / `invoicing.read`) so the buyer `sub` is preserved — rationale in [bff.md § 2.3 / § 3.5](../bc-design/bff.md), decided [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323)
 - [ADR-0011](../adr/0011-pii-handling-gdpr.md) — BFF composes addresses + buyer names into responses but **does NOT persist them**; OTEL allowlist forbids tagging spans with composed address fields; Serilog `[PII]` policy applies
 - [ADR-0012](../adr/0012-api-versioning.md) — all routes under `/api/v1/bff/...`
 - [ADR-0013](../adr/0013-idempotency-key-http.md) — **`POST /api/v1/bff/checkout` is the #1 idempotency target** (customer double-click on pay) via FastEndpoints `.Idempotency()` backed by `redis-cache`
