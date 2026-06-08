@@ -10,7 +10,10 @@ namespace Inventory.Api.Endpoints.Reservations.GetReservation;
 /// <summary>
 /// Lookup endpoint for the <c>reservation_audit</c> projection. Reuses
 /// <see cref="InventoryGroup"/> so the route is grouped under
-/// <c>/api/v1/inventory/reservations/{reservationId}</c>.
+/// <c>/api/v1/inventory/reservations/{reservationId}</c>. Gated by
+/// <see cref="AuthPolicies.AdminReadPolicy"/> — these rows correlate a reservation to an
+/// <c>OrderId</c> (internal ops/audit data), so the read is admin-only, tighter than the
+/// public stock-availability display reads (use-cases.md § 4.4.3 / inventory.md § 9.2).
 /// </summary>
 internal sealed class GetReservationEndpoint : Endpoint<GetReservationRequest, ReservationAuditResponse>
 {
@@ -27,7 +30,7 @@ internal sealed class GetReservationEndpoint : Endpoint<GetReservationRequest, R
         Get("reservations/{reservationId:guid}");
         Version(1);
         Group<InventoryGroup>();
-        Policies(AuthPolicies.ReadPolicy);
+        Policies(AuthPolicies.AdminReadPolicy);
         Summary(s => s.Summary = "Returns the reservation_audit row for a ReservationId.");
         Description(b =>
         {

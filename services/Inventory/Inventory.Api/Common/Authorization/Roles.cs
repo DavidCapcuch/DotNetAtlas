@@ -7,9 +7,9 @@ namespace Inventory.Api.Common.Authorization;
 internal static class Roles
 {
     /// <summary>
-    /// Admin / ops role. Backs the write half of
-    /// <see cref="AuthPolicies.WritePolicy"/> (Receive / Adjust),
-    /// which requires this role AND the <c>inventory.write</c> scope.
+    /// Admin / ops role. Backs <see cref="AuthPolicies.AdminReadPolicy"/> (reservation-audit
+    /// reads) and the write half of <see cref="AuthPolicies.WritePolicy"/> (Receive / Adjust) —
+    /// both require this role on top of the relevant scope.
     /// </summary>
     public const string Admin = "admin";
 }
