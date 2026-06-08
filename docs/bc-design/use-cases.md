@@ -48,7 +48,7 @@ Implementation: one shared middleware `Platform.Api.Idempotency.IdempotencyMiddl
 
 ### Authentication & authorization
 
-- All endpoints require Keycloak-issued JWT **unless** marked `AllowAnonymous` (public catalog browse).
+- All endpoints require Keycloak-issued JWT **unless** marked `AllowAnonymous` (public reads — catalog browse + Inventory stock-availability overlays, §§ 4.4.1–4.4.2).
 - `UserId` / `BuyerId` from `ClaimTypes.NameIdentifier` via FastEndpoints `[FromClaim(ClaimTypes.NameIdentifier, isRequired: true, removeFromSchema: true)]`.
 - Admin / ops endpoints require policy `AuthPolicies.Admin` (follows the `AuthPolicies.DevOnly` pattern in `src/Weather.Api/Endpoints/Admin/AdminGroup.cs`).
 - Row-level authorization (buyer reads own order only) is enforced in the query handler against `BuyerId == claim.sub` with an admin bypass.
@@ -1285,7 +1285,7 @@ Plus a separate consumer for the Catalog event inbox:
 #### 4.4.1 `GetStockLevelQuery`
 
 - **HTTP:** `GET /api/v1/inventory/stock-items/{productId}`
-- **Authorization:** ⚠ **spec-vs-build conflict (pending human decision).** Code gates this read with `AuthPolicies.ReadPolicy` (`InventoryReadScope` — requires the `inventory.read` *or* `inventory.write` scope); it is **not** anonymous. The original "public product-page overlay" intent expects this single read to be `AllowAnonymous` (and ADR-0034 § Implementation Notes makes its sibling bulk read anonymous). Resolve by making the read endpoints anonymous (fix code) or by ratifying scope-gating (amend ADR-0034 + this section). No separate `/admin/stock-items/{productId}` variant exists.
+- **Authorization:** `AllowAnonymous` — the public product-page availability overlay. Resolved in favour of the original "public overlay" intent: this single read was previously scope-gated in code (`AuthPolicies.ReadPolicy`) but is now aligned with its `AllowAnonymous` bulk sibling (§ 4.4.2) and ADR-0034 § Implementation Notes. Availability is public shopper-facing data, and oversell safety is structural — the reservation decision path is event-sourced and never reads this display projection/cache (ADR-0034 / ADR-0006), so an anonymous read cannot affect it. No separate `/admin/stock-items/{productId}` variant exists.
 - **Interface:** `IQuery<StockLevelResponse>`.
 - **Request shape:**
   ```
@@ -1312,10 +1312,10 @@ Plus a separate consumer for the Catalog event inbox:
 
 #### 4.4.2 `GetStockLevelsBulkQuery`
 
-> ⚠ **NOT YET BUILT — specified + accepted ([ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)), pending implementation.** No `stock-items/bulk` endpoint exists in `Inventory.Api` today, and the BFF consumer that depends on it is also not yet built. ADR-0034 § Decision (1) resolves to **build** it, so this spec is retained (not tombstoned like § 4.4.4). **Flagged for human decision:** build now, or keep as planned-pending-BFF (gated on the BFF build)?
+> ✅ **BUILT (ahead of its consumer)** per ADR-0034 § Decision (1). `POST /api/v1/inventory/stock-items/bulk` is implemented in `Inventory.Api` (`GetStockLevelsBulkEndpoint` → `GetStockLevelsBulkQueryHandler` over the Inventory-owned read-through cache) with functional + integration coverage. The **BFF consumer** that will call it is still not built (the BFF service is not yet started, per `CLAUDE.md`); the endpoint stands on its own — anonymous, partial-tolerant — until then.
 
 - **HTTP:** `POST /api/v1/inventory/stock-items/bulk` (POST because the list of ids may exceed URL length for basket-sized collections; body is read-only despite the verb).
-- **Authorization:** `AllowAnonymous` per ADR-0034 § Implementation Notes — ⚠ subject to the same anonymous-vs-scope conflict as § 4.4.1 (the only built read, `GET /stock-items/{productId}`, is scope-gated in code).
+- **Authorization:** `AllowAnonymous` per ADR-0034 § Implementation Notes — consistent with its single-read sibling § 4.4.1 (`GET /stock-items/{productId}`), which is also `AllowAnonymous`. Both display reads share one public posture.
 - **Interface:** `IQuery<GetStockLevelsBulkResponse>`.
 - **Request shape:**
   ```
@@ -1347,7 +1347,7 @@ Plus a separate consumer for the Catalog event inbox:
 #### 4.4.3 `GetReservationByIdQuery`
 
 - **HTTP:** `GET /api/v1/inventory/reservations/{reservationId}`
-- **Authorization:** `AuthPolicies.ReadPolicy` (`InventoryReadScope` — requires the `inventory.read` *or* `inventory.write` scope). ⚠ Code gates this on the **read** scope, not admin-only as previously documented; any `inventory.read` caller can read reservation-audit rows (which carry `orderId`). Flagged: confirm read-scope is the intended posture or tighten to admin.
+- **Authorization:** `AuthPolicies.AdminReadPolicy` (`InventoryAdminReadScope` — requires the `admin` realm role AND a read-capable scope, `inventory.read` *or* `inventory.write`). Reservation-audit rows correlate a reservation to an `orderId` (cross-aggregate, internal ops/audit data), so this read is admin-gated — tighter than the public stock-availability display reads (§§ 4.4.1–4.4.2). A plain `inventory.read` service token gets `403`.
 - **Interface:** `IQuery<GetReservationByIdResponse>`.
 - **Request shape:**
   ```

@@ -4,8 +4,9 @@ using Platform.CQRS;
 namespace Inventory.ArchitectureTests.Application;
 
 /// <summary>
-/// Query handlers are named <c>*QueryHandler</c> and sealed. Inventory has two:
-/// <c>GetStockLevelByProductIdQueryHandler</c> and <c>GetReservationByIdQueryHandler</c>.
+/// Query handlers are named <c>*QueryHandler</c> and sealed. Inventory has three:
+/// <c>GetStockLevelByProductIdQueryHandler</c>, <c>GetStockLevelsBulkQueryHandler</c>,
+/// and <c>GetReservationByIdQueryHandler</c>.
 /// </summary>
 public class QueryHandlerTests : BaseTest
 {
