@@ -640,7 +640,7 @@ Always set `LastUpdatedUtc = event.OccurredAtUtc`, `LastVersion = event.Version`
 - `ReservationReleasedDomainEvent` → UPDATE `Status='Released', ResolvedAtUtc=event.OccurredAtUtc, ReleaseReason=event.ReleaseReason`.
 
 **Queries:**
-- `GetReservationByIdQuery(ReservationId) : ReservationDto` — the one public (admin) read.
+- `GetReservationByIdQuery(ReservationId) : ReservationDto` — the one externally-exposed read, gated admin-only (`AuthPolicies.AdminReadPolicy`: `admin` role + a read-capable scope) because the row carries `orderId` (use-cases.md § 4.4.3).
 - By-order fan-in (`WHERE OrderId = … AND Status = Active`) — **internal only**, run by `OrderCancelledEventKafkaHandler` to release an order's reservations. (A public `GetReservationsByOrderQuery` was specced but cut — no consumer; see [use-cases.md § 4.4.4](use-cases.md).)
 - Worker: `SELECT ReservationId, ProductId FROM inventory.reservation_audit WHERE Status = 'Active' AND ExpiresAtUtc < now()`.
 
