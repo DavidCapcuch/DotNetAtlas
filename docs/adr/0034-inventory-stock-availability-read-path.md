@@ -93,7 +93,7 @@ Option 3 keeps each cache owned by exactly one service and reachable only throug
 - Cache key namespace: `inventory:stock:{productId}` on `redis-cache`; bulk composes per-id hits + a single `WHERE ProductId = ANY(@missing)` for the misses.
 - The reservation decision path (`ReserveStockCommandHandler`) is unchanged and MUST remain cache-free.
 - Reuse the FusionCache + `redis-cache` wiring pattern from the BFF / `PersistenceDependencyInjection`; do not introduce a second cache library.
-- `GetStockLevelsBulkQuery` is `AllowAnonymous` (BFF home/product overlays) and partial-tolerant (`MissingProductIds`).
+- Both display reads are `AllowAnonymous` (public product/basket availability overlays): `GET /stock-items/{productId}` (`GetStockLevelQuery`, `use-cases.md § 4.4.1`) and `POST /stock-items/bulk` (`GetStockLevelsBulkQuery`, `use-cases.md § 4.4.2`, partial-tolerant via `MissingProductIds`). Availability is public shopper-facing data; oversell safety is structural — the ES reservation path never reads the display cache — so neither read carries a scope gate.
 
 ## Related Decisions
 

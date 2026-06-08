@@ -1,12 +1,18 @@
 using System.Net;
 using FastEndpoints;
-using Inventory.Api.Common.Authorization;
 using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.GetStockLevelByProductId;
 using Platform.Api.Extensions;
 
 namespace Inventory.Api.Endpoints.StockItems.GetStockLevel;
 
+/// <summary>
+/// Single-product stock-availability read backing the public product-page overlay
+/// (use-cases.md § 4.4.1). <c>AllowAnonymous</c> — the same posture as its bulk sibling
+/// (<c>POST /stock-items/bulk</c>, ADR-0034): availability is public shopper-facing data.
+/// Served through the Inventory-owned read-through cache; the reservation decision path never
+/// touches that cache, so the endpoint cannot influence oversell safety.
+/// </summary>
 internal sealed class GetStockLevelEndpoint : Endpoint<GetStockLevelRequest, StockLevelResponse>
 {
     private readonly Platform.CQRS.IQueryHandler<GetStockLevelByProductIdQuery, StockLevelResponse> _handler;
@@ -22,13 +28,11 @@ internal sealed class GetStockLevelEndpoint : Endpoint<GetStockLevelRequest, Sto
         Get("stock-items/{productId:guid}");
         Version(1);
         Group<InventoryGroup>();
-        Policies(AuthPolicies.ReadPolicy);
+        AllowAnonymous();
         Summary(s => s.Summary = "Returns the current stock-level snapshot for a ProductId.");
         Description(b =>
         {
             b.Produces<StockLevelResponse>((int)HttpStatusCode.OK);
-            b.Produces((int)HttpStatusCode.Unauthorized);
-            b.Produces((int)HttpStatusCode.Forbidden);
             b.Produces((int)HttpStatusCode.NotFound);
         });
     }

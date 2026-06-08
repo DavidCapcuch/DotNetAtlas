@@ -8,6 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.FunctionalTests.ApiEndpoints.StockItems;
 
+/// <summary>
+/// End-to-end coverage for <c>GET /api/v1/inventory/stock-items/{productId}</c> — the single
+/// stock-availability read. <c>AllowAnonymous</c> per use-cases.md § 4.4.1 + ADR-0034: it is the
+/// public product-page availability overlay, the same posture as its bulk sibling
+/// (<c>POST /stock-items/bulk</c>). Anonymous shoppers read availability; token-bearing callers
+/// (BFF / service-to-service) are equally allowed.
+/// </summary>
 [Collection<FunctionalTestCollection>]
 public sealed class GetStockLevelTests : BaseApiTest
 {
@@ -17,34 +24,12 @@ public sealed class GetStockLevelTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenAnonymous_Returns401()
-    {
-        var productId = Guid.CreateVersion7();
-
-        var response = await Fixture.HttpClientRegistry.NonAuthClient
-            .GetAsync($"/api/v1/inventory/stock-items/{productId}", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task WhenReadOnlyScope_AndProductMissing_Returns404()
-    {
-        var productId = Guid.CreateVersion7();
-
-        var response = await Fixture.HttpClientRegistry.ReadOnlyClient
-            .GetAsync($"/api/v1/inventory/stock-items/{productId}", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task WhenReadOnlyScope_AndProductExists_Returns200()
+    public async Task WhenAnonymous_AndProductExists_Returns200WithSnapshot()
     {
         var productId = Guid.CreateVersion7();
         await SeedStreamAsync(productId, onHand: 9);
 
-        var response = await Fixture.HttpClientRegistry.ReadOnlyClient
+        var response = await Fixture.HttpClientRegistry.NonAuthClient
             .GetAsync($"/api/v1/inventory/stock-items/{productId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -55,13 +40,25 @@ public sealed class GetStockLevelTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenCommandsScope_AlsoSatisfiesReadPolicy()
+    public async Task WhenAnonymous_AndProductMissing_Returns404()
     {
-        // Hierarchy check: Commands scope implies Read.
+        var productId = Guid.CreateVersion7();
+
+        var response = await Fixture.HttpClientRegistry.NonAuthClient
+            .GetAsync($"/api/v1/inventory/stock-items/{productId}", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task WhenAuthenticated_AlsoReturns200()
+    {
+        // AllowAnonymous does not exclude token-bearing callers — a BFF / service-to-service
+        // request carrying a JWT reads availability just the same.
         var productId = Guid.CreateVersion7();
         await SeedStreamAsync(productId, onHand: 4);
 
-        var response = await Fixture.HttpClientRegistry.CommandsClient
+        var response = await Fixture.HttpClientRegistry.ReadOnlyClient
             .GetAsync($"/api/v1/inventory/stock-items/{productId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
