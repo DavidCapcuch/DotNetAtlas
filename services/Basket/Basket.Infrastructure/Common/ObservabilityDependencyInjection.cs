@@ -1,4 +1,5 @@
 using Basket.Infrastructure.Common.Observability;
+using Basket.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
@@ -6,6 +7,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Pii;
+using StackExchange.Redis;
 
 namespace Basket.Infrastructure.Common;
 
@@ -60,6 +62,14 @@ public static class ObservabilityDependencyInjection
                         .AddHttpClientInstrumentation()
                         .AddEntityFrameworkCoreInstrumentation()
                         .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
+                        // basket.md § 5.4 + ADR-0016: the basket store registers its redis-basket
+                        // multiplexer as a KEYED singleton (PersistenceDependencyInjection). The
+                        // AddRedisInstrumentation() above only discovers the unkeyed IConnectionMultiplexer,
+                        // so the keyed instance is added to the instrumentation explicitly — otherwise the
+                        // basket store's redis-basket hops never surface as spans.
+                        .ConfigureRedisInstrumentation((sp, instrumentation) =>
+                            instrumentation.AddConnection(
+                                sp.GetRequiredKeyedService<IConnectionMultiplexer>(RedisBasketRepository.BasketCacheName)))
                         .AddFusionCacheInstrumentation()
                         .AddSource("*")
                         .AddPiiRedactionProcessor(); // ADR-0011 — redacts [Pii]-tagged span attributes before export

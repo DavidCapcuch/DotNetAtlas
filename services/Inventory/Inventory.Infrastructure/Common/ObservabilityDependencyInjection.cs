@@ -1,4 +1,5 @@
 using Inventory.Infrastructure.Common.Observability;
+using Inventory.Infrastructure.Persistence.Caching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
@@ -6,6 +7,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Pii;
+using StackExchange.Redis;
 
 namespace Inventory.Infrastructure.Common;
 
@@ -60,6 +62,15 @@ public static class ObservabilityDependencyInjection
                         .AddHttpClientInstrumentation()
                         .AddEntityFrameworkCoreInstrumentation()
                         .AddRedisInstrumentation(options => options.SetVerboseDatabaseStatements = true)
+                        // ADR-0034 + ADR-0016: the read-through stock-availability cache registers its
+                        // redis-cache multiplexer as a KEYED singleton (CacheDependencyInjection). The
+                        // AddRedisInstrumentation() above only discovers the unkeyed IConnectionMultiplexer,
+                        // so the keyed instance is added to the instrumentation explicitly — otherwise the
+                        // cache's redis-cache hops never surface as spans. (FastEndpoints' idempotency output
+                        // cache owns a separate internal multiplexer, unaffected by either call.)
+                        .ConfigureRedisInstrumentation((sp, instrumentation) =>
+                            instrumentation.AddConnection(
+                                sp.GetRequiredKeyedService<IConnectionMultiplexer>(FusionStockLevelCache.CacheName)))
                         .AddSource("*")
                         .AddPiiRedactionProcessor(); // ADR-0011 — redacts [Pii]-tagged span attributes before export
 
