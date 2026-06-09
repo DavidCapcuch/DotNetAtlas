@@ -83,15 +83,15 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Outbound:** `catalog.read`
   - `catalog.read` — Basket's `IProductCatalogQueryPort` ACL adapter reads product snapshots from Catalog.
 - **Inbound:** `basket.read`, `basket.write`
-  - **All** basket access is via the BFF (RFC 8693 token exchange): reads via `basket.read`, mutations + checkout via `basket.write`. The user-facing app client (`e9fdb985`) carries **no** `basket.*` scope — consumer basket access is BFF-mediated, there is no direct SPA→Basket path ([bff.md §2.5/§3.6/§4.2](../../docs/bc-design/bff.md)). So a user JWT never carries `aud: basket-service`; the only token Basket accepts is the BFF's exchanged one.
+  - **All** basket access is via the BFF (RFC 8693 token exchange): reads via `basket.read`, mutations + checkout via `basket.write`. The user-facing app client (`e9fdb985`) carries **no** `basket.*` scope — consumer basket access is BFF-mediated, there is no direct SPA→Basket path ([bff.md §2.5/§3.6/§4.2](../../docs/bc-design/bff.md)). So a user JWT never carries `aud: basket-service`; the only token Basket accepts is the BFF's exchanged one. **Invariant — do not add `basket.*` to `e9fdb985`** to silence a direct-call 401: it would re-mint user tokens audienced for Basket and reopen the direct-path bypass the BFF mediation closes ([ADR-0010 §amendment](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)).
 - **Cross-refs:** `bff.md §3.2/§3.6`, `basket.md`.
 
 ### `ordering-service`
 
 - **Audience:** `ordering-service`
 - **Outbound:** none — order-state-change notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `ordering.read` (reads); **`admin` role only** (admin writes)
-  - BFF reads orders via `ordering.read`. The admin endpoints (MarkOrderShipped, MarkOrderDelivered) are **role-only** — they are pure human-admin actions with no service-delegation dimension, so no `ordering.write` scope is defined (ADR-0010 §"Role vs scope canonical model"). An admin reaches them with the `admin` role obtained through the `dotnetatlas-swagger` client. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
+- **Inbound:** `ordering.read` (reads — audience only, not a scope policy); **`admin` role only** (admin writes)
+  - The BFF reads orders with an `ordering.read`-scoped token, but Ordering enforces **no read-scope policy** — `ordering.read`'s only job here is to stamp `aud: ordering-service`. The order-read endpoints (`GetOrderById`, `GetOrdersByBuyer`) set no `Policies(...)`; ownership is enforced **in the handler** (buyer-self from the JWT `sub`, cross-buyer → 404). That `sub`-dependence is why the BFF's order reads use **RFC 8693 token exchange** to preserve the buyer `sub` ([ADR-0010 § BFF token exchange](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)), not a plain service token. The admin endpoints (MarkOrderShipped, MarkOrderDelivered) are **role-only** — they are pure human-admin actions with no service-delegation dimension, so no `ordering.write` scope is defined (ADR-0010 §"Role vs scope canonical model"). An admin reaches them with the `admin` role obtained through the `dotnetatlas-swagger` client. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
 - **Cross-refs:** `bff.md §3.3`, `events-catalog.md §2` (Ordering Commands).
 
 ### `inventory-service`
@@ -114,8 +114,8 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 
 - **Audience:** `invoicing-service`
 - **Outbound:** none — invoice-issued / credit-note-issued notifications are published via the Kafka outbox (no service token).
-- **Inbound:** `invoicing.read` (reads); **`admin` role only** (admin resend)
-  - HTTP reads (invoice detail, PDF download) plus one admin action, ResendInvoice, which is **role-only** — a pure human-admin action with no service-delegation dimension, so no `invoicing.write` scope is defined (ADR-0010 §"Role vs scope canonical model"). An admin reaches it with the `admin` role obtained through the `dotnetatlas-swagger` client. Invoicing is projection-driven — it consumes `OrderConfirmedEvent` + `PaymentCapturedEvent` from Kafka event topics and does not require per-BC read scopes.
+- **Inbound:** `invoicing.read` (reads — audience only, not a scope policy); **`admin` role only** (admin resend)
+  - Invoice reads carry an `invoicing.read`-scoped token, but Invoicing enforces **no read-scope policy** — `invoicing.read`'s only job is to stamp `aud: invoicing-service`. The read endpoints (`GetInvoiceById`, `GetInvoiceByOrderId`) set no `Policies(...)`; ownership is enforced **in the handler** (buyer-self from the JWT `sub` via `GetBuyerIdOrNull`, cross-buyer → 404) — so the BFF's invoice reads (planned order-summary enrichment) use **RFC 8693 token exchange** to preserve the buyer `sub` ([ADR-0010 § BFF token exchange](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)), not a plain service token. ResendInvoice is **role-only** — a pure human-admin action with no service-delegation dimension, so no `invoicing.write` scope is defined (ADR-0010 §"Role vs scope canonical model"); an admin reaches it with the `admin` role through the `dotnetatlas-swagger` client. Invoicing is otherwise projection-driven — it consumes `OrderConfirmedEvent` + `PaymentCapturedEvent` from Kafka event topics.
 - **Cross-refs:** `invoicing.md §8`, ADR-0017/0018/0019.
 
 ### `bff`
