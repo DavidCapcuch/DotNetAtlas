@@ -91,7 +91,7 @@ Always-enqueue keeps the consumer's work cheap and bounded (resolve + enqueue + 
 
 ### Risks
 
-- **Permanent job failure** (Hangfire retries exhausted) leaves a durable channel unsent with no ledger row — surfaced in Hangfire's failed-jobs dashboard. Accepted for a reference repo; the Opt-3 sweep is the documented escalation.
+- **Permanent job failure** leaves a durable channel unsent — surfaced in Hangfire's failed-jobs dashboard. The dispatch job's `[AutomaticRetry(ExceptOn = CriticalException)]` splits these: a **bug-class** failure (`DataIntegrityException` — unknown template, missing subject/tokens/preference) **fails fast**, parked Failed on the *first* attempt (no ledger row — it throws before the send), rather than burning retries against a deterministically-failing condition; a **transient** failure (SMTP down) records a `Failed` ledger row and retries (≤3×) before parking. Accepted for a reference repo; the Opt-3 sweep is the documented escalation.
 - **SignalR backplane** — single-instance is in-memory; multi-instance needs the Redis backplane ([ADR-0016](0016-redis-topology.md)). Noted, not required for the reference profile.
 - **ADR number collision** with the parallel order-keyed-saga track — renumber if needed (non-prod).
 
