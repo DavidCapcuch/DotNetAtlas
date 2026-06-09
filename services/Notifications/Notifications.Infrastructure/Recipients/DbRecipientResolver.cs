@@ -24,18 +24,13 @@ internal sealed class DbRecipientResolver : IRecipientResolver
 
     public async Task<RecipientContact> ResolveAsync(Guid recipientUserId, CancellationToken ct)
     {
-        var email = await _db.UserPreferences
+        var contact = await _db.UserPreferences
             .Where(p => p.UserId == recipientUserId)
-            .Select(p => p.Email)
+            .Select(p => new RecipientContact(p.Email, p.PhoneNumber))
             .FirstOrDefaultAsync(ct);
 
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            throw new DataIntegrityException(
-                "Notifications.MissingRecipientPreference",
-                $"No notification preference found for recipient {recipientUserId} when resolving the email address.");
-        }
-
-        return new RecipientContact(email);
+        return contact ?? throw new DataIntegrityException(
+            "Notifications.MissingRecipientPreference",
+            $"No notification preference found for recipient {recipientUserId} when resolving contact details.");
     }
 }

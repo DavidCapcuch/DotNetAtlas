@@ -5,8 +5,8 @@ namespace Notifications.Domain.Channels;
 /// <summary>
 /// A delivery channel Notifications fans a notification out to. v2 defines three channels;
 /// the only behavioural difference is <see cref="RespectsQuietHours"/> (SMS defers inside the
-/// recipient's quiet-hours window). The walking skeleton (#312) wires only the email channel —
-/// the SMS and bell dispatchers land in later slices. See ADR-0032.
+/// recipient's quiet-hours window). Email (#312) and the fake SMS (#315) dispatchers are wired;
+/// the bell lands in a later slice. See ADR-0032.
 /// </summary>
 public sealed class ChannelType : SmartEnum<ChannelType>
 {
@@ -22,8 +22,8 @@ public sealed class ChannelType : SmartEnum<ChannelType>
 
     /// <summary>
     /// True when delivery on this channel must be deferred out of the recipient's quiet-hours
-    /// window (SMS today; a future push channel inherits the deferral for free). The
-    /// quiet-hours scheduler itself lands in #315.
+    /// window (SMS today; a future push channel inherits the deferral for free). The Kafka handler
+    /// computes the deferral per channel via <c>QuietHoursCalculator</c> (notifications.md § 5.4).
     /// </summary>
     public bool RespectsQuietHours { get; }
 }

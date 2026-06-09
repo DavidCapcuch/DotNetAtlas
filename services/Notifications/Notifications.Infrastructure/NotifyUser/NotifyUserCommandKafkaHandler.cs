@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Notifications.Application.Common.Data;
 using Notifications.Application.Dispatch;
 using Notifications.Domain.Channels;
+using Notifications.Domain.Preferences;
 using Platform.SharedKernel.Exceptions;
 
 namespace Notifications.Infrastructure.NotifyUser;
@@ -12,9 +13,10 @@ namespace Notifications.Infrastructure.NotifyUser;
 /// Consumes <c>NotifyUserCommand</c> from <c>notifications.notify-commands</c>. Runs inside the platform
 /// <c>InboxMiddleware</c> transaction (dedup on the <c>message.id</c> header). Resolves the dispatch
 /// channels — <c>enabled_channels ∩ template_channels</c> (<see cref="ChannelResolver"/>, notifications.md
-/// § 5.3) — and enqueues one isolated background job per resolved channel. Any enqueue failure throws →
-/// the inbox row rolls back → Kafka re-drives the whole fan-out (duplicate jobs absorbed by the per-channel
-/// ledger). ADR-0031/0032.
+/// § 5.3) — computes a per-channel <c>ExecuteAt</c> (<see cref="QuietHoursCalculator"/> for
+/// quiet-hours-respecting channels, § 5.4) and enqueues one isolated background job per resolved channel.
+/// Any enqueue failure throws → the inbox row rolls back → Kafka re-drives the whole fan-out (duplicate
+/// jobs absorbed by the per-channel ledger). ADR-0031/0032.
 /// </summary>
 /// <remarks>
 /// Two empty-resolution cases are deliberately treated differently:
@@ -30,15 +32,18 @@ public sealed class NotifyUserCommandKafkaHandler : IMessageHandler<NotifyUserCo
 {
     private readonly INotificationsDbContext _db;
     private readonly IChannelDispatchEnqueuer _enqueuer;
+    private readonly TimeProvider _clock;
     private readonly ILogger<NotifyUserCommandKafkaHandler> _logger;
 
     public NotifyUserCommandKafkaHandler(
         INotificationsDbContext db,
         IChannelDispatchEnqueuer enqueuer,
+        TimeProvider clock,
         ILogger<NotifyUserCommandKafkaHandler> logger)
     {
         _db = db;
         _enqueuer = enqueuer;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -64,12 +69,12 @@ public sealed class NotifyUserCommandKafkaHandler : IMessageHandler<NotifyUserCo
                 "which has no template channels.");
         }
 
-        var enabledChannels = await _db.UserPreferences
+        var preference = await _db.UserPreferences
             .Where(p => p.UserId == cmd.RecipientUserId)
-            .Select(p => p.EnabledChannels)
-            .FirstOrDefaultAsync(ct) ?? [];
+            .Select(p => new { p.EnabledChannels, p.QuietHoursStart, p.QuietHoursEnd, p.TimeZone })
+            .FirstOrDefaultAsync(ct);
 
-        var resolvedChannels = ChannelResolver.Resolve(enabledChannels, supportedChannels);
+        var resolvedChannels = ChannelResolver.Resolve(preference?.EnabledChannels ?? [], supportedChannels);
 
         if (resolvedChannels.Count == 0)
         {
@@ -89,12 +94,30 @@ public sealed class NotifyUserCommandKafkaHandler : IMessageHandler<NotifyUserCo
             Payload = new Dictionary<string, string>(cmd.Payload),
         };
 
+        var now = _clock.GetUtcNow();
+
         // One dispatch instance is shared across channels intentionally: the enqueuer serialises a
         // snapshot per Hangfire job and NotificationDispatch is treated as read-only downstream, so
-        // there is no cross-channel aliasing.
+        // there is no cross-channel aliasing. A non-empty resolution implies a preference row existed
+        // (no row → empty enabled set → early return above), hence the null-forgiveness.
         foreach (var channel in resolvedChannels)
         {
-            _enqueuer.Enqueue(channel, dispatch);
+            var executeAt = channel.RespectsQuietHours
+                ? QuietHoursCalculator.NextAllowedUtc(
+                    now, preference!.QuietHoursStart, preference.QuietHoursEnd, preference.TimeZone)
+                : now;
+
+            if (executeAt > now)
+            {
+                _logger.LogInformation(
+                    "Quiet hours, deferred to {ExecuteAt}: {Channel} dispatch for NotificationId={NotificationId}, TemplateKey={TemplateKey}",
+                    executeAt,
+                    channel.Name,
+                    cmd.NotificationId,
+                    cmd.TemplateKey);
+            }
+
+            _enqueuer.Enqueue(channel, dispatch, executeAt);
         }
 
         _logger.LogInformation(

@@ -78,7 +78,7 @@ There is **no `IdempotencyKey` and no `CorrelationId`** in the payload (see § 4
 
 1. Load `NotificationPreference` (enabled channels, contact, timezone, quiet hours) and `Template` (+ `template_channels`).
 2. Resolve channels = `enabled_channels ∩ template_channels`.
-3. Per channel: compute `ExecuteAt` (`QuietHoursCalculator` if `ChannelType.RespectsQuietHours`, else now) and **enqueue one fire-and-forget Hangfire job** via the Keyed-DI `IChannelDispatcher`.
+3. Per channel: compute `ExecuteAt` (`QuietHoursCalculator` if `ChannelType.RespectsQuietHours`, else now) and **enqueue one isolated Hangfire job** via the Keyed-DI `IChannelDispatcher` — scheduled when `ExecuteAt` is in the future, fire-and-forget otherwise (§ 5.4).
 
 Any enqueue failure throws → the inbox transaction rolls back → Kafka re-drives the whole fan-out (duplicates absorbed per § 4).
 
@@ -136,7 +136,7 @@ Each channel is an `IChannelDispatcher` registered in **Keyed DI** by `ChannelTy
 
 ### 5.4 Quiet hours
 
-Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, TimeOnly quietStart, TimeOnly quietEnd, string ianaTz)` — returns `nowUtc` unless the channel `RespectsQuietHours` and the user's local time is inside the `[quiet_hours_start, quiet_hours_end)` window, in which case it returns the configured `quiet_hours_end` resolved against the **local date on which the window ends** (current local day, or the next when the window wraps past midnight, e.g. 22:00–07:00), converted local→UTC. The in/out-of-window check is done on the **UTC instant**, not wall-clock, so a DST fall-back repeated hour cannot double-classify; an ambiguous/invalid local end-time resolves via `TimeZoneInfo`'s default (standard-time offset on fall-back, skip-forward adjustment on spring-forward). `TimeProvider` + `TimeZoneInfo` (no NodaTime, per [ADR-0015](../adr/0015-time-timezone-policy.md)). The handler passes the result to Hangfire `Schedule(executeAt)`.
+Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, TimeOnly? quietStart, TimeOnly? quietEnd, string ianaTz)` — the bounds are nullable so the whole policy (including "no quiet hours configured → dispatch now") lives in one unit-testable place. Returns `nowUtc` unless the channel `RespectsQuietHours` and the user's local time is inside the `[quiet_hours_start, quiet_hours_end)` window, in which case it returns the configured `quiet_hours_end` resolved against the **local date on which the window ends** (current local day, or the next when the window wraps past midnight, e.g. 22:00–07:00), converted local→UTC. The in/out-of-window check is done on the **UTC instant**, not wall-clock, so a DST fall-back repeated hour cannot double-classify; an ambiguous/invalid local end-time resolves via `TimeZoneInfo`'s default (standard-time offset on fall-back, skip-forward adjustment on spring-forward). `TimeProvider` + `TimeZoneInfo` (no NodaTime, per [ADR-0015](../adr/0015-time-timezone-policy.md)). The handler passes the result to the enqueuer — a future instant becomes a Hangfire `Schedule(executeAt)`, an immediate one a plain `Enqueue` (scheduled jobs only fire on the schedule-poll tick, so routing immediate dispatches through `Schedule(now)` would tax every email/bell with poll latency).
 
 ---
 
@@ -145,7 +145,7 @@ Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, 
 | Channel | Adapter | Durable? | Notes |
 |---|---|---|---|
 | **Email** | `MailKit` `SmtpEmailGateway` → **Mailpit** | ledger + delivery event | Address from `user_preferences.email`. Mailpit runs in docker-compose (`core` profile, SMTP 1025 / UI 8025); `MockEmailGateway` retained for unit tests. |
-| **Sms** | fake handler (logs `"Sending SMS…"` / `"Quiet hours, deferred to …"`) | ledger + delivery event | `RespectsQuietHours = true`. **No real provider** — seam. Phone from `user_preferences.phone_number`. |
+| **Sms** | fake handler (logs `"Sending SMS…"`; the Kafka handler logs `"Quiet hours, deferred to …"` — quiet hours are evaluated once, at enqueue; the dispatcher never re-checks) | ledger + delivery event | `RespectsQuietHours = true`. **No real provider** — seam. Phone from `user_preferences.phone_number`. |
 | **Bell** | `INotificationBroadcaster` → **SignalR** group `RecipientUserId` | **none** | Live push only; hub `/hubs/v1/notifications` (Keycloak JWT; versioned per the Weather `BasePaths` convention). Group join/leave in `OnConnectedAsync`/`OnDisconnectedAsync` keyed on `Context.UserIdentifier` (= `sub` = `RecipientUserId`); **no** client subscribe RPC (unlike Weather's per-location model). Offline users miss it; no feed/history/badge/mark-read/SSE (deferred, § 13). Minimal job retries (group-send to zero connections is a successful no-op). In-memory backplane (no Redis); reuses the `src/Weather` SignalR pattern. |
 
 ---
@@ -239,7 +239,7 @@ Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). B
 
 ## 12. Observability & Testing
 
-- `ApplicationInfo.AppName = "Notifications"`; KafkaFlow + outbox OpenTelemetry instrumentation as in v1; Hangfire jobs and the SignalR hub add spans. Structured logs tag `NotificationId`, `TemplateKey`, `Channel` (not PII; `RecipientUserId` per the BC PII rule).
+- `ApplicationInfo.AppName = "Notifications"`; KafkaFlow + outbox OpenTelemetry instrumentation as in v1; Hangfire jobs and the SignalR hub add spans. Structured logs tag `NotificationId`, `TemplateKey`, `Channel` (not PII; `RecipientUserId` per the BC PII rule). One deliberate exception: the fake SMS transport line additionally logs the seeded fake phone number + rendered body — that log line *is* the channel's send (§ 6); a real provider integration must move both into the provider call.
 - **Unit:** `QuietHoursCalculator` (in/out window, midnight-wrap, null), `ChannelType`, the resolution rule, `TemplateRenderer`.
 - **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell via the `src/Weather` SignalR test-client pattern; the Invoicing `Issued → Delivered` round-trip.
 - **Architecture:** standard layering guards + ADR-0015 (`DateTimeOffset`, no `UtcNow` in domain). No bespoke arch tests.

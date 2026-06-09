@@ -54,7 +54,7 @@ Consumer writes N `Pending` ledger rows in the inbox transaction; a recurring sw
 
 Adopt **Option 2**.
 
-1. **Fan-out in the consumer.** Dedup (inbox/`message.id`) → load `NotificationPreference` + `Template` → resolve channels = `enabled_channels ∩ template_channels` → for each, compute `ExecuteAt` (`QuietHoursCalculator` for `ChannelType.RespectsQuietHours`, else now) → enqueue one fire-and-forget Hangfire job per channel via the Keyed-DI `IChannelDispatcher`. Any enqueue failure throws → no inbox row → clean Kafka re-drive.
+1. **Fan-out in the consumer.** Dedup (inbox/`message.id`) → load `NotificationPreference` + `Template` → resolve channels = `enabled_channels ∩ template_channels` → for each, compute `ExecuteAt` (`QuietHoursCalculator` for `ChannelType.RespectsQuietHours`, else now) → enqueue one isolated Hangfire job per channel via the Keyed-DI `IChannelDispatcher` (scheduled when `ExecuteAt` is in the future, fire-and-forget otherwise). Any enqueue failure throws → no inbox row → clean Kafka re-drive.
 
 2. **Idempotency is layered and at-least-once:**
    - **Inbox (`message.id`)** dedups Kafka redelivery — unchanged platform behavior.
@@ -63,7 +63,7 @@ Adopt **Option 2**.
 
 3. **Channels (`ChannelType` SmartEnum, `RespectsQuietHours`):**
    - **Email** — `MailKit` `SmtpEmailGateway` → Mailpit; address resolved from `user_preferences`; ledger + delivery event.
-   - **SMS** — fake handler that logs (`"Sending SMS…"` / `"Quiet hours, deferred to …"`); `RespectsQuietHours = true`; ledger + delivery event; **no real provider**.
+   - **SMS** — fake handler that logs `"Sending SMS…"` (the consumer logs `"Quiet hours, deferred to …"` — quiet hours are evaluated once, at enqueue time; the dispatcher never re-checks them); `RespectsQuietHours = true`; ledger + delivery event; **no real provider**.
    - **Bell** — `INotificationBroadcaster` → SignalR group `RecipientUserId`; **no ledger, no delivery event, no durability** (offline users miss it); **minimal retries** (a group-send to zero connections is a successful no-op). A 3rd isolated Hangfire job for uniformity and partition isolation.
 
 4. **Delivery event** (`NotificationDeliveryStatusChangedEvent`, ADR-0031) is emitted by **durable channels only**, written to the outbox **atomically with the ledger row** (`Dispatched`/`Failed` consistent with what was recorded). Invoicing consumes `Channel == email && Status == Dispatched`.

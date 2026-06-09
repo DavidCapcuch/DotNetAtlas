@@ -10,7 +10,8 @@ namespace Notifications.Infrastructure.Dispatch;
 /// Hangfire job entry point for per-channel dispatch. Hangfire activates this concrete type within a
 /// job scope; it then resolves the channel's <see cref="IChannelDispatcher"/> from Keyed DI by
 /// <see cref="ChannelType"/>. One enqueue per resolved channel keeps channels isolated (independent
-/// retry and latency). The walking skeleton (#312) only ever enqueues the email channel. See ADR-0032.
+/// retry and latency). Email (#312) and the fake SMS (#315) are wired; the bell lands in a later
+/// slice. See ADR-0032.
 /// </summary>
 /// <remarks>
 /// The <c>[AutomaticRetry]</c> policy mirrors the <c>src/Weather</c> jobs (and overrides Hangfire's global

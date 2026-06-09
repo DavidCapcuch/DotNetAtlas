@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Notifications.Application.Common.Data;
 using Notifications.Application.Dispatch;
 using Notifications.Domain.Channels;
@@ -16,11 +18,12 @@ using Xunit;
 namespace Notifications.IntegrationTests.NotifyUser;
 
 /// <summary>
-/// Integration coverage for the channel-resolution fan-out (notifications.md § 5.3): the real
+/// Integration coverage for the channel-resolution fan-out (notifications.md § 5.3) and the
+/// per-channel <c>ExecuteAt</c> split-time scheduling (§ 5.4, #315): the real
 /// <see cref="NotifyUserCommandKafkaHandler"/> against a real <see cref="NotificationsDbContext"/>,
 /// resolving <c>enabled_channels ∩ template_channels</c> over arranged preference + template rows and
 /// enqueuing per resolved channel. The Hangfire enqueuer is substituted so the assertions are on which
-/// channels were enqueued, not on a live job runner (which the test host does not start).
+/// channels were enqueued for which instant, not on a live job runner (which the test host does not start).
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
@@ -48,13 +51,86 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 
         // Every channel both supported by the template and enabled by the recipient is enqueued exactly once,
         // and the dispatch faithfully carries the command's fields (NotificationId, RecipientUserId, TemplateKey, Payload).
-        enqueuer.Received(1).Enqueue(ChannelType.Email, Arg.Is<NotificationDispatch>(d =>
-            d.NotificationId == notificationId
-            && d.RecipientUserId == recipientUserId
-            && d.TemplateKey == "order.shipped"
-            && d.Payload["InvoiceNumber"] == "INV-2026-000042"));
-        enqueuer.Received(1).Enqueue(ChannelType.Sms, Arg.Any<NotificationDispatch>());
-        enqueuer.Received(1).Enqueue(ChannelType.Bell, Arg.Any<NotificationDispatch>());
+        enqueuer.Received(1).Enqueue(
+            ChannelType.Email,
+            Arg.Is<NotificationDispatch>(d =>
+                d.NotificationId == notificationId
+                && d.RecipientUserId == recipientUserId
+                && d.TemplateKey == "order.shipped"
+                && d.Payload["InvoiceNumber"] == "INV-2026-000042"),
+            Arg.Any<DateTimeOffset>());
+        enqueuer.Received(1).Enqueue(ChannelType.Sms, Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
+        enqueuer.Received(1).Enqueue(ChannelType.Bell, Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
+    }
+
+    [Fact]
+    public async Task Handle_QuietHoursUserInsideWindow_DefersSmsToQuietEnd_AndKeepsOtherChannelsImmediate()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ArrangeOrderShippedTemplateAsync(ct);
+        var recipientUserId = Guid.CreateVersion7();
+        // The seeded quiet-hours shape (notifications.md § 8): 22:00–07:00 Europe/Prague.
+        await ArrangePreferenceAsync(
+            recipientUserId,
+            [ChannelType.Email, ChannelType.Sms, ChannelType.Bell],
+            ct,
+            quietHoursStart: new TimeOnly(22, 0),
+            quietHoursEnd: new TimeOnly(7, 0));
+
+        // 2026-06-09 23:30 CEST = 21:30Z — inside the window; it ends 06-10 07:00 CEST = 05:00Z.
+        var now = new DateTimeOffset(2026, 6, 9, 21, 30, 0, TimeSpan.Zero);
+        var expectedSmsExecuteAt = new DateTimeOffset(2026, 6, 10, 5, 0, 0, TimeSpan.Zero);
+        var enqueuer = Substitute.For<IChannelDispatchEnqueuer>();
+        var logger = new CollectingLogger<NotifyUserCommandKafkaHandler>();
+
+        await HandleAsync(
+            enqueuer, Guid.CreateVersion7(), recipientUserId, "order.shipped", ct,
+            new FakeTimeProvider(now), logger);
+
+        // Only the quiet-hours-respecting channel (Sms) defers; email and bell stay immediate.
+        enqueuer.Received(1).Enqueue(ChannelType.Sms, Arg.Any<NotificationDispatch>(), expectedSmsExecuteAt);
+        enqueuer.Received(1).Enqueue(ChannelType.Email, Arg.Any<NotificationDispatch>(), now);
+        enqueuer.Received(1).Enqueue(ChannelType.Bell, Arg.Any<NotificationDispatch>(), now);
+
+        logger.Messages.Should().ContainSingle(m => m.Contains("deferred", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Handle_UserWithoutQuietHours_EnqueuesAllChannelsImmediately()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ArrangeOrderShippedTemplateAsync(ct);
+        var recipientUserId = Guid.CreateVersion7();
+        // The admin/dev seeded shape: all channels on, no quiet hours.
+        await ArrangePreferenceAsync(recipientUserId, [ChannelType.Email, ChannelType.Sms, ChannelType.Bell], ct);
+
+        var now = new DateTimeOffset(2026, 6, 9, 21, 30, 0, TimeSpan.Zero);
+        var enqueuer = Substitute.For<IChannelDispatchEnqueuer>();
+
+        await HandleAsync(
+            enqueuer, Guid.CreateVersion7(), recipientUserId, "order.shipped", ct, new FakeTimeProvider(now));
+
+        enqueuer.Received(1).Enqueue(ChannelType.Sms, Arg.Any<NotificationDispatch>(), now);
+        enqueuer.Received(1).Enqueue(ChannelType.Email, Arg.Any<NotificationDispatch>(), now);
+        enqueuer.Received(1).Enqueue(ChannelType.Bell, Arg.Any<NotificationDispatch>(), now);
+    }
+
+    [Fact]
+    public async Task Handle_SmsDisabledUser_SuppressesSmsByResolution()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ArrangeOrderShippedTemplateAsync(ct);
+        var recipientUserId = Guid.CreateVersion7();
+        // The pleb seeded shape: Sms OFF — the ∩ suppresses a channel the template supports (§ 5.3).
+        await ArrangePreferenceAsync(recipientUserId, [ChannelType.Email, ChannelType.Bell], ct);
+
+        var enqueuer = Substitute.For<IChannelDispatchEnqueuer>();
+
+        await HandleAsync(enqueuer, Guid.CreateVersion7(), recipientUserId, "order.shipped", ct);
+
+        enqueuer.DidNotReceive().Enqueue(ChannelType.Sms, Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
+        enqueuer.Received(1).Enqueue(ChannelType.Email, Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
+        enqueuer.Received(1).Enqueue(ChannelType.Bell, Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
     }
 
     [Fact]
@@ -70,7 +146,8 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 
         await HandleAsync(enqueuer, Guid.CreateVersion7(), recipientUserId, "invoicing.invoice-delivered", ct);
 
-        enqueuer.DidNotReceive().Enqueue(Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>());
+        enqueuer.DidNotReceive().Enqueue(
+            Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
     }
 
     [Fact]
@@ -83,7 +160,8 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 
         await HandleAsync(enqueuer, Guid.CreateVersion7(), Guid.CreateVersion7(), "invoicing.invoice-delivered", ct);
 
-        enqueuer.DidNotReceive().Enqueue(Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>());
+        enqueuer.DidNotReceive().Enqueue(
+            Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
     }
 
     [Fact]
@@ -98,7 +176,8 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
         var act = () => HandleAsync(enqueuer, Guid.CreateVersion7(), recipientUserId, "unknown.template", ct);
 
         await act.Should().ThrowAsync<DataIntegrityException>();
-        enqueuer.DidNotReceive().Enqueue(Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>());
+        enqueuer.DidNotReceive().Enqueue(
+            Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>());
     }
 
     [Fact]
@@ -111,7 +190,7 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 
         var enqueuer = Substitute.For<IChannelDispatchEnqueuer>();
         enqueuer
-            .When(e => e.Enqueue(Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>()))
+            .When(e => e.Enqueue(Arg.Any<ChannelType>(), Arg.Any<NotificationDispatch>(), Arg.Any<DateTimeOffset>()))
             .Do(_ => throw new InvalidOperationException("scheduler down"));
 
         var act = () => HandleAsync(enqueuer, Guid.CreateVersion7(), recipientUserId, "invoicing.invoice-delivered", ct);
@@ -124,12 +203,17 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
         Guid notificationId,
         Guid recipientUserId,
         string templateKey,
-        CancellationToken ct)
+        CancellationToken ct,
+        TimeProvider? clock = null,
+        ILogger<NotifyUserCommandKafkaHandler>? logger = null)
     {
         await using var scope = _fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<INotificationsDbContext>();
         var handler = new NotifyUserCommandKafkaHandler(
-            db, enqueuer, NullLogger<NotifyUserCommandKafkaHandler>.Instance);
+            db,
+            enqueuer,
+            clock ?? TimeProvider.System,
+            logger ?? NullLogger<NotifyUserCommandKafkaHandler>.Instance);
 
         var cmd = new NotifyUserCommand
         {
@@ -166,7 +250,11 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
     }
 
     private async Task ArrangePreferenceAsync(
-        Guid userId, IReadOnlyList<ChannelType> enabledChannels, CancellationToken ct)
+        Guid userId,
+        IReadOnlyList<ChannelType> enabledChannels,
+        CancellationToken ct,
+        TimeOnly? quietHoursStart = null,
+        TimeOnly? quietHoursEnd = null)
     {
         await using var scope = _fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
@@ -175,8 +263,8 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
             email: $"user-{userId:N}@dotnetatlas.test",
             phoneNumber: "+420600000000",
             enabledChannels: enabledChannels,
-            quietHoursStart: null,
-            quietHoursEnd: null,
+            quietHoursStart: quietHoursStart,
+            quietHoursEnd: quietHoursEnd,
             timeZone: "Europe/Prague"));
         await db.SaveChangesAsync(ct);
     }

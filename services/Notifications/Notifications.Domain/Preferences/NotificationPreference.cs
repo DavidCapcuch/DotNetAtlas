@@ -6,8 +6,9 @@ namespace Notifications.Domain.Preferences;
 /// A recipient's notification preference + contact details — seeded local reference data (notifications.md
 /// § 8), <b>not</b> a projection: there is no Identity/Accounts BC (ADR-0005), so <see cref="UserId"/> is the
 /// Keycloak <c>sub</c> and Notifications owns the slice of user data it needs. One row per user; the handler
-/// resolves <c>enabled_channels ∩ template_channels</c> (<see cref="ChannelResolver"/>) and the email
-/// dispatcher resolves the address from <see cref="Email"/>. Not an aggregate root — there is no runtime
+/// resolves <c>enabled_channels ∩ template_channels</c> (<see cref="ChannelResolver"/>) plus the quiet-hours
+/// deferral (<see cref="QuietHoursCalculator"/>), and the durable-channel dispatchers resolve the address from
+/// <see cref="Email"/> / <see cref="PhoneNumber"/>. Not an aggregate root — there is no runtime
 /// mutation surface (no preference HTTP; deferred seam, § 13), so no invariant-guarded object graph.
 /// </summary>
 public sealed class NotificationPreference
@@ -49,7 +50,7 @@ public sealed class NotificationPreference
 
     /// <summary>
     /// Start of the recipient's daily quiet-hours window (civil wall-clock in <see cref="TimeZone"/>); <c>null</c>
-    /// when the recipient has no quiet hours. Consumed by the quiet-hours scheduler (#315), not v2 dispatch.
+    /// when the recipient has no quiet hours. Consumed at enqueue time by <see cref="QuietHoursCalculator"/> (#315).
     /// </summary>
     public TimeOnly? QuietHoursStart { get; private set; }
 
