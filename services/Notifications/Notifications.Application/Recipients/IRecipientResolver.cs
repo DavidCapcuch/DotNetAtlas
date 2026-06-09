@@ -1,8 +1,8 @@
 namespace Notifications.Application.Recipients;
 
 /// <summary>
-/// Resolves a recipient's contact details for channel delivery. The walking skeleton (#312) ships a
-/// deterministic stub; #314 replaces it with a lookup over the seeded <c>user_preferences</c> table.
+/// Resolves a recipient's contact details for channel delivery from the seeded <c>user_preferences</c>
+/// table (#314, <c>DbRecipientResolver</c>) — replaced the #312 synthetic-email walking-skeleton stub.
 /// </summary>
 public interface IRecipientResolver
 {

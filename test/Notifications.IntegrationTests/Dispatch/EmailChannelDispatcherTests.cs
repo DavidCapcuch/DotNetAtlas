@@ -11,11 +11,13 @@ using Notifications.Application.Email;
 using Notifications.Application.Recipients;
 using Notifications.Domain.Channels;
 using Notifications.Domain.Deliveries;
+using Notifications.Domain.Preferences;
 using Notifications.Domain.Templates;
 using Notifications.Infrastructure.Dispatch;
 using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common;
 using NSubstitute;
+using Platform.SharedKernel.Exceptions;
 using Xunit;
 
 namespace Notifications.IntegrationTests.Dispatch;
@@ -47,6 +49,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         await ArrangeInvoiceTemplateAsync(ct);
         var notificationId = Guid.CreateVersion7();
         var recipientUserId = Guid.CreateVersion7();
+        await ArrangePreferenceAsync(recipientUserId, "invoice-buyer@dotnetatlas.test", ct);
         var dispatch = BuildDispatch(notificationId, recipientUserId);
 
         await using (var scope = _fixture.CreateScope())
@@ -57,6 +60,9 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
 
         var messages = await _fixture.Mailpit.GetMessagesAsync(ct);
         messages.Should().ContainSingle();
+
+        // The recipient address is resolved from user_preferences.email (#314 — replaces the synthetic stub).
+        messages[0].To.Should().ContainSingle().Which.Address.Should().Be("invoice-buyer@dotnetatlas.test");
 
         // Subject rendered from template_channels.subject + payload ({{InvoiceNumber}} → value).
         messages[0].Subject.Should().Be("Invoice INV-2026-000042 — your copy is ready");
@@ -84,7 +90,9 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         var ct = TestContext.Current.CancellationToken;
         await ArrangeInvoiceTemplateAsync(ct);
         var notificationId = Guid.CreateVersion7();
-        var dispatch = BuildDispatch(notificationId, Guid.CreateVersion7());
+        var recipientUserId = Guid.CreateVersion7();
+        await ArrangePreferenceAsync(recipientUserId, "buyer@dotnetatlas.test", ct);
+        var dispatch = BuildDispatch(notificationId, recipientUserId);
 
         await DispatchViaKeyedAsync(dispatch, ct);
         await DispatchViaKeyedAsync(dispatch, ct); // ledger already Dispatched → skip
@@ -104,14 +112,17 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         var ct = TestContext.Current.CancellationToken;
         await ArrangeInvoiceTemplateAsync(ct);
         var notificationId = Guid.CreateVersion7();
-        var dispatch = BuildDispatch(notificationId, Guid.CreateVersion7());
+        var recipientUserId = Guid.CreateVersion7();
+        await ArrangePreferenceAsync(recipientUserId, "buyer@dotnetatlas.test", ct);
+        var dispatch = BuildDispatch(notificationId, recipientUserId);
 
-        // First attempt: gateway fails → records Failed and rethrows (so Hangfire would retry).
+        // First attempt: gateway fails → records Failed and rethrows a (retryable) EmailDispatchFailedException
+        // so Hangfire would retry — a transient send failure is NOT bug-class.
         var gateway = new SequencedEmailGateway(Result.Fail("smtp down"), Result.Ok());
         await using (var scope = _fixture.CreateScope())
         {
             var dispatcher = BuildDispatcher(scope, gateway);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+            await Assert.ThrowsAsync<EmailDispatchFailedException>(() => dispatcher.DispatchAsync(dispatch, ct));
         }
 
         (await LoadLedgerStatusAsync(notificationId, ct)).Should().Be(DeliveryStatus.Failed);
@@ -155,7 +166,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         await using (var scope = _fixture.CreateScope())
         {
             var dispatcher = scope.ServiceProvider.GetRequiredKeyedService<IChannelDispatcher>(ChannelType.Email);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+            await Assert.ThrowsAsync<DataIntegrityException>(() => dispatcher.DispatchAsync(dispatch, ct));
         }
 
         (await _fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("a missing template must fail before sending");
@@ -174,7 +185,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         var dispatcher = scope.ServiceProvider.GetRequiredKeyedService<IChannelDispatcher>(ChannelType.Email);
 
         // Email requires a subject; a null-subject Email template channel is a misconfigured template.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+        await Assert.ThrowsAsync<DataIntegrityException>(() => dispatcher.DispatchAsync(dispatch, ct));
         (await _fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty();
     }
 
@@ -183,12 +194,16 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
     {
         var ct = TestContext.Current.CancellationToken;
         await ArrangeInvoiceTemplateAsync(ct);
+        // A preference row exists so the dispatcher reaches the unresolved-token guard (rather than
+        // loud-failing earlier on a missing recipient address).
+        var recipientUserId = Guid.CreateVersion7();
+        await ArrangePreferenceAsync(recipientUserId, "buyer@dotnetatlas.test", ct);
         // Payload omits ViewInvoiceUrl, which the template body references. The dispatcher must
         // loud-fail rather than email a customer a literal "{{ViewInvoiceUrl}}" + record Dispatched.
         var dispatch = new NotificationDispatch
         {
             NotificationId = Guid.CreateVersion7(),
-            RecipientUserId = Guid.CreateVersion7(),
+            RecipientUserId = recipientUserId,
             TemplateKey = "invoicing.invoice-delivered",
             Payload = new Dictionary<string, string>
             {
@@ -202,7 +217,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         await using (var scope = _fixture.CreateScope())
         {
             var dispatcher = scope.ServiceProvider.GetRequiredKeyedService<IChannelDispatcher>(ChannelType.Email);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+            await Assert.ThrowsAsync<DataIntegrityException>(() => dispatcher.DispatchAsync(dispatch, ct));
         }
 
         (await _fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("an incomplete payload must fail before sending");
@@ -280,6 +295,23 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             ChannelType.Email,
             subject: null,
             body: "Your invoice {{InvoiceNumber}} is ready."));
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task ArrangePreferenceAsync(Guid recipientUserId, string email, CancellationToken ct)
+    {
+        // The DB-backed recipient resolver (#314) reads the address from user_preferences, so every
+        // send-path test must seed the recipient's row.
+        await using var scope = _fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        db.UserPreferences.Add(NotificationPreference.Create(
+            recipientUserId,
+            email,
+            phoneNumber: "+420600000000",
+            enabledChannels: [ChannelType.Email],
+            quietHoursStart: null,
+            quietHoursEnd: null,
+            timeZone: "Europe/Prague"));
         await db.SaveChangesAsync(ct);
     }
 

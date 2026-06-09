@@ -82,6 +82,8 @@ There is **no `IdempotencyKey` and no `CorrelationId`** in the payload (see § 4
 
 Any enqueue failure throws → the inbox transaction rolls back → Kafka re-drives the whole fan-out (duplicates absorbed per § 4).
 
+**Two empty-resolution cases, deliberately split.** A template with **no** `template_channels` rows — the producer named an unknown / unconfigured template — is bug-class: the handler throws `DataIntegrityException`, so the *command itself* dead-letters to `notifications.notify-commands.Notifications.DLT` (§ 3.2). (This is a change of failure *surface* from the v1 walking skeleton, where the fixed `[Email]` fan-out pushed an unknown template down to a failed **Hangfire job** instead.) A known template whose channels the recipient has **all** disabled (or a recipient with no preference row) resolves to the **empty set** — a valid no-op per § 5.3, logged at warning, **not** an error.
+
 ### 3.2 Retry & DLT
 
 Unchanged from the platform policy ([ADR-0025](../adr/0025-kafka-consumer-retry-dlt-policy.md)): infra exceptions retry-forever with backoff; other exceptions DLT to `notifications.notify-commands.Notifications.DLT`. Per-**channel** retry is owned by Hangfire, not Kafka.
@@ -130,7 +132,7 @@ Each channel is an `IChannelDispatcher` registered in **Keyed DI** by `ChannelTy
 
 ### 5.3 Channel resolution
 
-`resolved = user_preferences.enabled_channels ∩ template_channels`. A template fires only on channels it has a body for, intersected with what the user enabled. There is **no mandatory-channel floor** in v2 (deferred seam, § 13) — with preferences pre-seeded all-ON and no mutation surface, nothing can be disabled anyway.
+`resolved = user_preferences.enabled_channels ∩ template_channels`. A template fires only on channels it has a body for, intersected with what the user enabled. There is **no mandatory-channel floor** in v2 (deferred seam, § 13): nothing forces a channel back on, so the `∩` is the whole story. The seed deliberately exercises this — `pleb` has **Sms disabled** (§ 8), so an `order.shipped` to `pleb` resolves to `[Email, Bell]` (Sms suppressed). An empty intersection (a recipient who disabled every channel the template supports, or has no preference row) is a **valid** outcome — the handler no-ops with a warning, it does not error.
 
 ### 5.4 Quiet hours
 
@@ -220,7 +222,7 @@ Schema `notifications` (Postgres):
 | `outbox_messages` | `Platform.ReliableMessaging.Outbox.EFCore` | Pending `NotificationDeliveryStatusChangedEvent`. |
 | Hangfire tables | `Hangfire.PostgreSql` | Background-job store (per `src/Weather`). |
 
-Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). Templates seed from **fixed literals** (they are real reference content, not fakes); `user_preferences` seeds via deterministic Bogus. **Tests arrange their own** preferences/templates per-fixture (test migrations run Evolve SQL scripts, not `MigrateAsync`, so `UseAsyncSeeding` does not fire there). No seed data in the SQL migration scripts.
+Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). Both templates and `user_preferences` seed from **fixed literals** — they are real reference content, not fakes: the four Keycloak realm users (`sub`s sourced from `src/keycloak/realm-export.json`) with **real emails** so Mailpit shows recognizable recipients. **Tests arrange their own** preferences/templates per-fixture (test migrations run Evolve SQL scripts, not `MigrateAsync`, so `UseAsyncSeeding` does not fire there). No seed data in the SQL migration scripts.
 
 ---
 

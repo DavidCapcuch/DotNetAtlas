@@ -11,6 +11,7 @@ using Notifications.Domain.Deliveries;
 using Notifications.Domain.Templates;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
+using Platform.SharedKernel.Exceptions;
 
 namespace Notifications.Infrastructure.Dispatch;
 
@@ -74,18 +75,21 @@ internal sealed class EmailChannelDispatcher : IChannelDispatcher
         }
 
         // Missing row is bug-class — the producer named a template with no Email channel (unknown key,
-        // or a template that does not support email). Let it surface (Hangfire records the failed job);
-        // there is nothing to retry into success.
+        // or a template that does not support email). DataIntegrityException classifies it as a bug:
+        // NotificationDispatchJob's [AutomaticRetry(ExceptOn = CriticalException)] parks it Failed on the
+        // first attempt (no retries — there is nothing to retry into success).
         var templateChannel = await _db.TemplateChannels
             .FirstOrDefaultAsync(
                 tc => tc.TemplateKey == dispatch.TemplateKey && tc.Channel == ChannelType.Email,
-                ct) ?? throw new InvalidOperationException(
+                ct) ?? throw new DataIntegrityException(
+                "Notifications.MissingEmailTemplateChannel",
                 $"No Email template channel found for template key '{dispatch.TemplateKey}'.");
 
         if (string.IsNullOrWhiteSpace(templateChannel.Subject))
         {
             // Email requires a subject; a null/blank subject is a misconfigured template (bug-class).
-            throw new InvalidOperationException(
+            throw new DataIntegrityException(
+                "Notifications.EmailTemplateMissingSubject",
                 $"Email template '{dispatch.TemplateKey}' has no subject.");
         }
 
@@ -105,7 +109,8 @@ internal sealed class EmailChannelDispatcher : IChannelDispatcher
             .ToArray();
         if (unresolvedTokens.Length > 0)
         {
-            throw new InvalidOperationException(
+            throw new DataIntegrityException(
+                "Notifications.UnresolvedTemplateTokens",
                 $"Cannot send email for template '{dispatch.TemplateKey}': payload is missing values " +
                 $"for token(s) {string.Join(", ", unresolvedTokens)}.");
         }
@@ -170,9 +175,10 @@ internal sealed class EmailChannelDispatcher : IChannelDispatcher
         if (sendResult.IsFailed)
         {
             // Failure recorded (ledger + Failed event committed above); rethrow so Hangfire retries.
-            // A later successful retry flips the same ledger row to Dispatched.
-            throw new InvalidOperationException(
-                $"Email send failed for NotificationId={dispatch.NotificationId}: " +
+            // A transient send failure is recoverable (not bug-class) — EmailDispatchFailedException is a
+            // RetryableException, and a later successful retry flips the same ledger row to Dispatched.
+            throw new EmailDispatchFailedException(
+                dispatch.NotificationId,
                 string.Join("; ", sendResult.Errors.Select(e => e.Message)));
         }
 

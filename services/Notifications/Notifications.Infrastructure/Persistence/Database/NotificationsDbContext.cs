@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Notifications.Application.Common.Data;
 using Notifications.Domain.Deliveries;
+using Notifications.Domain.Preferences;
 using Notifications.Domain.Templates;
 using Platform.ReliableMessaging.Inbox.Core;
 using Platform.ReliableMessaging.Inbox.EFCore;
@@ -22,6 +23,7 @@ public sealed class NotificationsDbContext : DbContext, INotificationsDbContext,
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<TemplateChannel> TemplateChannels => Set<TemplateChannel>();
+    public DbSet<NotificationPreference> UserPreferences => Set<NotificationPreference>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
