@@ -195,7 +195,7 @@ No POST/PATCH/DELETE HTTP endpoints for Payments aggregate mutation — saga com
 
 ## 9. Use Cases (summary)
 
-Full use-case catalog in [`use-cases.md § 5`](use-cases.md) (new § added in the Payments BC authoring wave).
+The Payments surface is catalogued **here**, not in [`use-cases.md`](use-cases.md): the HTTP route table in § 8, and the command + query handlers in §§ 9.1 (Kafka-driven commands) and 9.2 (HTTP queries).
 
 ### 9.1 Commands (Kafka-driven)
 
