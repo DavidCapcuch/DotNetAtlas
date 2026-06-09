@@ -12,8 +12,9 @@ namespace Notifications.IntegrationTests.Recipients;
 
 /// <summary>
 /// Integration coverage for the DB-backed recipient resolver (notifications.md § 8): the real
-/// <see cref="IRecipientResolver"/> resolves the email address from the seeded <c>user_preferences</c>
-/// table — replacing the #312 synthetic-email stub — and loud-fails on a missing row.
+/// <see cref="IRecipientResolver"/> resolves the email address and phone number from the seeded
+/// <c>user_preferences</c> table — replacing the #312 synthetic-email stub — and loud-fails on a
+/// missing row.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class DbRecipientResolverTests : BaseIntegrationTest
@@ -27,11 +28,11 @@ public sealed class DbRecipientResolverTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task ResolveAsync_ReturnsTheEmailFromUserPreferences()
+    public async Task ResolveAsync_ReturnsTheContactDetailsFromUserPreferences()
     {
         var ct = TestContext.Current.CancellationToken;
         var userId = Guid.CreateVersion7();
-        await ArrangePreferenceAsync(userId, "invoice-buyer@dotnetatlas.test", ct);
+        await ArrangePreferenceAsync(userId, "invoice-buyer@dotnetatlas.test", "+420600000042", ct);
 
         await using var scope = _fixture.CreateScope();
         var resolver = scope.ServiceProvider.GetRequiredService<IRecipientResolver>();
@@ -39,6 +40,7 @@ public sealed class DbRecipientResolverTests : BaseIntegrationTest
         var contact = await resolver.ResolveAsync(userId, ct);
 
         contact.Email.Should().Be("invoice-buyer@dotnetatlas.test");
+        contact.PhoneNumber.Should().Be("+420600000042");
     }
 
     [Fact]
@@ -53,14 +55,14 @@ public sealed class DbRecipientResolverTests : BaseIntegrationTest
         await act.Should().ThrowAsync<DataIntegrityException>();
     }
 
-    private async Task ArrangePreferenceAsync(Guid userId, string email, CancellationToken ct)
+    private async Task ArrangePreferenceAsync(Guid userId, string email, string phoneNumber, CancellationToken ct)
     {
         await using var scope = _fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         db.UserPreferences.Add(NotificationPreference.Create(
             userId,
             email,
-            phoneNumber: "+420600000000",
+            phoneNumber,
             enabledChannels: [ChannelType.Email],
             quietHoursStart: null,
             quietHoursEnd: null,
