@@ -11,6 +11,7 @@ using Notifications.Application.Email;
 using Notifications.Application.Recipients;
 using Notifications.Domain.Channels;
 using Notifications.Domain.Deliveries;
+using Notifications.Domain.Templates;
 using Notifications.Infrastructure.Dispatch;
 using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common;
@@ -40,9 +41,10 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Dispatch_SendsEmailToMailpit_RecordsDispatchedLedger_AndEmitsDispatchedEvent()
+    public async Task Dispatch_RendersSubjectAndBodyFromDbTemplate_SendsToMailpit_RecordsDispatchedLedger_AndEmitsDispatchedEvent()
     {
         var ct = TestContext.Current.CancellationToken;
+        await ArrangeInvoiceTemplateAsync(ct);
         var notificationId = Guid.CreateVersion7();
         var recipientUserId = Guid.CreateVersion7();
         var dispatch = BuildDispatch(notificationId, recipientUserId);
@@ -55,7 +57,15 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
 
         var messages = await _fixture.Mailpit.GetMessagesAsync(ct);
         messages.Should().ContainSingle();
+
+        // Subject rendered from template_channels.subject + payload ({{InvoiceNumber}} → value).
         messages[0].Subject.Should().Be("Invoice INV-2026-000042 — your copy is ready");
+
+        // Body rendered from template_channels.body + payload (every {{token}} substituted).
+        var detail = await _fixture.Mailpit.GetMessageAsync(messages[0].Id, ct);
+        detail.Text.Should().Contain("Your invoice INV-2026-000042 is ready.");
+        detail.Text.Should().Contain("Total: 152.00 EUR");
+        detail.Text.Should().Contain("00000000-0000-0000-0000-000000000001");
 
         (await LoadLedgerStatusAsync(notificationId, ct)).Should().Be(DeliveryStatus.Dispatched);
 
@@ -72,6 +82,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
     public async Task Dispatch_Redelivered_DoesNotSendTwice()
     {
         var ct = TestContext.Current.CancellationToken;
+        await ArrangeInvoiceTemplateAsync(ct);
         var notificationId = Guid.CreateVersion7();
         var dispatch = BuildDispatch(notificationId, Guid.CreateVersion7());
 
@@ -91,6 +102,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
     public async Task Dispatch_GatewayFailsThenSucceeds_UpsertsTheSameRowToDispatched()
     {
         var ct = TestContext.Current.CancellationToken;
+        await ArrangeInvoiceTemplateAsync(ct);
         var notificationId = Guid.CreateVersion7();
         var dispatch = BuildDispatch(notificationId, Guid.CreateVersion7());
 
@@ -132,6 +144,72 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             Arg.Is<NotificationDeliveryStatusChangedEvent>(e => e.Status == NotificationDeliveryStatus.Dispatched));
     }
 
+    [Fact]
+    public async Task Dispatch_NoEmailTemplateChannel_Throws_AndSendsNothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // Deliberately arrange nothing — the (TemplateKey, Email) row is absent (producer named an
+        // unknown template). The dispatcher must fail before sending or writing the outbox.
+        var dispatch = BuildDispatch(Guid.CreateVersion7(), Guid.CreateVersion7());
+
+        await using (var scope = _fixture.CreateScope())
+        {
+            var dispatcher = scope.ServiceProvider.GetRequiredKeyedService<IChannelDispatcher>(ChannelType.Email);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+        }
+
+        (await _fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("a missing template must fail before sending");
+        _fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+    }
+
+    [Fact]
+    public async Task Dispatch_EmailTemplateChannelHasNoSubject_Throws()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ArrangeSubjectlessEmailTemplateAsync(ct);
+        var dispatch = BuildDispatch(Guid.CreateVersion7(), Guid.CreateVersion7());
+
+        await using var scope = _fixture.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredKeyedService<IChannelDispatcher>(ChannelType.Email);
+
+        // Email requires a subject; a null-subject Email template channel is a misconfigured template.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+        (await _fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Dispatch_PayloadMissingTemplateToken_Throws_AndSendsNothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ArrangeInvoiceTemplateAsync(ct);
+        // Payload omits ViewInvoiceUrl, which the template body references. The dispatcher must
+        // loud-fail rather than email a customer a literal "{{ViewInvoiceUrl}}" + record Dispatched.
+        var dispatch = new NotificationDispatch
+        {
+            NotificationId = Guid.CreateVersion7(),
+            RecipientUserId = Guid.CreateVersion7(),
+            TemplateKey = "invoicing.invoice-delivered",
+            Payload = new Dictionary<string, string>
+            {
+                ["InvoiceNumber"] = "INV-2026-000042",
+                ["TotalAmount"] = "152.00",
+                ["Currency"] = "EUR",
+                // ViewInvoiceUrl intentionally omitted
+            },
+        };
+
+        await using (var scope = _fixture.CreateScope())
+        {
+            var dispatcher = scope.ServiceProvider.GetRequiredKeyedService<IChannelDispatcher>(ChannelType.Email);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(dispatch, ct));
+        }
+
+        (await _fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("an incomplete payload must fail before sending");
+        _fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+    }
+
     private static NotificationDispatch BuildDispatch(Guid notificationId, Guid recipientUserId) => new()
     {
         NotificationId = notificationId,
@@ -160,11 +238,49 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             sp.GetRequiredService<INotificationsDbContext>(),
             _fixture.OutboxSubstitute,
             sp.GetRequiredService<IRecipientResolver>(),
-            sp.GetRequiredService<IEmailTemplateRenderer>(),
             gateway,
             sp.GetRequiredService<IOptions<TopicsOptions>>(),
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<ILogger<EmailChannelDispatcher>>());
+    }
+
+    private async Task ArrangeInvoiceTemplateAsync(CancellationToken ct)
+    {
+        // Tests arrange their own templates — UseAsyncSeeding does not fire under Evolve migrations
+        // (notifications.md § 10). Mirrors the dev seed for invoicing.invoice-delivered → [Email].
+        await using var scope = _fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        db.Templates.Add(Template.Create(
+            "invoicing.invoice-delivered",
+            "Sent to a buyer when their invoice is issued and ready to view."));
+        db.TemplateChannels.Add(TemplateChannel.Create(
+            "invoicing.invoice-delivered",
+            ChannelType.Email,
+            subject: "Invoice {{InvoiceNumber}} — your copy is ready",
+            body: """
+                  Hello,
+
+                  Your invoice {{InvoiceNumber}} is ready.
+                  Total: {{TotalAmount}} {{Currency}}
+                  Sign in to view & download: {{ViewInvoiceUrl}}
+                  """));
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task ArrangeSubjectlessEmailTemplateAsync(CancellationToken ct)
+    {
+        // A misconfigured Email template: the channel exists but has no subject line.
+        await using var scope = _fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        db.Templates.Add(Template.Create(
+            "invoicing.invoice-delivered",
+            "Misconfigured invoice template with no email subject."));
+        db.TemplateChannels.Add(TemplateChannel.Create(
+            "invoicing.invoice-delivered",
+            ChannelType.Email,
+            subject: null,
+            body: "Your invoice {{InvoiceNumber}} is ready."));
+        await db.SaveChangesAsync(ct);
     }
 
     private async Task<DeliveryStatus> LoadLedgerStatusAsync(Guid notificationId, CancellationToken ct)

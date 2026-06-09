@@ -82,9 +82,9 @@ internal static class MessagingDependencyInjection
             .Get<TopicsOptions>()!;
 
         // Email channel collaborators. SmtpEmailGateway → Mailpit is the live transport;
-        // MockEmailGateway is retained for unit tests (constructed directly, not via DI).
+        // MockEmailGateway is retained for unit tests (constructed directly, not via DI). Rendering
+        // uses the pure Domain TemplateRenderer over template_channels (no DI registration; #313).
         services.AddScoped<IEmailGateway, SmtpEmailGateway>();
-        services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
         services.AddScoped<IRecipientResolver, StubRecipientResolver>();
 
         // Channel dispatchers in Keyed DI by ChannelType. Only the email channel is wired in the

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Common.Data;
 using Notifications.Infrastructure.Common.Config;
 using Notifications.Infrastructure.Persistence.Database;
+using Notifications.Infrastructure.Persistence.Database.Seed;
 
 namespace Notifications.Infrastructure.Common;
 
@@ -61,7 +62,12 @@ internal static class PersistenceDependencyInjection
             // responses. Honour the config flag in non-deployed envs only; force off in
             // deployed environments regardless of config.
             .EnableDetailedErrors(efCoreOptions.EnableDetailedErrors && !isDeployedEnvironment)
-            .UseExceptionProcessor()); // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
+            // required for the Inbox pattern, see Platform.ReliableMessaging.Inbox.EFCore
+            .UseExceptionProcessor()
+            // Dev/compose template seeding (seed-if-empty); fires only on MigrateAsync/update-database
+            // (Development), never in Testing/deployed — see DatabaseSeedExtensions.
+            .UseSeeding()
+            .UseAsyncSeeding());
 
         services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
 

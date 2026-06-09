@@ -54,6 +54,14 @@ public sealed class MailpitTestContainer : IAsyncDisposable
         return response?.Messages ?? [];
     }
 
+    /// <summary>Fetches one captured message in full (including the rendered text body) by its Mailpit ID.</summary>
+    public async Task<MailpitMessageDetail> GetMessageAsync(string id, CancellationToken cancellationToken = default)
+    {
+        var detail = await _apiClient.GetFromJsonAsync<MailpitMessageDetail>(
+            $"/api/v1/message/{id}", cancellationToken);
+        return detail ?? throw new InvalidOperationException($"Mailpit message '{id}' was not found.");
+    }
+
     /// <summary>Deletes all captured messages (call between tests).</summary>
     public async Task DeleteAllAsync(CancellationToken cancellationToken = default)
     {
@@ -80,3 +88,8 @@ public sealed record MailpitMessage(
 
 public sealed record MailpitContact(
     [property: JsonPropertyName("Address")] string Address);
+
+public sealed record MailpitMessageDetail(
+    [property: JsonPropertyName("ID")] string Id,
+    [property: JsonPropertyName("Subject")] string Subject,
+    [property: JsonPropertyName("Text")] string Text);

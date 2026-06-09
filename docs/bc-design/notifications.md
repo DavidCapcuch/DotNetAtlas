@@ -150,7 +150,7 @@ Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, 
 
 ## 7. Templates
 
-`templates` (`template_key` PK, `description`) + `template_channels` (`template_key` + `channel_type` PK, nullable `subject`, required `body`). Rendering is a **dumb `{{key}}` token-replace** over `Payload` (`TemplateRenderer`, pure, unit-tested) — no engine dependency (Scriban/Razor is a deferred seam). `template_channels` is the source of "supported channels" for § 5.3.
+`templates` (`template_key` PK, `description`) + `template_channels` (`template_key` + `channel_type` PK, nullable `subject`, required `body`). Rendering is a **dumb `{{key}}` token-replace** over `Payload` (`TemplateRenderer`, pure, unit-tested) — no engine dependency (Scriban/Razor is a deferred seam). The renderer leaves an unmatched `{{token}}` **literal** (deterministic, no failure mode); the **email dispatcher** then refuses to send a message with any unresolved token — a missing-payload-field producer bug **loud-fails** (no send → Hangfire failed job, no false `Dispatched`) rather than deliver a half-rendered email. `template_channels` is the source of "supported channels" for § 5.3.
 
 **Seeded (minimal):** exactly two templates.
 
@@ -220,7 +220,7 @@ Schema `notifications` (Postgres):
 | `outbox_messages` | `Platform.ReliableMessaging.Outbox.EFCore` | Pending `NotificationDeliveryStatusChangedEvent`. |
 | Hangfire tables | `Hangfire.PostgreSql` | Background-job store (per `src/Weather`). |
 
-Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty, deterministic Bogus); **tests arrange their own** preferences/templates per-fixture (test migrations run Evolve SQL scripts, not `MigrateAsync`, so `UseAsyncSeeding` does not fire there). No seed data in the SQL migration scripts.
+Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). Templates seed from **fixed literals** (they are real reference content, not fakes); `user_preferences` seeds via deterministic Bogus. **Tests arrange their own** preferences/templates per-fixture (test migrations run Evolve SQL scripts, not `MigrateAsync`, so `UseAsyncSeeding` does not fire there). No seed data in the SQL migration scripts.
 
 ---
 
