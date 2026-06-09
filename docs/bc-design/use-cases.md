@@ -1,11 +1,10 @@
 # Use Case Catalog — eShop Reference Solution
 
-> **Status:** DRAFT (Stage 2 Agent 7)
-> **Target section in master design:** [eshop-master-design.md § 7](../eshop-master-design.md)
 > **Companion file:** [bff.md](./bff.md) (BFF aggregation endpoints)
-> **Stage 1 inputs:** [catalog.md](./catalog.md), [basket.md](./basket.md), [ordering.md](./ordering.md), [inventory.md](./inventory.md)
+> **Per-BC design docs:** [catalog.md](./catalog.md), [basket.md](./basket.md), [ordering.md](./ordering.md), [inventory.md](./inventory.md), [invoicing.md](./invoicing.md), [payments.md](./payments.md)
+> **Master design:** [eshop-master-design.md § 7](../eshop-master-design.md)
 
-This document enumerates every command and query exposed by the four new services (Catalog, Basket, Ordering, Inventory). For each use case it specifies: HTTP route, authorization, `Platform.CQRS` interface, request shape, response shape, validator rules, handler flow, and emitted internal events. It also documents how saga-issued commands enter each service.
+This document enumerates every command and query exposed by the Catalog, Basket, Ordering, Inventory, and Invoicing services. (Payments exposes only an admin-read HTTP surface plus Kafka-driven commands, catalogued in [`payments.md` § 8–9](payments.md).) For each use case it specifies: HTTP route, authorization, `Platform.CQRS` interface, request shape, response shape, validator rules, handler flow, and emitted internal events. It also documents how saga-issued commands enter each service.
 
 ---
 
