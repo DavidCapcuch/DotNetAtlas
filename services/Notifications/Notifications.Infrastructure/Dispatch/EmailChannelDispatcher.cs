@@ -8,24 +8,28 @@ using Notifications.Application.Email;
 using Notifications.Application.Recipients;
 using Notifications.Domain.Channels;
 using Notifications.Domain.Deliveries;
+using Notifications.Domain.Templates;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 namespace Notifications.Infrastructure.Dispatch;
 
 /// <summary>
-/// Email channel dispatcher (ADR-0032 § 2). Runs as an isolated Hangfire job. Guards the send with
-/// the per-channel <c>(NotificationId, Channel)</c> ledger: if already <c>Dispatched</c>, no-op; else
-/// send via MailKit → Mailpit, then <b>UPSERT</b> the ledger row and write the delivery outbox event
-/// in <b>one</b> transaction. The first attempt INSERTs (<c>Failed</c> or <c>Dispatched</c>); a later
-/// retry of a <c>Failed</c> row UPDATEs it to <c>Dispatched</c> (never a second INSERT). At-least-once.
+/// Email channel dispatcher (ADR-0032 § 2). Runs as an isolated Hangfire job. Loads the
+/// <c>(TemplateKey, Email)</c> row from <c>template_channels</c> and renders its subject/body against
+/// the command payload via the pure <see cref="TemplateRenderer"/> (#313 — replaces the inline stub);
+/// loud-fails (no send) if the payload leaves any <c>{{token}}</c> unresolved, rather than email a
+/// half-rendered message. Guards the send with the per-channel <c>(NotificationId, Channel)</c> ledger: if already
+/// <c>Dispatched</c>, no-op; else send via MailKit → Mailpit, then <b>UPSERT</b> the ledger row and
+/// write the delivery outbox event in <b>one</b> transaction. The first attempt INSERTs
+/// (<c>Failed</c> or <c>Dispatched</c>); a later retry of a <c>Failed</c> row UPDATEs it to
+/// <c>Dispatched</c> (never a second INSERT). At-least-once.
 /// </summary>
 internal sealed class EmailChannelDispatcher : IChannelDispatcher
 {
     private readonly INotificationsDbContext _db;
     private readonly ITransactionalOutbox<INotificationsDbContext> _outbox;
     private readonly IRecipientResolver _recipientResolver;
-    private readonly IEmailTemplateRenderer _renderer;
     private readonly IEmailGateway _gateway;
     private readonly TopicsOptions _topics;
     private readonly TimeProvider _clock;
@@ -35,7 +39,6 @@ internal sealed class EmailChannelDispatcher : IChannelDispatcher
         INotificationsDbContext db,
         ITransactionalOutbox<INotificationsDbContext> outbox,
         IRecipientResolver recipientResolver,
-        IEmailTemplateRenderer renderer,
         IEmailGateway gateway,
         IOptions<TopicsOptions> topics,
         TimeProvider clock,
@@ -44,7 +47,6 @@ internal sealed class EmailChannelDispatcher : IChannelDispatcher
         _db = db;
         _outbox = outbox;
         _recipientResolver = recipientResolver;
-        _renderer = renderer;
         _gateway = gateway;
         _topics = topics.Value;
         _clock = clock;
@@ -71,19 +73,46 @@ internal sealed class EmailChannelDispatcher : IChannelDispatcher
             return;
         }
 
-        var contact = await _recipientResolver.ResolveAsync(dispatch.RecipientUserId, ct);
+        // Missing row is bug-class — the producer named a template with no Email channel (unknown key,
+        // or a template that does not support email). Let it surface (Hangfire records the failed job);
+        // there is nothing to retry into success.
+        var templateChannel = await _db.TemplateChannels
+            .FirstOrDefaultAsync(
+                tc => tc.TemplateKey == dispatch.TemplateKey && tc.Channel == ChannelType.Email,
+                ct) ?? throw new InvalidOperationException(
+                $"No Email template channel found for template key '{dispatch.TemplateKey}'.");
 
-        var renderResult = _renderer.Render(contact.Email, dispatch.TemplateKey, dispatch.Payload);
-        if (renderResult.IsFailed)
+        if (string.IsNullOrWhiteSpace(templateChannel.Subject))
         {
-            // Bug-class — producer sent an unknown template or malformed payload. Let it surface
-            // (Hangfire records the failed job); there is nothing to retry into success.
+            // Email requires a subject; a null/blank subject is a misconfigured template (bug-class).
             throw new InvalidOperationException(
-                $"Template render failed for '{dispatch.TemplateKey}': " +
-                string.Join("; ", renderResult.Errors.Select(e => e.Message)));
+                $"Email template '{dispatch.TemplateKey}' has no subject.");
         }
 
-        var sendResult = await _gateway.SendAsync(renderResult.Value, ct);
+        var contact = await _recipientResolver.ResolveAsync(dispatch.RecipientUserId, ct);
+
+        // Dumb {{token}} render over the payload — unknown tokens stay literal (TemplateRenderer is a
+        // pure substitution, no failure mode). The renderer leaving literals is not the same as it
+        // being OK to SEND them: the dispatcher must not email a customer a half-rendered message and
+        // then falsely record Dispatched. So it loud-fails (bug-class, no send → Hangfire failed job)
+        // on any token the payload didn't resolve — restoring #312's reject-incomplete-payload guard.
+        var subject = TemplateRenderer.Render(templateChannel.Subject, dispatch.Payload);
+        var body = TemplateRenderer.Render(templateChannel.Body, dispatch.Payload);
+
+        var unresolvedTokens = TemplateRenderer.FindUnresolvedTokens(subject)
+            .Concat(TemplateRenderer.FindUnresolvedTokens(body))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (unresolvedTokens.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot send email for template '{dispatch.TemplateKey}': payload is missing values " +
+                $"for token(s) {string.Join(", ", unresolvedTokens)}.");
+        }
+
+        var message = new EmailMessage(contact.Email, subject, body);
+
+        var sendResult = await _gateway.SendAsync(message, ct);
         var status = sendResult.IsSuccess ? DeliveryStatus.Dispatched : DeliveryStatus.Failed;
         var now = _clock.GetUtcNow();
 
