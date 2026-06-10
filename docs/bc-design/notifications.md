@@ -148,6 +148,8 @@ Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, 
 | **Sms** | fake handler (logs `"Sending SMS…"`; the Kafka handler logs `"Quiet hours, deferred to …"` — quiet hours are evaluated once, at enqueue; the dispatcher never re-checks) | ledger + delivery event | `RespectsQuietHours = true`. **No real provider** — seam. Phone from `user_preferences.phone_number`. |
 | **Bell** | `INotificationBroadcaster` → **SignalR** group `RecipientUserId` | **none** | Live push only; hub `/hubs/v1/notifications` (Keycloak JWT; versioned per the Weather `BasePaths` convention). Group join/leave in `OnConnectedAsync`/`OnDisconnectedAsync` keyed on `Context.UserIdentifier` (= `sub` = `RecipientUserId`); **no** client subscribe RPC (unlike Weather's per-location model). Offline users miss it; no feed/history/badge/mark-read/SSE (deferred, § 13). Minimal job retries (group-send to zero connections is a successful no-op). In-memory backplane (no Redis); reuses the `src/Weather` SignalR pattern. |
 
+**No CORS in this BC — by design.** Browser traffic (the bell SignalR connection included — YARP proxies WebSockets natively, no bypass) terminates at the YARP edge, which owns the origin policy ([ADR-0035](../adr/0035-edge-owned-cors-yarp.md)); unlike the older browser-facing BCs' transitional per-BC `Cors` configs, Notifications ships none.
+
 ---
 
 ## 7. Templates

@@ -40,6 +40,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0032](0032-notifications-dispatch-and-channels.md) | Notifications v2 Dispatch & Channels (Hangfire fan-out, at-least-once ledger, SignalR bell) | Accepted | 2026-06-03 |
 | [0033](0033-kafka-topic-contract-doc-ssot.md) | SSOT for Kafka topic & event-contract documentation | Accepted | 2026-06-04 |
 | [0034](0034-inventory-stock-availability-read-path.md) | Inventory stock-availability read path — Inventory-owned read-through cache, oversell-safe via ES | Accepted | 2026-06-05 |
+| [0035](0035-edge-owned-cors-yarp.md) | Edge-owned CORS — browser traffic terminates at YARP, SignalR included | Accepted | 2026-06-10 |
 
 ## Creating a New ADR
 
