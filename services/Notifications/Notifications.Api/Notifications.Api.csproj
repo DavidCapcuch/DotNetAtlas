@@ -12,6 +12,11 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
 
+        <!-- In-app bell SignalR hub transport: server-side MessagePack protocol + OpenTelemetry hub
+             instrumentation (#316, ADR-0032). In-memory backplane only — no Redis (ADR-0016). -->
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack"/>
+        <PackageReference Include="AspNetCore.SignalR.OpenTelemetry"/>
+
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -25,6 +30,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Notifications.UnitTests"/>
         <InternalsVisibleTo Include="Notifications.IntegrationTests"/>
         <InternalsVisibleTo Include="Notifications.FunctionalTests"/>
         <InternalsVisibleTo Include="Notifications.ArchitectureTests"/>

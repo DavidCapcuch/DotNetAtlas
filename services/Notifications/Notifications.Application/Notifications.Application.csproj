@@ -11,6 +11,11 @@
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions"/>
         <PackageReference Include="Riok.Mapperly"/>
 
+        <!-- In-app bell contracts: MessagePack wire attributes on the payload + the
+             TypedSignalR [Receiver] attribute on the client contract (#316, ADR-0032). -->
+        <PackageReference Include="MessagePack.Annotations"/>
+        <PackageReference Include="TypedSignalR.Client.Attributes"/>
+
         <PackageReference Include="StyleCop.Analyzers">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

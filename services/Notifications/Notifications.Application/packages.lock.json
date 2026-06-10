@@ -28,6 +28,12 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "2.1.0"
         }
       },
+      "MessagePack.Annotations": {
+        "type": "Direct",
+        "requested": "[3.1.4, )",
+        "resolved": "3.1.4",
+        "contentHash": "aVWrDAkCdqxwQsz/q0ldPh2EFn48M99YUzE9OvZjMq2RNLKz4o2z88iGFvSvbMqOWRweRvKPHBJZe22PRqzslQ=="
+      },
       "Riok.Mapperly": {
         "type": "Direct",
         "requested": "[4.3.1, )",
@@ -42,6 +48,12 @@
         "dependencies": {
           "StyleCop.Analyzers.Unstable": "1.2.0.556"
         }
+      },
+      "TypedSignalR.Client.Attributes": {
+        "type": "Direct",
+        "requested": "[1.1.0, )",
+        "resolved": "1.1.0",
+        "contentHash": "/ky27lru1v2mpS9nIpZGwVAsCHpGOC7PqPmaxiWC+gvIH/sFLdtjtIK4U4b5lgYfyruRBTH0mfnmnhbHis/RQg=="
       },
       "Apache.Avro": {
         "type": "Transitive",
@@ -240,8 +252,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.15.3, )",
-          "Platform.Messaging.Abstractions": "[1.0.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
