@@ -7,11 +7,11 @@ using Platform.SharedKernel.Exceptions;
 namespace Notifications.Infrastructure.Dispatch;
 
 /// <summary>
-/// Hangfire job entry point for per-channel dispatch. Hangfire activates this concrete type within a
-/// job scope; it then resolves the channel's <see cref="IChannelDispatcher"/> from Keyed DI by
-/// <see cref="ChannelType"/>. One enqueue per resolved channel keeps channels isolated (independent
-/// retry and latency). Email (#312) and the fake SMS (#315) are wired; the bell lands in a later
-/// slice. See ADR-0032.
+/// Hangfire job entry point for <b>durable</b> per-channel dispatch (<see cref="ChannelType.IsDurable"/>;
+/// ephemeral channels ride the minimal-retry <see cref="EphemeralNotificationDispatchJob"/> instead).
+/// Hangfire activates this concrete type within a job scope; it then resolves the channel's
+/// <see cref="IChannelDispatcher"/> from Keyed DI by <see cref="ChannelType"/>. One enqueue per
+/// resolved channel keeps channels isolated (independent retry and latency). See ADR-0032.
 /// </summary>
 /// <remarks>
 /// The <c>[AutomaticRetry]</c> policy mirrors the <c>src/Weather</c> jobs (and overrides Hangfire's global

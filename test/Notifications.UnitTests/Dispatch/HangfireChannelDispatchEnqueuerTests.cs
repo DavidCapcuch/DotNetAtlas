@@ -70,6 +70,36 @@ public sealed class HangfireChannelDispatchEnqueuerTests
             Arg.Any<EnqueuedState>());
     }
 
+    [Fact]
+    public void Enqueue_EphemeralChannel_CreatesAnImmediateEnqueuedEphemeralJob()
+    {
+        // Act — Bell is ephemeral (IsDurable = false): it must ride the minimal-retry job, not the
+        // durable channels' full-retry one.
+        _enqueuer.Enqueue(ChannelType.Bell, BuildDispatch(), executeAt: Now);
+
+        // Assert
+        _backgroundJobs.Received(1).Create(
+            Arg.Is<Job>(job => job.Type == typeof(EphemeralNotificationDispatchJob) && Equals(job.Args[0], "Bell")),
+            Arg.Any<EnqueuedState>());
+    }
+
+    [Fact]
+    public void Enqueue_EphemeralChannel_FutureExecuteAt_SchedulesTheEphemeralJob()
+    {
+        // Arrange — no ephemeral channel defers today (Bell.RespectsQuietHours = false), but the
+        // contract is per-flag, not per-channel: a deferred ephemeral dispatch must keep its
+        // minimal-retry job type.
+        var executeAt = Now.AddHours(7.5);
+
+        // Act
+        _enqueuer.Enqueue(ChannelType.Bell, BuildDispatch(), executeAt);
+
+        // Assert
+        _backgroundJobs.Received(1).Create(
+            Arg.Is<Job>(job => job.Type == typeof(EphemeralNotificationDispatchJob) && Equals(job.Args[0], "Bell")),
+            Arg.Is<ScheduledState>(state => state.EnqueueAt == executeAt.UtcDateTime));
+    }
+
     private static NotificationDispatch BuildDispatch() => new()
     {
         NotificationId = Guid.CreateVersion7(),

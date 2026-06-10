@@ -31,8 +31,8 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment, enableBackgroundJobServer);
 
-    // In-app bell transport (#316): JWT bearer auth host + the SignalR hub. Independent of the
-    // channel fan-out — no Bell IChannelDispatcher / Keyed-DI entry yet (that is #317). ADR-0032.
+    // In-app bell transport (#316): JWT bearer auth host + the SignalR hub the bell channel
+    // dispatcher (#317) pushes through via INotificationBroadcaster. ADR-0032.
     builder.Services
         .AddNotificationsAuthentication(builder.Configuration, builder.Environment)
         .AddNotificationsSignalR();

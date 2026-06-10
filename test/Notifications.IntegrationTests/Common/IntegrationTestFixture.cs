@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Notifications.Application.Bell;
 using Notifications.Application.Common.Data;
 using Notifications.Infrastructure.Persistence.Database;
 using NSubstitute;
@@ -59,6 +60,14 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>NSubstitute transactional-outbox stub. Tests assert on its <c>Received</c> AddOutboxMessage calls.</summary>
     public ITransactionalOutbox<INotificationsDbContext> OutboxSubstitute { get; } =
         Substitute.For<ITransactionalOutbox<INotificationsDbContext>>();
+
+    /// <summary>
+    /// NSubstitute bell-broadcaster stub (#317). The real SignalR push needs a connected client —
+    /// functional-test territory — so dispatcher-level tests assert on its <c>Received</c>
+    /// PushToUserAsync calls instead.
+    /// </summary>
+    public INotificationBroadcaster BroadcasterSubstitute { get; } =
+        Substitute.For<INotificationBroadcaster>();
 
     /// <summary>Mailpit SMTP sink the email dispatcher delivers to; assert captured mail via its REST API.</summary>
     public MailpitTestContainer Mailpit => _mailpit;
@@ -124,6 +133,9 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // calls — production wiring requires a live Schema Registry which we
                 // don't stand up in integration tests.
                 services.Replace(ServiceDescriptor.Singleton<ITransactionalOutbox<INotificationsDbContext>>(OutboxSubstitute));
+
+                // Same rationale as the outbox substitute above.
+                services.Replace(ServiceDescriptor.Singleton(BroadcasterSubstitute));
             });
     }
 
@@ -139,6 +151,9 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     /// <summary>Resets the NSubstitute call recorder between tests.</summary>
     public void ResetOutboxSubstitute() => OutboxSubstitute.ClearReceivedCalls();
+
+    /// <summary>Resets the NSubstitute call recorder between tests.</summary>
+    public void ResetBroadcasterSubstitute() => BroadcasterSubstitute.ClearReceivedCalls();
 
     protected override async ValueTask TearDownAsync()
     {

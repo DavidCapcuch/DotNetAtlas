@@ -113,18 +113,19 @@ Two identifiers, three layers, at-least-once:
 ### 5.1 `ChannelType` SmartEnum
 
 ```csharp
-public abstract class ChannelType : SmartEnum<ChannelType>
+public sealed class ChannelType : SmartEnum<ChannelType>
 {
-    public static readonly ChannelType Email = new EmailChannel(1, "Email", respectsQuietHours: false);
-    public static readonly ChannelType Sms   = new SmsChannel(2,   "Sms",   respectsQuietHours: true);
-    public static readonly ChannelType Bell  = new BellChannel(3,  "Bell",  respectsQuietHours: false);
+    public static readonly ChannelType Email = new(nameof(Email), 1, respectsQuietHours: false, isDurable: true);
+    public static readonly ChannelType Sms   = new(nameof(Sms),   2, respectsQuietHours: true,  isDurable: true);
+    public static readonly ChannelType Bell  = new(nameof(Bell),  3, respectsQuietHours: false, isDurable: false);
 
     public bool RespectsQuietHours { get; }
+    public bool IsDurable { get; }
     // ...
 }
 ```
 
-`RespectsQuietHours` is the only behavioral flag; SMS is the only channel that sets it today (a future Push inherits the deferral for free). Matches the repo's SmartEnum usage (Payments/Ordering).
+Two behavioral flags: `RespectsQuietHours` — SMS is the only channel that sets it today (a future Push inherits the deferral for free) — and `IsDurable`, which routes durable channels through the full-retry dispatch job and ephemeral ones (bell) through the minimal-retry job (§ 6; the ledger/event writes live inside each dispatcher, not behind the flag). Matches the repo's SmartEnum usage (Payments/Ordering).
 
 ### 5.2 `IChannelDispatcher` in Keyed DI
 
@@ -146,7 +147,7 @@ Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, 
 |---|---|---|---|
 | **Email** | `MailKit` `SmtpEmailGateway` → **Mailpit** | ledger + delivery event | Address from `user_preferences.email`. Mailpit runs in docker-compose (`core` profile, SMTP 1025 / UI 8025); `MockEmailGateway` retained for unit tests. |
 | **Sms** | fake handler (logs `"Sending SMS…"`; the Kafka handler logs `"Quiet hours, deferred to …"` — quiet hours are evaluated once, at enqueue; the dispatcher never re-checks) | ledger + delivery event | `RespectsQuietHours = true`. **No real provider** — seam. Phone from `user_preferences.phone_number`. |
-| **Bell** | `INotificationBroadcaster` → **SignalR** group `RecipientUserId` | **none** | Live push only; hub `/hubs/v1/notifications` (Keycloak JWT; versioned per the Weather `BasePaths` convention). Group join/leave in `OnConnectedAsync`/`OnDisconnectedAsync` keyed on `Context.UserIdentifier` (= `sub` = `RecipientUserId`); **no** client subscribe RPC (unlike Weather's per-location model). Offline users miss it; no feed/history/badge/mark-read/SSE (deferred, § 13). Minimal job retries (group-send to zero connections is a successful no-op). In-memory backplane (no Redis); reuses the `src/Weather` SignalR pattern. |
+| **Bell** | `INotificationBroadcaster` → **SignalR** group `RecipientUserId` | **none** | Live push only; hub `/hubs/v1/notifications` (Keycloak JWT; versioned per the Weather `BasePaths` convention). Group join/leave in `OnConnectedAsync`/`OnDisconnectedAsync` keyed on `Context.UserIdentifier` (= `sub` = `RecipientUserId`); **no** client subscribe RPC (unlike Weather's per-location model). Offline users miss it; no feed/history/badge/mark-read/SSE (deferred, § 13). Minimal job retries (`EphemeralNotificationDispatchJob`, `IsDurable = false`; group-send to zero connections is a successful no-op). In-memory backplane (no Redis); reuses the `src/Weather` SignalR pattern. |
 
 **No CORS in this BC — by design.** Browser traffic (the bell SignalR connection included — YARP proxies WebSockets natively, no bypass) terminates at the YARP edge, which owns the origin policy ([ADR-0035](../adr/0035-edge-owned-cors-yarp.md)); unlike the older browser-facing BCs' transitional per-BC `Cors` configs, Notifications ships none.
 
@@ -243,7 +244,7 @@ Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). B
 
 - `ApplicationInfo.AppName = "Notifications"`; KafkaFlow + outbox OpenTelemetry instrumentation as in v1; Hangfire jobs and the SignalR hub add spans. Structured logs tag `NotificationId`, `TemplateKey`, `Channel` (not PII; `RecipientUserId` per the BC PII rule). One deliberate exception: the fake SMS transport line additionally logs the seeded fake phone number + rendered body — that log line *is* the channel's send (§ 6); a real provider integration must move both into the provider call.
 - **Unit:** `QuietHoursCalculator` (in/out window, midnight-wrap, null), `ChannelType`, the resolution rule, `TemplateRenderer`.
-- **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell via the `src/Weather` SignalR test-client pattern; the Invoicing `Issued → Delivered` round-trip.
+- **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell dispatcher against a broadcaster substitute (the hub + the `src/Weather`-style SignalR test client live in the **functional** suite, per ADR-0032); the Invoicing `Issued → Delivered` round-trip.
 - **Architecture:** standard layering guards + ADR-0015 (`DateTimeOffset`, no `UtcNow` in domain). No bespoke arch tests.
 
 ---
@@ -252,7 +253,7 @@ Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). B
 
 Documented so readers don't search for them; each is a clean extension point, not a v2 deliverable:
 
-- **Durable bell** — feed table, history, unseen-count badge, mark-read/seen, HTTP poll, SSE replay. v2's bell is ephemeral SignalR live push only.
+- **Durable bell** — feed table, history, unseen-count badge, mark-read/seen, HTTP poll, SSE replay, and a richer push payload (title/link/severity — v2's `BellNotification` carries only the rendered body). v2's bell is ephemeral SignalR live push only.
 - **Preference HTTP** — read/mutate preferences. Seeded all-ON; no API.
 - **Mandatory-type floor / bypass** — would live in the resolver.
 - **Marketing-consent system-of-record / Accounts BC.**
