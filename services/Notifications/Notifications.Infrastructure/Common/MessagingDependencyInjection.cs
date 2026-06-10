@@ -29,7 +29,7 @@ namespace Notifications.Infrastructure.Common;
 /// DI wiring for Kafka — the inbound <c>TopicsOptions.NotifyCommands</c> consumer that dispatches
 /// <c>NotifyUserCommand</c> to <see cref="NotifyUserCommandKafkaHandler"/>, the inbox dedup adapter
 /// against <see cref="NotificationsDbContext"/>, the channel dispatchers (Keyed DI by
-/// <see cref="ChannelType"/>; email + fake SMS, bell in a later slice), and the transactional-outbox
+/// <see cref="ChannelType"/>; email + fake SMS + SignalR bell), and the transactional-outbox
 /// writer for <c>NotificationDeliveryStatusChangedEvent</c> publishing (<c>TopicsOptions.NotifyEvents</c>).
 /// See ADR-0031/0032.
 /// </summary>
@@ -88,11 +88,14 @@ internal static class MessagingDependencyInjection
         services.AddScoped<IEmailGateway, SmtpEmailGateway>();
         services.AddScoped<IRecipientResolver, DbRecipientResolver>();
 
-        // Channel dispatchers in Keyed DI by ChannelType. Email (#312) and the fake SMS (#315) are
-        // wired; the bell dispatcher registers its key in a later slice.
+        // Channel dispatchers in Keyed DI by ChannelType: email (#312), fake SMS (#315) and the
+        // SignalR bell (#317). Durable channels execute via NotificationDispatchJob, the ephemeral
+        // bell via the minimal-retry EphemeralNotificationDispatchJob (ChannelType.IsDurable).
         services.AddKeyedScoped<IChannelDispatcher, EmailChannelDispatcher>(ChannelType.Email);
         services.AddKeyedScoped<IChannelDispatcher, SmsChannelDispatcher>(ChannelType.Sms);
+        services.AddKeyedScoped<IChannelDispatcher, BellChannelDispatcher>(ChannelType.Bell);
         services.AddScoped<NotificationDispatchJob>();
+        services.AddScoped<EphemeralNotificationDispatchJob>();
         services.AddSingleton<IChannelDispatchEnqueuer, HangfireChannelDispatchEnqueuer>();
 
         services.AddKafka(kafka => kafka

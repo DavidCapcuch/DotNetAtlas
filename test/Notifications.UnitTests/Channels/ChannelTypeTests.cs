@@ -25,6 +25,24 @@ public sealed class ChannelTypeTests
     }
 
     [Fact]
+    public void Email_IsDurable()
+    {
+        ChannelType.Email.IsDurable.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Sms_IsDurable()
+    {
+        ChannelType.Sms.IsDurable.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Bell_IsNotDurable()
+    {
+        ChannelType.Bell.IsDurable.Should().BeFalse();
+    }
+
+    [Fact]
     public void FromName_RoundTripsTheChannel()
     {
         ChannelType.FromName("Email").Should().BeSameAs(ChannelType.Email);
