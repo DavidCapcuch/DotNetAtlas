@@ -19,8 +19,11 @@ public static class QuietHoursCalculator
     /// recipient's wall-clock, so a DST fall-back repeated hour cannot classify one instant both
     /// ways. An ambiguous or invalid (skipped) local edge resolves via <see cref="TimeZoneInfo"/>'s
     /// defaults: the standard-time offset on fall-back, the skip-forward adjustment on spring-forward.
-    /// Equal bounds are an empty <c>[start, end)</c> window (never quiet); the both-or-neither
-    /// invariant on half-specified bounds is enforced upstream by <see cref="NotificationPreference"/>.
+    /// Window-shape invariants (both-or-neither bounds, non-equal bounds, duration ≤ 23h — so no
+    /// standard 1h DST shift can make consecutive daily windows overlap, which the anchor probe
+    /// relies on) are enforced upstream by <see cref="NotificationPreference"/>; equal bounds
+    /// reaching this method anyway are treated defensively as an empty <c>[start, end)</c> window
+    /// (never quiet).
     /// </remarks>
     public static DateTimeOffset NextAllowedUtc(
         DateTimeOffset nowUtc,

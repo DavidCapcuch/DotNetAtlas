@@ -13,6 +13,11 @@ namespace Notifications.Domain.Preferences;
 /// </summary>
 public sealed class NotificationPreference
 {
+    // 23h leaves at least an hour between consecutive daily windows, so no standard 1h DST shift
+    // can make them overlap — the shape QuietHoursCalculator's anchor probe relies on. (The rare
+    // 2h-shift zones, e.g. Antarctica/Troll, are out of scope for this reference solution.)
+    private static readonly TimeSpan MaxQuietWindowDuration = TimeSpan.FromHours(23);
+
     private NotificationPreference(
         Guid userId,
         string email,
@@ -75,12 +80,41 @@ public sealed class NotificationPreference
         ArgumentNullException.ThrowIfNull(enabledChannels);
         ArgumentException.ThrowIfNullOrWhiteSpace(timeZone);
 
+        // An unresolvable id would otherwise surface only at quiet-hours fan-out as a
+        // TimeZoneNotFoundException, DLT'ing the whole command (every channel) far from the bad
+        // data's origin — fail here, where the offending row is being written.
+        if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZone, out _))
+        {
+            throw new ArgumentException($"Time zone '{timeZone}' is not a known time zone id.", nameof(timeZone));
+        }
+
         // Quiet hours are an all-or-nothing window; a half-specified bound is meaningless to the
         // quiet-hours scheduler (#315) and signals a seeding/caller bug.
         if (quietHoursStart.HasValue != quietHoursEnd.HasValue)
         {
             throw new ArgumentException(
                 "Quiet hours must specify both a start and an end, or neither.", nameof(quietHoursStart));
+        }
+
+        if (quietHoursStart is { } start && quietHoursEnd is { } end)
+        {
+            if (start == end)
+            {
+                // Equal bounds are an empty [start, end) window — silently never-quiet. A recipient
+                // meant to be permanently unreachable on a channel disables that channel instead.
+                throw new ArgumentException(
+                    "Quiet hours must be a non-empty window; to silence a channel entirely, disable the channel instead.",
+                    nameof(quietHoursEnd));
+            }
+
+            // TimeOnly subtraction wraps midnight, so this is the [start, end) duration for wrapped
+            // windows too (cap rationale at MaxQuietWindowDuration).
+            if (end - start > MaxQuietWindowDuration)
+            {
+                throw new ArgumentException(
+                    $"Quiet-hours window must not exceed {MaxQuietWindowDuration.TotalHours} hours.",
+                    nameof(quietHoursEnd));
+            }
         }
 
         return new NotificationPreference(

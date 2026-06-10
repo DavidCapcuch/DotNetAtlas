@@ -7,8 +7,9 @@ namespace Notifications.UnitTests.Preferences;
 
 /// <summary>
 /// <see cref="NotificationPreference"/> is seeded reference data (notifications.md § 8) with no runtime
-/// mutation surface; the only behaviour to guard is construction — chiefly the both-or-neither quiet-hours
-/// invariant (a half-specified window is meaningless to the quiet-hours scheduler, #315).
+/// mutation surface; the only behaviour to guard is construction — the quiet-hours window shape
+/// (both-or-neither, non-equal bounds, ≤ 23h) and time-zone resolvability that
+/// <see cref="QuietHoursCalculator"/> relies on (#315), plus contact-field basics.
 /// </summary>
 public sealed class NotificationPreferenceTests
 {
@@ -70,6 +71,60 @@ public sealed class NotificationPreferenceTests
 
         // Assert
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Create_WithEqualQuietHourBounds_Throws()
+    {
+        // Act — start == end is an empty [start, end) window: silently never-quiet, which is
+        // almost certainly not what the configurer meant ("always quiet" = disable the channel).
+        var act = () => NotificationPreference.Create(
+            UserId, "d.capcuch@gmail.com", "+420600000003", [ChannelType.Email],
+            new TimeOnly(22, 0), new TimeOnly(22, 0), "Europe/Prague");
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(0, 1, 23, 59)] // 23h58m, same-day window
+    [InlineData(1, 0, 0, 30)] // 23h30m, wrapping past midnight
+    public void Create_WithQuietWindowLongerThan23Hours_Throws(
+        int startHour, int startMinute, int endHour, int endMinute)
+    {
+        // Act — near-24h windows could make consecutive daily windows overlap across a DST shift,
+        // which QuietHoursCalculator's anchor probe does not defend against.
+        var act = () => NotificationPreference.Create(
+            UserId, "d.capcuch@gmail.com", "+420600000003", [ChannelType.Email],
+            new TimeOnly(startHour, startMinute), new TimeOnly(endHour, endMinute), "Europe/Prague");
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Create_WithQuietWindowOfExactly23Hours_Succeeds()
+    {
+        // Act — 23h is the inclusive cap; only longer windows are rejected.
+        var preference = NotificationPreference.Create(
+            UserId, "d.capcuch@gmail.com", "+420600000003", [ChannelType.Email],
+            new TimeOnly(0, 0), new TimeOnly(23, 0), "Europe/Prague");
+
+        // Assert
+        preference.QuietHoursEnd.Should().Be(new TimeOnly(23, 0));
+    }
+
+    [Fact]
+    public void Create_WithUnresolvableTimeZone_ThrowsNamingTheValue()
+    {
+        // Act — a typo'd IANA id must fail here, at the construction boundary, not hours later at
+        // quiet-hours fan-out where it would DLT the whole command (all channels).
+        var act = () => NotificationPreference.Create(
+            UserId, "d.capcuch@gmail.com", "+420600000003", [ChannelType.Email],
+            new TimeOnly(22, 0), new TimeOnly(7, 0), "Europe/Pragu");
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithMessage("*Europe/Pragu*");
     }
 
     [Fact]

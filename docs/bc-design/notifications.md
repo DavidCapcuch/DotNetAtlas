@@ -173,8 +173,8 @@ A **seeded local reference table** — *not* a projection. There is no Identity/
 | `email` | text | Resolved by the email dispatcher. |
 | `phone_number` | text | Fake E.164 (SMS is fake). |
 | `enabled_channels` | `ChannelType[]` (PG `text[]`, value-converted) | One row per user; no join on resolve. |
-| `quiet_hours_start` / `quiet_hours_end` | `time` (`TimeOnly`) | Civil time-of-day in `time_zone` — the one legitimate exception to ADR-0015's `DateTimeOffset` rule (a recurring wall-clock window is not an instant). Nullable = no quiet hours. |
-| `time_zone` | text | IANA, e.g. `Europe/Prague`. |
+| `quiet_hours_start` / `quiet_hours_end` | `time` (`TimeOnly`) | Civil time-of-day in `time_zone` — the one legitimate exception to ADR-0015's `DateTimeOffset` rule (a recurring wall-clock window is not an instant). Nullable = no quiet hours. `NotificationPreference.Create` enforces the window shape: both-or-neither, non-equal bounds, wrap-aware duration ≤ 23h (so no standard 1h DST shift can make consecutive daily windows overlap). |
+| `time_zone` | text | IANA, e.g. `Europe/Prague`. Must resolve via `TimeZoneInfo` — enforced at construction so a typo'd id fails at seed time, not at fan-out. |
 
 **No HTTP** to read or mutate preferences — deferred seam (§ 13).
 
