@@ -2,12 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "weather-api",
-      "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/Weather.Api", "--launch-profile", "Weather.Api.Local.Http"],
-      "port": 5159
-    },
-    {
       "name": "ordering-api",
       "runtimeExecutable": "dotnet",
       "runtimeArgs": ["run", "--project", "services/Order/Ordering.API", "--launch-profile", "http"],

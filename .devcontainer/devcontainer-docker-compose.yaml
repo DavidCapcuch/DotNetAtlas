@@ -7,6 +7,6 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ..:/workspaces/Weather:cached
+      - ..:/workspaces/DotNetAtlas:cached
     # Keeps the container running for VS Code to connect
     command: /bin/sh -c "while sleep 1000; do :; done"

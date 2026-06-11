@@ -49,7 +49,7 @@ services.AddKafka(kafka => kafka
             .AddCluster(cluster => cluster
                 .AddConsumer(consumer => consumer
                     .AddMiddlewares(middlewares => middlewares
-                        .AddInbox(typeof(ActivateAlertSubscriptionCommand), typeof(ExtendAlertSubscriptionCommand))  // <- skips duplicates
+                        .AddInbox(typeof(AvroOrderConfirmedEvent), typeof(AvroOrderCancelledEvent))  // <- skips duplicates
                     )
                 ))
 ```

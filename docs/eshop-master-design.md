@@ -119,7 +119,7 @@ Every external event is produced by a domain-event handler in the Application la
 
 The aggregate's `SaveChangesAsync()` persists domain state + outbox message in a single transaction. A per-service outbox-relay worker dequeues and publishes to Kafka.
 
-**Template to replicate**: [Weather.Application/WeatherAlerts/../SubscriptionActivatedOutboxPublisherDomainEventHandler.cs](../src/Weather.Application/) and siblings. Every new external event follows this shape.
+**Template to replicate**: [`OrderCreatedOutboxPublisherDomainEventHandler`](../services/Ordering/Ordering.Application/Orders/CreateOrder/OrderCreatedOutboxPublisherDomainEventHandler.cs) and siblings. Every new external event follows this shape.
 
 ### 3.4 Anti-Patterns
 

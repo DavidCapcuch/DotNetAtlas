@@ -15,17 +15,17 @@ using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
 
 var postgres = new PostgreSqlTestContainer(
-    databaseName: "Weather",
-    sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("src/Weather.Infrastructure"),
+    databaseName: "Catalog",
+    sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Catalog/Catalog.Infrastructure"),
     new RespawnerOptions
     {
-        SchemasToInclude = ["weather", "hangfire"]
+        SchemasToInclude = ["catalog"]
     });
 
 await postgres.StartAsync();
 
 // Use for DI
-builder.UseSetting("ConnectionStrings:Weather", postgres.ConnectionString);
+builder.UseSetting("ConnectionStrings:Catalog", postgres.ConnectionString);
 
 // Between tests
 await postgres.CleanDataAsync();

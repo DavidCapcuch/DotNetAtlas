@@ -1,4 +1,0 @@
-###
-# @name RemoveCacheByTag
-POST {{AppHostAddress}}/api/v1/admin/clear-cache-by-tag/Cz
-Authorization: Bearer {{$auth.token("keycloak-local")}}

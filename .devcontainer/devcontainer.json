@@ -92,7 +92,7 @@
         "mssql.connections": [
           {
             "server": "localhost,12345",
-            "database": "Weather",
+            "database": "Catalog",
             "authenticationType": "SqlLogin",
             "user": "sa",
             "password": "${MSSQL_SA_PASSWORD}",

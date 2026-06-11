@@ -2,24 +2,6 @@
   <Folder Name="/docs/" />
   <Folder Name="/docs/architecture/" />
   <Folder Name="/docs/design decisions/" />
-  <Folder Name="/http-requests/">
-    <File Path="requests/http-client.env.json" />
-  </Folder>
-  <Folder Name="/http-requests/Admin/">
-    <File Path="requests/Admin/ClearAllCache.http" />
-    <File Path="requests/Admin/RemoveCacheByTag.http" />
-  </Folder>
-  <Folder Name="/http-requests/Dev/">
-    <File Path="requests/Dev/SeedDatabase.http" />
-  </Folder>
-  <Folder Name="/http-requests/Feedback/">
-    <File Path="requests/Feedback/ChangeFeedback.http" />
-    <File Path="requests/Feedback/GetFeedbackById.http" />
-    <File Path="requests/Feedback/SendFeedback.http" />
-  </Folder>
-  <Folder Name="/http-requests/Forecast/">
-    <File Path="requests/Forecast/GetForecasts.http" />
-  </Folder>
   <Folder Name="/pipeline/" />
   <Folder Name="/pipeline/ci/">
     <File Path=".github/workflows/build-and-push-docker-image.yml" />
@@ -115,18 +97,11 @@
     <File Path=".editorconfig" />
     <File Path=".env" />
     <File Path="Directory.Build.props" />
-    <File Path="Directory.Packages.props" />
     <File Path="docker-compose.yaml" />
     <File Path="global.json" />
     <File Path="NuGet.config" />
     <File Path="README.md" />
     <File Path="src/keycloak/realm-export.json" />
-  </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/Weather.Api/Weather.Api.csproj" />
-    <Project Path="src/Weather.Application/Weather.Application.csproj" />
-    <Project Path="src/Weather.Domain/Weather.Domain.csproj" />
-    <Project Path="src/Weather.Infrastructure/Weather.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="platform/Platform.Api.UnitTests/Platform.Api.UnitTests.csproj" />
@@ -164,10 +139,6 @@
     <Project Path="test/Payments.FunctionalTests/Payments.FunctionalTests.csproj" />
     <Project Path="test/Payments.IntegrationTests/Payments.IntegrationTests.csproj" />
     <Project Path="test/Payments.UnitTests/Payments.UnitTests.csproj" />
-    <Project Path="test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj" />
-    <Project Path="test/Weather.FunctionalTests/Weather.FunctionalTests.csproj" />
-    <Project Path="test/Weather.IntegrationTests/Weather.IntegrationTests.csproj" />
-    <Project Path="test/Weather.UnitTests/Weather.UnitTests.csproj" />
   </Folder>
   <Folder Name="/test/Common/">
     <File Path="test/coverlet.runsettings" />

@@ -11,7 +11,7 @@ Catalog is the authoritative source for the ubiquitous terms **Product**, **SKU*
 
 ### Aggregates
 
-This BC contains two aggregate roots: **Product** (the primary lifecycle root) and **Category** (the taxonomy root). Aggregates reference one another by ID only — `Product.CategoryId` is an ID reference, not a navigation property — consistent with the pattern in [`AlertSubscriber` + `MonitoredLocationAlertsSubscription`](../../src/Weather.Domain/Alerts/AlertSubscriber.cs) and [`MonitoredLocationAlertsSubscription.Create(monitoredLocationId)`](../../src/Weather.Domain/Alerts/Entities/MonitoredLocationAlertsSubscription.cs).
+This BC contains two aggregate roots: **Product** (the primary lifecycle root) and **Category** (the taxonomy root). Aggregates reference one another by ID only — `Product.CategoryId` is an ID reference, not a navigation property — consistent with the codebase-wide pattern (e.g. [`Order`](../../services/Ordering/Ordering.Domain/Orders/Order.cs) references its customer and products by ID, not via navigation properties).
 
 Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.SharedKernel/Base/AggregateRoot.cs) with `TId = Guid`, use a private parameterless constructor, and raise domain events via `AddDomainEvent(...)`.
 
@@ -164,7 +164,7 @@ All value objects are `sealed record` types deriving from [`ValueObject`](../../
 
 ### SmartEnums
 
-Built on `Ardalis.SmartEnum<T>`, following the template in [`SubscriptionTier`](../../src/Weather.Domain/Alerts/ValueObjects/SubscriptionTier.cs). Status-transition guards use a dedicated `_allowed` dictionary per SmartEnum; see `OrderStatus` in `ordering.md § 5.1` for the canonical eShop pattern.
+Built on `Ardalis.SmartEnum<T>`, following the template in [`OrderStatus`](../../services/Ordering/Ordering.Domain/Orders/OrderStatus.cs). Status-transition guards use an explicit per-state transition table per SmartEnum; see `OrderStatus` in `ordering.md § 5.1` for the canonical eShop pattern.
 
 #### ProductStatus
 
@@ -229,7 +229,7 @@ All internal events are `sealed record` types deriving from [`DomainEvent`](../.
 
 ### External Summary Events
 
-Per [master design § 3.3](../eshop-master-design.md), every external event is produced by a domain-event handler in the Application layer that (1) receives the internal `*DomainEvent`, (2) loads missing state from the aggregate/DbContext, (3) constructs the Avro-compiled `ISpecificRecord`, and (4) calls `_transactionalOutbox.AddOutboxMessage(topic, key, event)`. Copy the shape of [`SubscriptionActivatedOutboxPublisherDomainEventHandler`](../../src/Weather.Application/WeatherAlerts/PurchaseSubscription/SubscriptionActivatedOutboxPublisherDomainEventHandler.cs) for each.
+Per [master design § 3.3](../eshop-master-design.md), every external event is produced by a domain-event handler in the Application layer that (1) receives the internal `*DomainEvent`, (2) loads missing state from the aggregate/DbContext, (3) constructs the Avro-compiled `ISpecificRecord`, and (4) calls `_transactionalOutbox.AddOutboxMessage(topic, key, event)`. Copy the shape of [`ProductCreatedOutboxPublisherDomainEventHandler`](../../services/Catalog/Catalog.Application/Products/CreateProduct/ProductCreatedOutboxPublisherDomainEventHandler.cs) for each.
 
 **Message key:** always the aggregate ID as a string (Product events keyed by `ProductId`, Category events by `CategoryId`) — enables per-aggregate ordering within a Kafka partition.
 

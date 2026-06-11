@@ -36,7 +36,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Platform projects previously brought in transitively via Weather.Infrastructure -->
+        <!-- Platform projects used directly by shared test helpers (Avro serdes, messaging abstractions, outbox). -->
         <ProjectReference Include="..\Platform.Avro.UniversalSerDes\Platform.Avro.UniversalSerDes.csproj" />
         <ProjectReference Include="..\Platform.Messaging.Abstractions\Platform.Messaging.Abstractions.csproj" />
         <ProjectReference Include="..\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />

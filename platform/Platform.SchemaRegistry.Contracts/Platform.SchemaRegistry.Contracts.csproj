@@ -7,13 +7,4 @@
     <ItemGroup>
         <PackageReference Include="Apache.Avro"/>
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Avro\Checkout\Sagas\" />
-      <Folder Include="Avro\Payments\Transactions\" />
-      <Folder Include="Avro\Weather\Alerts\" />
-      <Folder Include="Avro\Weather\Feedback\" />
-      <Folder Include="Avro\Weather\Forecast\" />
-      <Folder Include="Avro\Notifications\Email\" />
-    </ItemGroup>
 </Project>
