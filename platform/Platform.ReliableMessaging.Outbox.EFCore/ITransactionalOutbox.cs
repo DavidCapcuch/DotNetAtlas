@@ -26,14 +26,14 @@ namespace Platform.ReliableMessaging.Outbox.EFCore;
 /// <code>
 /// public class KafkaMessageHandler
 /// {
-///     private readonly ITransactionalOutbox&lt;IWeatherDbContext&gt; _outbox;
+///     private readonly ITransactionalOutbox&lt;ICatalogDbContext&gt; _outbox;
 ///
 ///     public async Task Handle(SomeEvent message, CancellationToken ct)
 ///     {
 ///         await _outbox.Database.EnsureTransactionAsync(async () =>
 ///         {
 ///             // Process message...
-///             _outbox.AddOutboxMessage("weather.events", key, integrationEvent);
+///             _outbox.AddOutboxMessage("catalog.products", key, integrationEvent);
 ///             await _outbox.SaveChangesAsync(ct);
 ///         }, ct);
 ///     }

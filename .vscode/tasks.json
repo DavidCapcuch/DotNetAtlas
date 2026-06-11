@@ -194,151 +194,9 @@
         "panel": "dedicated"
       }
     },
-    {
-      "label": "11 🧪 Run Unit Tests Only",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "test",
-        "${workspaceFolder}/test/Weather.UnitTests/Weather.UnitTests.csproj",
-        "--configuration",
-        "Release",
-        "--no-build"
-      ],
-      "group": "test",
-      "problemMatcher": [
-        "$msCompile"
-      ]
-    },
-    {
-      "label": "12 🧪 Run Integration Tests",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "test",
-        "${workspaceFolder}/test/Weather.IntegrationTests/Weather.IntegrationTests.csproj",
-        "--configuration",
-        "Release",
-        "--no-build"
-      ],
-      "group": "test",
-      "problemMatcher": [
-        "$msCompile"
-      ]
-    },
-    {
-      "label": "13 🧪 Run Functional Tests",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "test",
-        "${workspaceFolder}/test/Weather.FunctionalTests/Weather.FunctionalTests.csproj",
-        "--configuration",
-        "Release",
-        "--no-build"
-      ],
-      "group": "test",
-      "problemMatcher": [
-        "$msCompile"
-      ]
-    },
-    {
-      "label": "14 🧪 Run Architecture Tests",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "test",
-        "${workspaceFolder}/test/Weather.ArchitectureTests/Weather.ArchitectureTests.csproj",
-        "--configuration",
-        "Release",
-        "--no-build"
-      ],
-      "group": "test",
-      "problemMatcher": [
-        "$msCompile"
-      ]
-    },
-    // ========== Database Management ==========
-    {
-      "label": "15 🗄️ EF Core Add Migration",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "ef",
-        "migrations",
-        "add",
-        "${input:MigrationName}",
-        "--project",
-        "src/Weather.Infrastructure",
-        "--startup-project",
-        "src/Weather.Api",
-        "--context",
-        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
-      ],
-      "group": "build"
-    },
-    {
-      "label": "16 🗄️ EF Core Update Database",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "ef",
-        "database",
-        "update",
-        "--project",
-        "src/Weather.Infrastructure",
-        "--startup-project",
-        "src/Weather.Api",
-        "--context",
-        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
-      ],
-      "group": "build"
-    },
-    {
-      "label": "17 📝 EF Core Generate SQL Migration Script",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "ef",
-        "migrations",
-        "script",
-        "${input:FromMigration}",
-        "${input:ToMigration}",
-        "--project",
-        "src/Weather.Infrastructure/Weather.Infrastructure.csproj",
-        "--startup-project",
-        "src/DotNetAWeathertlas.Api/Weather.Api.csproj",
-        "--context",
-        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
-        "--configuration",
-        "Debug",
-        "--output",
-        "src/Weather.Infrastructure/Persistence/Database/Migrations/SqlScripts/${input:OutputFileName}",
-        "--idempotent"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "18 🗑️ EF Core Remove Last Migration",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "ef",
-        "migrations",
-        "remove",
-        "--project",
-        "src/Weather.Infrastructure",
-        "--startup-project",
-        "src/Weather.Api",
-        "--context",
-        "Weather.Infrastructure.Persistence.Database.WeatherDbContext",
-        "--force"
-      ],
-      "group": "build"
-    },
     // ========== Docker & System Management ==========
     {
-      "label": "19 📊 Show Docker Stats",
+      "label": "11 📊 Show Docker Stats",
       "type": "shell",
       "command": "docker",
       "args": [
@@ -354,7 +212,7 @@
       }
     },
     {
-      "label": "20 📊 Show Docker Container Sizes",
+      "label": "12 📊 Show Docker Container Sizes",
       "type": "shell",
       "command": "docker",
       "args": [
@@ -370,7 +228,7 @@
       }
     },
     {
-      "label": "21 🧹 Clean Unused Docker Images",
+      "label": "13 🧹 Clean Unused Docker Images",
       "type": "shell",
       "command": "docker",
       "args": [
@@ -388,7 +246,7 @@
     },
     // ========== Package & Security Management ==========
     {
-      "label": "22 🔍 Check Outdated Packages",
+      "label": "14 🔍 Check Outdated Packages",
       "type": "shell",
       "command": "dotnet",
       "args": [
@@ -400,7 +258,7 @@
       "group": "build"
     },
     {
-      "label": "23 🔍 Check Vulnerable Packages",
+      "label": "15 🔍 Check Vulnerable Packages",
       "type": "shell",
       "command": "dotnet",
       "args": [
@@ -410,32 +268,6 @@
         "--vulnerable"
       ],
       "group": "build"
-    }
-  ],
-  "inputs": [
-    {
-      "id": "MigrationName",
-      "description": "Migration name",
-      "default": "AddXTable",
-      "type": "promptString"
-    },
-    {
-      "id": "FromMigration",
-      "description": "From migration (leave empty for initial)",
-      "default": "",
-      "type": "promptString"
-    },
-    {
-      "id": "ToMigration",
-      "description": "To migration",
-      "default": "CreateCatalogTables",
-      "type": "promptString"
-    },
-    {
-      "id": "OutputFileName",
-      "description": "Output SQL filename",
-      "default": "V001__MigrationName.sql",
-      "type": "promptString"
     }
   ]
 }

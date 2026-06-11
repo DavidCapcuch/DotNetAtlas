@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 # Generates C# class from an Avro schema file (.avsc)
 # Usage: ./generate-avro.ps1 <schema-file.avsc>
-# Example: ./generate-avro.ps1 Avro/FeedbackChangedEvent.avsc
+# Example: ./generate-avro.ps1 Avro/Notifications/NotifyUserCommand.avsc
 
 param(
     [Parameter(Mandatory = $true)]

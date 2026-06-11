@@ -137,10 +137,10 @@ Consumer must:
   ❌ Break if producer refactors internal model
 ```
 
-**Denormalized events** are self-contained business facts. Platform demonstrates this with `SubscriptionPurchasedEvent`:
+**Denormalized events** are self-contained business facts. Consider a `SubscriptionPurchasedEvent`:
 
 ```json
-// Billing.Subscriptions.SubscriptionPurchasedEvent (actual schema)
+// Billing.Subscriptions.SubscriptionPurchasedEvent (example schema)
 {
   "UserId": "user-456",
   "PaymentTransactionId": "txn-789",
@@ -171,7 +171,7 @@ Kafka guarantees ordering **only within a single partition**. Use aggregate ID a
 ```
 ✅ SINGLE TOPIC with aggregate ID key: Ordering guaranteed
 
-Topic: weather.feedback.events (key = FeedbackId)
+Topic: reviews.feedbacks (key = FeedbackId)
   Partition 0: [
     FeedbackCreatedEvent(id=abc-123) @ offset 100,
     FeedbackChangedEvent(id=abc-123) @ offset 101
@@ -180,13 +180,13 @@ Topic: weather.feedback.events (key = FeedbackId)
 Consumer receives events in correct order for each aggregate.
 ```
 
-Platform uses this pattern - the OutboxRelay maps both `FeedbackCreatedEvent` and `FeedbackChangedEvent` to the same topic:
+For example, an OutboxRelay can map both `FeedbackCreatedEvent` and `FeedbackChangedEvent` to the same topic:
 
 ```json
-// OutboxRelay TypeTopicMappings (actual config)
+// OutboxRelay TypeTopicMappings (example)
 {
-  "FeedbackCreatedEvent": "weather.feedback.events",
-  "FeedbackChangedEvent": "weather.feedback.events"
+  "FeedbackCreatedEvent": "reviews.feedbacks",
+  "FeedbackChangedEvent": "reviews.feedbacks"
 }
 ```
 
@@ -229,7 +229,7 @@ Events should be owned and published by the bounded context where the business f
 | `SubscriptionPurchasedEvent` | Billing Service (`Billing.Subscriptions`) | Payment completed in Billing |
 | `SubscriptionExtendedEvent` | Billing Service (`Billing.Subscriptions`) | Extension payment completed in Billing |
 | `SubscriptionActivationFailedEvent` | Alerts Service (`Alerts.Subscriptions`) | Activation failed in Alerts |
-| `FeedbackCreatedEvent` | Weather Service (`Weather.Feedback`) | Feedback created in Weather |
+| `FeedbackCreatedEvent` | Reviews Service (`Reviews.Feedback`) | Feedback created in Reviews |
 
 **Avoid "God Events"** that contain data from multiple domains - include only data owned by your bounded context.
 
@@ -247,7 +247,7 @@ Events should be owned and published by the bounded context where the business f
 | Element | Convention | Example |
 |---------|------------|---------|
 | Schema name | `{Entity}{Action}Event` | `FeedbackCreatedEvent` |
-| Namespace | `{Domain}.{Subdomain}` | `Weather.Feedback` |
+| Namespace | `{Domain}.{Subdomain}` | `Reviews.Feedback` |
 | Field names | PascalCase | `UserId`, `OccurredOnUtc` |
 
 ### Schema Example
@@ -258,7 +258,7 @@ A well-designed event schema with all essential elements highlighted:
 {
   "type": "record",
   "name": "FeedbackCreatedEvent",                                    // ← Past tense naming
-  "namespace": "Weather.Feedback",                                   // ← Domain.Subdomain
+  "namespace": "Reviews.Feedback",                                   // ← Domain.Subdomain
   "doc": "Emitted when user creates new feedback.",                  // ← Schema-level documentation
   "fields": [
     {

@@ -87,9 +87,6 @@ jobs:
           - bc: Notifications
             project: services/Notifications/Notifications.Infrastructure
             startup: services/Notifications/Notifications.Api
-          - bc: Weather
-            project: src/Weather.Infrastructure
-            startup: src/Weather.Api
           - bc: Saga
             project: saga/SagaOrchestrators
             startup: saga/SagaOrchestrators

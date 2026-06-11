@@ -28,12 +28,8 @@
             **/obj/**,
             **/bin/**,
             **/Migrations/**,
-            **/test/**,
-            **/Weather.Api/Common/Swagger/**,
-            **/Weather.Api/Common/Exceptions/**,
-            **/Weather.Api/Pages/Index*,
-            **/Weather.Domain/Common/Entity.cs
-          </ExcludeByFile>
+            **/test/**
+</ExcludeByFile>
           <IncludeDirectory>../src/**</IncludeDirectory>
         </Configuration>
       </DataCollector>

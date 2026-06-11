@@ -139,7 +139,7 @@ Add a bounded `FailureCategory` enum for routing/metrics; keep `ErrorCode` strin
 
 - **No code change is required by this decision.** It ratifies the current state.
 - Add a one-line `// See ADR-0028` pointer to the remarks on `CheckoutSagaErrorCodes` and `PaymentProcessingSagaErrorCodes` so the rejection is discoverable from the code that prompted the question. (Optional, low-priority.)
-- The two **Weather** schemas (`AlertSubscription*ActivationFailedEvent`) are out of scope: `src/Weather` is reference scaffolding slated for deletion per [CLAUDE.md](../../CLAUDE.md) (see [`.out-of-scope/weather-investment.md`](../../.out-of-scope/weather-investment.md)). They stay `string` by default; no investment.
+- The two **Weather** schemas (`AlertSubscription*ActivationFailedEvent`) were out of scope: `src/Weather` was reference scaffolding, removed in #318 (final Notifications v2 cleanup). They stayed `string`; no investment was made.
 - If Option 3 is ever taken: add `FailureCategory` as a field **inline** in the specific event (not a shared `*.avsc`, which would fail the ADR-0007 suffix-gate), declare an enum `default` symbol (e.g. `UNKNOWN`) so `FORWARD_TRANSITIVE` evolution stays safe, and add it only to the event whose consumer needs to branch.
 
 ## Related Decisions

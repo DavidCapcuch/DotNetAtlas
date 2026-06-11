@@ -16,13 +16,13 @@ namespace Platform.ReliableMessaging.Outbox.EFCore;
 /// <code>
 /// public class BackgroundService
 /// {
-///     private readonly IDbContextFactory&lt;WeatherDbContext&gt; _factory;
+///     private readonly IDbContextFactory&lt;CatalogDbContext&gt; _factory;
 ///     private readonly IOutboxWriter _outboxWriter;
 ///
 ///     public async Task DoWork()
 ///     {
 ///         await using var dbContext = await _factory.CreateDbContextAsync();
-///         _outboxWriter.AddOutboxMessage(dbContext, "weather.events", key, integrationEvent);
+///         _outboxWriter.AddOutboxMessage(dbContext, "catalog.products", key, integrationEvent);
 ///         await dbContext.SaveChangesAsync();
 ///     }
 /// }

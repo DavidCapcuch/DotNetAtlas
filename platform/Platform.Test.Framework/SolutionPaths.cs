@@ -5,13 +5,6 @@ namespace Platform.Test.Framework;
 public static class SolutionPaths
 {
     private const string SolutionFileName = "DotNetAtlas.slnx";
-    private const string WeatherInfrastructureRelativePath = "src/Weather.Infrastructure";
-
-    public static string DatabaseRootDirectory => DatabaseRootDirectoryFor(WeatherInfrastructureRelativePath);
-
-    public static string EfMigrationsDirectory => EfMigrationsDirectoryFor(WeatherInfrastructureRelativePath);
-
-    public static string SqlScriptMigrationsDirectory => SqlScriptMigrationsDirectoryFor(WeatherInfrastructureRelativePath);
 
     /// <summary>
     /// Resolves <c>&lt;solutionRoot&gt;/&lt;infrastructureProjectRelativePath&gt;/Persistence/Database</c>
