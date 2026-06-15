@@ -92,7 +92,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "count(healthcheck{job=\"weather-healthchecks\"})",
+          "expr": "count(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"})",
           "legendFormat": "Total",
           "range": true,
           "refId": "A"
@@ -154,7 +154,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "count(healthcheck{job=\"weather-healthchecks\"} == 0) or on() vector(0)",
+          "expr": "count(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"} == 0) or on() vector(0)",
           "legendFormat": "Unhealthy",
           "range": true,
           "refId": "A"
@@ -216,7 +216,7 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "count(healthcheck{job=\"weather-healthchecks\"} == 1) or on() vector(0)",
+          "expr": "count(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"} == 1) or on() vector(0)",
           "legendFormat": "Degraded",
           "range": true,
           "refId": "A"
@@ -319,8 +319,8 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "healthcheck{job=\"weather-healthchecks\",healthcheck=~\"$hc\"}",
-          "legendFormat": "{{healthcheck}}",
+          "expr": "healthcheck{job=\"bc-healthchecks\",app=~\"$app\",healthcheck=~\"$hc\"}",
+          "legendFormat": "{{app}} / {{healthcheck}}",
           "range": false,
           "refId": "A"
         }
@@ -393,8 +393,8 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "healthcheck_duration_seconds{job=\"weather-healthchecks\",healthcheck=~\"$hc\"}",
-          "legendFormat": "{{healthcheck}}",
+          "expr": "healthcheck_duration_seconds{job=\"bc-healthchecks\",app=~\"$app\",healthcheck=~\"$hc\"}",
+          "legendFormat": "{{app}} / {{healthcheck}}",
           "range": true,
           "refId": "A"
         }
@@ -495,10 +495,10 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "healthcheck{job=\"weather-healthchecks\"}",
+          "expr": "healthcheck{job=\"bc-healthchecks\",app=~\"$app\"}",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{healthcheck}}",
+          "legendFormat": "{{app}} / {{healthcheck}}",
           "range": true,
           "refId": "A"
         }
@@ -519,7 +519,28 @@
           "type": "prometheus",
           "uid": "webstore-metrics"
         },
-        "definition": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
+        "definition": "label_values(healthcheck{job=\"bc-healthchecks\"},app)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "app",
+        "multi": true,
+        "name": "app",
+        "options": [],
+        "query": {
+          "query": "label_values(healthcheck{job=\"bc-healthchecks\"},app)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "webstore-metrics"
+        },
+        "definition": "label_values(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"},healthcheck)",
         "hide": 1,
         "includeAll": true,
         "label": "hc",
@@ -527,7 +548,7 @@
         "name": "hc",
         "options": [],
         "query": {
-          "query": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
+          "query": "label_values(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"},healthcheck)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
