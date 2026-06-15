@@ -61,8 +61,14 @@
         </PackageReference>
     </ItemGroup>
 
-    <!-- Suppress VSTHRD200 (Async suffix) for test projects only -->
+    <!-- Suppress VSTHRD200 (Async suffix) for test projects only.
+         NU1903: transitive-vuln audit. Production tiers (services/, platform/) keep NU1903 as a
+         build-blocking error; test projects don't ship, and this tier already disables transitive-vuln
+         PINNING (CentralPackageTransitivePinningEnabled=false above) on the stated grounds that it is
+         "not load-bearing" for test code. So a transitive advisory a test pulls (e.g. MessagePack via
+         SignalR.Protocols.MessagePack — patched at the services tier) must not fail the test build via
+         TreatWarningsAsErrors. -->
     <PropertyGroup>
-        <NoWarn>$(NoWarn);VSTHRD200</NoWarn>
+        <NoWarn>$(NoWarn);VSTHRD200;NU1903</NoWarn>
     </PropertyGroup>
 </Project>
