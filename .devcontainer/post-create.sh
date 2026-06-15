@@ -18,7 +18,7 @@ echo "🔐 Setting up HTTPS development certificate..."
 dotnet dev-certs https --trust 2>/dev/null || echo "   HTTPS certificate trust not supported in this environment"
 
 # Build the solution to verify everything is set up correctly
-# Note: OpenAPI generation is disabled because infrastructure services (SQL Server, etc.)
+# Note: OpenAPI generation is disabled because infrastructure services (Postgres, Kafka, etc.)
 # are not running yet during postCreateCommand. They start in postAttachCommand.
 # -m enables parallel builds across all available CPU cores (not enabled by default)
 echo "🔨 Building solution..."
