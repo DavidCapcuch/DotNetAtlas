@@ -27,7 +27,8 @@
       "version": "lts"
     }
   },
-  // Resource requirements based on services (SQL Server, Kafka, Redis, etc.)
+  // Resource requirements sized for the full multi-BC stack under `--profile full`
+  // (Postgres, Kafka, Keycloak, the 7 BC APIs + outbox relays, observability).
   "hostRequirements": {
     "cpus": 8,
     "memory": "32gb"
@@ -59,7 +60,7 @@
         "ms-azuretools.vscode-azure-github-copilot",
         "SonarSource.sonarlint-vscode",
         "streetsidesoftware.code-spell-checker",
-        "ms-mssql.mssql",
+        "ms-ossdata.vscode-pgsql",
         "mhutchie.git-graph",
         "eamodio.gitlens",
         "EditorConfig.EditorConfig",
@@ -87,72 +88,96 @@
         "files.trimTrailingWhitespace": true,
         "files.insertFinalNewline": true,
         // Terminal settings
-        "terminal.integrated.defaultProfile.linux": "pwsh",
-        // SQL Server connection profile for local development database
-        "mssql.connections": [
-          {
-            "server": "localhost,12345",
-            "database": "Catalog",
-            "authenticationType": "SqlLogin",
-            "user": "sa",
-            "password": "${MSSQL_SA_PASSWORD}",
-            "savePassword": true,
-            "profileName": "DotNetAtlas-Local-SQL"
-          }
-        ]
+        "terminal.integrated.defaultProfile.linux": "pwsh"
+        // Postgres connections are added interactively via the PostgreSQL extension
+        // (ms-ossdata.vscode-pgsql): host 127.0.0.1, port 5433, user postgres, one
+        // database per bounded context. The database list + credentials are printed
+        // by .devcontainer/post-attach.sh on every attach.
       }
     }
   },
-  // Port forwarding for docker-compose.yaml services
+  // Explicit forwards + labels for the local `dotnet run` inner loop (BC APIs on
+  // 5100-5106) and the infra service UIs. autoForwardPorts (above) additionally
+  // surfaces container ports from compose output — e.g. the 8100-8107 BC APIs and
+  // 8089-8096 outbox relays that only exist under `--profile full`.
   "forwardPorts": [
-    5159, // API HTTP
-    7095, // API HTTPS
-    12345, // SQL Server (mapped from 1433)
-    12346, // Redis (mapped from 6379)
+    5100, // Basket API (dotnet run)
+    5101, // Catalog API (dotnet run)
+    5102, // Inventory API (dotnet run)
+    5103, // Invoicing API (dotnet run)
+    5104, // Notifications API (dotnet run)
+    5105, // Ordering API (dotnet run)
+    5106, // Payments API (dotnet run)
+    5433, // PostgreSQL
+    6379, // Redis (basket — authoritative store)
+    6380, // Redis (cache — volatile)
     5540, // Redis Insight
+    8025, // Mailpit (email UI)
     5341, // Seq logging
-    45341, // Seq ingestion
     16686, // Jaeger UI
     9090, // Prometheus
     3000, // Grafana
     4317, // OTEL Collector gRPC
     4318, // OTEL Collector HTTP
-    8889, // OTEL Collector metrics
     9094, // Kafka external
     8081, // Schema Registry
     9000, // AKHQ (Kafka UI)
-    8088, // Outbox Relay health endpoint
-    9011 // Keycloak
+    9011, // Keycloak
+    10000 // Azurite (blob)
   ],
   // Port labels for better identification
   "portsAttributes": {
-    "5159": {
-      "label": "API (HTTP)",
+    "5100": {
+      "label": "Basket API",
       "onAutoForward": "notify"
     },
-    "7095": {
-      "label": "API (HTTPS)",
+    "5101": {
+      "label": "Catalog API",
       "onAutoForward": "notify"
     },
-    "12345": {
-      "label": "SQL Server",
+    "5102": {
+      "label": "Inventory API",
+      "onAutoForward": "notify"
+    },
+    "5103": {
+      "label": "Invoicing API",
+      "onAutoForward": "notify"
+    },
+    "5104": {
+      "label": "Notifications API",
+      "onAutoForward": "notify"
+    },
+    "5105": {
+      "label": "Ordering API",
+      "onAutoForward": "notify"
+    },
+    "5106": {
+      "label": "Payments API",
+      "onAutoForward": "notify"
+    },
+    "5433": {
+      "label": "PostgreSQL",
       "onAutoForward": "silent"
     },
-    "12346": {
-      "label": "Redis",
+    "6379": {
+      "label": "Redis (basket)",
+      "onAutoForward": "silent"
+    },
+    "6380": {
+      "label": "Redis (cache)",
       "onAutoForward": "silent"
     },
     "5540": {
       "label": "Redis Insight",
       "onAutoForward": "notify"
     },
+    "8025": {
+      "label": "Mailpit (email)",
+      "onAutoForward": "notify"
+    },
     "5341": {
       "label": "Seq Logging",
       "onAutoForward": "notify"
-    },
-    "45341": {
-      "label": "Seq Ingestion",
-      "onAutoForward": "silent"
     },
     "16686": {
       "label": "Jaeger UI",
@@ -174,29 +199,25 @@
       "label": "OTEL HTTP",
       "onAutoForward": "silent"
     },
-    "8889": {
-      "label": "OTEL Metrics",
-      "onAutoForward": "silent"
-    },
     "9094": {
       "label": "Kafka",
       "onAutoForward": "silent"
     },
     "8081": {
       "label": "Schema Registry",
-      "onAutoForward": "notify"
+      "onAutoForward": "silent"
     },
     "9000": {
       "label": "AKHQ (Kafka UI)",
       "onAutoForward": "notify"
     },
-    "8088": {
-      "label": "Outbox Relay Health",
-      "onAutoForward": "silent"
-    },
     "9011": {
       "label": "Keycloak",
       "onAutoForward": "notify"
+    },
+    "10000": {
+      "label": "Azurite (blob)",
+      "onAutoForward": "silent"
     }
   }
 }
