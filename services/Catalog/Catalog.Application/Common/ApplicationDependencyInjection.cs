@@ -10,7 +10,7 @@ namespace Catalog.Application.Common;
 /// <summary>
 /// Root DI entry-point for the Catalog Application layer. Scans this assembly for FluentValidation
 /// validators, CQRS handlers, and domain-event handlers, and installs the behaviour decorator
-/// chain in the same order Weather uses.
+/// chain in the canonical order (Tracing → Logging → Metrics → Validation → Handler).
 /// </summary>
 /// <remarks>
 /// <para>

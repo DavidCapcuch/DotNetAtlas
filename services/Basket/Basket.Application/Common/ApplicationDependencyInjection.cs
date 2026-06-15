@@ -9,8 +9,8 @@ namespace Basket.Application.Common;
 /// Composition root for the Basket Application layer.
 /// </summary>
 /// <remarks>
-/// Mirrors the Weather reference (<c>src/Weather.Application/Common/ApplicationDependencyInjection.cs</c>)
-/// so the two services share the same assembly-scan + behavior chain convention. Concrete
+/// Follows the codebase-wide Application-layer composition convention
+/// (assembly-scan + behaviour chain). Concrete
 /// persistence (<c>IBasketRepository</c>, <c>IBasketDbContext</c>) and the ACL adapter
 /// (<c>IProductCatalogQueryPort</c>) are wired separately by <c>Basket.Infrastructure</c>
 /// in the Application and Infrastructure layers.

@@ -19,8 +19,7 @@ public static class ObservabilityDependencyInjection
     /// Configures OpenTelemetry distributed tracing and metrics. Wires
     /// AspNetCore + HttpClient + EF Core instrumentation; skips
     /// Redis/FusionCache/SignalR/Hangfire because Ordering doesn't use
-    /// them. Mirrors Weather's shape (see
-    /// <c>src/Weather.Infrastructure/Common/ObservabilityDependencyInjection.cs</c>).
+    /// them.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="isDeployedEnvironment">Whether running in a deployed environment.</param>

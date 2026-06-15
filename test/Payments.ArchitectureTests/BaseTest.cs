@@ -46,8 +46,7 @@ public abstract class BaseTest
 
     /// <summary>
     /// Asserts every constructor on the type is either static or private.
-    /// Mirrors <c>Catalog.ArchitectureTests.BaseTest.PrivateConstructorsRule</c> /
-    /// <c>Weather.ArchitectureTests.BaseTest.PrivateConstructorsRule</c>.
+    /// Mirrors <c>Catalog.ArchitectureTests.BaseTest.PrivateConstructorsRule</c>.
     /// </summary>
     protected sealed class PrivateConstructorsRule : ICustomRule
     {

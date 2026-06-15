@@ -36,7 +36,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// <c>AddOptionsWithValidateOnStart</c> chain in the production composition root
 /// runs during fixture initialisation — drift between <c>[Required]</c> IOptions
 /// properties and appsettings keys fails at test setup instead of at first
-/// container start. Mirrors Weather's canonical fixture pattern.
+/// container start.
 /// </para>
 /// <para>
 /// The transactional outbox is replaced with an NSubstitute stub via

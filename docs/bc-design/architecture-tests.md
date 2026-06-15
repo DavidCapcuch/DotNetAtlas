@@ -1,6 +1,6 @@
 # Architecture Tests — Rule Catalog
 
-> Rules enforced by **NetArchTest** (existing pattern — see `test/Weather.ArchitectureTests/`) in each new service's `test/{Bc}.ArchitectureTests` project. Implementation agents author one test class per rule group. Every rule here maps to a concrete `Types.InAssembly(...).Should()....GetResult()` assertion; C# snippets below are illustrative pseudocode only.
+> Rules enforced by **NetArchTest** (existing pattern — see `test/Catalog.ArchitectureTests/`) in each new service's `test/{Bc}.ArchitectureTests` project. Implementation agents author one test class per rule group. Every rule here maps to a concrete `Types.InAssembly(...).Should()....GetResult()` assertion; C# snippets below are illustrative pseudocode only.
 >
 > Enforcement: `dotnet test test/{Bc}.ArchitectureTests/` runs in CI as part of the standard test step; failures block merge (see [master design § 11.4](../eshop-master-design.md) and [§ 11.7](../eshop-master-design.md) — `dotnet build -m` / `dotnet restore --locked-mode` gate). Architecture-test rules are NOT bypassable — if a rule fires on a legitimate new pattern, the rule itself must be updated in a PR alongside the code change.
 
@@ -335,7 +335,7 @@ Types.InAssembly(InvoicingInfraAssembly)
 
 ## 3. Test Project Scaffolding
 
-Each BC's architecture-test project follows the shape already established by `test/Weather.ArchitectureTests/`. Recommended test-class pattern:
+Each BC's architecture-test project follows the shape already established by `test/Catalog.ArchitectureTests/`. Recommended test-class pattern:
 
 ```csharp
 // File: test/Ordering.ArchitectureTests/ArchitectureRules.cs
@@ -432,5 +432,5 @@ Implementation agents tick these off as they author the architecture-tests proje
 - [error-taxonomy.md § 2](error-taxonomy.md) — the categorization `§ 1.5` enforces
 - [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) — the consumer-handler anti-rethrow rule referenced by § 1.5
 - [catalog.md](catalog.md) / [basket.md](basket.md) / [ordering.md](ordering.md) / [inventory.md](inventory.md) — the BC chapters whose invariants § 2.{BC} encodes
-- `test/Weather.ArchitectureTests/` — existing precedent for NetArchTest usage in this repo
+- `test/Catalog.ArchitectureTests/` — existing precedent for NetArchTest usage in this repo
 - [`platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs`](../../platform/Platform.SharedKernel/Exceptions/DataIntegrityException.cs) — the exception type checked by § 1.5

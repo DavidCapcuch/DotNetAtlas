@@ -14,8 +14,8 @@ namespace Notifications.Infrastructure.Dispatch;
 /// resolved channel keeps channels isolated (independent retry and latency). See ADR-0032.
 /// </summary>
 /// <remarks>
-/// The <c>[AutomaticRetry]</c> policy mirrors the <c>src/Weather</c> jobs (and overrides Hangfire's global
-/// default of 10) but adds <c>ExceptOn = CriticalException</c>: every non-bug-class failure — a transient
+/// The <c>[AutomaticRetry]</c> policy overrides Hangfire's global
+/// default of 10 and adds <c>ExceptOn = CriticalException</c>: every non-bug-class failure — a transient
 /// SMTP fault (<see cref="EmailDispatchFailedException"/>, a <see cref="RetryableException"/>), a transient
 /// DB fault, etc. — retries up to 3× with backoff, while a bug-class <see cref="DataIntegrityException"/>
 /// (unknown template, missing subject/tokens, missing recipient preference) cannot self-heal and so

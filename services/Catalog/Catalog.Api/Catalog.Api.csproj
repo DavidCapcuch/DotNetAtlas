@@ -8,7 +8,7 @@
     <ItemGroup>
         <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders"/>
 
-        <!-- Required on the startup project for `dotnet ef migrations …` (#269). Pattern copied from Weather.Api / Ordering.Api / Invoicing.Api. -->
+        <!-- Required on the startup project for `dotnet ef migrations …` (#269). Pattern copied from Ordering.Api / Invoicing.Api. -->
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

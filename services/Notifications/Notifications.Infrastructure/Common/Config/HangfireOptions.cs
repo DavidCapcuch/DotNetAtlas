@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace Notifications.Infrastructure.Common.Config;
 
 /// <summary>
-/// Hangfire storage + server tuning for the per-channel dispatch jobs (ADR-0032). Mirrors the
-/// <c>src/Weather</c> Hangfire template; Hangfire stores its tables in the <c>notifications</c> DB.
+/// Hangfire storage + server tuning for the per-channel dispatch jobs (ADR-0032). Hangfire
+/// stores its tables in the <c>notifications</c> DB.
 /// </summary>
 public sealed class HangfireOptions
 {

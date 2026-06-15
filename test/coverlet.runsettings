@@ -30,7 +30,6 @@
             **/Migrations/**,
             **/test/**
 </ExcludeByFile>
-          <IncludeDirectory>../src/**</IncludeDirectory>
         </Configuration>
       </DataCollector>
     </DataCollectors>

@@ -129,7 +129,7 @@ Two behavioral flags: `RespectsQuietHours` — SMS is the only channel that sets
 
 ### 5.2 `IChannelDispatcher` in Keyed DI
 
-Each channel is an `IChannelDispatcher` registered in **Keyed DI** by `ChannelType`. The handler resolves and enqueues the dispatcher's Hangfire job per resolved channel — completely isolated, so an SMS retry never touches the email job. Hangfire is wired per the `src/Weather` template (`AddHangfire` + `Hangfire.PostgreSql` on the `notifications` connection, `AddHangfireServer`).
+Each channel is an `IChannelDispatcher` registered in **Keyed DI** by `ChannelType`. The handler resolves and enqueues the dispatcher's Hangfire job per resolved channel — completely isolated, so an SMS retry never touches the email job. Hangfire is wired with `AddHangfire` + `Hangfire.PostgreSql` on the `notifications` connection + `AddHangfireServer`.
 
 ### 5.3 Channel resolution
 
@@ -147,7 +147,7 @@ Pure domain service `QuietHoursCalculator.NextAllowedUtc(DateTimeOffset nowUtc, 
 |---|---|---|---|
 | **Email** | `MailKit` `SmtpEmailGateway` → **Mailpit** | ledger + delivery event | Address from `user_preferences.email`. Mailpit runs in docker-compose (`core` profile, SMTP 1025 / UI 8025); `MockEmailGateway` retained for unit tests. |
 | **Sms** | fake handler (logs `"Sending SMS…"`; the Kafka handler logs `"Quiet hours, deferred to …"` — quiet hours are evaluated once, at enqueue; the dispatcher never re-checks) | ledger + delivery event | `RespectsQuietHours = true`. **No real provider** — seam. Phone from `user_preferences.phone_number`. |
-| **Bell** | `INotificationBroadcaster` → **SignalR** group `RecipientUserId` | **none** | Live push only; hub `/hubs/v1/notifications` (Keycloak JWT; versioned per the Weather `BasePaths` convention). Group join/leave in `OnConnectedAsync`/`OnDisconnectedAsync` keyed on `Context.UserIdentifier` (= `sub` = `RecipientUserId`); **no** client subscribe RPC (unlike Weather's per-location model). Offline users miss it; no feed/history/badge/mark-read/SSE (deferred, § 13). Minimal job retries (`EphemeralNotificationDispatchJob`, `IsDurable = false`; group-send to zero connections is a successful no-op). In-memory backplane (no Redis); reuses the `src/Weather` SignalR pattern. |
+| **Bell** | `INotificationBroadcaster` → **SignalR** group `RecipientUserId` | **none** | Live push only; hub `/hubs/v1/notifications` (Keycloak JWT; versioned per the codebase `/v{n}` URL-path convention). Group join/leave in `OnConnectedAsync`/`OnDisconnectedAsync` keyed on `Context.UserIdentifier` (= `sub` = `RecipientUserId`); **no** client subscribe RPC (no per-resource subscribe model). Offline users miss it; no feed/history/badge/mark-read/SSE (deferred, § 13). Minimal job retries (`EphemeralNotificationDispatchJob`, `IsDurable = false`; group-send to zero connections is a successful no-op). In-memory backplane (no Redis). |
 
 **No CORS in this BC — by design.** Browser traffic (the bell SignalR connection included — YARP proxies WebSockets natively, no bypass) terminates at the YARP edge, which owns the origin policy ([ADR-0035](../adr/0035-edge-owned-cors-yarp.md)); unlike the older browser-facing BCs' transitional per-BC `Cors` configs, Notifications ships none.
 
@@ -223,9 +223,9 @@ Schema `notifications` (Postgres):
 | `notification_deliveries` | Notifications | Per-channel ledger, PK `(notification_id, channel)`, `status` + timestamps (§ 4). |
 | `inbox_messages` | `Platform.ReliableMessaging.Inbox.EFCore` | Dedup on `message.id`. |
 | `outbox_messages` | `Platform.ReliableMessaging.Outbox.EFCore` | Pending `NotificationDeliveryStatusChangedEvent`. |
-| Hangfire tables | `Hangfire.PostgreSql` | Background-job store (per `src/Weather`). |
+| Hangfire tables | `Hangfire.PostgreSql` | Background-job store. |
 
-Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). Both templates and `user_preferences` seed from **fixed literals** — they are real reference content, not fakes: the four Keycloak realm users (`sub`s sourced from `src/keycloak/realm-export.json`) with **real emails** so Mailpit shows recognizable recipients. **Tests arrange their own** preferences/templates per-fixture (test migrations run Evolve SQL scripts, not `MigrateAsync`, so `UseAsyncSeeding` does not fire there). No seed data in the SQL migration scripts.
+Seeding: dev/docker via EF `UseAsyncSeeding` (seed-if-empty). Both templates and `user_preferences` seed from **fixed literals** — they are real reference content, not fakes: the four Keycloak realm users (`sub`s sourced from `src/keycloak/realm-export.json`) with **real emails** so Mailpit shows recognizable recipients. **Tests arrange their own** preferences/templates per-fixture (test migrations run Evolve SQL scripts, not `MigrateAsync`, so `UseAsyncSeeding` does not fire there). No seed data in the SQL migration scripts.
 
 ---
 
@@ -244,7 +244,7 @@ Seeding: dev/docker via EF `UseAsyncSeeding` (Weather pattern, seed-if-empty). B
 
 - `ApplicationInfo.AppName = "Notifications"`; KafkaFlow + outbox OpenTelemetry instrumentation as in v1; Hangfire jobs and the SignalR hub add spans. Structured logs tag `NotificationId`, `TemplateKey`, `Channel` (not PII; `RecipientUserId` per the BC PII rule). One deliberate exception: the fake SMS transport line additionally logs the seeded fake phone number + rendered body — that log line *is* the channel's send (§ 6); a real provider integration must move both into the provider call.
 - **Unit:** `QuietHoursCalculator` (in/out window, midnight-wrap, null), `ChannelType`, the resolution rule, `TemplateRenderer`.
-- **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell dispatcher against a broadcaster substitute (the hub + the `src/Weather`-style SignalR test client live in the **functional** suite, per ADR-0032); the Invoicing `Issued → Delivered` round-trip.
+- **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell dispatcher against a broadcaster substitute (the hub + the SignalR test client live in the **functional** suite, per ADR-0032); the Invoicing `Issued → Delivered` round-trip.
 - **Architecture:** standard layering guards + ADR-0015 (`DateTimeOffset`, no `UtcNow` in domain). No bespoke arch tests.
 
 ---
