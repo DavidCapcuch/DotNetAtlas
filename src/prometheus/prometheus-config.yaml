@@ -12,14 +12,38 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']  # OTLP Prometheus exporter endpoint
 
-  - job_name: 'weather-healthchecks'
+  - job_name: 'bc-healthchecks'
     scrape_interval: 10s
     scrape_timeout: 9s
     metrics_path: /api/health/prometheus
     static_configs:
-      - targets: ['host.docker.internal:5159']
+      - targets: ['basket.api:8080']
         labels:
-          app: weather-api
+          app: basket
+          kind: healthchecks
+      - targets: ['catalog.api:8080']
+        labels:
+          app: catalog
+          kind: healthchecks
+      - targets: ['inventory.api:8080']
+        labels:
+          app: inventory
+          kind: healthchecks
+      - targets: ['invoicing.api:8080']
+        labels:
+          app: invoicing
+          kind: healthchecks
+      - targets: ['notifications.api:8080']
+        labels:
+          app: notifications
+          kind: healthchecks
+      - targets: ['ordering.api:8080']
+        labels:
+          app: ordering
+          kind: healthchecks
+      - targets: ['payments.api:8080']
+        labels:
+          app: payments
           kind: healthchecks
 
   - job_name: 'outbox-relay-healthchecks'
@@ -27,9 +51,37 @@ scrape_configs:
     scrape_timeout: 9s
     metrics_path: /api/health/prometheus
     static_configs:
-      - targets: ['outbox-relay:8080']
+      - targets: ['outbox-relay-saga:8080']
         labels:
-          app: outbox-relay
+          app: outbox-relay-saga
+          kind: healthchecks
+      - targets: ['outbox-relay-basket:8080']
+        labels:
+          app: outbox-relay-basket
+          kind: healthchecks
+      - targets: ['outbox-relay-catalog:8080']
+        labels:
+          app: outbox-relay-catalog
+          kind: healthchecks
+      - targets: ['outbox-relay-inventory:8080']
+        labels:
+          app: outbox-relay-inventory
+          kind: healthchecks
+      - targets: ['outbox-relay-invoicing:8080']
+        labels:
+          app: outbox-relay-invoicing
+          kind: healthchecks
+      - targets: ['outbox-relay-notifications:8080']
+        labels:
+          app: outbox-relay-notifications
+          kind: healthchecks
+      - targets: ['outbox-relay-ordering:8080']
+        labels:
+          app: outbox-relay-ordering
+          kind: healthchecks
+      - targets: ['outbox-relay-payments:8080']
+        labels:
+          app: outbox-relay-payments
           kind: healthchecks
 
 otlp:

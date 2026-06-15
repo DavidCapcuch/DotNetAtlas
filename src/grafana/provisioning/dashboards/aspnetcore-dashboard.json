@@ -1368,8 +1368,8 @@
             "uid": "webstore-metrics"
           },
           "editorMode": "code",
-          "expr": "healthcheck{job=\"weather-healthchecks\",healthcheck=~\"$hc\"}",
-          "legendFormat": "{{healthcheck}}",
+          "expr": "healthcheck{job=\"bc-healthchecks\",app=~\"$app\",healthcheck=~\"$hc\"}",
+          "legendFormat": "{{app}} / {{healthcheck}}",
           "range": false,
           "refId": "A"
         }
@@ -1394,7 +1394,28 @@
           "type": "prometheus",
           "uid": "webstore-metrics"
         },
-        "definition": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
+        "definition": "label_values(healthcheck{job=\"bc-healthchecks\"},app)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "app",
+        "multi": true,
+        "name": "app",
+        "options": [],
+        "query": {
+          "query": "label_values(healthcheck{job=\"bc-healthchecks\"},app)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "webstore-metrics"
+        },
+        "definition": "label_values(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"},healthcheck)",
         "hide": 1,
         "includeAll": true,
         "label": "hc",
@@ -1402,7 +1423,7 @@
         "name": "hc",
         "options": [],
         "query": {
-          "query": "label_values(healthcheck{job=\"weather-healthchecks\"},healthcheck)",
+          "query": "label_values(healthcheck{job=\"bc-healthchecks\",app=~\"$app\"},healthcheck)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
