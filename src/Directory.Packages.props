@@ -1,0 +1,50 @@
+<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+    <ItemGroup>
+        <!-- API -->
+        <PackageVersion Include="FastEndpoints.Generator" Version="8.1.0"/>
+        <PackageVersion Include="FastEndpoints.Security" Version="8.1.0"/>
+        <PackageVersion Include="FastEndpoints.Swagger" Version="8.1.0"/>
+
+        <!-- Result pattern -->
+        <PackageVersion Include="FluentResults" Version="4.0.0"/>
+
+        <!-- Options -->
+        <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.8"/>
+        <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.8"/>
+
+        <!-- Outbound HTTP resilience — the BFF owns its typed clients, so it ships the
+             per-service Polly pipeline YARP does NOT provide (DoD.md Reliability; bff.md § 2.1). -->
+        <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0"/>
+
+        <!-- Redis + FusionCache (composed-response edge cache on redis-cache, ADR-0016) -->
+        <PackageVersion Include="StackExchange.Redis" Version="2.13.1"/>
+        <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.8"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.6.0"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.6.0"/>
+        <PackageVersion Include="ZiggyCreatures.FusionCache.OpenTelemetry" Version="2.6.0"/>
+        <!-- JSON serializer (not MemoryPack): the BFF caches composed JSON response contracts;
+             System.Text.Json keeps the public response records free of source-gen attributes and
+             the cached payloads inspectable. Justified deviation from the BCs' MemoryPack choice. -->
+        <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0"/>
+
+        <!-- Health Checks -->
+        <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
+        <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
+
+        <!-- OpenTelemetry -->
+        <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3"/>
+        <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.15.1-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.15.1-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Resources.Container" Version="1.15.1-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.15.1-beta.1"/>
+
+        <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556"/>
+    </ItemGroup>
+</Project>

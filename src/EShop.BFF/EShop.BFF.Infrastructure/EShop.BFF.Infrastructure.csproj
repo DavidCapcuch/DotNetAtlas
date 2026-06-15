@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <!-- Result pattern -->
+        <PackageReference Include="FluentResults"/>
+
+        <!-- Options binding + validation -->
+        <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions"/>
+        <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations"/>
+
+        <!-- Outbound HTTP resilience (BFF owns its typed clients — bff.md § 2.1) -->
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
+
+        <!-- Composed-response edge cache: FusionCache + Redis L2 + backplane on redis-cache -->
+        <PackageReference Include="StackExchange.Redis"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry"/>
+        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson"/>
+
+        <!-- Health checks: self (liveness) + redis-cache (readiness) -->
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
+
+        <!-- OpenTelemetry -->
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol"/>
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Process"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime"/>
+        <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis"/>
+        <PackageReference Include="OpenTelemetry.Resources.Container"/>
+        <PackageReference Include="OpenTelemetry.Resources.Host"/>
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="EShop.BFF.Api"/>
+        <InternalsVisibleTo Include="EShop.BFF.ArchitectureTests"/>
+        <InternalsVisibleTo Include="EShop.BFF.IntegrationTests"/>
+        <InternalsVisibleTo Include="EShop.BFF.UnitTests"/>
+    </ItemGroup>
+
+</Project>

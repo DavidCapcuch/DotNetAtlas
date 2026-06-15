@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <PackageReference Include="NetArchTest.eNhancedEdition" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Api\EShop.BFF.Api.csproj" />
+        <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Infrastructure\EShop.BFF.Infrastructure.csproj" />
+    </ItemGroup>
+</Project>
