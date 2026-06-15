@@ -23,21 +23,41 @@ public sealed class FakeTokenCreator
     {
         return clientType switch
         {
-            ClientType.RegularUser => Build(userId ?? Guid.CreateVersion7()),
+            ClientType.RegularUser => FakeTokenBuilder.SignToken(_signer, BuildClaims(userId ?? Guid.CreateVersion7())),
             ClientType.NonAuth => string.Empty,
             _ => throw new ArgumentOutOfRangeException(nameof(clientType))
         };
     }
 
-    private string Build(Guid userId)
+    /// <summary>
+    /// Mints a recipient token whose <c>aud</c> is the explicit multi-valued <paramref name="audiences"/>
+    /// array — the production <c>dotnetatlas-swagger</c> token shape (one login, every browser-facing
+    /// service audience). Lets the bell-hub tests assert acceptance of a multi-aud token and rejection
+    /// of one whose audiences omit <c>notifications-service</c>.
+    /// </summary>
+    public string CreateUserTokenWithAudiences(Guid userId, IReadOnlyCollection<string> audiences)
     {
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new(ClaimTypes.NameIdentifier, userId.ToString()),
-            new(ClaimTypes.Name, $"user-{userId}@dotnetatlas.test")
-        };
+        return FakeTokenBuilder.SignTokenWithAudiences(_signer, BuildClaims(userId), audiences);
+    }
 
-        return FakeTokenBuilder.SignToken(_signer, claims);
+    /// <summary>
+    /// Mints a token carrying the given <paramref name="audiences"/> but **no** <c>sub</c> /
+    /// <c>NameIdentifier</c> claim — the shape a Keycloak client lacking a subject mapper issues into
+    /// its access token. Pins that the bell rejects a token it can authenticate but cannot key to a
+    /// recipient (the `dotnetatlas-swagger` realm fix adds a `subject` mapper precisely to avoid this).
+    /// </summary>
+    public string CreateSubjectlessTokenWithAudiences(IReadOnlyCollection<string> audiences)
+    {
+        return FakeTokenBuilder.SignTokenWithAudiences(_signer, claims: [], audiences);
+    }
+
+    private static List<Claim> BuildClaims(Guid userId)
+    {
+        return
+        [
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Name, $"user-{userId}@dotnetatlas.test")
+        ];
     }
 }
