@@ -12,7 +12,7 @@ namespace Ordering.Infrastructure.Persistence.Database.EntityConfigurations.Orde
 /// <item>Postgres <c>xmin</c> system column as optimistic concurrency token
 /// via the inherited <c>Entity.RowVersion</c> property + <c>.IsRowVersion()</c>
 /// (Appendix B.3 — Npgsql 10's convention maps uint + rowVersion to xmin,
-/// matching the Weather / codebase-wide pattern).</item>
+/// matching the codebase-wide pattern).</item>
 /// <item>PII <c>*_enc</c> column naming on flattened <c>Address</c> owned types
 /// per ADR-0011 (v1 plaintext; v2 encrypts per-buyer DEK).</item>
 /// <item>Owned <see cref="Money"/>, <see cref="OrderItem"/>, and status-info VOs.</item>
@@ -33,7 +33,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         // Optimistic concurrency via Postgres xmin system column (Appendix B.3).
         // `Entity.RowVersion` is inherited from Platform.SharedKernel; Npgsql's
         // RowVersion convention maps it to the xmin system column (no stored
-        // column). Matches the Weather reference mapping.
+        // column). Matches the codebase-wide xmin-mapping convention.
         builder.Property(o => o.RowVersion)
             .IsRowVersion()
             .HasColumnName("xmin")

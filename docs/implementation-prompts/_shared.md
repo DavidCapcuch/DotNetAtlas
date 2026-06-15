@@ -51,7 +51,7 @@ Do not introduce new libraries without documenting rationale + asking. When an a
 
 ## 4. Golden reference — read a real built BC, don't mirror by eye
 
-Seven convention-current BCs exist. **Read the closest one for the shape; copy the structure, not the domain.** Do **not** mirror `src/Weather` — it predates the current conventions and is slated for deletion (see CLAUDE.md). Mirroring-by-eye is what let cross-BC consistency drift; the rules below, not a file list, are the source of truth.
+Seven convention-current BCs exist. **Read the closest one for the shape; copy the structure, not the domain.** Mirroring-by-eye is what let cross-BC consistency drift; the rules below, not a file list, are the source of truth.
 
 | Your unit's shape | Golden reference | Why it's the model |
 |---|---|---|

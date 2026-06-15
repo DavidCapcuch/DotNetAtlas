@@ -20,8 +20,7 @@ namespace Basket.Infrastructure.Common;
 /// <item><description>
 /// <c>AddOpenTelemetry</c> — distributed tracing + metrics pipeline.
 /// Wired first so every subsequent slice's instrumentation (EF Core, Redis,
-/// FusionCache, HTTP client) attaches to a live tracer/meter provider
-/// (mirrors Weather's ordering).
+/// FusionCache, HTTP client) attaches to a live tracer/meter provider.
 /// </description></item>
 /// <item><description>
 /// <c>AddBasketRedisPersistence</c> — the Redis primary store: keyed

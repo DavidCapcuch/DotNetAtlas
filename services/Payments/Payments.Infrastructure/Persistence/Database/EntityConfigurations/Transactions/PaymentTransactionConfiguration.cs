@@ -12,7 +12,7 @@ namespace Payments.Infrastructure.Persistence.Database.EntityConfigurations.Tran
 /// <item>Postgres <c>xmin</c> system column as optimistic concurrency token via the inherited
 /// <see cref="Platform.SharedKernel.Base.Entity{TId}.RowVersion"/> property +
 /// <see cref="RelationalPropertyBuilderExtensions.HasColumnName"/> — matches the
-/// codebase-wide Ordering / Weather convention.</item>
+/// codebase-wide Ordering convention.</item>
 /// <item>PII <c>*_enc</c> column suffixes on <see cref="PaymentTransaction.PaymentMethodId"/>
 /// and <see cref="PaymentTransaction.GatewayTransactionId"/> per ADR-0011 (v1 plaintext;
 /// v2 encrypts per-buyer DEK).</item>

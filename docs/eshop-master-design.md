@@ -638,7 +638,7 @@ Standard 4-layer project-reference shape used by every service in the solution:
 
 ### B.3 DI registration
 
-Mirror existing Weather/Order patterns:
+Standard DI registration used by every service:
 - `ApplicationDependencyInjection.AddApplication()` — `AddValidatorsFromAssembly`, `AddCqrsHandlersFromAssembly`, `AddDomainEventHandlersFromAssembly`, `AddDomainEventDispatcher`, `AddCqrsHandlerBehaviors` (decorator chain: Tracing → Logging → Metrics → Validation → Handler).
 - `MessagingDependencyInjection.AddKafkaMessaging()` — `AddOutbox()` with Avro, `AddInbox<TDbContext>(messageTypes)`, KafkaFlow `.TopicEndpoint(...)` per consumed topic.
 - `ApiDependencyInjection.AddApi()` — FastEndpoints, Swagger, ProblemDetails, CORS.
@@ -835,7 +835,7 @@ Canonical: [ADR-0007](adr/0007-avro-compatibility-modes.md) (policy, breaking-ch
 
 ### F.5 Architecture test invariants
 
-[bc-design/architecture-tests.md](bc-design/architecture-tests.md) — NetArchTest-based rule catalog (matches existing `test/Weather.ArchitectureTests/`). Common rules + per-BC specifics:
+[bc-design/architecture-tests.md](bc-design/architecture-tests.md) — NetArchTest-based rule catalog (matches existing `test/Catalog.ArchitectureTests/`). Common rules + per-BC specifics:
 
 - Layer dependency rules (Domain ↮ Infrastructure/Api; Application ↮ only Domain+Platform.CQRS+Outbox)
 - Aggregate discipline: private ctor + public static factory + no public setters

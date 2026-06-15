@@ -22,7 +22,7 @@ This document enumerates every command and query exposed by the Catalog, Basket,
 ### Validation
 
 - **FluentValidation** `AbstractValidator<TCommand>` / `AbstractValidator<TQuery>` classes, discovered by the `ValidationBehavior` in `platform/Platform.CQRS/Behaviors/ValidationBehavior.cs`.
-- Domain-layer `Result<T>` failures that originate from value-object `Create` factories surface as `422 Unprocessable Entity` via `Send.SendErrorResponseAsync` (following the `Weather` precedent in `src/Weather.Api/Common/Extensions/ResultExtensions.cs`).
+- Domain-layer `Result<T>` failures that originate from value-object `Create` factories surface as `422 Unprocessable Entity` via `Send.SendErrorResponseAsync` (the codebase-wide `Result<T>`-failure → ProblemDetails convention).
 - **HTTP 409 Conflict** for state-transition violations (e.g., cancelling a shipped order).
 - **HTTP 404 Not Found** for missing aggregate lookups by id.
 
@@ -49,7 +49,7 @@ Implementation: one shared middleware `Platform.Api.Idempotency.IdempotencyMiddl
 
 - All endpoints require Keycloak-issued JWT **unless** marked `AllowAnonymous` (public reads — catalog browse + Inventory stock-availability overlays, §§ 4.4.1–4.4.2).
 - `UserId` / `BuyerId` from `ClaimTypes.NameIdentifier` via FastEndpoints `[FromClaim(ClaimTypes.NameIdentifier, isRequired: true, removeFromSchema: true)]`.
-- Admin / ops endpoints require policy `AuthPolicies.Admin` (follows the `AuthPolicies.DevOnly` pattern in `src/Weather.Api/Endpoints/Admin/AdminGroup.cs`).
+- Admin / ops endpoints require policy `AuthPolicies.Admin` (follows the codebase-wide `AuthPolicies`-gated admin endpoint-group pattern).
 - Row-level authorization (buyer reads own order only) is enforced in the query handler against `BuyerId == claim.sub` with an admin bypass.
 
 ### Handler pattern
@@ -57,8 +57,8 @@ Implementation: one shared middleware `Platform.Api.Idempotency.IdempotencyMiddl
 - Commands implement `Platform.CQRS.ICommand` (no response) or `ICommand<TResponse>` (with response).
 - Queries implement `Platform.CQRS.IQuery<TResponse>`.
 - Handlers implement the matching `ICommandHandler<TCommand>[,TResponse]` / `IQueryHandler<TQuery,TResponse>` interface and return `Task<Result>` / `Task<Result<TResponse>>` from `FluentResults`.
-- Aggregate transitions that raise internal domain events are flushed via `DbContext.SaveChangesAsync(ct)` — the `DispatchDomainEventsInterceptor` fans out to `IDomainEventHandler<T>`s in-process (template in `src/Weather.Infrastructure/Persistence/Database/Interceptors/`).
-- External events are transactionally appended to the outbox by in-process domain-event handlers (template in `src/Weather.Application/WeatherAlerts/PurchaseSubscription/SubscriptionActivatedOutboxPublisherDomainEventHandler.cs`).
+- Aggregate transitions that raise internal domain events are flushed via `DbContext.SaveChangesAsync(ct)` — the `DispatchDomainEventsInterceptor` fans out to `IDomainEventHandler<T>`s in-process.
+- External events are transactionally appended to the outbox by in-process domain-event handlers (the codebase-wide outbox-publisher pattern).
 
 ### How saga-issued commands reach a service — cross-cutting plumbing
 

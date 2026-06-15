@@ -112,8 +112,8 @@ Integration and Functional tests that have infrastructure dependencies (Database
 
 Each assembly has exactly one collection:
 
-- `Weather.IntegrationTests` → `IntegrationTestCollection` (backed by `IntegrationTestFixture`)
-- `Weather.FunctionalTests` → `FunctionalTestCollection` (backed by `ApiTestFixture`)
+- `Catalog.IntegrationTests` → `IntegrationTestCollection` (backed by `IntegrationTestFixture`)
+- `Catalog.FunctionalTests` → `FunctionalTestCollection` (backed by `ApiTestFixture`)
 - `SagaOrchestrators.IntegrationTests` → `SagaTestCollection` (backed by `SagaIntegrationTestFixture`)
 
 ## Choosing the Right Test Level (Harness Rules)

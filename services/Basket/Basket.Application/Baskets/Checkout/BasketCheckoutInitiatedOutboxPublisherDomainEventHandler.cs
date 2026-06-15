@@ -16,9 +16,8 @@ namespace Basket.Application.Baskets.Checkout;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Mirrors the Weather reference pattern — see
-/// <c>Weather.Application.WeatherFeedback.SendFeedback.FeedbackCreatedOutboxPublisherDomainEventHandler</c>.
-/// The caller of <see cref="CheckoutBasketCommandHandler"/> owns the transaction
+/// Follows the codebase-wide outbox-publisher domain-event-handler convention:
+/// the caller of <see cref="CheckoutBasketCommandHandler"/> owns the transaction
 /// boundary; this handler only <b>adds</b> the outbox message. <c>SaveChangesAsync</c>
 /// happens on the command-handler side.
 /// </para>

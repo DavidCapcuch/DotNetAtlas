@@ -73,7 +73,7 @@ You own these. Justify each in your session summary.
 5. `docs/bc-design/bff.md § 5` (Dependency on New Upstream Endpoints) + the per-BC **HTTP surface** subsections in `use-cases.md` — your upstream contract. Catalog's bulk `GetProductsByIdsQuery` (`GET /api/v1/catalog/products/by-ids`) backs `/api/v1/bff/basket` and **already ships**; if any required upstream endpoint were actually missing, FLAG per `<stop_conditions>` rather than working around it.
 6. `docs/eshop-master-design.md` — the BFF-relevant sections (§ 3 event discipline, § 9 BFF overview, § 11.3 observability, § 11.7 async/sync). **Additive to `_shared.md § 2`'s universal reads, not a replacement.**
 7. **All ADRs in `<applicable_adrs>` below**
-8. Golden reference (`_shared.md § 4`): **Basket** (`services/Basket/`) for the FusionCache + Redis wiring, and existing BCs' typed-client setup (`grep -rn "AddHttpClient" services/`). Do **not** mirror `src/Weather`.
+8. Golden reference (`_shared.md § 4`): **Basket** (`services/Basket/`) for the FusionCache + Redis wiring, and existing BCs' typed-client setup (`grep -rn "AddHttpClient" services/`).
 </reading_order>
 
 <applicable_adrs>
@@ -140,7 +140,7 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 <boundaries>
 **You may write:** `src/EShop.BFF/**`, `test/EShop.BFF.*.Tests/**`, `docker-compose.yaml` (BFF container only — no new topics or relays), `DotNetAtlas.slnx` (new projects), `Directory.Packages.props` (Polly + FusionCache if missing), `docs/bc-design/bff.md` (self-correction only).
 
-**Do not touch:** `services/*`, `saga/*`, `platform/*` (NO `.avsc` changes — you only consume), Weather, any BC's docker-compose entry.
+**Do not touch:** `services/*`, `saga/*`, `platform/*` (NO `.avsc` changes — you only consume), any BC's docker-compose entry.
 </boundaries>
 
 <stop_conditions>

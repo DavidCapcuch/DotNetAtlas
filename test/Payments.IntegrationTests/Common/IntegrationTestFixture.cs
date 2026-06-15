@@ -24,7 +24,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// <summary>
 /// xUnit fixture booting the real <c>Payments.Api</c> host inside a
 /// <see cref="AppFixture{TEntryPoint}"/> against a throwaway Postgres testcontainer.
-/// Mirrors the canonical Weather pattern: the production composition root runs end-to-end
+/// Follows the canonical integration-fixture pattern: the production composition root runs end-to-end
 /// (so DI-validation issues, options binding, and middleware ordering are exercised), with
 /// only the seam ports swapped in <c>ConfigureTestServices</c>:
 /// <see cref="IOutboxWriter"/> -> <see cref="FakeOutboxWriter"/> (captures topic + key + Avro

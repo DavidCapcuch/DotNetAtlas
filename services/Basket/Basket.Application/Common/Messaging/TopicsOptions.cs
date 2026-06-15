@@ -12,7 +12,7 @@ namespace Basket.Application.Common.Messaging;
 /// </remarks>
 public sealed class TopicsOptions
 {
-    /// <summary>Configuration section name — matches Weather convention.</summary>
+    /// <summary>Configuration section name — the codebase-wide Topics-options convention.</summary>
     public const string Section = "Topics";
 
     private const int MaximumKafkaTopicLength = 249;
