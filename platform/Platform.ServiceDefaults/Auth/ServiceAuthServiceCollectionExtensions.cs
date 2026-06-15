@@ -15,8 +15,8 @@ public static class ServiceAuthServiceCollectionExtensions
     /// <remarks>
     /// Paired with the <c>IHttpClientBuilder.AddServiceAuth(string)</c> extension on each outbound
     /// <see cref="HttpClient"/> that should carry a bearer token. The handler depends on
-    /// <see cref="TimeProvider"/>; the Generic Host registers <see cref="TimeProvider.System"/>
-    /// automatically, and tests override with <c>FakeTimeProvider</c> per ADR-0015.
+    /// <see cref="TimeProvider"/>, which <c>AddServiceDefaults</c> registers platform-wide
+    /// (<see cref="TimeProvider.System"/>); tests override with <c>FakeTimeProvider</c> per ADR-0015.
     /// </remarks>
     public static IServiceCollection AddServiceAuth(this IServiceCollection services, string serviceName)
     {

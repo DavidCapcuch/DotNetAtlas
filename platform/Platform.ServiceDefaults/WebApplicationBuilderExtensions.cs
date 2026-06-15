@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Exceptions;
@@ -16,9 +17,10 @@ namespace Platform.ServiceDefaults;
 public static class WebApplicationBuilderExtensions
 {
     /// <summary>
-    /// Configures all service defaults including host configuration and Serilog logging. Time
-    /// access uses the BCL <see cref="TimeProvider"/> (registered by the Generic Host) per
-    /// ADR-0015.
+    /// Configures all service defaults including host configuration and Serilog logging. Registers
+    /// the BCL <see cref="TimeProvider.System"/> as the canonical clock per ADR-0015 — the Generic
+    /// Host does NOT register it in DI, so this is the single platform-wide registration every service
+    /// resolves <see cref="TimeProvider"/> from (tests override with <c>FakeTimeProvider</c>).
     /// </summary>
     /// <param name="builder">The web application builder.</param>
     /// <param name="configureOptions">Optional callback to configure Serilog options.</param>
@@ -36,6 +38,11 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddProblemDetails();
         builder.Services.AddExceptionHandler<PlatformExceptionHandler>();
         builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
+
+        // ADR-0015: the canonical clock is the BCL TimeProvider. The Generic Host does not register
+        // it in DI, so register it here once for every service. TryAdd — a BC test fixture may still
+        // replace it with a FakeTimeProvider.
+        builder.Services.TryAddSingleton(TimeProvider.System);
 
         return builder;
     }
