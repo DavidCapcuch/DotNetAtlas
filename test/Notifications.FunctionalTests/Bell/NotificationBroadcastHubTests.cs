@@ -39,6 +39,69 @@ public class NotificationBroadcastHubTests : BaseApiTest
         }
     }
 
+    // The production dotnetatlas-swagger client stamps EVERY browser-facing service audience onto
+    // one token (one dev login works across services), so a real browser token reaches the bell with
+    // a MULTI-VALUED `aud` array — not the single-valued audience the other tests mint. ValidateAudience
+    // is any-match, so the bell (ValidAudience = "notifications-service") must accept such a token as
+    // long as its own audience is one of the entries. This pins fix-(a): the swagger audience mapper is
+    // only useful if the hub accepts the multi-aud shape it produces.
+    private static readonly string[] SwaggerStyleAudiences =
+    [
+        "basket-service", "catalog-service", "inventory-service", "invoicing-service",
+        "ordering-service", "payments-service", "notifications-service"
+    ];
+
+    [Fact]
+    public async Task ClientWithMultiValuedAudienceContainingNotificationsService_Connects_AndReceivesBroadcast()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var userId = Guid.CreateVersion7();
+        await using var client = await SignalRClientFactory.ConnectWithAudiencesAsync(userId, SwaggerStyleAudiences);
+
+        var received = await PushUntilReceivedAsync(userId, client, new BellNotification("ping"), ct);
+
+        using (new AssertionScope())
+        {
+            received.Should().NotBeNull(
+                "the bell accepts a multi-valued aud (the real dotnetatlas-swagger token shape) when notifications-service is one of the entries");
+            received!.Message.Should().Be("ping");
+        }
+    }
+
+    [Fact]
+    public async Task ClientWithValidAudienceButNoSubjectClaim_IsConnectedThenDroppedByTheHub()
+    {
+        // A token can carry aud=notifications-service yet still be unusable by the bell if it has no
+        // `sub` — the hub keys its per-user group on `sub` (SubClaimUserIdProvider) and aborts a
+        // connection it cannot resolve to a recipient. The token IS authenticated, so [Authorize]
+        // passes and the handshake completes; the hub then drops the connection in OnConnectedAsync.
+        // This is exactly the shape a Keycloak client with NO subject mapper issues into its ACCESS
+        // token; the dotnetatlas-swagger realm fix adds a `subject` mapper so a real dev login carries
+        // `sub`. Pins that requirement end-to-end.
+        await using var client = await SignalRClientFactory.ConnectSubjectlessAsync(SwaggerStyleAudiences);
+
+        var dropped = await client.WaitUntilClosedAsync(TimeSpan.FromSeconds(5));
+
+        dropped.Should().BeTrue(
+            "a token with the right audience but no sub authenticates yet has no recipient identity, so the hub drops the connection");
+    }
+
+    [Fact]
+    public async Task ClientWhoseMultiValuedAudienceOmitsNotificationsService_IsRejected()
+    {
+        // A token audienced for other BCs but NOT notifications-service must not reach the bell —
+        // proves the hub's ValidAudience pin actually discriminates (the negative of the test above),
+        // so a token minted for a different resource can never connect.
+        var userId = Guid.CreateVersion7();
+        string[] otherBcAudiences = ["basket-service", "catalog-service", "ordering-service"];
+
+        await SignalRClientFactory
+            .Invoking(factory => factory.ConnectWithAudiencesAsync(userId, otherBcAudiences))
+            .Should()
+            .ThrowAsync<Exception>(
+                "the bell pins aud=notifications-service; a token audienced only for other BCs must be rejected");
+    }
+
     [Fact]
     public async Task Broadcast_IsScopedToTheRecipientGroup_OtherUsersDoNotReceiveIt()
     {

@@ -22,7 +22,7 @@ Kafka command topics are explicitly out of scope for application-layer auth in t
 
 ### Option 1: OAuth2 Client Credentials via Keycloak
 
-Every service is a Keycloak **client** with a client secret. Outbound HTTP calls go through a `ClientCredentialsTokenHandler` that fetches a service-account token from Keycloak (cached until near expiry). Token carries `azp` (calling service), `aud` (target service), `scope`. Inbound HTTP endpoints validate the token via `AddJwtBearer` and gate behaviour on the `scope` claim. Kafka command topics carry no application-layer auth — the trust boundary is the docker network per ADR-0009.
+Every HTTP-callable service is a Keycloak **client**; the ones that make outbound calls hold a client secret for the client-credentials grant. Outbound HTTP calls go through a `ClientCredentialsTokenHandler` that fetches a service-account token from Keycloak (cached until near expiry). Token carries `azp` (calling service), `aud` (target service), `scope`. Inbound HTTP endpoints validate the token via `AddJwtBearer` and gate behaviour on the `scope` claim. Kafka command topics carry no application-layer auth — the trust boundary is the docker network per ADR-0009.
 
 ### Option 2: mTLS via service mesh (Istio / Linkerd)
 
@@ -81,7 +81,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 - **Realm setup** (in `keycloak/realm-export.json`):
   - One client per HTTP-callable service: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `bff`. (The Checkout saga and Notifications worker have no Keycloak client — they have no inbound HTTP and interact only over Kafka, which carries no service token.)
-  - Each client has `serviceAccountsEnabled: true`, `publicClient: false`, client-secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`.
+  - All are `publicClient: false`. The four outbound-active clients (`catalog-service`, `basket-service`, `ordering-service`, `bff`) set `serviceAccountsEnabled: true` with a client secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`; the three inbound-only clients (`inventory-service`, `payments-service`, `invoicing-service`) are `serviceAccountsEnabled: false` with no secret — their `aud: <bc>-service` is stamped by the resource client-scope's `oidc-audience-mapper`, not a service account (see the 2026-05-27 amendment's outbound-active vs inbound-only table).
   - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.read`, `inventory.write`, etc.
   - Service-to-scope matrix is documented in `keycloak/service-scope-matrix.md` (co-authored with this ADR).
 
@@ -161,7 +161,7 @@ Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; t
 
 So a caller requesting `catalog.read` gets `aud: catalog-service` regardless of which client it is — exactly what catalog-service validates. Requesting multiple scopes yields a multi-valued `aud` array (one entry per resource). A token with no resource scope carries no `aud` and is valid at no resource (fail-closed).
 
-**Service clients carry NO per-client audience mapper.** The earlier design stamped every client with an `audience-self` mapper emitting `aud: "<own-clientId>"`. That was wrong for callers: a token basket sent to catalog carried `aud: basket-service`, which catalog-service rejects. Removing `audience-self` and moving audience to the scope fixes the latent cross-service breakage (verified 2026-05-27: `basket-service` + `catalog.read` → `aud: catalog-service`). The only clients that still self-audience are the user-facing app client (`e9fdb985…`) and Swagger UI — there the app *is* the resource the user token targets.
+**Service clients carry NO per-client audience mapper.** The earlier design stamped every client with an `audience-self` mapper emitting `aud: "<own-clientId>"`. That was wrong for callers: a token basket sent to catalog carried `aud: basket-service`, which catalog-service rejects. Removing `audience-self` and moving audience to the scope fixes the latent cross-service breakage (verified 2026-05-27: `basket-service` + `catalog.read` → `aud: catalog-service`). The only client that self-audiences is the user-facing app client (the SPA / web client the user signs into — distinct from the `bff` service-account client, which carries outbound BC scopes but no self-audience mapper) — there the app *is* the resource the user token targets. No client in the realm self-audiences today:
 
 **Do not delete the scope-level audience mappers, and do not re-add per-client `audience-self`.** Keycloak's `client_credentials` grant emits no `aud` by default; without the scope mapper a token reaches a resource with no audience and `ValidateAudience=true` rejects it silently. A warning comment sits above the realm-export mount in `docker-compose.yaml`.
 
@@ -251,7 +251,7 @@ already satisfies the corresponding read policy.
 - Every human-admin endpoint is reachable by an `admin` user through the swagger client, and every
   role gate is pinned by a negative test (correct scope / authenticated non-admin → 403).
 - The `service-scope-matrix.md` companion documents the swagger client's admin-scope provisioning
-  and Payments' human-admin reachability alongside the seven service clients.
+  and Payments' human-admin reachability alongside the seven per-BC clients (four service-account, three inbound-only).
 
 ## Amendment 2026-06-06 — BFF token exchange for buyer-scoped callees
 
@@ -308,7 +308,7 @@ Until then, Basket / Ordering / Invoicing FunctionalTests mint a synthetic token
   must token-exchange; if it only scope-gates a non-owner-scoped read, a plain service token is
   correct.
 - Consumer access to buyer-scoped BCs is **BFF-mediated** — there is no direct consumer→BC path.
-  So the user-facing app client (`e9fdb985`) provisions **no** BC scope and a user JWT never carries
+  So the user-facing app client provisions **no** BC scope and a user JWT never carries
   a BC audience; the BFF's exchanged token is the only token those BCs accept. (This is why the
   scope question raised by [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323) does not
   recur on the app client: the gap is closed by routing through the BFF, not by widening the user

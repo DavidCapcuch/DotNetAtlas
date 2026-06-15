@@ -265,61 +265,6 @@
   ],
   "clients": [
     {
-      "clientId": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
-      "name": "DotNet Atlas",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "super-secret-secret-that-should-be-regenerated-for-production",
-      "clientAuthenticatorType": "client-secret",
-      "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
-      "implicitFlowEnabled": false,
-      "redirectUris": [
-        "http://localhost:5159/signin-oidc",
-        "https://localhost:7095/signin-oidc",
-        "http://localhost:5159/signout-callback-oidc",
-        "https://localhost:7095/signout-callback-oidc"
-      ],
-      "webOrigins": [
-        "http://localhost:5159",
-        "https://localhost:7095"
-      ],
-      "attributes": {
-        "post.logout.redirect.uris": "http://localhost:5159/##http://localhost:5159/*##https://localhost:7095/##https://localhost:7095/*"
-      },
-      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
-      "optionalClientScopes": ["offline_access"],
-      "protocolMappers": [
-        {
-          "name": "roles-flat",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-realm-role-mapper",
-          "consentRequired": false,
-          "config": {
-            "multivalued": "true",
-            "userinfo.token.claim": "true",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "claim.name": "roles",
-            "jsonType.label": "String"
-          }
-        },
-        {
-          "name": "audience-app",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
-    },
-    {
       "clientId": "dotnetatlas-swagger",
       "name": "DotNet Atlas Swagger UI",
       "enabled": true,
@@ -330,8 +275,6 @@
       "serviceAccountsEnabled": false,
       "implicitFlowEnabled": false,
       "redirectUris": [
-        "http://localhost:5159/swagger/oauth2-redirect.html",
-        "https://localhost:7095/swagger/oauth2-redirect.html",
         "http://localhost:63342/rest/oauth2/callback",
         "http://localhost:5100/swagger/oauth2-redirect.html",
         "http://localhost:5101/swagger/oauth2-redirect.html",
@@ -347,8 +290,6 @@
         "http://localhost:8106/swagger/oauth2-redirect.html"
       ],
       "webOrigins": [
-        "http://localhost:5159",
-        "https://localhost:7095",
         "http://localhost:5100",
         "http://localhost:5101",
         "http://localhost:5102",
@@ -383,14 +324,13 @@
           }
         },
         {
-          "name": "audience-app",
+          "name": "subject",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
+          "protocolMapper": "oidc-sub-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
           }
         },
         {
@@ -455,6 +395,17 @@
           "consentRequired": false,
           "config": {
             "included.client.audience": "payments-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-notifications",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "notifications-service",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }

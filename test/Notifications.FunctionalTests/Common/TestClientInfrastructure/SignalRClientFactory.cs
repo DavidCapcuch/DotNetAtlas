@@ -10,8 +10,7 @@ namespace Notifications.FunctionalTests.Common.TestClientInfrastructure;
 /// <summary>
 /// Builds <see cref="NotificationHubTestClient"/>s connected to the in-process bell hub over the
 /// <see cref="TestServer"/>'s WebSocket transport (MessagePack protocol), carrying a bearer token
-/// minted by <see cref="FakeTokenCreator"/>. Mirrors Weather's SignalR test-client factory,
-/// re-targeted to <see cref="NotificationHub"/>.
+/// minted by <see cref="FakeTokenCreator"/>, targeting <see cref="NotificationHub"/>.
 /// </summary>
 public sealed class SignalRClientFactory
 {
@@ -39,6 +38,21 @@ public sealed class SignalRClientFactory
     /// <summary>Connects an unauthenticated client (no bearer token) — used to assert the hub rejects it.</summary>
     public Task<NotificationHubTestClient> ConnectUnauthenticatedAsync()
         => CreateAsync(_tokenCreator.CreateUserToken(ClientType.NonAuth));
+
+    /// <summary>
+    /// Connects a client whose token carries an explicit multi-valued <c>aud</c> (the production
+    /// <c>dotnetatlas-swagger</c> token shape). Used to assert the bell accepts a multi-aud token
+    /// containing <c>notifications-service</c> and rejects one whose audiences omit it.
+    /// </summary>
+    public Task<NotificationHubTestClient> ConnectWithAudiencesAsync(Guid userId, IReadOnlyCollection<string> audiences)
+        => CreateAsync(_tokenCreator.CreateUserTokenWithAudiences(userId, audiences));
+
+    /// <summary>
+    /// Connects with a token bearing the given <paramref name="audiences"/> but no <c>sub</c> claim —
+    /// used to assert the bell drops a token it authenticates but cannot resolve to a recipient.
+    /// </summary>
+    public Task<NotificationHubTestClient> ConnectSubjectlessAsync(IReadOnlyCollection<string> audiences)
+        => CreateAsync(_tokenCreator.CreateSubjectlessTokenWithAudiences(audiences));
 
     private async Task<NotificationHubTestClient> CreateAsync(string accessToken)
     {

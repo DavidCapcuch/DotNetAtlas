@@ -16,6 +16,7 @@ public sealed class NotificationHubTestClient : INotificationClientContract, IAs
     private readonly Channel<BellNotification> _received;
     private readonly IDisposable _subscription;
     private readonly CancellationToken _cancellationToken;
+    private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public NotificationHubTestClient(HubConnection connection, CancellationToken cancellationToken)
     {
@@ -23,9 +24,34 @@ public sealed class NotificationHubTestClient : INotificationClientContract, IAs
         _cancellationToken = cancellationToken;
         _received = Channel.CreateUnbounded<BellNotification>();
         _subscription = _connection.Register<INotificationClientContract>(this);
+
+        // Wired before StartAsync (the factory constructs this client first), so a server-side drop
+        // during/after connect — e.g. the hub aborting a connection it cannot key to a recipient — is
+        // observed rather than missed.
+        _connection.Closed += _ =>
+        {
+            _closed.TrySetResult();
+            return Task.CompletedTask;
+        };
     }
 
     public Task StartAsync() => _connection.StartAsync(_cancellationToken);
+
+    /// <summary>
+    /// Completes <c>true</c> if the connection is (or becomes) closed within <paramref name="timeout"/>.
+    /// Used to assert the hub drops a connection post-handshake (an authenticated token the hub cannot
+    /// resolve to a recipient).
+    /// </summary>
+    public async Task<bool> WaitUntilClosedAsync(TimeSpan timeout)
+    {
+        if (_connection.State == HubConnectionState.Disconnected)
+        {
+            return true;
+        }
+
+        var finished = await Task.WhenAny(_closed.Task, Task.Delay(timeout, _cancellationToken));
+        return finished == _closed.Task || _connection.State == HubConnectionState.Disconnected;
+    }
 
     public Task StopAsync() => _connection.StopAsync(_cancellationToken);
 

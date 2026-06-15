@@ -1,13 +1,13 @@
 # Service-to-Service Auth — Client ↔ Scope Matrix
 
-Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 7 service clients defined in [realm-export.json](realm-export.json).
+Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 7 per-BC clients (4 service-account, 3 inbound-only) defined in [realm-export.json](realm-export.json).
 
 ## Conventions
 
 - **Realm:** `dotnetatlas` (NOT `eshop` — see drift note below).
 - **Issuer / Authority:** `http://localhost:9011/realms/dotnetatlas` (local dev).
 - **Scope naming:** dot-separated, `<bc>.<verb>` (e.g. `catalog.read`, `inventory.write`). Scopes gate inbound HTTP endpoints (e.g. `inventory.write` gates the Inventory `Receive`/`Adjust` admin endpoints; `catalog.write` gates Catalog mutations). Kafka command topics have no application-layer scope check — the trust boundary is the docker network per ADR-0009.
-- **Audience (RFC 9068/8707 — audience = the resource being called):** each resource **client scope** carries an `oidc-audience-mapper` stamping the owning service, so a token requesting `catalog.read` gets `"aud": "catalog-service"` no matter which client requested it; multiple scopes yield a multi-valued `aud` array. Each service validates `Audience = <this-service>` inbound. Service clients have **no** per-client `audience-self` mapper — a caller's token must be audienced for the callee, not itself (corrected 2026-05-27; see ADR-0010 §"Keycloak audience lives on the client SCOPE"). Only the user-facing app client + Swagger self-audience (`e9fdb985…`), since there the app is the resource.
+- **Audience (RFC 9068/8707 — audience = the resource being called):** each resource **client scope** carries an `oidc-audience-mapper` stamping the owning service, so a token requesting `catalog.read` gets `"aud": "catalog-service"` no matter which client requested it; multiple scopes yield a multi-valued `aud` array. Each service validates `Audience = <this-service>` inbound. Service clients have **no** per-client `audience-self` mapper — a caller's token must be audienced for the callee, not itself (corrected 2026-05-27; see ADR-0010 §"Keycloak audience lives on the client SCOPE"). The exception is the user-facing app client (the SPA / web client the user signs into — distinct from the `bff` service-account client), where the app is the resource the user token targets — not in the realm today; it returns with the SPA/BFF build (the Weather sample that held this role was removed in #318).
 - **Token endpoint:** `POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`.
 - **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §3.
 
@@ -66,7 +66,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 
 ## 2. Per-service blocks
 
-Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient: false`, and only the client-credentials grant (standard/direct-access/implicit flows disabled).
+All 7 per-BC clients are `publicClient: false`. Four — `catalog`, `basket`, `ordering`, `bff` — set `serviceAccountsEnabled: true`, use only the client-credentials grant (standard/direct-access/implicit flows disabled), and carry a committed dev secret. The other three — `inventory`, `payments`, `invoicing` — are `serviceAccountsEnabled: false` with no secret: they expose only inbound endpoints, so their `aud: <bc>-service` identity comes from the resource client-scope's `oidc-audience-mapper` (see Audience above), not a service account.
 
 ### `catalog-service`
 
@@ -83,7 +83,7 @@ Each of the 7 service clients uses `serviceAccountsEnabled: true`, `publicClient
 - **Outbound:** `catalog.read`
   - `catalog.read` — Basket's `IProductCatalogQueryPort` ACL adapter reads product snapshots from Catalog.
 - **Inbound:** `basket.read`, `basket.write`
-  - **All** basket access is via the BFF (RFC 8693 token exchange): reads via `basket.read`, mutations + checkout via `basket.write`. The user-facing app client (`e9fdb985`) carries **no** `basket.*` scope — consumer basket access is BFF-mediated, there is no direct SPA→Basket path ([bff.md §2.5/§3.6/§4.2](../../docs/bc-design/bff.md)). So a user JWT never carries `aud: basket-service`; the only token Basket accepts is the BFF's exchanged one. **Invariant — do not add `basket.*` to `e9fdb985`** to silence a direct-call 401: it would re-mint user tokens audienced for Basket and reopen the direct-path bypass the BFF mediation closes ([ADR-0010 §amendment](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)).
+  - **All** basket access is via the BFF (RFC 8693 token exchange): reads via `basket.read`, mutations + checkout via `basket.write`. The user-facing app client carries **no** `basket.*` scope — consumer basket access is BFF-mediated, there is no direct SPA→Basket path ([bff.md §2.5/§3.6/§4.2](../../docs/bc-design/bff.md)). So a user JWT never carries `aud: basket-service`; the only token Basket accepts is the BFF's exchanged one. **Invariant — do not add `basket.*` to the user-facing app client** to silence a direct-call 401: it would re-mint user tokens audienced for Basket and reopen the direct-path bypass the BFF mediation closes ([ADR-0010 §amendment](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)).
 - **Cross-refs:** `bff.md §3.2/§3.6`, `basket.md`.
 
 ### `ordering-service`
@@ -145,9 +145,54 @@ role + scope admin endpoints:
   read), and role-only admin endpoints (Ordering, Invoicing) need no scope at all. Adding read
   scopes here would be provisioned-for-convenience dead config (ADR-0010 §"Role vs scope
   canonical model").
-- **Audience:** the swagger client has per-client `oidc-audience-mapper`s for every BC (a dev-only
-  convenience so one login works across services); the role gate, not the audience, is what blocks
-  non-admins from admin endpoints.
+- **Audience:** the swagger client has per-client `oidc-audience-mapper`s stamping all **seven**
+  browser-facing service audiences — `{basket,catalog,inventory,invoicing,ordering,payments}-service`
+  for the six HTTP BC APIs, plus `notifications-service` for the in-app bell hub (see Notifications
+  below) — a dev-only convenience so one login works across services; the role gate, not the
+  audience, is what blocks non-admins from admin endpoints.
+- **Subject (`sub`):** the client carries an explicit `oidc-sub-mapper` (`subject`) so the **access
+  token** carries `sub`. This realm is scope-light — it has no Keycloak built-in `basic` client scope
+  (which would otherwise supply the access-token `sub`), so without this mapper the access token has
+  **no `sub`** (only the id token would). The role-gated admin endpoints never noticed (they gate on
+  `roles`), but every `sub`-keyed surface broke when driven from Swagger: the bell hub drops a
+  `sub`-less connection ([SubClaimUserIdProvider](../../services/Notifications/Notifications.Api/SignalRHubs/SubClaimUserIdProvider.cs)),
+  and the buyer-self reads in Ordering / Invoicing (`GetBuyerIdOrNull` → `sub`) `401`'d on identity
+  resolution. The `subject` mapper fixes all of them.
+
+### `notifications` (in-app bell — user-facing, NOT a service client)
+
+Notifications' only inbound surface is the in-app **bell** SignalR hub at `/hubs/v1/notifications`
+([notifications.md §6](../../docs/bc-design/notifications.md), [ADR-0032](../../docs/adr/0032-notifications-dispatch-and-channels.md)).
+It has **no Keycloak client and no scope**: nothing calls it service-to-service, and the hub is
+`[Authorize]`-only (any authenticated user, recipient keyed on the token's own `sub`), so a scope
+would gate nothing while stamping an audience with no policy behind it — the dead config ADR-0010
+§"Role vs scope canonical model" rejects.
+
+- **Audience:** `notifications-service`, pinned fail-closed in `Notifications.Api/appsettings.json`
+  (`Authentication:JwtBearer:…:ValidAudience`).
+- **Access shape — a third auth category.** Unlike the BFF-mediated buyer-scoped BCs (Basket / Ordering /
+  Invoicing, reached via RFC 8693 token exchange), the bell is reached **browser → YARP edge → hub** with
+  YARP a *transparent WebSocket proxy*: the **user's own token rides through verbatim** and must itself
+  carry `aud: notifications-service` ([ADR-0035 §Rationale](../../docs/adr/0035-edge-owned-cors-yarp.md) —
+  "the token rides the query string *through* YARP and each BC still validates its own JWT"). No token
+  exchange. Safe because the recipient is the token's own `sub`, so there is no service-account
+  intermediary to mis-resolve the owner — the direct-path bypass that BFF mediation closes for Basket has
+  no analogue here.
+- **Recipient identity — needs `sub` in the access token.** The hub keys its per-user group on `sub`
+  ([SubClaimUserIdProvider](../../services/Notifications/Notifications.Api/SignalRHubs/SubClaimUserIdProvider.cs)),
+  and SignalR validates the **access** token (not the id token). So a usable token needs `sub` *as well as*
+  the audience — a right-`aud`/no-`sub` token authenticates, then the hub drops the connection
+  (`"Connection has no user identity."`). The `dotnetatlas-swagger` `subject` mapper (above) supplies it.
+- **Dev access / future SPA.** The swagger `audience-notifications` + `subject` mappers make a dev login
+  usable against the bell (ADR-0010 driver #3, *laptop-testable*). The future SPA / user-facing app client
+  inherits the obligation — emit `sub` and stamp `aud: notifications-service`. **It must stamp
+  `notifications-service` *only*, not mirror the swagger client's all-BC audience set** — that broad audience
+  is a public-tooling-only widening (README); copying it onto a real SPA client would re-mint user tokens
+  audienced for Basket/Ordering/Invoicing and reopen the direct-path the BFF token exchange deliberately
+  closes. Cross-origin browser reach additionally waits on the YARP edge's CORS policy
+  ([ADR-0035](../../docs/adr/0035-edge-owned-cors-yarp.md)).
+- **Counts:** `notifications-service` is an audience *value* only — it adds **no** client and **no** scope,
+  so the 7 per-BC clients / 8 declared clients / 9 scopes above are unchanged.
 
 ---
 
@@ -155,9 +200,9 @@ role + scope admin endpoints:
 
 ### Dev-only secrets
 
-`realm-export.json` commits nine literal client secrets of the form `dev-<service>-secret-rotate-in-prod`. **These are acceptable ONLY for local Docker dev** — every non-local environment MUST regenerate each secret.
+`realm-export.json` commits four literal client secrets of the form `dev-<service>-secret-rotate-in-prod` — one per service-account client (`catalog`, `basket`, `ordering`, `bff`). **These are acceptable ONLY for local Docker dev** — every non-local environment MUST regenerate each secret.
 
-**Why committed literal (and not templated):** Keycloak's `--import-realm` does not perform `${ENV_VAR}` substitution on realm-export.json. Committing placeholders would require adding a pre-mount substitution layer (custom entrypoint or `envsubst` preprocessing); that complexity is out of Wave 0 scope. The pattern matches the existing backend-client secret `realm-export.json:100` (`super-secret-secret-that-should-be-regenerated-for-production`).
+**Why committed literal (and not templated):** Keycloak's `--import-realm` does not perform `${ENV_VAR}` substitution on realm-export.json. Committing placeholders would require adding a pre-mount substitution layer (custom entrypoint or `envsubst` preprocessing); that complexity is out of Wave 0 scope. The pattern matches every committed service-client secret in `realm-export.json` (e.g. `catalog-service` → `dev-catalog-service-secret-rotate-in-prod`).
 
 ### Rotating a service secret
 
@@ -184,10 +229,9 @@ Services read their own secret from the env-var pattern:
 | `catalog-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__CATALOG` | compose `.env` (dev) or vault (prod) |
 | `basket-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BASKET` | ″ |
 | `ordering-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__ORDERING` | ″ |
-| `inventory-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__INVENTORY` | ″ |
-| `payments-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__PAYMENTS` | ″ |
-| `invoicing-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__INVOICING` | ″ |
 | `bff` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BFF` | ″ |
+
+> Only the four `serviceAccountsEnabled: true` clients have a secret. `inventory` / `payments` / `invoicing` are inbound-only (`serviceAccountsEnabled: false`), acquire no token, and need no `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env var.
 
 Wave 0 **M7** wires these env-vars into per-service `appsettings.*.json` + compose `environment` blocks.
 
@@ -197,8 +241,8 @@ Keycloak's `--import-realm` flag runs only on first container start when the `ke
 
 ```bash
 docker compose --profile full stop keycloak
-docker exec postgresdb psql -U postgres -c "DROP DATABASE IF EXISTS keycloak WITH (FORCE);"
-docker exec postgresdb psql -U postgres -c "CREATE DATABASE keycloak;"
+docker exec postgres5433 psql -U postgres -c "DROP DATABASE IF EXISTS keycloak WITH (FORCE);"
+docker exec postgres5433 psql -U postgres -c "CREATE DATABASE keycloak;"
 docker compose --profile full up -d keycloak
 # wait for healthy:
 docker compose logs -f keycloak | grep -m1 "Imported realm"
@@ -222,15 +266,22 @@ TOKEN=$(curl -s -X POST http://localhost:9011/realms/master/protocol/openid-conn
   -d 'client_id=admin-cli' -d 'username=admin' -d 'password=admin' -d 'grant_type=password' \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
-# List all clients — expect 9 realm-declared (plus Keycloak builtins: account, admin-cli, broker, realm-management, security-admin-console)
+# List all clients — expect 8 realm-declared (plus Keycloak builtins: account, account-console, admin-cli, broker, realm-management, security-admin-console)
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;cs=json.load(sys.stdin);ours={'e9fdb985-9173-4e01-9d73-ac2d60d1dc8e','dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
+  | python -c "import sys,json;cs=json.load(sys.stdin);ours={'dotnetatlas-swagger','catalog-service','basket-service','ordering-service','inventory-service','payments-service','invoicing-service','bff'};print([c['clientId'] for c in cs if c['clientId'] in ours])"
 
 # List all client scopes — expect the 9 declared scopes plus Keycloak defaults
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
   -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.write','payments.read','invoicing.read'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
+
+# dotnetatlas-swagger must stamp all 7 browser-facing audiences, incl. notifications-service (bell hub)
+SW=$(curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients?clientId=dotnetatlas-swagger" \
+  -H "Authorization: Bearer $TOKEN" | python -c "import sys,json;print(json.load(sys.stdin)[0]['id'])")
+curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients/$SW/protocol-mappers/models" \
+  -H "Authorization: Bearer $TOKEN" \
+  | python -c "import sys,json;auds=sorted(m['config']['included.client.audience'] for m in json.load(sys.stdin) if m['protocolMapper']=='oidc-audience-mapper');print('swagger audiences:',auds);print('notifications-service stamped:','notifications-service' in auds)"
 
 # Service-account token for catalog-service with scope catalog.write
 curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token \
@@ -241,11 +292,11 @@ curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect
   | python -c "import sys,json,base64;t=json.load(sys.stdin)['access_token'];p=t.split('.')[1];p+='='*(4-len(p)%4);d=json.loads(base64.urlsafe_b64decode(p));print('azp',d.get('azp'),'aud',d.get('aud'),'scope',d.get('scope'))"
 ```
 
-Expected result on the last check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `catalog.write` scope's `audience-catalog-service` mapper fired. (Cross-service check: mint as `basket-service` with `scope=catalog.read` → `aud catalog-service`, proving the audience follows the scope/callee, not the caller.)
+Expected result on the catalog-service check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `catalog.write` scope's `audience-catalog-service` mapper fired. (Cross-service check: mint as `basket-service` with `scope=catalog.read` → `aud catalog-service`, proving the audience follows the scope/callee, not the caller.) The swagger-mapper check prints all seven audiences and `notifications-service stamped: True` — the bell hub's audience is reachable through a real human login ([§ Notifications](#notifications-in-app-bell--user-facing-not-a-service-client)).
 
 ---
 
 ## 5. Open follow-ups (Wave 0 DoD or later)
 
-1. **Wave 0 M7** — wire the nine `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
+1. **Wave 0 M7** — wire the four `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars (`catalog`, `basket`, `ordering`, `bff`) into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
 2. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
