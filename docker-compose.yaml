@@ -512,6 +512,55 @@ services:
         limits:
           memory: 768M
 
+  # Backend-for-Frontend aggregation gateway (bff.md). Stateless: no database, no Kafka.
+  # Walking-skeleton scope (#327) serves the public GET /api/v1/bff/product-page/{id} by
+  # composing Catalog + Inventory behind the redis-cache FusionCache.
+  bff.api:
+    build:
+      context: .
+      dockerfile: src/EShop.BFF/EShop.BFF.Api/Dockerfile
+      args:
+        # Alpine base so the compose-level wget HEALTHCHECK has a shell (same as the BCs).
+        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+    healthcheck: *readiness-healthcheck
+    container_name: bff.api
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      # redis-cache is the only readiness-gating dependency (ADR-0016): the BFF degrades
+      # gracefully without it. keycloak is needed for the outbound service token.
+      redis-cache:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      # Upstreams are start-ordering only (NOT health-gated): the BFF is built to boot and
+      # degrade when an upstream is down (resilience + fail-safe, bff.md § 2.1 / § 3.1), so it
+      # must not refuse to start just because Catalog or Inventory is unhealthy.
+      catalog.api:
+        condition: service_started
+      inventory.api:
+        condition: service_started
+    # Same iss/metadata bridge as the BCs: map host `localhost` to the gateway so the
+    # ServiceAuth token endpoint (http://localhost:9011/realms/dotnetatlas, from appsettings)
+    # reaches Keycloak via the host's 9011 → keycloak:8080 port mapping.
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=http://+:8080
+      - Bff__Catalog__BaseUrl=http://catalog.api:8080
+      - Bff__Inventory__BaseUrl=http://inventory.api:8080
+      - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=BFF
+    ports:
+      - "8108:8080"   # 8100-8107 taken by the BC apis; 8090-8096 by relays; 8080 by nginx-cdn.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   ordering.api:
     build:
       context: .

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Api\EShop.BFF.Api.csproj" />
+        <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Infrastructure\EShop.BFF.Infrastructure.csproj" />
+    </ItemGroup>
+</Project>

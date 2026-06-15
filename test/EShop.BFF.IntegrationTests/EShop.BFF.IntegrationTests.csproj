@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
+    <ItemGroup>
+        <PackageReference Include="FastEndpoints.Testing" />
+        <PackageReference Include="Testcontainers.Redis" />
+        <PackageReference Include="StackExchange.Redis" />
+        <PackageReference Include="WireMock.Net" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Api\EShop.BFF.Api.csproj" />
+        <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Infrastructure\EShop.BFF.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Test.Framework\Platform.Test.Framework.csproj" />
+    </ItemGroup>
+</Project>

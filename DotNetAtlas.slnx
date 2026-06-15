@@ -93,6 +93,13 @@
     <Project Path="services/Payments/Payments.Domain/Payments.Domain.csproj" />
     <Project Path="services/Payments/Payments.Infrastructure/Payments.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/">
+    <File Path="src/Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/EShop.BFF/">
+    <Project Path="src/EShop.BFF/EShop.BFF.Api/EShop.BFF.Api.csproj" />
+    <Project Path="src/EShop.BFF/EShop.BFF.Infrastructure/EShop.BFF.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".env" />
@@ -119,6 +126,9 @@
     <Project Path="test/Catalog.FunctionalTests/Catalog.FunctionalTests.csproj" />
     <Project Path="test/Catalog.IntegrationTests/Catalog.IntegrationTests.csproj" />
     <Project Path="test/Catalog.UnitTests/Catalog.UnitTests.csproj" />
+    <Project Path="test/EShop.BFF.ArchitectureTests/EShop.BFF.ArchitectureTests.csproj" />
+    <Project Path="test/EShop.BFF.IntegrationTests/EShop.BFF.IntegrationTests.csproj" />
+    <Project Path="test/EShop.BFF.UnitTests/EShop.BFF.UnitTests.csproj" />
     <Project Path="test/Inventory.ArchitectureTests/Inventory.ArchitectureTests.csproj" />
     <Project Path="test/Inventory.FunctionalTests/Inventory.FunctionalTests.csproj" />
     <Project Path="test/Inventory.IntegrationTests/Inventory.IntegrationTests.csproj" />
