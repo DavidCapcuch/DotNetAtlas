@@ -1,16 +1,19 @@
 using EShop.BFF.Infrastructure.Caching;
 using EShop.BFF.Infrastructure.Clients.Catalog;
 using EShop.BFF.Infrastructure.Clients.Inventory;
+using EShop.BFF.Infrastructure.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.ServiceDefaults.Auth;
+using Platform.ServiceDefaults.FeatureFlags;
 
 namespace EShop.BFF.Infrastructure.Common;
 
 /// <summary>
 /// Composition root for the BFF infrastructure layer: observability, the outbound
 /// <c>client_credentials</c> service-auth host (ADR-0010), the redis-cache FusionCache, the Catalog +
-/// Inventory typed clients, and health checks.
+/// Inventory typed clients, feature flags (ADR-0014), the <c>bff-group</c> Kafka cache invalidator, and
+/// health checks.
 /// </summary>
 public static class InfrastructureDependencyInjection
 {
@@ -22,9 +25,11 @@ public static class InfrastructureDependencyInjection
         services
             .AddBffObservability(isDeployedEnvironment, configuration)
             .AddServiceAuth("bff")
+            .AddFeatureFlags(configuration)
             .AddBffCache(configuration)
             .AddCatalogClient(configuration)
             .AddInventoryClient(configuration)
+            .AddBffMessaging(configuration)
             .AddBffHealthChecks();
 
         return services;

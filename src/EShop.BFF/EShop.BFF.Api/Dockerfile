@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:de3e2d510c3b30dd10a3ababad927725839aacd0bbd6a3e8aef9a5a4408ccc12
 
 FROM ${BASE_IMAGE} AS base
 USER $APP_UID
@@ -27,10 +27,12 @@ COPY platform/Directory.Packages.props platform/
 COPY src/Directory.Packages.props src/
 
 # Platform.* csprojs transitively referenced by EShop.BFF.{Api,Infrastructure}
-# (Platform.Api → Platform.SharedKernel; Platform.ServiceDefaults → Platform.SharedKernel).
+# (Platform.Api → Platform.SharedKernel; Platform.ServiceDefaults → Platform.SharedKernel;
+# Platform.SchemaRegistry.Contracts holds the Avro records the bff-group invalidator consumes).
 COPY platform/Platform.SharedKernel/Platform.SharedKernel.csproj platform/Platform.SharedKernel/
 COPY platform/Platform.ServiceDefaults/Platform.ServiceDefaults.csproj platform/Platform.ServiceDefaults/
 COPY platform/Platform.Api/Platform.Api.csproj platform/Platform.Api/
+COPY platform/Platform.SchemaRegistry.Contracts/Platform.SchemaRegistry.Contracts.csproj platform/Platform.SchemaRegistry.Contracts/
 
 # BFF project files.
 COPY src/EShop.BFF/EShop.BFF.Infrastructure/EShop.BFF.Infrastructure.csproj src/EShop.BFF/EShop.BFF.Infrastructure/
@@ -40,6 +42,7 @@ COPY src/EShop.BFF/EShop.BFF.Api/EShop.BFF.Api.csproj src/EShop.BFF/EShop.BFF.Ap
 COPY platform/Platform.SharedKernel/packages.lock.json platform/Platform.SharedKernel/
 COPY platform/Platform.ServiceDefaults/packages.lock.json platform/Platform.ServiceDefaults/
 COPY platform/Platform.Api/packages.lock.json platform/Platform.Api/
+COPY platform/Platform.SchemaRegistry.Contracts/packages.lock.json platform/Platform.SchemaRegistry.Contracts/
 COPY src/EShop.BFF/EShop.BFF.Infrastructure/packages.lock.json src/EShop.BFF/EShop.BFF.Infrastructure/
 COPY src/EShop.BFF/EShop.BFF.Api/packages.lock.json src/EShop.BFF/EShop.BFF.Api/
 

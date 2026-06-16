@@ -1,5 +1,7 @@
 using EShop.BFF.Api.Common;
+using EShop.BFF.Api.Composition;
 using EShop.BFF.Infrastructure.Common;
+using KafkaFlow;
 using Platform.ServiceDefaults;
 using Serilog;
 
@@ -23,6 +25,11 @@ try
         .AddApi(builder.Configuration)
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
+    // Registered after AddInfrastructure (which wires feature flags) so this hosted service starts AFTER
+    // OpenFeature has initialized its provider — the warmer must read bff.home-page-eager-cache-warm from
+    // the loaded flags.json, not a not-yet-ready provider (ADR-0014 kill-switch correctness).
+    builder.Services.AddHostedService<HomePageCacheWarmer>();
+
     var app = builder.Build();
 
     if (app.Environment.IsProduction())
@@ -44,6 +51,14 @@ try
 
     app.MapPlatformHealthCheckEndpoints();
     app.UsePlatformHealthChecksPrometheusExporter();
+
+    // Start the cache-invalidation consumer (group bff-group). Skipped in the test host — the Kafka
+    // integration fixture boots the bus explicitly against its Testcontainers broker.
+    if (!app.Environment.IsTesting())
+    {
+        var kafkaBus = app.Services.CreateKafkaBus();
+        await kafkaBus.StartAsync();
+    }
 
     await app.RunAsync();
 }

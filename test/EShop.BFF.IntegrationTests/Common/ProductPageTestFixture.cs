@@ -63,7 +63,8 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
 
     protected override void ConfigureApp(IWebHostBuilder a)
     {
-        a.UseEnvironment("Testing");
+        // Warm off — the product-page suite doesn't exercise the home-page warmer.
+        a.UseEnvironment("Testing").UseTestSerilog().UseWarmFlag(enabled: false);
     }
 
     /// <summary>Stubs Catalog's <c>GET /api/v1/catalog/products/{id}</c> with a 200 product body.</summary>
