@@ -160,4 +160,4 @@ Subsumes [#262](https://github.com/DavidCapcuch/DotNetAtlas/issues/262), [#288](
 - [ADR-0004: Checkout Saga Topology](0004-checkout-saga-topology.md) — the saga state machine being restructured; its state-timeout backstops the wait-state.
 - [ADR-0023: Payments Event-vs-Command Classification](0023-payments-event-vs-command-classification.md) — the command/event vocabulary this flow uses.
 - [ADR-0025: Kafka consumer retry & dead-letter policy](0025-kafka-consumer-retry-dlt-policy.md) — the consumer reliability policy under which these events are processed.
-- [eshop-master-design.md §5.5](../bc-design/eshop-master-design.md), [payments.md](../bc-design/payments.md), [checkout-saga.md](../bc-design/checkout-saga.md) — design docs reconciled by this decision.
+- [eshop-master-design.md §5.5](../eshop-master-design.md), [payments.md](../bc-design/payments.md), [checkout-saga.md](../bc-design/checkout-saga.md) — design docs reconciled by this decision.

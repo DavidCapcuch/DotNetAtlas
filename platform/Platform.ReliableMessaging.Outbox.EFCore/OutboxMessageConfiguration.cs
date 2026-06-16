@@ -51,7 +51,7 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 
         builder.Property(om => om.Type)
             .HasComment(
-                "Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability")
+                "Avro type name of the serialized event (e.g., 'OrderConfirmedEvent') for deserialization and observability")
             .HasMaxLength(255)
             .IsUnicode(false);
 

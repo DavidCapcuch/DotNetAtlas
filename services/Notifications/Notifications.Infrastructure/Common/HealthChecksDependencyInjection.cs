@@ -17,7 +17,7 @@ namespace Notifications.Infrastructure.Common;
 /// EF's command-timeout default (operators who need a tighter DB-level timeout switch
 /// to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into <c>EfCoreOptions</c>). No
 /// Redis check — Notifications has no idempotency cache layer. The Schema Registry is
-/// deliberately NOT a readiness probe: the in-process EmailCommands consumer's Avro
+/// deliberately NOT a readiness probe: the in-process NotifyUserCommand consumer's Avro
 /// deserializer contacts it only cold-cache (schema-IDs are cached after first use), so
 /// steady-state consumption survives an SR outage — SR is a boot-ordering dependency
 /// (compose <c>depends_on</c>), like Keycloak, not a readiness gate.

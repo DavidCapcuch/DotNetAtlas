@@ -680,7 +680,7 @@ services:
           memory: 768M
 
   # Notifications has no HTTP API surface (no auth, no Redis, no Azurite) — it's a
-  # KafkaFlow consumer service that processes EmailCommands / payment.payment-commands
+  # KafkaFlow consumer service that consumes NotifyUserCommand (notifications.notify-commands)
   # and writes to Postgres. /api/healthz + /api/readiness come from Platform.ServiceDefaults
   # and the readiness check exercises DbContext + Kafka (see HealthChecksDependencyInjection).
   notifications.api:

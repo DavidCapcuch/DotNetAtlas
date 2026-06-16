@@ -137,7 +137,7 @@ namespace Notifications.Infrastructure.Persistence.Database.Migrations
                         .IsUnicode(false)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("type")
-                        .HasComment("Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability");
+                        .HasComment("Avro type name of the serialized event (e.g., 'OrderConfirmedEvent') for deserialization and observability");
 
                     b.HasKey("Id")
                         .HasName("pk_outbox_messages");

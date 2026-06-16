@@ -4,8 +4,8 @@
     {
       "name": "ordering-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Order/Ordering.API", "--launch-profile", "http"],
-      "port": 5081
+      "runtimeArgs": ["run", "--project", "services/Ordering/Ordering.Api", "--launch-profile", "http"],
+      "port": 5105
     },
     {
       "name": "sagas-worker",
@@ -16,14 +16,14 @@
     {
       "name": "payments-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Payments/Payments", "--launch-profile", "http"],
-      "port": 5298
+      "runtimeArgs": ["run", "--project", "services/Payments/Payments.Api", "--launch-profile", "http"],
+      "port": 5106
     },
     {
       "name": "notifications-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Notifications/Notifications", "--launch-profile", "http"],
-      "port": 5235
+      "runtimeArgs": ["run", "--project", "services/Notifications/Notifications.Api", "--launch-profile", "http"],
+      "port": 5104
     },
     {
       "name": "outbox-relay",

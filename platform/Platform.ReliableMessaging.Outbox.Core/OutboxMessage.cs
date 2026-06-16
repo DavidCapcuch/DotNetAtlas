@@ -28,7 +28,7 @@ public class OutboxMessage
     public required byte[] AvroPayload { get; set; }
 
     /// <summary>
-    /// Avro type name of the serialized event (e.g., 'FeedbackChangedEvent') for deserialization and observability.
+    /// Avro type name of the serialized event (e.g., 'OrderConfirmedEvent') for deserialization and observability.
     /// </summary>
     public required string Type { get; set; }
 
