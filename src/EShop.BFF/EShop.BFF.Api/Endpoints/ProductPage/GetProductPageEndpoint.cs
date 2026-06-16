@@ -6,6 +6,7 @@ using EShop.BFF.Api.Responses;
 using EShop.BFF.Infrastructure.Caching;
 using EShop.BFF.Infrastructure.Clients.Catalog;
 using EShop.BFF.Infrastructure.Clients.Inventory;
+using EShop.BFF.Infrastructure.Common.Observability;
 using FastEndpoints;
 using FluentResults;
 using Platform.Api.Extensions;
@@ -63,12 +64,20 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
     {
         var productId = request.ProductId;
 
+        // The factory runs only on a miss; capture whether it ran to attribute the read as a cache hit
+        // vs miss (bff.md § 2.4). A fail-safe stale serve runs the factory (it threw) → counted a miss.
+        var factoryRan = false;
+
         ProductPageResponse? page;
         try
         {
             page = await _cache.GetOrSetAsync<ProductPageResponse?>(
                 BffCacheConstants.ProductPageKey(productId), // bff.md § 3.1.1
-                (ctx, factoryCt) => ComposeAsync(ctx, productId, factoryCt),
+                (ctx, factoryCt) =>
+                {
+                    factoryRan = true;
+                    return ComposeAsync(ctx, productId, factoryCt);
+                },
                 token: ct);
         }
         catch (UpstreamUnavailableException)
@@ -83,8 +92,13 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
             return;
         }
 
+        var cacheHit = !factoryRan;
+        BffMetrics.RecordCache(BffMetrics.ProductPageEndpoint, cacheHit);
+
         if (page is null)
         {
+            // A null-page 404 carries no page state, so there is no staleness to report (stale: false).
+            BffMetrics.TagRequest(BffMetrics.ProductPageEndpoint, cacheHit, stale: false);
             await Send.SendErrorResponseAsync(
                 Result.Fail(new NotFoundError("Product", productId, "Bff.ProductPage.ProductNotFound")),
                 ct);
@@ -104,10 +118,14 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
         {
             // Inventory was unavailable at composition time (bff.md § 3.1 failure table).
             HttpContext.Response.Headers["X-BFF-PartialData"] = "inventory";
+
+            // Every partial 200 (cache hit or miss) counts — the rate is the degraded-UX signal (bff.md § 2.4).
+            BffMetrics.RecordPartialResponse(BffMetrics.ProductPageEndpoint);
         }
 
         // A fail-safe stale serve or a partial-degraded compose both carry HasStaleData (bff.md § 2.4).
         HttpContext.Response.SignalStale(page.HasStaleData);
+        BffMetrics.TagRequest(BffMetrics.ProductPageEndpoint, cacheHit, page.HasStaleData);
 
         await Send.OkAsync(page, ct);
     }

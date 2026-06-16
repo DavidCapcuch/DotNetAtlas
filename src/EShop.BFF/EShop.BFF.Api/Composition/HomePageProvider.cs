@@ -40,15 +40,27 @@ internal sealed class HomePageProvider
     }
 
     /// <summary>
-    /// Returns the cached home page, composing it from upstreams on a miss. Throws
+    /// Returns the cached home page (with whether it was a cache hit), composing it from upstreams on a
+    /// miss. <c>CacheHit</c> is <c>true</c> when FusionCache served the entry without running the factory —
+    /// the signal behind <c>bff.cache.hits/misses</c> and the <c>bff.cache.hit</c> span tag (bff.md § 2.4);
+    /// the eager-warm hosted service discards it (a background warm is not a user-facing read). Throws
     /// <see cref="UpstreamUnavailableException"/> only when Catalog search is down and no stale page exists
     /// to fail-safe to.
     /// </summary>
-    public async Task<HomePageResponse> GetOrComposeAsync(CancellationToken ct)
+    public async Task<(HomePageResponse Page, bool CacheHit)> GetOrComposeAsync(CancellationToken ct)
     {
+        // The factory runs only on a miss; capture whether it ran so the caller can attribute the read.
+        // A fail-safe stale serve runs the factory (it threw), so it counts as a miss — consistent with
+        // "a cache hit returned from cache without making upstream calls" (bff.md § 2.4).
+        var factoryRan = false;
+
         var page = await _cache.GetOrSetAsync<HomePageResponse>(
             BffCacheConstants.HomePageKey,
-            ComposeAsync,
+            (ctx, factoryCt) =>
+            {
+                factoryRan = true;
+                return ComposeAsync(ctx, factoryCt);
+            },
             options: BffHomePageCache.EntryOptions(),
             tags: BffHomePageCache.Tags,
             token: ct);
@@ -61,7 +73,7 @@ internal sealed class HomePageProvider
             page = page with { HasStaleData = true };
         }
 
-        return page;
+        return (page, CacheHit: !factoryRan);
     }
 
     private async Task<HomePageResponse> ComposeAsync(
