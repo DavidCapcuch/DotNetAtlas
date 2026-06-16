@@ -1,6 +1,6 @@
 # Shared healthcheck for BC API services. Probes the /api/readiness endpoint via
-# busybox wget (built into mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine, which
-# each *.api service pins via build.args.BASE_IMAGE). Readiness exercises the
+# busybox wget (built into the Alpine -extra base each *.api service pins via
+# build.args.BASE_IMAGE; see x-bc-base-image below). Readiness exercises the
 # downstream dependencies (DB / Redis / Kafka / Schema Registry) registered with
 # the `ready` tag in Platform.ServiceDefaults, giving (healthy) a real signal.
 x-readiness-healthcheck: &readiness-healthcheck
@@ -13,6 +13,12 @@ x-readiness-healthcheck: &readiness-healthcheck
   timeout: 5s
   retries: 3
   start_period: 45s
+
+# Base image for every BC / service build. Compose pins the Alpine **-extra** variant: busybox
+# (shell + wget) for the compose HEALTHCHECK above, plus icu + tzdata so globalization (e.g.
+# Notifications quiet-hours IANA zones, ADR-0015) matches the prod chiseled-extra base the
+# Dockerfiles bake in. Prod CI builds without this arg → chiseled-extra. One value, one place.
+x-bc-base-image: &bc-base-image mcr.microsoft.com/dotnet/aspnet:10.0-alpine3.22-extra@sha256:15dc7dabae548f41dd70e44fb7ffe1790970320fd9facd4d9a6f5e3c072887b8
 
 services:
   postgresdb:
@@ -293,10 +299,15 @@ services:
       - kafka_data:/var/lib/kafka/data
       - kafka_metadata:/var/lib/kafka/metadata
     healthcheck:
+      # kafka-topics spins up a full JVM and lists every topic — a real readiness signal, but
+      # heavy (~15-20s under host load, e.g. a parallel image build). Generous timeout +
+      # start_period stop it from flapping `unhealthy` (which gates dependent BC apps at boot
+      # and can wedge an already-running app's Kafka client) while the broker is actually fine.
       test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092" ]
-      interval: 10s
-      timeout: 10s
+      interval: 15s
+      timeout: 25s
       retries: 5
+      start_period: 40s
     deploy:
       resources:
         limits:
@@ -461,11 +472,7 @@ services:
       context: .
       dockerfile: services/Catalog/Catalog.Api/Dockerfile
       args:
-        # Override the chiseled prod default (no shell, no wget) so the compose-level
-        # HEALTHCHECK can shell out to wget. The alpine variant ships busybox (incl.
-        # wget) and a shell. Production CI builds without this arg and gets the
-        # chiseled image bit-for-bit identical to today.
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: catalog.api
     restart: unless-stopped
@@ -512,16 +519,17 @@ services:
         limits:
           memory: 768M
 
-  # Backend-for-Frontend aggregation gateway (bff.md). Stateless: no database, no Kafka.
-  # Walking-skeleton scope (#327) serves the public GET /api/v1/bff/product-page/{id} by
-  # composing Catalog + Inventory behind the redis-cache FusionCache.
+  # Backend-for-Frontend aggregation gateway (bff.md). Stateless: no database, no outbox.
+  # Serves the public product-page (#327) and home-page (#328) by composing Catalog + Inventory
+  # behind the redis-cache FusionCache, and runs a consume-only Kafka cache invalidator
+  # (group bff-group, no producer/inbox/DLT — bff.md § 2.2) over the existing BC topics.
   bff.api:
     build:
       context: .
       dockerfile: src/EShop.BFF/EShop.BFF.Api/Dockerfile
       args:
         # Alpine base so the compose-level wget HEALTHCHECK has a shell (same as the BCs).
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: bff.api
     restart: unless-stopped
@@ -533,6 +541,15 @@ services:
       redis-cache:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      # Kafka + Schema Registry must be up so the bff-group cache-invalidation bus can start at
+      # boot; kafka-create-topic must have created the three subscribed topics first (the BFF
+      # only consumes them — it creates no topics).
+      kafka:
+        condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
+      schema-registry:
         condition: service_healthy
       # Upstreams are start-ordering only (NOT health-gated): the BFF is built to boot and
       # degrade when an upstream is down (resilience + fail-safe, bff.md § 2.1 / § 3.1), so it
@@ -552,6 +569,8 @@ services:
       - Bff__Catalog__BaseUrl=http://catalog.api:8080
       - Bff__Inventory__BaseUrl=http://inventory.api:8080
       - ConnectionStrings__Redis__Cache=redis-cache:6379,defaultDatabase=0,allowAdmin=true,connectTimeout=2000,syncTimeout=2000,abortConnect=false
+      - Kafka__Brokers__0=broker:9092
+      - Kafka__SchemaRegistry__Url=http://schema-registry:8081
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=BFF
     ports:
@@ -566,7 +585,7 @@ services:
       context: .
       dockerfile: services/Ordering/Ordering.Api/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: ordering.api
     restart: unless-stopped
@@ -614,7 +633,7 @@ services:
       context: .
       dockerfile: services/Invoicing/Invoicing.Api/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: invoicing.api
     restart: unless-stopped
@@ -669,7 +688,7 @@ services:
       context: .
       dockerfile: services/Notifications/Notifications.Api/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: notifications.api
     restart: unless-stopped
@@ -706,7 +725,7 @@ services:
       context: .
       dockerfile: services/Basket/Basket.Api/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: basket.api
     restart: unless-stopped
@@ -762,7 +781,7 @@ services:
       context: .
       dockerfile: services/Inventory/Inventory.Api/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: inventory.api
     restart: unless-stopped
@@ -807,7 +826,7 @@ services:
       context: .
       dockerfile: services/Payments/Payments.Api/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: payments.api
     restart: unless-stopped
@@ -904,7 +923,7 @@ services:
       context: .
       dockerfile: saga/SagaOrchestrators/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: saga
     restart: unless-stopped
@@ -1098,7 +1117,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-saga
     restart: unless-stopped
@@ -1114,6 +1133,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Saga;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-saga-worker
@@ -1136,7 +1156,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-basket
     restart: unless-stopped
@@ -1152,6 +1172,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Basket;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-basket-worker
@@ -1173,7 +1194,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-catalog
     restart: unless-stopped
@@ -1189,6 +1210,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-catalog-worker
@@ -1210,7 +1232,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-inventory
     restart: unless-stopped
@@ -1226,6 +1248,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Inventory;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-inventory-worker
@@ -1247,7 +1270,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-invoicing
     restart: unless-stopped
@@ -1263,6 +1286,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Invoicing;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-invoicing-worker
@@ -1284,7 +1308,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-notifications
     restart: unless-stopped
@@ -1300,6 +1324,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Notifications;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-notifications-worker
@@ -1321,7 +1346,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-ordering
     restart: unless-stopped
@@ -1337,6 +1362,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Ordering;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-ordering-worker
@@ -1358,7 +1384,7 @@ services:
       context: .
       dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
       args:
-        BASE_IMAGE: mcr.microsoft.com/dotnet/aspnet:10.0.0-alpine3.22
+        BASE_IMAGE: *bc-base-image
     healthcheck: *readiness-healthcheck
     container_name: outbox-relay-payments
     restart: unless-stopped
@@ -1374,6 +1400,7 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Payments;Username=postgres;Password=${POSTGRES_PASSWORD}
       - KafkaProducer__BootstrapServers=broker:9092
       - KafkaProducer__ClientId=outbox-relay-payments-worker
