@@ -151,8 +151,12 @@ The `bff` service client is already provisioned with all six scopes ([`service-s
 - **Metrics** (OpenTelemetry meter `EShop.BFF`):
   - `bff.cache.hits` — counter, tagged `{ endpoint }`.
   - `bff.cache.misses` — counter.
-  - `bff.upstream.calls` — counter, tagged `{ client = catalog|basket|ordering|inventory, outcome = success|timeout|5xx|circuit-open }`.
   - `bff.partial_response` — counter, tagged `{ endpoint }` — incremented when any upstream call failed but the endpoint still returned 200 with partial data.
+- **Upstream-call outcomes reuse standard instrumentation — no custom counter.** An earlier draft specified a `bff.upstream.calls{ client, outcome = success|timeout|5xx|circuit-open }` counter; it was dropped as redundant, since every outcome is already emitted by meters the `AddMeter("*")` wildcard collects:
+  - **success / 5xx (and latency)** → the OTel `http.client.request.duration` histogram (tags `server.address`, `http.response.status_code`).
+  - **timeout / retry / circuit-state** → the resilience pipeline's built-in Polly telemetry (meter `Polly`, instrument `resilience.polly.strategy.events`), tagged `pipeline.name = bff-<client>` (§ 2.1): `OnTimeout` fires per cancelled attempt; `OnCircuitOpened` / `OnCircuitHalfOpened` / `OnCircuitClosed` per state transition.
+
+  **Accepted gap:** Polly reports circuit *transitions*, not a per-rejected-call count, so the volume of calls fail-fast-shed by an *already-open* breaker is not a first-class metric. Read it indirectly from the `OnCircuitOpened` window (+ `BreakDuration`, § 2.1) against `bff.partial_response` and inbound 5xx (`http.server.request.duration`). A dedicated `bff.upstream.shed{ client }` counter is the deferred evolution if that signal is ever needed directly. (Canonical record of this decision — no separate ADR.)
 - **Structured logging** uses Serilog + enrichers: every upstream call logs `{ Client, Method, Path, DurationMs, StatusCode }`. Cache events log `{ Tag, Operation = hit|miss|invalidation }`.
 
 ### 2.5 YARP positioning
