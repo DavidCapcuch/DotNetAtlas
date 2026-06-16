@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
 
 FROM ${BASE_IMAGE} AS base
 USER $APP_UID
@@ -17,14 +17,13 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
-# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: root + platform/ + saga/).
+# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/ + saga/).
 # Saga lives in the `saga/` tier (alongside services/, platform/, test/), so its CPM file is
 # saga/Directory.Packages.props — NOT services/Directory.Packages.props. Both tier props files
 # MUST be in place before restore so the SagaOrchestrators project graph + transitive Platform.*
 # libs can resolve every PackageReference.
 COPY NuGet.config .
 COPY Directory.Build.props .
-COPY Directory.Packages.props .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 COPY saga/Directory.Packages.props saga/

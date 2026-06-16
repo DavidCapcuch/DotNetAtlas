@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
 
 FROM ${BASE_IMAGE} AS base
 USER $APP_UID
@@ -17,13 +17,12 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
-# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: root + platform/).
+# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/).
 # OutboxRelay is platform-only — no services-tier dependencies, so services/Directory.Packages.props
 # is intentionally NOT copied. The platform-tier Directory.Packages.props supplies every
 # PackageReference pinned at that tier (OpenTelemetry.*, Confluent.Kafka, Apache.Avro, etc.).
 COPY NuGet.config .
 COPY Directory.Build.props .
-COPY Directory.Packages.props .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 

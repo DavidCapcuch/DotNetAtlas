@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled-extra
+ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
 
 FROM ${BASE_IMAGE} AS base
 USER $APP_UID
@@ -17,14 +17,13 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
-# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: root + platform/ + services/).
+# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/ + services/).
 # Both tier props files MUST be in place before restore so the Ordering API project graph
 # (Ordering.{Domain,Application,Infrastructure,API} + transitive Platform.* libs) can resolve
 # every PackageReference — services-tier packages live in services/Directory.Packages.props,
 # platform-tier packages in platform/Directory.Packages.props.
 COPY NuGet.config .
 COPY Directory.Build.props .
-COPY Directory.Packages.props .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 COPY services/Directory.Packages.props services/
