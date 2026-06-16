@@ -44,27 +44,28 @@ internal sealed class HomePageProvider
     /// <see cref="UpstreamUnavailableException"/> only when Catalog search is down and no stale page exists
     /// to fail-safe to.
     /// </summary>
-    public async Task<HomePageResponse> GetOrComposeAsync(CancellationToken ct) =>
-        await _cache.GetOrSetAsync<HomePageResponse>(
+    public async Task<HomePageResponse> GetOrComposeAsync(CancellationToken ct)
+    {
+        var page = await _cache.GetOrSetAsync<HomePageResponse>(
             BffCacheConstants.HomePageKey,
-            async (ctx, factoryCt) =>
-            {
-                var (composed, isDegraded) = await ComposeAsync(factoryCt);
-
-                // A partial page (category tree or stock overlay missing) must not be pinned for the full
-                // 5-minute TTL — shorten it so a recovered upstream re-composes the full page quickly.
-                if (isDegraded)
-                {
-                    ctx.Options.SetDuration(BffHomePageCache.DegradedDuration);
-                }
-
-                return composed;
-            },
+            ComposeAsync,
             options: BffHomePageCache.EntryOptions(),
             tags: BffHomePageCache.Tags,
             token: ct);
 
-    private async Task<(HomePageResponse Page, bool IsDegraded)> ComposeAsync(CancellationToken ct)
+        // FusionCache's native fail-safe serves the last-good page (with its compose-time flags) when
+        // Catalog search is down. It exposes no "served stale" signal, so flag it from the page's age:
+        // a page older than its fresh window can only have come from fail-safe (bff.md § 3.4 / § 2.4).
+        if (StaleServePolicy.WasServedStale(page.GeneratedAtUtc, _timeProvider.GetUtcNow(), BffHomePageCache.StaleServeFreshWindow))
+        {
+            page = page with { HasStaleData = true };
+        }
+
+        return page;
+    }
+
+    private async Task<HomePageResponse> ComposeAsync(
+        FusionCacheFactoryExecutionContext<HomePageResponse> ctx, CancellationToken ct)
     {
         // Search (gating) + category tree (non-gating) run in parallel; the bulk stock overlay depends on
         // the search result (the featured ids), so it is the one sequential step (bff.md § 3.4).
@@ -74,7 +75,8 @@ internal sealed class HomePageProvider
         var searchResult = await searchTask;
         if (searchResult.IsFailed)
         {
-            // Catalog search is down → don't cache a failure; let fail-safe serve a stale page if any.
+            // Catalog search is down → don't cache a failure; let fail-safe serve a stale page if any
+            // (else this surfaces and the endpoint maps it to 503).
             throw new UpstreamUnavailableException("catalog-search");
         }
 
@@ -85,8 +87,15 @@ internal sealed class HomePageProvider
         var treeOrNull = treeResult.IsSuccess ? treeResult.Value : null;
 
         var page = HomePageComposer.Compose(featured, treeOrNull, stockOrNull, _timeProvider.GetUtcNow());
-        var isDegraded = treeOrNull is null || stockOrNull is null;
-        return (page, isDegraded);
+
+        // A partial page (category tree or stock overlay missing) must not be pinned for the full
+        // 5-minute TTL — shorten it so a recovered upstream re-composes the full page quickly.
+        if (treeOrNull is null || stockOrNull is null)
+        {
+            ctx.Options.SetDuration(BffHomePageCache.DegradedDuration);
+        }
+
+        return page;
     }
 
     private async Task<StockLevelsBulkDto?> ResolveStockOverlayAsync(

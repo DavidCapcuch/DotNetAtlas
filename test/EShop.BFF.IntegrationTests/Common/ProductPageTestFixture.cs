@@ -1,10 +1,14 @@
+using EShop.BFF.Api.Responses;
+using EShop.BFF.Infrastructure.Caching;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.Test.Framework.Redis;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace EShop.BFF.IntegrationTests.Common;
 
@@ -31,14 +35,7 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
 
         // ClientCredentialsTokenHandler fetches a service token before each upstream call
         // (ADR-0010); fake the Keycloak token endpoint so the real auth pipeline runs.
-        _upstreams
-            .Given(Request.Create()
-                .WithPath("/realms/dotnetatlas/protocol/openid-connect/token")
-                .UsingPost())
-            .RespondWith(Response.Create()
-                .WithStatusCode(200)
-                .WithHeader("Content-Type", "application/json")
-                .WithBodyAsJson(new { access_token = "fake-service-token", expires_in = 300, token_type = "Bearer" }));
+        StubTokenEndpoint();
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -83,6 +80,36 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
     public void StubInventoryStatus(Guid productId, int statusCode) =>
         StubGet($"/api/v1/inventory/stock-items/{productId}", statusCode, body: null);
 
+    /// <summary>
+    /// Plants a composed page directly into the cache — used to seed an entry whose <c>GeneratedAtUtc</c>
+    /// is older than the fresh window, so a later fail-safe serve of it is age-detectable as stale.
+    /// </summary>
+    public async Task SeedProductPageAsync(Guid productId, ProductPageResponse page)
+    {
+        var cache = Services.GetRequiredService<IFusionCache>();
+        await cache.SetAsync(BffCacheConstants.ProductPageKey(productId), page);
+    }
+
+    /// <summary>
+    /// Marks the cached product page logically expired but still fail-safe-eligible — the trigger for a
+    /// fail-safe stale serve (a later request with the gating upstream down serves this entry stale).
+    /// </summary>
+    public async Task ExpireProductPageAsync(Guid productId)
+    {
+        var cache = Services.GetRequiredService<IFusionCache>();
+        await cache.ExpireAsync(BffCacheConstants.ProductPageKey(productId));
+    }
+
+    /// <summary>
+    /// Wipes all upstream stubs (re-adding only the token endpoint) so a test can flip an upstream's
+    /// health mid-run — e.g. cache a healthy page, then take Catalog down for the stale-serve path.
+    /// </summary>
+    public void ResetUpstreams()
+    {
+        _upstreams.Reset();
+        StubTokenEndpoint();
+    }
+
     public async Task ResetFixtureStateAsync() => await _redisContainer.CleanDataAsync();
 
     protected override async ValueTask TearDownAsync()
@@ -91,6 +118,16 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
         _upstreams.Dispose();
         await _redisContainer.DisposeAsync();
     }
+
+    private void StubTokenEndpoint() =>
+        _upstreams
+            .Given(Request.Create()
+                .WithPath("/realms/dotnetatlas/protocol/openid-connect/token")
+                .UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBodyAsJson(new { access_token = "fake-service-token", expires_in = 300, token_type = "Bearer" }));
 
     private void StubGet(string path, int statusCode, object? body)
     {

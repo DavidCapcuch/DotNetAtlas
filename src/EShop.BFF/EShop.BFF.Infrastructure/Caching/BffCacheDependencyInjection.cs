@@ -22,6 +22,12 @@ internal static class BffCacheDependencyInjection
     private static readonly TimeSpan FailSafeMaxDuration = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan JitterMaxDuration = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// The oldest a still-fresh product-page entry can be (soft TTL + jitter). A page older than this was
+    /// served from fail-safe, so the endpoint flags it stale (bff.md § 3.1); see <c>StaleServePolicy</c>.
+    /// </summary>
+    public static readonly TimeSpan StaleServeFreshWindow = ProductPageTtl + JitterMaxDuration;
+
     public static IServiceCollection AddBffCache(
         this IServiceCollection services,
         IConfiguration configuration)

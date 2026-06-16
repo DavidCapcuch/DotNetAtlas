@@ -20,6 +20,12 @@ public static class BffHomePageCache
     /// </summary>
     public static readonly TimeSpan DegradedDuration = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// The oldest a still-fresh cache entry can be (soft TTL + jitter). A page older than this was served
+    /// from fail-safe, so the endpoint flags it stale (bff.md § 3.4); see <c>StaleServePolicy</c>.
+    /// </summary>
+    public static readonly TimeSpan StaleServeFreshWindow = SoftTtl + JitterMaxDuration;
+
     /// <summary>The single home-page tag, as the tag set the entry is written under.</summary>
     public static readonly string[] Tags = [BffCacheConstants.HomePageTag];
 

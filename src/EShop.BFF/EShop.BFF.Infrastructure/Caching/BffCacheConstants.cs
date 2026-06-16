@@ -15,6 +15,9 @@ internal static class BffCacheConstants
     /// <summary>FusionCache key for the single, shared anonymous home page (bff.md § 3.4).</summary>
     public const string HomePageKey = "home-page:v1";
 
+    /// <summary>FusionCache key for a single product page (bff.md § 3.1.1).</summary>
+    public static string ProductPageKey(Guid productId) => $"product-page:{productId}";
+
     /// <summary>
     /// FusionCache tag on the home-page entry. The <c>bff-group</c> Kafka invalidator removes this tag
     /// when an upstream change may have altered the page (bff.md § 2.2 / § 3.4).

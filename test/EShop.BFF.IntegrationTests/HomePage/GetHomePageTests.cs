@@ -47,6 +47,7 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         page.Body.StockHighlights.Should().ContainSingle()
             .Which.ProductId.Should().Be(MouseId);
         page.Response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+        page.Response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a fully-composed page is not stale");
     }
 
     [Fact]
@@ -105,6 +106,8 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         page.Body.HasStaleData.Should().BeTrue();
         page.Response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle()
             .Which.Should().Contain("categories");
+        // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
+        page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
     }
 
     [Fact]
@@ -130,6 +133,42 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         page.Body.HasStaleData.Should().BeTrue();
         page.Response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle()
             .Which.Should().Contain("inventory");
+        // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
+        page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+    }
+
+    [Fact]
+    public async Task GetHomePage_WhenCatalogSearchIsDownAndCachedPageIsStale_ServesStaleWith200AndStaleHeader()
+    {
+        // Arrange: compose a healthy page, then plant it back as an entry older than its fresh window so a
+        // fail-safe serve of it is age-detectable as stale; then take the gating upstream (search) down.
+        Fixture.StubCatalogSearch(SearchBody(LaptopId, MouseId));
+        Fixture.StubCategoryTree(CategoryTreeBody());
+        Fixture.StubInventoryBulk(BulkBody((LaptopId, 15), (MouseId, 4)));
+
+        var fresh = await GetHomePageAsync();
+        fresh.Response.StatusCode.Should().Be(HttpStatusCode.OK);
+        fresh.Body!.HasStaleData.Should().BeFalse();
+        fresh.Response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a freshly composed page is not stale");
+
+        var aged = fresh.Body! with { GeneratedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-10) };
+        await Fixture.SeedHomePageAsync(aged);
+        await Fixture.ExpireHomePageAsync();
+        Fixture.ResetUpstreams();
+        Fixture.StubCatalogSearchStatus(statusCode: 500);
+
+        // Act: Catalog search is down → native fail-safe serves the expired (aged) page.
+        var page = await GetHomePageAsync();
+
+        // Assert: the last-good page is served, flagged stale (200 + HasStaleData + X-BFF-Stale).
+        using var _ = new AssertionScope();
+        page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
+        page.Body.Should().NotBeNull();
+        page.Body!.HasStaleData.Should().BeTrue();
+        page.Body.FeaturedProducts.Should().HaveCount(2, "the cached page's featured products are still served");
+        page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        // A healthy cached page has its tree + overlay, so a stale serve of it is not also "partial".
+        page.Response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
     }
 
     [Fact]

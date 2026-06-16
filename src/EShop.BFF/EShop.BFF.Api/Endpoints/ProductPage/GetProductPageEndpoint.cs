@@ -1,7 +1,9 @@
 using System.Net;
+using EShop.BFF.Api.Common;
 using EShop.BFF.Api.Composition;
 using EShop.BFF.Api.Endpoints;
 using EShop.BFF.Api.Responses;
+using EShop.BFF.Infrastructure.Caching;
 using EShop.BFF.Infrastructure.Clients.Catalog;
 using EShop.BFF.Infrastructure.Clients.Inventory;
 using FastEndpoints;
@@ -65,21 +67,8 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
         try
         {
             page = await _cache.GetOrSetAsync<ProductPageResponse?>(
-                $"product-page:{productId}", // bff.md § 3.1.1
-                async (ctx, factoryCt) =>
-                {
-                    var (composed, isDegraded) = await ComposeAsync(productId, factoryCt);
-
-                    // A 404 (null) or an Inventory-unavailable partial must not be pinned for the full
-                    // 5-minute TTL — shorten its lifetime so a recovered upstream (or a freshly-created
-                    // product) surfaces quickly. Mirrors Inventory's FusionStockLevelCache posture.
-                    if (isDegraded)
-                    {
-                        ctx.Options.SetDuration(DegradedEntryDuration);
-                    }
-
-                    return composed;
-                },
+                BffCacheConstants.ProductPageKey(productId), // bff.md § 3.1.1
+                (ctx, factoryCt) => ComposeAsync(ctx, productId, factoryCt),
                 token: ct);
         }
         catch (UpstreamUnavailableException)
@@ -102,16 +91,29 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
             return;
         }
 
+        // FusionCache's native fail-safe serves the last-good page (with its compose-time flags) when
+        // Catalog is down. It exposes no "served stale" signal, so flag it from the page's age: a page
+        // older than its fresh window can only have come from fail-safe (bff.md § 3.1 / § 2.4).
+        if (StaleServePolicy.WasServedStale(
+                page.GeneratedAtUtc, _timeProvider.GetUtcNow(), BffCacheDependencyInjection.StaleServeFreshWindow))
+        {
+            page = page with { HasStaleData = true };
+        }
+
         if (page.InStock is null)
         {
             // Inventory was unavailable at composition time (bff.md § 3.1 failure table).
             HttpContext.Response.Headers["X-BFF-PartialData"] = "inventory";
         }
 
+        // A fail-safe stale serve or a partial-degraded compose both carry HasStaleData (bff.md § 2.4).
+        HttpContext.Response.SignalStale(page.HasStaleData);
+
         await Send.OkAsync(page, ct);
     }
 
-    private async Task<(ProductPageResponse? Page, bool IsDegraded)> ComposeAsync(Guid productId, CancellationToken ct)
+    private async Task<ProductPageResponse?> ComposeAsync(
+        FusionCacheFactoryExecutionContext<ProductPageResponse?> ctx, Guid productId, CancellationToken ct)
     {
         var catalogTask = _catalog.GetProductByIdAsync(productId, ct);
         var inventoryTask = _inventory.GetStockLevelAsync(productId, ct);
@@ -123,10 +125,12 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
             // 404 → cache "absent" briefly (degraded) and let the endpoint return 404.
             if (catalogResult.HasError<NotFoundError>())
             {
-                return (Page: null, IsDegraded: true);
+                ctx.Options.SetDuration(DegradedEntryDuration);
+                return null;
             }
 
-            // Transport failure / 5xx → don't cache a failure; let fail-safe serve a stale page if any.
+            // Transport failure / 5xx → don't cache a failure; let fail-safe serve a stale page if any
+            // (else this surfaces and the endpoint maps it to 503).
             throw new UpstreamUnavailableException("catalog");
         }
 
@@ -134,7 +138,12 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
         var stockOrNull = inventoryResult.IsSuccess ? inventoryResult.Value : null;
         var composed = ProductPageComposer.Compose(catalogResult.Value, stockOrNull, _timeProvider.GetUtcNow());
 
-        // Inventory unavailable → the page carries null availability; treat as degraded so it isn't pinned.
-        return (Page: composed, IsDegraded: stockOrNull is null);
+        // Inventory unavailable → the page carries null availability; cache briefly so it isn't pinned.
+        if (stockOrNull is null)
+        {
+            ctx.Options.SetDuration(DegradedEntryDuration);
+        }
+
+        return composed;
     }
 }

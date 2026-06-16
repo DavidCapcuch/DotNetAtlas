@@ -1,4 +1,5 @@
 using System.Net;
+using EShop.BFF.Api.Common;
 using EShop.BFF.Api.Composition;
 using EShop.BFF.Api.Responses;
 using FastEndpoints;
@@ -58,6 +59,9 @@ internal sealed class GetHomePageEndpoint : EndpointWithoutRequest<HomePageRespo
         }
 
         SignalPartialData(page);
+
+        // A fail-safe stale serve or a partial-degraded compose both carry HasStaleData (bff.md § 2.4).
+        HttpContext.Response.SignalStale(page.HasStaleData);
 
         await Send.OkAsync(page, ct);
     }
