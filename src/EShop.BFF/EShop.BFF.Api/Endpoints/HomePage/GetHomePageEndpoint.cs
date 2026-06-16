@@ -2,6 +2,7 @@ using System.Net;
 using EShop.BFF.Api.Common;
 using EShop.BFF.Api.Composition;
 using EShop.BFF.Api.Responses;
+using EShop.BFF.Infrastructure.Common.Observability;
 using FastEndpoints;
 using FluentResults;
 using Platform.Api.Extensions;
@@ -42,9 +43,10 @@ internal sealed class GetHomePageEndpoint : EndpointWithoutRequest<HomePageRespo
     public override async Task HandleAsync(CancellationToken ct)
     {
         HomePageResponse page;
+        bool cacheHit;
         try
         {
-            page = await _homePage.GetOrComposeAsync(ct);
+            (page, cacheHit) = await _homePage.GetOrComposeAsync(ct);
         }
         catch (UpstreamUnavailableException)
         {
@@ -58,10 +60,13 @@ internal sealed class GetHomePageEndpoint : EndpointWithoutRequest<HomePageRespo
             return;
         }
 
+        BffMetrics.RecordCache(BffMetrics.HomePageEndpoint, cacheHit);
+
         SignalPartialData(page);
 
         // A fail-safe stale serve or a partial-degraded compose both carry HasStaleData (bff.md § 2.4).
         HttpContext.Response.SignalStale(page.HasStaleData);
+        BffMetrics.TagRequest(BffMetrics.HomePageEndpoint, cacheHit, page.HasStaleData);
 
         await Send.OkAsync(page, ct);
     }
@@ -83,6 +88,9 @@ internal sealed class GetHomePageEndpoint : EndpointWithoutRequest<HomePageRespo
         if (partial.Count > 0)
         {
             HttpContext.Response.Headers["X-BFF-PartialData"] = string.Join(", ", partial);
+
+            // Every partial 200 (cache hit or miss) counts — the rate is the degraded-UX signal (bff.md § 2.4).
+            BffMetrics.RecordPartialResponse(BffMetrics.HomePageEndpoint);
         }
     }
 }
