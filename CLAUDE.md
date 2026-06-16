@@ -40,6 +40,7 @@ dotnet format style --no-restore --verify-no-changes
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts
 - **Avro C# bindings (`.cs` files next to `.avsc`):** never hand-edit. They are regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen). Run after every `.avsc` edit; commit both the `.avsc` and the regenerated `.cs` together. The script runs `dotnet tool restore` against the pinned local manifest (`.config/dotnet-tools.json`), so every dev/CI machine uses the same `Apache.Avro.Tools` version — no global install required.
+- **Deletion-heavy work: close Rider (the IDE) first.** It auto-reconciles `DotNetAtlas.slnx` on bulk file deletion and silently drops *unrelated* projects + their `ProjectReference`s (and recreates deleted dirs) — which drops tests from CI. After any bulk delete, diff the slnx project set vs HEAD. See memory `ide-slnx-reconcile-corruption`.
 
 ## Agent skills
 
