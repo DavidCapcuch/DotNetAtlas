@@ -68,9 +68,12 @@
         <!-- SignalR — Notifications in-app bell transport (ADR-0032). In-memory backplane only
              (no AddStackExchangeRedis — the multi-instance seam is ADR-0016). -->
         <PackageVersion Include="MessagePack.Annotations" Version="3.1.4"/>
-        <PackageVersion Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.8"/>
-        <!-- Transitive pin: SignalR.Protocols.MessagePack 10.0.8 pulls MessagePack 2.5.187, which
-             carries GHSA-hv8m-jj95-wg3x (NU1903, high severity). Pin forward to the patched 2.5.x. -->
+        <!-- 10.0.9 closes CVE-2026-45591 / GHSA-f8h2-vmm9-qhj6 (NU1903, high): a deeply-nested
+             MessagePack array in the SignalR hub protocol stack-overflows → unauthenticated remote
+             DoS (affected 10.0.0-10.0.8; patched 10.0.9). -->
+        <PackageVersion Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.9"/>
+        <!-- Transitive pin: SignalR.Protocols.MessagePack pulls a MessagePack 2.5.x that earlier
+             carried GHSA-hv8m-jj95-wg3x (NU1903, high severity). Pin forward to the patched 2.5.302. -->
         <PackageVersion Include="MessagePack" Version="2.5.302"/>
         <PackageVersion Include="AspNetCore.SignalR.OpenTelemetry" Version="1.8.0"/>
         <PackageVersion Include="TypedSignalR.Client.Attributes" Version="1.1.0"/>
