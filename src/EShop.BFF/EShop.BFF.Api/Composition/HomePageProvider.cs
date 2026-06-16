@@ -1,0 +1,105 @@
+using EShop.BFF.Api.Responses;
+using EShop.BFF.Infrastructure.Caching;
+using EShop.BFF.Infrastructure.Clients.Catalog;
+using EShop.BFF.Infrastructure.Clients.Inventory;
+using ZiggyCreatures.Caching.Fusion;
+
+namespace EShop.BFF.Api.Composition;
+
+/// <summary>
+/// The home page's read-through cache + upstream orchestration (bff.md § 3.4), shared by
+/// <c>GetHomePageEndpoint</c> and the eager-warm hosted service so both populate the same
+/// <c>home-page:v1</c> entry with identical policy. Catalog search gates the page (transport failure →
+/// fail-safe stale, else <see cref="UpstreamUnavailableException"/>); the category tree and Inventory
+/// bulk overlay are non-gating enrichments whose failure degrades the page rather than failing it.
+/// </summary>
+internal sealed class HomePageProvider
+{
+    // "Featured" v1 = the first page of active products in Catalog search's default order (bff.md § 3.4
+    // posits CreatedAtUtc-desc; Catalog currently orders by price and exposes no sort knob — a dedicated
+    // featured ranking is planned scope). The BFF passes status + paging and renders whatever order it gets.
+    private const int FeaturedPageSize = 20;
+    private static readonly SearchProductsRequest FeaturedQuery =
+        new(Status: "Active", PageNumber: 1, PageSize: FeaturedPageSize);
+
+    private readonly ICatalogClient _catalog;
+    private readonly IInventoryClient _inventory;
+    private readonly IFusionCache _cache;
+    private readonly TimeProvider _timeProvider;
+
+    public HomePageProvider(
+        ICatalogClient catalog,
+        IInventoryClient inventory,
+        IFusionCache cache,
+        TimeProvider timeProvider)
+    {
+        _catalog = catalog;
+        _inventory = inventory;
+        _cache = cache;
+        _timeProvider = timeProvider;
+    }
+
+    /// <summary>
+    /// Returns the cached home page, composing it from upstreams on a miss. Throws
+    /// <see cref="UpstreamUnavailableException"/> only when Catalog search is down and no stale page exists
+    /// to fail-safe to.
+    /// </summary>
+    public async Task<HomePageResponse> GetOrComposeAsync(CancellationToken ct) =>
+        await _cache.GetOrSetAsync<HomePageResponse>(
+            BffCacheConstants.HomePageKey,
+            async (ctx, factoryCt) =>
+            {
+                var (composed, isDegraded) = await ComposeAsync(factoryCt);
+
+                // A partial page (category tree or stock overlay missing) must not be pinned for the full
+                // 5-minute TTL — shorten it so a recovered upstream re-composes the full page quickly.
+                if (isDegraded)
+                {
+                    ctx.Options.SetDuration(BffHomePageCache.DegradedDuration);
+                }
+
+                return composed;
+            },
+            options: BffHomePageCache.EntryOptions(),
+            tags: BffHomePageCache.Tags,
+            token: ct);
+
+    private async Task<(HomePageResponse Page, bool IsDegraded)> ComposeAsync(CancellationToken ct)
+    {
+        // Search (gating) + category tree (non-gating) run in parallel; the bulk stock overlay depends on
+        // the search result (the featured ids), so it is the one sequential step (bff.md § 3.4).
+        var searchTask = _catalog.SearchProductsAsync(FeaturedQuery, ct);
+        var treeTask = _catalog.GetCategoryTreeAsync(rootCategoryId: null, ct);
+
+        var searchResult = await searchTask;
+        if (searchResult.IsFailed)
+        {
+            // Catalog search is down → don't cache a failure; let fail-safe serve a stale page if any.
+            throw new UpstreamUnavailableException("catalog-search");
+        }
+
+        var featured = searchResult.Value.Items;
+        var stockOrNull = await ResolveStockOverlayAsync(featured, ct);
+
+        var treeResult = await treeTask;
+        var treeOrNull = treeResult.IsSuccess ? treeResult.Value : null;
+
+        var page = HomePageComposer.Compose(featured, treeOrNull, stockOrNull, _timeProvider.GetUtcNow());
+        var isDegraded = treeOrNull is null || stockOrNull is null;
+        return (page, isDegraded);
+    }
+
+    private async Task<StockLevelsBulkDto?> ResolveStockOverlayAsync(
+        IReadOnlyList<CatalogProductSummaryDto> featured, CancellationToken ct)
+    {
+        var productIds = featured.Select(product => product.ProductId).ToList();
+        if (productIds.Count == 0)
+        {
+            // Nothing to overlay — an empty (not absent) overlay keeps the page non-degraded.
+            return new StockLevelsBulkDto([], []);
+        }
+
+        var bulkResult = await _inventory.GetStockLevelsBulkAsync(productIds, ct);
+        return bulkResult.IsSuccess ? bulkResult.Value : null;
+    }
+}

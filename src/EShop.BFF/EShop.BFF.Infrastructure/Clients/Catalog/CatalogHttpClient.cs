@@ -70,4 +70,98 @@ internal sealed class CatalogHttpClient : ICatalogClient
             return Result.Fail<CatalogProductDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
         }
     }
+
+    public async Task<Result<PagedResult<CatalogProductSummaryDto>>> SearchProductsAsync(
+        SearchProductsRequest request, CancellationToken ct)
+    {
+        var query = $"api/v1/catalog/products?page={request.PageNumber}&limit={request.PageSize}";
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            query += $"&status={Uri.EscapeDataString(request.Status)}";
+        }
+
+        try
+        {
+            using var response = await _http.GetAsync(query, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Catalog search returned {StatusCode}", (int)response.StatusCode);
+                return Result.Fail<PagedResult<CatalogProductSummaryDto>>(
+                    CatalogClientErrors.Unavailable($"HTTP {(int)response.StatusCode}"));
+            }
+
+            var page = await response.Content
+                .ReadFromJsonAsync<PagedResult<CatalogProductSummaryDto>>(UpstreamJson.Web, ct);
+            if (page is null)
+            {
+                _logger.LogError("Catalog search returned an empty body");
+                return Result.Fail<PagedResult<CatalogProductSummaryDto>>(
+                    CatalogClientErrors.Unavailable("empty response body"));
+            }
+
+            return Result.Ok(page);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // caller cancellation — propagate unchanged
+        }
+        catch (Exception ex)
+            when (ex is HttpRequestException
+                or TaskCanceledException
+                or TimeoutException
+                or JsonException
+                or Polly.ExecutionRejectedException)
+        {
+            _logger.LogError(ex, "Catalog search call failed");
+            return Result.Fail<PagedResult<CatalogProductSummaryDto>>(
+                CatalogClientErrors.Unavailable(ex.GetType().Name));
+        }
+    }
+
+    public async Task<Result<CategoryTreeDto>> GetCategoryTreeAsync(Guid? rootCategoryId, CancellationToken ct)
+    {
+        var path = "api/v1/catalog/categories/tree";
+        if (rootCategoryId is { } root)
+        {
+            path += $"?rootCategoryId={root}";
+        }
+
+        try
+        {
+            using var response = await _http.GetAsync(path, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Catalog category tree returned {StatusCode}; home page will drop the tree",
+                    (int)response.StatusCode);
+                return Result.Fail<CategoryTreeDto>(
+                    CatalogClientErrors.Unavailable($"HTTP {(int)response.StatusCode}"));
+            }
+
+            var tree = await response.Content.ReadFromJsonAsync<CategoryTreeDto>(UpstreamJson.Web, ct);
+            if (tree is null)
+            {
+                _logger.LogWarning("Catalog category tree returned an empty body");
+                return Result.Fail<CategoryTreeDto>(CatalogClientErrors.Unavailable("empty response body"));
+            }
+
+            return Result.Ok(tree);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // caller cancellation — propagate unchanged
+        }
+        catch (Exception ex)
+            when (ex is HttpRequestException
+                or TaskCanceledException
+                or TimeoutException
+                or JsonException
+                or Polly.ExecutionRejectedException)
+        {
+            _logger.LogWarning(ex, "Catalog category tree call failed; home page will drop the tree");
+            return Result.Fail<CategoryTreeDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
+        }
+    }
 }

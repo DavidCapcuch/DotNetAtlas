@@ -10,4 +10,13 @@ namespace EShop.BFF.Infrastructure.Clients.Inventory;
 internal interface IInventoryClient
 {
     Task<Result<StockLevelDto>> GetStockLevelAsync(Guid productId, CancellationToken ct);
+
+    /// <summary>
+    /// Reads availability for many products in one call (bff.md § 4.4) — the home page's stock overlay. A
+    /// failed result (timeout / 5xx) never gates the page; the overlay is dropped (null availability, no
+    /// highlights) and partial/stale data is flagged. Products with no initialized stock item come back in
+    /// <see cref="StockLevelsBulkDto.MissingProductIds"/> rather than failing the call.
+    /// </summary>
+    Task<Result<StockLevelsBulkDto>> GetStockLevelsBulkAsync(
+        IReadOnlyList<Guid> productIds, CancellationToken ct);
 }

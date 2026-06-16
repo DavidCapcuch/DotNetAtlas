@@ -3,5 +3,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Api\EShop.BFF.Api.csproj" />
         <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Infrastructure\EShop.BFF.Infrastructure.csproj" />
+        <!-- Avro contract types for the cache-invalidation tag-map test. -->
+        <ProjectReference Include="..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
     </ItemGroup>
 </Project>

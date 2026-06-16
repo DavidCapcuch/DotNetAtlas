@@ -11,4 +11,13 @@ internal static class BffCacheConstants
     /// <c>redis-cache</c> instance, NEVER <c>redis-basket</c>). The colon-bearing path is a literal key.
     /// </summary>
     public const string RedisCacheConnectionStringName = "Redis:Cache";
+
+    /// <summary>FusionCache key for the single, shared anonymous home page (bff.md § 3.4).</summary>
+    public const string HomePageKey = "home-page:v1";
+
+    /// <summary>
+    /// FusionCache tag on the home-page entry. The <c>bff-group</c> Kafka invalidator removes this tag
+    /// when an upstream change may have altered the page (bff.md § 2.2 / § 3.4).
+    /// </summary>
+    public const string HomePageTag = "home-page";
 }

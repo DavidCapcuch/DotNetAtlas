@@ -19,6 +19,13 @@
              per-service Polly pipeline YARP does NOT provide (DoD.md Reliability; bff.md § 2.1). -->
         <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0"/>
 
+        <!-- KafkaFlow — the BFF's cache-invalidation consumer ONLY (group bff-group, no producer,
+             no inbox, no DLT — bff.md § 2.2). Versions mirror the services tier. -->
+        <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0"/>
+        <PackageVersion Include="KafkaFlow.LogHandler.Microsoft" Version="4.2.0"/>
+        <PackageVersion Include="KafkaFlow.OpenTelemetry" Version="4.2.0"/>
+        <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.2.0"/>
+
         <!-- Redis + FusionCache (composed-response edge cache on redis-cache, ADR-0016) -->
         <PackageVersion Include="StackExchange.Redis" Version="2.13.1"/>
         <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.8"/>

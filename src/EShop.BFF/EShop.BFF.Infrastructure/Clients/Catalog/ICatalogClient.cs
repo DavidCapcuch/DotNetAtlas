@@ -10,4 +10,18 @@ namespace EShop.BFF.Infrastructure.Clients.Catalog;
 internal interface ICatalogClient
 {
     Task<Result<CatalogProductDto>> GetProductByIdAsync(Guid productId, CancellationToken ct);
+
+    /// <summary>
+    /// Searches the product catalog (bff.md § 4.1). Backs the home page's "featured" set (first page of
+    /// active products). A failed result is a transport/5xx failure (<c>ServiceUnavailableError</c>) — the
+    /// home page treats it as the gating call (fail-safe stale or 503).
+    /// </summary>
+    Task<Result<PagedResult<CatalogProductSummaryDto>>> SearchProductsAsync(
+        SearchProductsRequest request, CancellationToken ct);
+
+    /// <summary>
+    /// Reads the category tree (bff.md § 4.1). A failed result (transport / 5xx) is a non-gating partial for
+    /// the home page — the tree is dropped (<c>categoryTree: null</c>) while featured products are kept.
+    /// </summary>
+    Task<Result<CategoryTreeDto>> GetCategoryTreeAsync(Guid? rootCategoryId, CancellationToken ct);
 }

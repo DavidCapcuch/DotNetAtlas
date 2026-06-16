@@ -11,6 +11,12 @@
         <!-- Outbound HTTP resilience (BFF owns its typed clients — bff.md § 2.1) -->
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
 
+        <!-- Kafka cache-invalidation consumer (group bff-group; consumer-only, no producer/inbox/DLT — bff.md § 2.2) -->
+        <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>
+        <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
+        <PackageReference Include="KafkaFlow.OpenTelemetry"/>
+        <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro"/>
+
         <!-- Composed-response edge cache: FusionCache + Redis L2 + backplane on redis-cache -->
         <PackageReference Include="StackExchange.Redis"/>
         <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"/>
@@ -43,6 +49,8 @@
     <ItemGroup>
         <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
+        <!-- Avro contracts consumed (never produced) by the bff-group cache invalidator (bff.md § 1 + § 2.2). -->
+        <ProjectReference Include="..\..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
     </ItemGroup>
 
     <ItemGroup>

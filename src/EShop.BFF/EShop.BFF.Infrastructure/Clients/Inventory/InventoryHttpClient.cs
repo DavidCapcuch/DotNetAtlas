@@ -64,4 +64,49 @@ internal sealed class InventoryHttpClient : IInventoryClient
             return Result.Fail<StockLevelDto>(InventoryClientErrors.Unavailable(ex.GetType().Name));
         }
     }
+
+    public async Task<Result<StockLevelsBulkDto>> GetStockLevelsBulkAsync(
+        IReadOnlyList<Guid> productIds, CancellationToken ct)
+    {
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(
+                "api/v1/inventory/stock-items/bulk",
+                new { productIds },
+                UpstreamJson.Web,
+                ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Inventory bulk returned {StatusCode}; treating availability as unknown",
+                    (int)response.StatusCode);
+                return Result.Fail<StockLevelsBulkDto>(
+                    InventoryClientErrors.Unavailable($"HTTP {(int)response.StatusCode}"));
+            }
+
+            var bulk = await response.Content.ReadFromJsonAsync<StockLevelsBulkDto>(UpstreamJson.Web, ct);
+            if (bulk is null)
+            {
+                _logger.LogWarning("Inventory bulk returned an empty body; treating availability as unknown");
+                return Result.Fail<StockLevelsBulkDto>(InventoryClientErrors.Unavailable("empty response body"));
+            }
+
+            return Result.Ok(bulk);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // caller cancellation — propagate unchanged
+        }
+        catch (Exception ex)
+            when (ex is HttpRequestException
+                or TaskCanceledException
+                or TimeoutException
+                or JsonException
+                or Polly.ExecutionRejectedException)
+        {
+            _logger.LogWarning(ex, "Inventory bulk call failed; treating availability as unknown");
+            return Result.Fail<StockLevelsBulkDto>(InventoryClientErrors.Unavailable(ex.GetType().Name));
+        }
+    }
 }
