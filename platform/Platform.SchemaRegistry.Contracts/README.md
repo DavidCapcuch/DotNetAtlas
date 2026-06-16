@@ -20,13 +20,13 @@ Kafka messages need a contract between producers and consumers. Without schema m
 2. **Run the generator** - the script moves the file to the correct location based on the namespace:
 
    ```bash
-   ./generate-avro.ps1 SubscriptionExtensionActivationFailedEvent.avsc
+   ./generate-avro.ps1 OrderConfirmedEvent.avsc
    ```
 
 ### 1. Add Project Reference
 
 ```xml
-<ProjectReference Include="..\..\platform\Platform.SchemaRegistry\Platform.SchemaRegistry.Contracts.csproj" />
+<ProjectReference Include="..\..\platform\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj" />
 ```
 
 ### 2. Configure Schema Registry
@@ -127,32 +127,33 @@ Design your events as **Data Transfer Objects (DTOs)** - purpose-built for inter
 ❌ NORMALIZED: Consumers must join data from multiple events/calls
 
 Producer emits separate events:
-  UserCreatedEvent { UserId: "user-456" }
-  SubscriptionPurchasedEvent { UserId: "user-456", Tier: "Pro" }
+  OrderCreatedEvent   { OrderId: "order-456" }
+  OrderItemAddedEvent { OrderId: "order-456", ProductId: "prod-1", Quantity: 2 }
 
 Consumer must:
-  ❌ Track UserCreatedEvent to get user details
-  ❌ Join with SubscriptionPurchasedEvent
+  ❌ Track OrderCreatedEvent to get the order header
+  ❌ Join every OrderItemAddedEvent to reconstruct the order
   ❌ Know producer's internal entity structure
   ❌ Break if producer refactors internal model
 ```
 
-**Denormalized events** are self-contained business facts. Consider a `SubscriptionPurchasedEvent`:
+**Denormalized events** are self-contained business facts. Consider `OrderConfirmedEvent` — a Summary Event (ADR-0020) carrying the full aggregate snapshot:
 
 ```json
-// Billing.Subscriptions.SubscriptionPurchasedEvent (example schema)
+// Ordering.Orders.OrderConfirmedEvent (example schema)
 {
-  "UserId": "user-456",
-  "PaymentTransactionId": "txn-789",
-  "Tier": "Pro",
-  "DurationDays": 30,
-  "OccurredOnUtc": 1704067200000
+  "OrderId": "order-456",
+  "BuyerId": "buyer-123",
+  "Items": [ { "ProductId": "prod-1", "Sku": "SKU-1", "Quantity": 2, "UnitPriceAmount": 9.99 } ],
+  "TotalAmount": 19.98,
+  "Currency": "USD",
+  "ConfirmedAtUtc": 1704067200000
 }
 
-// Consumer (Alerts Service):
-// ✅ Has everything needed to activate subscription
-// ✅ PaymentTransactionId for saga correlation if activation fails
-// ✅ No knowledge of Billing Service's internal structure
+// Consumer (Invoicing Service):
+// ✅ Has the whole order - can generate the invoice without an HTTP round-trip to Ordering
+// ✅ OrderId for saga / invoice correlation
+// ✅ No knowledge of Ordering's internal aggregate structure
 ```
 
 **What to denormalize:**
@@ -171,22 +172,24 @@ Kafka guarantees ordering **only within a single partition**. Use aggregate ID a
 ```
 ✅ SINGLE TOPIC with aggregate ID key: Ordering guaranteed
 
-Topic: reviews.feedbacks (key = FeedbackId)
+Topic: ordering.orders (key = OrderId)
   Partition 0: [
-    FeedbackCreatedEvent(id=abc-123) @ offset 100,
-    FeedbackChangedEvent(id=abc-123) @ offset 101
+    OrderCreatedEvent(id=abc-123)   @ offset 100,
+    OrderConfirmedEvent(id=abc-123) @ offset 101
   ]
 
 Consumer receives events in correct order for each aggregate.
 ```
 
-For example, an OutboxRelay can map both `FeedbackCreatedEvent` and `FeedbackChangedEvent` to the same topic:
+For example, every Order lifecycle event is routed to the same `ordering.orders`
+topic (see `TopicsOptions.OrderingOrders`), so each Order's events stay ordered:
 
 ```json
-// OutboxRelay TypeTopicMappings (example)
+// Type → topic routing (example)
 {
-  "FeedbackCreatedEvent": "reviews.feedbacks",
-  "FeedbackChangedEvent": "reviews.feedbacks"
+  "OrderCreatedEvent":   "ordering.orders",
+  "OrderConfirmedEvent": "ordering.orders",
+  "OrderShippedEvent":   "ordering.orders"
 }
 ```
 
@@ -213,10 +216,10 @@ Events crossing bounded context boundaries are **integration events** - they dif
 
 **Transform domain events to integration events at the boundary:**
 
-1. Domain raises internal `FeedbackCreatedDomainEvent`
-2. Domain event handler transforms to `FeedbackCreatedEvent` (Avro)
+1. Domain raises internal `OrderConfirmedDomainEvent`
+2. Domain event handler (`OrderConfirmedOutboxPublisherDomainEventHandler`) transforms it to `OrderConfirmedEvent` (Avro)
 3. Integration event added to Outbox table
-4. Outbox processor publishes to Kafka
+4. Outbox relay publishes to Kafka
 
 This keeps your domain model free to evolve while integration events remain stable contracts.
 
@@ -226,10 +229,10 @@ Events should be owned and published by the bounded context where the business f
 
 | Event | Owner (Namespace) | Reason |
 |-------|-------------------|--------|
-| `SubscriptionPurchasedEvent` | Billing Service (`Billing.Subscriptions`) | Payment completed in Billing |
-| `SubscriptionExtendedEvent` | Billing Service (`Billing.Subscriptions`) | Extension payment completed in Billing |
-| `SubscriptionActivationFailedEvent` | Alerts Service (`Alerts.Subscriptions`) | Activation failed in Alerts |
-| `FeedbackCreatedEvent` | Reviews Service (`Reviews.Feedback`) | Feedback created in Reviews |
+| `OrderConfirmedEvent` | Ordering (`Ordering.Orders`) | Order confirmed in Ordering |
+| `PaymentCapturedEvent` | Payments (`Payments.Transactions`) | Funds captured in Payments |
+| `StockReservedEvent` | Inventory (`Inventory.Reservations`) | Stock reserved in Inventory |
+| `InvoiceIssuedEvent` | Invoicing (`Invoicing.Invoices`) | Invoice issued in Invoicing |
 
 **Avoid "God Events"** that contain data from multiple domains - include only data owned by your bounded context.
 
@@ -237,7 +240,7 @@ Events should be owned and published by the bounded context where the business f
 
 | Principle | Description |
 |-----------|-------------|
-| **Events are facts** | Represent something that happened. Use past tense: `OrderPlaced`, `FeedbackCreated` |
+| **Events are facts** | Represent something that happened. Use past tense: `OrderCreated`, `OrderConfirmed` |
 | **Events are immutable** | Cannot be changed once published. Design for extensibility from the start |
 | **Events are self-describing** | Include enough context for consumers to process without additional lookups |
 | **Use logical types** | Prefer `uuid`, `timestamp-millis`, `date` over raw strings/longs |
@@ -246,9 +249,9 @@ Events should be owned and published by the bounded context where the business f
 
 | Element | Convention | Example |
 |---------|------------|---------|
-| Schema name | `{Entity}{Action}Event` | `FeedbackCreatedEvent` |
-| Namespace | `{Domain}.{Subdomain}` | `Reviews.Feedback` |
-| Field names | PascalCase | `UserId`, `OccurredOnUtc` |
+| Schema name | `{Entity}{Action}Event` | `OrderConfirmedEvent` |
+| Namespace | `{Domain}.{Subdomain}` | `Ordering.Orders` |
+| Field names | PascalCase | `OrderId`, `ConfirmedAtUtc` |
 
 ### Schema Example
 
@@ -257,24 +260,24 @@ A well-designed event schema with all essential elements highlighted:
 ```json
 {
   "type": "record",
-  "name": "FeedbackCreatedEvent",                                    // ← Past tense naming
-  "namespace": "Reviews.Feedback",                                   // ← Domain.Subdomain
-  "doc": "Emitted when user creates new feedback.",                  // ← Schema-level documentation
+  "name": "OrderConfirmedEvent",                                     // ← Past tense naming
+  "namespace": "Ordering.Orders",                                    // ← Domain.Subdomain
+  "doc": "Emitted when an order is confirmed (stock reserved AND payment captured).", // ← Schema-level documentation
   "fields": [
     {
-      "name": "FeedbackId",                                          // ← Aggregate identifier
+      "name": "OrderId",                                             // ← Aggregate identifier
       "type": { "type": "string", "logicalType": "uuid" },           // ← Logical type, not raw string
-      "doc": "Unique identifier of the feedback aggregate."          // ← Field-level documentation
+      "doc": "Unique identifier of the order aggregate."             // ← Field-level documentation
     },
     {
-      "name": "OccurredOnUtc",                                       // ← Required timestamp
+      "name": "ConfirmedAtUtc",                                      // ← Required timestamp
       "type": { "type": "long", "logicalType": "timestamp-millis" }, // ← Logical type for timestamps
-      "doc": "UTC timestamp when the feedback was created."
+      "doc": "UTC timestamp when the order was confirmed."
     },
     {
-      "name": "Rating",
-      "type": "int",
-      "doc": "Feedback rating from 1 (poor) to 5 (excellent)."
+      "name": "Currency",
+      "type": "string",
+      "doc": "ISO 4217 currency code shared by all order items."
     }
   ]
 }

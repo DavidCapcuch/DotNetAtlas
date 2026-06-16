@@ -31,44 +31,49 @@ Add a project reference:
 Minimal example:
 
 ```csharp
-public sealed record SubscriberCreatedDomainEvent(Guid SubscriberId, Guid UserId) : DomainEvent;
+public sealed record OrderCreatedDomainEvent(Guid OrderId, Guid BuyerId) : DomainEvent;
 
-public sealed class AlertSubscriber : AggregateRoot<Guid>
+public sealed class Order : AggregateRoot<Guid>
 {
-    public Guid UserId { get; private set; }
-    public SubscriptionTier Tier { get; private set; }
+    public Guid BuyerId { get; private set; }
+    public OrderStatus Status { get; private set; } = OrderStatus.Created;
 
-    private AlertSubscriber() { }  // for EF Core hydration - no events fired
+    private Order() { }  // for EF Core hydration - no events fired
 
-    public static AlertSubscriber CreateFree(Guid userId)
+    // Simplified for illustration: the real factory also takes the basket snapshot, addresses,
+    // and payment method, and every factory/mutator threads an injected `DateTimeOffset utcNow`
+    // (TimeProvider) - elided here. The order id is client-assigned at checkout (UUID v7).
+    public static Order CreateFromBasket(Guid orderId, Guid buyerId)
     {
-        var subscriber = new AlertSubscriber
+        var order = new Order
         {
-            Id = Guid.CreateVersion7(),
-            UserId = userId,
-            Tier = SubscriptionTier.Free
+            Id = orderId,
+            BuyerId = buyerId,
+            Status = OrderStatus.Created
         };
-        subscriber.AddDomainEvent(new SubscriberCreatedDomainEvent(subscriber.Id, userId));
-        return subscriber;
+        order.AddDomainEvent(new OrderCreatedDomainEvent(order.Id, buyerId));
+        return order;
     }
 
-    public Result Subscribe(Location location)
+    public Result Cancel(string reason)
     {
-        if (_subscriptions.Count >= Tier.MaxSubscriptions)
-            return Result.Fail(AlertErrors.MaxSubscriptionsReached(Tier.MaxSubscriptions)); // not a bug, but business rule
+        if (!Status.CanTransitionTo(OrderStatus.Cancelled))
+            return Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name)); // not a bug, but business rule
 
-        _subscriptions.Add(LocationSubscription.Create(location));
+        Status = OrderStatus.Cancelled;
+        //...
         return Result.Ok();
     }
 
-    public void ActivatePaidSubscription(SubscriptionTier newSubscriptionTier, int durationDays)
+    public Result MarkShipped(string carrier, string trackingNumber)
     {
-        if (newSubscriptionTier == SubscriptionTier.Free)
-            throw new DataIntegrityException("Subscriber.InvalidTier",
-                "Cannot activate paid subscription with Free tier."); // indicates a bug in system
+        if (!Status.CanTransitionTo(OrderStatus.Shipped))
+            throw new DataIntegrityException("Order.InvalidStatusTransition",
+                $"Cannot ship an order in status '{Status.Name}'."); // indicates a bug in system
 
-        Tier = newSubscriptionTier;
+        Status = OrderStatus.Shipped;
         //...
+        return Result.Ok();
     }
 }
 ```
@@ -96,16 +101,16 @@ public record Money(decimal Amount, string Currency) : ValueObject
 ### Domain Errors
 
 ```csharp
-public static class AlertErrors
+public static class OrderingErrors
 {
-    public static ValidationError MaxSubscriptionsReached(int max)
-        => new ValidationError(
-            propertyName: "Subscriptions",
-            errorMessage: $"User cannot have more than {max} active subscriptions.",
-            errorCode: "Alert.MaxSubscriptionsReached");
+    public static ConflictError CannotCancelInStatus(string status)
+        => new ConflictError(
+            entityName: "Order",
+            message: $"Order in status '{status}' cannot be cancelled.",
+            errorCode: "Order.CannotCancelInStatus");
 
-    public static NotFoundError SubscriberNotFound(Guid userId)
-        => new NotFoundError(nameof(AlertSubscriber), userId, "Subscriber.NotFound");
+    public static NotFoundError OrderNotFound(Guid orderId)
+        => new NotFoundError(nameof(Order), orderId, "Order.NotFound");
 }
 ```
 
@@ -114,7 +119,7 @@ public static class AlertErrors
 ### Register Domain Event Services
 
 ```csharp
-// Auto-registration of event handlers, e.g. public class SubscriberCreatedHandler : IDomainEventHandler<SubscriberCreatedEvent>
+// Auto-registration of event handlers, e.g. public class OrderConfirmedHandler : IDomainEventHandler<OrderConfirmedDomainEvent>
 services.AddDomainEventHandlersFromAssembly(typeof(Program).Assembly);
 services.AddDomainEventDispatcher();
 ```
@@ -124,19 +129,19 @@ services.AddDomainEventDispatcher();
 Event handlers handle Domain Events raised from Aggregates/DomainEventDispatcher:
 
 ```csharp
-public class SubscriberCreatedHandler : IDomainEventHandler<SubscriberCreatedEvent>
+public class OrderConfirmedHandler : IDomainEventHandler<OrderConfirmedDomainEvent>
 {
-    private readonly ILogger<SubscriberCreatedHandler> _logger;
+    private readonly ILogger<OrderConfirmedHandler> _logger;
 
-    public SubscriberCreatedHandler(ILogger<SubscriberCreatedHandler> logger)
+    public OrderConfirmedHandler(ILogger<OrderConfirmedHandler> logger)
     {
         _logger = logger;
     }
 
-    public async Task Handle(SubscriberCreatedEvent domainEvent, CancellationToken ct)
+    public async Task Handle(OrderConfirmedDomainEvent domainEvent, CancellationToken ct)
     {
-        // Send email...
-        _logger.LogInformation("Welcome email sent for new subscriber {SubscriberId}", domainEvent.SubscriberId);
+        // Send order confirmation email...
+        _logger.LogInformation("Order confirmation email sent for Order {OrderId}", domainEvent.OrderId);
     }
 }
 ```
@@ -199,13 +204,13 @@ All errors extend [FluentResults `Error`](https://github.com/altmann/FluentResul
 ### Result Pattern with Domain Errors
 
 ```csharp
-public async Task<Result> SubscribeToLocationAsync(Guid userId, Location location, CancellationToken ct)
+public async Task<Result> CancelOrderAsync(Guid orderId, string reason, CancellationToken ct)
 {
-    var subscriber = await _repository.FindByUserIdAsync(userId, ct);
-    if (subscriber is null)
-        return Result.Fail(AlertErrors.SubscriberNotFound(userId));
+    var order = await _repository.GetByIdAsync(orderId, ct);
+    if (order is null)
+        return Result.Fail(OrderingErrors.OrderNotFound(orderId));
 
-    var result = subscriber.Subscribe(location);  // Returns Result - caller handles business failures
+    var result = order.Cancel(reason);  // Returns Result - caller handles business failures
     if (result.IsFailed)
         return result;
 
@@ -303,7 +308,7 @@ public class FundsTransferService
 
 **Guidance summary:**
 
-- ✅ **Aggregates**: Raise events for single-aggregate operations (Subscriber created, subscription activated)
+- ✅ **Aggregates**: Raise events for single-aggregate operations (Order created, Order cancelled)
 - ✅ **Domain services**: Raise events for cross-aggregate operations (Funds transferred between accounts)
 - ❌ **Application services**: Should not raise domain events directly - delegate to aggregates or domain services
 
