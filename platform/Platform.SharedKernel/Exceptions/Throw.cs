@@ -18,9 +18,9 @@ public static class Throw
     /// <param name="exception">The exception to throw if the condition is true.</param>
     /// <example>
     /// <code>
-    /// Throw.If(tier == SubscriptionTier.Free, new DataIntegrityException(
-    ///     "Alert.CannotCreatePaidSubscriptionWithFreeTier",
-    ///     "Cannot create paid subscription with Free tier."));
+    /// Throw.If(userId == Guid.Empty, new DataIntegrityException(
+    ///     "Basket.UserIdRequired",
+    ///     "A basket must belong to a user."));
     /// </code>
     /// </example>
     public static void If(bool condition, Exception exception)

@@ -45,6 +45,10 @@ scrape_configs:
         labels:
           app: payments
           kind: healthchecks
+      - targets: ['bff.api:8080']
+        labels:
+          app: bff
+          kind: healthchecks
 
   - job_name: 'outbox-relay-healthchecks'
     scrape_interval: 10s

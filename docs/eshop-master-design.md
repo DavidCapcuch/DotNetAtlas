@@ -658,7 +658,7 @@ Each references `Platform.Test.Framework` for shared fixtures (Testcontainers se
 
 ### B.5 Lock files + package versions
 
-- Add package references to correct `Directory.Packages.props` (root for `Platform.*`, `services/` for service-specific, `test/` for test-only).
+- Add package references to correct `Directory.Packages.props` (`platform/` for `Platform.*`, `services/` for service-specific, `test/` for test-only).
 - Run `dotnet restore --locked-mode` locally; commit `packages.lock.json`.
 
 ### B.6 Docker-compose
