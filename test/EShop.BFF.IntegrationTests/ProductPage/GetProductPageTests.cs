@@ -44,6 +44,7 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         page.AvailableQty.Should().Be(7);
         page.HasStaleData.Should().BeFalse();
         response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+        response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a fully-composed page is not stale");
     }
 
     [Fact]
@@ -88,6 +89,49 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         page.AvailableQty.Should().BeNull();
         page.HasStaleData.Should().BeTrue();
         response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
+        // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
+        response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+    }
+
+    [Fact]
+    public async Task GetProductPage_WhenCatalogIsDownAndCachedPageIsStale_ServesStaleWith200AndStaleHeader()
+    {
+        // Arrange: compose a healthy page, then plant it back as an entry older than its fresh window so a
+        // fail-safe serve of it is age-detectable as stale; then take the gating upstream (Catalog) down.
+        var productId = Guid.NewGuid();
+        Fixture.StubCatalogProduct(productId, CatalogBody(productId));
+        Fixture.StubInventoryStock(productId, InventoryBody(productId, available: 7));
+
+        var fresh = await Fixture.Client.GetAsync(
+            $"/api/v1/bff/product-page/{productId}",
+            TestContext.Current.CancellationToken);
+        fresh.StatusCode.Should().Be(HttpStatusCode.OK);
+        fresh.Headers.Contains("X-BFF-Stale").Should().BeFalse("a freshly composed page is not stale");
+        var freshBody = await fresh.Content.ReadFromJsonAsync<ProductPageResponse>(
+            TestContext.Current.CancellationToken);
+
+        var aged = freshBody! with { GeneratedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-10) };
+        await Fixture.SeedProductPageAsync(productId, aged);
+        await Fixture.ExpireProductPageAsync(productId);
+        Fixture.ResetUpstreams();
+        Fixture.StubCatalogStatus(productId, statusCode: 500);
+
+        // Act: Catalog is down → native fail-safe serves the expired (aged) page.
+        var response = await Fixture.Client.GetAsync(
+            $"/api/v1/bff/product-page/{productId}",
+            TestContext.Current.CancellationToken);
+
+        // Assert: the last-good page is served, flagged stale (200 + HasStaleData + X-BFF-Stale).
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<ProductPageResponse>(
+            TestContext.Current.CancellationToken);
+
+        using var _ = new AssertionScope();
+        page.Should().NotBeNull();
+        page!.Product.ProductId.Should().Be(productId);
+        page.Product.Name.Should().Be("Laptop"); // the last-good cached composition
+        page.HasStaleData.Should().BeTrue();
+        response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
     }
 
     [Fact]

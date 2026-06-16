@@ -467,11 +467,11 @@ Public landing page — featured products + full category tree + stock highlight
 
   | Failure | Behavior | Notes |
   |---------|----------|-------|
-  | Catalog search timeout / 5xx | Serve stale cache (most important fail-safe; home page never empties). `HasStaleData=true`. If no cache available on first request, 503. | — |
-  | Catalog category tree timeout / 5xx | Return `CategoryTree = null` but keep `FeaturedProducts`. 200 OK with `HasStaleData=true`. | `X-BFF-PartialData: categories`. |
-  | Inventory bulk timeout / 5xx | `InStock = null`, `AvailableQty = null` on every item; `StockHighlights = null`. `HasStaleData=true`. | `X-BFF-PartialData: inventory`. |
-  | Inventory partial | Items with `MissingProductIds` get `AvailableQty = null`. | — |
-  | Network unavailable | Cache-only fallback with `HasStaleData=true`. If no cache, 503. | — |
+  | Catalog search timeout / 5xx | Serve stale cache (most important fail-safe; home page never empties). `HasStaleData=true`. If no cache available on first request, 503. | `X-BFF-Stale: true` on a stale serve. |
+  | Catalog category tree timeout / 5xx | Return `CategoryTree = null` but keep `FeaturedProducts`. 200 OK with `HasStaleData=true`. | `X-BFF-Stale: true`; `X-BFF-PartialData: categories`. |
+  | Inventory bulk timeout / 5xx | `InStock = null`, `AvailableQty = null` on every item; `StockHighlights = null`. `HasStaleData=true`. | `X-BFF-Stale: true`; `X-BFF-PartialData: inventory`. |
+  | Inventory partial | Items with `MissingProductIds` get `AvailableQty = null`. | — (`HasStaleData=false` — overlay present). |
+  | Network unavailable | Cache-only fallback with `HasStaleData=true`. If no cache, 503. | `X-BFF-Stale: true` on a stale serve. |
 - **Cache invalidation hooks:**
   - `catalog.products` topic: on `ProductCreatedEvent`, `ProductPriceChangedEvent`, `ProductDiscontinuedEvent` → `RemoveByTagAsync("home-page")`.
   - `catalog.categories` topic: on `CategoryCreatedEvent` → `RemoveByTagAsync("home-page")`.

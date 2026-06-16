@@ -1,3 +1,4 @@
+using EShop.BFF.Api.Responses;
 using EShop.BFF.Infrastructure.Caching;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
@@ -94,10 +95,39 @@ public sealed class HomePageTestFixture : AppFixture<Program>
         await cache.RemoveByTagAsync(BffCacheConstants.HomePageTag);
     }
 
-    public async Task ResetFixtureStateAsync()
+    /// <summary>
+    /// Plants a composed page directly into the cache — used to seed an entry whose <c>GeneratedAtUtc</c>
+    /// is older than the fresh window, so a later fail-safe serve of it is age-detectable as stale.
+    /// </summary>
+    public async Task SeedHomePageAsync(HomePageResponse page)
+    {
+        var cache = Services.GetRequiredService<IFusionCache>();
+        await cache.SetAsync(BffCacheConstants.HomePageKey, page, BffHomePageCache.EntryOptions());
+    }
+
+    /// <summary>
+    /// Marks the cached home page logically expired but still fail-safe-eligible — the trigger for a
+    /// fail-safe stale serve (a later request with Catalog search down serves this entry stale).
+    /// </summary>
+    public async Task ExpireHomePageAsync()
+    {
+        var cache = Services.GetRequiredService<IFusionCache>();
+        await cache.ExpireAsync(BffCacheConstants.HomePageKey);
+    }
+
+    /// <summary>
+    /// Wipes all upstream stubs (re-adding only the token endpoint) so a test can flip an upstream's
+    /// health mid-run — e.g. cache a healthy page, then take Catalog search down for the stale-serve path.
+    /// </summary>
+    public void ResetUpstreams()
     {
         _upstreams.Reset();
         StubTokenEndpoint();
+    }
+
+    public async Task ResetFixtureStateAsync()
+    {
+        ResetUpstreams();
 
         // The home page is one constant key, so flushing redis (L2) alone leaves the in-process L1 entry
         // behind. A tag/soft removal would also leave a fail-safe stale shadow a later test could serve,
