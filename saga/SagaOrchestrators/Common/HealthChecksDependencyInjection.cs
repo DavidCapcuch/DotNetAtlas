@@ -46,7 +46,17 @@ internal static class HealthChecksDependencyInjection
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
 
-        var producerConfig = new ProducerConfig { BootstrapServers = sagaKafkaOptions.BrokersFlat };
+        var producerConfig = new ProducerConfig
+        {
+            BootstrapServers = sagaKafkaOptions.BrokersFlat,
+            // Health-probe producer must fail fast and self-heal: cap message + socket timeouts so an
+            // undeliverable probe (transient broker outage) is purged within the check window instead of
+            // queuing in librdkafka for the 5-min default message.timeout.ms — which otherwise starves
+            // later probes and wedges this readiness check Unhealthy until a process restart.
+            MessageTimeoutMs = 4000,
+            SocketTimeoutMs = 4000,
+            MessageSendMaxRetries = 0,
+        };
 
         services.AddHealthChecks()
             .AddApplicationStatus(
