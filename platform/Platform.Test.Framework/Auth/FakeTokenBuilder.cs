@@ -41,8 +41,8 @@ public static class FakeTokenBuilder
 
     /// <summary>
     /// Builds a signed JWT carrying an <b>explicit multi-valued</b> <c>aud</c> claim, mirroring the
-    /// production <c>dotnetatlas-swagger</c> token (whose audience mappers stamp every browser-facing
-    /// service audience onto a single token). Signed with the <paramref name="signer"/>'s key so the
+    /// production <c>dotnetatlas-swagger</c> token (whose audience mappers stamp several service
+    /// audiences onto a single token). Signed with the <paramref name="signer"/>'s key so the
     /// in-process validator trusts it, but the audiences are supplied explicitly — independent of
     /// <see cref="FakeTokenSigner.Audience"/> — so a BC can assert its resource server accepts a
     /// multi-aud token that <i>contains</i> its audience and rejects one that <i>omits</i> it

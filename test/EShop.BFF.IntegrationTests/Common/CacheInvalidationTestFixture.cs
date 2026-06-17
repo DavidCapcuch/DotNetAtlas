@@ -12,21 +12,24 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace EShop.BFF.IntegrationTests.Common;
 
-internal sealed class HomePageInvalidationTestCollection : TestCollection<HomePageInvalidationTestFixture>;
+internal sealed class CacheInvalidationTestCollection : TestCollection<CacheInvalidationTestFixture>;
 
 /// <summary>
-/// Boots the BFF over real <c>redis-cache</c> + Kafka + Schema Registry Testcontainers and starts the
-/// live <c>bff-group</c> cache-invalidation consumer (Program skips the bus in the test host, so the
-/// fixture starts it explicitly). Exercises the real produce → consume → <c>RemoveByTag</c> path: a
-/// cache-invalidation event evicts the seeded <c>home-page</c> entry. No WireMock — the invalidator makes
-/// no upstream calls; the eager-warm hosted service is disabled so it can't repopulate the cache mid-test.
+/// Boots the BFF over real <c>redis-cache</c> + Kafka + Schema Registry Testcontainers and starts the live
+/// <c>bff-group</c> cache-invalidation consumer (Program skips the bus in the test host, so the fixture
+/// starts it explicitly). Exercises the real produce → consume → <c>RemoveByTag</c> path end-to-end for
+/// both invalidation families: Catalog / Inventory events evict the <c>home-page</c> entry, and
+/// <c>BasketCheckoutInitiatedEvent</c> evicts a buyer's <c>basket-bff-{UserId}</c> entry. No WireMock — the
+/// invalidator makes no upstream calls; the eager-warm hosted service is disabled so it can't repopulate
+/// the cache mid-test. All four subscribed topics are pre-created (the consumer subscribes to all four).
 /// </summary>
 [DisableWafCache]
-public sealed class HomePageInvalidationTestFixture : AppFixture<Program>
+public sealed class CacheInvalidationTestFixture : AppFixture<Program>
 {
     public const string CatalogProductsTopic = "catalog.products";
     public const string CatalogCategoriesTopic = "catalog.categories";
     public const string InventoryStockEventsTopic = "inventory.stock-events";
+    public const string BasketSessionsTopic = "basket.sessions";
 
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
@@ -39,7 +42,7 @@ public sealed class HomePageInvalidationTestFixture : AppFixture<Program>
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
         await _kafkaContainer.CreateKafkaTopicsAsync(
-            [CatalogProductsTopic, CatalogCategoriesTopic, InventoryStockEventsTopic]);
+            [CatalogProductsTopic, CatalogCategoriesTopic, InventoryStockEventsTopic, BasketSessionsTopic]);
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -90,6 +93,34 @@ public sealed class HomePageInvalidationTestFixture : AppFixture<Program>
     {
         var cache = Services.GetRequiredService<IFusionCache>();
         var maybe = await cache.TryGetAsync<HomePageResponse>(BffCacheConstants.HomePageKey);
+        return maybe.HasValue;
+    }
+
+    /// <summary>Writes a <c>basket-bff:{userId}</c> entry tagged <c>basket-bff-{userId}</c> (the invalidation target).</summary>
+    public async Task SeedBasketCacheAsync(Guid userId)
+    {
+        var cache = Services.GetRequiredService<IFusionCache>();
+        var page = new BasketPageResponse
+        {
+            UserId = userId,
+            Version = 1,
+            Items = [],
+            TotalSnapshot = new MoneyDto(0m, "USD"),
+            TotalCurrent = new MoneyDto(0m, "USD"),
+            HasPriceDrift = false,
+            HasOutOfStock = false,
+            HasStaleData = false,
+            GeneratedAtUtc = DateTimeOffset.UnixEpoch,
+        };
+
+        await cache.SetAsync(
+            BffCacheConstants.BasketPageKey(userId), page, tags: BffBasketCache.Tags(userId));
+    }
+
+    public async Task<bool> IsBasketCachedAsync(Guid userId)
+    {
+        var cache = Services.GetRequiredService<IFusionCache>();
+        var maybe = await cache.TryGetAsync<BasketPageResponse>(BffCacheConstants.BasketPageKey(userId));
         return maybe.HasValue;
     }
 

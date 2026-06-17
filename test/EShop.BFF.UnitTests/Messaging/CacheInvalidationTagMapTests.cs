@@ -1,5 +1,6 @@
 using Avro;
 using Avro.Specific;
+using Basket.Sessions;
 using Catalog.Categories;
 using Catalog.Products;
 using EShop.BFF.Infrastructure.Messaging;
@@ -36,6 +37,16 @@ public sealed class CacheInvalidationTagMapTests
     [Fact]
     public void TagsFor_StockLevelChangedEvent_RemovesHomePageTag() =>
         AssertInvalidatesHomePage(new StockLevelChangedEvent());
+
+    [Fact]
+    public void TagsFor_BasketCheckoutInitiatedEvent_RemovesTheBuyersBasketTag()
+    {
+        var userId = Guid.NewGuid();
+
+        var tags = CacheInvalidationTagMap.TagsFor(new BasketCheckoutInitiatedEvent { UserId = userId });
+
+        tags.Should().ContainSingle().Which.Should().Be($"basket-bff-{userId}");
+    }
 
     [Fact]
     public void TagsFor_UnmappedEvent_RemovesNothing()

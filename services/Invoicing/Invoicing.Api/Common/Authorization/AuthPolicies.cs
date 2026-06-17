@@ -7,11 +7,11 @@ namespace Invoicing.Api.Common.Authorization;
 /// eliminating typo drift.
 /// </summary>
 /// <remarks>
-/// The plain admin role is realised today as the Keycloak realm role <c>admin</c>
-/// (see <see cref="Roles.Admin"/>). When ADR-0010's scope-based gating lands (v2+),
-/// this policy will be augmented with a <c>RequireClaim("scope", "invoicing.admin.*")</c>
-/// assertion alongside the role check; the policy name stays stable so endpoints don't
-/// need to change.
+/// This gate is <b>role-only by design</b>, not transitionally: resend is a pure human-admin
+/// action with no service caller (invoice state changes arrive over Kafka), so no
+/// <c>invoicing.write</c> scope is defined — inventing one only the swagger client would ever
+/// request would be "provisioned-for-someday" dead config (ADR-0010 §"Role vs scope canonical
+/// model"). The <c>admin</c> realm role is <see cref="Roles.Admin"/>.
 /// </remarks>
 internal static class AuthPolicies
 {

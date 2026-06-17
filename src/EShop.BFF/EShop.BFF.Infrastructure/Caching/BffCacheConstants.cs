@@ -23,4 +23,14 @@ internal static class BffCacheConstants
     /// when an upstream change may have altered the page (bff.md § 2.2 / § 3.4).
     /// </summary>
     public const string HomePageTag = "home-page";
+
+    /// <summary>FusionCache key for a buyer's enriched basket page (bff.md § 3.2.1). Per-user.</summary>
+    public static string BasketPageKey(Guid userId) => $"basket-bff:{userId}";
+
+    /// <summary>
+    /// FusionCache tag on a buyer's basket-page entry — <c>basket-bff-{userId}</c>. The BFF removes it
+    /// synchronously on every basket mutation it fronts (bff.md § 3.6, later slices) and the
+    /// <c>bff-group</c> invalidator removes it on <c>BasketCheckoutInitiatedEvent</c> (bff.md § 2.2 / § 3.2).
+    /// </summary>
+    public static string BasketPageTag(Guid userId) => $"basket-bff-{userId}";
 }

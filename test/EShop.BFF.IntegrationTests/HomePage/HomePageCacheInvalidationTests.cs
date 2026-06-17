@@ -11,12 +11,12 @@ namespace EShop.BFF.IntegrationTests.HomePage;
 /// acceptance): a real Avro event produced to each of the three subscribed topics evicts the seeded
 /// <c>home-page</c> cache entry — proving the consume → <c>RemoveByTag("home-page")</c> path end-to-end.
 /// </summary>
-[Collection<HomePageInvalidationTestCollection>]
-public sealed class HomePageCacheInvalidationTests(HomePageInvalidationTestFixture fixture)
+[Collection<CacheInvalidationTestCollection>]
+public sealed class HomePageCacheInvalidationTests(CacheInvalidationTestFixture fixture)
 {
     private static readonly TimeSpan EvictionTimeout = TimeSpan.FromSeconds(30);
 
-    private readonly HomePageInvalidationTestFixture _fixture = fixture;
+    private readonly CacheInvalidationTestFixture _fixture = fixture;
 
     [Fact]
     public async Task ProductPriceChangedEvent_OnCatalogProducts_EvictsTheHomePage()
@@ -34,7 +34,7 @@ public sealed class HomePageCacheInvalidationTests(HomePageInvalidationTestFixtu
         };
 
         await AssertEvictsHomePageAsync(
-            HomePageInvalidationTestFixture.CatalogProductsTopic, productId, @event);
+            CacheInvalidationTestFixture.CatalogProductsTopic, productId, @event);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class HomePageCacheInvalidationTests(HomePageInvalidationTestFixtu
         };
 
         await AssertEvictsHomePageAsync(
-            HomePageInvalidationTestFixture.CatalogCategoriesTopic, categoryId, @event);
+            CacheInvalidationTestFixture.CatalogCategoriesTopic, categoryId, @event);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class HomePageCacheInvalidationTests(HomePageInvalidationTestFixtu
         };
 
         await AssertEvictsHomePageAsync(
-            HomePageInvalidationTestFixture.InventoryStockEventsTopic, productId, @event);
+            CacheInvalidationTestFixture.InventoryStockEventsTopic, productId, @event);
     }
 
     private async Task AssertEvictsHomePageAsync(string topic, Guid key, Avro.Specific.ISpecificRecord @event)
