@@ -414,7 +414,7 @@ Public landing page — featured products + full category tree + stock highlight
 - **Authentication/authorization:** **Public.** No JWT required.
 - **Request params:** none today (no per-user personalization; optional `language` / `region` are planned scope — see [roadmap.md § 2.3 BFF](../roadmap.md)).
 - **Upstream service calls** (parallel):
-  1. `CatalogClient.SearchProductsAsync(new SearchProductsRequest { Status = "Active", PageNumber = 1, PageSize = 20 }, ct)` — "featured" semantics in v1 is simply "first 20 active products sorted by `CreatedAtUtc DESC`". A dedicated "featured" flag is Appendix-C scope.
+  1. `CatalogClient.SearchProductsAsync(new SearchProductsRequest { Status = "Active", PageNumber = 1, PageSize = 20 }, ct)` — "featured" in v1 is simply the first 20 active products in Catalog search's **default order** (currently price — Catalog exposes no sort knob yet, so the BFF renders whatever order it gets). A `CreatedAtUtc DESC` sort or a dedicated "featured" flag is planned scope (Appendix-C).
   2. `CatalogClient.GetCategoryTreeAsync(rootCategoryId: null, ct)` — full tree.
   3. After step 1 completes, `InventoryClient.GetStockLevelsBulkAsync(featuredProductIds, ct)` — enriches stock highlights. This is the only sequential dependency.
 - **Response composition logic:**
@@ -844,7 +844,8 @@ Two batch upstream endpoints the BFF depends on. **Build status verified against
 
    *Partial-tolerant batch variant of `GetProductByIdQuery` reading from the same `product_search_view` via a single SQL `WHERE ProductId = ANY(@ids)`.*
 
-2. **Inventory: `GetStockLevelsBulkQuery`** — `POST /api/v1/inventory/stock-items/bulk`. Spec'd (`use-cases.md` § 4.4.2) and the **committed design is [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)** (Inventory-owned read-through cache behind the API; the BFF never materializes availability from `stock-events`). **⚠️ Not yet implemented in `Inventory.Api`** (it exposes only `GET /stock-items/{productId}`, `.../receive`, `.../adjust`, `GET /reservations/{reservationId}`). The BFF's `/basket` + `/home-page` need it for availability overlays — **build it first (or a BFF dispatch must STOP and flag the gap** per `<stop_conditions>` in [implementation-prompts/bff.md](../implementation-prompts/bff.md)); never the N-single-call workaround.
+2. **Inventory: `GetStockLevelsBulkQuery`** — `POST /api/v1/inventory/stock-items/bulk`, body `{ productIds: Guid[] }` (up to 200), partial-tolerant (unknown ids returned in `missingProductIds`). Spec'd (`use-cases.md` § 4.4.2); **committed design is [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)** (Inventory-owned read-through cache behind the API; the BFF never materializes availability from `stock-events`). **✅ Built and shipping** (`Inventory.Api` `GetStockLevelsBulkEndpoint`, `Post("stock-items/bulk")` under the `/inventory/stock-items` group, `AllowAnonymous`). Consumed by:
+   - BFF's `IInventoryClient.GetStockLevelsBulkAsync` — the `/home-page` stock overlay (§ 3.4, built) and the `/basket` availability overlay (§ 3.2, later slice).
 
 Future maintainers: when extending BFF endpoints, first check whether the upstream query exists **in code**; if not, build it (or flag the gap) rather than assuming the doc implies an implementation.
 
