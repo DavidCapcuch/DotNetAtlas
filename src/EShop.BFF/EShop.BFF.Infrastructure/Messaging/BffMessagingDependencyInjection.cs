@@ -14,8 +14,9 @@ namespace EShop.BFF.Infrastructure.Messaging;
 /// Consumer-only by design — no producer, no inbox, no DLT (the dispatch contract's "no Kafka producer /
 /// only consumer", and the "no new topics" boundary forbids a <c>*.Bff.DLT</c> topic): invalidation is an
 /// idempotent <c>RemoveByTag</c>, so at-least-once redelivery is safe and the soft TTL backstops a missed
-/// eviction. One consumer subscribes to all three published-language topics; KafkaFlow routes each
-/// deserialized Avro event to the typed invalidator that handles it.
+/// eviction. One consumer subscribes to all four published-language topics (Catalog products + categories,
+/// Inventory stock-events, Basket sessions); KafkaFlow routes each deserialized Avro event to the typed
+/// invalidator that handles it.
 /// </remarks>
 internal static class BffMessagingDependencyInjection
 {
@@ -56,7 +57,8 @@ internal static class BffMessagingDependencyInjection
                     .Topics(
                         topicsOptions.CatalogProducts,
                         topicsOptions.CatalogCategories,
-                        topicsOptions.InventoryStockEvents)
+                        topicsOptions.InventoryStockEvents,
+                        topicsOptions.BasketSessions)
                     .WithConsumerConfig(consumerOptions)
                     .WithBufferSize(consumerOptions.BufferSize)
                     .WithWorkersCount(consumerOptions.WorkersCount)
@@ -68,7 +70,8 @@ internal static class BffMessagingDependencyInjection
                             .WithHandlerLifetime(InstanceLifetime.Scoped)
                             .AddHandler<ProductEventCacheInvalidator>()
                             .AddHandler<CategoryEventCacheInvalidator>()
-                            .AddHandler<StockEventCacheInvalidator>()))))
+                            .AddHandler<StockEventCacheInvalidator>()
+                            .AddHandler<BasketEventCacheInvalidator>()))))
             .UseMicrosoftLog()
             .AddOpenTelemetryInstrumentation());
 

@@ -290,15 +290,32 @@ The exchange re-audiences the user's token to the callee via the requested scope
 `ValidateAudience` passes **and** its `sub`-based owner resolution stays correct. Plain
 `client_credentials` is reserved for callees that do not owner-scope.
 
-### Status / pending
+### Implementation — Keycloak Standard Token Exchange v2 (landed #329)
 
-The `bff` client already carries all six outbound scopes
-([`service-scope-matrix.md`](../../src/keycloak/service-scope-matrix.md)). Outstanding, landing
-with the BFF (the one unbuilt unit): the BFF's exchange handler, and the Keycloak-side enablement
-(turn on the `token-exchange` feature + grant the `bff` client exchange permission per callee).
-Until then, Basket / Ordering / Invoicing FunctionalTests mint a synthetic token fusing buyer `sub`
-+ the callee audience — a combination no real Keycloak flow yet produces — so their green status is
-**not** end-to-end proof of the exchange path.
+The exchange is Keycloak's **Standard Token Exchange** (RFC 8693), GA since Keycloak 26.2 and
+default-on in the pinned **26.3.2** (feature `token-exchange-standard`) — **not** the legacy
+`token-exchange` preview feature, and with **no** fine-grained admin permissions (FGAP). An earlier
+draft of this amendment said "turn on the `token-exchange` feature + grant the `bff` client exchange
+permission per callee"; that describes the legacy v1 model and does **not** apply to 26.3.2. The
+standard model needs only:
+
+- **Requester opt-in:** the `bff` client sets `standard.token.exchange.enabled = "true"`
+  (`realm-export.json`). No per-callee permission objects.
+- **Holder constraint:** v2 only exchanges a `subject_token` that carries the requester (`bff`) in
+  its `aud`. The user-facing client therefore stamps `aud: bff` (the `audience-bff`
+  `oidc-audience-mapper` on `dotnetatlas-swagger`; a real SPA client inherits the same obligation).
+  The BFF also validates this audience inbound (`ValidAudience = bff`).
+- **Callee audience rides the scope:** the exchange requests `scope=<basket.read|…>`, whose
+  `oidc-audience-mapper` re-audiences the exchanged token to the callee while the user `sub` is
+  preserved (so Basket's `GetUserIdFromSubClaim` / Ordering-Invoicing buyer-self still resolve the
+  buyer).
+
+`TokenExchangeHandler` (`Platform.ServiceDefaults.Auth`) performs the exchange, caches per
+(`sub`, scope) — never serving one user's token to another — and 401-invalidates-retries-once. One
+isolated Keycloak-Testcontainer test proves the end-to-end path (an exchanged `basket.read` token is
+accepted by Basket's real JwtBearer validator and resolves the correct buyer), retiring the prior
+caveat that the Basket / Ordering / Invoicing FunctionalTests' synthetic buyer-`sub` + callee-`aud`
+token was not end-to-end proof.
 
 ### Consequences
 

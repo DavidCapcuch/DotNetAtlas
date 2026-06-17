@@ -31,9 +31,9 @@ public sealed class FakeTokenCreator
 
     /// <summary>
     /// Mints a recipient token whose <c>aud</c> is the explicit multi-valued <paramref name="audiences"/>
-    /// array — the production <c>dotnetatlas-swagger</c> token shape (one login, every browser-facing
-    /// service audience). Lets the bell-hub tests assert acceptance of a multi-aud token and rejection
-    /// of one whose audiences omit <c>notifications-service</c>.
+    /// array — the production <c>dotnetatlas-swagger</c> token shape (a single dev login carries several
+    /// audiences). Lets the bell-hub tests assert acceptance of a multi-aud token and rejection of one whose
+    /// audiences omit <c>notifications-service</c>.
     /// </summary>
     public string CreateUserTokenWithAudiences(Guid userId, IReadOnlyCollection<string> audiences)
     {

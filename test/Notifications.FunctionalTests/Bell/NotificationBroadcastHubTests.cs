@@ -39,16 +39,15 @@ public class NotificationBroadcastHubTests : BaseApiTest
         }
     }
 
-    // The production dotnetatlas-swagger client stamps EVERY browser-facing service audience onto
-    // one token (one dev login works across services), so a real browser token reaches the bell with
-    // a MULTI-VALUED `aud` array — not the single-valued audience the other tests mint. ValidateAudience
-    // is any-match, so the bell (ValidAudience = "notifications-service") must accept such a token as
-    // long as its own audience is one of the entries. This pins fix-(a): the swagger audience mapper is
-    // only useful if the hub accepts the multi-aud shape it produces.
+    // The production dotnetatlas-swagger client stamps a MULTI-VALUED `aud` (bff + the role-only Ordering /
+    // Invoicing admin audiences + notifications-service), so a real browser token reaches the bell with more
+    // than one `aud` entry — not the single-valued audience the other tests mint. ValidateAudience is
+    // any-match, so the bell (ValidAudience = "notifications-service") must accept such a token as long as its
+    // own audience is one of the entries. This pins fix-(a): the swagger audience mapper is only useful if the
+    // hub accepts the multi-aud shape it produces.
     private static readonly string[] SwaggerStyleAudiences =
     [
-        "basket-service", "catalog-service", "inventory-service", "invoicing-service",
-        "ordering-service", "payments-service", "notifications-service"
+        "bff", "ordering-service", "invoicing-service", "notifications-service"
     ];
 
     [Fact]

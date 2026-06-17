@@ -12,6 +12,14 @@ internal interface ICatalogClient
     Task<Result<CatalogProductDto>> GetProductByIdAsync(Guid productId, CancellationToken ct);
 
     /// <summary>
+    /// Bulk product read (bff.md § 4.1) — backs the basket page's current-price / drift enrichment.
+    /// Partial-tolerant: ids with no product come back in
+    /// <see cref="CatalogProductsByIdsDto.MissingProductIds"/> (→ current price unknown). A failed result
+    /// (transport / 5xx) is non-gating — the basket still renders with null current prices + a stale flag.
+    /// </summary>
+    Task<Result<CatalogProductsByIdsDto>> GetProductsByIdsAsync(IReadOnlyList<Guid> productIds, CancellationToken ct);
+
+    /// <summary>
     /// Searches the product catalog (bff.md § 4.1). Backs the home page's "featured" set (first page of
     /// active products). A failed result is a transport/5xx failure (<c>ServiceUnavailableError</c>) — the
     /// home page treats it as the gating call (fail-safe stale or 503).

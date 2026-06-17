@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations;
 namespace EShop.BFF.Infrastructure.Messaging.Config;
 
 /// <summary>
-/// The published-language topics the <c>bff-group</c> invalidator subscribes to (bff.md § 2.2). All three
-/// feed the <c>home-page</c> tag in this slice; the BFF never produces to them. Bound from section
-/// <c>Topics</c>.
+/// The published-language topics the <c>bff-group</c> invalidator subscribes to (bff.md § 2.2). The Catalog
+/// + Inventory topics feed the <c>home-page</c> tag; <c>basket.sessions</c> feeds the per-buyer
+/// <c>basket-bff-{UserId}</c> tag. The BFF never produces to them. Bound from section <c>Topics</c>.
 /// </summary>
 public sealed class BffTopicsOptions
 {
@@ -27,4 +27,9 @@ public sealed class BffTopicsOptions
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string InventoryStockEvents { get; set; }
+
+    /// <summary>Basket session lifecycle events (<c>BasketCheckoutInitiated</c>) — clears the buyer's basket cache.</summary>
+    [Required]
+    [Length(1, MaximumKafkaTopicLength)]
+    public required string BasketSessions { get; set; }
 }

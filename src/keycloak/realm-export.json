@@ -334,34 +334,12 @@
           }
         },
         {
-          "name": "audience-basket",
+          "name": "audience-bff",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "basket-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        },
-        {
-          "name": "audience-catalog",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "catalog-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        },
-        {
-          "name": "audience-inventory",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "inventory-service",
+            "included.client.audience": "bff",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }
@@ -384,17 +362,6 @@
           "consentRequired": false,
           "config": {
             "included.client.audience": "ordering-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        },
-        {
-          "name": "audience-payments",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "payments-service",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }
@@ -528,6 +495,9 @@
       "implicitFlowEnabled": false,
       "redirectUris": [],
       "webOrigins": [],
+      "attributes": {
+        "standard.token.exchange.enabled": "true"
+      },
       "defaultClientScopes": [],
       "optionalClientScopes": [
         "catalog.read",

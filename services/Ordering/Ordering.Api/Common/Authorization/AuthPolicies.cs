@@ -8,12 +8,11 @@ namespace Ordering.Api.Common.Authorization;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The plain admin role is realised today as the Keycloak realm role
-/// <c>admin</c> (see <see cref="Roles.Admin"/>). When ADR-0010's scope-based
-/// gating lands (v2+), this policy will be augmented with a
-/// <c>RequireClaim("scope", "ordering.commands.*")</c> assertion alongside
-/// the role check; the policy name stays stable so endpoints don't need to
-/// change.
+/// This gate is <b>role-only by design</b>, not transitionally: ship/deliver are pure
+/// human-admin actions with no service caller (order state changes arrive over Kafka), so no
+/// <c>ordering.write</c> scope is defined — inventing one only the swagger client would ever
+/// request would be "provisioned-for-someday" dead config (ADR-0010 §"Role vs scope canonical
+/// model"). The <c>admin</c> realm role is <see cref="Roles.Admin"/>.
 /// </para>
 /// <para>
 /// The application layer documents this constant by name in the saga-aware

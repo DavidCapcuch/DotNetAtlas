@@ -20,6 +20,9 @@ public static class BffMetrics
     /// <summary>The <c>bff.endpoint</c> tag value for the product page (<c>GET /api/v1/bff/product-page/{id}</c>).</summary>
     public const string ProductPageEndpoint = "product-page";
 
+    /// <summary>The <c>bff.endpoint</c> tag value for the basket page (<c>GET /api/v1/bff/basket</c>).</summary>
+    public const string BasketEndpoint = "basket";
+
     /// <summary>Tag key carrying the logical BFF endpoint name on counters + the request span.</summary>
     public const string EndpointTag = "bff.endpoint";
 

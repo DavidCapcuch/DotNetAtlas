@@ -71,6 +71,57 @@ internal sealed class CatalogHttpClient : ICatalogClient
         }
     }
 
+    public async Task<Result<CatalogProductsByIdsDto>> GetProductsByIdsAsync(
+        IReadOnlyList<Guid> productIds, CancellationToken ct)
+    {
+        if (productIds.Count == 0)
+        {
+            return Result.Ok(new CatalogProductsByIdsDto([], []));
+        }
+
+        // Repeated `ids=` query params (FastEndpoints binds them into the IReadOnlyList<Guid>); Catalog's
+        // validator caps the request at 100 ids (bff.md § 4.1). Catalog gates this read on catalog.read,
+        // satisfied by the same client_credentials service token as GetProductByIdAsync.
+        var query = "api/v1/catalog/products/by-ids?" + string.Join('&', productIds.Select(id => $"ids={id}"));
+
+        try
+        {
+            using var response = await _http.GetAsync(query, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Catalog by-ids returned {StatusCode}; basket current-price enrichment dropped",
+                    (int)response.StatusCode);
+                return Result.Fail<CatalogProductsByIdsDto>(
+                    CatalogClientErrors.Unavailable($"HTTP {(int)response.StatusCode}"));
+            }
+
+            var batch = await response.Content.ReadFromJsonAsync<CatalogProductsByIdsDto>(UpstreamJson.Web, ct);
+            if (batch is null)
+            {
+                _logger.LogWarning("Catalog by-ids returned an empty body");
+                return Result.Fail<CatalogProductsByIdsDto>(CatalogClientErrors.Unavailable("empty response body"));
+            }
+
+            return Result.Ok(batch);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // caller cancellation — propagate unchanged
+        }
+        catch (Exception ex)
+            when (ex is HttpRequestException
+                or TaskCanceledException
+                or TimeoutException
+                or JsonException
+                or Polly.ExecutionRejectedException)
+        {
+            _logger.LogWarning(ex, "Catalog by-ids call failed; basket current-price enrichment dropped");
+            return Result.Fail<CatalogProductsByIdsDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
+        }
+    }
+
     public async Task<Result<PagedResult<CatalogProductSummaryDto>>> SearchProductsAsync(
         SearchProductsRequest request, CancellationToken ct)
     {

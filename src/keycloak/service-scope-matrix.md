@@ -120,7 +120,8 @@ All 7 per-BC clients are `publicClient: false`. Four — `catalog`, `basket`, `o
 
 ### `bff`
 
-- **Audience:** none — BFF validates user JWTs, not service tokens, so it is never a resource server (no self-audience mapper since 2026-05-27). Its outbound tokens are audienced for the **callee** BC via the requested scope (e.g. `catalog.read` → `aud: catalog-service`).
+- **Audience (inbound):** `bff` — the BFF validates inbound **user** JWTs against `ValidAudience = bff` (pinned in `EShop.BFF.Api/appsettings.json`); the user-facing client stamps `aud: bff` via its `audience-bff` mapper. The `bff` **client** still carries **no self-audience mapper on its outbound tokens** — those are audienced for the **callee** BC via the requested scope (e.g. `catalog.read` → `aud: catalog-service`).
+- **Token exchange (Standard / RFC 8693):** the `bff` client sets `standard.token.exchange.enabled = "true"` — Keycloak 26.3.2 **Standard Token Exchange v2** (GA / default-on; **not** the legacy `token-exchange` feature, **no** FGAP). v2 only exchanges a `subject_token` carrying `bff` in its `aud` (hence the `audience-bff` mapper above), and re-audiences the exchanged token to the callee via the requested scope while preserving the user `sub`. See [ADR-0010 § Implementation — Standard Token Exchange v2](../../docs/adr/0010-service-to-service-auth.md#implementation--keycloak-standard-token-exchange-v2-landed-329).
 - **Outbound:** 6 scopes — every cross-BC read + `basket.write`:
   - `catalog.read`, `basket.read`, `basket.write`, `ordering.read`, `inventory.read`, `invoicing.read`
   - The BFF is the primary HTTP caller of the five BCs it fronts (Catalog, Basket, Ordering, Inventory, Invoicing); it does **not** call Payments over HTTP (payment commands/results are async via Kafka). Catalog has one other service-to-service caller — `basket-service`'s ACL adapter reads product snapshots via `catalog.read`.
@@ -145,11 +146,24 @@ role + scope admin endpoints:
   read), and role-only admin endpoints (Ordering, Invoicing) need no scope at all. Adding read
   scopes here would be provisioned-for-convenience dead config (ADR-0010 §"Role vs scope
   canonical model").
-- **Audience:** the swagger client has per-client `oidc-audience-mapper`s stamping all **seven**
-  browser-facing service audiences — `{basket,catalog,inventory,invoicing,ordering,payments}-service`
-  for the six HTTP BC APIs, plus `notifications-service` for the in-app bell hub (see Notifications
-  below) — a dev-only convenience so one login works across services; the role gate, not the
-  audience, is what blocks non-admins from admin endpoints.
+- **Audience (4 unconditional client-level mappers):** `bff`, `ordering-service`, `invoicing-service`,
+  `notifications-service`. The swagger client stamps a BC `aud` on **every** token it issues only where a
+  human admin reaches the BC with **no scope** to carry that audience:
+  - `ordering-service` / `invoicing-service` — the **role-only** admin endpoints (ship / deliver / resend).
+    ADR-0010 §"Role vs scope canonical model" defines no `ordering.write` / `invoicing.write` scope, so the
+    client-level mapper is the **only** audience source; drop it and those admin endpoints become
+    unreachable through a real human login (JwtBearer `ValidateAudience` rejects before the role gate runs).
+  - `notifications-service` — the `[Authorize]`-only in-app bell hub (reached directly, no scope; see Notifications below).
+  - `bff` — the Standard Token Exchange v2 holder constraint (the user `subject_token` must carry the requester
+    `bff` in its `aud`; see the `bff` block above).
+
+  The **role + scope** BCs — `catalog-service`, `inventory-service`, `payments-service` — carry **no**
+  client-level audience mapper: an admin can only reach them by requesting the matching optional scope
+  (`catalog.write` / `inventory.write` / `payments.read`), whose own `oidc-audience-mapper` already stamps the
+  callee `aud`, so an unconditional client-level one would be redundant. `basket-service` carries none either —
+  basket is **100 % BFF-mediated**, no direct admin path. The role gate, not the audience, is what blocks
+  non-admins; the future SPA app client stamps **no** BC audience at all (Basket invariant above +
+  [ADR-0010 §2026-06-06](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)).
 - **Subject (`sub`):** the client carries an explicit `oidc-sub-mapper` (`subject`) so the **access
   token** carries `sub`. This realm is scope-light — it has no Keycloak built-in `basic` client scope
   (which would otherwise supply the access-token `sub`), so without this mapper the access token has
@@ -186,10 +200,10 @@ would gate nothing while stamping an audience with no policy behind it — the d
 - **Dev access / future SPA.** The swagger `audience-notifications` + `subject` mappers make a dev login
   usable against the bell (ADR-0010 driver #3, *laptop-testable*). The future SPA / user-facing app client
   inherits the obligation — emit `sub` and stamp `aud: notifications-service`. **It must stamp
-  `notifications-service` *only*, not mirror the swagger client's all-BC audience set** — that broad audience
-  is a public-tooling-only widening (README); copying it onto a real SPA client would re-mint user tokens
-  audienced for Basket/Ordering/Invoicing and reopen the direct-path the BFF token exchange deliberately
-  closes. Cross-origin browser reach additionally waits on the YARP edge's CORS policy
+  `notifications-service` *only*, not mirror the swagger client's broader dev audience set** — the swagger tool
+  still stamps `ordering-service` / `invoicing-service` (its role-only admin endpoints) and `bff`; copying those
+  onto a real SPA client would re-mint user tokens audienced for Ordering/Invoicing and reopen the direct-path
+  the BFF token exchange deliberately closes. Cross-origin browser reach additionally waits on the YARP edge's CORS policy
   ([ADR-0035](../../docs/adr/0035-edge-owned-cors-yarp.md)).
 - **Counts:** `notifications-service` is an audience *value* only — it adds **no** client and **no** scope,
   so the 7 per-BC clients / 8 declared clients / 9 scopes above are unchanged.
@@ -276,12 +290,14 @@ curl -s "http://localhost:9011/admin/realms/dotnetatlas/client-scopes" \
   -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;ss={s['name'] for s in json.load(sys.stdin)};ours={'catalog.read','catalog.write','basket.read','basket.write','ordering.read','inventory.read','inventory.write','payments.read','invoicing.read'};print('found',len(ours&ss),'of',len(ours));print('missing:',ours-ss)"
 
-# dotnetatlas-swagger must stamp all 7 browser-facing audiences, incl. notifications-service (bell hub)
+# dotnetatlas-swagger must stamp exactly 4 unconditional audiences: bff (token-exchange subject) +
+# ordering/invoicing-service (role-only admin endpoints) + notifications-service (bell hub) — and NOT
+# basket/catalog/inventory/payments-service (basket is BFF-mediated; the other three ride their optional scope)
 SW=$(curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients?clientId=dotnetatlas-swagger" \
   -H "Authorization: Bearer $TOKEN" | python -c "import sys,json;print(json.load(sys.stdin)[0]['id'])")
 curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients/$SW/protocol-mappers/models" \
   -H "Authorization: Bearer $TOKEN" \
-  | python -c "import sys,json;auds=sorted(m['config']['included.client.audience'] for m in json.load(sys.stdin) if m['protocolMapper']=='oidc-audience-mapper');print('swagger audiences:',auds);print('notifications-service stamped:','notifications-service' in auds)"
+  | python -c "import sys,json;auds=sorted(m['config']['included.client.audience'] for m in json.load(sys.stdin) if m['protocolMapper']=='oidc-audience-mapper');print('swagger audiences:',auds);print('exactly the 4 expected:',auds==['bff','invoicing-service','notifications-service','ordering-service']);print('no bypass audiences:',not ({'basket-service','catalog-service','inventory-service','payments-service'} & set(auds)))"
 
 # Service-account token for catalog-service with scope catalog.write
 curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token \
@@ -292,7 +308,7 @@ curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect
   | python -c "import sys,json,base64;t=json.load(sys.stdin)['access_token'];p=t.split('.')[1];p+='='*(4-len(p)%4);d=json.loads(base64.urlsafe_b64decode(p));print('azp',d.get('azp'),'aud',d.get('aud'),'scope',d.get('scope'))"
 ```
 
-Expected result on the catalog-service check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `catalog.write` scope's `audience-catalog-service` mapper fired. (Cross-service check: mint as `basket-service` with `scope=catalog.read` → `aud catalog-service`, proving the audience follows the scope/callee, not the caller.) The swagger-mapper check prints all seven audiences and `notifications-service stamped: True` — the bell hub's audience is reachable through a real human login ([§ Notifications](#notifications-in-app-bell--user-facing-not-a-service-client)).
+Expected result on the catalog-service check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `catalog.write` scope's `audience-catalog-service` mapper fired. (Cross-service check: mint as `basket-service` with `scope=catalog.read` → `aud catalog-service`, proving the audience follows the scope/callee, not the caller.) The swagger-mapper check prints exactly the four unconditional audiences `['bff', 'invoicing-service', 'notifications-service', 'ordering-service']` with `exactly the 4 expected: True` and `no bypass audiences: True` — the bell hub (`notifications-service`) and the role-only Ordering/Invoicing admin endpoints stay reachable through a real human login, while basket/catalog/inventory/payments are NOT stamped unconditionally ([§ Notifications](#notifications-in-app-bell--user-facing-not-a-service-client)).
 
 ---
 

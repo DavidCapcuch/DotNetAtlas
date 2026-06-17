@@ -25,19 +25,22 @@ docker compose --profile full up -d keycloak
 
 | Client ID | Type | Purpose |
 |---|---|---|
-| `dotnetatlas-swagger` | Public | Swagger UI PKCE flow for the 6 bounded-context APIs, plus the audience for the Notifications in-app **bell** SignalR hub. No secret shipped to the browser. Audience mappers stamp a multi-valued `aud` (`{basket,catalog,inventory,invoicing,ordering,payments}-service` + `notifications-service`) so one dev login is accepted by every BC API and by the bell hub. |
+| `dotnetatlas-swagger` | Public | Swagger UI PKCE flow for the bounded-context APIs + the in-app **bell** SignalR hub. No secret shipped to the browser. Stamps a multi-valued `aud` **unconditionally** for `bff` (token-exchange subject) + `ordering-service` / `invoicing-service` (role-only admin endpoints) + `notifications-service` (bell hub). Catalog/Inventory/Payments audiences ride the admin's requested optional scope (`catalog.write` / `inventory.write` / `payments.read`); Basket gets none (100% BFF-mediated). See [service-scope-matrix.md](service-scope-matrix.md). |
 | `catalog-service`, `basket-service`, `ordering-service`, `bff` | Confidential | Service-account clients (`serviceAccountsEnabled: true`, client-credentials) with a committed dev secret. The three `*-service` ones validate `aud: {bc}-service`; `bff` is caller-only (no self-audience). |
 | `inventory-service`, `payments-service`, `invoicing-service` | Confidential | Inbound-only (`serviceAccountsEnabled: false`, no secret); validate `aud: {bc}-service` stamped by the resource client-scope mapper. See [service-scope-matrix.md](service-scope-matrix.md). |
 
-> **On the Swagger token's broad audience.** `dotnetatlas-swagger` stamps *every* browser-facing
-> service audience onto *every* token it issues, so a single dev login is accepted by all six BC
-> APIs **and** the Notifications bell hub at once — convenient for Try-it-out across services, and
-> (since the bell is not a Swagger surface) for pasting the `access_token` into a WebSocket client
-> against `/hubs/v1/notifications`. This is a deliberate dev-only widening: a production-grade
-> per-call audience would instead come from requesting the specific resource scope (e.g.
-> `catalog.read`, whose mapper stamps only `catalog-service`). It is acceptable here only because
-> this is a public, browser-only tooling client with no service privileges; never mirror this
-> broad-audience pattern onto a real service client.
+> **On the Swagger token's audiences.** `dotnetatlas-swagger` stamps a BC `aud` **unconditionally** only
+> where a human admin reaches the BC with **no scope** to carry it: `ordering-service` / `invoicing-service`
+> (the role-only ship/deliver/resend admin endpoints), `notifications-service` (the `[Authorize]`-only bell
+> hub), and `bff` (the Standard-Token-Exchange holder constraint). The role+scope BCs — Catalog, Inventory,
+> Payments — instead get their audience from the admin's requested optional scope (`catalog.write` /
+> `inventory.write` / `payments.read`, whose mapper stamps only that callee), and Basket gets none (it is
+> 100% BFF-mediated). This unconditional set is a deliberate dev-only convenience for Try-it-out (incl.
+> pasting the `access_token` into a WebSocket client against `/hubs/v1/notifications`, since the bell is not
+> a Swagger surface); it is acceptable only because this is a public, browser-only tooling client with no
+> service privileges. **Never copy this onto a real SPA/service client** — a production user-facing client
+> stamps `notifications-service` only and requests resource scopes per call. See
+> [service-scope-matrix.md](service-scope-matrix.md).
 
 ROPC (Resource Owner Password Credentials) is disabled on every client in this
 realm. For interactive testing, log in via `/swagger` (PKCE through the

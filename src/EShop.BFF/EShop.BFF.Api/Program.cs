@@ -45,6 +45,7 @@ try
 
     app.UseRouting();
 
+    app.UseAuthentication();
     app.UseAuthorization();
 
     app.UseBffFastEndpoints();
