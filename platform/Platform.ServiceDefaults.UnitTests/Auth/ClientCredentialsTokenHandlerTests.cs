@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -111,6 +112,58 @@ public class ClientCredentialsTokenHandlerTests
     }
 
     [Fact]
+    public async Task SendAsync_WhenTokenEndpointReturnsNonSuccess_LogsTokenAcquisitionFailureNamingKeycloak()
+    {
+        // Arrange — Keycloak rejects the token request (e.g. realm misconfig / bad client secret).
+        var logger = new CapturingLogger<ClientCredentialsTokenHandler>();
+        var (handler, _, _) = Build(
+            logger: logger,
+            tokenEndpointStatus: HttpStatusCode.BadRequest,
+            tokenEndpointErrorBody: """{"error":"invalid_scope","error_description":"Invalid scopes: bogus"}""");
+        using var client = new HttpClient(handler);
+
+        // Act — acquisition fails, so the request still surfaces the failure (EnsureSuccessStatusCode throws) ...
+        var act = async () =>
+            (await client.GetAsync(new Uri("http://downstream/ping"), TestContext.Current.CancellationToken)).Dispose();
+
+        // Assert — ... but FIRST a token-acquisition-specific error is logged naming the grant, Keycloak status
+        // and OAuth error, so a token/Keycloak failure is distinguishable from a callee outage (no secret logged).
+        await act.Should().ThrowAsync<HttpRequestException>();
+
+        using var _ = new AssertionScope();
+        var error = logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Error).Which;
+        error.Message.Should().Contain("client_credentials");
+        error.Message.Should().Contain("400");
+        error.Message.Should().Contain("invalid_scope");
+        error.Message.Should().NotContain("super-secret-value");
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenTokenEndpointReturnsNonSuccessWithUnparseableBody_StillLogsErrorWithStatus()
+    {
+        // Arrange — a non-OAuth body (e.g. an HTML 502 from a proxy in front of Keycloak).
+        var logger = new CapturingLogger<ClientCredentialsTokenHandler>();
+        var (handler, _, _) = Build(
+            logger: logger,
+            tokenEndpointStatus: HttpStatusCode.BadGateway,
+            tokenEndpointErrorBody: "<html>oops</html>");
+        using var client = new HttpClient(handler);
+
+        // Act
+        var act = async () =>
+            (await client.GetAsync(new Uri("http://downstream/ping"), TestContext.Current.CancellationToken)).Dispose();
+
+        // Assert — body parsing is defensive: unparseable body falls back to a status-only error, never throwing
+        // from the logging path (the underlying status failure still surfaces).
+        await act.Should().ThrowAsync<HttpRequestException>();
+
+        using var _ = new AssertionScope();
+        var error = logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Error).Which;
+        error.Message.Should().Contain("client_credentials");
+        error.Message.Should().Contain("502");
+    }
+
+    [Fact]
     public async Task SendAsync_PerScopeKey_IsolatesEntries()
     {
         // Arrange
@@ -162,24 +215,28 @@ public class ClientCredentialsTokenHandlerTests
     private static (ClientCredentialsTokenHandler Handler, StubMessageHandler Target, TokenEndpointHandler TokenEndpoint) Build(
         FakeTimeProvider? timeProvider = null,
         int expiresInSeconds = 3600,
-        TimeSpan? tokenFetchDelay = null)
+        TimeSpan? tokenFetchDelay = null,
+        ILogger<ClientCredentialsTokenHandler>? logger = null,
+        HttpStatusCode tokenEndpointStatus = HttpStatusCode.OK,
+        string? tokenEndpointErrorBody = null)
     {
         timeProvider ??= new FakeTimeProvider(Fixed);
 
-        var tokenEndpoint = new TokenEndpointHandler(expiresInSeconds, tokenFetchDelay);
+        var tokenEndpoint = new TokenEndpointHandler(
+            expiresInSeconds, tokenFetchDelay, tokenEndpointStatus, tokenEndpointErrorBody);
         var factory = new StubHttpClientFactory(tokenEndpoint);
 
         var options = new ServiceAuthOptions
         {
             Authority = "http://keycloak/realms/test",
             ClientId = "svc",
-            ClientSecret = "secret",
+            ClientSecret = "super-secret-value",
             ServiceName = "svc",
         };
         var monitor = new TestOptionsMonitor<ServiceAuthOptions>(options);
 
         var handler = new ClientCredentialsTokenHandler(
-            monitor, factory, timeProvider, NullLogger<ClientCredentialsTokenHandler>.Instance);
+            monitor, factory, timeProvider, logger ?? NullLogger<ClientCredentialsTokenHandler>.Instance);
 
         var target = new StubMessageHandler();
         handler.InnerHandler = target;
@@ -204,7 +261,11 @@ public class ClientCredentialsTokenHandlerTests
         }
     }
 
-    private sealed class TokenEndpointHandler(int expiresInSeconds, TimeSpan? delay) : HttpMessageHandler
+    private sealed class TokenEndpointHandler(
+        int expiresInSeconds,
+        TimeSpan? delay,
+        HttpStatusCode status = HttpStatusCode.OK,
+        string? errorBody = null) : HttpMessageHandler
     {
         private int _callCount;
         public int CallCount => _callCount;
@@ -217,9 +278,32 @@ public class ClientCredentialsTokenHandlerTests
                 await Task.Delay(d, ct).ConfigureAwait(false);
             }
 
+            if (status != HttpStatusCode.OK)
+            {
+                return new HttpResponseMessage(status) { Content = new StringContent(errorBody ?? string.Empty) };
+            }
+
             var payload = new { access_token = $"token-{call}", expires_in = expiresInSeconds };
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(payload) };
         }
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
     }
 
     private sealed class StubHttpClientFactory(TokenEndpointHandler tokenEndpoint) : IHttpClientFactory
