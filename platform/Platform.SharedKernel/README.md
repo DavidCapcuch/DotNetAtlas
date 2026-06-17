@@ -89,12 +89,27 @@ constructors, they would fire during hydration - causing duplicate notifications
 ### Value Objects
 
 ```csharp
+using FluentResults;
 using Platform.SharedKernel.Base;
+using Platform.SharedKernel.Errors;
 
-public record Money(decimal Amount, string Currency) : ValueObject
+// Immutable, equality-by-value, self-validating. The only construction path is the
+// Create factory, which returns a Result so an invalid currency is a typed error, not a throw.
+public sealed record Money : ValueObject
 {
-    public static Money USD(decimal amount) => new(amount, "USD");
-    public static Money EUR(decimal amount) => new(amount, "EUR");
+    public decimal Amount { get; private init; }
+    public CurrencyCode Currency { get; private init; } = null!;  // ISO 4217 SmartEnum
+
+    private Money() { }  // sole construction path is via Create
+
+    public static Result<Money> Create(decimal amount, string currencyCode)
+    {
+        if (!CurrencyCode.TryFromName(currencyCode?.ToUpperInvariant(), out var currency))
+            return Result.Fail<Money>(new ValidationError(
+                nameof(Currency), $"Unknown ISO 4217 currency code '{currencyCode}'.", "Money.UnknownCurrencyCode"));
+
+        return Result.Ok(new Money { Amount = amount, Currency = currency });
+    }
 }
 ```
 
@@ -131,16 +146,18 @@ Event handlers handle Domain Events raised from Aggregates/DomainEventDispatcher
 ```csharp
 public class OrderConfirmedHandler : IDomainEventHandler<OrderConfirmedDomainEvent>
 {
+    private readonly IEmailSender _emailSender;  // app-level dependency (illustrative)
     private readonly ILogger<OrderConfirmedHandler> _logger;
 
-    public OrderConfirmedHandler(ILogger<OrderConfirmedHandler> logger)
+    public OrderConfirmedHandler(IEmailSender emailSender, ILogger<OrderConfirmedHandler> logger)
     {
+        _emailSender = emailSender;
         _logger = logger;
     }
 
     public async Task Handle(OrderConfirmedDomainEvent domainEvent, CancellationToken ct)
     {
-        // Send order confirmation email...
+        await _emailSender.SendOrderConfirmationAsync(domainEvent.OrderId, ct);
         _logger.LogInformation("Order confirmation email sent for Order {OrderId}", domainEvent.OrderId);
     }
 }
