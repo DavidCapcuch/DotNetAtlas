@@ -1,68 +1,85 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Platform.ServiceDefaults.Auth;
 
 /// <summary>
-/// <see cref="DelegatingHandler"/> that attaches a cached Keycloak client-credentials bearer
-/// token to every outbound request (ADR-0010). On a <c>401 Unauthorized</c> it invalidates the
-/// cache entry and retries once to handle signing-key rotation edges.
+/// <see cref="DelegatingHandler"/> that attaches a cached <b>RFC 8693 token-exchange</b> bearer token
+/// to every outbound request for a <b>buyer-scoped</b> callee (ADR-0010 amendment 2026-06-06). The
+/// inbound user JWT is exchanged — via Keycloak <b>Standard Token Exchange</b> — for a token
+/// re-audienced to the callee through the requested scope's <c>oidc-audience-mapper</c>, while
+/// <b>preserving the buyer <c>sub</c></b>. On a <c>401 Unauthorized</c> it invalidates the cache
+/// entry and retries once.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Cache key = (<see cref="ServiceAuthOptions.ServiceName"/>, scope). Concurrent callers to the
-/// same key share a single in-flight token fetch via the <see cref="Task{TResult}"/> stored in the
-/// dictionary. Expiry check uses <see cref="TimeProvider.GetUtcNow"/> + the 30-second buffer per ADR-0010.
+/// Cache key = (<c>sub</c>, scope). The <c>sub</c> partition is load-bearing: a cached exchanged token
+/// is <b>never</b> served to a different user, because the callee derives the resource owner from
+/// <c>sub</c> (Basket <c>GetUserIdFromSubClaim</c>; Ordering / Invoicing buyer-self). Concurrent callers
+/// for the same key share a single in-flight exchange via the <see cref="Lazy{T}"/>+<see cref="Task{TResult}"/>.
+/// Expiry uses <see cref="TimeProvider.GetUtcNow"/> + a 30-second buffer (ADR-0010).
 /// </para>
 /// <para>
-/// The per-request scope is passed via <see cref="HttpRequestMessage.Options"/> under
-/// <see cref="ScopeRequestOptionKey"/>; the companion
-/// <c>IHttpClientBuilder.AddServiceAuth(string)</c> extension sets this for you.
+/// The subject token (the inbound user JWT) and the buyer <c>sub</c> are read from the current
+/// <see cref="HttpContext"/>. Token exchange only applies to per-user buyer-scoped calls, which always
+/// run inside an authenticated request; absence of a context / bearer / <c>sub</c> is a misconfiguration
+/// and throws.
 /// </para>
 /// <para>
-/// Token acquisition uses a distinct named <see cref="HttpClient"/>
-/// (<see cref="ServiceAuthOptions.TokenEndpointHttpClientName"/>) so the handler never calls
-/// itself recursively.
+/// Mirrors <see cref="ClientCredentialsTokenHandler"/> (the non-buyer-scoped service-token path) but is
+/// per-user. The per-request scope rides <see cref="HttpRequestMessage.Options"/> under
+/// <see cref="ScopeRequestOptionKey"/>; the companion <c>IHttpClientBuilder.AddUserTokenExchange(string)</c>
+/// extension sets it. Acquisition uses the shared token-endpoint <see cref="HttpClient"/>
+/// (<see cref="ServiceAuthOptions.TokenEndpointHttpClientName"/>) so the handler never recurses.
 /// </para>
 /// </remarks>
-public sealed class ClientCredentialsTokenHandler : DelegatingHandler
+public sealed class TokenExchangeHandler : DelegatingHandler
 {
     /// <summary>
-    /// <see cref="HttpRequestMessage.Options"/> key used to carry the per-request OAuth2 scope.
+    /// <see cref="HttpRequestMessage.Options"/> key used to carry the per-request OAuth2 scope
+    /// (which drives the exchanged token's callee audience).
     /// </summary>
-    public static readonly HttpRequestOptionsKey<string> ScopeRequestOptionKey = new("ServiceAuth.Scope");
+    public static readonly HttpRequestOptionsKey<string> ScopeRequestOptionKey = new("UserTokenExchange.Scope");
+
+    private const string TokenExchangeGrantType = "urn:ietf:params:oauth:grant-type:token-exchange";
+    private const string AccessTokenType = "urn:ietf:params:oauth:token-type:access_token";
 
     private static readonly TimeSpan ExpiryBuffer = TimeSpan.FromSeconds(30);
 
-    // Lazy<Task<T>> is the single-flight pattern — ConcurrentDictionary.GetOrAdd may run its
-    // value factory multiple times under concurrency, but Lazy with ExecutionAndPublication
-    // guarantees the inner Task<CachedToken> is produced exactly once per cache entry.
-    private readonly ConcurrentDictionary<(string ServiceName, string Scope), Lazy<Task<CachedToken>>> _cache = new();
+    // Lazy<Task<T>> + ExecutionAndPublication = one exchange per (sub, scope) under concurrency
+    // (see ClientCredentialsTokenHandler for the single-flight rationale).
+    private readonly ConcurrentDictionary<(string Sub, string Scope), Lazy<Task<CachedToken>>> _cache = new();
 
     private readonly IOptionsMonitor<ServiceAuthOptions> _options;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly TimeProvider _timeProvider;
-    private readonly ILogger<ClientCredentialsTokenHandler> _logger;
+    private readonly ILogger<TokenExchangeHandler> _logger;
 
     /// <summary>Creates a new handler. Typically resolved from DI.</summary>
-    public ClientCredentialsTokenHandler(
+    public TokenExchangeHandler(
         IOptionsMonitor<ServiceAuthOptions> options,
         IHttpClientFactory httpClientFactory,
+        IHttpContextAccessor httpContextAccessor,
         TimeProvider timeProvider,
-        ILogger<ClientCredentialsTokenHandler> logger)
+        ILogger<TokenExchangeHandler> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(httpClientFactory);
+        ArgumentNullException.ThrowIfNull(httpContextAccessor);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
         _options = options;
         _httpClientFactory = httpClientFactory;
+        _httpContextAccessor = httpContextAccessor;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -76,9 +93,10 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
 
         var options = _options.CurrentValue;
         var scope = ResolveScope(request);
-        var key = (options.ServiceName, scope);
+        var (subjectToken, sub) = ResolveUser();
+        var key = (sub, scope);
 
-        var token = await GetOrFetchTokenAsync(key, options, scope, cancellationToken).ConfigureAwait(false);
+        var token = await GetOrFetchTokenAsync(key, options, scope, subjectToken, cancellationToken).ConfigureAwait(false);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
 
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -92,25 +110,22 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
         response.Dispose();
         InvalidateCacheEntry(key);
 
-        token = await GetOrFetchTokenAsync(key, options, scope, cancellationToken).ConfigureAwait(false);
+        token = await GetOrFetchTokenAsync(key, options, scope, subjectToken, cancellationToken).ConfigureAwait(false);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
         return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<CachedToken> GetOrFetchTokenAsync(
-        (string ServiceName, string Scope) key,
+        (string Sub, string Scope) key,
         ServiceAuthOptions options,
         string scope,
+        string subjectToken,
         CancellationToken cancellationToken)
     {
         while (true)
         {
-            // Lazy<Task<>> + ExecutionAndPublication = one fetch per key, regardless of how many
-            // concurrent callers hit GetOrAdd. The shared fetch uses CancellationToken.None so
-            // the first caller's cancellation does not kill every awaiter; each awaiter cancels
-            // its own await via WaitAsync below.
             var lazy = _cache.GetOrAdd(key, _ => new Lazy<Task<CachedToken>>(
-                () => FetchTokenAsync(options, scope, CancellationToken.None),
+                () => FetchTokenAsync(options, scope, subjectToken, CancellationToken.None),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
             CachedToken token;
@@ -120,12 +135,11 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Caller was cancelled — leave the shared fetch alone for other waiters.
                 throw;
             }
             catch
             {
-                // Shared fetch faulted — evict exactly this entry so the next caller retries.
+                // Shared exchange faulted — evict exactly this entry so the next caller retries.
                 _cache.TryRemove(new KeyValuePair<(string, string), Lazy<Task<CachedToken>>>(key, lazy));
                 throw;
             }
@@ -135,16 +149,16 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
                 return token;
             }
 
-            // Expiring — evict this exact Lazy (atomic; avoids racing a concurrent refresher).
             _cache.TryRemove(new KeyValuePair<(string, string), Lazy<Task<CachedToken>>>(key, lazy));
         }
     }
 
-    private void InvalidateCacheEntry((string ServiceName, string Scope) key) => _cache.TryRemove(key, out _);
+    private void InvalidateCacheEntry((string Sub, string Scope) key) => _cache.TryRemove(key, out _);
 
     private async Task<CachedToken> FetchTokenAsync(
         ServiceAuthOptions options,
         string scope,
+        string subjectToken,
         CancellationToken cancellationToken)
     {
         var tokenEndpoint = new Uri($"{options.Authority.TrimEnd('/')}/protocol/openid-connect/token");
@@ -154,9 +168,12 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
 
         var form = new List<KeyValuePair<string, string>>
         {
-            new("grant_type", "client_credentials"),
+            new("grant_type", TokenExchangeGrantType),
             new("client_id", options.ClientId),
             new("client_secret", options.ClientSecret),
+            new("subject_token", subjectToken),
+            new("subject_token_type", AccessTokenType),
+            new("requested_token_type", AccessTokenType),
         };
         if (!string.IsNullOrWhiteSpace(scope))
         {
@@ -168,9 +185,9 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
         if (!response.IsSuccessStatusCode)
         {
             // Log the token-acquisition failure BEFORE EnsureSuccessStatusCode throws: the exception propagates
-            // to the typed client and surfaces as a callee 503, so without this an operator sees only "callee
-            // unavailable" and investigates the healthy callee instead of Keycloak.
-            await LogTokenAcquisitionFailureAsync(response, options, scope, cancellationToken).ConfigureAwait(false);
+            // to the typed client and surfaces as a callee 503, so without this a Keycloak / realm-misconfig
+            // failure looks like a callee (Basket/Catalog) outage in both the logs and the 503 message.
+            await LogTokenAcquisitionFailureAsync(response, scope, cancellationToken).ConfigureAwait(false);
         }
 
         response.EnsureSuccessStatusCode();
@@ -182,29 +199,26 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
         if (payload is null || string.IsNullOrEmpty(payload.AccessToken) || payload.ExpiresIn <= 0)
         {
             throw new InvalidOperationException(
-                "Keycloak token endpoint returned an empty or malformed response.");
+                "Keycloak token-exchange endpoint returned an empty or malformed response.");
         }
 
         _logger.LogDebug(
-            "Fetched client-credentials token for {ServiceName} scope='{Scope}' expires_in={ExpiresIn}s",
-            options.ServiceName, scope, payload.ExpiresIn);
+            "Exchanged user token for scope='{Scope}' expires_in={ExpiresIn}s", scope, payload.ExpiresIn);
 
         return new CachedToken(payload.AccessToken, _timeProvider.GetUtcNow() + TimeSpan.FromSeconds(payload.ExpiresIn));
     }
 
     private async Task LogTokenAcquisitionFailureAsync(
         HttpResponseMessage response,
-        ServiceAuthOptions options,
         string scope,
         CancellationToken cancellationToken)
     {
         var (error, errorDescription) = await ReadOAuthErrorAsync(response, cancellationToken).ConfigureAwait(false);
 
         _logger.LogError(
-            "Keycloak token acquisition failed: grant=client_credentials service={ServiceName} scope='{Scope}' "
+            "Keycloak token acquisition failed: grant=token-exchange scope='{Scope}' "
             + "status={StatusCode} error={Error} error_description={ErrorDescription}. "
-            + "This is a token-acquisition/Keycloak failure, not a callee outage.",
-            options.ServiceName,
+            + "This is a token-exchange/Keycloak failure, not a callee outage.",
             scope,
             (int)response.StatusCode,
             error,
@@ -212,8 +226,8 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
     }
 
     // Extracts only the standard OAuth2 error fields from a non-success token response; never logs the raw
-    // body (which could be an unexpected shape) and never the token/secret. Defensive: an empty or non-OAuth
-    // body yields nulls so the caller still logs a status-only error rather than masking the failure.
+    // body (which could be an unexpected shape) and never the subject token/secret. Defensive: an empty or
+    // non-OAuth body yields nulls so the caller still logs a status-only error rather than masking the failure.
     private static async Task<(string? Error, string? ErrorDescription)> ReadOAuthErrorAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -237,6 +251,43 @@ public sealed class ClientCredentialsTokenHandler : DelegatingHandler
 
     private static string ResolveScope(HttpRequestMessage request) =>
         request.Options.TryGetValue(ScopeRequestOptionKey, out var scope) ? scope : string.Empty;
+
+    private (string SubjectToken, string Sub) ResolveUser()
+    {
+        var httpContext = _httpContextAccessor.HttpContext
+            ?? throw new InvalidOperationException(
+                "Token exchange requires an active HTTP request context; none is available. The buyer-scoped "
+                + "outbound client must only be called while handling an authenticated user request.");
+
+        var subjectToken = ExtractBearer(httpContext.Request.Headers.Authorization.ToString())
+            ?? throw new InvalidOperationException(
+                "Token exchange requires an inbound user bearer token, but the Authorization header is absent "
+                + "or not a Bearer token.");
+
+        var sub = httpContext.User.FindFirstValue("sub")
+            ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException(
+                "Token exchange requires a 'sub' claim on the authenticated user, but none is present.");
+
+        return (subjectToken, sub);
+    }
+
+    private static string? ExtractBearer(string? authorizationHeader)
+    {
+        if (string.IsNullOrWhiteSpace(authorizationHeader))
+        {
+            return null;
+        }
+
+        const string prefix = "Bearer ";
+        if (!authorizationHeader.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var token = authorizationHeader[prefix.Length..].Trim();
+        return token.Length == 0 ? null : token;
+    }
 
     private sealed record TokenResponsePayload(
         [property: JsonPropertyName("access_token")] string AccessToken,
