@@ -24,3 +24,4 @@ Docs exist only to help a future engineer **decide, understand, operate, or safe
 - **Interface changes** → API contracts + examples updated.
 - **Actionable runbooks** — a new operational procedure / config key / feature flag ships copy-pasteable steps + expected outcome; no theory or history.
 - **No AI-meta commentary** — zero session narratives ("in this session we…"), polite intros/outros, or chronological coding-log artifacts in code or markdown.
+- **No migration backstory** — document the *current* state, not how it got there. "is now X", "previously Y, now Z", "this used to…" rot the moment the next change lands; the transition belongs in version control, not the prose.

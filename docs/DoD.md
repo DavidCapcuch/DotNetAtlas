@@ -59,7 +59,7 @@ The general, repo-wide "done" bar for any AI-assisted change. It complements —
 - [ ] The change introduces no injection, unsafe deserialization, or authorization bypass on the **new surface** it adds.
 - [ ] Routes are versioned under `/api/v1` (ADR-0012); mutating endpoints carry an `Idempotency-Key` (ADR-0013).
 
-### Testing
+### Testing  *(delegates to `daca-dotnet-testing-reviewer`; test-quality bar: the `daca-dotnet-effective-testing` skill)*
 - [ ] Unit tests for every new or modified logical branch.
 - [ ] Integration tests for modified database or external-infrastructure boundaries.
 - [ ] End-to-end / functional paths updated if the core workflow changed.
