@@ -42,17 +42,18 @@ public sealed class NotificationDeliveryStatusChangedEventKafkaHandlerTests
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
         await handler.Handle(TestKafkaMessageContext.Create(ct: ct), Delivered(notificationId, buyerId));
 
-        using var _ = new AssertionScope();
+        using (new AssertionScope())
+        {
+            await using var assertScope = _fixture.CreateScope();
+            var db = assertScope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
+            var invoice = await db.Invoices.AsNoTracking().SingleAsync(i => i.Id == invoiceId, ct);
+            invoice.Status.Should().Be(InvoiceStatus.Delivered);
 
-        await using var assertScope = _fixture.CreateScope();
-        var db = assertScope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
-        var invoice = await db.Invoices.AsNoTracking().SingleAsync(i => i.Id == invoiceId, ct);
-        invoice.Status.Should().Be(InvoiceStatus.Delivered);
-
-        _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            "invoicing.invoices",
-            buyerId.ToString(),
-            Arg.Is<global::Invoicing.Invoices.InvoiceDeliveredEvent>(e => e.InvoiceId == invoiceId));
+            _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
+                "invoicing.invoices",
+                buyerId.ToString(),
+                Arg.Is<global::Invoicing.Invoices.InvoiceDeliveredEvent>(e => e.InvoiceId == invoiceId));
+        }
     }
 
     [Fact]

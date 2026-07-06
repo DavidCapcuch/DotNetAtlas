@@ -21,6 +21,7 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
     private static readonly Guid ProductB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task GetBasket_WhenComposed_Returns200WithPriceDriftAndOutOfStockFlags()
     {
         // Arrange — A: snapshot 10 ×2, current 12 (drift), available 10; B: snapshot 5 ×3, current 5, available 1 (OOS).
@@ -33,25 +34,27 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
         var page = await GetBasketOkAsync(userId);
 
         // Assert
-        using var _ = new AssertionScope();
-        page.UserId.Should().Be(userId);
-        page.Items.Should().HaveCount(2);
+        using (new AssertionScope())
+        {
+            page.UserId.Should().Be(userId);
+            page.Items.Should().HaveCount(2);
 
-        var itemA = page.Items.Single(item => item.ProductId == ProductA);
-        itemA.CurrentPrice!.Amount.Should().Be(12m);
-        itemA.PriceDrifted.Should().BeTrue();
-        itemA.AvailableQty.Should().Be(10);
-        itemA.OutOfStock.Should().BeFalse();
+            var itemA = page.Items.Single(item => item.ProductId == ProductA);
+            itemA.CurrentPrice!.Amount.Should().Be(12m);
+            itemA.PriceDrifted.Should().BeTrue();
+            itemA.AvailableQty.Should().Be(10);
+            itemA.OutOfStock.Should().BeFalse();
 
-        var itemB = page.Items.Single(item => item.ProductId == ProductB);
-        itemB.PriceDrifted.Should().BeFalse();
-        itemB.OutOfStock.Should().BeTrue();
+            var itemB = page.Items.Single(item => item.ProductId == ProductB);
+            itemB.PriceDrifted.Should().BeFalse();
+            itemB.OutOfStock.Should().BeTrue();
 
-        page.TotalSnapshot.Amount.Should().Be(35m);   // 20 + 15
-        page.TotalCurrent.Amount.Should().Be(39m);     // 24 + 15
-        page.HasPriceDrift.Should().BeTrue();
-        page.HasOutOfStock.Should().BeTrue();
-        page.HasStaleData.Should().BeFalse();
+            page.TotalSnapshot.Amount.Should().Be(35m);   // 20 + 15
+            page.TotalCurrent.Amount.Should().Be(39m);     // 24 + 15
+            page.HasPriceDrift.Should().BeTrue();
+            page.HasOutOfStock.Should().BeTrue();
+            page.HasStaleData.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -68,16 +71,19 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var page = await ReadAsync(response);
 
-        using var _ = new AssertionScope();
-        page.Items.Should().BeEmpty();
-        page.TotalSnapshot.Amount.Should().Be(0m);
-        page.TotalCurrent.Amount.Should().Be(0m);
-        page.HasStaleData.Should().BeFalse();
-        response.Headers.Contains("X-BFF-Stale").Should().BeFalse();
-        response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+        using (new AssertionScope())
+        {
+            page.Items.Should().BeEmpty();
+            page.TotalSnapshot.Amount.Should().Be(0m);
+            page.TotalCurrent.Amount.Should().Be(0m);
+            page.HasStaleData.Should().BeFalse();
+            response.Headers.Contains("X-BFF-Stale").Should().BeFalse();
+            response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetBasket_WhenCatalogBatchDown_Returns200PartialCatalogWithStale()
     {
         // Arrange
@@ -93,17 +99,20 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var page = await ReadAsync(response);
 
-        using var _ = new AssertionScope();
-        var item = page.Items.Should().ContainSingle().Subject;
-        item.CurrentPrice.Should().BeNull();
-        item.PriceDrifted.Should().BeFalse();
-        item.LineTotalCurrent.Amount.Should().Be(20m, "current falls back to snapshot when Catalog is down");
-        page.HasStaleData.Should().BeTrue();
-        response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("catalog");
-        response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        using (new AssertionScope())
+        {
+            var item = page.Items.Should().ContainSingle().Subject;
+            item.CurrentPrice.Should().BeNull();
+            item.PriceDrifted.Should().BeFalse();
+            item.LineTotalCurrent.Amount.Should().Be(20m, "current falls back to snapshot when Catalog is down");
+            page.HasStaleData.Should().BeTrue();
+            response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("catalog");
+            response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetBasket_WhenInventoryBatchDown_Returns200PartialInventoryWithStale()
     {
         // Arrange
@@ -119,15 +128,18 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var page = await ReadAsync(response);
 
-        using var _ = new AssertionScope();
-        var item = page.Items.Should().ContainSingle().Subject;
-        item.AvailableQty.Should().BeNull();
-        item.OutOfStock.Should().BeFalse();
-        page.HasStaleData.Should().BeTrue();
-        response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
+        using (new AssertionScope())
+        {
+            var item = page.Items.Should().ContainSingle().Subject;
+            item.AvailableQty.Should().BeNull();
+            item.OutOfStock.Should().BeFalse();
+            page.HasStaleData.Should().BeTrue();
+            response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task GetBasket_WhenAnonymous_Returns401()
     {
         // Act — no Authorization header.
@@ -139,6 +151,7 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetBasket_WhenBasketIsDownAndNoCache_Returns503()
     {
         // Arrange — Basket is the gating call.
@@ -173,10 +186,12 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var second = await ReadAsync(response);
 
-        using var _ = new AssertionScope();
-        second.Items.Should().ContainSingle().Which.ProductId.Should().Be(ProductA);
-        second.HasStaleData.Should().BeFalse("a fresh-within-TTL cache hit is not a fail-safe serve");
-        first.Items.Should().ContainSingle();
+        using (new AssertionScope())
+        {
+            second.Items.Should().ContainSingle().Which.ProductId.Should().Be(ProductA);
+            second.HasStaleData.Should().BeFalse("a fresh-within-TTL cache hit is not a fail-safe serve");
+            first.Items.Should().ContainSingle();
+        }
     }
 
     private async Task<BasketPageResponse> GetBasketOkAsync(Guid userId)

@@ -28,6 +28,7 @@ public sealed class NotificationDispatchJobRetryPolicyTests
             .Single();
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void BugClassFailure_IsParkedFailed_OnTheFirstAttempt_WithoutRetry()
     {
         // Arrange — a DataIntegrityException (a CriticalException subclass) on a fresh job (RetryCount = 0).
@@ -42,6 +43,7 @@ public sealed class NotificationDispatchJobRetryPolicyTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void TransientFailure_IsRescheduledForRetry()
     {
         // Arrange — an EmailDispatchFailedException (a RetryableException, NOT bug-class) on a fresh job.
@@ -56,6 +58,7 @@ public sealed class NotificationDispatchJobRetryPolicyTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void EffectiveRetryPolicy_IsTheClassLevelAttribute_OverridingHangfireGlobalDefault()
     {
         // Resolve the filters Hangfire would actually apply to the job — global default + class-level,
@@ -68,11 +71,13 @@ public sealed class NotificationDispatchJobRetryPolicyTests
             .OfType<AutomaticRetryAttribute>()
             .ToList();
 
-        using var _ = new AssertionScope();
-        effectiveRetryPolicies.Should().ContainSingle("the class-level policy overrides Hangfire's global default(10)");
-        effectiveRetryPolicies[0].Attempts.Should().Be(3);
-        effectiveRetryPolicies[0].OnAttemptsExceeded.Should().Be(AttemptsExceededAction.Fail);
-        effectiveRetryPolicies[0].ExceptOn.Should().Contain(typeof(CriticalException));
+        using (new AssertionScope())
+        {
+            effectiveRetryPolicies.Should().ContainSingle("the class-level policy overrides Hangfire's global default(10)");
+            effectiveRetryPolicies[0].Attempts.Should().Be(3);
+            effectiveRetryPolicies[0].OnAttemptsExceeded.Should().Be(AttemptsExceededAction.Fail);
+            effectiveRetryPolicies[0].ExceptOn.Should().Contain(typeof(CriticalException));
+        }
     }
 
     private static ElectStateContext BuildElectStateContext(Exception failure, int retryCount)

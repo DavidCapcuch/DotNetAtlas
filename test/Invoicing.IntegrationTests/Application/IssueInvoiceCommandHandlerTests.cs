@@ -64,74 +64,76 @@ public sealed class IssueInvoiceCommandHandlerTests
             new IssueInvoiceCommand { OrderId = orderId },
             ct);
 
-        using var _ = new AssertionScope();
-        result.IsSuccess.Should().BeTrue();
-        var invoiceId = result.Value;
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            var invoiceId = result.Value;
 
-        // Invoice aggregate persisted in Issued status with the allocated number.
-        await using var assertScope = _fixture.CreateScope();
-        var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        var invoice = await db.Invoices
-            .Include(i => i.Lines)
-            .Include(i => i.VatLines)
-            .AsNoTracking()
-            .SingleAsync(i => i.Id == invoiceId, ct);
+            // Invoice aggregate persisted in Issued status with the allocated number.
+            await using var assertScope = _fixture.CreateScope();
+            var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            var invoice = await db.Invoices
+                .Include(i => i.Lines)
+                .Include(i => i.VatLines)
+                .AsNoTracking()
+                .SingleAsync(i => i.Id == invoiceId, ct);
 
-        invoice.Status.Should().Be(InvoiceStatus.Issued);
-        invoice.InvoiceNumber.Should().NotBeNull();
-        invoice.InvoiceNumber!.Value.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
-        invoice.OrderId.Should().Be(orderId);
-        invoice.PaymentId.Should().Be(paymentId);
-        invoice.BuyerId.Should().Be(buyerId);
-        invoice.Total.Amount.Should().Be(152.00m);
-        invoice.Total.Currency.Name.Should().Be("EUR");
-        invoice.Lines.Should().HaveCount(1);
-        invoice.PdfBlobRef.Should().NotBeNull();
-        invoice.PdfBlobRef!.BlobName.Should().MatchRegex(@"^\d{4}/\d{2}/INV-\d{4}-\d{6}\.pdf$");
-        invoice.IssueDate.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
+            invoice.Status.Should().Be(InvoiceStatus.Issued);
+            invoice.InvoiceNumber.Should().NotBeNull();
+            invoice.InvoiceNumber!.Value.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
+            invoice.OrderId.Should().Be(orderId);
+            invoice.PaymentId.Should().Be(paymentId);
+            invoice.BuyerId.Should().Be(buyerId);
+            invoice.Total.Amount.Should().Be(152.00m);
+            invoice.Total.Currency.Name.Should().Be("EUR");
+            invoice.Lines.Should().HaveCount(1);
+            invoice.PdfBlobRef.Should().NotBeNull();
+            invoice.PdfBlobRef!.BlobName.Should().MatchRegex(@"^\d{4}/\d{2}/INV-\d{4}-\d{6}\.pdf$");
+            invoice.IssueDate.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
 
-        // Projection row updated with the issued invoice id.
-        var pending = await db.PendingInvoices.AsNoTracking()
-            .SingleAsync(r => r.OrderId == orderId, ct);
-        pending.IssuedInvoiceId.Should().Be(invoiceId);
+            // Projection row updated with the issued invoice id.
+            var pending = await db.PendingInvoices.AsNoTracking()
+                .SingleAsync(r => r.OrderId == orderId, ct);
+            pending.IssuedInvoiceId.Should().Be(invoiceId);
 
-        // Allocator advanced by exactly one for the current fiscal year.
-        var allocator = await db.InvoiceNumberAllocators.AsNoTracking()
-            .SingleAsync(a => a.Year == nowSnapshot.Year, ct);
-        allocator.NextValue.Should().Be(invoice.InvoiceNumber.Sequence + 1);
+            // Allocator advanced by exactly one for the current fiscal year.
+            var allocator = await db.InvoiceNumberAllocators.AsNoTracking()
+                .SingleAsync(a => a.Year == nowSnapshot.Year, ct);
+            allocator.NextValue.Should().Be(invoice.InvoiceNumber.Sequence + 1);
 
-        // Outbox substitute received exactly one InvoiceIssuedEvent keyed by BuyerId.
-        _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            "invoicing.invoices",
-            buyerId.ToString(),
-            Arg.Is<global::Invoicing.Invoices.InvoiceIssuedEvent>(e =>
-                e.InvoiceId == invoiceId
-                && e.OrderId == orderId
-                && e.PaymentId == paymentId
-                && e.BuyerId == buyerId));
+            // Outbox substitute received exactly one InvoiceIssuedEvent keyed by BuyerId.
+            _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
+                "invoicing.invoices",
+                buyerId.ToString(),
+                Arg.Is<global::Invoicing.Invoices.InvoiceIssuedEvent>(e =>
+                    e.InvoiceId == invoiceId
+                    && e.OrderId == orderId
+                    && e.PaymentId == paymentId
+                    && e.BuyerId == buyerId));
 
-        // NotifyUserCommand row also written in the same EF transaction (ADR-0031). Topic:
-        // notifications.notify-commands, partition key buyerId.ToString(), correlated by the
-        // producer-assigned NotificationId the aggregate persisted on the invoice.
-        var invoiceNumber = invoice.InvoiceNumber!.Value;
-        var notificationId = invoice.DeliveryNotificationId!.Value;
-        _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            "notifications.notify-commands",
-            buyerId.ToString(),
-            Arg.Is<NotifyUserCommand>(c =>
-                c.RecipientUserId == buyerId
-                && c.NotificationId == notificationId
-                && c.TemplateKey == "invoicing.invoice-delivered"
-                && c.Payload["InvoiceNumber"] == invoiceNumber
-                && c.Payload["TotalAmount"] == "152.00"
-                && c.Payload["Currency"] == "EUR"
-                && c.Payload["ViewInvoiceUrl"] == $"https://invoicing.test/invoices/{invoiceId}"));
+            // NotifyUserCommand row also written in the same EF transaction (ADR-0031). Topic:
+            // notifications.notify-commands, partition key buyerId.ToString(), correlated by the
+            // producer-assigned NotificationId the aggregate persisted on the invoice.
+            var invoiceNumber = invoice.InvoiceNumber!.Value;
+            var notificationId = invoice.DeliveryNotificationId!.Value;
+            _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
+                "notifications.notify-commands",
+                buyerId.ToString(),
+                Arg.Is<NotifyUserCommand>(c =>
+                    c.RecipientUserId == buyerId
+                    && c.NotificationId == notificationId
+                    && c.TemplateKey == "invoicing.invoice-delivered"
+                    && c.Payload["InvoiceNumber"] == invoiceNumber
+                    && c.Payload["TotalAmount"] == "152.00"
+                    && c.Payload["Currency"] == "EUR"
+                    && c.Payload["ViewInvoiceUrl"] == $"https://invoicing.test/invoices/{invoiceId}"));
 
-        // No InvoiceCancelledEvent — credit-note flow didn't run.
-        _fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-            Arg.Any<string>(),
-            Arg.Any<string?>(),
-            Arg.Any<global::Invoicing.Invoices.InvoiceCancelledEvent>());
+            // No InvoiceCancelledEvent — credit-note flow didn't run.
+            _fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<global::Invoicing.Invoices.InvoiceCancelledEvent>());
+        }
     }
 
     [Fact]
@@ -179,9 +181,11 @@ public sealed class IssueInvoiceCommandHandlerTests
             var replay = await handler.HandleAsync(
                 new IssueInvoiceCommand { OrderId = orderId }, ct);
 
-            using var _ = new AssertionScope();
-            replay.IsSuccess.Should().BeTrue();
-            replay.Value.Should().Be(invoiceIdBefore, "replay returns the existing invoice id");
+            using (new AssertionScope())
+            {
+                replay.IsSuccess.Should().BeTrue();
+                replay.Value.Should().Be(invoiceIdBefore, "replay returns the existing invoice id");
+            }
         }
 
         await using (var assertScope = _fixture.CreateScope())
@@ -279,25 +283,27 @@ public sealed class IssueInvoiceCommandHandlerTests
         var act = async () => await handler.HandleAsync(
             new IssueInvoiceCommand { OrderId = orderId }, ct);
 
-        using var _ = new AssertionScope();
-        var thrown = await act.Should().ThrowAsync<InvoiceTotalMismatchException>();
-        thrown.Which.OrderTotal.Should().Be(152.00m);
-        thrown.Which.PaymentAmount.Should().Be(150.00m);
-        thrown.Which.OrderId.Should().Be(orderId);
-        thrown.Which.ErrorCode.Should().Be("Invoicing.TotalMismatch");
+        using (new AssertionScope())
+        {
+            var thrown = await act.Should().ThrowAsync<InvoiceTotalMismatchException>();
+            thrown.Which.OrderTotal.Should().Be(152.00m);
+            thrown.Which.PaymentAmount.Should().Be(150.00m);
+            thrown.Which.OrderId.Should().Be(orderId);
+            thrown.Which.ErrorCode.Should().Be("Invoicing.TotalMismatch");
 
-        await using var assertScope = _fixture.CreateScope();
-        var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        var invoiceCount = await db.Invoices.AsNoTracking()
-            .Where(i => i.OrderId == orderId)
-            .CountAsync(ct);
-        invoiceCount.Should().Be(0, "mismatch must NOT issue an invoice");
+            await using var assertScope = _fixture.CreateScope();
+            var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            var invoiceCount = await db.Invoices.AsNoTracking()
+                .Where(i => i.OrderId == orderId)
+                .CountAsync(ct);
+            invoiceCount.Should().Be(0, "mismatch must NOT issue an invoice");
 
-        var pending = await db.PendingInvoices.AsNoTracking()
-            .SingleAsync(r => r.OrderId == orderId, ct);
-        pending.IssuedInvoiceId.Should().BeNull("projection row stays unissued on mismatch");
+            var pending = await db.PendingInvoices.AsNoTracking()
+                .SingleAsync(r => r.OrderId == orderId, ct);
+            pending.IssuedInvoiceId.Should().BeNull("projection row stays unissued on mismatch");
 
-        _fixture.OutboxSubstitute.DidNotReceiveWithAnyArgs().AddOutboxMessage(default!, default, default!);
+            _fixture.OutboxSubstitute.DidNotReceiveWithAnyArgs().AddOutboxMessage(default!, default, default!);
+        }
     }
 
     private async Task SeedConvergedPendingInvoiceAsync(

@@ -31,11 +31,13 @@ public sealed class InvoiceDeliveredMapperTests
         var avroEvent = domainEvent.ToInvoiceDeliveredEvent();
 
         // Assert
-        using var _ = new AssertionScope();
-        avroEvent.InvoiceId.Should().Be(invoiceId);
-        avroEvent.BuyerId.Should().Be(buyerId);
-        avroEvent.DeliveredAtUtc.Should().Be(deliveredAtUtc.UtcDateTime);
-        avroEvent.Channel.Should().Be(DeliveryChannel.Email.Name);
-        avroEvent.OccurredOnUtc.Should().Be(occurredOnUtc.UtcDateTime);
+        using (new AssertionScope())
+        {
+            avroEvent.InvoiceId.Should().Be(invoiceId);
+            avroEvent.BuyerId.Should().Be(buyerId);
+            avroEvent.DeliveredAtUtc.Should().Be(deliveredAtUtc.UtcDateTime);
+            avroEvent.Channel.Should().Be(DeliveryChannel.Email.Name);
+            avroEvent.OccurredOnUtc.Should().Be(occurredOnUtc.UtcDateTime);
+        }
     }
 }

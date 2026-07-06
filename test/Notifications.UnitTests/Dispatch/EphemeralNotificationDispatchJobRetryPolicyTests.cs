@@ -28,6 +28,7 @@ public sealed class EphemeralNotificationDispatchJobRetryPolicyTests
             .Single();
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void BugClassFailure_IsParkedFailed_OnTheFirstAttempt_WithoutRetry()
     {
         // Arrange — a DataIntegrityException (a CriticalException subclass) on a fresh job (RetryCount = 0).
@@ -42,6 +43,7 @@ public sealed class EphemeralNotificationDispatchJobRetryPolicyTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void TransientFailure_IsRescheduledForItsSingleRetry()
     {
         // Arrange — a RetryableException (transient, NOT bug-class) on a fresh job.
@@ -55,6 +57,7 @@ public sealed class EphemeralNotificationDispatchJobRetryPolicyTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void TransientFailure_AfterTheSingleRetry_IsParkedFailed()
     {
         // Arrange — the same transient failure, but the single retry has already been spent.
@@ -68,6 +71,7 @@ public sealed class EphemeralNotificationDispatchJobRetryPolicyTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void EffectiveRetryPolicy_IsTheClassLevelAttribute_OverridingHangfireGlobalDefault()
     {
         // Resolve the filters Hangfire would actually apply to the job — global default + class-level,
@@ -80,11 +84,13 @@ public sealed class EphemeralNotificationDispatchJobRetryPolicyTests
             .OfType<AutomaticRetryAttribute>()
             .ToList();
 
-        using var _ = new AssertionScope();
-        effectiveRetryPolicies.Should().ContainSingle("the class-level policy overrides Hangfire's global default(10)");
-        effectiveRetryPolicies[0].Attempts.Should().Be(1);
-        effectiveRetryPolicies[0].OnAttemptsExceeded.Should().Be(AttemptsExceededAction.Fail);
-        effectiveRetryPolicies[0].ExceptOn.Should().Contain(typeof(CriticalException));
+        using (new AssertionScope())
+        {
+            effectiveRetryPolicies.Should().ContainSingle("the class-level policy overrides Hangfire's global default(10)");
+            effectiveRetryPolicies[0].Attempts.Should().Be(1);
+            effectiveRetryPolicies[0].OnAttemptsExceeded.Should().Be(AttemptsExceededAction.Fail);
+            effectiveRetryPolicies[0].ExceptOn.Should().Contain(typeof(CriticalException));
+        }
     }
 
     private static ElectStateContext BuildElectStateContext(Exception failure, int retryCount)

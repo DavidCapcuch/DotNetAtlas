@@ -29,12 +29,14 @@ public sealed class NotificationPreferenceTests
             timeZone: "Europe/Prague");
 
         // Assert
-        using var _ = new AssertionScope();
-        preference.UserId.Should().Be(UserId);
-        preference.Email.Should().Be("d.capcuch@gmail.com");
-        preference.EnabledChannels.Should().Equal(ChannelType.Email, ChannelType.Sms, ChannelType.Bell);
-        preference.QuietHoursStart.Should().BeNull();
-        preference.QuietHoursEnd.Should().BeNull();
+        using (new AssertionScope())
+        {
+            preference.UserId.Should().Be(UserId);
+            preference.Email.Should().Be("d.capcuch@gmail.com");
+            preference.EnabledChannels.Should().Equal(ChannelType.Email, ChannelType.Sms, ChannelType.Bell);
+            preference.QuietHoursStart.Should().BeNull();
+            preference.QuietHoursEnd.Should().BeNull();
+        }
     }
 
     [Fact]
@@ -51,9 +53,11 @@ public sealed class NotificationPreferenceTests
             timeZone: "Europe/Prague");
 
         // Assert
-        using var _ = new AssertionScope();
-        preference.QuietHoursStart.Should().Be(new TimeOnly(22, 0));
-        preference.QuietHoursEnd.Should().Be(new TimeOnly(7, 0));
+        using (new AssertionScope())
+        {
+            preference.QuietHoursStart.Should().Be(new TimeOnly(22, 0));
+            preference.QuietHoursEnd.Should().Be(new TimeOnly(7, 0));
+        }
     }
 
     [Theory]

@@ -16,6 +16,7 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
     private static readonly DateTimeOffset StubTimestamp = new(2026, 06, 15, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task GetProductPage_WhenCatalogAndInventorySucceed_Returns200ComposedPage()
     {
         // Arrange
@@ -33,18 +34,20 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         var page = await response.Content.ReadFromJsonAsync<ProductPageResponse>(
             TestContext.Current.CancellationToken);
 
-        using var _ = new AssertionScope();
-        page.Should().NotBeNull();
-        page!.Product.ProductId.Should().Be(productId);
-        page.Product.Name.Should().Be("Laptop");
-        page.Product.CategoryBreadcrumb.Should().Be("Electronics > Computers > Laptops");
-        page.Product.Price.Amount.Should().Be(1299.99m);
-        page.Product.Images.Should().ContainSingle();
-        page.InStock.Should().BeTrue();
-        page.AvailableQty.Should().Be(7);
-        page.HasStaleData.Should().BeFalse();
-        response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
-        response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a fully-composed page is not stale");
+        using (new AssertionScope())
+        {
+            page.Should().NotBeNull();
+            page!.Product.ProductId.Should().Be(productId);
+            page.Product.Name.Should().Be("Laptop");
+            page.Product.CategoryBreadcrumb.Should().Be("Electronics > Computers > Laptops");
+            page.Product.Price.Amount.Should().Be(1299.99m);
+            page.Product.Images.Should().ContainSingle();
+            page.InStock.Should().BeTrue();
+            page.AvailableQty.Should().Be(7);
+            page.HasStaleData.Should().BeFalse();
+            response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+            response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a fully-composed page is not stale");
+        }
     }
 
     [Fact]
@@ -65,6 +68,7 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductPage_WhenInventoryIsDown_Returns200PartialWithStaleData()
     {
         // Arrange
@@ -82,18 +86,21 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         var page = await response.Content.ReadFromJsonAsync<ProductPageResponse>(
             TestContext.Current.CancellationToken);
 
-        using var _ = new AssertionScope();
-        page.Should().NotBeNull();
-        page!.Product.ProductId.Should().Be(productId);
-        page.InStock.Should().BeNull();
-        page.AvailableQty.Should().BeNull();
-        page.HasStaleData.Should().BeTrue();
-        response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
-        // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
-        response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        using (new AssertionScope())
+        {
+            page.Should().NotBeNull();
+            page!.Product.ProductId.Should().Be(productId);
+            page.InStock.Should().BeNull();
+            page.AvailableQty.Should().BeNull();
+            page.HasStaleData.Should().BeTrue();
+            response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
+            // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
+            response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductPage_WhenCatalogIsDownAndCachedPageIsStale_ServesStaleWith200AndStaleHeader()
     {
         // Arrange: compose a healthy page, then plant it back as an entry older than its fresh window so a
@@ -126,15 +133,18 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         var page = await response.Content.ReadFromJsonAsync<ProductPageResponse>(
             TestContext.Current.CancellationToken);
 
-        using var _ = new AssertionScope();
-        page.Should().NotBeNull();
-        page!.Product.ProductId.Should().Be(productId);
-        page.Product.Name.Should().Be("Laptop"); // the last-good cached composition
-        page.HasStaleData.Should().BeTrue();
-        response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        using (new AssertionScope())
+        {
+            page.Should().NotBeNull();
+            page!.Product.ProductId.Should().Be(productId);
+            page.Product.Name.Should().Be("Laptop"); // the last-good cached composition
+            page.HasStaleData.Should().BeTrue();
+            response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductPage_WhenCatalogIsDownAndNoCachedPage_Returns503()
     {
         // Arrange

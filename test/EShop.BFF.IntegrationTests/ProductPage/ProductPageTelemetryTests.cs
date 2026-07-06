@@ -35,11 +35,13 @@ public sealed class ProductPageTelemetryTests(ProductPageTestFixture fixture) : 
             TestContext.Current.CancellationToken);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
-        metrics.Total("bff.partial_response").Should().Be(1,
-            "an inventory-down 200 with partial data must increment bff.partial_response for the product-page endpoint");
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
+            metrics.Total("bff.partial_response").Should().Be(1,
+                "an inventory-down 200 with partial data must increment bff.partial_response for the product-page endpoint");
+        }
     }
 
     [Fact]
@@ -58,10 +60,12 @@ public sealed class ProductPageTelemetryTests(ProductPageTestFixture fixture) : 
         await Fixture.Client.GetAsync($"/api/v1/bff/product-page/{productId}", TestContext.Current.CancellationToken);
 
         // Assert
-        using var _ = new AssertionScope();
-        missesAfterFirst.Should().Be(1, "the first request composes the page (cache miss)");
-        metrics.Total("bff.cache.hits").Should().Be(1, "the second request is served from cache (cache hit)");
-        metrics.Total("bff.cache.misses").Should().Be(1, "the second request must not re-compose");
+        using (new AssertionScope())
+        {
+            missesAfterFirst.Should().Be(1, "the first request composes the page (cache miss)");
+            metrics.Total("bff.cache.hits").Should().Be(1, "the second request is served from cache (cache hit)");
+            metrics.Total("bff.cache.misses").Should().Be(1, "the second request must not re-compose");
+        }
     }
 
     private static object CatalogBody(Guid productId) => new

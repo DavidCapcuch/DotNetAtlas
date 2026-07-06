@@ -51,11 +51,13 @@ public sealed class DatabaseSeedPreferencesTests
         var preferences = DatabaseSeedExtensions.BuildSeedPreferences();
 
         var dCapcuch = preferences.Single(p => p.UserId == DCapcuchSub);
-        using var _ = new AssertionScope();
-        dCapcuch.QuietHoursStart.Should().Be(new TimeOnly(22, 0));
-        dCapcuch.QuietHoursEnd.Should().Be(new TimeOnly(7, 0));
-        dCapcuch.TimeZone.Should().Be("Europe/Prague");
-        dCapcuch.EnabledChannels.Should().Contain(ChannelType.Sms);
+        using (new AssertionScope())
+        {
+            dCapcuch.QuietHoursStart.Should().Be(new TimeOnly(22, 0));
+            dCapcuch.QuietHoursEnd.Should().Be(new TimeOnly(7, 0));
+            dCapcuch.TimeZone.Should().Be("Europe/Prague");
+            dCapcuch.EnabledChannels.Should().Contain(ChannelType.Sms);
+        }
     }
 
     [Fact]
@@ -63,13 +65,15 @@ public sealed class DatabaseSeedPreferencesTests
     {
         var preferences = DatabaseSeedExtensions.BuildSeedPreferences();
 
-        using var _ = new AssertionScope();
-        foreach (var sub in new[] { AdminSub, DevSub })
+        using (new AssertionScope())
         {
-            var preference = preferences.Single(p => p.UserId == sub);
-            preference.QuietHoursStart.Should().BeNull();
-            preference.QuietHoursEnd.Should().BeNull();
-            preference.EnabledChannels.Should().Contain([ChannelType.Email, ChannelType.Sms, ChannelType.Bell]);
+            foreach (var sub in new[] { AdminSub, DevSub })
+            {
+                var preference = preferences.Single(p => p.UserId == sub);
+                preference.QuietHoursStart.Should().BeNull();
+                preference.QuietHoursEnd.Should().BeNull();
+                preference.EnabledChannels.Should().Contain([ChannelType.Email, ChannelType.Sms, ChannelType.Bell]);
+            }
         }
     }
 }

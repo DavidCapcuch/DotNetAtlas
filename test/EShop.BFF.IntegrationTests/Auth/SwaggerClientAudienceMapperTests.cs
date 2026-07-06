@@ -24,23 +24,26 @@ public sealed class SwaggerClientAudienceMapperTests
         ["basket-service", "catalog-service", "inventory-service", "payments-service"];
 
     [Fact]
+    [Trait("Category", "security")]
     public void SwaggerClient_StampsUnconditionalAudiences_OnlyForTheNoScopePathBoundedContexts()
     {
         var audiences = ReadSwaggerUnconditionalAudiences();
 
-        using var _ = new AssertionScope();
-        audiences.Should().BeEquivalentTo(
-            ExpectedUnconditionalAudiences,
-            "the swagger dev tool stamps an unconditional BC aud only where the admin reaches the BC with no scope "
-            + "(ordering/invoicing role-only, notifications authorize-only) plus bff for the token-exchange holder constraint");
-
-        foreach (var forbidden in ForbiddenAudiences)
+        using (new AssertionScope())
         {
-            audiences.Should().NotContain(
-                forbidden,
-                "{0} is either fully BFF-mediated (basket) or role+scope (catalog/inventory/payments, audience rides the "
-                + "requested optional scope) — an unconditional mapper would reopen the direct-path bypass",
-                forbidden);
+            audiences.Should().BeEquivalentTo(
+                ExpectedUnconditionalAudiences,
+                "the swagger dev tool stamps an unconditional BC aud only where the admin reaches the BC with no scope "
+                + "(ordering/invoicing role-only, notifications authorize-only) plus bff for the token-exchange holder constraint");
+
+            foreach (var forbidden in ForbiddenAudiences)
+            {
+                audiences.Should().NotContain(
+                    forbidden,
+                    "{0} is either fully BFF-mediated (basket) or role+scope (catalog/inventory/payments, audience rides the "
+                    + "requested optional scope) — an unconditional mapper would reopen the direct-path bypass",
+                    forbidden);
+            }
         }
     }
 
