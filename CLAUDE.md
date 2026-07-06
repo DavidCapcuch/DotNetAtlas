@@ -69,4 +69,4 @@ Multi-context repo. `CONTEXT-MAP.md` at the root points to per-bounded-context `
 
 This is a non-production reference solution. Breaking changes are always allowed. Including ADRs, which can be rewritten inline after the fact.
 
-BFF service (`src/EShop.BFF/`) is under active build — the read-side pages (home, product, basket) and the buyer-scoped RFC 8693 token exchange are implemented; basket mutations, checkout, and order-summary are not yet built.
+BFF service (`src/EShop.BFF/`) is under active build — the read-side pages (home, product, basket), the buyer-scoped RFC 8693 token exchange, and the basket mutation forwarders are implemented; checkout and order-summary are not yet built.

@@ -1,9 +1,13 @@
+using System.Security.Claims;
 using EShop.BFF.Api.Responses;
 using EShop.BFF.Infrastructure.Caching;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Redis;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
@@ -15,15 +19,18 @@ namespace EShop.BFF.IntegrationTests.Common;
 internal sealed class ProductPageTestCollection : TestCollection<ProductPageTestFixture>;
 
 /// <summary>
-/// Boots the BFF over a real <c>redis-cache</c> Testcontainer with Catalog, Inventory, and the
+/// Boots the BFF over a real <c>redis-cache</c> Testcontainer with Catalog, Inventory, Basket, and the
 /// Keycloak token endpoint faked by a single WireMock server. Exercises the real typed clients
-/// (service-auth + resilience) and the real FusionCache — only the upstreams are stubbed. Each test
-/// uses a fresh ProductId, so per-scenario stubs never collide and no per-test WireMock reset is needed.
+/// (service-auth + resilience, plus the RFC 8693 token-exchange Basket client for the authenticated
+/// <c>AlreadyInBasket</c> overlay) and the real FusionCache — only the upstreams are stubbed. Inbound user
+/// JWTs validate for real against a <see cref="FakeTokenSigner"/> (audience <c>bff</c>). Each test uses a
+/// fresh ProductId, so per-scenario stubs never collide and no per-test WireMock reset is needed.
 /// </summary>
 [DisableWafCache]
 public sealed class ProductPageTestFixture : AppFixture<Program>
 {
     private readonly RedisTestContainer _redisContainer = new();
+    private readonly FakeTokenSigner _signer = new(audience: "bff");
 
     private WireMockServer _upstreams = null!;
 
@@ -47,6 +54,7 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
                 .UseSetting("ConnectionStrings:Redis:Cache", _redisContainer.ConfigurationOptions.ToString())
                 .UseSetting("Bff:Catalog:BaseUrl", upstreamUrl)
                 .UseSetting("Bff:Inventory:BaseUrl", upstreamUrl)
+                .UseSetting("Bff:Basket:BaseUrl", upstreamUrl)
                 .UseSetting("ServiceAuth:Authority", $"{upstreamUrl}/realms/dotnetatlas")
                 .UseSetting("ServiceAuth:ClientId", "bff")
                 .UseSetting("ServiceAuth:ClientSecret", "test-secret")
@@ -60,9 +68,31 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
 
     protected override void ConfigureApp(IWebHostBuilder a)
     {
-        // Warm off — the product-page suite doesn't exercise the home-page warmer.
-        a.UseEnvironment("Testing").UseTestSerilog().UseWarmFlag(enabled: false);
+        // Warm off — the product-page suite doesn't exercise the home-page warmer. Trust the fake signer so
+        // the inbound user-JWT validation runs for real on the authenticated AlreadyInBasket-overlay path.
+        a
+            .UseEnvironment("Testing")
+            .UseTestSerilog()
+            .UseWarmFlag(enabled: false)
+            .ConfigureTestServices(services => services.ConfigureJwtBearerForTests(_signer));
     }
+
+    /// <summary>Mints a user JWT (aud <c>bff</c>) carrying the buyer <c>sub</c>, as the inbound credential.</summary>
+    public string CreateUserToken(Guid userId)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+        };
+        return FakeTokenBuilder.SignToken(_signer, claims);
+    }
+
+    /// <summary>Stubs Basket's <c>GET /api/v1/basket</c> with a 200 basket body (the overlay source).</summary>
+    public void StubBasket(object body) => StubGet("/api/v1/basket", 200, body);
+
+    /// <summary>Stubs Basket's read with a bare status code (e.g. 404 / 500).</summary>
+    public void StubBasketStatus(int statusCode) => StubGet("/api/v1/basket", statusCode, body: null);
 
     /// <summary>Stubs Catalog's <c>GET /api/v1/catalog/products/{id}</c> with a 200 product body.</summary>
     public void StubCatalogProduct(Guid productId, object body) =>
@@ -114,6 +144,7 @@ public sealed class ProductPageTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         _upstreams.Stop();
         _upstreams.Dispose();
         await _redisContainer.DisposeAsync();

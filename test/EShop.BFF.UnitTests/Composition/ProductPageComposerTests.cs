@@ -1,4 +1,5 @@
 using EShop.BFF.Api.Composition;
+using EShop.BFF.Infrastructure.Clients.Basket;
 using EShop.BFF.Infrastructure.Clients.Catalog;
 using EShop.BFF.Infrastructure.Clients.Inventory;
 
@@ -26,14 +27,17 @@ public sealed class ProductPageComposerTests
         var response = ProductPageComposer.Compose(product, stock, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.InStock.Should().BeTrue();
-        response.AvailableQty.Should().Be(7);
-        response.HasStaleData.Should().BeFalse();
-        response.GeneratedAtUtc.Should().Be(GeneratedAt);
+        using (new AssertionScope())
+        {
+            response.InStock.Should().BeTrue();
+            response.AvailableQty.Should().Be(7);
+            response.HasStaleData.Should().BeFalse();
+            response.GeneratedAtUtc.Should().Be(GeneratedAt);
+        }
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Compose_WhenInventoryOutOfStock_ReturnsNotInStockWithZeroQuantityAndNotStale()
     {
         // Arrange
@@ -44,13 +48,16 @@ public sealed class ProductPageComposerTests
         var response = ProductPageComposer.Compose(product, stock, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.InStock.Should().BeFalse();
-        response.AvailableQty.Should().Be(0);
-        response.HasStaleData.Should().BeFalse();
+        using (new AssertionScope())
+        {
+            response.InStock.Should().BeFalse();
+            response.AvailableQty.Should().Be(0);
+            response.HasStaleData.Should().BeFalse();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenInventoryUnavailable_ReturnsNullAvailabilityAndStale()
     {
         // Arrange
@@ -60,14 +67,16 @@ public sealed class ProductPageComposerTests
         var response = ProductPageComposer.Compose(product, stockOrNull: null, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.InStock.Should().BeNull();
-        response.AvailableQty.Should().BeNull();
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            response.InStock.Should().BeNull();
+            response.AvailableQty.Should().BeNull();
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
-    public void Compose_MapsAllProductFieldsFromCatalog()
+    public void Compose_WithFullCatalogProduct_MapsAllProductFields()
     {
         // Arrange
         var product = BuildProduct();
@@ -77,25 +86,28 @@ public sealed class ProductPageComposerTests
         var response = ProductPageComposer.Compose(product, stock, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.Product.ProductId.Should().Be(ProductId);
-        response.Product.Sku.Should().Be("SKU-1");
-        response.Product.Name.Should().Be("Laptop");
-        response.Product.Description.Should().Be("A fast laptop");
-        response.Product.BrandName.Should().Be("Acme");
-        response.Product.CategoryBreadcrumb.Should().Be("Electronics > Computers > Laptops");
-        response.Product.CategoryPath.Should().Be("/electronics/computers/laptops");
-        response.Product.Status.Should().Be("Active");
-        response.Product.Price.Amount.Should().Be(1299.99m);
-        response.Product.Price.Currency.Should().Be("USD");
-        response.Product.Dimensions.Should().NotBeNull();
-        response.Product.Dimensions!.Unit.Should().Be("cm");
-        response.Product.Images.Should().ContainSingle();
-        response.Product.Images[0].Url.Should().Be("https://cdn/img-1.jpg");
-        response.Product.Images[0].DisplayOrder.Should().Be(0);
+        using (new AssertionScope())
+        {
+            response.Product.ProductId.Should().Be(ProductId);
+            response.Product.Sku.Should().Be("SKU-1");
+            response.Product.Name.Should().Be("Laptop");
+            response.Product.Description.Should().Be("A fast laptop");
+            response.Product.BrandName.Should().Be("Acme");
+            response.Product.CategoryBreadcrumb.Should().Be("Electronics > Computers > Laptops");
+            response.Product.CategoryPath.Should().Be("/electronics/computers/laptops");
+            response.Product.Status.Should().Be("Active");
+            response.Product.Price.Amount.Should().Be(1299.99m);
+            response.Product.Price.Currency.Should().Be("USD");
+            response.Product.Dimensions.Should().NotBeNull();
+            response.Product.Dimensions!.Unit.Should().Be("cm");
+            response.Product.Images.Should().ContainSingle();
+            response.Product.Images[0].Url.Should().Be("https://cdn/img-1.jpg");
+            response.Product.Images[0].DisplayOrder.Should().Be(0);
+        }
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Compose_WhenProductHasNoDimensions_MapsDimensionsToNull()
     {
         // Arrange
@@ -108,6 +120,82 @@ public sealed class ProductPageComposerTests
         // Assert
         response.Product.Dimensions.Should().BeNull();
     }
+
+    [Fact]
+    public void WithBasketOverlay_WhenProductInBasket_SetsAlreadyInBasketTrueWithQuantity()
+    {
+        // Arrange — the anonymous cached page, then the per-request buyer overlay (bff.md § 3.1).
+        var page = ProductPageComposer.Compose(BuildProduct(), BuildStock(available: 5), GeneratedAt);
+        var basket = BuildBasket(BasketItem(ProductId, quantity: 4));
+
+        // Act
+        var overlaid = ProductPageComposer.WithBasketOverlay(page, basket, ProductId);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            overlaid.AlreadyInBasket.Should().BeTrue();
+            overlaid.BasketQuantity.Should().Be(4);
+        }
+    }
+
+    [Fact]
+    public void WithBasketOverlay_WhenProductNotInBasket_SetsAlreadyInBasketFalseWithNullQuantity()
+    {
+        // Arrange — basket holds a different product.
+        var page = ProductPageComposer.Compose(BuildProduct(), BuildStock(available: 5), GeneratedAt);
+        var basket = BuildBasket(BasketItem(Guid.Parse("22222222-2222-2222-2222-222222222222"), quantity: 1));
+
+        // Act
+        var overlaid = ProductPageComposer.WithBasketOverlay(page, basket, ProductId);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            overlaid.AlreadyInBasket.Should().BeFalse();
+            overlaid.BasketQuantity.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public void WithBasketOverlay_WhenApplied_LeavesTheCachedProductAndAvailabilityUntouched()
+    {
+        // Arrange — the overlay must not disturb the shared anonymous composite.
+        var page = ProductPageComposer.Compose(BuildProduct(), BuildStock(available: 5), GeneratedAt);
+        var basket = BuildBasket(BasketItem(ProductId, quantity: 2));
+
+        // Act
+        var overlaid = ProductPageComposer.WithBasketOverlay(page, basket, ProductId);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            overlaid.Product.Should().BeSameAs(page.Product);
+            overlaid.InStock.Should().Be(page.InStock);
+            overlaid.AvailableQty.Should().Be(page.AvailableQty);
+            overlaid.HasStaleData.Should().Be(page.HasStaleData);
+            overlaid.GeneratedAtUtc.Should().Be(page.GeneratedAtUtc);
+        }
+    }
+
+    private static BasketDto BuildBasket(params BasketItemDto[] items) =>
+        new(
+            UserId: Guid.NewGuid(),
+            Version: 1,
+            Items: items,
+            Total: new BasketMoneyDto(0m, "USD"),
+            CreatedAtUtc: GeneratedAt,
+            LastModifiedAtUtc: GeneratedAt);
+
+    private static BasketItemDto BasketItem(Guid productId, int quantity) =>
+        new(
+            ProductId: productId,
+            Sku: "SKU",
+            Name: "Item",
+            SnapshotPrice: new BasketMoneyDto(10m, "USD"),
+            Quantity: quantity,
+            CapturedAtUtc: GeneratedAt,
+            LineTotal: new BasketMoneyDto(10m * quantity, "USD"));
 
     private static CatalogProductDto BuildProduct() =>
         new(

@@ -16,6 +16,17 @@ public sealed record ProductPageResponse
     /// <summary>Available quantity; <c>null</c> when Inventory was unavailable.</summary>
     public int? AvailableQty { get; init; }
 
+    /// <summary>
+    /// Whether the item is already in the authenticated buyer's basket (bff.md § 3.1). A per-request,
+    /// never-cached overlay: <c>null</c> for an anonymous caller <em>and</em> when Basket was unavailable on
+    /// the auth path (the latter also sets <c>X-BFF-PartialData: basket</c>); <c>false</c> when the buyer
+    /// definitively has no such line.
+    /// </summary>
+    public bool? AlreadyInBasket { get; init; }
+
+    /// <summary>The quantity already in the buyer's basket; <c>null</c> unless <see cref="AlreadyInBasket"/> is true.</summary>
+    public int? BasketQuantity { get; init; }
+
     /// <summary><c>true</c> when any upstream datum is missing (here: Inventory unavailable).</summary>
     public required bool HasStaleData { get; init; }
 

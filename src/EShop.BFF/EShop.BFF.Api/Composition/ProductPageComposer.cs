@@ -1,4 +1,5 @@
 using EShop.BFF.Api.Responses;
+using EShop.BFF.Infrastructure.Clients.Basket;
 using EShop.BFF.Infrastructure.Clients.Catalog;
 using EShop.BFF.Infrastructure.Clients.Inventory;
 
@@ -43,6 +44,26 @@ internal static class ProductPageComposer
             AvailableQty = null,
             HasStaleData = true,
             GeneratedAtUtc = generatedAtUtc,
+        };
+    }
+
+    /// <summary>
+    /// Overlays the authenticated buyer's basket state onto an already-composed page (bff.md § 3.1) —
+    /// <see cref="ProductPageResponse.AlreadyInBasket"/> = the basket holds a line for
+    /// <paramref name="productId"/>, with its <see cref="ProductPageResponse.BasketQuantity"/>. Per-request
+    /// and never cached (the shared cached page is the anonymous composite). The product / availability /
+    /// staleness fields are untouched.
+    /// </summary>
+    public static ProductPageResponse WithBasketOverlay(
+        ProductPageResponse page,
+        BasketDto basket,
+        Guid productId)
+    {
+        var line = basket.Items.FirstOrDefault(item => item.ProductId == productId);
+        return page with
+        {
+            AlreadyInBasket = line is not null,
+            BasketQuantity = line?.Quantity,
         };
     }
 

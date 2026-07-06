@@ -1,5 +1,4 @@
 using System.Net;
-using System.Security.Claims;
 using EShop.BFF.Api.Common;
 using EShop.BFF.Api.Composition;
 using EShop.BFF.Api.Endpoints;
@@ -68,7 +67,7 @@ internal sealed class GetBasketEndpoint : EndpointWithoutRequest<BasketPageRespo
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        if (!TryGetUserId(out var userId))
+        if (!BffUser.TryGetBuyerId(User, out var userId))
         {
             // Authenticated but no parseable sub — a malformed token; fail closed.
             await Send.UnauthorizedAsync(ct);
@@ -191,14 +190,6 @@ internal sealed class GetBasketEndpoint : EndpointWithoutRequest<BasketPageRespo
             // Every partial 200 (cache hit or miss) counts — the rate is the degraded-UX signal (bff.md § 2.4).
             BffMetrics.RecordPartialResponse(BffMetrics.BasketEndpoint);
         }
-    }
-
-    private bool TryGetUserId(out Guid userId)
-    {
-        // Prefer the raw `sub`; fall back to ClaimTypes.NameIdentifier (JwtBearer maps `sub` onto it when
-        // MapInboundClaims is on). Mirrors Basket's GetUserIdFromSubClaim.
-        var raw = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(raw, out userId);
     }
 
     private static BasketDto EmptyBasket(Guid userId) =>

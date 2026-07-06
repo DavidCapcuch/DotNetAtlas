@@ -75,12 +75,15 @@ public sealed class BasketPageTestFixture : AppFixture<Program>
             .ConfigureTestServices(services => services.ConfigureJwtBearerForTests(_signer));
 
     /// <summary>Mints a user JWT (aud <c>bff</c>) carrying the buyer <c>sub</c>, as the inbound credential.</summary>
-    public string CreateUserToken(Guid userId)
+    public string CreateUserToken(Guid userId) => CreateUserToken(userId.ToString());
+
+    /// <summary>Mints a user JWT with a raw — possibly non-GUID — <c>sub</c>, for fail-closed tests.</summary>
+    public string CreateUserToken(string sub)
     {
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(JwtRegisteredClaimNames.Sub, sub),
+            new(ClaimTypes.NameIdentifier, sub),
         };
         return FakeTokenBuilder.SignToken(_signer, claims);
     }
@@ -104,6 +107,69 @@ public sealed class BasketPageTestFixture : AppFixture<Program>
     /// <summary>Stubs Inventory's bulk read with a bare status code (e.g. 500).</summary>
     public void StubInventoryBulkStatus(int statusCode) =>
         StubPost("/api/v1/inventory/stock-items/bulk", statusCode, body: null);
+
+    /// <summary>Stubs Basket's <c>POST /api/v1/basket/items</c> (add item) with a bare status code.</summary>
+    public void StubBasketAddItem(int statusCode) =>
+        Stub(Request.Create().WithPath("/api/v1/basket/items").UsingPost(), statusCode, body: null);
+
+    /// <summary>Stubs Basket's add-item with an RFC 9457 problem-details decline (status + raw body).</summary>
+    public void StubBasketAddItemProblem(int statusCode, string problemJson) =>
+        _upstreams
+            .Given(Request.Create().WithPath("/api/v1/basket/items").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(statusCode)
+                .WithHeader("Content-Type", "application/problem+json")
+                .WithBody(problemJson));
+
+    /// <summary>Stubs Basket's <c>PUT /api/v1/basket/items/{productId}/quantity</c> with a bare status code.</summary>
+    public void StubBasketChangeQuantity(Guid productId, int statusCode) =>
+        Stub(Request.Create().WithPath($"/api/v1/basket/items/{productId}/quantity").UsingPut(), statusCode, body: null);
+
+    /// <summary>Stubs Basket's <c>DELETE /api/v1/basket/items/{productId}</c> (remove item) with a bare status code.</summary>
+    public void StubBasketRemoveItem(Guid productId, int statusCode) =>
+        Stub(Request.Create().WithPath($"/api/v1/basket/items/{productId}").UsingDelete(), statusCode, body: null);
+
+    /// <summary>Stubs Basket's <c>DELETE /api/v1/basket/items</c> (clear) with a bare status code.</summary>
+    public void StubBasketClear(int statusCode) =>
+        Stub(Request.Create().WithPath("/api/v1/basket/items").UsingDelete(), statusCode, body: null);
+
+    /// <summary>
+    /// The OAuth2 <c>scope</c> on the last RFC 8693 exchange request the BFF made to the Keycloak token
+    /// endpoint — proves which scope (e.g. <c>basket.write</c> vs <c>basket.read</c>) drove the exchange.
+    /// </summary>
+    public string? LastTokenExchangeScope()
+    {
+        var body = _upstreams.LogEntries
+            .LastOrDefault(log =>
+                log.RequestMessage?.Path == "/realms/dotnetatlas/protocol/openid-connect/token")
+            ?.RequestMessage?.Body;
+
+        if (string.IsNullOrEmpty(body))
+        {
+            return null;
+        }
+
+        foreach (var pair in body.Split('&'))
+        {
+            var kv = pair.Split('=', 2);
+            if (kv.Length == 2 && kv[0] == "scope")
+            {
+                return Uri.UnescapeDataString(kv[1]);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The value of <paramref name="headerName"/> on the last upstream request to <paramref name="path"/>, or null.</summary>
+    public string? HeaderOnLastRequestTo(string path, string headerName)
+    {
+        var request = _upstreams.LogEntries
+            .LastOrDefault(log => log.RequestMessage?.Path == path)?.RequestMessage;
+        return request?.Headers is { } headers && headers.TryGetValue(headerName, out var values)
+            ? values?.FirstOrDefault()
+            : null;
+    }
 
     /// <summary>Wipes all upstream stubs (re-adding only the token endpoint) so a test can flip health mid-run.</summary>
     public void ResetUpstreams()

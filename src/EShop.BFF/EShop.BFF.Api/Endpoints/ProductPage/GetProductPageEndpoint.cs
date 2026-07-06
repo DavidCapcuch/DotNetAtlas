@@ -4,6 +4,7 @@ using EShop.BFF.Api.Composition;
 using EShop.BFF.Api.Endpoints;
 using EShop.BFF.Api.Responses;
 using EShop.BFF.Infrastructure.Caching;
+using EShop.BFF.Infrastructure.Clients.Basket;
 using EShop.BFF.Infrastructure.Clients.Catalog;
 using EShop.BFF.Infrastructure.Clients.Inventory;
 using EShop.BFF.Infrastructure.Common.Observability;
@@ -29,17 +30,20 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
 
     private readonly ICatalogClient _catalog;
     private readonly IInventoryClient _inventory;
+    private readonly IBasketClient _basket;
     private readonly IFusionCache _cache;
     private readonly TimeProvider _timeProvider;
 
     public GetProductPageEndpoint(
         ICatalogClient catalog,
         IInventoryClient inventory,
+        IBasketClient basket,
         IFusionCache cache,
         TimeProvider timeProvider)
     {
         _catalog = catalog;
         _inventory = inventory;
+        _basket = basket;
         _cache = cache;
         _timeProvider = timeProvider;
     }
@@ -114,20 +118,65 @@ internal sealed class GetProductPageEndpoint : Endpoint<GetProductPageRequest, P
             page = page with { HasStaleData = true };
         }
 
+        var partialSources = new List<string>(capacity: 2);
         if (page.InStock is null)
         {
             // Inventory was unavailable at composition time (bff.md § 3.1 failure table).
-            HttpContext.Response.Headers["X-BFF-PartialData"] = "inventory";
+            partialSources.Add("inventory");
+        }
+
+        // Per-request, never-cached buyer overlay (bff.md § 3.1): the shared cached page is the anonymous
+        // composite; AlreadyInBasket is computed fresh per request so one buyer's basket never leaks.
+        page = await ApplyBasketOverlayAsync(page, productId, partialSources, ct);
+
+        if (partialSources.Count > 0)
+        {
+            HttpContext.Response.Headers["X-BFF-PartialData"] = string.Join(", ", partialSources);
 
             // Every partial 200 (cache hit or miss) counts — the rate is the degraded-UX signal (bff.md § 2.4).
             BffMetrics.RecordPartialResponse(BffMetrics.ProductPageEndpoint);
         }
 
-        // A fail-safe stale serve or a partial-degraded compose both carry HasStaleData (bff.md § 2.4).
+        // A fail-safe stale serve or a partial-degraded compose both carry HasStaleData (bff.md § 2.4). A
+        // missing basket overlay is NOT staleness — it never sets HasStaleData (bff.md § 3.1 failure table).
         HttpContext.Response.SignalStale(page.HasStaleData);
         BffMetrics.TagRequest(BffMetrics.ProductPageEndpoint, cacheHit, page.HasStaleData);
 
         await Send.OkAsync(page, ct);
+    }
+
+    /// <summary>
+    /// Enriches the page with the authenticated buyer's basket state (bff.md § 3.1). Anonymous → unchanged.
+    /// A 404 (no basket) means the product is definitively not in it (false). A transport / 5xx / 4xx basket
+    /// failure must never break the page: <c>AlreadyInBasket</c> stays null and <c>basket</c> is flagged
+    /// partial. The basket read uses the <c>basket.read</c> exchange (the buyer <c>sub</c> rides the token).
+    /// </summary>
+    private async Task<ProductPageResponse> ApplyBasketOverlayAsync(
+        ProductPageResponse page, Guid productId, List<string> partialSources, CancellationToken ct)
+    {
+        // A parseable buyer sub ⇒ the request authenticated with a bff-audience token, so the exchange has an
+        // inbound JWT to re-audience. Anonymous requests carry no sub — skip the call entirely.
+        if (!BffUser.TryGetBuyerId(User, out _))
+        {
+            return page;
+        }
+
+        var basketResult = await _basket.GetBasketAsync(ct);
+
+        if (basketResult.IsSuccess)
+        {
+            return ProductPageComposer.WithBasketOverlay(page, basketResult.Value, productId);
+        }
+
+        if (basketResult.HasError<NotFoundError>())
+        {
+            // No basket yet → the product is definitively not in it (a known answer, not a degraded one).
+            return page with { AlreadyInBasket = false, BasketQuantity = null };
+        }
+
+        // Transport / 5xx → unknown: AlreadyInBasket stays null + flag basket partial (page still 200).
+        partialSources.Add("basket");
+        return page;
     }
 
     private async Task<ProductPageResponse?> ComposeAsync(
