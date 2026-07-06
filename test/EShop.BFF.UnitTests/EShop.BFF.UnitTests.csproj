@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
     <ItemGroup>
+        <PackageReference Include="NSubstitute" />
+    </ItemGroup>
+    <ItemGroup>
         <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Api\EShop.BFF.Api.csproj" />
         <ProjectReference Include="..\..\src\EShop.BFF\EShop.BFF.Infrastructure\EShop.BFF.Infrastructure.csproj" />
         <!-- Avro contract types for the cache-invalidation tag-map test. -->

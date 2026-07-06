@@ -7,7 +7,7 @@
 
 This document specifies the **Backend-for-Frontend** (BFF) service: the public-facing aggregation HTTP API consumed by the eShop web/mobile clients. The BFF lives in `src/EShop.BFF/` and composes responses from the four internal services (Catalog, Basket, Ordering, Inventory). The BFF has no own database and no own domain — it is a composition + caching + resilience layer, plus **one** state-changing seam: the idempotent `POST /api/v1/bff/checkout` that triggers the Checkout saga (ADR-0013 / ADR-0029).
 
-**Design lineage:** BFF positioning and relationship to YARP are already fixed in [eshop-general-plan.md](../eshop-general-plan.md) (YARP handles routing/SSL; BFF handles response aggregation). This document specifies the five endpoints (four read-composition GETs + the idempotent `POST /api/v1/bff/checkout`), the HTTP client contracts, the resilience pipeline, the caching strategy, and the Kafka invalidation consumer. All BFF routes live under `/api/v1/bff/...` ([ADR-0012](../adr/0012-api-versioning.md)).
+**Design lineage:** BFF positioning and relationship to YARP are already fixed in [eshop-general-plan.md](../eshop-general-plan.md) (YARP handles routing/SSL; BFF handles response aggregation). This document specifies the read-composition GETs (home, product, basket, order-summary), the four basket item-mutation forwarders (§ 3.6), and the idempotent `POST /api/v1/bff/checkout`, plus the HTTP client contracts, the resilience pipeline, the caching strategy, and the Kafka invalidation consumer. All BFF routes live under `/api/v1/bff/...` ([ADR-0012](../adr/0012-api-versioning.md)).
 
 ---
 
@@ -19,6 +19,7 @@ src/EShop.BFF/
 │   ├── Endpoints/
 │   │   ├── ProductPageEndpoint.cs
 │   │   ├── BasketEndpoint.cs
+│   │   ├── BasketMutations/              # § 3.6 — four thin write forwarders + synchronous invalidation
 │   │   ├── OrderSummaryEndpoint.cs
 │   │   ├── HomePageEndpoint.cs
 │   │   └── CheckoutEndpoint.cs           # POST /api/v1/bff/checkout — .Idempotency() (ADR-0013)
@@ -43,7 +44,10 @@ src/EShop.BFF/
     │   ├── Basket/
     │   │   ├── IBasketClient.cs
     │   │   ├── BasketHttpClient.cs
-    │   │   └── BasketDtos.cs
+    │   │   ├── BasketDtos.cs
+    │   │   ├── IBasketWriteClient.cs      # § 3.6 — basket.write exchange, verdict relay
+    │   │   ├── BasketWriteHttpClient.cs
+    │   │   └── BasketWriteDtos.cs
     │   ├── Ordering/
     │   │   ├── IOrderingClient.cs
     │   │   ├── OrderingHttpClient.cs
@@ -236,7 +240,8 @@ Public product-detail page — composes Catalog (product info) + Inventory (stoc
   | Catalog 404 | Return 404. No partial response. | — |
   | Inventory timeout / 5xx | Return product with `InStock = null`, `AvailableQty = null`, `HasStaleData = true`. 200 OK. | `X-BFF-Stale: true`; `X-BFF-PartialData: inventory`. |
   | Inventory 404 | Same as timeout — indicates stock item not initialized yet; treat as "unknown availability". | `X-BFF-PartialData: inventory`. |
-  | Basket timeout / 5xx / 4xx (auth path only) | Set `AlreadyInBasket = null` + continue. Never let basket failure break product page. | `X-BFF-PartialData: basket`. |
+  | Basket 404 (auth path only) | No basket yet — a **definitive** answer, not degraded data: `AlreadyInBasket = false`, `BasketQuantity = null`. (Flagging it partial would fire the § 2.4 partial-data metric for every basket-less buyer, drowning real degradation.) | none |
+  | Basket timeout / 5xx / other 4xx (auth path only) | Set `AlreadyInBasket = null` + continue. Never let basket failure break product page. | `X-BFF-PartialData: basket`. |
   | Catalog circuit open | Serve stale cache or 503. Do not issue call. | `X-BFF-Stale: true` (if stale). |
   | Network unavailable | Serve from cache unconditionally with `HasStaleData = true`. If no cache, 503. | `X-BFF-Stale: true`. |
 - **Cache invalidation hooks (external Kafka events):**
@@ -483,7 +488,7 @@ Public landing page — featured products + full category tree + stock highlight
 
 ### 3.5 `POST /api/v1/bff/checkout`
 
-The BFF's **only** state-changing endpoint and the system's **#1 idempotency target** ([ADR-0013](../adr/0013-idempotency-key-http.md) — a customer double-clicking "Pay now" must not place two orders). It triggers the Checkout saga by forwarding to Basket's checkout command; the BFF adds the idempotency seam, the buyer-scoped token exchange (§ 2.3), and returns the pre-assigned `OrderId`.
+The BFF's most critical state-changing endpoint (the basket item mutations, § 3.6, also write through the BFF) and the system's **#1 idempotency target** ([ADR-0013](../adr/0013-idempotency-key-http.md) — a customer double-clicking "Pay now" must not place two orders). It triggers the Checkout saga by forwarding to Basket's checkout command; the BFF adds the idempotency seam, the buyer-scoped token exchange (§ 2.3), and returns the pre-assigned `OrderId`.
 
 > **Checkout is the saga seam — the BFF *owns* its idempotency here.** The item-level mutations (§ 3.6) are thin forwarders the BFF runs only so it can keep its basket-read cache coherent; their idempotency stays in Basket. Checkout is different: it is the system's #1 idempotency target ([ADR-0013](../adr/0013-idempotency-key-http.md)) and the Checkout-saga trigger, so the BFF owns the idempotency seam at this hop rather than forwarding it to Basket.
 
@@ -539,7 +544,7 @@ Consumer basket access is **BFF-mediated** — there is no direct consumer→Bas
 - **Authentication/authorization:** **Required.** Reached via the **RFC 8693 token exchange** (§ 2.3) on the `bff` client's **`basket.write`** scope — re-audiences the user JWT to `basket-service` while preserving the buyer `sub`, so Basket's `ValidateAudience` passes and `GetUserIdFromSubClaim` resolves the buyer. Identical to checkout's exchange (§ 3.5).
 - **Why through the BFF, not direct:** these forward verbatim, but routing them through the BFF buys two things a direct path cannot — (1) **synchronous invalidation** of the `basket-bff-{userId}` read cache (§ 3.2), so there is no stale-window workaround; (2) a **single auth boundary** — the user JWT never carries a BC audience, so the app client provisions no BC scope ([ADR-0010](../adr/0010-service-to-service-auth.md) minimalism) and Basket's write surface stays off the public edge. This is the canonical record superseding the earlier "item mutations go direct" stance, reconciling this doc with the master-design integration map ([eshop-master-design.md § 4.2](../eshop-master-design.md), which already models `AddItemToBasketCommand` as a BFF→Basket call).
 - **Idempotency:** `AddItem` carries Basket-side `.Idempotency()`; the BFF forwards the `Idempotency-Key` header unchanged. `change-quantity` (PUT) and `remove` / `clear` (DELETE) are idempotent by HTTP-method semantics. Only **checkout's** idempotency is BFF-owned (§ 3.5, [ADR-0013](../adr/0013-idempotency-key-http.md)).
-- **Behavior:** forward → on Basket success, `RemoveByTagAsync("basket-bff-{userId}")` → return Basket's status (`204` / `404` / `409` / `422`) verbatim. The mutation itself is never cached.
+- **Behavior:** forward → on Basket success (2xx), **synchronously** `RemoveByTagAsync("basket-bff-{userId}")` before responding → relay Basket's verdict (`204` / `400` / `404` / `409` / `422`, including any RFC 9457 problem-details body) verbatim. A Basket `401`/`403` rejects the *exchanged* service token (broken exchange infra, not the buyer's credential) and is shielded as `503`, like ≥ 500 / transport failure. The invalidation is best-effort and post-commit: it never aborts on client disconnect, and a cache fault never fails the already-committed mutation — the short read TTL (§ 3.2) + the `basket.sessions` invalidator backstop a missed eviction. The mutation itself is never cached.
 
 ---
 

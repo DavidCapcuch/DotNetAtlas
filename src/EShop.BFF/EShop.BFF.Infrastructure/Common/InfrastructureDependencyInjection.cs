@@ -32,6 +32,7 @@ public static class InfrastructureDependencyInjection
             .AddCatalogClient(configuration)
             .AddInventoryClient(configuration)
             .AddBasketClient(configuration)
+            .AddBasketWriteClient()
             .AddBffMessaging(configuration)
             .AddBffHealthChecks();
 
