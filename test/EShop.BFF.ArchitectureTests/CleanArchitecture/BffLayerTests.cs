@@ -52,9 +52,11 @@ public sealed class BffLayerTests : BaseTest
         // Checked at the assembly-reference level (not by namespace): the BFF consumes Avro records that
         // live in BC-named namespaces (Catalog.Products, Inventory.Stock, …) but ship from the
         // Platform.SchemaRegistry.Contracts assembly — those are allowed; a real BC assembly is not.
-        using var _ = new AssertionScope();
-        AssertReferencesNoBoundedContextAssembly(ApiAssembly);
-        AssertReferencesNoBoundedContextAssembly(InfrastructureAssembly);
+        using (new AssertionScope())
+        {
+            AssertReferencesNoBoundedContextAssembly(ApiAssembly);
+            AssertReferencesNoBoundedContextAssembly(InfrastructureAssembly);
+        }
     }
 
     private static void AssertReferencesNoBoundedContextAssembly(Assembly assembly)

@@ -29,19 +29,21 @@ public sealed class HomePageComposerTests
         var response = HomePageComposer.Compose(featured, tree, stock, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.HasStaleData.Should().BeFalse();
-        response.GeneratedAtUtc.Should().Be(GeneratedAt);
-        response.CategoryTree.Should().NotBeNull();
-        response.CategoryTree!.Nodes.Should().ContainSingle();
+        using (new AssertionScope())
+        {
+            response.HasStaleData.Should().BeFalse();
+            response.GeneratedAtUtc.Should().Be(GeneratedAt);
+            response.CategoryTree.Should().NotBeNull();
+            response.CategoryTree!.Nodes.Should().ContainSingle();
 
-        var laptop = response.FeaturedProducts.Single(p => p.ProductId == LaptopId);
-        laptop.InStock.Should().BeTrue();
-        laptop.AvailableQty.Should().Be(7);
+            var laptop = response.FeaturedProducts.Single(p => p.ProductId == LaptopId);
+            laptop.InStock.Should().BeTrue();
+            laptop.AvailableQty.Should().Be(7);
 
-        var mouse = response.FeaturedProducts.Single(p => p.ProductId == MouseId);
-        mouse.InStock.Should().BeFalse();
-        mouse.AvailableQty.Should().Be(0);
+            var mouse = response.FeaturedProducts.Single(p => p.ProductId == MouseId);
+            mouse.InStock.Should().BeFalse();
+            mouse.AvailableQty.Should().Be(0);
+        }
     }
 
     [Fact]
@@ -54,18 +56,21 @@ public sealed class HomePageComposerTests
         var response = HomePageComposer.Compose(featured, Tree(), Bulk((LaptopId, 3)), GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var product = response.FeaturedProducts.Single();
-        product.Sku.Should().Be("SKU-Laptop");
-        product.Name.Should().Be("Laptop");
-        product.BrandName.Should().Be("Acme");
-        product.CategoryBreadcrumb.Should().Be("Electronics > Computers");
-        product.Price.Amount.Should().Be(1299.99m);
-        product.Price.Currency.Should().Be("USD");
-        product.PrimaryImageUrl.Should().Be("https://cdn/Laptop.jpg");
+        using (new AssertionScope())
+        {
+            var product = response.FeaturedProducts.Single();
+            product.Sku.Should().Be("SKU-Laptop");
+            product.Name.Should().Be("Laptop");
+            product.BrandName.Should().Be("Acme");
+            product.CategoryBreadcrumb.Should().Be("Electronics > Computers");
+            product.Price.Amount.Should().Be(1299.99m);
+            product.Price.Currency.Should().Be("USD");
+            product.PrimaryImageUrl.Should().Be("https://cdn/Laptop.jpg");
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenCategoryTreeUnavailable_KeepsFeaturedButNullsTreeAndIsStale()
     {
         // Arrange
@@ -75,14 +80,17 @@ public sealed class HomePageComposerTests
         var response = HomePageComposer.Compose(featured, categoryTreeOrNull: null, Bulk((LaptopId, 5)), GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.CategoryTree.Should().BeNull();
-        response.FeaturedProducts.Should().ContainSingle();
-        response.FeaturedProducts.Single().AvailableQty.Should().Be(5);
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            response.CategoryTree.Should().BeNull();
+            response.FeaturedProducts.Should().ContainSingle();
+            response.FeaturedProducts.Single().AvailableQty.Should().Be(5);
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenInventoryUnavailable_NullsAvailabilityAndHighlightsAndIsStale()
     {
         // Arrange
@@ -92,11 +100,13 @@ public sealed class HomePageComposerTests
         var response = HomePageComposer.Compose(featured, Tree(), stockOrNull: null, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.FeaturedProducts.Single().InStock.Should().BeNull();
-        response.FeaturedProducts.Single().AvailableQty.Should().BeNull();
-        response.StockHighlights.Should().BeNull();
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            response.FeaturedProducts.Single().InStock.Should().BeNull();
+            response.FeaturedProducts.Single().AvailableQty.Should().BeNull();
+            response.StockHighlights.Should().BeNull();
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
@@ -112,15 +122,18 @@ public sealed class HomePageComposerTests
         var response = HomePageComposer.Compose(featured, Tree(), stock, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.StockHighlights.Should().ContainSingle();
-        var highlight = response.StockHighlights!.Single();
-        highlight.ProductId.Should().Be(MouseId);
-        highlight.Name.Should().Be("Mouse");
-        highlight.AvailableQty.Should().Be(4);
+        using (new AssertionScope())
+        {
+            response.StockHighlights.Should().ContainSingle();
+            var highlight = response.StockHighlights!.Single();
+            highlight.ProductId.Should().Be(MouseId);
+            highlight.Name.Should().Be("Mouse");
+            highlight.AvailableQty.Should().Be(4);
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenProductMissingFromBulk_NullsThatItemsAvailability()
     {
         // Arrange — the mouse has no initialized stock item (returned in MissingProductIds);
@@ -134,12 +147,14 @@ public sealed class HomePageComposerTests
         var response = HomePageComposer.Compose(featured, Tree(), stock, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.FeaturedProducts.Single(p => p.ProductId == LaptopId).AvailableQty.Should().Be(7);
-        var mouse = response.FeaturedProducts.Single(p => p.ProductId == MouseId);
-        mouse.InStock.Should().BeNull();
-        mouse.AvailableQty.Should().BeNull();
-        response.HasStaleData.Should().BeFalse();
+        using (new AssertionScope())
+        {
+            response.FeaturedProducts.Single(p => p.ProductId == LaptopId).AvailableQty.Should().Be(7);
+            var mouse = response.FeaturedProducts.Single(p => p.ProductId == MouseId);
+            mouse.InStock.Should().BeNull();
+            mouse.AvailableQty.Should().BeNull();
+            response.HasStaleData.Should().BeFalse();
+        }
     }
 
     private static CatalogProductSummaryDto Summary(Guid productId, string name) =>

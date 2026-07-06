@@ -79,14 +79,16 @@ public sealed class PendingCreditNoteProjectionTests
             var midRow = await db.PendingCreditNotes.AsNoTracking()
                 .SingleAsync(r => r.OrderId == orderId, ct);
 
-            using var _ = new AssertionScope();
-            midRow.OrderId.Should().Be(orderId);
-            midRow.BuyerId.Should().Be(buyerId);
-            midRow.OrderPayload.Should().NotBeNullOrEmpty();
-            AssertOrderPayloadMatches(midRow.OrderPayload!, cancelEvent);
-            midRow.PaymentId.Should().BeNull();
-            midRow.CompletedAtUtc.Should().BeNull();
-            midRow.IssuedCreditNoteId.Should().BeNull();
+            using (new AssertionScope())
+            {
+                midRow.OrderId.Should().Be(orderId);
+                midRow.BuyerId.Should().Be(buyerId);
+                midRow.OrderPayload.Should().NotBeNullOrEmpty();
+                AssertOrderPayloadMatches(midRow.OrderPayload!, cancelEvent);
+                midRow.PaymentId.Should().BeNull();
+                midRow.CompletedAtUtc.Should().BeNull();
+                midRow.IssuedCreditNoteId.Should().BeNull();
+            }
         }
 
         await using (var refundScope = _fixture.CreateScope())
@@ -109,15 +111,17 @@ public sealed class PendingCreditNoteProjectionTests
             var converged = await db.PendingCreditNotes.AsNoTracking()
                 .SingleAsync(r => r.OrderId == orderId, ct);
 
-            using var _ = new AssertionScope();
-            converged.OrderId.Should().Be(orderId);
-            converged.PaymentId.Should().Be(paymentTransactionId);
-            converged.OrderPayload.Should().NotBeNullOrEmpty();
-            AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
-            converged.PaymentPayload.Should().NotBeNullOrEmpty();
-            converged.FirstSeenAtUtc.Should().Be(CancelArrivalUtc);
-            converged.CompletedAtUtc.Should().Be(RefundArrivalUtc);
-            converged.IssuedCreditNoteId.Should().BeNull();
+            using (new AssertionScope())
+            {
+                converged.OrderId.Should().Be(orderId);
+                converged.PaymentId.Should().Be(paymentTransactionId);
+                converged.OrderPayload.Should().NotBeNullOrEmpty();
+                AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
+                converged.PaymentPayload.Should().NotBeNullOrEmpty();
+                converged.FirstSeenAtUtc.Should().Be(CancelArrivalUtc);
+                converged.CompletedAtUtc.Should().Be(RefundArrivalUtc);
+                converged.IssuedCreditNoteId.Should().BeNull();
+            }
         }
     }
 
@@ -152,16 +156,18 @@ public sealed class PendingCreditNoteProjectionTests
             var midRow = await db.PendingCreditNotes.AsNoTracking()
                 .SingleAsync(r => r.OrderId == orderId, ct);
 
-            using var _ = new AssertionScope();
-            midRow.PaymentId.Should().Be(paymentTransactionId);
-            midRow.PaymentPayload.Should().NotBeNullOrEmpty();
-            // OrderId is the PK — set by whichever half arrives first (here, the refund half
-            // carries it post-ADR-0029). The "order-cancel half not yet seen" sentinel is OrderPayload.
-            midRow.OrderId.Should().Be(orderId);
-            midRow.OrderPayload.Should().BeNull();
-            midRow.BuyerId.Should().BeNull("buyer comes from the order-cancel half");
-            midRow.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
-            midRow.CompletedAtUtc.Should().BeNull();
+            using (new AssertionScope())
+            {
+                midRow.PaymentId.Should().Be(paymentTransactionId);
+                midRow.PaymentPayload.Should().NotBeNullOrEmpty();
+                // OrderId is the PK — set by whichever half arrives first (here, the refund half
+                // carries it post-ADR-0029). The "order-cancel half not yet seen" sentinel is OrderPayload.
+                midRow.OrderId.Should().Be(orderId);
+                midRow.OrderPayload.Should().BeNull();
+                midRow.BuyerId.Should().BeNull("buyer comes from the order-cancel half");
+                midRow.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
+                midRow.CompletedAtUtc.Should().BeNull();
+            }
         }
 
         var cancelEvent = BuildOrderCancelledEvent(
@@ -184,15 +190,17 @@ public sealed class PendingCreditNoteProjectionTests
             var converged = await db.PendingCreditNotes.AsNoTracking()
                 .SingleAsync(r => r.OrderId == orderId, ct);
 
-            using var _ = new AssertionScope();
-            converged.OrderId.Should().Be(orderId);
-            converged.PaymentId.Should().Be(paymentTransactionId);
-            converged.BuyerId.Should().Be(buyerId);
-            converged.OrderPayload.Should().NotBeNullOrEmpty();
-            AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
-            converged.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
-            converged.CompletedAtUtc.Should().Be(cancelClock.GetUtcNow());
-            converged.IssuedCreditNoteId.Should().BeNull("M7 stub does not mutate IssuedCreditNoteId");
+            using (new AssertionScope())
+            {
+                converged.OrderId.Should().Be(orderId);
+                converged.PaymentId.Should().Be(paymentTransactionId);
+                converged.BuyerId.Should().Be(buyerId);
+                converged.OrderPayload.Should().NotBeNullOrEmpty();
+                AssertOrderPayloadMatches(converged.OrderPayload!, cancelEvent);
+                converged.FirstSeenAtUtc.Should().Be(RefundArrivalUtc);
+                converged.CompletedAtUtc.Should().Be(cancelClock.GetUtcNow());
+                converged.IssuedCreditNoteId.Should().BeNull("M7 stub does not mutate IssuedCreditNoteId");
+            }
         }
     }
 
@@ -243,13 +251,15 @@ public sealed class PendingCreditNoteProjectionTests
                 .Where(r => r.OrderId == orderId)
                 .ToListAsync(ct);
 
-            using var _ = new AssertionScope();
-            rows.Should().HaveCount(1);
-            rows[0].FirstSeenAtUtc.Should().Be(RefundArrivalUtc, "FirstSeenAtUtc is never overwritten");
-            // OrderId is the PK (the refund half carries it); order-cancel sentinel is OrderPayload.
-            rows[0].OrderId.Should().Be(orderId);
-            rows[0].OrderPayload.Should().BeNull("order-cancel half never arrived");
-            rows[0].CompletedAtUtc.Should().BeNull();
+            using (new AssertionScope())
+            {
+                rows.Should().HaveCount(1);
+                rows[0].FirstSeenAtUtc.Should().Be(RefundArrivalUtc, "FirstSeenAtUtc is never overwritten");
+                // OrderId is the PK (the refund half carries it); order-cancel sentinel is OrderPayload.
+                rows[0].OrderId.Should().Be(orderId);
+                rows[0].OrderPayload.Should().BeNull("order-cancel half never arrived");
+                rows[0].CompletedAtUtc.Should().BeNull();
+            }
         }
     }
 
@@ -302,12 +312,14 @@ public sealed class PendingCreditNoteProjectionTests
                 .Where(r => r.OrderId == orderId)
                 .ToListAsync(ct);
 
-            using var _ = new AssertionScope();
-            rows.Should().HaveCount(1, "duplicate same-OrderId arrival is absorbed");
-            rows[0].FirstSeenAtUtc.Should().Be(CancelArrivalUtc, "FirstSeenAtUtc is never overwritten");
-            rows[0].PaymentId.Should().BeNull("refund half never arrived");
-            rows[0].CompletedAtUtc.Should().BeNull();
-            AssertOrderPayloadMatches(rows[0].OrderPayload!, firstEvent);
+            using (new AssertionScope())
+            {
+                rows.Should().HaveCount(1, "duplicate same-OrderId arrival is absorbed");
+                rows[0].FirstSeenAtUtc.Should().Be(CancelArrivalUtc, "FirstSeenAtUtc is never overwritten");
+                rows[0].PaymentId.Should().BeNull("refund half never arrived");
+                rows[0].CompletedAtUtc.Should().BeNull();
+                AssertOrderPayloadMatches(rows[0].OrderPayload!, firstEvent);
+            }
         }
     }
 

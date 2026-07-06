@@ -63,17 +63,19 @@ public sealed class InvoiceDeliveryRequestedOutboxPublisherTests
         await handler.Handle(domainEvent, TestContext.Current.CancellationToken);
 
         // Assert
-        using var _ = new AssertionScope();
-        outbox.Received(1).AddOutboxMessage(
-            "notifications.notify-commands",
-            buyerId.ToString(),
-            Arg.Is<NotifyUserCommand>(c =>
-                c.NotificationId == notificationId &&
-                c.RecipientUserId == buyerId &&
-                c.TemplateKey == "invoicing.invoice-delivered" &&
-                c.Payload["InvoiceNumber"] == "INV-2026-000042" &&
-                c.Payload["TotalAmount"] == "152.00" &&
-                c.Payload["Currency"] == "EUR" &&
-                c.Payload["ViewInvoiceUrl"] == $"https://invoicing.example.com/invoices/{invoiceId}"));
+        using (new AssertionScope())
+        {
+            outbox.Received(1).AddOutboxMessage(
+                "notifications.notify-commands",
+                buyerId.ToString(),
+                Arg.Is<NotifyUserCommand>(c =>
+                    c.NotificationId == notificationId &&
+                    c.RecipientUserId == buyerId &&
+                    c.TemplateKey == "invoicing.invoice-delivered" &&
+                    c.Payload["InvoiceNumber"] == "INV-2026-000042" &&
+                    c.Payload["TotalAmount"] == "152.00" &&
+                    c.Payload["Currency"] == "EUR" &&
+                    c.Payload["ViewInvoiceUrl"] == $"https://invoicing.example.com/invoices/{invoiceId}"));
+        }
     }
 }

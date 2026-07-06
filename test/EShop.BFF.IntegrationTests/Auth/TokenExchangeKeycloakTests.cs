@@ -71,6 +71,7 @@ public sealed class TokenExchangeKeycloakTests : IAsyncLifetime
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task BffExchangesUserTokenForBasketReadToken_AcceptedByBasketAndPreservesBuyer()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -86,24 +87,26 @@ public sealed class TokenExchangeKeycloakTests : IAsyncLifetime
         var decodedUser = new JsonWebToken(userToken);
         var buyerSub = decodedUser.Subject;
 
-        using var _ = new AssertionScope();
-        decodedUser.Audiences.Should().Contain(BffClientId, "v2 only exchanges a subject token audienced for the requester (bff)");
-        buyerSub.Should().NotBeNullOrEmpty();
+        using (new AssertionScope())
+        {
+            decodedUser.Audiences.Should().Contain(BffClientId, "v2 only exchanges a subject token audienced for the requester (bff)");
+            buyerSub.Should().NotBeNullOrEmpty();
 
-        // Act — drive the REAL TokenExchangeHandler against the REAL Keycloak: exchange the user token on
-        // the basket.read scope. (A failed exchange throws out of the handler and fails the test.)
-        var exchangedToken = await ExchangeViaHandlerAsync(userToken, buyerSub, scope: "basket.read", ct);
+            // Act — drive the REAL TokenExchangeHandler against the REAL Keycloak: exchange the user token on
+            // the basket.read scope. (A failed exchange throws out of the handler and fails the test.)
+            var exchangedToken = await ExchangeViaHandlerAsync(userToken, buyerSub, scope: "basket.read", ct);
 
-        // Assert (1): the exchanged token is re-audienced to Basket and PRESERVES the buyer sub.
-        var decodedExchanged = new JsonWebToken(exchangedToken);
-        decodedExchanged.Audiences.Should().Contain(BasketAudience, "the basket.read scope's audience mapper re-audiences to basket-service");
-        decodedExchanged.Subject.Should().Be(buyerSub, "token exchange preserves the buyer sub — Basket derives the owner from it");
+            // Assert (1): the exchanged token is re-audienced to Basket and PRESERVES the buyer sub.
+            var decodedExchanged = new JsonWebToken(exchangedToken);
+            decodedExchanged.Audiences.Should().Contain(BasketAudience, "the basket.read scope's audience mapper re-audiences to basket-service");
+            decodedExchanged.Subject.Should().Be(buyerSub, "token exchange preserves the buyer sub — Basket derives the owner from it");
 
-        // Assert (2): Basket's OWN JwtBearer validator accepts the exchanged token (the proof that it would
-        // authenticate at the real Basket service and resolve this buyer).
-        var validation = await ValidateAsBasketWouldAsync(exchangedToken, ct);
-        validation.IsValid.Should().BeTrue("Basket's JwtBearer (ValidAudience=basket-service, signed by the realm) must accept the exchanged token");
-        validation.Claims["sub"].ToString().Should().Be(buyerSub, "Basket resolves the correct buyer from the validated sub");
+            // Assert (2): Basket's OWN JwtBearer validator accepts the exchanged token (the proof that it would
+            // authenticate at the real Basket service and resolve this buyer).
+            var validation = await ValidateAsBasketWouldAsync(exchangedToken, ct);
+            validation.IsValid.Should().BeTrue("Basket's JwtBearer (ValidAudience=basket-service, signed by the realm) must accept the exchanged token");
+            validation.Claims["sub"].ToString().Should().Be(buyerSub, "Basket resolves the correct buyer from the validated sub");
+        }
     }
 
     private async Task<string> GetAdminTokenAsync(CancellationToken ct) =>

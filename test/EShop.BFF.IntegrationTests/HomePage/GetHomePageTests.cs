@@ -18,6 +18,7 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
     private static readonly Guid MouseId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task GetHomePage_WhenAllUpstreamsSucceed_Returns200ComposedPage()
     {
         // Arrange
@@ -29,25 +30,27 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         var page = await GetHomePageAsync();
 
         // Assert
-        using var _ = new AssertionScope();
-        page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
-        page.Body.Should().NotBeNull();
-        page.Body!.HasStaleData.Should().BeFalse();
-        page.Body.FeaturedProducts.Should().HaveCount(2);
+        using (new AssertionScope())
+        {
+            page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
+            page.Body.Should().NotBeNull();
+            page.Body!.HasStaleData.Should().BeFalse();
+            page.Body.FeaturedProducts.Should().HaveCount(2);
 
-        var laptop = page.Body.FeaturedProducts.Single(p => p.ProductId == LaptopId);
-        laptop.Name.Should().Be("Laptop");
-        laptop.Price.Amount.Should().Be(1299.99m);
-        laptop.InStock.Should().BeTrue();
-        laptop.AvailableQty.Should().Be(15);
+            var laptop = page.Body.FeaturedProducts.Single(p => p.ProductId == LaptopId);
+            laptop.Name.Should().Be("Laptop");
+            laptop.Price.Amount.Should().Be(1299.99m);
+            laptop.InStock.Should().BeTrue();
+            laptop.AvailableQty.Should().Be(15);
 
-        page.Body.CategoryTree.Should().NotBeNull();
-        page.Body.CategoryTree!.Nodes.Should().ContainSingle();
-        // Only the mouse (qty 4) is "running low" (0 < qty <= 10); the laptop's 15 is not.
-        page.Body.StockHighlights.Should().ContainSingle()
-            .Which.ProductId.Should().Be(MouseId);
-        page.Response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
-        page.Response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a fully-composed page is not stale");
+            page.Body.CategoryTree.Should().NotBeNull();
+            page.Body.CategoryTree!.Nodes.Should().ContainSingle();
+            // Only the mouse (qty 4) is "running low" (0 < qty <= 10); the laptop's 15 is not.
+            page.Body.StockHighlights.Should().ContainSingle()
+                .Which.ProductId.Should().Be(MouseId);
+            page.Response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+            page.Response.Headers.Contains("X-BFF-Stale").Should().BeFalse("a fully-composed page is not stale");
+        }
     }
 
     [Fact]
@@ -63,10 +66,12 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         var second = await GetHomePageAsync();
 
         // Assert
-        using var _ = new AssertionScope();
-        // Same composition timestamp on the repeat ⇒ the second read came from FusionCache, not a recompose.
-        second.Body!.GeneratedAtUtc.Should().Be(first.Body!.GeneratedAtUtc);
-        Fixture.CountCatalogSearchCalls().Should().Be(1);
+        using (new AssertionScope())
+        {
+            // Same composition timestamp on the repeat ⇒ the second read came from FusionCache, not a recompose.
+            second.Body!.GeneratedAtUtc.Should().Be(first.Body!.GeneratedAtUtc);
+            Fixture.CountCatalogSearchCalls().Should().Be(1);
+        }
     }
 
     [Fact]
@@ -88,6 +93,7 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetHomePage_WhenCategoryTreeIsDown_Returns200WithNullTreeAndStaleData()
     {
         // Arrange
@@ -99,18 +105,21 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         var page = await GetHomePageAsync();
 
         // Assert
-        using var _ = new AssertionScope();
-        page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
-        page.Body!.CategoryTree.Should().BeNull();
-        page.Body.FeaturedProducts.Should().HaveCount(2); // featured kept
-        page.Body.HasStaleData.Should().BeTrue();
-        page.Response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle()
-            .Which.Should().Contain("categories");
-        // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
-        page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        using (new AssertionScope())
+        {
+            page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
+            page.Body!.CategoryTree.Should().BeNull();
+            page.Body.FeaturedProducts.Should().HaveCount(2); // featured kept
+            page.Body.HasStaleData.Should().BeTrue();
+            page.Response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle()
+                .Which.Should().Contain("categories");
+            // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
+            page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetHomePage_WhenInventoryBulkIsDown_Returns200WithNullStockAndStaleData()
     {
         // Arrange
@@ -122,22 +131,25 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         var page = await GetHomePageAsync();
 
         // Assert
-        using var _ = new AssertionScope();
-        page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
-        page.Body!.FeaturedProducts.Should().AllSatisfy(p =>
+        using (new AssertionScope())
         {
-            p.InStock.Should().BeNull();
-            p.AvailableQty.Should().BeNull();
-        });
-        page.Body.StockHighlights.Should().BeNull();
-        page.Body.HasStaleData.Should().BeTrue();
-        page.Response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle()
-            .Which.Should().Contain("inventory");
-        // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
-        page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+            page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
+            page.Body!.FeaturedProducts.Should().AllSatisfy(p =>
+            {
+                p.InStock.Should().BeNull();
+                p.AvailableQty.Should().BeNull();
+            });
+            page.Body.StockHighlights.Should().BeNull();
+            page.Body.HasStaleData.Should().BeTrue();
+            page.Response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle()
+                .Which.Should().Contain("inventory");
+            // Uniform semantics (bff.md § 2.4): HasStaleData ⇒ X-BFF-Stale, alongside the partial-data header.
+            page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetHomePage_WhenCatalogSearchIsDownAndCachedPageIsStale_ServesStaleWith200AndStaleHeader()
     {
         // Arrange: compose a healthy page, then plant it back as an entry older than its fresh window so a
@@ -161,17 +173,20 @@ public sealed class GetHomePageTests(HomePageTestFixture fixture) : BaseHomePage
         var page = await GetHomePageAsync();
 
         // Assert: the last-good page is served, flagged stale (200 + HasStaleData + X-BFF-Stale).
-        using var _ = new AssertionScope();
-        page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
-        page.Body.Should().NotBeNull();
-        page.Body!.HasStaleData.Should().BeTrue();
-        page.Body.FeaturedProducts.Should().HaveCount(2, "the cached page's featured products are still served");
-        page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
-        // A healthy cached page has its tree + overlay, so a stale serve of it is not also "partial".
-        page.Response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+        using (new AssertionScope())
+        {
+            page.Response.StatusCode.Should().Be(HttpStatusCode.OK);
+            page.Body.Should().NotBeNull();
+            page.Body!.HasStaleData.Should().BeTrue();
+            page.Body.FeaturedProducts.Should().HaveCount(2, "the cached page's featured products are still served");
+            page.Response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+            // A healthy cached page has its tree + overlay, so a stale serve of it is not also "partial".
+            page.Response.Headers.Contains("X-BFF-PartialData").Should().BeFalse();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetHomePage_WhenCatalogSearchIsDownAndNoCachedPage_Returns503()
     {
         // Arrange

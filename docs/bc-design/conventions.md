@@ -132,7 +132,7 @@ House **code-style** conventions `dotnet format` won't fail on: `var`-for-locals
 
 - **`var` for locals** — always, whether or not the type is apparent.
 - **Full, expressive names** — no abbreviations or single letters (`expiryDateUtc`, not `exp`; `subscriber`, not `s`).
-- **Tests use AAA** — `// Arrange` / `// Act` / `// Assert` comment sections (skip one only when empty); group multiple assertions in a FluentAssertions `AssertionScope`.
+- **Tests use AAA** — `// Arrange` / `// Act` / `// Assert` comment sections (skip one only when empty); group multiple assertions in a FluentAssertions `AssertionScope`, always the block form `using (new AssertionScope()) { … }` (never `using var _ = new AssertionScope();` — the braces delimit the scope's extent).
 - **Test method names: `MethodName_Scenario_ExpectedResult`** — e.g. `FromCelsius_WhenValidInput_ReturnsCorrectTemperature`.
 
 ---

@@ -15,9 +15,11 @@ public sealed class HomePageWarmOnTests(HomePageWarmOnFixture fixture)
         // The warmer runs as a BackgroundService (off the startup path), so poll until it has composed.
         var warmed = await EventuallyTrueAsync(fixture.IsHomePageCachedAsync, TimeSpan.FromSeconds(20));
 
-        using var _ = new AssertionScope();
-        warmed.Should().BeTrue("the startup warmer should populate home-page:v1");
-        fixture.CountCatalogSearchCalls().Should().BeGreaterThan(0, "warming composes from Catalog search");
+        using (new AssertionScope())
+        {
+            warmed.Should().BeTrue("the startup warmer should populate home-page:v1");
+            fixture.CountCatalogSearchCalls().Should().BeGreaterThan(0, "warming composes from Catalog search");
+        }
     }
 
     private static async Task<bool> EventuallyTrueAsync(Func<Task<bool>> condition, TimeSpan timeout)
@@ -50,8 +52,10 @@ public sealed class HomePageWarmOffTests(HomePageWarmOffFixture fixture)
         // Let the background warmer run (and skip), then confirm it neither warmed nor called upstream.
         await Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
-        using var _ = new AssertionScope();
-        (await fixture.IsHomePageCachedAsync()).Should().BeFalse("the warmer must skip when the flag is off");
-        fixture.CountCatalogSearchCalls().Should().Be(0, "a skipped warm makes no upstream calls");
+        using (new AssertionScope())
+        {
+            (await fixture.IsHomePageCachedAsync()).Should().BeFalse("the warmer must skip when the flag is off");
+            fixture.CountCatalogSearchCalls().Should().Be(0, "a skipped warm makes no upstream calls");
+        }
     }
 }

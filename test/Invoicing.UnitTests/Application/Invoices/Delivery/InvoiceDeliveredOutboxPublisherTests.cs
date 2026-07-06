@@ -54,15 +54,17 @@ public sealed class InvoiceDeliveredOutboxPublisherTests
         handler.Handle(domainEvent, CancellationToken.None);
 
         // Assert
-        using var _ = new AssertionScope();
-        outbox.Received(1).AddOutboxMessage(
-            "invoicing.invoices",
-            buyerId.ToString(),
-            Arg.Is<InvoiceDeliveredEvent>(e =>
-                e.InvoiceId == invoiceId &&
-                e.BuyerId == buyerId &&
-                e.DeliveredAtUtc == deliveredAtUtc.UtcDateTime &&
-                e.Channel == DeliveryChannel.Email.Name &&
-                e.OccurredOnUtc == occurredOnUtc.UtcDateTime));
+        using (new AssertionScope())
+        {
+            outbox.Received(1).AddOutboxMessage(
+                "invoicing.invoices",
+                buyerId.ToString(),
+                Arg.Is<InvoiceDeliveredEvent>(e =>
+                    e.InvoiceId == invoiceId &&
+                    e.BuyerId == buyerId &&
+                    e.DeliveredAtUtc == deliveredAtUtc.UtcDateTime &&
+                    e.Channel == DeliveryChannel.Email.Name &&
+                    e.OccurredOnUtc == occurredOnUtc.UtcDateTime));
+        }
     }
 }

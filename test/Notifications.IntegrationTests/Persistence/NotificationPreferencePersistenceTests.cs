@@ -46,12 +46,14 @@ public sealed class NotificationPreferencePersistenceTests : BaseIntegrationTest
 
         var reloaded = await ReloadAsync(userId, ct);
 
-        using var _ = new AssertionScope();
-        // text[] preserves element order, and FromName rehydrates each SmartEnum.
-        reloaded.EnabledChannels.Should().Equal(ChannelType.Bell, ChannelType.Email);
-        reloaded.QuietHoursStart.Should().Be(new TimeOnly(22, 0));
-        reloaded.QuietHoursEnd.Should().Be(new TimeOnly(7, 0));
-        reloaded.TimeZone.Should().Be("Europe/Prague");
+        using (new AssertionScope())
+        {
+            // text[] preserves element order, and FromName rehydrates each SmartEnum.
+            reloaded.EnabledChannels.Should().Equal(ChannelType.Bell, ChannelType.Email);
+            reloaded.QuietHoursStart.Should().Be(new TimeOnly(22, 0));
+            reloaded.QuietHoursEnd.Should().Be(new TimeOnly(7, 0));
+            reloaded.TimeZone.Should().Be("Europe/Prague");
+        }
     }
 
     [Fact]
@@ -72,10 +74,12 @@ public sealed class NotificationPreferencePersistenceTests : BaseIntegrationTest
 
         var reloaded = await ReloadAsync(userId, ct);
 
-        using var _ = new AssertionScope();
-        reloaded.EnabledChannels.Should().BeEmpty();
-        reloaded.QuietHoursStart.Should().BeNull();
-        reloaded.QuietHoursEnd.Should().BeNull();
+        using (new AssertionScope())
+        {
+            reloaded.EnabledChannels.Should().BeEmpty();
+            reloaded.QuietHoursStart.Should().BeNull();
+            reloaded.QuietHoursEnd.Should().BeNull();
+        }
     }
 
     private async Task PersistAsync(NotificationPreference preference, CancellationToken ct)

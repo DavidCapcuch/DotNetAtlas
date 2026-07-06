@@ -29,22 +29,24 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.SnapshotPrice.Amount.Should().Be(10.00m);
-        item.CurrentPrice!.Amount.Should().Be(10.00m);
-        item.PriceDrifted.Should().BeFalse();
-        item.AvailableQty.Should().Be(5);
-        item.OutOfStock.Should().BeFalse();
-        item.LineTotalSnapshot.Amount.Should().Be(20.00m);
-        item.LineTotalCurrent.Amount.Should().Be(20.00m);
-        response.TotalSnapshot.Amount.Should().Be(20.00m);
-        response.TotalCurrent.Amount.Should().Be(20.00m);
-        response.HasPriceDrift.Should().BeFalse();
-        response.HasOutOfStock.Should().BeFalse();
-        response.HasStaleData.Should().BeFalse();
-        response.UserId.Should().Be(UserId);
-        response.GeneratedAtUtc.Should().Be(GeneratedAt);
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.SnapshotPrice.Amount.Should().Be(10.00m);
+            item.CurrentPrice!.Amount.Should().Be(10.00m);
+            item.PriceDrifted.Should().BeFalse();
+            item.AvailableQty.Should().Be(5);
+            item.OutOfStock.Should().BeFalse();
+            item.LineTotalSnapshot.Amount.Should().Be(20.00m);
+            item.LineTotalCurrent.Amount.Should().Be(20.00m);
+            response.TotalSnapshot.Amount.Should().Be(20.00m);
+            response.TotalCurrent.Amount.Should().Be(20.00m);
+            response.HasPriceDrift.Should().BeFalse();
+            response.HasOutOfStock.Should().BeFalse();
+            response.HasStaleData.Should().BeFalse();
+            response.UserId.Should().Be(UserId);
+            response.GeneratedAtUtc.Should().Be(GeneratedAt);
+        }
     }
 
     [Fact]
@@ -59,15 +61,17 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.PriceDrifted.Should().BeTrue();
-        item.LineTotalSnapshot.Amount.Should().Be(30.00m);
-        item.LineTotalCurrent.Amount.Should().Be(37.50m);
-        response.TotalSnapshot.Amount.Should().Be(30.00m);
-        response.TotalCurrent.Amount.Should().Be(37.50m);
-        response.HasPriceDrift.Should().BeTrue();
-        response.HasStaleData.Should().BeFalse();
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.PriceDrifted.Should().BeTrue();
+            item.LineTotalSnapshot.Amount.Should().Be(30.00m);
+            item.LineTotalCurrent.Amount.Should().Be(37.50m);
+            response.TotalSnapshot.Amount.Should().Be(30.00m);
+            response.TotalCurrent.Amount.Should().Be(37.50m);
+            response.HasPriceDrift.Should().BeTrue();
+            response.HasStaleData.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -82,15 +86,18 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.AvailableQty.Should().Be(1);
-        item.OutOfStock.Should().BeTrue();
-        response.HasOutOfStock.Should().BeTrue();
-        response.HasStaleData.Should().BeFalse();
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.AvailableQty.Should().Be(1);
+            item.OutOfStock.Should().BeTrue();
+            response.HasOutOfStock.Should().BeTrue();
+            response.HasStaleData.Should().BeFalse();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenCatalogBatchUnavailable_NullsCurrentPriceFallsBackToSnapshotAndFlagsStale()
     {
         // Arrange — Catalog batch failed (null); Inventory healthy.
@@ -101,17 +108,20 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalogOrNull: null, inventory, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.CurrentPrice.Should().BeNull();
-        item.PriceDrifted.Should().BeFalse();
-        item.LineTotalCurrent.Amount.Should().Be(20.00m, "current falls back to snapshot when Catalog is down");
-        response.TotalCurrent.Amount.Should().Be(20.00m);
-        response.HasPriceDrift.Should().BeFalse();
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.CurrentPrice.Should().BeNull();
+            item.PriceDrifted.Should().BeFalse();
+            item.LineTotalCurrent.Amount.Should().Be(20.00m, "current falls back to snapshot when Catalog is down");
+            response.TotalCurrent.Amount.Should().Be(20.00m);
+            response.HasPriceDrift.Should().BeFalse();
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenInventoryBatchUnavailable_NullsAvailabilityNoOutOfStockAndFlagsStale()
     {
         // Arrange — Inventory batch failed (null); Catalog healthy.
@@ -122,15 +132,18 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventoryOrNull: null, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.AvailableQty.Should().BeNull();
-        item.OutOfStock.Should().BeFalse();
-        response.HasOutOfStock.Should().BeFalse();
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.AvailableQty.Should().BeNull();
+            item.OutOfStock.Should().BeFalse();
+            response.HasOutOfStock.Should().BeFalse();
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenCatalogOmitsProduct_NullsThatItemsCurrentPriceAndFlagsStale()
     {
         // Arrange — Catalog batch succeeded but returned no row for ProductA (discontinued / missing).
@@ -142,14 +155,17 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.CurrentPrice.Should().BeNull();
-        item.PriceDrifted.Should().BeFalse();
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.CurrentPrice.Should().BeNull();
+            item.PriceDrifted.Should().BeFalse();
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public void Compose_WhenInventoryOmitsProduct_NullsThatItemsAvailabilityAndFlagsStale()
     {
         // Arrange — Inventory batch succeeded but ProductA had no initialized stock item.
@@ -161,11 +177,13 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        var item = response.Items.Should().ContainSingle().Subject;
-        item.AvailableQty.Should().BeNull();
-        item.OutOfStock.Should().BeFalse();
-        response.HasStaleData.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            var item = response.Items.Should().ContainSingle().Subject;
+            item.AvailableQty.Should().BeNull();
+            item.OutOfStock.Should().BeFalse();
+            response.HasStaleData.Should().BeTrue();
+        }
     }
 
     [Fact]
@@ -178,13 +196,15 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalogOrNull: null, inventoryOrNull: null, GeneratedAt);
 
         // Assert
-        using var _ = new AssertionScope();
-        response.Items.Should().BeEmpty();
-        response.TotalSnapshot.Amount.Should().Be(0m);
-        response.TotalCurrent.Amount.Should().Be(0m);
-        response.HasPriceDrift.Should().BeFalse();
-        response.HasOutOfStock.Should().BeFalse();
-        response.HasStaleData.Should().BeFalse();
+        using (new AssertionScope())
+        {
+            response.Items.Should().BeEmpty();
+            response.TotalSnapshot.Amount.Should().Be(0m);
+            response.TotalCurrent.Amount.Should().Be(0m);
+            response.HasPriceDrift.Should().BeFalse();
+            response.HasOutOfStock.Should().BeFalse();
+            response.HasStaleData.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -205,11 +225,13 @@ public sealed class BasketPageComposerTests
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
 
         // Assert — snapshot 20 + 15 = 35; current 22 + 15 = 37.
-        using var _ = new AssertionScope();
-        response.Items.Should().HaveCount(2);
-        response.TotalSnapshot.Amount.Should().Be(35.00m);
-        response.TotalCurrent.Amount.Should().Be(37.00m);
-        response.HasPriceDrift.Should().BeTrue();
+        using (new AssertionScope())
+        {
+            response.Items.Should().HaveCount(2);
+            response.TotalSnapshot.Amount.Should().Be(35.00m);
+            response.TotalCurrent.Amount.Should().Be(37.00m);
+            response.HasPriceDrift.Should().BeTrue();
+        }
     }
 
     [Fact]

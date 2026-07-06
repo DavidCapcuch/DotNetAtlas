@@ -69,56 +69,58 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var result = await handler.HandleAsync(
             new IssueCreditNoteCommand { OrderId = orderId }, ct);
 
-        using var _ = new AssertionScope();
-        result.IsSuccess.Should().BeTrue();
-        var creditNoteId = result.Value;
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            var creditNoteId = result.Value;
 
-        await using var assertScope = _fixture.CreateScope();
-        var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            await using var assertScope = _fixture.CreateScope();
+            var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
 
-        // Credit note persisted in Issued status with negative total.
-        var creditNote = await db.CreditNotes
-            .Include(cn => cn.Lines)
-            .AsNoTracking()
-            .SingleAsync(cn => cn.Id == creditNoteId, ct);
-        creditNote.Status.Should().Be(CreditNoteStatus.Issued);
-        creditNote.CreditNoteNumber.Should().NotBeNull();
-        creditNote.CreditNoteNumber!.Value.Should().MatchRegex($@"^CN-{nowSnapshot.Year}-\d{{6}}$");
-        creditNote.OriginalInvoiceId.Should().Be(invoiceId);
-        creditNote.Total.Amount.Should().Be(-Total, "credit note totals are negative (I-CN-2)");
-        creditNote.Total.Currency.Name.Should().Be(Currency);
-        creditNote.PdfBlobRef.Should().NotBeNull();
-        creditNote.IssueDate.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
-        creditNote.Lines.Should().NotBeEmpty();
+            // Credit note persisted in Issued status with negative total.
+            var creditNote = await db.CreditNotes
+                .Include(cn => cn.Lines)
+                .AsNoTracking()
+                .SingleAsync(cn => cn.Id == creditNoteId, ct);
+            creditNote.Status.Should().Be(CreditNoteStatus.Issued);
+            creditNote.CreditNoteNumber.Should().NotBeNull();
+            creditNote.CreditNoteNumber!.Value.Should().MatchRegex($@"^CN-{nowSnapshot.Year}-\d{{6}}$");
+            creditNote.OriginalInvoiceId.Should().Be(invoiceId);
+            creditNote.Total.Amount.Should().Be(-Total, "credit note totals are negative (I-CN-2)");
+            creditNote.Total.Currency.Name.Should().Be(Currency);
+            creditNote.PdfBlobRef.Should().NotBeNull();
+            creditNote.IssueDate.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
+            creditNote.Lines.Should().NotBeEmpty();
 
-        // Original invoice transitioned to Cancelled with the cancellation info.
-        var originalInvoice = await db.Invoices.AsNoTracking()
-            .SingleAsync(i => i.Id == invoiceId, ct);
-        originalInvoice.Status.Should().Be(InvoiceStatus.Cancelled);
-        originalInvoice.CancellationInfo.Should().NotBeNull();
-        originalInvoice.CancellationInfo!.CreditNoteId.Should().Be(creditNoteId);
+            // Original invoice transitioned to Cancelled with the cancellation info.
+            var originalInvoice = await db.Invoices.AsNoTracking()
+                .SingleAsync(i => i.Id == invoiceId, ct);
+            originalInvoice.Status.Should().Be(InvoiceStatus.Cancelled);
+            originalInvoice.CancellationInfo.Should().NotBeNull();
+            originalInvoice.CancellationInfo!.CreditNoteId.Should().Be(creditNoteId);
 
-        // Projection row updated.
-        var pending = await db.PendingCreditNotes.AsNoTracking()
-            .SingleAsync(r => r.OrderId == orderId, ct);
-        pending.IssuedCreditNoteId.Should().Be(creditNoteId);
+            // Projection row updated.
+            var pending = await db.PendingCreditNotes.AsNoTracking()
+                .SingleAsync(r => r.OrderId == orderId, ct);
+            pending.IssuedCreditNoteId.Should().Be(creditNoteId);
 
-        // Both Avro events fired on the same outbox topic, keyed by buyer.
-        _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            "invoicing.invoices",
-            buyerId.ToString(),
-            Arg.Is<global::Invoicing.CreditNotes.CreditNoteIssuedEvent>(e =>
-                e.CreditNoteId == creditNoteId
-                && e.OriginalInvoiceId == invoiceId
-                && e.BuyerId == buyerId));
+            // Both Avro events fired on the same outbox topic, keyed by buyer.
+            _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
+                "invoicing.invoices",
+                buyerId.ToString(),
+                Arg.Is<global::Invoicing.CreditNotes.CreditNoteIssuedEvent>(e =>
+                    e.CreditNoteId == creditNoteId
+                    && e.OriginalInvoiceId == invoiceId
+                    && e.BuyerId == buyerId));
 
-        _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            "invoicing.invoices",
-            buyerId.ToString(),
-            Arg.Is<global::Invoicing.Invoices.InvoiceCancelledEvent>(e =>
-                e.InvoiceId == invoiceId
-                && e.CreditNoteId == creditNoteId
-                && e.BuyerId == buyerId));
+            _fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
+                "invoicing.invoices",
+                buyerId.ToString(),
+                Arg.Is<global::Invoicing.Invoices.InvoiceCancelledEvent>(e =>
+                    e.InvoiceId == invoiceId
+                    && e.CreditNoteId == creditNoteId
+                    && e.BuyerId == buyerId));
+        }
     }
 
     [Fact]
@@ -169,20 +171,22 @@ public sealed class IssueCreditNoteCommandHandlerTests
         var second = await handler2.HandleAsync(
             new IssueCreditNoteCommand { OrderId = orderId }, ct);
 
-        using var _ = new AssertionScope();
-        second.IsFailed.Should().BeTrue("I-CN-1 — credit note against a cancelled invoice is rejected");
-        second.Errors.Should().Contain(e => e.Message.Contains("cancelled", StringComparison.OrdinalIgnoreCase));
+        using (new AssertionScope())
+        {
+            second.IsFailed.Should().BeTrue("I-CN-1 — credit note against a cancelled invoice is rejected");
+            second.Errors.Should().Contain(e => e.Message.Contains("cancelled", StringComparison.OrdinalIgnoreCase));
 
-        await using var assertScope = _fixture.CreateScope();
-        var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-        var cnCount = await db.CreditNotes.AsNoTracking()
-            .Where(cn => cn.OriginalInvoiceId == invoiceId)
-            .CountAsync(ct);
-        cnCount.Should().Be(1, "no second credit note created");
+            await using var assertScope = _fixture.CreateScope();
+            var db = assertScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            var cnCount = await db.CreditNotes.AsNoTracking()
+                .Where(cn => cn.OriginalInvoiceId == invoiceId)
+                .CountAsync(ct);
+            cnCount.Should().Be(1, "no second credit note created");
 
-        // No new outbox events (only the first credit note's emissions, which were
-        // recorded BEFORE we reset the substitute).
-        _fixture.OutboxSubstitute.DidNotReceiveWithAnyArgs().AddOutboxMessage(default!, default, default!);
+            // No new outbox events (only the first credit note's emissions, which were
+            // recorded BEFORE we reset the substitute).
+            _fixture.OutboxSubstitute.DidNotReceiveWithAnyArgs().AddOutboxMessage(default!, default, default!);
+        }
     }
 
     private async Task<Guid> IssueInvoiceAsync(

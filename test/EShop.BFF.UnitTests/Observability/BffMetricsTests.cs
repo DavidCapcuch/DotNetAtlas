@@ -23,10 +23,12 @@ public sealed class BffMetricsTests
         BffMetrics.RecordCache(BffMetrics.HomePageEndpoint, hit: true);
 
         // Assert
-        using var _ = new AssertionScope();
-        capture.Values.Should().ContainSingle().Which.Should().Be(1);
-        capture.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
-            tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.HomePageEndpoint);
+        using (new AssertionScope())
+        {
+            capture.Values.Should().ContainSingle().Which.Should().Be(1);
+            capture.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
+                tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.HomePageEndpoint);
+        }
     }
 
     [Fact]
@@ -40,11 +42,13 @@ public sealed class BffMetricsTests
         BffMetrics.RecordCache(BffMetrics.ProductPageEndpoint, hit: false);
 
         // Assert
-        using var _ = new AssertionScope();
-        misses.Values.Should().ContainSingle().Which.Should().Be(1);
-        misses.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
-            tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.ProductPageEndpoint);
-        hits.Values.Should().BeEmpty("a miss must not increment the hits counter");
+        using (new AssertionScope())
+        {
+            misses.Values.Should().ContainSingle().Which.Should().Be(1);
+            misses.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
+                tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.ProductPageEndpoint);
+            hits.Values.Should().BeEmpty("a miss must not increment the hits counter");
+        }
     }
 
     [Fact]
@@ -57,10 +61,12 @@ public sealed class BffMetricsTests
         BffMetrics.RecordPartialResponse(BffMetrics.HomePageEndpoint);
 
         // Assert
-        using var _ = new AssertionScope();
-        capture.Values.Should().ContainSingle().Which.Should().Be(1);
-        capture.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
-            tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.HomePageEndpoint);
+        using (new AssertionScope())
+        {
+            capture.Values.Should().ContainSingle().Which.Should().Be(1);
+            capture.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
+                tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.HomePageEndpoint);
+        }
     }
 
     [Fact]
@@ -80,11 +86,13 @@ public sealed class BffMetricsTests
         BffMetrics.TagRequest(BffMetrics.ProductPageEndpoint, cacheHit: true, stale: false);
 
         // Assert
-        using var _ = new AssertionScope();
-        activity.Should().NotBeNull();
-        activity!.GetTagItem(BffMetrics.EndpointTag).Should().Be(BffMetrics.ProductPageEndpoint);
-        activity.GetTagItem(BffMetrics.CacheHitTag).Should().Be(true);
-        activity.GetTagItem(BffMetrics.StaleTag).Should().Be(false);
+        using (new AssertionScope())
+        {
+            activity.Should().NotBeNull();
+            activity!.GetTagItem(BffMetrics.EndpointTag).Should().Be(BffMetrics.ProductPageEndpoint);
+            activity.GetTagItem(BffMetrics.CacheHitTag).Should().Be(true);
+            activity.GetTagItem(BffMetrics.StaleTag).Should().Be(false);
+        }
     }
 
     [Fact]
