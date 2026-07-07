@@ -9,8 +9,11 @@ public class InvoiceNumberTests
     {
         var result = InvoiceNumber.Create(2026, 142);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Value.Should().Be("INV-2026-000142");
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.Value.Should().Be("INV-2026-000142");
+        }
     }
 
     [Theory]
@@ -68,7 +71,10 @@ public class InvoiceNumberTests
     {
         var number = InvoiceNumber.Create(2027, 9876).Value;
 
-        number.Year.Should().Be(2027);
-        number.Sequence.Should().Be(9876);
+        using (new AssertionScope())
+        {
+            number.Year.Should().Be(2027);
+            number.Sequence.Should().Be(9876);
+        }
     }
 }

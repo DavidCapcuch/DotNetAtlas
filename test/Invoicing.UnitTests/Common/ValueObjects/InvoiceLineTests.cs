@@ -17,8 +17,11 @@ public class InvoiceLineTests
             unitPrice: Money.Create(100m, "EUR").Value,
             vatRate: VatRate.Create(21m).Value).Value;
 
-        line.LineTotal.Amount.Should().Be(300m);
-        line.LineTotal.Currency.Name.Should().Be("EUR");
+        using (new AssertionScope())
+        {
+            line.LineTotal.Amount.Should().Be(300m);
+            line.LineTotal.Currency.Name.Should().Be("EUR");
+        }
     }
 
     [Fact]

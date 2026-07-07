@@ -21,8 +21,11 @@ public class InvoiceInvariantsTests
 
         var invoice = TestDataFactory.BuildDraftInvoice(lines: [line], vatLines: [vat]);
 
-        invoice.Subtotal.Amount.Should().Be(200m);
-        invoice.Total.Amount.Should().Be(242m);
+        using (new AssertionScope())
+        {
+            invoice.Subtotal.Amount.Should().Be(200m);
+            invoice.Total.Amount.Should().Be(242m);
+        }
     }
 
     [Fact]
@@ -35,8 +38,11 @@ public class InvoiceInvariantsTests
 
         var invoice = TestDataFactory.BuildDraftInvoice(lines: [line1, line2], vatLines: [vat21, vat0]);
 
-        invoice.Subtotal.Amount.Should().Be(300m);
-        invoice.Total.Amount.Should().Be(342m);
+        using (new AssertionScope())
+        {
+            invoice.Subtotal.Amount.Should().Be(300m);
+            invoice.Total.Amount.Should().Be(342m);
+        }
     }
 
     [Fact]
@@ -85,9 +91,12 @@ public class InvoiceInvariantsTests
 
         var issued = invoice.Issue(number, pdf, TestDataFactory.FixedUtcNow);
 
-        issued.IsSuccess.Should().BeTrue();
-        invoice.InvoiceNumber.Should().Be(number);
-        invoice.Status.Should().Be(InvoiceStatus.Issued);
+        using (new AssertionScope())
+        {
+            issued.IsSuccess.Should().BeTrue();
+            invoice.InvoiceNumber.Should().Be(number);
+            invoice.Status.Should().Be(InvoiceStatus.Issued);
+        }
     }
 
     [Fact]
@@ -108,8 +117,11 @@ public class InvoiceInvariantsTests
 
         var result = invoice.Deliver(TestDataFactory.FixedUtcNow);
 
-        result.IsSuccess.Should().BeFalse();
-        invoice.Status.Should().Be(InvoiceStatus.Draft);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeFalse();
+            invoice.Status.Should().Be(InvoiceStatus.Draft);
+        }
     }
 
     [Fact]
@@ -141,11 +153,14 @@ public class InvoiceInvariantsTests
 
         var result = invoice.Cancel(creditNoteId, CreditNoteReason.OrderCancelled, TestDataFactory.FixedUtcNow);
 
-        result.IsSuccess.Should().BeTrue();
-        invoice.Status.Should().Be(InvoiceStatus.Cancelled);
-        invoice.CancellationInfo.Should().NotBeNull();
-        invoice.CancellationInfo!.CreditNoteId.Should().Be(creditNoteId);
-        invoice.CancellationInfo.Reason.Should().Be(CreditNoteReason.OrderCancelled);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            invoice.Status.Should().Be(InvoiceStatus.Cancelled);
+            invoice.CancellationInfo.Should().NotBeNull();
+            invoice.CancellationInfo!.CreditNoteId.Should().Be(creditNoteId);
+            invoice.CancellationInfo.Reason.Should().Be(CreditNoteReason.OrderCancelled);
+        }
     }
 
     [Fact]
@@ -175,8 +190,11 @@ public class InvoiceInvariantsTests
         invoice.Issue(InvoiceNumber.Create(2026, 1).Value, MakePdf(), TestDataFactory.FixedUtcNow);
         var events = invoice.PopDomainEvents();
 
-        events.OfType<InvoiceIssuedDomainEvent>().Should().ContainSingle();
-        events.OfType<InvoiceDeliveryRequestedDomainEvent>().Should().BeEmpty();
+        using (new AssertionScope())
+        {
+            events.OfType<InvoiceIssuedDomainEvent>().Should().ContainSingle();
+            events.OfType<InvoiceDeliveryRequestedDomainEvent>().Should().BeEmpty();
+        }
     }
 
     [Fact]
@@ -194,9 +212,12 @@ public class InvoiceInvariantsTests
 
         var result = invoice.Issue(replacementNumber, replacementPdf, TestDataFactory.FixedUtcNow);
 
-        result.IsSuccess.Should().BeFalse();
-        invoice.InvoiceNumber.Should().Be(originalNumber);
-        invoice.PdfBlobRef.Should().Be(originalPdf);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeFalse();
+            invoice.InvoiceNumber.Should().Be(originalNumber);
+            invoice.PdfBlobRef.Should().Be(originalPdf);
+        }
     }
 
     [Fact]
@@ -224,10 +245,13 @@ public class InvoiceInvariantsTests
 
         var act = () => invoice.Issue(freshPdf, TestDataFactory.FixedUtcNow);
 
-        act.Should().Throw<DataIntegrityException>()
-            .Which.ErrorCode.Should().Be("Invoicing.InvoiceAlreadyIssued");
-        invoice.PdfBlobRef.Should().Be(prePersistedPdf);
-        invoice.Status.Should().Be(InvoiceStatus.Draft);
+        using (new AssertionScope())
+        {
+            act.Should().Throw<DataIntegrityException>()
+                .Which.ErrorCode.Should().Be("Invoicing.InvoiceAlreadyIssued");
+            invoice.PdfBlobRef.Should().Be(prePersistedPdf);
+            invoice.Status.Should().Be(InvoiceStatus.Draft);
+        }
     }
 
     [Fact]
@@ -239,8 +263,11 @@ public class InvoiceInvariantsTests
         invoice.Deliver(TestDataFactory.FixedUtcNow).IsSuccess.Should().BeTrue();
         invoice.Archive().IsSuccess.Should().BeTrue();
 
-        invoice.Status.Should().Be(InvoiceStatus.Archived);
-        invoice.DeliveredAtUtc.Should().Be(TestDataFactory.FixedUtcNow);
+        using (new AssertionScope())
+        {
+            invoice.Status.Should().Be(InvoiceStatus.Archived);
+            invoice.DeliveredAtUtc.Should().Be(TestDataFactory.FixedUtcNow);
+        }
     }
 
     private static PdfBlobRef MakePdf() =>

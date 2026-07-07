@@ -32,6 +32,7 @@ public class GetInvoiceByOrderIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerLooksUpOwnInvoiceByOrderId_ReturnsOk()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
@@ -52,6 +53,7 @@ public class GetInvoiceByOrderIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenOtherBuyerLooksUpAnothersInvoiceByOrderId_ReturnsNotFound()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));

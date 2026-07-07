@@ -23,6 +23,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var response = await HttpClientRegistry.NonAuthClient
@@ -43,6 +44,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerReadsOwnInvoice_ReturnsOkWithPresignedUrl()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
@@ -66,6 +68,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAdminReadsAnotherBuyersInvoice_ReturnsOk()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
@@ -83,6 +86,7 @@ public class GetInvoiceByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenOtherBuyerReadsAnothersInvoice_ReturnsNotFound()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));

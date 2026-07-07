@@ -16,8 +16,11 @@ public class PdfBlobRefTests
             contentHash: new string('a', 64),
             sizeBytes: 12345L);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.BlobName.Should().Be(ValidBlobName);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.BlobName.Should().Be(ValidBlobName);
+        }
     }
 
     [Theory]

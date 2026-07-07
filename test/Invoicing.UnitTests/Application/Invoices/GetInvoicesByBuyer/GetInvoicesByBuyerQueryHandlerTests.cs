@@ -25,6 +25,7 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests : IDisposable
         new(new DateTimeOffset(2026, 5, 27, 10, 0, 0, TimeSpan.Zero));
 
     [Theory]
+    [Trait("Category", "boundary")]
     [InlineData(0, 20)] // PageNumber=0 → (0-1)*20 = -20 offset, undefined EF behaviour
     [InlineData(-1, 20)] // PageNumber<0 → even more negative offset
     [InlineData(1, 0)] // PageSize=0 → Take(0) silent-empty-page bug class

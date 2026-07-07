@@ -48,6 +48,7 @@ public sealed class CreditNoteNumberAllocatorTests
     }
 
     [Fact]
+    [Trait("Category", "concurrency")]
     public async Task Concurrent_NTasks_ReceiveDistinctConsecutiveNumbers_NoDuplicates()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -71,8 +72,11 @@ public sealed class CreditNoteNumberAllocatorTests
                 return $"CN-{year:D4}-{seq:D6}";
             })
             .ToList();
-        values.Should().BeEquivalentTo(expected);
-        values.Should().OnlyHaveUniqueItems();
+        using (new AssertionScope())
+        {
+            values.Should().BeEquivalentTo(expected);
+            values.Should().OnlyHaveUniqueItems();
+        }
 
         await AssertCreditNoteNextValueAsync(year, expected: startSequence + parallelism, ct);
     }

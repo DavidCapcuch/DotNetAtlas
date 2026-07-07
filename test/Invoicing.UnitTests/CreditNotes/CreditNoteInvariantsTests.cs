@@ -50,8 +50,11 @@ public class CreditNoteInvariantsTests
             CreditNoteReason.OrderCancelled,
             TestDataFactory.FixedUtcNow).Value;
 
-        creditNote.Total.Amount.Should().Be(-originalTotal);
-        creditNote.Total.Currency.Should().Be(invoice.Total.Currency);
+        using (new AssertionScope())
+        {
+            creditNote.Total.Amount.Should().Be(-originalTotal);
+            creditNote.Total.Currency.Should().Be(invoice.Total.Currency);
+        }
     }
 
     [Fact]
@@ -66,9 +69,12 @@ public class CreditNoteInvariantsTests
             TestDataFactory.FixedUtcNow).Value;
 
         var creditLine = creditNote.Lines[0];
-        creditLine.LineTotal.Amount.Should().Be(-originalLine.LineTotal.Amount);
-        creditLine.UnitPrice.Amount.Should().Be(-originalLine.UnitPrice.Amount);
-        creditLine.Quantity.Should().Be(originalLine.Quantity);
+        using (new AssertionScope())
+        {
+            creditLine.LineTotal.Amount.Should().Be(-originalLine.LineTotal.Amount);
+            creditLine.UnitPrice.Amount.Should().Be(-originalLine.UnitPrice.Amount);
+            creditLine.Quantity.Should().Be(originalLine.Quantity);
+        }
     }
 
     [Fact]
@@ -85,10 +91,13 @@ public class CreditNoteInvariantsTests
 
         var result = creditNote.Issue(number, pdf, TestDataFactory.FixedUtcNow);
 
-        result.IsSuccess.Should().BeTrue();
-        creditNote.CreditNoteNumber.Should().Be(number);
-        creditNote.PdfBlobRef.Should().Be(pdf);
-        creditNote.IssueDate.Should().Be(TestDataFactory.FixedUtcNow);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            creditNote.CreditNoteNumber.Should().Be(number);
+            creditNote.PdfBlobRef.Should().Be(pdf);
+            creditNote.IssueDate.Should().Be(TestDataFactory.FixedUtcNow);
+        }
     }
 
     [Fact]

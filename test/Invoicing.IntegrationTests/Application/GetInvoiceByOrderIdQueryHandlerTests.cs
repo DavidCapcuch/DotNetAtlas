@@ -37,21 +37,25 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(orderId, buyerId, isAdmin: false, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        var dto = result.Value;
-        dto.InvoiceId.Should().Be(invoiceId);
-        dto.OrderId.Should().Be(orderId);
-        dto.BuyerId.Should().Be(buyerId);
-        dto.Status.Should().Be("Issued");
-        dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
-        dto.Lines.Should().NotBeEmpty();
-        dto.PdfPresignedUrl.Should().NotBeNull();
-        dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
-        dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            var dto = result.Value;
+            dto.InvoiceId.Should().Be(invoiceId);
+            dto.OrderId.Should().Be(orderId);
+            dto.BuyerId.Should().Be(buyerId);
+            dto.Status.Should().Be("Issued");
+            dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
+            dto.Lines.Should().NotBeEmpty();
+            dto.PdfPresignedUrl.Should().NotBeNull();
+            dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
+            dto.PdfPresignedUrlExpiresAtUtc.Should()
+                .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_invoice()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -61,12 +65,16 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(orderId, intruder, isAdmin: false, ct);
 
-        result.IsFailed.Should().BeTrue();
-        // The error message references OrderId (handler uses InvoiceForOrderNotFound).
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(orderId.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            // The error message references OrderId (handler uses InvoiceForOrderNotFound).
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(orderId.ToString()));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_invoice_for_admin_regardless_of_buyer()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -76,9 +84,12 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(orderId, admin, isAdmin: true, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.OrderId.Should().Be(orderId);
-        result.Value.BuyerId.Should().Be(owner);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.OrderId.Should().Be(orderId);
+            result.Value.BuyerId.Should().Be(owner);
+        }
     }
 
     [Fact]
@@ -89,8 +100,11 @@ public sealed class GetInvoiceByOrderIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(missingOrder, Guid.CreateVersion7(), isAdmin: true, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(missingOrder.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(missingOrder.ToString()));
+        }
     }
 
     private async Task<Guid> GetOrderIdAsync(Guid invoiceId, CancellationToken ct)

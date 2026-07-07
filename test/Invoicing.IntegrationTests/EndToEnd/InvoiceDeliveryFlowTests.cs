@@ -27,6 +27,7 @@ public sealed class InvoiceDeliveryFlowTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task IssueInvoice_To_InvoiceDeliveredEvent_RoundTrips_WithSimulatedNotificationsAck()
     {
         var ct = TestContext.Current.CancellationToken;
