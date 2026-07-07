@@ -10,6 +10,7 @@
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="Testcontainers.Kafka" />
         <PackageReference Include="WireMock.Net" />
+        <PackageReference Include="Scriban.Signed" />
     </ItemGroup>
 
     <ItemGroup>

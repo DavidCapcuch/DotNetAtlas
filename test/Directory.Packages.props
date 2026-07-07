@@ -94,6 +94,14 @@
         <PackageVersion Include="StackExchange.Redis" Version="2.13.1"/>
         <PackageVersion Include="Respawn" Version="7.0.0"/>
         <PackageVersion Include="WireMock.Net" Version="2.6.0"/>
+        <!-- NU1902 remediation: WireMock.Net 2.6.0 pulls transitive Scriban.Signed 7.0.6, flagged
+             by two moderate advisories (GHSA-6q7j-xr26-3h2c, GHSA-q6rr-fm2g-g5x8). The test tier
+             disables CentralPackageTransitivePinningEnabled (test/Directory.Build.props), so each
+             WireMock.Net consumer promotes Scriban.Signed to a direct PackageReference to override
+             the vulnerable transitive. A WireMock bump does NOT remove this pin: latest 2.11.0 still
+             pulls Scriban.Signed 7.2.0, also flagged — only 7.2.1 clears both (verified 2026-07).
+             Remove this pin + the references once a WireMock.Net release ships Scriban.Signed >= 7.2.1. -->
+        <PackageVersion Include="Scriban.Signed" Version="7.2.1"/>
         <!-- Assertion libraries -->
         <PackageVersion Include="AwesomeAssertions" Version="9.4.0"/>
         <PackageVersion Include="FluentResults.Extensions.FluentAssertions" Version="2.2.1"/>

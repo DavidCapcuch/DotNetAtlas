@@ -11,6 +11,7 @@
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="Testcontainers" />
         <PackageReference Include="WireMock.Net" />
+        <PackageReference Include="Scriban.Signed" />
     </ItemGroup>
 
     <ItemGroup>

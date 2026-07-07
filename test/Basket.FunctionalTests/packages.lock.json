@@ -65,6 +65,12 @@
           "Castle.Core": "5.1.1"
         }
       },
+      "Scriban.Signed": {
+        "type": "Direct",
+        "requested": "[7.2.1, )",
+        "resolved": "7.2.1",
+        "contentHash": "oBDw35N1KKgqCu2dhRlndkqFBEXLVIuiu8dTm4GSrc16R1UwOcWQcB0+t0vwu2l3w27x9Odmuotg20NPbebStA=="
+      },
       "Serilog.Sinks.XUnit.Injectable": {
         "type": "Direct",
         "requested": "[4.0.222, )",
@@ -1939,11 +1945,6 @@
           "Stef.Validation": "0.1.1"
         }
       },
-      "Scriban.Signed": {
-        "type": "Transitive",
-        "resolved": "7.0.6",
-        "contentHash": "98D1jpulhXIju/NaHSf0ZsGRhjFszC84sxPKIkfvWg3DKctCiBOEY9fL4/n5VbV1p6wcJkfhk10FmdBNYws83Q=="
-      },
       "Serilog": {
         "type": "Transitive",
         "resolved": "4.3.1",
@@ -2484,6 +2485,7 @@
           "Microsoft.NET.Test.Sdk": "[18.5.1, )",
           "NSubstitute": "[5.3.0, )",
           "Platform.Test.Framework": "[1.0.0, )",
+          "Scriban.Signed": "[7.2.1, )",
           "Serilog.Sinks.XUnit.Injectable": "[4.0.222, )",
           "StackExchange.Redis": "[2.13.1, )",
           "Testcontainers.Kafka": "[4.11.0, )",

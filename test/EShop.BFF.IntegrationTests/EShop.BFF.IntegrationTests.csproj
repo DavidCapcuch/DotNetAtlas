@@ -6,6 +6,7 @@
         <PackageReference Include="Testcontainers.Kafka" />
         <PackageReference Include="StackExchange.Redis" />
         <PackageReference Include="WireMock.Net" />
+        <PackageReference Include="Scriban.Signed" />
         <PackageReference Include="NSubstitute" />
     </ItemGroup>
 

@@ -1865,11 +1865,6 @@
           "Stef.Validation": "0.1.1"
         }
       },
-      "Scriban.Signed": {
-        "type": "Transitive",
-        "resolved": "7.0.6",
-        "contentHash": "98D1jpulhXIju/NaHSf0ZsGRhjFszC84sxPKIkfvWg3DKctCiBOEY9fL4/n5VbV1p6wcJkfhk10FmdBNYws83Q=="
-      },
       "Serilog": {
         "type": "Transitive",
         "resolved": "4.3.1",
@@ -2404,6 +2399,7 @@
           "Payments.Api": "[1.0.0, )",
           "Payments.Infrastructure": "[1.0.0, )",
           "Platform.Test.Framework": "[1.0.0, )",
+          "Scriban.Signed": "[7.2.1, )",
           "Serilog.Sinks.XUnit.Injectable": "[4.0.222, )",
           "Testcontainers.Kafka": "[4.11.0, )",
           "WireMock.Net": "[2.6.0, )",
@@ -2987,6 +2983,12 @@
         "requested": "[4.3.1, )",
         "resolved": "4.3.1",
         "contentHash": "oSE+OVLHyiojrws0QVbQaAT2YKsYbyHqJXPdV7EhGseR/dYgeWS2x1T5qY5I4E+RJkJqMSG+FyZOq4SljWgJWQ=="
+      },
+      "Scriban.Signed": {
+        "type": "CentralTransitive",
+        "requested": "[7.2.1, )",
+        "resolved": "7.2.1",
+        "contentHash": "oBDw35N1KKgqCu2dhRlndkqFBEXLVIuiu8dTm4GSrc16R1UwOcWQcB0+t0vwu2l3w27x9Odmuotg20NPbebStA=="
       },
       "Scrutor": {
         "type": "CentralTransitive",
