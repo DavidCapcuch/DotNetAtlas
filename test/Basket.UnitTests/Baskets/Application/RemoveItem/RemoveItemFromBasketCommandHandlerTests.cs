@@ -22,14 +22,17 @@ public class RemoveItemFromBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenNoBasket_ReturnsOkIdempotent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(null));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new RemoveItemFromBasketCommand(userId, Guid.CreateVersion7()),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -41,6 +44,7 @@ public class RemoveItemFromBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenItemMissing_ReturnsOkWithoutSaving()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -48,10 +52,12 @@ public class RemoveItemFromBasketCommandHandlerTests
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(basket));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new RemoveItemFromBasketCommand(userId, Guid.CreateVersion7()),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -63,6 +69,7 @@ public class RemoveItemFromBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenItemPresent_SavesAndDispatchesEvent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
@@ -75,10 +82,12 @@ public class RemoveItemFromBasketCommandHandlerTests
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new RemoveItemFromBasketCommand(userId, productId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

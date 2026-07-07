@@ -8,7 +8,6 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Errors;
-using Platform.SharedKernel.ValueObjects;
 using BasketAggregate = Basket.Domain.Baskets.Basket;
 
 namespace Basket.UnitTests.Baskets.Application.RefreshPrices;
@@ -27,14 +26,17 @@ public class RefreshBasketPricesCommandHandlerTests
     [Fact]
     public async Task Handle_WhenNoBasket_ReturnsOkWithoutCatalogCall()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(null));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new RefreshBasketPricesCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -46,6 +48,7 @@ public class RefreshBasketPricesCommandHandlerTests
     [Fact]
     public async Task Handle_WhenPriceChanges_RefreshesSavesAndDispatchesEvent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
@@ -62,10 +65,12 @@ public class RefreshBasketPricesCommandHandlerTests
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new RefreshBasketPricesCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -77,8 +82,10 @@ public class RefreshBasketPricesCommandHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_WhenCatalogUnavailable_PropagatesError()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -90,10 +97,12 @@ public class RefreshBasketPricesCommandHandlerTests
             .Returns(Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(
                 BasketAclErrors.CatalogUnavailable()));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new RefreshBasketPricesCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();

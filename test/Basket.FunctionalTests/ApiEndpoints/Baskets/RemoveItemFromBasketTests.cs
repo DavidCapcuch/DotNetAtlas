@@ -12,14 +12,18 @@ namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
 [Collection<FunctionalTestCollection>]
 public class RemoveItemFromBasketTests : BaseApiTest
 {
+    private static readonly DateTimeOffset FixedCapturedAt =
+        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
+
     public RemoveItemFromBasketTests(ApiTestFixture app)
         : base(app)
     {
     }
 
     [Fact]
-    public async Task WhenItemPresent_ReturnsNoContent()
+    public async Task RemoveItem_WhenItemPresent_ReturnsNoContent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         StubCatalog(productId);
@@ -28,14 +32,17 @@ public class RemoveItemFromBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
+        // Act
         var response = await DeleteItemAsync(client, productId);
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task WhenItemAbsent_ReturnsNoContent_Idempotent()
+    public async Task RemoveItem_WhenItemAbsent_ReturnsNoContent_Idempotent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var sittingProduct = Guid.CreateVersion7();
         StubCatalog(sittingProduct);
@@ -44,22 +51,28 @@ public class RemoveItemFromBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = sittingProduct, Quantity = 1 });
 
+        // Act
         var response = await DeleteItemAsync(client, productId: Guid.CreateVersion7());
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task WhenBasketAbsent_ReturnsNoContent_Idempotent()
+    public async Task RemoveItem_WhenBasketAbsent_ReturnsNoContent_Idempotent()
     {
         // The M4 handler treats "no basket" as a successful idempotent no-op (204),
         // diverging from use-cases.md § 2.1.2 which prescribed 404. Documented as a
         // doc/code follow-up in the M8 session summary.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
 
+        // Act
         var response = await DeleteItemAsync(client, productId: Guid.CreateVersion7());
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
@@ -79,7 +92,7 @@ public class RemoveItemFromBasketTests : BaseApiTest
             sku: "SKU",
             name: "Product",
             price: Money.Create(10m, "EUR").Value,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: FixedCapturedAt);
         Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok(snapshot));
     }

@@ -1,8 +1,6 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Basket.Domain.Baskets.ValueObjects;
 using Basket.Infrastructure.ExternalServices.Catalog;
 using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
@@ -38,15 +36,18 @@ public class ProductCatalogHttpAdapterTests
     [Fact]
     public async Task GetProductSnapshot_WhenHttp200_ReturnsSnapshotWithMappedFields()
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
         var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
             HttpStatusCode.OK,
             new { productId, sku = "SKU-A", name = "Widget", price = new { amount = 9.99m, currency = "USD" } })));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             productId,
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -62,14 +63,17 @@ public class ProductCatalogHttpAdapterTests
     [Fact]
     public async Task GetProductSnapshot_WhenHttp404_ReturnsProductNotFound()
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
         var handler = new StubHttpMessageHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             productId,
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -79,49 +83,61 @@ public class ProductCatalogHttpAdapterTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductSnapshot_WhenHttp500_ReturnsCatalogUnavailable()
     {
+        // Arrange
         var handler = new StubHttpMessageHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             Guid.CreateVersion7(),
             TestContext.Current.CancellationToken);
 
+        // Assert
         AssertCatalogUnavailable(result);
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductSnapshot_WhenHttp400_ReturnsCatalogUnavailable()
     {
+        // Arrange
         var handler = new StubHttpMessageHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             Guid.CreateVersion7(),
             TestContext.Current.CancellationToken);
 
+        // Assert
         AssertCatalogUnavailable(result);
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductSnapshot_WhenHttpClientTimeout_ReturnsCatalogUnavailable()
     {
-        // HttpClient.Timeout firing surfaces as TaskCanceledException with an
+        // Arrange — HttpClient.Timeout firing surfaces as TaskCanceledException with an
         // inner TimeoutException; the caller token is NOT cancelled.
         var handler = new StubHttpMessageHandler((_, _) =>
             throw new TaskCanceledException("simulated http timeout", new TimeoutException()));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             Guid.CreateVersion7(),
             TestContext.Current.CancellationToken);
 
+        // Assert
         AssertCatalogUnavailable(result);
     }
 
     [Fact]
     public async Task GetProductSnapshot_WhenCallerCancels_ThrowsOperationCanceled()
     {
+        // Arrange
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
         var handler = new StubHttpMessageHandler((_, ct) =>
@@ -132,49 +148,63 @@ public class ProductCatalogHttpAdapterTests
 
         var sut = CreateSut(handler);
 
+        // Act
         var act = async () => await sut.GetProductSnapshotAsync(Guid.CreateVersion7(), cts.Token);
 
+        // Assert
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductSnapshot_WhenHttpRequestException_ReturnsCatalogUnavailable()
     {
+        // Arrange
         var handler = new StubHttpMessageHandler((_, _) =>
             throw new HttpRequestException("simulated DNS failure"));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             Guid.CreateVersion7(),
             TestContext.Current.CancellationToken);
 
+        // Assert
         AssertCatalogUnavailable(result);
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetProductSnapshot_WhenMalformedJson_ReturnsCatalogUnavailable()
     {
+        // Arrange
         var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent("not json at all", Encoding.UTF8, "application/json"),
         }));
 
+        // Act
         var result = await CreateSut(handler).GetProductSnapshotAsync(
             Guid.CreateVersion7(),
             TestContext.Current.CancellationToken);
 
+        // Assert
         AssertCatalogUnavailable(result);
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public async Task GetMany_WhenEmptyInput_SkipsHttpCallAndReturnsEmptyList()
     {
+        // Arrange
         var handler = new StubHttpMessageHandler((_, _) =>
             throw new InvalidOperationException("HttpClient must not be called with empty input."));
 
+        // Act
         var result = await CreateSut(handler).GetManyAsync(
             Array.Empty<Guid>(),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -186,6 +216,7 @@ public class ProductCatalogHttpAdapterTests
     [Fact]
     public async Task GetMany_WhenHappyPath_ReturnsPairsForAllProducts()
     {
+        // Arrange
         var id1 = Guid.CreateVersion7();
         var id2 = Guid.CreateVersion7();
         var id3 = Guid.CreateVersion7();
@@ -202,10 +233,12 @@ public class ProductCatalogHttpAdapterTests
                 missingProductIds = Array.Empty<Guid>(),
             })));
 
+        // Act
         var result = await CreateSut(handler).GetManyAsync(
             new[] { id1, id2, id3 },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -218,6 +251,7 @@ public class ProductCatalogHttpAdapterTests
     [Fact]
     public async Task GetMany_WhenPartialMiss_DropsMissingIdsSilently()
     {
+        // Arrange
         var id1 = Guid.CreateVersion7();
         var id2 = Guid.CreateVersion7();
         var id3 = Guid.CreateVersion7();
@@ -233,10 +267,12 @@ public class ProductCatalogHttpAdapterTests
                 missingProductIds = new[] { id3 },
             })));
 
+        // Act
         var result = await CreateSut(handler).GetManyAsync(
             new[] { id1, id2, id3 },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -247,21 +283,26 @@ public class ProductCatalogHttpAdapterTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task GetMany_WhenHttp500_ReturnsCatalogUnavailable()
     {
+        // Arrange
         var handler = new StubHttpMessageHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
 
+        // Act
         var result = await CreateSut(handler).GetManyAsync(
             new[] { Guid.CreateVersion7(), Guid.CreateVersion7() },
             TestContext.Current.CancellationToken);
 
+        // Assert
         AssertCatalogUnavailable(result);
     }
 
     [Fact]
     public async Task GetMany_JoinsIdsAsSingleCommaSeparatedQuery()
     {
+        // Arrange
         var id1 = Guid.CreateVersion7();
         var id2 = Guid.CreateVersion7();
         var id3 = Guid.CreateVersion7();
@@ -269,21 +310,27 @@ public class ProductCatalogHttpAdapterTests
             HttpStatusCode.OK,
             new { products = Array.Empty<object>(), missingProductIds = new[] { id1, id2, id3 } })));
 
+        // Act
         _ = await CreateSut(handler).GetManyAsync(
             new[] { id1, id2, id3 },
             TestContext.Current.CancellationToken);
 
+        // Assert
         handler.LastRequestPathAndQuery.Should().Be(
             $"/api/v1/catalog/products/by-ids?ids={id1:D},{id2:D},{id3:D}");
     }
 
     [Fact]
+    [Trait("Category", "regression")]
+    [Trait("Category", "boundary")]
     public async Task GetMany_WhenIdsExceedChunkSize_IssuesMultipleRequests()
     {
         // sum2.H-6 regression guard. The previous single-batch implementation built
         // ~38-byte-per-id query strings, so worst-case Basket.MaxItems=50 produced a
         // ~1900-char URL — uncomfortably close to common 2KB caps and brittle if the
         // basket-size limit ever rises. Chunking keeps each URL bounded.
+
+        // Arrange
         var ids = Enumerable.Range(0, 50).Select(_ => Guid.CreateVersion7()).ToArray();
         var handler = new StubHttpMessageHandler((req, _) =>
         {
@@ -297,8 +344,10 @@ public class ProductCatalogHttpAdapterTests
                 new { products = Array.Empty<object>(), missingProductIds = Array.Empty<Guid>() }));
         });
 
+        // Act
         var result = await CreateSut(handler).GetManyAsync(ids, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -310,16 +359,19 @@ public class ProductCatalogHttpAdapterTests
     [Fact]
     public async Task GetMany_DeduplicatesInputIds()
     {
+        // Arrange
         var id1 = Guid.CreateVersion7();
         var id2 = Guid.CreateVersion7();
         var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
             HttpStatusCode.OK,
             new { products = Array.Empty<object>(), missingProductIds = new[] { id1, id2 } })));
 
+        // Act
         _ = await CreateSut(handler).GetManyAsync(
             new[] { id1, id1, id2 },
             TestContext.Current.CancellationToken);
 
+        // Assert
         handler.LastRequestPathAndQuery.Should().Be(
             $"/api/v1/catalog/products/by-ids?ids={id1:D},{id2:D}");
     }

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using Basket.Api.Endpoints.Baskets.AddItem;
 using Basket.Api.Endpoints.Baskets.Checkout;
 using Basket.Application.Baskets.Common.Contracts;
@@ -16,13 +15,17 @@ namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
 [Collection<FunctionalTestCollection>]
 public class CheckoutBasketTests : BaseApiTest
 {
+    private static readonly DateTimeOffset FixedCapturedAt =
+        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
+
     public CheckoutBasketTests(ApiTestFixture app)
         : base(app)
     {
     }
 
     [Fact]
-    public async Task WhenValidRequest_Returns202_AndOutboxRowExists_AndRedisKeyDeleted()
+    [Trait("Category", "critical-path")]
+    public async Task Checkout_WhenValidRequest_Returns202_AndOutboxRowExists_AndRedisKeyDeleted()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -62,7 +65,7 @@ public class CheckoutBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenIdempotencyKeyMissing_Returns400()
+    public async Task Checkout_WhenIdempotencyKeyMissing_Returns400()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -75,8 +78,7 @@ public class CheckoutBasketTests : BaseApiTest
 
         var checkoutRequest = ValidCheckoutRequest();
 
-        // No Idempotency-Key header — FastEndpoints' .Idempotency() filter rejects.
-        // Act
+        // Act — no Idempotency-Key header; FastEndpoints' .Idempotency() filter rejects.
         var response = await client
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest>(checkoutRequest);
 
@@ -85,7 +87,8 @@ public class CheckoutBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenSameIdempotencyKeyReplayed_ReturnsAccepted_OrCachedResponse()
+    [Trait("Category", "critical-path")]
+    public async Task Checkout_WhenSameIdempotencyKeyReplayed_ReturnsAccepted_OrCachedResponse()
     {
         // Verifies that a replayed POST with the same Idempotency-Key does not double-
         // commit the basket: either FastEndpoints' .Idempotency() filter replays the
@@ -94,6 +97,8 @@ public class CheckoutBasketTests : BaseApiTest
         // satisfies the "no second outbox row" invariant. Full proof of cached-response
         // replay is documented as a follow-up — FE 7.0.0's body-hash cache key behavior
         // wasn't reliably observed in the test host for this BC; M9 can revisit.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         StubCatalog(productId);
@@ -107,11 +112,10 @@ public class CheckoutBasketTests : BaseApiTest
         var idempotencyKey = Guid.CreateVersion7().ToString();
         client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
 
-        // Act — first call
+        // Act — first call, then a second call with the same Idempotency-Key.
         var (firstResponse, firstBody) = await client
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(checkoutRequest);
 
-        // Second call uses the same Idempotency-Key.
         var secondResponse = await client
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest>(checkoutRequest);
 
@@ -137,13 +141,16 @@ public class CheckoutBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenSameIdempotencyKeyUsedByDifferentUser_HandlerStillRuns()
+    [Trait("Category", "security")]
+    public async Task Checkout_WhenSameIdempotencyKeyUsedByDifferentUser_HandlerStillRuns()
     {
         // FastEndpoints 7.0.1's IdempotencyOptions.AdditionalHeaders defaults include
         // the Authorization header — the OutputCachePolicy reads that into
         // CacheVaryByRules.HeaderNames so two different users reusing the same UUID
         // never share responses. Pinning that default; if a future FE minor drops
         // Authorization from the defaults, this test fails loudly.
+
+        // Arrange
         var idempotencyKey = Guid.CreateVersion7().ToString();
 
         var alice = Guid.CreateVersion7();
@@ -163,6 +170,7 @@ public class CheckoutBasketTests : BaseApiTest
             new AddItemToBasketRequest { ProductId = bobProduct, Quantity = 1 });
         bobClient.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
 
+        // Act
         var (aliceResponse, _) = await aliceClient
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(
                 ValidCheckoutRequest());
@@ -170,6 +178,7 @@ public class CheckoutBasketTests : BaseApiTest
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(
                 ValidCheckoutRequest());
 
+        // Assert
         using (new AssertionScope())
         {
             aliceResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
@@ -188,7 +197,7 @@ public class CheckoutBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenBasketIsEmpty_Returns409()
+    public async Task Checkout_WhenBasketIsEmpty_Returns409()
     {
         // Arrange — never added an item. CheckoutHandler returns BasketErrors.EmptyBasket
         // when basket is null OR has zero items. With no Redis key, the handler wraps the
@@ -244,7 +253,7 @@ public class CheckoutBasketTests : BaseApiTest
             sku: "SKU",
             name: "Product",
             price: Money.Create(10m, "EUR").Value,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: FixedCapturedAt);
         Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok(snapshot));
     }

@@ -27,6 +27,7 @@ public class AddItemToBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenNoBasket_CreatesNewBasketSavesAndDispatchesEvents()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var snapshot = BasketTestData.Snapshot();
@@ -37,10 +38,12 @@ public class AddItemToBasketCommandHandlerTests
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new AddItemToBasketCommand(userId, productId, 2),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -57,15 +60,18 @@ public class AddItemToBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenCatalogReturnsNotFound_PropagatesError()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         _catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
             .Returns(Result.Fail<ProductSnapshot>(BasketAclErrors.ProductNotFound(productId)));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new AddItemToBasketCommand(userId, productId, 1),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -74,8 +80,10 @@ public class AddItemToBasketCommandHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_WhenFirstSaveConflicts_ReloadsAndSucceedsOnSecondAttempt()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var snapshot = BasketTestData.Snapshot();
@@ -96,10 +104,12 @@ public class AddItemToBasketCommandHandlerTests
                     : Result.Ok();
             });
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new AddItemToBasketCommand(userId, productId, 1),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -109,8 +119,10 @@ public class AddItemToBasketCommandHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_WhenBothSavesConflict_PropagatesConcurrencyError()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         _catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
@@ -120,10 +132,12 @@ public class AddItemToBasketCommandHandlerTests
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail(new BasketConcurrencyError(userId, 0, 5)));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new AddItemToBasketCommand(userId, productId, 1),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();

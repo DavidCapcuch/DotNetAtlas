@@ -30,6 +30,7 @@ public sealed class BasketCacheTracingTests : BaseApiTest
     [Fact]
     public async Task BasketRead_EmitsRedisBasketSpans()
     {
+        // Arrange
         var capturedRedisSpans = new ConcurrentQueue<Activity>();
         using var listener = new ActivityListener
         {
@@ -40,8 +41,8 @@ public sealed class BasketCacheTracingTests : BaseApiTest
         };
         ActivitySource.AddActivityListener(listener);
 
-        // A repository read flows through the "basket" FusionCache L2 lookup, which issues a GET
-        // over the keyed redis-basket multiplexer — even for an unknown user (miss → Result.Ok(null)).
+        // Act — a repository read flows through the "basket" FusionCache L2 lookup, which issues a
+        // GET over the keyed redis-basket multiplexer — even for an unknown user (miss → Result.Ok(null)).
         var repository = Scope.ServiceProvider.GetRequiredService<IBasketRepository>();
         var result = await repository.GetByUserIdAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
         result.IsSuccess.Should().BeTrue();
@@ -49,6 +50,7 @@ public sealed class BasketCacheTracingTests : BaseApiTest
         var tracerProvider = Fixture.Services.GetRequiredService<TracerProvider>();
         var tracedRedisHop = await WaitForRedisSpanAsync(tracerProvider, capturedRedisSpans, TimeSpan.FromSeconds(15));
 
+        // Assert
         tracedRedisHop.Should().BeTrue(
             "the keyed redis-basket multiplexer (basket.md § 5.4 + ADR-0016) must be registered with the OTel " +
             "TracerProvider so the basket store's Redis commands surface as spans");

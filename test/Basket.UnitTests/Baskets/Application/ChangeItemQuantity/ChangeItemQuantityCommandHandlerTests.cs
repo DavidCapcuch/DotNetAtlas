@@ -23,14 +23,17 @@ public class ChangeItemQuantityCommandHandlerTests
     [Fact]
     public async Task Handle_WhenNoBasket_FailsItemNotFound()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(null));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new ChangeItemQuantityCommand(userId, Guid.CreateVersion7(), 3),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -42,6 +45,7 @@ public class ChangeItemQuantityCommandHandlerTests
     [Fact]
     public async Task Handle_WhenItemPresent_UpdatesQuantityAndSaves()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
@@ -54,10 +58,12 @@ public class ChangeItemQuantityCommandHandlerTests
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new ChangeItemQuantityCommand(userId, productId, 5),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

@@ -21,12 +21,15 @@ public class BasketStateMapperTests
     [Fact]
     public void ToDocument_EmptyBasket_ProducesEnvelopeWithZeroVersionAndEmptyItems()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, UtcNow);
         _ = basket.PopDomainEvents();
 
+        // Act
         var document = BasketStateMapper.ToDocument(basket);
 
+        // Assert
         using (new AssertionScope())
         {
             document.Version.Should().Be(0);
@@ -40,6 +43,7 @@ public class BasketStateMapperTests
     [Fact]
     public void ToDocument_PopulatedBasket_CopiesEveryFieldIncludingCurrencyAndPriceAmount()
     {
+        // Arrange
         var basket = BasketAggregate.Create(Guid.CreateVersion7(), UtcNow);
         var productId = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
@@ -52,8 +56,10 @@ public class BasketStateMapperTests
         basket.AddItem(productId, snapshot, quantity: 4, UtcNow);
         _ = basket.PopDomainEvents();
 
+        // Act
         var document = BasketStateMapper.ToDocument(basket);
 
+        // Assert
         using (new AssertionScope())
         {
             document.Version.Should().Be(basket.Version).And.Be(1);
@@ -72,6 +78,7 @@ public class BasketStateMapperTests
     [Fact]
     public void ToDomain_EnvelopeWithItems_RehydratesAggregateWithoutRaisingCreationEvent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var createdAt = new DateTimeOffset(2026, 01, 01, 08, 00, 00, TimeSpan.Zero);
@@ -92,8 +99,10 @@ public class BasketStateMapperTests
                 createdAt,
                 lastModified));
 
+        // Act
         var basket = BasketStateMapper.ToDomain(document);
 
+        // Assert
         using (new AssertionScope())
         {
             basket.UserId.Should().Be(userId);
@@ -117,6 +126,7 @@ public class BasketStateMapperTests
     [Fact]
     public void RoundTrip_MutatedBasket_PreservesPublicStateExactly()
     {
+        // Arrange
         var basket = BasketAggregate.Create(Guid.CreateVersion7(), UtcNow);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(3));
         var productA = Guid.CreateVersion7();
@@ -126,9 +136,11 @@ public class BasketStateMapperTests
         basket.AddItem(productB, BasketTestData.Snapshot(amount: 4.50m), quantity: 3, UtcNow);
         _ = basket.PopDomainEvents();
 
+        // Act
         var document = BasketStateMapper.ToDocument(basket);
         var roundtripped = BasketStateMapper.ToDomain(document);
 
+        // Assert
         using (new AssertionScope())
         {
             roundtripped.UserId.Should().Be(basket.UserId);

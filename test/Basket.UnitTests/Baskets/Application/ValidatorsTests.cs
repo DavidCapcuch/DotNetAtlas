@@ -22,34 +22,63 @@ public class ValidatorsTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void AddItem_Valid_Passes()
+    public void AddItem_WhenValid_Passes()
     {
-        var v = new AddItemToBasketCommandValidator();
-        v.Validate(new AddItemToBasketCommand(UserId, ProductId, 1)).IsValid.Should().BeTrue();
+        // Arrange
+        var validator = new AddItemToBasketCommandValidator();
+        var command = new AddItemToBasketCommand(UserId, ProductId, 1);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
     [InlineData(1001)]
-    public void AddItem_InvalidQuantity_Fails(int quantity)
+    [Trait("Category", "boundary")]
+    public void AddItem_WhenQuantityOutOfRange_Fails(int quantity)
     {
-        var v = new AddItemToBasketCommandValidator();
-        v.Validate(new AddItemToBasketCommand(UserId, ProductId, quantity)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new AddItemToBasketCommandValidator();
+        var command = new AddItemToBasketCommand(UserId, ProductId, quantity);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void AddItem_EmptyUserId_Fails()
+    public void AddItem_WhenEmptyUserId_Fails()
     {
-        var v = new AddItemToBasketCommandValidator();
-        v.Validate(new AddItemToBasketCommand(Guid.Empty, ProductId, 1)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new AddItemToBasketCommandValidator();
+        var command = new AddItemToBasketCommand(Guid.Empty, ProductId, 1);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void AddItem_EmptyProductId_Fails()
+    public void AddItem_WhenEmptyProductId_Fails()
     {
-        var v = new AddItemToBasketCommandValidator();
-        v.Validate(new AddItemToBasketCommand(UserId, Guid.Empty, 1)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new AddItemToBasketCommandValidator();
+        var command = new AddItemToBasketCommand(UserId, Guid.Empty, 1);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     // ------------------------------------------------------------------
@@ -57,17 +86,31 @@ public class ValidatorsTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void RemoveItem_Valid_Passes()
+    public void RemoveItem_WhenValid_Passes()
     {
-        var v = new RemoveItemFromBasketCommandValidator();
-        v.Validate(new RemoveItemFromBasketCommand(UserId, ProductId)).IsValid.Should().BeTrue();
+        // Arrange
+        var validator = new RemoveItemFromBasketCommandValidator();
+        var command = new RemoveItemFromBasketCommand(UserId, ProductId);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void RemoveItem_EmptyIds_Fails()
+    public void RemoveItem_WhenEmptyIds_Fails()
     {
-        var v = new RemoveItemFromBasketCommandValidator();
-        v.Validate(new RemoveItemFromBasketCommand(Guid.Empty, Guid.Empty)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new RemoveItemFromBasketCommandValidator();
+        var command = new RemoveItemFromBasketCommand(Guid.Empty, Guid.Empty);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     // ------------------------------------------------------------------
@@ -75,19 +118,34 @@ public class ValidatorsTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void ChangeItemQuantity_Valid_Passes()
+    public void ChangeItemQuantity_WhenValid_Passes()
     {
-        var v = new ChangeItemQuantityCommandValidator();
-        v.Validate(new ChangeItemQuantityCommand(UserId, ProductId, 5)).IsValid.Should().BeTrue();
+        // Arrange
+        var validator = new ChangeItemQuantityCommandValidator();
+        var command = new ChangeItemQuantityCommand(UserId, ProductId, 5);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(1001)]
-    public void ChangeItemQuantity_OutOfRange_Fails(int qty)
+    [Trait("Category", "boundary")]
+    public void ChangeItemQuantity_WhenQuantityOutOfRange_Fails(int newQuantity)
     {
-        var v = new ChangeItemQuantityCommandValidator();
-        v.Validate(new ChangeItemQuantityCommand(UserId, ProductId, qty)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new ChangeItemQuantityCommandValidator();
+        var command = new ChangeItemQuantityCommand(UserId, ProductId, newQuantity);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     // ------------------------------------------------------------------
@@ -95,31 +153,59 @@ public class ValidatorsTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void RefreshPrices_Valid_Passes()
+    public void RefreshPrices_WhenValid_Passes()
     {
-        new RefreshBasketPricesCommandValidator()
-            .Validate(new RefreshBasketPricesCommand(UserId)).IsValid.Should().BeTrue();
+        // Arrange
+        var validator = new RefreshBasketPricesCommandValidator();
+        var command = new RefreshBasketPricesCommand(UserId);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void RefreshPrices_EmptyUserId_Fails()
+    public void RefreshPrices_WhenEmptyUserId_Fails()
     {
-        new RefreshBasketPricesCommandValidator()
-            .Validate(new RefreshBasketPricesCommand(Guid.Empty)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new RefreshBasketPricesCommandValidator();
+        var command = new RefreshBasketPricesCommand(Guid.Empty);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Clear_EmptyUserId_Fails()
+    public void Clear_WhenEmptyUserId_Fails()
     {
-        new ClearBasketCommandValidator()
-            .Validate(new ClearBasketCommand(Guid.Empty)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new ClearBasketCommandValidator();
+        var command = new ClearBasketCommand(Guid.Empty);
+
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void GetByUserId_EmptyUserId_Fails()
+    public void GetByUserId_WhenEmptyUserId_Fails()
     {
-        new GetBasketByUserIdQueryValidator()
-            .Validate(new GetBasketByUserIdQuery(Guid.Empty)).IsValid.Should().BeFalse();
+        // Arrange
+        var validator = new GetBasketByUserIdQueryValidator();
+        var query = new GetBasketByUserIdQuery(Guid.Empty);
+
+        // Act
+        var result = validator.Validate(query);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     // ------------------------------------------------------------------
@@ -127,39 +213,50 @@ public class ValidatorsTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void Checkout_Valid_Passes()
+    public void Checkout_WhenValid_Passes()
     {
-        var v = new CheckoutBasketCommandValidator();
-        var cmd = new CheckoutBasketCommand(
+        // Arrange
+        var validator = new CheckoutBasketCommandValidator();
+        var command = new CheckoutBasketCommand(
             UserId,
             ApplicationTestData.AddressDto(),
             ApplicationTestData.AddressDto(),
             Guid.CreateVersion7());
 
-        v.Validate(cmd).IsValid.Should().BeTrue();
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Checkout_EmptyPaymentMethodId_Fails()
+    public void Checkout_WhenEmptyPaymentMethodId_Fails()
     {
-        var v = new CheckoutBasketCommandValidator();
-        var cmd = new CheckoutBasketCommand(
+        // Arrange
+        var validator = new CheckoutBasketCommandValidator();
+        var command = new CheckoutBasketCommand(
             UserId,
             ApplicationTestData.AddressDto(),
             ApplicationTestData.AddressDto(),
             Guid.Empty);
 
-        v.Validate(cmd).IsValid.Should().BeFalse();
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Theory]
     [InlineData("us")] // lowercase
     [InlineData("USA")] // 3 chars
     [InlineData("")]
-    public void Checkout_InvalidCountryCode_Fails(string countryCode)
+    public void Checkout_WhenInvalidCountryCode_Fails(string countryCode)
     {
-        var v = new CheckoutBasketCommandValidator();
-        var cmd = new CheckoutBasketCommand(
+        // Arrange
+        var validator = new CheckoutBasketCommandValidator();
+        var command = new CheckoutBasketCommand(
             UserId,
             new CheckoutAddressDto
             {
@@ -171,14 +268,19 @@ public class ValidatorsTests
             ApplicationTestData.AddressDto(),
             Guid.CreateVersion7());
 
-        v.Validate(cmd).IsValid.Should().BeFalse();
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Checkout_EmptyShippingStreet1_Fails()
+    public void Checkout_WhenEmptyShippingStreet1_Fails()
     {
-        var v = new CheckoutBasketCommandValidator();
-        var cmd = new CheckoutBasketCommand(
+        // Arrange
+        var validator = new CheckoutBasketCommandValidator();
+        var command = new CheckoutBasketCommand(
             UserId,
             new CheckoutAddressDto
             {
@@ -190,14 +292,20 @@ public class ValidatorsTests
             ApplicationTestData.AddressDto(),
             Guid.CreateVersion7());
 
-        v.Validate(cmd).IsValid.Should().BeFalse();
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Checkout_Street1OverMaxLength_Fails()
+    [Trait("Category", "boundary")]
+    public void Checkout_WhenStreet1OverMaxLength_Fails()
     {
-        var v = new CheckoutBasketCommandValidator();
-        var cmd = new CheckoutBasketCommand(
+        // Arrange
+        var validator = new CheckoutBasketCommandValidator();
+        var command = new CheckoutBasketCommand(
             UserId,
             new CheckoutAddressDto
             {
@@ -209,6 +317,10 @@ public class ValidatorsTests
             ApplicationTestData.AddressDto(),
             Guid.CreateVersion7());
 
-        v.Validate(cmd).IsValid.Should().BeFalse();
+        // Act
+        var result = validator.Validate(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 }

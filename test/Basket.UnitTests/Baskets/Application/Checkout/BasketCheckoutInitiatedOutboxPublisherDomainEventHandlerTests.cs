@@ -22,6 +22,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
     [Fact]
     public async Task Handle_AddsOutboxMessageWithBasketSessionsTopicAndUserIdKey()
     {
+        // Arrange
         var outbox = Substitute.For<ITransactionalOutbox<IBasketDbContext>>();
         var topicsOptions = Options.Create(new TopicsOptions
         {
@@ -44,7 +45,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
             BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value));
         var address = Address.Create("S", null, "C", null, "P", "US").Value;
 
-        var ev = new BasketCheckedOutDomainEvent
+        var checkedOutEvent = new BasketCheckedOutDomainEvent
         {
             OccurredOnUtc = capturedAt,
             UserId = userId,
@@ -55,8 +56,10 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
             PaymentMethodId = Guid.CreateVersion7(),
         };
 
-        await sut.Handle(ev, TestContext.Current.CancellationToken);
+        // Act
+        await sut.Handle(checkedOutEvent, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             outbox.Received(1).AddOutboxMessage(
@@ -70,6 +73,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task Handle_LogsAtDebugWithQueuedVerb_NotInformation()
     {
         // sum2.H-3 regression guard. The pre-fix line was a LogInformation "Added ..."
@@ -79,6 +83,8 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         // any subsequent SaveChanges failure. The publisher now logs at Debug with
         // "Queued" verb; CheckoutBasketCommandHandler emits the post-commit
         // information-level "Published" line.
+
+        // Arrange
         var logger = Substitute.For<ILogger<BasketCheckoutInitiatedOutboxPublisherDomainEventHandler>>();
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
 
@@ -100,7 +106,7 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
             ImmutableArray.Create(item),
             BasketTotal.From(Money.Create(10m, CurrencyCode.Usd).Value));
         var address = Address.Create("S", null, "C", null, "P", "US").Value;
-        var ev = new BasketCheckedOutDomainEvent
+        var checkedOutEvent = new BasketCheckedOutDomainEvent
         {
             OccurredOnUtc = capturedAt,
             UserId = Guid.CreateVersion7(),
@@ -111,8 +117,10 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
             PaymentMethodId = Guid.CreateVersion7(),
         };
 
-        await sut.Handle(ev, TestContext.Current.CancellationToken);
+        // Act
+        await sut.Handle(checkedOutEvent, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             logger.Received().Log(
