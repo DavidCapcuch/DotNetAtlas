@@ -14,8 +14,9 @@ namespace Catalog.UnitTests.Products.DiscontinueProduct;
 public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
 {
     [Fact]
-    public async Task Given_Discontinuation_Then_EnqueuesAvroWithReasonAndSku()
+    public async Task Handle_Discontinuation_EnqueuesAvroWithReasonAndSku()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -38,6 +39,7 @@ public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
+        // Act
         await publisher.Handle(
             new ProductDiscontinuedDomainEvent
             {
@@ -47,6 +49,7 @@ public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var args = outbox.ReceivedCalls().Single().GetArguments();
         args[0].Should().Be("catalog.products");
         var avro = args[2].Should().BeOfType<AvroProductDiscontinuedEvent>().Subject;

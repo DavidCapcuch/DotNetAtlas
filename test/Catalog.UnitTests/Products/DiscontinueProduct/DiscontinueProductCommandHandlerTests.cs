@@ -11,8 +11,9 @@ namespace Catalog.UnitTests.Products.DiscontinueProduct;
 public class DiscontinueProductCommandHandlerTests
 {
     [Fact]
-    public async Task Given_ActiveProduct_When_Discontinuing_Then_SucceedsAndRaisesEvent()
+    public async Task Handle_ActiveProduct_SucceedsAndRaisesEvent()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -23,10 +24,12 @@ public class DiscontinueProductCommandHandlerTests
         var handler = new DiscontinueProductCommandHandler(
             db, TimeProvider.System, NullLogger<DiscontinueProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DiscontinueProductCommand { ProductId = product.Id, Reason = "EOL" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -39,16 +42,19 @@ public class DiscontinueProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_MissingProduct_Then_FailsNotFound()
+    public async Task Handle_MissingProduct_FailsNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new DiscontinueProductCommandHandler(
             db, TimeProvider.System, NullLogger<DiscontinueProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DiscontinueProductCommand { ProductId = Guid.CreateVersion7(), Reason = "x" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 }

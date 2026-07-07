@@ -30,8 +30,9 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_FlagFalse_When_Searching_Then_HidesDiscontinued()
+    public async Task Handle_FlagFalse_HidesDiscontinued()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -41,9 +42,11 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -53,8 +56,9 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_FlagTrue_When_Searching_Then_IncludesDiscontinued()
+    public async Task Handle_FlagTrue_IncludesDiscontinued()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -64,9 +68,11 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: true));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -76,8 +82,9 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_ExplicitStatusFilter_When_Searching_Then_FlagIgnored()
+    public async Task Handle_ExplicitStatusFilter_FlagIgnored()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -88,9 +95,11 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
         // Flag is false, but query explicitly asks for Discontinued.
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { Status = "Discontinued", PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -100,8 +109,9 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_CategoryPathPrefix_When_Searching_Then_FiltersByPrefix()
+    public async Task Handle_CategoryPathPrefix_FiltersByPrefix()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -111,17 +121,20 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Items.Should().ContainSingle().Which.Sku.Should().Be("A");
     }
 
     [Fact]
-    public async Task Given_CategoryPathPrefix_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
+    public async Task Handle_CategoryPathPrefixSiblingSharesLeadingSubstring_SiblingIsExcluded()
     {
         // "/electronics" must match itself and its descendants, but NOT "/electronics-toys".
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -132,16 +145,19 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { CategoryPathPrefix = "/electronics", PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Items.Select(i => i.Sku).Should().BeEquivalentTo(["EXACT", "CHILD"]);
     }
 
     [Fact]
-    public async Task Given_PriceRange_When_Searching_Then_FiltersInclusive()
+    public async Task Handle_PriceRange_FiltersInclusive()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -152,6 +168,7 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery
             {
@@ -163,16 +180,19 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
             },
             ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Items.Should().ContainSingle().Which.Sku.Should().Be("MID");
     }
 
     [Fact]
-    public async Task Given_TextContainsLiteralPercent_When_Searching_Then_PercentIsNotTreatedAsWildcard()
+    [Trait("Category", "security")]
+    public async Task Handle_TextContainsLiteralPercent_PercentIsNotTreatedAsWildcard()
     {
         // Per CAT-SEC-001 / CAT-RV-H03: user-supplied "%" must be a literal, not a wildcard.
         // Three rows differ only by name; query Text="a%b" must match only the row with that
         // literal substring, not the broader rows that "%a%b%" would otherwise gobble up.
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -183,9 +203,11 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { Text = "a%b", PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -194,9 +216,11 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_TextContainsLiteralUnderscore_When_Searching_Then_UnderscoreIsNotTreatedAsWildcard()
+    [Trait("Category", "security")]
+    public async Task Handle_TextContainsLiteralUnderscore_UnderscoreIsNotTreatedAsWildcard()
     {
         // Per CAT-SEC-001 / CAT-RV-H03: user-supplied "_" must be a literal, not a single-char wildcard.
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         await seeder.SeedRowsAsync(
@@ -206,9 +230,11 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { Text = "a_b", PageNumber = 1, PageSize = 10 }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -217,8 +243,9 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_Paging_When_Searching_Then_ReturnsCorrectSliceAndTotal()
+    public async Task Handle_Paging_ReturnsCorrectSliceAndTotal()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var rows = new List<ProductSearchViewRow>();
@@ -231,14 +258,19 @@ public sealed class SearchProductsQueryHandlerTests : BaseIntegrationTest
 
         var handler = new SearchProductsQueryHandler(CatalogDbContext, FlagClient(showDiscontinued: false));
 
+        // Act
         var result = await handler.HandleAsync(
             new SearchProductsQuery { PageNumber = 2, PageSize = 2 }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             result.Value.Total.Should().Be(5);
-            result.Value.Items.Should().HaveCount(2);
+            // Pin the exact slice, not just its size: rows are ordered by PriceAmount
+            // (seeded amount = i + 1) then ProductId, so page 2 / size 2 is deterministically
+            // SKU-2, SKU-3. A wrong-offset mutation that still returns 2 rows fails here.
+            result.Value.Items.Select(i => i.Sku).Should().Equal("SKU-2", "SKU-3");
         }
     }
 }

@@ -19,9 +19,12 @@ public class CreateProductCommandValidatorTests
     };
 
     [Fact]
-    public void Valid_command_passes()
+    public void Validate_ValidCommand_Passes()
     {
+        // Act
         var result = _validator.Validate(Valid());
+
+        // Assert
         result.IsValid.Should().BeTrue();
     }
 
@@ -31,30 +34,43 @@ public class CreateProductCommandValidatorTests
     [InlineData("has spaces")]
     [InlineData("has/slash")]
     [InlineData("-leading-dash")]
-    public void Invalid_sku_fails(string sku)
+    public void Validate_InvalidSku_Fails(string sku)
     {
+        // Arrange
         var cmd = Valid() with { Sku = sku };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Empty_name_fails()
+    public void Validate_EmptyName_Fails()
     {
+        // Arrange
         var cmd = Valid() with { Name = string.Empty };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Description_with_html_fails()
+    [Trait("Category", "security")]
+    public void Validate_DescriptionWithHtml_Fails()
     {
+        // Arrange
         var cmd = Valid() with { Description = "<p>html</p>" };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Description_with_lt_but_no_tag_passes()
+    public void Validate_DescriptionWithLtButNoTag_Passes()
     {
+        // Arrange
         var cmd = Valid() with { Description = "price < 10" };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
@@ -62,6 +78,7 @@ public class CreateProductCommandValidatorTests
     // shapes through. Any downstream renderer that decodes entities or honours processing
     // instructions / CDATA would then re-expose the markup. Reject up front.
     [Theory]
+    [Trait("Category", "security")]
     [InlineData("<!-- xss -->")]
     [InlineData("<!DOCTYPE html>")]
     [InlineData("<?xml version=\"1.0\"?>")]
@@ -70,32 +87,44 @@ public class CreateProductCommandValidatorTests
     [InlineData("encoded &#60;script&#62;alert(1)&#60;/script&#62;")]
     [InlineData("hex &#x3c;script&#x3e;")]
     [InlineData("named &lt;script&gt;alert(1)&lt;/script&gt;")]
-    public void Description_with_html_bypass_fails(string description)
+    public void Validate_DescriptionWithHtmlBypass_Fails(string description)
     {
+        // Arrange
         var cmd = Valid() with { Description = description };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Theory]
     [InlineData("Tom & Jerry buy widgets")]
     [InlineData("price < 10 and quantity > 0")]
-    public void Description_with_innocuous_lt_or_amp_passes(string description)
+    public void Validate_DescriptionWithInnocuousLtOrAmp_Passes(string description)
     {
+        // Arrange
         var cmd = Valid() with { Description = description };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Empty_category_fails()
+    public void Validate_EmptyCategory_Fails()
     {
+        // Arrange
         var cmd = Valid() with { CategoryId = Guid.Empty };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Non_positive_price_fails()
+    public void Validate_NonPositivePrice_Fails()
     {
+        // Arrange
         var cmd = Valid() with { Price = new MoneyDto { Amount = 0m, Currency = "USD" } };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
@@ -103,15 +132,19 @@ public class CreateProductCommandValidatorTests
     [InlineData("usd")]
     [InlineData("US")]
     [InlineData("USDX")]
-    public void Malformed_currency_fails(string currency)
+    public void Validate_MalformedCurrency_Fails(string currency)
     {
+        // Arrange
         var cmd = Valid() with { Price = new MoneyDto { Amount = 1m, Currency = currency } };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Duplicate_image_display_order_fails()
+    public void Validate_DuplicateImageDisplayOrder_Fails()
     {
+        // Arrange
         var cmd = Valid() with
         {
             Images = new List<ImageReferenceDto>
@@ -120,12 +153,15 @@ public class CreateProductCommandValidatorTests
                 new() { Url = "https://example.com/b.jpg", AltText = "b", DisplayOrder = 0 },
             },
         };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Non_absolute_image_url_fails()
+    public void Validate_NonAbsoluteImageUrl_Fails()
     {
+        // Arrange
         var cmd = Valid() with
         {
             Images = new List<ImageReferenceDto>
@@ -133,18 +169,22 @@ public class CreateProductCommandValidatorTests
                 new() { Url = "/relative.jpg", AltText = "a", DisplayOrder = 0 },
             },
         };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     // Per CAT-SEC-005 (Wave-1 closeout): scheme allow-list mirrored at the API surface so a
     // hostile image URL is rejected before the command reaches the domain factory.
     [Theory]
+    [Trait("Category", "security")]
     [InlineData("javascript:alert('xss')")]
     [InlineData("data:text/html,<script>alert(1)</script>")]
     [InlineData("file:///etc/passwd")]
     [InlineData("ftp://example.com/a.jpg")]
-    public void Non_http_image_url_scheme_fails(string url)
+    public void Validate_NonHttpImageUrlScheme_Fails(string url)
     {
+        // Arrange
         var cmd = Valid() with
         {
             Images = new List<ImageReferenceDto>
@@ -152,6 +192,8 @@ public class CreateProductCommandValidatorTests
                 new() { Url = url, AltText = "a", DisplayOrder = 0 },
             },
         };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
@@ -159,29 +201,38 @@ public class CreateProductCommandValidatorTests
     // pair (any non-BMP emoji) is 2 chars. MaximumRuneLength counts Unicode scalars instead,
     // so 200 emoji = 200 runes = valid even though it's 400 chars.
     [Fact]
-    public void Name_of_200_emoji_runes_passes_rune_check()
+    public void Validate_NameOf200EmojiRunes_PassesRuneCheck()
     {
+        // Arrange
         // 𝓪 (U+1D4EA) is a non-BMP code point, so it occupies 2 chars per appearance.
         var name = string.Concat(Enumerable.Repeat("𝓪", 200));
         var cmd = Valid() with { Name = name };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Name_of_201_emoji_runes_fails_rune_check()
+    public void Validate_NameOf201EmojiRunes_FailsRuneCheck()
     {
+        // Arrange
         var name = string.Concat(Enumerable.Repeat("𝓪", 201));
         var cmd = Valid() with { Name = name };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Dimensions_with_unknown_unit_fails()
+    public void Validate_DimensionsWithUnknownUnit_Fails()
     {
+        // Arrange
         var cmd = Valid() with
         {
             Dimensions = new DimensionsDto { Length = 1, Width = 1, Height = 1, Unit = "yards" },
         };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 }

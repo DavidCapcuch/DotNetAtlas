@@ -93,6 +93,7 @@ public class ImageReferenceTests
     }
 
     [Theory]
+    [Trait("Category", "security")]
     [InlineData("javascript:alert('xss')")]
     [InlineData("data:text/html,<script>alert('xss')</script>")]
     [InlineData("file:///etc/passwd")]

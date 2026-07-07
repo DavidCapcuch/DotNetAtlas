@@ -1,4 +1,3 @@
-using Avro.Specific;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.Messaging;
 using Catalog.Application.Products.CreateProduct;
@@ -24,8 +23,9 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
     };
 
     [Fact]
-    public async Task Given_TrackedProductAndCategory_When_Handling_Then_EnqueuesAvroWithEnrichedFields()
+    public async Task Handle_TrackedProductAndCategory_EnqueuesAvroWithEnrichedFields()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -40,6 +40,7 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
             Options.Create(DefaultTopics()),
             NullLogger<ProductCreatedOutboxPublisherDomainEventHandler>.Instance);
 
+        // Act
         await publisher.Handle(
             new ProductCreatedDomainEvent
             {
@@ -52,6 +53,7 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var received = outbox.ReceivedCalls().Single();
         var args = received.GetArguments();
         args[0].Should().Be("catalog.products");
@@ -70,13 +72,13 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
             ((decimal)avro.PriceAmount).Should().Be(product.Price.Amount);
             avro.PriceCurrency.Should().Be(product.Price.Currency.Name);
             avro.Status.Should().Be(AvroProductStatus.Active);
-            ((ISpecificRecord)avro).Should().NotBeNull();
         }
     }
 
     [Fact]
-    public async Task Given_LongDescription_When_Handling_Then_TruncatesTo1000Chars()
+    public async Task Handle_LongDescription_TruncatesTo1000Chars()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -91,6 +93,7 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
             Options.Create(DefaultTopics()),
             NullLogger<ProductCreatedOutboxPublisherDomainEventHandler>.Instance);
 
+        // Act
         await publisher.Handle(
             new ProductCreatedDomainEvent
             {
@@ -103,6 +106,7 @@ public class ProductCreatedOutboxPublisherDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var avro = (AvroProductCreatedEvent)outbox.ReceivedCalls().Single().GetArguments()[2]!;
         avro.Description.Length.Should().Be(1000);
     }

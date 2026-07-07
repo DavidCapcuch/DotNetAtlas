@@ -12,6 +12,7 @@ public class CategoryReparentedProjectionDomainEventHandlerTests
     [Fact]
     public async Task Handle_IsNoOp_InM3_UntilDescendantCascadeShips()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var row = ProductSearchViewRowBuilder.Active(categoryPath: "/old");
         db.ProductSearchView.Add(row);
@@ -20,6 +21,7 @@ public class CategoryReparentedProjectionDomainEventHandlerTests
         var handler = new CategoryReparentedProjectionDomainEventHandler(
             NullLogger<CategoryReparentedProjectionDomainEventHandler>.Instance);
 
+        // Act
         await handler.Handle(
             new CategoryReparentedDomainEvent
             {
@@ -32,6 +34,7 @@ public class CategoryReparentedProjectionDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var refreshed = await db.ProductSearchView.FirstAsync(
             r => r.ProductId == row.ProductId, TestContext.Current.CancellationToken);
         refreshed.CategoryPath.Should().Be("/old");

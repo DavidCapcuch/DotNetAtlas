@@ -7,22 +7,25 @@ public class GetProductsByCategoryQueryValidatorTests
     private readonly GetProductsByCategoryQueryValidator _validator = new();
 
     [Fact]
-    public void Valid_defaults_pass()
+    public void Validate_Defaults_Pass()
     {
+        // Act & Assert
         _validator.Validate(new GetProductsByCategoryQuery { CategoryId = Guid.CreateVersion7() })
             .IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Empty_category_fails()
+    public void Validate_EmptyCategory_Fails()
     {
+        // Act & Assert
         _validator.Validate(new GetProductsByCategoryQuery { CategoryId = Guid.Empty })
             .IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void PageSize_over_100_fails()
+    public void Validate_PageSizeOver100_Fails()
     {
+        // Act & Assert
         _validator.Validate(new GetProductsByCategoryQuery
         {
             CategoryId = Guid.CreateVersion7(),

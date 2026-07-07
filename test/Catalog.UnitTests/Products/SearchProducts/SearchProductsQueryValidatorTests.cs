@@ -13,28 +13,32 @@ public class SearchProductsQueryValidatorTests
     // layer is the one that supplies `?? 1` / `?? 20` defaults, not the validator.
 
     [Fact]
-    public void Page_number_under_1_fails()
+    public void Validate_PageNumberUnder1_Fails()
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { PageNumber = 0 }).IsValid.Should().BeFalse();
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(101)]
-    public void Page_size_out_of_range_fails(int pageSize)
+    public void Validate_PageSizeOutOfRange_Fails(int pageSize)
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { PageSize = pageSize }).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Min_price_without_currency_fails()
+    public void Validate_MinPriceWithoutCurrency_Fails()
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { MinPrice = 10m }).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Max_price_less_than_min_fails()
+    public void Validate_MaxPriceLessThanMin_Fails()
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery
         {
             MinPrice = 10m,
@@ -47,36 +51,45 @@ public class SearchProductsQueryValidatorTests
     [InlineData("/electronics")]
     [InlineData("/electronics/laptops")]
     [InlineData("/a/b/c/d/e")]
-    public void Valid_category_path_prefix_passes(string prefix)
+    public void Validate_ValidCategoryPathPrefix_Passes(string prefix)
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { CategoryPathPrefix = prefix })
             .IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Invalid_category_path_prefix_fails()
+    public void Validate_InvalidCategoryPathPrefix_Fails()
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { CategoryPathPrefix = "no-slash" })
             .IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Invalid_status_fails()
+    public void Validate_InvalidStatus_Fails()
     {
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { Status = "Bogus" }).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Text_longer_than_100_chars_fails()
+    public void Validate_TextLongerThan100Chars_Fails()
     {
+        // Arrange
         var text = new string('a', 101);
+
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { Text = text }).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Text_exactly_100_chars_passes()
+    public void Validate_TextExactly100Chars_Passes()
     {
+        // Arrange
         var text = new string('a', 100);
+
+        // Act & Assert
         _validator.Validate(new SearchProductsQuery { Text = text }).IsValid.Should().BeTrue();
     }
 }

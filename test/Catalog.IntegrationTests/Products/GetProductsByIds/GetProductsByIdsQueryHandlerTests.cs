@@ -13,8 +13,9 @@ public sealed class GetProductsByIdsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_MixOfKnownAndUnknown_Then_ReturnsPartialResult()
+    public async Task Handle_MixOfKnownAndUnknown_ReturnsPartialResult()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var existing = ProductSearchViewRowBuilder.Active("A-1");
@@ -23,9 +24,11 @@ public sealed class GetProductsByIdsQueryHandlerTests : BaseIntegrationTest
         var missingId = Guid.CreateVersion7();
         var handler = new GetProductsByIdsQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(
             new GetProductsByIdsQuery { Ids = [existing.ProductId, missingId] }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -35,15 +38,18 @@ public sealed class GetProductsByIdsQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_AllUnknown_Then_ReturnsEmptyProductsAndAllMissing()
+    public async Task Handle_AllUnknown_ReturnsEmptyProductsAndAllMissing()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var handler = new GetProductsByIdsQueryHandler(CatalogDbContext);
         var a = Guid.CreateVersion7();
         var b = Guid.CreateVersion7();
 
+        // Act
         var result = await handler.HandleAsync(new GetProductsByIdsQuery { Ids = [a, b] }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

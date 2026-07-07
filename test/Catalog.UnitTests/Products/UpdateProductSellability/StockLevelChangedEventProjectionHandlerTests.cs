@@ -12,7 +12,7 @@ public class StockLevelChangedEventProjectionHandlerTests
         new(2026, 5, 23, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Given_MissingProductRow_When_Handling_Then_LogsAndReturns()
+    public async Task Handle_MissingProductRow_LogsAndReturns()
     {
         // Arrange — no projection row for the productId; handler logs Information and returns.
         await using var db = FakeCatalogDbContext.Create();
@@ -28,7 +28,7 @@ public class StockLevelChangedEventProjectionHandlerTests
     }
 
     [Fact]
-    public async Task Given_ActiveProductWithPositiveStock_When_Handling_Then_SetsIsSellableTrue()
+    public async Task Handle_ActiveProductWithPositiveStock_SetsIsSellableTrue()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -53,7 +53,7 @@ public class StockLevelChangedEventProjectionHandlerTests
     }
 
     [Fact]
-    public async Task Given_DiscontinuedProductWithPositiveStock_When_Handling_Then_KeepsIsSellableFalse()
+    public async Task Handle_DiscontinuedProductWithPositiveStock_KeepsIsSellableFalse()
     {
         // Arrange — Status drives sellability: a Discontinued product is never sellable
         // regardless of stock level.
@@ -75,7 +75,7 @@ public class StockLevelChangedEventProjectionHandlerTests
     }
 
     [Fact]
-    public async Task Given_ActiveProductWithZeroStock_When_Handling_Then_SetsIsSellableFalse()
+    public async Task Handle_ActiveProductWithZeroStock_SetsIsSellableFalse()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -100,7 +100,7 @@ public class StockLevelChangedEventProjectionHandlerTests
     }
 
     [Fact]
-    public async Task Given_NoChangeToIsSellable_When_Handling_Then_DoesNotTouchLastUpdatedAt()
+    public async Task Handle_NoChangeToIsSellable_DoesNotTouchLastUpdatedAt()
     {
         // Arrange — early-exit path: no change to IsSellable means no LastUpdatedAtUtc bump.
         await using var db = FakeCatalogDbContext.Create();

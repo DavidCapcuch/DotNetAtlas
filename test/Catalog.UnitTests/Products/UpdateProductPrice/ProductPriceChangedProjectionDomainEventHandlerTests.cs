@@ -10,8 +10,9 @@ namespace Catalog.UnitTests.Products.UpdateProductPrice;
 public class ProductPriceChangedProjectionDomainEventHandlerTests
 {
     [Fact]
-    public async Task Given_ExistingRow_When_Handling_Then_UpdatesPriceAndTimestamp()
+    public async Task Handle_ExistingRow_UpdatesPriceAndTimestamp()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var row = ProductSearchViewRowBuilder.Active(amount: 10m);
         db.ProductSearchView.Add(row);
@@ -23,6 +24,7 @@ public class ProductPriceChangedProjectionDomainEventHandlerTests
         var now = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
         var newPrice = Money.Create(42m, "EUR").Value;
 
+        // Act
         await handler.Handle(
             new ProductPriceChangedDomainEvent
             {
@@ -34,6 +36,7 @@ public class ProductPriceChangedProjectionDomainEventHandlerTests
             TestContext.Current.CancellationToken);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        // Assert
         var refreshed = await db.ProductSearchView.FirstAsync(
             r => r.ProductId == row.ProductId, TestContext.Current.CancellationToken);
 
@@ -46,12 +49,14 @@ public class ProductPriceChangedProjectionDomainEventHandlerTests
     }
 
     [Fact]
-    public async Task Given_MissingRow_When_Handling_Then_NoOps()
+    public async Task Handle_MissingRow_NoOps()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new ProductPriceChangedProjectionDomainEventHandler(
             db, NullLogger<ProductPriceChangedProjectionDomainEventHandler>.Instance);
 
+        // Act
         await handler.Handle(
             new ProductPriceChangedDomainEvent
             {
@@ -62,6 +67,7 @@ public class ProductPriceChangedProjectionDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         (await db.ProductSearchView.CountAsync(TestContext.Current.CancellationToken))
             .Should().Be(0);
     }

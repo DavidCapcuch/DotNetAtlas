@@ -11,16 +11,19 @@ namespace Catalog.UnitTests.Categories.CreateCategory;
 public class CreateCategoryCommandHandlerTests
 {
     [Fact]
-    public async Task Given_RootCategory_When_Handling_Then_Persists()
+    public async Task Handle_RootCategory_Persists()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new CreateCategoryCommandHandler(
             db, TimeProvider.System, NullLogger<CreateCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new CreateCategoryCommand { Name = "Electronics", ParentCategoryId = null },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -35,8 +38,9 @@ public class CreateCategoryCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_ChildCategory_When_ParentExists_Then_Persists()
+    public async Task Handle_ChildCategoryWhenParentExists_Persists()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var root = CatalogFactories.RootCategory();
         db.Categories.Add(root);
@@ -45,10 +49,12 @@ public class CreateCategoryCommandHandlerTests
         var handler = new CreateCategoryCommandHandler(
             db, TimeProvider.System, NullLogger<CreateCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new CreateCategoryCommand { Name = "Laptops", ParentCategoryId = root.Id },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -60,17 +66,20 @@ public class CreateCategoryCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_ChildCategory_When_ParentMissing_Then_FailsParentNotFound()
+    public async Task Handle_ChildCategoryWhenParentMissing_FailsParentNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new CreateCategoryCommandHandler(
             db, TimeProvider.System, NullLogger<CreateCategoryCommandHandler>.Instance);
         var unknownParent = Guid.CreateVersion7();
 
+        // Act
         var result = await handler.HandleAsync(
             new CreateCategoryCommand { Name = "Laptops", ParentCategoryId = unknownParent },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle(e =>
             ((DomainError)e).ErrorCode == "Category.ParentNotFound"

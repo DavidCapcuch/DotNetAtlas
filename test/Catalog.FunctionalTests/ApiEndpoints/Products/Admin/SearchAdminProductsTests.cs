@@ -57,6 +57,7 @@ public class SearchAdminProductsTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenReadScopeCallerHitsAdminEndpoint_Returns403()
     {
         // Read-scope token must not satisfy WritePolicy; ASP.NET surfaces 403.
@@ -67,6 +68,7 @@ public class SearchAdminProductsTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenUnauthenticatedCallerHitsAdminEndpoint_Returns401()
     {
         var response = await HttpClientRegistry.NonAuthClient.GetAsync(

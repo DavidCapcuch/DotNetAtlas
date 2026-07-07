@@ -30,7 +30,7 @@ public class CreateProductCommandHandlerTests
     };
 
     [Fact]
-    public async Task Given_ValidCommand_When_Handling_Then_PersistsProductInActiveAndReturnsId()
+    public async Task Handle_ValidCommand_PersistsActiveProductAndReturnsId()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -61,7 +61,7 @@ public class CreateProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_DuplicateSku_When_Handling_Then_FailsWithSkuAlreadyExists()
+    public async Task Handle_DuplicateSku_FailsWithSkuAlreadyExists()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -85,7 +85,7 @@ public class CreateProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_MissingCategory_When_Handling_Then_FailsWithCategoryNotFound()
+    public async Task Handle_MissingCategory_FailsWithCategoryNotFound()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -110,7 +110,8 @@ public class CreateProductCommandHandlerTests
     /// the contract-documented 409 ProductErrors.SkuAlreadyExists.
     /// </summary>
     [Fact]
-    public async Task Given_UniqueConstraintRaceOnSku_When_Handling_Then_FailsWithSkuAlreadyExists()
+    [Trait("Category", "regression")]
+    public async Task Handle_UniqueConstraintRaceOnSku_FailsWithSkuAlreadyExists()
     {
         // Arrange — derived FakeCatalogDbContext that lets the AnyAsync precheck pass
         // (no row tracked) and then throws UniqueConstraintException on SaveChanges,
@@ -139,7 +140,7 @@ public class CreateProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_SkuNormalization_When_Handling_Then_StoredAsUpperInvariant()
+    public async Task Handle_SkuNormalization_StoredAsUpperInvariant()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
