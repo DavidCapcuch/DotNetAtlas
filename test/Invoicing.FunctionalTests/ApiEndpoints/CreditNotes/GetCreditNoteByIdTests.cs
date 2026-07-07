@@ -22,6 +22,7 @@ public class GetCreditNoteByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var response = await HttpClientRegistry.NonAuthClient
@@ -42,6 +43,7 @@ public class GetCreditNoteByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerReadsOwnCreditNote_ReturnsOk()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
@@ -64,6 +66,7 @@ public class GetCreditNoteByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenOtherBuyerReadsAnothersCreditNote_ReturnsNotFound()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));

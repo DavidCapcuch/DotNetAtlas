@@ -31,26 +31,30 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(creditNoteId, buyerId, isAdmin: false, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        var dto = result.Value;
-        dto.CreditNoteId.Should().Be(creditNoteId);
-        dto.BuyerId.Should().Be(buyerId);
-        dto.Status.Should().Be("Issued");
-        dto.CreditNoteNumber.Should().MatchRegex($@"^CN-{nowSnapshot.Year}-\d{{6}}$");
-        dto.OriginalInvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
-        dto.Reason.Should().NotBeNullOrEmpty();
-        dto.Currency.Should().Be("EUR");
-        // I-CN-2: credit-note totals are negative.
-        dto.TotalAmount.Should().BeLessThan(0m);
-        dto.Lines.Should().NotBeEmpty();
-        dto.DeliveredAtUtc.Should().BeNull();
-        dto.PdfPresignedUrl.Should().NotBeNull();
-        dto.PdfPresignedUrl!.ToString().Should().Contain(dto.CreditNoteNumber);
-        dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            var dto = result.Value;
+            dto.CreditNoteId.Should().Be(creditNoteId);
+            dto.BuyerId.Should().Be(buyerId);
+            dto.Status.Should().Be("Issued");
+            dto.CreditNoteNumber.Should().MatchRegex($@"^CN-{nowSnapshot.Year}-\d{{6}}$");
+            dto.OriginalInvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
+            dto.Reason.Should().NotBeNullOrEmpty();
+            dto.Currency.Should().Be("EUR");
+            // I-CN-2: credit-note totals are negative.
+            dto.TotalAmount.Should().BeLessThan(0m);
+            dto.Lines.Should().NotBeEmpty();
+            dto.DeliveredAtUtc.Should().BeNull();
+            dto.PdfPresignedUrl.Should().NotBeNull();
+            dto.PdfPresignedUrl!.ToString().Should().Contain(dto.CreditNoteNumber);
+            dto.PdfPresignedUrlExpiresAtUtc.Should()
+                .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_credit_note()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -59,11 +63,15 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(creditNoteId, intruder, isAdmin: false, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(creditNoteId.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(creditNoteId.ToString()));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_credit_note_for_admin_regardless_of_buyer()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -72,9 +80,12 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(creditNoteId, admin, isAdmin: true, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.CreditNoteId.Should().Be(creditNoteId);
-        result.Value.BuyerId.Should().Be(owner);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.CreditNoteId.Should().Be(creditNoteId);
+            result.Value.BuyerId.Should().Be(owner);
+        }
     }
 
     [Fact]
@@ -85,8 +96,11 @@ public sealed class GetCreditNoteByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(missing, Guid.CreateVersion7(), isAdmin: true, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(missing.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(missing.ToString()));
+        }
     }
 
     private async Task<FluentResults.Result<GetCreditNoteByIdResponse>> InvokeHandlerAsync(

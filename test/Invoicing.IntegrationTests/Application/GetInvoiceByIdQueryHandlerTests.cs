@@ -36,27 +36,30 @@ public sealed class GetInvoiceByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(invoiceId, buyerId, isAdmin: false, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        var dto = result.Value;
-        dto.InvoiceId.Should().Be(invoiceId);
-        dto.BuyerId.Should().Be(buyerId);
-        dto.Status.Should().Be("Issued");
-        dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
-        dto.Currency.Should().Be("EUR");
-        dto.TotalAmount.Should().BeGreaterThan(0m);
-        dto.Lines.Should().NotBeEmpty();
-        // The seed produces a zero-VAT line, so the projected VatLines collection comes back empty —
-        // we just pin that the materialised collection is non-null (i.e., EF translates the
-        // owned-collection .Select(...) — Lines covers the not-empty side of that proof).
-        dto.VatLines.Should().NotBeNull();
-        dto.BillingAddress.City.Should().Be("Prague");
-        dto.BillingAddress.PostalCode.Should().Be("11000");
-        dto.Cancellation.Should().BeNull();
-        dto.DeliveredAtUtc.Should().BeNull();
-        dto.PdfPresignedUrl.Should().NotBeNull();
-        dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
-        dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            var dto = result.Value;
+            dto.InvoiceId.Should().Be(invoiceId);
+            dto.BuyerId.Should().Be(buyerId);
+            dto.Status.Should().Be("Issued");
+            dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
+            dto.Currency.Should().Be("EUR");
+            dto.TotalAmount.Should().BeGreaterThan(0m);
+            dto.Lines.Should().NotBeEmpty();
+            // The seed produces a zero-VAT line, so the projected VatLines collection comes back empty —
+            // we just pin that the materialised collection is non-null (i.e., EF translates the
+            // owned-collection .Select(...) — Lines covers the not-empty side of that proof).
+            dto.VatLines.Should().NotBeNull();
+            dto.BillingAddress.City.Should().Be("Prague");
+            dto.BillingAddress.PostalCode.Should().Be("11000");
+            dto.Cancellation.Should().BeNull();
+            dto.DeliveredAtUtc.Should().BeNull();
+            dto.PdfPresignedUrl.Should().NotBeNull();
+            dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
+            dto.PdfPresignedUrlExpiresAtUtc.Should()
+                .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -67,13 +70,17 @@ public sealed class GetInvoiceByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(invoiceId, buyerId, isAdmin: false, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Status.Should().Be("Delivered");
-        result.Value.DeliveredAtUtc.Should().NotBeNull();
-        result.Value.PdfPresignedUrl.Should().NotBeNull();
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.Status.Should().Be("Delivered");
+            result.Value.DeliveredAtUtc.Should().NotBeNull();
+            result.Value.PdfPresignedUrl.Should().NotBeNull();
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_invoice()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -82,11 +89,15 @@ public sealed class GetInvoiceByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(invoiceId, intruder, isAdmin: false, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(invoiceId.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(invoiceId.ToString()));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_invoice_for_admin_regardless_of_buyer()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -95,9 +106,12 @@ public sealed class GetInvoiceByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(invoiceId, admin, isAdmin: true, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.InvoiceId.Should().Be(invoiceId);
-        result.Value.BuyerId.Should().Be(owner);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.InvoiceId.Should().Be(invoiceId);
+            result.Value.BuyerId.Should().Be(owner);
+        }
     }
 
     [Fact]
@@ -108,8 +122,11 @@ public sealed class GetInvoiceByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(missing, Guid.CreateVersion7(), isAdmin: true, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(missing.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(missing.ToString()));
+        }
     }
 
     private async Task<FluentResults.Result<GetInvoiceByIdResponse>> InvokeHandlerAsync(

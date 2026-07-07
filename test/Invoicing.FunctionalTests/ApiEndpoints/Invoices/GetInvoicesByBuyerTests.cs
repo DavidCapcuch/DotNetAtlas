@@ -22,6 +22,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var (response, _) = await HttpClientRegistry.NonAuthClient
@@ -32,6 +33,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerHasInvoices_ReturnsOnlyTheirsMostRecentFirst()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
@@ -63,6 +65,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public async Task WhenPageSizeOutOfRange_ReturnsBadRequestOrUnprocessable()
     {
         // PageSize=0 violates InclusiveBetween(1, 100). FastEndpoints' validation pipeline +
@@ -76,6 +79,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAdminPassesBuyerIdQuery_ReturnsThatBuyersInvoices()
     {
         // M6 / closeout1: admin override. Admin tooling can list a specific buyer's
@@ -98,6 +102,7 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNonAdminPassesOtherBuyerIdQuery_ReturnsForbidden()
     {
         // Non-admin callers that try to scope to a buyer other than themselves get an

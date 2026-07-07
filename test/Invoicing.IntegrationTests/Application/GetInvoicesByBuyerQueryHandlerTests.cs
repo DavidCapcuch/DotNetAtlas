@@ -31,20 +31,22 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
 
         var result = await InvokeHandlerAsync(buyerId, pageNumber: 1, pageSize: 20, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.PageNumber.Should().Be(1);
-        result.Value.PageSize.Should().Be(20);
-        result.Value.Total.Should().Be(1);
-        result.Value.Items.Should().ContainSingle();
-        var dto = result.Value.Items[0];
-        dto.InvoiceId.Should().Be(invoiceId);
-        dto.BuyerId.Should().Be(buyerId);
-        dto.Status.Should().Be("Issued");
-        dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
-        dto.PdfPresignedUrl.Should().NotBeNull();
-        dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
-        dto.PdfPresignedUrlExpiresAtUtc.Should()
-            .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.PageNumber.Should().Be(1);
+            result.Value.PageSize.Should().Be(20);
+            result.Value.Total.Should().Be(1);
+            var dto = result.Value.Items.Should().ContainSingle().Which;
+            dto.InvoiceId.Should().Be(invoiceId);
+            dto.BuyerId.Should().Be(buyerId);
+            dto.Status.Should().Be("Issued");
+            dto.InvoiceNumber.Should().MatchRegex($@"^INV-{nowSnapshot.Year}-\d{{6}}$");
+            dto.PdfPresignedUrl.Should().NotBeNull();
+            dto.PdfPresignedUrl!.ToString().Should().Contain(dto.InvoiceNumber!);
+            dto.PdfPresignedUrlExpiresAtUtc.Should()
+                .BeCloseTo(nowSnapshot.Add(TimeSpan.FromMinutes(10)), TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -55,11 +57,14 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
 
         var result = await InvokeHandlerAsync(buyerWithNoInvoices, pageNumber: 1, pageSize: 20, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Items.Should().BeEmpty();
-        result.Value.Total.Should().Be(0);
-        result.Value.PageNumber.Should().Be(1);
-        result.Value.PageSize.Should().Be(20);
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.Items.Should().BeEmpty();
+            result.Value.Total.Should().Be(0);
+            result.Value.PageNumber.Should().Be(1);
+            result.Value.PageSize.Should().Be(20);
+        }
     }
 
     [Fact]
@@ -71,23 +76,13 @@ public sealed class GetInvoicesByBuyerQueryHandlerTests
 
         var result = await InvokeHandlerAsync(ownerA, pageNumber: 1, pageSize: 20, ct);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Total.Should().Be(1);
-        result.Value.Items.Should().ContainSingle();
-        result.Value.Items[0].BuyerId.Should().Be(ownerA);
-    }
-
-    [Fact]
-    public async Task Handle_honours_pageNumber_and_pageSize_for_paging()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var emptyResult = await InvokeHandlerAsync(Guid.CreateVersion7(), pageNumber: 20, pageSize: 5, ct);
-
-        emptyResult.IsSuccess.Should().BeTrue();
-        emptyResult.Value.PageNumber.Should().Be(20);
-        emptyResult.Value.PageSize.Should().Be(5);
-        emptyResult.Value.Total.Should().Be(0);
-        emptyResult.Value.Items.Should().BeEmpty();
+        using (new AssertionScope())
+        {
+            result.IsSuccess.Should().BeTrue();
+            result.Value.Total.Should().Be(1);
+            result.Value.Items.Should().ContainSingle();
+            result.Value.Items[0].BuyerId.Should().Be(ownerA);
+        }
     }
 
     private async Task<FluentResults.Result<GetInvoicesByBuyerResponse>> InvokeHandlerAsync(

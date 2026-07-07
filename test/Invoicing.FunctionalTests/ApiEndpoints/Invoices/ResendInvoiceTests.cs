@@ -39,6 +39,7 @@ public class ResendInvoiceTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var response = await PostResendAsync(
@@ -49,6 +50,7 @@ public class ResendInvoiceTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenBuyerWithoutAdminRole_ReturnsForbidden()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
@@ -72,6 +74,7 @@ public class ResendInvoiceTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenAdminResendsIssuedInvoice_ReturnsNoContent()
     {
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));

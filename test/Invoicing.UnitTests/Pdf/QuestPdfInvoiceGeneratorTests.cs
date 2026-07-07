@@ -34,11 +34,14 @@ public sealed class QuestPdfInvoiceGeneratorTests
 
         var result = await sut.GenerateInvoiceAsync(invoice, ct);
 
-        result.ContentType.Should().Be("application/pdf");
-        result.SizeBytes.Should().BeGreaterThan(0);
-        result.Content.Length.Should().Be((int)result.SizeBytes);
-        result.Content.AsSpan(0, PdfMagic.Length).ToArray().Should().Equal(PdfMagic);
-        AssertLowercaseHex(result.ContentHash);
+        using (new AssertionScope())
+        {
+            result.ContentType.Should().Be("application/pdf");
+            result.SizeBytes.Should().BeGreaterThan(0);
+            result.Content.Length.Should().Be((int)result.SizeBytes);
+            result.Content.AsSpan(0, PdfMagic.Length).ToArray().Should().Equal(PdfMagic);
+            AssertLowercaseHex(result.ContentHash);
+        }
     }
 
     [Fact]
@@ -50,11 +53,15 @@ public sealed class QuestPdfInvoiceGeneratorTests
         var pdf1 = await sut.GenerateInvoiceAsync(BuildIssuedInvoice(FixedUtcNow), ct);
         var pdf2 = await sut.GenerateInvoiceAsync(BuildIssuedInvoice(FixedUtcNow), ct);
 
-        pdf1.ContentHash.Should().Be(pdf2.ContentHash);
-        pdf1.Content.Should().Equal(pdf2.Content);
+        using (new AssertionScope())
+        {
+            pdf1.ContentHash.Should().Be(pdf2.ContentHash);
+            pdf1.Content.Should().Equal(pdf2.Content);
+        }
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task GenerateInvoiceAsync_DifferentIssueDate_ProducesDifferentHash()
     {
         // Guard against an accidental reintroduction of DateTime.UtcNow in the template —
@@ -78,10 +85,13 @@ public sealed class QuestPdfInvoiceGeneratorTests
 
         var result = await sut.GenerateCreditNoteAsync(creditNote, ct);
 
-        result.ContentType.Should().Be("application/pdf");
-        result.SizeBytes.Should().BeGreaterThan(0);
-        result.Content.AsSpan(0, PdfMagic.Length).ToArray().Should().Equal(PdfMagic);
-        AssertLowercaseHex(result.ContentHash);
+        using (new AssertionScope())
+        {
+            result.ContentType.Should().Be("application/pdf");
+            result.SizeBytes.Should().BeGreaterThan(0);
+            result.Content.AsSpan(0, PdfMagic.Length).ToArray().Should().Equal(PdfMagic);
+            AssertLowercaseHex(result.ContentHash);
+        }
     }
 
     [Fact]
@@ -93,8 +103,11 @@ public sealed class QuestPdfInvoiceGeneratorTests
         var pdf1 = await sut.GenerateCreditNoteAsync(BuildIssuedCreditNote(FixedUtcNow), ct);
         var pdf2 = await sut.GenerateCreditNoteAsync(BuildIssuedCreditNote(FixedUtcNow), ct);
 
-        pdf1.ContentHash.Should().Be(pdf2.ContentHash);
-        pdf1.Content.Should().Equal(pdf2.Content);
+        using (new AssertionScope())
+        {
+            pdf1.ContentHash.Should().Be(pdf2.ContentHash);
+            pdf1.Content.Should().Equal(pdf2.Content);
+        }
     }
 
     private static QuestPdfInvoiceGenerator CreateSut() =>

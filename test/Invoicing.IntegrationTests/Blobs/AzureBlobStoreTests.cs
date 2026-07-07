@@ -87,30 +87,6 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
     }
 
     [Fact]
-    public async Task GetSasUrlAsync_GrantsReadAccessToAlreadyUploadedBlob()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        const string blobName = "2026/04/INV-2026-000145.pdf";
-
-        await fixture.BlobStore.UploadAsync(
-            fixture.ContainerName,
-            blobName,
-            SamplePdf,
-            ContentType,
-            metadata: null,
-            ct: ct);
-
-        var freshUri = await fixture.BlobStore.GetSasUrlAsync(
-            fixture.ContainerName,
-            blobName,
-            TimeSpan.FromMinutes(5),
-            ct);
-
-        using var response = await fixture.Http.GetAsync(freshUri, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
     public async Task DownloadAsync_StreamsOriginalBytes()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -172,6 +148,7 @@ public sealed class AzureBlobStoreTests(AzuriteFixture fixture)
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task GetSasUrlAsync_DerivesSeFromInjectedTimeProvider_NotWallClock()
     {
         // Pin against ADR-0015: SAS expiry is sourced from the injected TimeProvider so

@@ -21,15 +21,18 @@ public class CreditNoteLineTests
         var creditLine = CreditNoteLine.FromInvoiceLine(invoiceLine);
 
         // Assert
-        creditLine.UnitPrice.Amount.Should().Be(-50m);
-        creditLine.LineTotal.Amount.Should().Be(-100m);
-        creditLine.UnitPrice.Currency.Should().Be(invoiceLine.UnitPrice.Currency);
-        creditLine.LineTotal.Currency.Should().Be(invoiceLine.LineTotal.Currency);
-        creditLine.Quantity.Should().Be(invoiceLine.Quantity);
-        creditLine.LineNumber.Should().Be(invoiceLine.LineNumber);
-        creditLine.Sku.Should().Be(invoiceLine.Sku);
-        creditLine.Description.Should().Be(invoiceLine.Description);
-        creditLine.VatRate.Should().Be(invoiceLine.VatRate);
+        using (new AssertionScope())
+        {
+            creditLine.UnitPrice.Amount.Should().Be(-50m);
+            creditLine.LineTotal.Amount.Should().Be(-100m);
+            creditLine.UnitPrice.Currency.Should().Be(invoiceLine.UnitPrice.Currency);
+            creditLine.LineTotal.Currency.Should().Be(invoiceLine.LineTotal.Currency);
+            creditLine.Quantity.Should().Be(invoiceLine.Quantity);
+            creditLine.LineNumber.Should().Be(invoiceLine.LineNumber);
+            creditLine.Sku.Should().Be(invoiceLine.Sku);
+            creditLine.Description.Should().Be(invoiceLine.Description);
+            creditLine.VatRate.Should().Be(invoiceLine.VatRate);
+        }
     }
 
     [Fact]
