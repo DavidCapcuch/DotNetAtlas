@@ -49,6 +49,7 @@ public sealed class StockLevelCacheBehaviorTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task StaleCache_CannotCauseOversell()
     {
         var productId = Guid.CreateVersion7();

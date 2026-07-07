@@ -8,7 +8,7 @@ public sealed class GetReservationByIdQueryValidatorTests
     private readonly GetReservationByIdQueryValidator _validator = new();
 
     [Fact]
-    public void EmptyReservationId_FailsValidation()
+    public void Validate_EmptyReservationId_Fails()
     {
         var result = _validator.TestValidate(new GetReservationByIdQuery { ReservationId = Guid.Empty });
 
@@ -16,7 +16,7 @@ public sealed class GetReservationByIdQueryValidatorTests
     }
 
     [Fact]
-    public void NonEmptyReservationId_PassesValidation()
+    public void Validate_NonEmptyReservationId_Passes()
     {
         var result = _validator.TestValidate(new GetReservationByIdQuery { ReservationId = Guid.CreateVersion7() });
 

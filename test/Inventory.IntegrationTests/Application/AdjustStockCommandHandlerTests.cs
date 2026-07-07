@@ -26,55 +26,41 @@ public sealed class AdjustStockCommandHandlerTests : BaseIntegrationTest
     {
     }
 
-    [Fact]
-    public async Task PositiveDelta_ReflectedInResponse()
+    // Positive and negative deltas exercise the same handler → StockLevelResponse snapshot
+    // wiring; the sign-specific aggregate arithmetic (and the below-zero / below-reservations
+    // guards) is covered at the unit tier in StockItemTests.AdjustStock_*.
+    [Theory]
+    [InlineData(4, 3, 7, "recount-add")] // positive delta: 4 + 3
+    [InlineData(10, -3, 7, "damage-write-off")] // negative delta: 10 - 3
+    public async Task Adjust_ReflectsPostMutationSnapshotInResponse(
+        int startOnHand, int delta, int expectedOnHand, string reason)
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
-        await Seed.ProductWithOnHandAsync(productId, onHand: 4, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
+        await Seed.ProductWithOnHandAsync(productId, startOnHand, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
 
         using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AdjustStockCommand, StockLevelResponse>>();
 
+        // Act
         var result = await handler.HandleAsync(
             new AdjustStockCommand
             {
                 ProductId = productId,
-                Delta = 3,
-                Reason = "recount-add",
+                Delta = delta,
+                Reason = reason,
                 AdjustedByUserId = Guid.CreateVersion7(),
                 OccurredOnUtc = UtcNow,
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeSuccess();
-        result.Value.OnHand.Should().Be(7);
-        result.Value.Available.Should().Be(7);
-    }
-
-    [Fact]
-    public async Task NegativeDelta_ReflectedInResponse()
-    {
-        var productId = Guid.CreateVersion7();
-        await Seed.ProductWithOnHandAsync(productId, onHand: 10, UtcNow.AddMinutes(-2), TestContext.Current.CancellationToken);
-
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider
-            .GetRequiredService<ICommandHandler<AdjustStockCommand, StockLevelResponse>>();
-
-        var result = await handler.HandleAsync(
-            new AdjustStockCommand
-            {
-                ProductId = productId,
-                Delta = -3,
-                Reason = "damage-write-off",
-                AdjustedByUserId = Guid.CreateVersion7(),
-                OccurredOnUtc = UtcNow,
-            },
-            TestContext.Current.CancellationToken);
-
-        result.Should().BeSuccess();
-        result.Value.OnHand.Should().Be(7);
-        result.Value.Available.Should().Be(7);
+        using (new AssertionScope())
+        {
+            result.Value.OnHand.Should().Be(expectedOnHand);
+            result.Value.Available.Should().Be(expectedOnHand);
+        }
     }
 }

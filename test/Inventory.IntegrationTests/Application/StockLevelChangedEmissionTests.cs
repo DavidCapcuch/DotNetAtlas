@@ -28,6 +28,7 @@ public sealed class StockLevelChangedEmissionTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public async Task OnlyFiresOnZeroToPositiveAndPositiveToZeroTransitions()
     {
         var productId = Guid.NewGuid();

@@ -8,7 +8,7 @@ public sealed class GetStockLevelByProductIdQueryValidatorTests
     private readonly GetStockLevelByProductIdQueryValidator _validator = new();
 
     [Fact]
-    public void EmptyProductId_FailsValidation()
+    public void Validate_EmptyProductId_Fails()
     {
         var result = _validator.TestValidate(new GetStockLevelByProductIdQuery { ProductId = Guid.Empty });
 
@@ -16,7 +16,7 @@ public sealed class GetStockLevelByProductIdQueryValidatorTests
     }
 
     [Fact]
-    public void NonEmptyProductId_PassesValidation()
+    public void Validate_NonEmptyProductId_Passes()
     {
         var result = _validator.TestValidate(new GetStockLevelByProductIdQuery { ProductId = Guid.CreateVersion7() });
 

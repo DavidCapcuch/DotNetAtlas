@@ -39,6 +39,7 @@ public class StockSourceTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_WhenLongerThanMax_ReturnsFailureWithStockSourceTooLong()
     {
         // Arrange
@@ -57,6 +58,7 @@ public class StockSourceTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_AtBoundary_ReturnsSuccess()
     {
         // Arrange

@@ -8,7 +8,7 @@ public sealed class GetStockLevelsBulkQueryValidatorTests
     private readonly GetStockLevelsBulkQueryValidator _validator = new();
 
     [Fact]
-    public void SingleNonEmptyProductId_PassesValidation()
+    public void Validate_SingleNonEmptyProductId_Passes()
     {
         var result = _validator.TestValidate(new GetStockLevelsBulkQuery
         {
@@ -19,7 +19,8 @@ public sealed class GetStockLevelsBulkQueryValidatorTests
     }
 
     [Fact]
-    public void MaxProductIds_PassesValidation()
+    [Trait("Category", "boundary")]
+    public void Validate_MaxProductIds_Passes()
     {
         var ids = Enumerable.Range(0, GetStockLevelsBulkQueryValidator.MaxProductIds)
             .Select(_ => Guid.CreateVersion7())
@@ -31,7 +32,8 @@ public sealed class GetStockLevelsBulkQueryValidatorTests
     }
 
     [Fact]
-    public void EmptyList_FailsValidation()
+    [Trait("Category", "boundary")]
+    public void Validate_EmptyList_Fails()
     {
         var result = _validator.TestValidate(new GetStockLevelsBulkQuery { ProductIds = [] });
 
@@ -39,7 +41,8 @@ public sealed class GetStockLevelsBulkQueryValidatorTests
     }
 
     [Fact]
-    public void MoreThanMaxProductIds_FailsValidation()
+    [Trait("Category", "boundary")]
+    public void Validate_MoreThanMaxProductIds_Fails()
     {
         var ids = Enumerable.Range(0, GetStockLevelsBulkQueryValidator.MaxProductIds + 1)
             .Select(_ => Guid.CreateVersion7())
@@ -51,7 +54,7 @@ public sealed class GetStockLevelsBulkQueryValidatorTests
     }
 
     [Fact]
-    public void ContainsEmptyProductId_FailsValidation()
+    public void Validate_ContainsEmptyProductId_Fails()
     {
         var result = _validator.TestValidate(new GetStockLevelsBulkQuery
         {

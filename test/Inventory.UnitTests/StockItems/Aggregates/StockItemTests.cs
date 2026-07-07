@@ -119,6 +119,7 @@ public class StockItemTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
+    [Trait("Category", "boundary")]
     public void ReceiveStock_WhenQuantityNotPositive_ThrowsDataIntegrityException(int qty)
     {
         // Arrange
@@ -167,6 +168,7 @@ public class StockItemTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Reserve_WhenAvailableLessThanQuantity_ReturnsInsufficientStock_NoEvent()
     {
         // Arrange — Session 2 "request exceeds Available"
@@ -229,6 +231,7 @@ public class StockItemTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
+    [Trait("Category", "boundary")]
     public void Reserve_WhenQuantityNotPositive_ThrowsDataIntegrityException(int qty)
     {
         // Arrange
@@ -243,6 +246,7 @@ public class StockItemTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Reserve_WhenTtlNotPositive_ThrowsDataIntegrityException()
     {
         // Arrange
@@ -538,6 +542,7 @@ public class StockItemTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void AdjustStock_WhenResultNegative_ThrowsAdjustmentBelowZero()
     {
         // Arrange
@@ -552,6 +557,7 @@ public class StockItemTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void AdjustStock_WhenResultBelowReservations_ThrowsAdjustmentBelowReservations()
     {
         // Arrange — OnHand=10, Reserved=5. Subtract 6 → OnHand would be 4, Available -1.

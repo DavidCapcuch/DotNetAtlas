@@ -145,6 +145,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "concurrency")]
     public async Task AppendAsync_ConcurrencyConflict_RetriesOnceAndSucceeds()
     {
         var productId = Guid.NewGuid();
@@ -205,6 +206,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "concurrency")]
     public async Task AppendAsync_ConcurrencyConflict_AfterRetry_ReturnsFailWithConcurrencyError()
     {
         var productId = Guid.NewGuid();
