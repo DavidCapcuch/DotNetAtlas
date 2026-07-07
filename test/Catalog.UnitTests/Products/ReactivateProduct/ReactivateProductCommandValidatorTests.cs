@@ -7,20 +7,23 @@ public class ReactivateProductCommandValidatorTests
     private readonly ReactivateProductCommandValidator _validator = new();
 
     [Fact]
-    public void Admin_flag_true_passes()
+    public void Validate_AdminFlagTrue_Passes()
     {
+        // Arrange
         var cmd = new ReactivateProductCommand
         {
             ProductId = Guid.CreateVersion7(),
             AdminReactivation = true,
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Admin_flag_false_now_passes_input_validation()
+    public void Validate_AdminFlagFalse_PassesInputValidation()
     {
+        // Arrange
         // The AdminReactivation business rule is now enforced by the aggregate
         // (Product.Reactivate returns ProductErrors.ReactivationRequiresAdminFlag → ForbiddenError
         // → 403), not by FluentValidation pre-handler. The validator only checks input shape.
@@ -30,18 +33,21 @@ public class ReactivateProductCommandValidatorTests
             AdminReactivation = false,
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Empty_product_id_fails()
+    public void Validate_EmptyProductId_Fails()
     {
+        // Arrange
         var cmd = new ReactivateProductCommand
         {
             ProductId = Guid.Empty,
             AdminReactivation = true,
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 }

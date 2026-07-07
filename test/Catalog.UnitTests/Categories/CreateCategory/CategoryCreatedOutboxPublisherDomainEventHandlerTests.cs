@@ -14,8 +14,9 @@ namespace Catalog.UnitTests.Categories.CreateCategory;
 public class CategoryCreatedOutboxPublisherDomainEventHandlerTests
 {
     [Fact]
-    public async Task Given_TrackedCategory_Then_EnqueuesAvroWithFullFieldSet()
+    public async Task Handle_TrackedCategory_EnqueuesAvroWithFullFieldSet()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var parent = CatalogFactories.RootCategory("Electronics");
         var child = CatalogFactories.ChildCategory(parent, "Laptops");
@@ -35,6 +36,7 @@ public class CategoryCreatedOutboxPublisherDomainEventHandlerTests
             }),
             NullLogger<CategoryCreatedOutboxPublisherDomainEventHandler>.Instance);
 
+        // Act
         await publisher.Handle(
             new CategoryCreatedDomainEvent
             {
@@ -46,6 +48,7 @@ public class CategoryCreatedOutboxPublisherDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var args = outbox.ReceivedCalls().Single().GetArguments();
         args[0].Should().Be("catalog.categories");
         args[1].Should().Be(child.Id.ToString());

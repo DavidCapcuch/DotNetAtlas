@@ -23,8 +23,9 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
     };
 
     [Fact]
-    public async Task Given_PriceChange_Then_EnqueuesAvroWithOldAndNewAmounts()
+    public async Task Handle_PriceChange_EnqueuesAvroWithOldAndNewAmounts()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -41,6 +42,7 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
+        // Act
         await publisher.Handle(
             new ProductPriceChangedDomainEvent
             {
@@ -51,6 +53,7 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var args = outbox.ReceivedCalls().Single().GetArguments();
         args[0].Should().Be("catalog.products");
         args[1].Should().Be(product.Id.ToString());

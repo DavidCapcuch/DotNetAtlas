@@ -11,8 +11,9 @@ namespace Catalog.UnitTests.Products.DescribeProduct;
 public class DescribeProductCommandHandlerTests
 {
     [Fact]
-    public async Task Given_ActiveProduct_When_Describing_Then_PersistsAndRaisesEvent()
+    public async Task Handle_ActiveProduct_PersistsAndRaisesEvent()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -23,6 +24,7 @@ public class DescribeProductCommandHandlerTests
         var handler = new DescribeProductCommandHandler(
             db, TimeProvider.System, NullLogger<DescribeProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DescribeProductCommand
             {
@@ -31,6 +33,7 @@ public class DescribeProductCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -43,8 +46,9 @@ public class DescribeProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_DiscontinuedProduct_When_Describing_Then_Fails()
+    public async Task Handle_DiscontinuedProduct_Fails()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -55,6 +59,7 @@ public class DescribeProductCommandHandlerTests
         var handler = new DescribeProductCommandHandler(
             db, TimeProvider.System, NullLogger<DescribeProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DescribeProductCommand
             {
@@ -63,16 +68,19 @@ public class DescribeProductCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
-    public async Task Given_MissingProduct_When_Describing_Then_FailsNotFound()
+    public async Task Handle_MissingProduct_FailsNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new DescribeProductCommandHandler(
             db, TimeProvider.System, NullLogger<DescribeProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DescribeProductCommand
             {
@@ -81,6 +89,7 @@ public class DescribeProductCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle(e => ((DomainError)e).ErrorCode == "Product.NotFound");
     }

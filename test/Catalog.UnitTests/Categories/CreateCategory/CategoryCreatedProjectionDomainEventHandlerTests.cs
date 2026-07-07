@@ -12,6 +12,7 @@ public class CategoryCreatedProjectionDomainEventHandlerTests
     [Fact]
     public async Task Handle_IsNoOp_AndDoesNotChangeProductSearchView()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         db.ProductSearchView.Add(ProductSearchViewRowBuilder.Active());
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -21,6 +22,7 @@ public class CategoryCreatedProjectionDomainEventHandlerTests
         var handler = new CategoryCreatedProjectionDomainEventHandler(
             NullLogger<CategoryCreatedProjectionDomainEventHandler>.Instance);
 
+        // Act
         await handler.Handle(
             new CategoryCreatedDomainEvent
             {
@@ -32,6 +34,7 @@ public class CategoryCreatedProjectionDomainEventHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var after = await db.ProductSearchView.CountAsync(TestContext.Current.CancellationToken);
         after.Should().Be(before);
     }

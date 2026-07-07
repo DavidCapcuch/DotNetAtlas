@@ -11,8 +11,9 @@ namespace Catalog.UnitTests.Products.ReactivateProduct;
 public class ReactivateProductCommandHandlerTests
 {
     [Fact]
-    public async Task Given_DiscontinuedProduct_When_AdminReactivating_Then_BecomesActive()
+    public async Task Handle_DiscontinuedProductWithAdminReactivation_BecomesActive()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -23,10 +24,12 @@ public class ReactivateProductCommandHandlerTests
         var handler = new ReactivateProductCommandHandler(
             db, TimeProvider.System, NullLogger<ReactivateProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReactivateProductCommand { ProductId = product.Id, AdminReactivation = true },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -39,8 +42,9 @@ public class ReactivateProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_DiscontinuedProduct_When_WithoutAdminFlag_Then_Fails()
+    public async Task Handle_DiscontinuedProductWithoutAdminFlag_Fails()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -51,20 +55,24 @@ public class ReactivateProductCommandHandlerTests
         var handler = new ReactivateProductCommandHandler(
             db, TimeProvider.System, NullLogger<ReactivateProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReactivateProductCommand { ProductId = product.Id, AdminReactivation = false },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
-    public async Task Given_MissingProduct_Then_FailsNotFound()
+    public async Task Handle_MissingProduct_FailsNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new ReactivateProductCommandHandler(
             db, TimeProvider.System, NullLogger<ReactivateProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReactivateProductCommand
             {
@@ -73,6 +81,7 @@ public class ReactivateProductCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 }

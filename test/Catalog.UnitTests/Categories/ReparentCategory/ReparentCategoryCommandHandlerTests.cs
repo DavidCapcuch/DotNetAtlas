@@ -31,8 +31,9 @@ public class ReparentCategoryCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_ChildCategory_When_ReparentToDifferentParent_Then_Succeeds()
+    public async Task Handle_ChildCategoryReparentToDifferentParent_Succeeds()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var root1 = CatalogFactories.RootCategory("Electronics");
         var root2 = CatalogFactories.RootCategory("Books");
@@ -45,6 +46,7 @@ public class ReparentCategoryCommandHandlerTests
             db, ancestry, pathService, TimeProvider.System,
             NullLogger<ReparentCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
             {
@@ -53,6 +55,7 @@ public class ReparentCategoryCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -74,14 +77,16 @@ public class ReparentCategoryCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_MissingCategory_Then_FailsNotFound()
+    public async Task Handle_MissingCategory_FailsNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var (ancestry, pathService) = Services();
         var handler = new ReparentCategoryCommandHandler(
             db, ancestry, pathService, TimeProvider.System,
             NullLogger<ReparentCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
             {
@@ -90,12 +95,14 @@ public class ReparentCategoryCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
-    public async Task Given_MissingNewParent_Then_FailsNotFound()
+    public async Task Handle_MissingNewParent_FailsNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var root = CatalogFactories.RootCategory();
         db.Categories.Add(root);
@@ -106,6 +113,7 @@ public class ReparentCategoryCommandHandlerTests
             db, ancestry, pathService, TimeProvider.System,
             NullLogger<ReparentCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
             {
@@ -114,12 +122,14 @@ public class ReparentCategoryCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
-    public async Task Given_SelfParent_Then_AggregateGuardFiresWithCannotParentToSelf()
+    public async Task Handle_SelfParent_AggregateGuardFiresWithCannotParentToSelf()
     {
+        // Arrange
         // The validator normally rejects self-parent BEFORE the handler runs, and the
         // ancestry service short-circuits to true when categoryId == newParentId.
         // This test pins the inner-most defensive branch in `Category.Reparent`: even if
@@ -137,6 +147,7 @@ public class ReparentCategoryCommandHandlerTests
             db, ancestry, pathService, TimeProvider.System,
             NullLogger<ReparentCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
             {
@@ -145,6 +156,7 @@ public class ReparentCategoryCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -167,8 +179,10 @@ public class ReparentCategoryCommandHandlerTests
     /// detach all tracked entities so subsequent reads re-fetch from the database.
     /// </summary>
     [Fact]
-    public async Task Given_SuccessfulReparent_When_Handling_Then_ChangeTrackerIsCleared()
+    [Trait("Category", "regression")]
+    public async Task Handle_SuccessfulReparent_ChangeTrackerIsCleared()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var root1 = CatalogFactories.RootCategory("Electronics");
         var root2 = CatalogFactories.RootCategory("Books");
@@ -182,6 +196,7 @@ public class ReparentCategoryCommandHandlerTests
             db, ancestry, pathService, TimeProvider.System,
             NullLogger<ReparentCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
             {
@@ -190,6 +205,7 @@ public class ReparentCategoryCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -199,8 +215,9 @@ public class ReparentCategoryCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_AncestryServiceDetectsCycle_Then_FailsReparentCreatesCycleAndDoesNotMutate()
+    public async Task Handle_AncestryServiceDetectsCycle_FailsReparentCreatesCycleAndDoesNotMutate()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var root = CatalogFactories.RootCategory("Electronics");
         var leaf = CatalogFactories.ChildCategory(root, "Laptops");
@@ -212,6 +229,7 @@ public class ReparentCategoryCommandHandlerTests
             db, ancestry, pathService, TimeProvider.System,
             NullLogger<ReparentCategoryCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new ReparentCategoryCommand
             {
@@ -220,6 +238,7 @@ public class ReparentCategoryCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();

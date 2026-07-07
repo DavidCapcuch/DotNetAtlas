@@ -14,8 +14,9 @@ public sealed class GetProductByIdQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_ExistingRow_When_Querying_Then_ReturnsDetailResponse()
+    public async Task Handle_ExistingRow_ReturnsDetailResponse()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var row = ProductSearchViewRowBuilder.Active()
@@ -24,8 +25,10 @@ public sealed class GetProductByIdQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetProductByIdQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(new GetProductByIdQuery { ProductId = row.ProductId }, ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -37,13 +40,16 @@ public sealed class GetProductByIdQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_MissingRow_When_Querying_Then_FailsNotFound()
+    public async Task Handle_MissingRow_FailsNotFound()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var handler = new GetProductByIdQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(new GetProductByIdQuery { ProductId = Guid.CreateVersion7() }, ct);
 
+        // Assert
         result.Should().BeFailure();
     }
 }

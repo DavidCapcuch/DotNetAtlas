@@ -10,8 +10,9 @@ namespace Catalog.UnitTests.Products.DescribeProduct;
 public class ProductDescribedProjectionDomainEventHandlerTests
 {
     [Fact]
-    public async Task Given_ExistingRow_Then_UpdatesDescription()
+    public async Task Handle_ExistingRow_UpdatesDescription()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var row = ProductSearchViewRowBuilder.Active();
         db.ProductSearchView.Add(row);
@@ -22,6 +23,7 @@ public class ProductDescribedProjectionDomainEventHandlerTests
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
+        // Act
         await handler.Handle(
             new ProductDescribedDomainEvent
             {
@@ -32,9 +34,13 @@ public class ProductDescribedProjectionDomainEventHandlerTests
             TestContext.Current.CancellationToken);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        // Assert
         var refreshed = await db.ProductSearchView.FirstAsync(
             r => r.ProductId == row.ProductId, TestContext.Current.CancellationToken);
-        refreshed.Description.Should().Be("new desc");
-        refreshed.LastUpdatedAtUtc.Should().Be(occurredOn);
+        using (new AssertionScope())
+        {
+            refreshed.Description.Should().Be("new desc");
+            refreshed.LastUpdatedAtUtc.Should().Be(occurredOn);
+        }
     }
 }

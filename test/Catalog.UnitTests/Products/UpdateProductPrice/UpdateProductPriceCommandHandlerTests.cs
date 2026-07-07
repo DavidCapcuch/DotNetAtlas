@@ -16,7 +16,7 @@ public class UpdateProductPriceCommandHandlerTests
         new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Given_ActiveProduct_When_NewPriceDiffers_Then_UpdatesAndRaisesEvent()
+    public async Task Handle_ActiveProductWithNewPriceDiffering_UpdatesAndRaisesEvent()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -53,12 +53,14 @@ public class UpdateProductPriceCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_MissingProduct_When_Handling_Then_FailsWithNotFound()
+    public async Task Handle_MissingProduct_FailsWithNotFound()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new UpdateProductPriceCommandHandler(
             db, TimeProvider.System, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new UpdateProductPriceCommand
             {
@@ -67,13 +69,15 @@ public class UpdateProductPriceCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle(e => ((DomainError)e).ErrorCode == "Product.NotFound");
     }
 
     [Fact]
-    public async Task Given_DiscontinuedProduct_When_Handling_Then_FailsWithCannotReprice()
+    public async Task Handle_DiscontinuedProduct_FailsWithCannotReprice()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -84,6 +88,7 @@ public class UpdateProductPriceCommandHandlerTests
         var handler = new UpdateProductPriceCommandHandler(
             db, TimeProvider.System, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new UpdateProductPriceCommand
             {
@@ -92,14 +97,16 @@ public class UpdateProductPriceCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
         result.Errors.Should().ContainSingle(e =>
             e.Message.Contains("discontinued", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public async Task Given_IdenticalPrice_When_Handling_Then_SucceedsWithoutRaisingEvent()
+    public async Task Handle_IdenticalPrice_SucceedsWithoutRaisingEvent()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
@@ -110,6 +117,7 @@ public class UpdateProductPriceCommandHandlerTests
         var handler = new UpdateProductPriceCommandHandler(
             db, TimeProvider.System, NullLogger<UpdateProductPriceCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new UpdateProductPriceCommand
             {
@@ -118,6 +126,7 @@ public class UpdateProductPriceCommandHandlerTests
             },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

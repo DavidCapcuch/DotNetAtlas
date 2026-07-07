@@ -30,8 +30,9 @@ namespace Catalog.UnitTests.Products.DiscontinueProduct;
 public class DiscontinueProductClockSourceTests
 {
     [Fact]
-    public async Task Handler_and_interceptor_stamp_the_same_instant_when_sharing_one_TimeProvider()
+    public async Task Handle_SharingOneTimeProvider_HandlerAndInterceptorStampSameInstant()
     {
+        // Arrange
         var pinnedNow = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
         var clock = new FakeTimeProvider(pinnedNow);
 
@@ -48,10 +49,12 @@ public class DiscontinueProductClockSourceTests
         var handler = new DiscontinueProductCommandHandler(
             db, clock, NullLogger<DiscontinueProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DiscontinueProductCommand { ProductId = product.Id, Reason = "EOL" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -76,8 +79,9 @@ public class DiscontinueProductClockSourceTests
     }
 
     [Fact]
-    public async Task Handler_and_interceptor_disagree_when_each_holds_a_different_TimeProvider()
+    public async Task Handle_SeparateTimeProviders_HandlerAndInterceptorStampsDiverge()
     {
+        // Arrange
         // Negative case: if a regression splits the TimeProvider singleton into two distinct
         // instances at separate instants, OccurredOnUtc and LastModifiedUtc diverge. This guards
         // the assertion above from passing trivially (e.g. if both fields silently used
@@ -100,10 +104,12 @@ public class DiscontinueProductClockSourceTests
         var handler = new DiscontinueProductCommandHandler(
             db, handlerClock, NullLogger<DiscontinueProductCommandHandler>.Instance);
 
+        // Act
         var result = await handler.HandleAsync(
             new DiscontinueProductCommand { ProductId = product.Id, Reason = "EOL" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

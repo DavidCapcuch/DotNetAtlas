@@ -19,6 +19,7 @@ namespace Catalog.IntegrationTests.Categories;
 /// against the actual SQL.
 /// </summary>
 [Collection<IntegrationTestCollection>]
+[Trait("Category", "regression")]
 public sealed class ReparentCategoryIntegrationTests : BaseIntegrationTest
 {
     public ReparentCategoryIntegrationTests(IntegrationTestFixture app)

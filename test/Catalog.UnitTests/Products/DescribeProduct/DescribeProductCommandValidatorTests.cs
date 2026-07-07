@@ -7,44 +7,52 @@ public class DescribeProductCommandValidatorTests
     private readonly DescribeProductCommandValidator _validator = new();
 
     [Fact]
-    public void Valid_description_passes()
+    public void Validate_ValidDescription_Passes()
     {
+        // Arrange
         var cmd = new DescribeProductCommand
         {
             ProductId = Guid.CreateVersion7(),
             NewDescription = "plain text description",
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Empty_product_id_fails()
+    public void Validate_EmptyProductId_Fails()
     {
+        // Arrange
         var cmd = new DescribeProductCommand
         {
             ProductId = Guid.Empty,
             NewDescription = "desc",
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Html_description_fails()
+    [Trait("Category", "security")]
+    public void Validate_HtmlDescription_Fails()
     {
+        // Arrange
         var cmd = new DescribeProductCommand
         {
             ProductId = Guid.CreateVersion7(),
             NewDescription = "has <b>bold</b>",
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Empty_description_passes()
+    public void Validate_EmptyDescription_Passes()
     {
+        // Arrange
         // Per use-cases spec: 0-4000 chars allowed; empty string clears the description.
         var cmd = new DescribeProductCommand
         {
@@ -52,6 +60,7 @@ public class DescribeProductCommandValidatorTests
             NewDescription = string.Empty,
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
@@ -59,6 +68,7 @@ public class DescribeProductCommandValidatorTests
     // processing instructions, CDATA, and encoded entities through. Mirror the hardened
     // CreateProduct heuristic.
     [Theory]
+    [Trait("Category", "security")]
     [InlineData("<!-- xss -->")]
     [InlineData("<!DOCTYPE html>")]
     [InlineData("<?xml version=\"1.0\"?>")]
@@ -67,28 +77,32 @@ public class DescribeProductCommandValidatorTests
     [InlineData("&#60;script&#62;")]
     [InlineData("&#x3c;script&#x3e;")]
     [InlineData("&lt;script&gt;")]
-    public void Description_with_html_bypass_fails(string description)
+    public void Validate_DescriptionWithHtmlBypass_Fails(string description)
     {
+        // Arrange
         var cmd = new DescribeProductCommand
         {
             ProductId = Guid.CreateVersion7(),
             NewDescription = description,
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Theory]
     [InlineData("Tom & Jerry")]
     [InlineData("price < 10 USD")]
-    public void Innocuous_lt_or_amp_passes(string description)
+    public void Validate_InnocuousLtOrAmp_Passes(string description)
     {
+        // Arrange
         var cmd = new DescribeProductCommand
         {
             ProductId = Guid.CreateVersion7(),
             NewDescription = description,
         };
 
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 }

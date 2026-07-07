@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
+using Catalog.Api.Endpoints.Products.DiscontinueProduct;
 using Catalog.Application.Common.FeatureFlags;
 using Catalog.Application.Products.SearchProducts;
 using Catalog.FunctionalTests.Common;
@@ -44,15 +45,23 @@ public class SearchProductsTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenShowDiscontinuedFlagFlippedOnAtRuntime_HandlerHonoursIt()
+    public async Task WhenShowDiscontinuedFlagFlippedOnAtRuntime_DiscontinuedProductSurfacesInSearch()
     {
         // Closes the M5 follow-up "verify the catalog.show-discontinued-in-search flag changes
-        // search results without restart" (ADR-0014). Asserts the OpenFeature client is
-        // consulted with the right flag key — the projection handler's contract.
+        // search results without restart" (ADR-0014). The observable outcome: with the flag ON,
+        // a discontinued product surfaces in the default (no explicit status filter) public
+        // search — so a mutation that consults the flag but ignores its value (keeps hiding
+        // discontinued rows) fails here, where the prior mock-only "was the flag read?" check
+        // survived it. The Received() call stays as a secondary guard that the flag drives the path.
+        // Arrange — create then discontinue a product; the default public search hides it unless
+        // the flag flips it back on.
         var categoryId = await SeedCategoryAsync();
-        await HttpClientRegistry.WriteClient
+        var (_, product) = await HttpClientRegistry.WriteClient
             .POSTAsync<CreateProductEndpoint, CreateProductRequest, CreateProductResponse>(
-                CatalogTestData.ValidCreateProductRequest(categoryId, name: "AnyProduct"));
+                CatalogTestData.ValidCreateProductRequest(categoryId, name: "Flag-Toggled"));
+        await HttpClientRegistry.WriteClient
+            .POSTAsync<DiscontinueProductEndpoint, DiscontinueProductRequest>(
+                new DiscontinueProductRequest { Id = product.ProductId, Reason = "End-of-life" });
 
         FeatureClient.GetBooleanValueAsync(
                 CatalogFeatureFlags.ShowDiscontinuedInSearch,
@@ -62,13 +71,19 @@ public class SearchProductsTests : BaseApiTest
                 Arg.Any<CancellationToken>())
             .Returns(true);
 
+        // Act — default search applies no explicit status filter, so the flag alone governs
+        // whether the discontinued row is included.
         var response = await HttpClientRegistry.ReadClient.GetAsync(
             "/api/v1/catalog/products?Page=1&Limit=50",
             TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<SearchProductsResponse>(
+            TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+            body!.Items.Should().Contain(i => i.ProductId == product.ProductId);
             await FeatureClient.Received().GetBooleanValueAsync(
                 CatalogFeatureFlags.ShowDiscontinuedInSearch,
                 Arg.Any<bool>(),

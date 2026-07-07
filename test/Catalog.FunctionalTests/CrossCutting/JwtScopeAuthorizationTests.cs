@@ -12,6 +12,7 @@ namespace Catalog.FunctionalTests.CrossCutting;
 /// honoured. Read endpoints accept either scope; write endpoints reject the read-only token.
 /// </summary>
 [Collection<FunctionalTestCollection>]
+[Trait("Category", "security")]
 public class JwtScopeAuthorizationTests : BaseApiTest
 {
     public JwtScopeAuthorizationTests(ApiTestFixture app)

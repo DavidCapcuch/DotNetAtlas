@@ -9,8 +9,9 @@ namespace Catalog.UnitTests.Products.DiscontinueProduct;
 public class ProductDiscontinuedProjectionDomainEventHandlerTests
 {
     [Fact]
-    public async Task Given_ExistingRow_Then_MarksDiscontinuedAndNotSellable()
+    public async Task Handle_ExistingRow_MarksDiscontinuedAndNotSellable()
     {
+        // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var row = ProductSearchViewRowBuilder.Active();
         db.ProductSearchView.Add(row);
@@ -21,6 +22,7 @@ public class ProductDiscontinuedProjectionDomainEventHandlerTests
 
         var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
+        // Act
         await handler.Handle(
             new ProductDiscontinuedDomainEvent
             {
@@ -31,6 +33,7 @@ public class ProductDiscontinuedProjectionDomainEventHandlerTests
             TestContext.Current.CancellationToken);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        // Assert
         var refreshed = await db.ProductSearchView.FirstAsync(
             r => r.ProductId == row.ProductId, TestContext.Current.CancellationToken);
 

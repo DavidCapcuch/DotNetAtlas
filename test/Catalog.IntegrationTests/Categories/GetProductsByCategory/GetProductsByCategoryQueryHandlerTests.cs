@@ -13,8 +13,9 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_IncludeDescendantsFalse_When_Querying_Then_MatchesCategoryIdOnly()
+    public async Task Handle_IncludeDescendantsFalse_MatchesCategoryIdOnly()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var category = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
@@ -26,6 +27,7 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetProductsByCategoryQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(
             new GetProductsByCategoryQuery
             {
@@ -36,6 +38,7 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
             },
             ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -44,8 +47,9 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_IncludeDescendantsTrue_When_Querying_Then_MatchesPathPrefix()
+    public async Task Handle_IncludeDescendantsTrue_MatchesPathPrefix()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var root = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
@@ -59,6 +63,7 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetProductsByCategoryQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(
             new GetProductsByCategoryQuery
             {
@@ -69,6 +74,7 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
             },
             ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -77,10 +83,11 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_IncludeDescendantsTrue_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
+    public async Task Handle_IncludeDescendantsTrueSiblingSharesLeadingSubstring_SiblingIsExcluded()
     {
         // Root "/electronics" must match itself and its descendants, but NOT the sibling
         // "/electronics-toys" whose raw path shares the leading substring.
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var root = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
@@ -93,6 +100,7 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetProductsByCategoryQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(
             new GetProductsByCategoryQuery
             {
@@ -103,16 +111,19 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
             },
             ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Items.Select(i => i.Sku).Should().BeEquivalentTo(["EXACT", "CHILD"]);
     }
 
     [Fact]
-    public async Task Given_UnknownCategoryWithDescendants_Then_ReturnsEmptyPage()
+    public async Task Handle_UnknownCategoryWithDescendants_ReturnsEmptyPage()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var handler = new GetProductsByCategoryQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(
             new GetProductsByCategoryQuery
             {
@@ -121,6 +132,7 @@ public sealed class GetProductsByCategoryQueryHandlerTests : BaseIntegrationTest
             },
             ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Items.Should().BeEmpty();
     }

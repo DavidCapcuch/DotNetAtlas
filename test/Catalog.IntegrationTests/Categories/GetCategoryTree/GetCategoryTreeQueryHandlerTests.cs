@@ -13,8 +13,9 @@ public sealed class GetCategoryTreeQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_NoRoot_When_Querying_Then_ReturnsFullTreeWithActiveProductCounts()
+    public async Task Handle_NoRoot_ReturnsFullTreeWithActiveProductCounts()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var root = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
@@ -28,8 +29,10 @@ public sealed class GetCategoryTreeQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetCategoryTreeQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(new GetCategoryTreeQuery(), ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -41,8 +44,9 @@ public sealed class GetCategoryTreeQueryHandlerTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task Given_RootFilter_When_Querying_Then_ReturnsOnlySubtree()
+    public async Task Handle_RootFilter_ReturnsOnlySubtree()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var rootA = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
@@ -51,17 +55,20 @@ public sealed class GetCategoryTreeQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetCategoryTreeQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(new GetCategoryTreeQuery { RootCategoryId = rootA.Id }, ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Nodes.Select(n => n.CategoryId).Should().BeEquivalentTo([rootA.Id, child.Id]);
     }
 
     [Fact]
-    public async Task Given_RootFilter_When_SiblingSharesLeadingSubstring_Then_SiblingIsExcluded()
+    public async Task Handle_RootFilterSiblingSharesLeadingSubstring_SiblingIsExcluded()
     {
         // Root "/electronics" must match itself and its descendants, but NOT the sibling
         // "/electronics-toys" whose raw path shares the leading substring.
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(CatalogDbContext);
         var electronics = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
@@ -70,22 +77,27 @@ public sealed class GetCategoryTreeQueryHandlerTests : BaseIntegrationTest
 
         var handler = new GetCategoryTreeQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(new GetCategoryTreeQuery { RootCategoryId = electronics.Id }, ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Nodes.Select(n => n.CategoryId)
             .Should().BeEquivalentTo([electronics.Id, laptops.Id]);
     }
 
     [Fact]
-    public async Task Given_UnknownRoot_When_Querying_Then_ReturnsEmpty()
+    public async Task Handle_UnknownRoot_ReturnsEmpty()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var handler = new GetCategoryTreeQueryHandler(CatalogDbContext);
 
+        // Act
         var result = await handler.HandleAsync(
             new GetCategoryTreeQuery { RootCategoryId = Guid.CreateVersion7() }, ct);
 
+        // Assert
         result.Should().BeSuccess();
         result.Value.Nodes.Should().BeEmpty();
     }
