@@ -9,6 +9,7 @@
         <PackageReference Include="Confluent.Kafka" />
         <PackageReference Include="StackExchange.Redis" />
         <PackageReference Include="WireMock.Net" />
+        <PackageReference Include="Scriban.Signed" />
     </ItemGroup>
 
     <ItemGroup>
