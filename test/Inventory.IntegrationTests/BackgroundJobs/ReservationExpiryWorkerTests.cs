@@ -265,6 +265,7 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task ConfirmedReservationWithStaleActiveAuditRow_LogsSingleWarning_AndDoesNotThrow()
     {
         // Between-tick race (inventory.md:346,438): the worker scans reservation_audit and reads a

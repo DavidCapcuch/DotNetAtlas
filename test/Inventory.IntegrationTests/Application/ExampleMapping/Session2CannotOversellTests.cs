@@ -88,6 +88,7 @@ public sealed class Session2CannotOversellTests : BaseIntegrationTest
     /// <c>ReserveStockCommandHandlerTests.InsufficientStock_EmitsFailureEventAndAppendsNoStockEvent</c>.
     /// </remarks>
     [Fact]
+    [Trait("Category", "concurrency")]
     public async Task Example2_3_ConcurrentReserveOnLastUnits_LoserRetriesThenFailsWithInsufficientStock()
     {
         var productId = Guid.NewGuid();

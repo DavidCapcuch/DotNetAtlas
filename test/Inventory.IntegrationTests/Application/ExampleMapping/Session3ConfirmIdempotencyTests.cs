@@ -253,6 +253,7 @@ public sealed class Session3ConfirmIdempotencyTests : BaseIntegrationTest
     /// live on <see cref="EventStoreTestExtensions"/>.
     /// </remarks>
     [Fact]
+    [Trait("Category", "concurrency")]
     public async Task Example3_4_ConfirmVsExpiryRace_LoserObservesTerminalAndFails()
     {
         var productId = Guid.NewGuid();

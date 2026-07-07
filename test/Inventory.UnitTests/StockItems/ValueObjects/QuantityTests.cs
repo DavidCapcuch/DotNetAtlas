@@ -10,6 +10,7 @@ public class QuantityTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(int.MaxValue)]
+    [Trait("Category", "boundary")]
     public void Create_WhenNonNegative_ReturnsSuccess(int value)
     {
         // Act
@@ -26,6 +27,7 @@ public class QuantityTests
     [Theory]
     [InlineData(-1)]
     [InlineData(int.MinValue)]
+    [Trait("Category", "boundary")]
     public void Create_WhenNegative_ReturnsFailureWithQuantityNegative(int value)
     {
         // Act
