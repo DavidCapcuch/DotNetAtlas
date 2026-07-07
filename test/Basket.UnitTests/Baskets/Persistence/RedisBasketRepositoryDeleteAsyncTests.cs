@@ -39,35 +39,46 @@ public class RedisBasketRepositoryDeleteAsyncTests
         NullLogger<RedisBasketRepository>.Instance);
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task DeleteAsync_WhenRedisThrowsRedisTimeoutException_ReturnsResultFail()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _database.KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .ThrowsAsyncForAnyArgs(new RedisTimeoutException("simulated timeout", CommandStatus.Unknown));
 
+        // Act
         var result = await CreateSut().DeleteAsync(userId, TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task DeleteAsync_WhenRedisThrowsRedisConnectionException_ReturnsResultFail()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _database.KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .ThrowsAsyncForAnyArgs(new RedisConnectionException(ConnectionFailureType.SocketFailure, "simulated"));
 
+        // Act
         var result = await CreateSut().DeleteAsync(userId, TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task DeleteAsync_WhenFusionCacheRemoveThrows_ReturnsResultFail()
     {
         // The repository's second hop (FusionCache backplane invalidation) must also
         // not leak — otherwise a thrown RedisException after the KeyDelete succeeded
         // would still escape the handler with a 5xx after the outbox row landed.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         _database.KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(Task.FromResult(true));
@@ -76,20 +87,25 @@ public class RedisBasketRepositoryDeleteAsyncTests
             .Do(_ => throw new RedisTimeoutException("simulated backplane timeout", CommandStatus.Unknown));
 #pragma warning restore CA2012
 
+        // Act
         var result = await CreateSut().DeleteAsync(userId, TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
     public async Task DeleteAsync_WhenBothCallsSucceed_ReturnsResultOk()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _database.KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(Task.FromResult(true));
 
+        // Act
         var result = await CreateSut().DeleteAsync(userId, TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeSuccess();
     }
 }

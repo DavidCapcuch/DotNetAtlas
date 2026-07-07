@@ -18,14 +18,17 @@ public class GetBasketByUserIdQueryHandlerTests
     [Fact]
     public async Task Handle_WhenAbsent_ReturnsEmptyResponseNotFailure()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(null));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new GetBasketByUserIdQuery(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -39,6 +42,7 @@ public class GetBasketByUserIdQueryHandlerTests
     [Fact]
     public async Task Handle_WhenPresent_MapsEveryField()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
@@ -48,27 +52,29 @@ public class GetBasketByUserIdQueryHandlerTests
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(basket));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new GetBasketByUserIdQuery(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            var r = result.Value;
-            r.UserId.Should().Be(userId);
-            r.Version.Should().Be(basket.Version);
-            r.Items.Should().ContainSingle();
-            r.Items[0].ProductId.Should().Be(productId);
-            r.Items[0].Quantity.Should().Be(3);
-            r.Items[0].SnapshotPrice.Amount.Should().Be(5m);
-            r.Items[0].SnapshotPrice.Currency.Should().Be("USD");
-            r.Items[0].LineTotal.Amount.Should().Be(15m);
-            r.Total.Should().NotBeNull();
-            r.Total!.Amount.Should().Be(15m);
-            r.Total.Currency.Should().Be("USD");
-            r.CreatedAtUtc.Should().Be(Now);
-            r.LastModifiedAtUtc.Should().Be(Now);
+            var response = result.Value;
+            response.UserId.Should().Be(userId);
+            response.Version.Should().Be(basket.Version);
+            response.Items.Should().ContainSingle();
+            response.Items[0].ProductId.Should().Be(productId);
+            response.Items[0].Quantity.Should().Be(3);
+            response.Items[0].SnapshotPrice.Amount.Should().Be(5m);
+            response.Items[0].SnapshotPrice.Currency.Should().Be("USD");
+            response.Items[0].LineTotal.Amount.Should().Be(15m);
+            response.Total.Should().NotBeNull();
+            response.Total!.Amount.Should().Be(15m);
+            response.Total.Currency.Should().Be("USD");
+            response.CreatedAtUtc.Should().Be(Now);
+            response.LastModifiedAtUtc.Should().Be(Now);
         }
     }
 }

@@ -2,7 +2,6 @@ using Basket.Domain.Baskets.Events;
 using Basket.Domain.Baskets.ValueObjects;
 using Microsoft.Extensions.Time.Testing;
 using Platform.SharedKernel.Exceptions;
-using Platform.SharedKernel.ValueObjects;
 using BasketAggregate = Basket.Domain.Baskets.Basket;
 
 namespace Basket.UnitTests.Baskets.Persistence;
@@ -22,13 +21,16 @@ public class BasketRehydrateTests
     [Fact]
     public void Rehydrate_RestoresVersionAndTimestampsExactly_AndDoesNotRaiseEvents()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var createdAt = new DateTimeOffset(2026, 01, 01, 08, 00, 00, TimeSpan.Zero);
         var lastModified = new DateTimeOffset(2026, 01, 10, 12, 30, 00, TimeSpan.Zero);
         var items = new List<BasketItem>();
 
+        // Act
         var basket = BasketAggregate.Rehydrate(userId, version: 7, createdAt, lastModified, items);
 
+        // Assert
         using (new AssertionScope())
         {
             basket.UserId.Should().Be(userId);
@@ -43,6 +45,7 @@ public class BasketRehydrateTests
     [Fact]
     public void Rehydrate_WithItems_ExposesThemAsReadOnlyAndPreservesOrder()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productA = Guid.CreateVersion7();
         var productB = Guid.CreateVersion7();
@@ -52,8 +55,10 @@ public class BasketRehydrateTests
             BasketItem.BuildUnchecked(productB, BasketTestData.Snapshot(amount: 2m), quantity: 4),
         };
 
+        // Act
         var basket = BasketAggregate.Rehydrate(userId, version: 3, UtcNow, UtcNow, items);
 
+        // Assert
         using (new AssertionScope())
         {
             basket.Items.Should().HaveCount(2);
@@ -66,9 +71,11 @@ public class BasketRehydrateTests
     [Fact]
     public void Rehydrate_WhenEmptyUserId_ThrowsDataIntegrityException()
     {
+        // Act
         var act = () => BasketAggregate.Rehydrate(
             Guid.Empty, version: 0, UtcNow, UtcNow, Array.Empty<BasketItem>());
 
+        // Assert
         act.Should().Throw<DataIntegrityException>().WithMessage("*UserId*");
     }
 
@@ -77,6 +84,8 @@ public class BasketRehydrateTests
     {
         // A rehydrated basket must behave identically to a freshly-created one for mutations —
         // the point of the persistence seam is invisibility to the domain.
+
+        // Arrange
         var basket = BasketAggregate.Rehydrate(
             Guid.CreateVersion7(),
             version: 10,
@@ -86,8 +95,11 @@ public class BasketRehydrateTests
 
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(1));
         var utcAtAdd = UtcNow;
+
+        // Act
         var result = basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), quantity: 1, utcAtAdd);
 
+        // Assert
         using (new AssertionScope())
         {
             result.IsSuccess.Should().BeTrue();
@@ -101,9 +113,11 @@ public class BasketRehydrateTests
     [Fact]
     public void Rehydrate_WhenItemsIsNull_Throws()
     {
+        // Act
         var act = () => BasketAggregate.Rehydrate(
             Guid.CreateVersion7(), version: 0, UtcNow, UtcNow, null!);
 
+        // Assert
         act.Should().Throw<ArgumentNullException>();
     }
 }

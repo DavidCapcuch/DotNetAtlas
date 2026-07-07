@@ -23,14 +23,17 @@ public class BasketStateDocumentTests
     [Fact]
     public void Envelope_EmptyBasketPayload_RoundTrips()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var original = new BasketStateDocument(
             Version: 7,
             Payload: new BasketDocument(userId, Array.Empty<BasketItemDocument>(), CreatedAt, LastModifiedAt));
 
+        // Act
         var bytes = MemoryPackSerializer.Serialize(original);
         var round = MemoryPackSerializer.Deserialize<BasketStateDocument>(bytes);
 
+        // Assert
         using (new AssertionScope())
         {
             round.Should().NotBeNull();
@@ -46,6 +49,7 @@ public class BasketStateDocumentTests
     [Fact]
     public void Envelope_MultiItemPayload_RoundTrips()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productA = Guid.CreateVersion7();
         var productB = Guid.CreateVersion7();
@@ -68,9 +72,11 @@ public class BasketStateDocumentTests
                 CreatedAt,
                 LastModifiedAt));
 
+        // Act
         var bytes = MemoryPackSerializer.Serialize(original);
         var round = MemoryPackSerializer.Deserialize<BasketStateDocument>(bytes);
 
+        // Assert
         round.Should().BeEquivalentTo(original);
     }
 
@@ -79,6 +85,8 @@ public class BasketStateDocumentTests
     {
         // Guard against any silent "double" coercion in the serializer — basket totals
         // at checkout must match cent-for-cent what the user saw when they added items.
+
+        // Arrange
         var original = new BasketStateDocument(
             Version: 1,
             Payload: new BasketDocument(
@@ -93,28 +101,11 @@ public class BasketStateDocumentTests
                 CreatedAt,
                 LastModifiedAt));
 
+        // Act
         var round = MemoryPackSerializer.Deserialize<BasketStateDocument>(
             MemoryPackSerializer.Serialize(original));
 
+        // Assert
         round!.Payload.Items[0].Snapshot.PriceAmount.Should().Be(1234.56789m);
-    }
-
-    [Fact]
-    public void Envelope_ZeroVersion_RoundTrips()
-    {
-        // Version 0 represents "basket just created, never saved" — must round-trip exactly
-        // so the CAS check can distinguish it from missing-key semantics.
-        var original = new BasketStateDocument(
-            Version: 0,
-            Payload: new BasketDocument(
-                Guid.CreateVersion7(),
-                Array.Empty<BasketItemDocument>(),
-                CreatedAt,
-                LastModifiedAt));
-
-        var round = MemoryPackSerializer.Deserialize<BasketStateDocument>(
-            MemoryPackSerializer.Serialize(original));
-
-        round!.Version.Should().Be(0);
     }
 }

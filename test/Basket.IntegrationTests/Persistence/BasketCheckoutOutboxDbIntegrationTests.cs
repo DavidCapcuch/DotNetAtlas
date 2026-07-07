@@ -44,8 +44,10 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task CheckoutCommand_FullPipeline_PersistsOutboxRowToBasketSchema()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
@@ -69,6 +71,7 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<CheckoutBasketCommand, Guid>>();
 
+        // Act
         var result = await handler.HandleAsync(
             new CheckoutBasketCommand(
                 userId,
@@ -77,6 +80,7 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
                 paymentMethodId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -109,6 +113,8 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "concurrency")]
+    [Trait("Category", "regression")]
     public async Task TwoConcurrentCheckoutsForSameUser_PersistExactlyOneOutboxRow()
     {
         // C-1 regression guard, DB-backed twin of the former in-process pipeline test.
@@ -119,6 +125,8 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
         // surfaces BasketConcurrencyError (after one retry) and never reaches the outbox, so the
         // basket.outbox_messages table holds exactly one row. Asserting against real Postgres (not
         // a substituted outbox) is what this DB-backed test adds over the handler unit tests.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
 
@@ -158,10 +166,12 @@ public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest
         var handler2 = scope2.ServiceProvider
             .GetRequiredService<ICommandHandler<CheckoutBasketCommand, Guid>>();
 
+        // Act
         var task1 = handler1.HandleAsync(MakeCommand(userId), TestContext.Current.CancellationToken);
         var task2 = handler2.HandleAsync(MakeCommand(userId), TestContext.Current.CancellationToken);
         var results = await Task.WhenAll(task1, task2);
 
+        // Assert
         using (new AssertionScope())
         {
             results.Count(r => r.IsSuccess).Should().Be(1, "exactly one checkout wins the CAS race");

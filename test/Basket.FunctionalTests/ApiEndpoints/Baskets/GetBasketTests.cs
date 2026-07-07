@@ -14,13 +14,16 @@ namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
 [Collection<FunctionalTestCollection>]
 public class GetBasketTests : BaseApiTest
 {
+    private static readonly DateTimeOffset FixedCapturedAt =
+        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
+
     public GetBasketTests(ApiTestFixture app)
         : base(app)
     {
     }
 
     [Fact]
-    public async Task WhenNoBasketExists_ReturnsEmptyBasket200()
+    public async Task GetBasket_WhenNoBasketExists_ReturnsEmptyBasket200()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -42,7 +45,8 @@ public class GetBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenBasketHasItems_ReturnsItemsWithSnapshotPrices()
+    [Trait("Category", "critical-path")]
+    public async Task GetBasket_WhenBasketHasItems_ReturnsItemsWithSnapshotPrices()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -78,7 +82,7 @@ public class GetBasketTests : BaseApiTest
             sku: "SKU-WIDGET",
             name: "Widget",
             price: Money.Create(price, currency).Value,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: FixedCapturedAt);
 
         Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok(snapshot));

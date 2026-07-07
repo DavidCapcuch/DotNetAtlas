@@ -18,63 +18,88 @@ public class CorsDependencyInjectionTests
     [InlineData("http://localhost:5173")]
     [InlineData("https://localhost:7001")]
     [InlineData("HTTPS://LOCALHOST:7001")]
-    public void Deployed_LocalhostOriginWithCredentials_Fails(string origin)
+    [Trait("Category", "security")]
+    public void Validate_WhenDeployedWithLocalhostOriginAndCredentials_Fails(string origin)
     {
+        // Act
         var result = Validate(Deployed, MakeOptions(origins: [origin], allowCredentials: true));
 
-        result.Failed.Should().BeTrue();
-        result.FailureMessage.Should().Contain(BasketCorsOptions.Section);
-        result.FailureMessage.Should().Contain("localhost");
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Failed.Should().BeTrue();
+            result.FailureMessage.Should().Contain(BasketCorsOptions.Section);
+            result.FailureMessage.Should().Contain("localhost");
+        }
     }
 
     [Fact]
-    public void Deployed_LocalhostOriginWithoutCredentials_Succeeds()
+    [Trait("Category", "security")]
+    public void Validate_WhenDeployedWithLocalhostOriginWithoutCredentials_Succeeds()
     {
+        // Act
         var result = Validate(Deployed, MakeOptions(origins: ["http://localhost:5173"], allowCredentials: false));
 
+        // Assert
         result.Succeeded.Should().BeTrue();
     }
 
     [Fact]
-    public void Deployed_ProductionOriginsWithCredentials_Succeeds()
+    [Trait("Category", "security")]
+    public void Validate_WhenDeployedWithProductionOriginsAndCredentials_Succeeds()
     {
+        // Act
         var result = Validate(
             Deployed,
             MakeOptions(origins: ["https://shop.example.com", "https://admin.example.com"], allowCredentials: true));
 
+        // Assert
         result.Succeeded.Should().BeTrue();
     }
 
     [Fact]
-    public void Deployed_MixedLocalhostAndProductionWithCredentials_Fails()
+    [Trait("Category", "security")]
+    public void Validate_WhenDeployedWithMixedLocalhostAndProductionAndCredentials_Fails()
     {
+        // Act
         var result = Validate(
             Deployed,
             MakeOptions(origins: ["https://shop.example.com", "http://localhost:5173"], allowCredentials: true));
 
+        // Assert
         result.Failed.Should().BeTrue();
     }
 
     [Fact]
-    public void Development_LocalhostOriginWithCredentials_Succeeds()
+    [Trait("Category", "security")]
+    public void Validate_WhenDevelopmentWithLocalhostOriginAndCredentials_Succeeds()
     {
         // The localhost guard only fires once deployed — dev keeps localhost + credentials.
+
+        // Act
         var result = Validate(Development, MakeOptions(origins: ["http://localhost:5173"], allowCredentials: true));
 
+        // Assert
         result.Succeeded.Should().BeTrue();
     }
 
     [Theory]
     [InlineData("Development")]
     [InlineData("Production")]
-    public void WildcardOriginWithCredentials_FailsInEveryEnvironment(string environmentName)
+    [Trait("Category", "security")]
+    public void Validate_WhenWildcardOriginWithCredentials_FailsInEveryEnvironment(string environmentName)
     {
+        // Act
         var result = Validate(
             new FakeHostEnvironment(environmentName),
             MakeOptions(origins: ["*"], allowCredentials: true));
 
-        result.Failed.Should().BeTrue();
-        result.FailureMessage.Should().Contain("*");
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Failed.Should().BeTrue();
+            result.FailureMessage.Should().Contain("*");
+        }
     }
 
     private static ValidateOptionsResult Validate(IHostEnvironment environment, BasketCorsOptions options) =>

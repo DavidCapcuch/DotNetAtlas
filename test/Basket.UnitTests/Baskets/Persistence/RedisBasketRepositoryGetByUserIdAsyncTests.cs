@@ -42,6 +42,7 @@ public class RedisBasketRepositoryGetByUserIdAsyncTests
         NullLogger<RedisBasketRepository>.Instance);
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task GetByUserIdAsync_WhenStoredCurrencyIsUnknown_ReturnsCorruptionFailureNotThrow()
     {
         // sum2.H-4 regression guard. Pre-fix, an unknown currency code stored in
@@ -49,6 +50,8 @@ public class RedisBasketRepositoryGetByUserIdAsyncTests
         // user's basket was persisted) propagated SmartEnumNotFoundException out of
         // GetByUserIdAsync — which violated the documented Result.Fail contract and
         // bubbled as a 5xx to the caller for what is really a data-evolution issue.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var corruptedDoc = new BasketStateDocument(
             Version: 1,
@@ -77,9 +80,11 @@ public class RedisBasketRepositoryGetByUserIdAsyncTests
 
         var sut = CreateSut();
 
+        // Act
         var act = async () => await sut.GetByUserIdAsync(userId, TestContext.Current.CancellationToken);
-        var result = await act.Should().NotThrowAsync();
 
+        // Assert
+        var result = await act.Should().NotThrowAsync();
         using (new AssertionScope())
         {
             result.Subject.Should().BeFailure();
@@ -91,6 +96,7 @@ public class RedisBasketRepositoryGetByUserIdAsyncTests
     [Fact]
     public async Task GetByUserIdAsync_WhenStoredCurrencyIsKnown_ReturnsBasket()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var goodDoc = new BasketStateDocument(
             Version: 1,
@@ -112,8 +118,10 @@ public class RedisBasketRepositoryGetByUserIdAsyncTests
             Arg.Any<CancellationToken>())
             .Returns(MaybeValue<BasketStateDocument>.FromValue(goodDoc));
 
+        // Act
         var result = await CreateSut().GetByUserIdAsync(userId, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

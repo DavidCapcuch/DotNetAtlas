@@ -7,7 +7,6 @@ using FluentResults;
 using FluentResults.Extensions.FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -69,6 +68,7 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenBasketExistsWithItems_PersistsViaCasSavesOutboxAndDeletesRedis()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 2, Now);
@@ -82,9 +82,12 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         _outbox.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
         _repo.DeleteAsync(userId, Arg.Any<CancellationToken>()).Returns(Result.Ok());
 
-        var cmd = ValidCommand(userId);
-        var result = await CreateSut().HandleAsync(cmd, TestContext.Current.CancellationToken);
+        var command = ValidCommand(userId);
 
+        // Act
+        var result = await CreateSut().HandleAsync(command, TestContext.Current.CancellationToken);
+
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -110,6 +113,8 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         // ADR-0029: the OrderId is pre-assigned by Basket's checkout handler (UUID v7),
         // not supplied by the caller. The same id flows onto BasketCheckedOutDomainEvent
         // so the outbox publisher stamps it onto the integration event.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -122,10 +127,12 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         _outbox.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
         _repo.DeleteAsync(userId, Arg.Any<CancellationToken>()).Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             ValidCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         var dispatched = _dispatcher.ReceivedCalls()
             .Select(c => c.GetArguments()[0])
             .OfType<BasketCheckedOutDomainEvent>()
@@ -143,14 +150,17 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenBasketMissing_FailsEmptyBasket()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(null));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             ValidCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -165,16 +175,19 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenBasketEmpty_FailsEmptyBasket()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         _ = basket.PopDomainEvents();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(basket));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             ValidCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -186,8 +199,10 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_WhenRedisDeleteFails_StillReturnsSuccess()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -201,21 +216,26 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         _repo.DeleteAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Fail("redis transient"));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             ValidCommand(userId),
             TestContext.Current.CancellationToken);
 
-        // Outbox is source of truth; Redis delete failure does NOT fail the command.
+        // Assert — outbox is source of truth; Redis delete failure does NOT fail the command.
         result.Should().BeSuccess();
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
+    [Trait("Category", "regression")]
     public async Task Handle_WhenFirstSaveConflicts_RetriesOnceAndSucceeds()
     {
         // The C-1 fix relies on BasketConcurrencyRetry — exactly one retry on CAS loss.
         // This pins the policy at the handler level so a future refactor that drops the
         // retry wrap fails loudly here. Each attempt MUST reload the aggregate so the
         // second try operates on the winner's persisted state.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -236,10 +256,12 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         _outbox.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
         _repo.DeleteAsync(userId, Arg.Any<CancellationToken>()).Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             ValidCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -249,11 +271,15 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
+    [Trait("Category", "regression")]
     public async Task Handle_WhenBothSavesConflict_PropagatesConcurrencyError_AndNoOutboxRowWritten()
     {
         // C-1 fail-loud surface: when CAS loses twice, the loser MUST NOT emit an
         // integration event. Otherwise two parallel checkouts would still produce two
         // BasketCheckoutInitiatedEvent records on the basket.sessions topic.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -264,10 +290,12 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail(new BasketConcurrencyError(userId, 1, 9)));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             ValidCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();

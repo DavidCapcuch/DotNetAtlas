@@ -22,14 +22,17 @@ public class ClearBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenNoBasket_ReturnsOkWithoutSaving()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         _repo.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok<BasketAggregate?>(null));
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new ClearBasketCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -41,6 +44,7 @@ public class ClearBasketCommandHandlerTests
     [Fact]
     public async Task Handle_WhenBasketHasItems_ClearsSavesAndDispatchesEvent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var basket = BasketAggregate.Create(userId, Now);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, Now);
@@ -52,10 +56,12 @@ public class ClearBasketCommandHandlerTests
         _repo.SaveAsync(Arg.Any<BasketAggregate>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
 
+        // Act
         var result = await CreateSut().HandleAsync(
             new ClearBasketCommand(userId),
             TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

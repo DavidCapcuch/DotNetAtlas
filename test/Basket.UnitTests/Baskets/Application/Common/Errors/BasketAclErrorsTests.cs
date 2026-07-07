@@ -8,8 +8,10 @@ public class BasketAclErrorsTests
     [Fact]
     public void CatalogUnavailable_ReturnsServiceUnavailableErrorWithResourceNameAndCode()
     {
+        // Act
         var error = BasketAclErrors.CatalogUnavailable();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ServiceUnavailableError>();
@@ -22,10 +24,13 @@ public class BasketAclErrorsTests
     [Fact]
     public void ProductNotFound_ReturnsNotFoundErrorWithEntityNameAndCode()
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
 
+        // Act
         var error = BasketAclErrors.ProductNotFound(productId);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<NotFoundError>();

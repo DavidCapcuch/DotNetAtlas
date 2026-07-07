@@ -16,8 +16,9 @@ namespace Basket.UnitTests.Baskets.Application.Checkout;
 public class BasketCheckoutInitiatedMapperTests
 {
     [Fact]
-    public void ToAvroEvent_PopulatesEveryFieldCorrectly()
+    public void ToAvroEvent_WhenFullyPopulatedEvent_PopulatesEveryFieldCorrectly()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var paymentMethodId = Guid.CreateVersion7();
@@ -46,8 +47,10 @@ public class BasketCheckoutInitiatedMapperTests
             OccurredOnUtc = occurredAt,
         };
 
+        // Act
         var avro = domainEvent.ToBasketCheckoutInitiatedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(orderId);
@@ -88,12 +91,13 @@ public class BasketCheckoutInitiatedMapperTests
     [Fact]
     public void ToAvroEvent_WithMultipleItems_ComputesEachLineTotalFromSnapshotTimesQuantity()
     {
-        var p1 = Guid.CreateVersion7();
-        var p2 = Guid.CreateVersion7();
+        // Arrange
+        var productA = Guid.CreateVersion7();
+        var productB = Guid.CreateVersion7();
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
 
-        var item1 = BasketItem.BuildUnchecked(p1, ProductSnapshot.Create("SKU-1", "N1", Money.Create(10m, CurrencyCode.Usd).Value, capturedAt), 2);
-        var item2 = BasketItem.BuildUnchecked(p2, ProductSnapshot.Create("SKU-2", "N2", Money.Create(5.5m, CurrencyCode.Usd).Value, capturedAt), 4);
+        var item1 = BasketItem.BuildUnchecked(productA, ProductSnapshot.Create("SKU-1", "N1", Money.Create(10m, CurrencyCode.Usd).Value, capturedAt), 2);
+        var item2 = BasketItem.BuildUnchecked(productB, ProductSnapshot.Create("SKU-2", "N2", Money.Create(5.5m, CurrencyCode.Usd).Value, capturedAt), 4);
 
         var snap = BasketSnapshot.Create(
             ImmutableArray.Create(item1, item2),
@@ -111,8 +115,10 @@ public class BasketCheckoutInitiatedMapperTests
             PaymentMethodId = Guid.CreateVersion7(),
         };
 
+        // Act
         var avro = domainEvent.ToBasketCheckoutInitiatedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.Items.Should().HaveCount(2);

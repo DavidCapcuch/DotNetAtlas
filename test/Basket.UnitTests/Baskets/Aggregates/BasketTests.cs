@@ -1,4 +1,3 @@
-using Basket.Domain.Baskets;
 using Basket.Domain.Baskets.Events;
 using Basket.Domain.Baskets.ValueObjects;
 using FluentResults.Extensions.FluentAssertions;
@@ -28,10 +27,13 @@ public class BasketTests
     [Fact]
     public void Create_WhenValidUserId_ReturnsEmptyBasketAndRaisesBasketCreatedEvent()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
 
+        // Act
         var basket = BasketAggregate.Create(userId, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             basket.UserId.Should().Be(userId);
@@ -51,8 +53,10 @@ public class BasketTests
     [Fact]
     public void Create_WhenEmptyUserId_ThrowsDataIntegrityException()
     {
+        // Act
         var act = () => BasketAggregate.Create(Guid.Empty, UtcNow);
 
+        // Assert
         act.Should().Throw<DataIntegrityException>()
             .WithMessage("*UserId*");
     }
@@ -64,6 +68,7 @@ public class BasketTests
     [Fact]
     public void AddItem_WhenFirstItem_AppendsLineAndRaisesItemAddedEventAndIncrementsVersion()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _ = basket.PopDomainEvents();
         var productId = Guid.CreateVersion7();
@@ -71,8 +76,10 @@ public class BasketTests
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(1));
         var utcAtAdd = UtcNow;
 
+        // Act
         var result = basket.AddItem(productId, snapshot, quantity: 2, utcAtAdd);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -83,19 +90,20 @@ public class BasketTests
             line.Quantity.Should().Be(2);
             basket.Version.Should().Be(1);
             basket.LastModifiedAtUtc.Should().Be(utcAtAdd);
-            var evt = basket.PopDomainEvents().Should()
+            var raisedEvent = basket.PopDomainEvents().Should()
                 .ContainSingle()
                 .Which.Should().BeOfType<ItemAddedToBasketDomainEvent>()
                 .Subject;
-            evt.ProductId.Should().Be(productId);
-            evt.Quantity.Should().Be(2);
-            evt.CapturedPrice.Should().Be(snapshot.Price);
+            raisedEvent.ProductId.Should().Be(productId);
+            raisedEvent.Quantity.Should().Be(2);
+            raisedEvent.CapturedPrice.Should().Be(snapshot.Price);
         }
     }
 
     [Fact]
     public void AddItem_WhenProductAlreadyPresent_CollapsesIntoQuantityBumpAndEmitsDeltaQuantity()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         var snapshot = BasketTestData.Snapshot();
@@ -103,60 +111,71 @@ public class BasketTests
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.AddItem(productId, snapshot, quantity: 3, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             basket.Items.Should().ContainSingle();
             basket.Items.Single().Quantity.Should().Be(5);
             basket.Version.Should().Be(versionBefore + 1);
-            var evt = basket.PopDomainEvents().Should()
+            var raisedEvent = basket.PopDomainEvents().Should()
                 .ContainSingle()
                 .Which.Should().BeOfType<ItemAddedToBasketDomainEvent>()
                 .Subject;
-            evt.Quantity.Should().Be(3);
+            raisedEvent.Quantity.Should().Be(3);
         }
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public void AddItem_QuantityBumpWithDifferentSnapshotPrice_PreservesFrozenPriceAndBroadcastsIt()
     {
         // Regression: event and state must agree on which price the basket actually holds.
         // The arriving snapshot's price is ignored (invariant 6 — snapshots are immutable
         // until RefreshPrices replaces them wholesale). The event MUST broadcast the frozen
         // price so consumers never see a price the basket did not commit to.
+
+        // Arrange
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         basket.AddItem(productId, BasketTestData.Snapshot(amount: 10m), 1, UtcNow);
         _ = basket.PopDomainEvents();
 
+        // Act
         var result = basket.AddItem(productId, BasketTestData.Snapshot(amount: 99m), 2, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             basket.Items.Single().Snapshot.Price.Amount.Should().Be(10m);
-            var evt = basket.PopDomainEvents().OfType<ItemAddedToBasketDomainEvent>().Single();
-            evt.CapturedPrice.Amount.Should().Be(10m);
+            var raisedEvent = basket.PopDomainEvents().OfType<ItemAddedToBasketDomainEvent>().Single();
+            raisedEvent.CapturedPrice.Amount.Should().Be(10m);
         }
     }
 
     [Fact]
-    public void AddItem_AtMaxItemsMinusOne_Succeeds_PinningBoundary()
+    [Trait("Category", "boundary")]
+    public void AddItem_WhenAtMaxItemsMinusOne_Succeeds()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         for (var i = 0; i < BasketAggregate.MaxItems - 1; i++)
         {
             basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(sku: $"SKU-{i}"), 1, UtcNow);
         }
 
+        // Act
         var result = basket.AddItem(
             Guid.CreateVersion7(),
             BasketTestData.Snapshot(sku: "SKU-LAST"),
             1,
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -167,14 +186,18 @@ public class BasketTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
+    [Trait("Category", "boundary")]
     public void AddItem_WhenQuantityLessThanOne_FailsInvalidQuantityAndLeavesStateUnchanged(int quantity)
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), quantity, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -186,8 +209,10 @@ public class BasketTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void AddItem_WhenMaxItemsReached_FailsMaxItemsReached()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         for (var i = 0; i < BasketAggregate.MaxItems; i++)
         {
@@ -197,8 +222,10 @@ public class BasketTests
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(sku: "SKU-X"), 1, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -210,26 +237,30 @@ public class BasketTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void AddItem_QuantityBumpOnExistingLine_DoesNotCountAgainstMaxItems()
     {
+        // Arrange — fill to MaxItems - 1 with unique products, then bump the same productId 3 times.
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         var snapshot = BasketTestData.Snapshot();
 
-        // Fill to MaxItems - 1 with unique products, then bump the same productId 3 times.
         for (var i = 0; i < BasketAggregate.MaxItems - 1; i++)
         {
             basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(sku: $"SKU-{i}"), 1, UtcNow);
         }
 
         basket.AddItem(productId, snapshot, 1, UtcNow);
-        var result1 = basket.AddItem(productId, snapshot, 1, UtcNow);
-        var result2 = basket.AddItem(productId, snapshot, 1, UtcNow);
 
+        // Act
+        var firstBumpResult = basket.AddItem(productId, snapshot, 1, UtcNow);
+        var secondBumpResult = basket.AddItem(productId, snapshot, 1, UtcNow);
+
+        // Assert
         using (new AssertionScope())
         {
-            result1.Should().BeSuccess();
-            result2.Should().BeSuccess();
+            firstBumpResult.Should().BeSuccess();
+            secondBumpResult.Should().BeSuccess();
             basket.Items.Should().HaveCount(BasketAggregate.MaxItems);
         }
     }
@@ -237,17 +268,20 @@ public class BasketTests
     [Fact]
     public void AddItem_WhenCurrencyDiffersFromBasket_FailsCurrencyMismatch()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(currency: CurrencyCode.Usd), 1, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.AddItem(
             Guid.CreateVersion7(),
             BasketTestData.Snapshot(currency: CurrencyCode.Eur, sku: "SKU-EUR"),
             1,
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -265,14 +299,17 @@ public class BasketTests
     [Fact]
     public void RemoveItem_WhenPresent_RemovesAndRaisesItemRemovedEvent()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         basket.AddItem(productId, BasketTestData.Snapshot(), 1, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.RemoveItem(productId, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -288,14 +325,17 @@ public class BasketTests
     [Fact]
     public void RemoveItem_WhenNotPresent_IsIdempotentNoop()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
         var lastModifiedBefore = basket.LastModifiedAtUtc;
-
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(10));
+
+        // Act
         var result = basket.RemoveItem(Guid.CreateVersion7(), UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -312,41 +352,47 @@ public class BasketTests
     [Fact]
     public void ChangeQuantity_WhenValid_UpdatesQuantityAndRaisesEvent()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         basket.AddItem(productId, BasketTestData.Snapshot(), 1, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.ChangeQuantity(productId, newQuantity: 7, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             basket.Items.Single().Quantity.Should().Be(7);
             basket.Version.Should().Be(versionBefore + 1);
-            var evt = basket.PopDomainEvents().Should()
+            var raisedEvent = basket.PopDomainEvents().Should()
                 .ContainSingle()
                 .Which.Should().BeOfType<ItemQuantityChangedDomainEvent>()
                 .Subject;
-            evt.OldQuantity.Should().Be(1);
-            evt.NewQuantity.Should().Be(7);
+            raisedEvent.OldQuantity.Should().Be(1);
+            raisedEvent.NewQuantity.Should().Be(7);
         }
     }
 
     [Fact]
     public void ChangeQuantity_WhenSameValue_IsNoopNoEventNoVersionBump()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         basket.AddItem(productId, BasketTestData.Snapshot(), 4, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
         var lastModifiedBefore = basket.LastModifiedAtUtc;
-
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(10));
+
+        // Act
         var result = basket.ChangeQuantity(productId, newQuantity: 4, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -359,29 +405,42 @@ public class BasketTests
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
+    [Trait("Category", "boundary")]
     public void ChangeQuantity_WhenInvalidQuantity_FailsInvalidQuantity(int newQuantity)
     {
+        // Arrange
         var basket = NewEmptyBasket();
         var productId = Guid.CreateVersion7();
         basket.AddItem(productId, BasketTestData.Snapshot(), 1, UtcNow);
         _ = basket.PopDomainEvents();
 
+        // Act
         var result = basket.ChangeQuantity(productId, newQuantity, UtcNow);
 
-        result.Should().BeFailure();
-        ErrorCodeOf(result).Should().Be("Basket.InvalidQuantity");
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            ErrorCodeOf(result).Should().Be("Basket.InvalidQuantity");
+        }
     }
 
     [Fact]
     public void ChangeQuantity_WhenProductNotInBasket_FailsItemNotFound()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _ = basket.PopDomainEvents();
 
+        // Act
         var result = basket.ChangeQuantity(Guid.CreateVersion7(), newQuantity: 1, UtcNow);
 
-        result.Should().BeFailure();
-        ErrorCodeOf(result).Should().Be("Basket.ItemNotFound");
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            ErrorCodeOf(result).Should().Be("Basket.ItemNotFound");
+        }
     }
 
     // ------------------------------------------------------------------
@@ -391,49 +450,55 @@ public class BasketTests
     [Fact]
     public void RefreshPrices_WhenPriceChanged_ReplacesSnapshotAndEmitsChanges()
     {
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
-        var p2 = Guid.CreateVersion7();
-        basket.AddItem(p1, BasketTestData.Snapshot(amount: 10m, sku: "SKU-1"), 2, UtcNow);
-        basket.AddItem(p2, BasketTestData.Snapshot(amount: 20m, sku: "SKU-2"), 1, UtcNow);
+        var productA = Guid.CreateVersion7();
+        var productB = Guid.CreateVersion7();
+        basket.AddItem(productA, BasketTestData.Snapshot(amount: 10m, sku: "SKU-1"), 2, UtcNow);
+        basket.AddItem(productB, BasketTestData.Snapshot(amount: 20m, sku: "SKU-2"), 1, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
         var fresh = new List<(Guid, ProductSnapshot)>
         {
-            (p1, BasketTestData.Snapshot(amount: 12m, sku: "SKU-1")),
-            (p2, BasketTestData.Snapshot(amount: 20m, sku: "SKU-2")),
+            (productA, BasketTestData.Snapshot(amount: 12m, sku: "SKU-1")),
+            (productB, BasketTestData.Snapshot(amount: 20m, sku: "SKU-2")),
         };
 
+        // Act
         var result = basket.RefreshPrices(fresh, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
-            basket.Items.Single(i => i.ProductId == p1).Snapshot.Price.Amount.Should().Be(12m);
-            basket.Items.Single(i => i.ProductId == p2).Snapshot.Price.Amount.Should().Be(20m);
+            basket.Items.Single(i => i.ProductId == productA).Snapshot.Price.Amount.Should().Be(12m);
+            basket.Items.Single(i => i.ProductId == productB).Snapshot.Price.Amount.Should().Be(20m);
             basket.Version.Should().Be(versionBefore + 1);
-            var evt = basket.PopDomainEvents().Should()
+            var raisedEvent = basket.PopDomainEvents().Should()
                 .ContainSingle()
                 .Which.Should().BeOfType<BasketPricesRefreshedDomainEvent>()
                 .Subject;
-            evt.Changes.Should().ContainSingle().Which.ProductId.Should().Be(p1);
+            raisedEvent.Changes.Should().ContainSingle().Which.ProductId.Should().Be(productA);
         }
     }
 
     [Fact]
     public void RefreshPrices_WhenNoChange_IsNoop()
     {
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
-        basket.AddItem(p1, BasketTestData.Snapshot(amount: 10m), 1, UtcNow);
+        var productA = Guid.CreateVersion7();
+        basket.AddItem(productA, BasketTestData.Snapshot(amount: 10m), 1, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.RefreshPrices(
-            [(p1, BasketTestData.Snapshot(amount: 10m))],
+            [(productA, BasketTestData.Snapshot(amount: 10m))],
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -443,6 +508,7 @@ public class BasketTests
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public void RefreshPrices_WhenAllPricesEqualButMetadataChanged_DoesNotMutateInMemoryItems()
     {
         // sum1.HIGH-1 regression guard. Previously the aggregate swapped Sku/Name/
@@ -451,10 +517,12 @@ public class BasketTests
         // Net effect: in-memory state diverged from Redis (silent metadata loss on
         // next load). The fix preserves the frozen snapshot strictly when prices are
         // unchanged.
+
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
+        var productA = Guid.CreateVersion7();
         var original = BasketTestData.Snapshot(amount: 10m, sku: "SKU-OLD", name: "Old Name");
-        basket.AddItem(p1, original, 1, UtcNow);
+        basket.AddItem(productA, original, 1, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
@@ -465,8 +533,10 @@ public class BasketTests
             name: "New Name",
             capturedAtUtc: UtcNow.AddDays(1));
 
-        var result = basket.RefreshPrices([(p1, freshSameMetaSwap)], UtcNow);
+        // Act
+        var result = basket.RefreshPrices([(productA, freshSameMetaSwap)], UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -483,35 +553,41 @@ public class BasketTests
     [Fact]
     public void RefreshPrices_WithUnknownProductIds_DoesNotAddThem()
     {
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
-        basket.AddItem(p1, BasketTestData.Snapshot(amount: 10m), 1, UtcNow);
+        var productA = Guid.CreateVersion7();
+        basket.AddItem(productA, BasketTestData.Snapshot(amount: 10m), 1, UtcNow);
         _ = basket.PopDomainEvents();
+        var unknownProductId = Guid.CreateVersion7();
 
-        var unknown = Guid.CreateVersion7();
+        // Act
         var result = basket.RefreshPrices(
-            [(unknown, BasketTestData.Snapshot(amount: 99m, sku: "SKU-UNK"))],
+            [(unknownProductId, BasketTestData.Snapshot(amount: 99m, sku: "SKU-UNK"))],
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             basket.Items.Should().ContainSingle();
-            basket.Items.Single().ProductId.Should().Be(p1);
+            basket.Items.Single().ProductId.Should().Be(productA);
         }
     }
 
     [Fact]
     public void RefreshPrices_WhenCurrencyDiffers_ThrowsDataIntegrityException()
     {
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
-        basket.AddItem(p1, BasketTestData.Snapshot(amount: 10m, currency: CurrencyCode.Usd), 1, UtcNow);
+        var productA = Guid.CreateVersion7();
+        basket.AddItem(productA, BasketTestData.Snapshot(amount: 10m, currency: CurrencyCode.Usd), 1, UtcNow);
 
+        // Act
         var act = () => basket.RefreshPrices(
-            [(p1, BasketTestData.Snapshot(amount: 10m, currency: CurrencyCode.Eur))],
+            [(productA, BasketTestData.Snapshot(amount: 10m, currency: CurrencyCode.Eur))],
             UtcNow);
 
+        // Assert
         act.Should().Throw<DataIntegrityException>()
             .WithMessage("*currency*");
     }
@@ -523,14 +599,17 @@ public class BasketTests
     [Fact]
     public void Clear_WhenHasItems_EmptiesAndRaisesClearedEvent()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, UtcNow);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(sku: "SKU-2"), 2, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         basket.Clear(UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             basket.Items.Should().BeEmpty();
@@ -544,14 +623,17 @@ public class BasketTests
     [Fact]
     public void Clear_WhenAlreadyEmpty_IsNoop()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
         var lastModifiedBefore = basket.LastModifiedAtUtc;
-
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(10));
+
+        // Act
         basket.Clear(UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             basket.Version.Should().Be(versionBefore);
@@ -567,10 +649,12 @@ public class BasketTests
     [Fact]
     public void Checkout_WhenEmpty_FailsEmptyBasket()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
 
+        // Act
         var result = basket.Checkout(
             Guid.CreateVersion7(),
             BasketTestData.Address(),
@@ -578,6 +662,7 @@ public class BasketTests
             Guid.CreateVersion7(),
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -590,9 +675,10 @@ public class BasketTests
     [Fact]
     public void Checkout_WhenHasItems_RaisesCheckedOutEventWithFullSnapshot()
     {
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
-        basket.AddItem(p1, BasketTestData.Snapshot(amount: 15m), 2, UtcNow);
+        var productA = Guid.CreateVersion7();
+        basket.AddItem(productA, BasketTestData.Snapshot(amount: 15m), 2, UtcNow);
         _ = basket.PopDomainEvents();
         var versionBefore = basket.Version;
         var orderId = Guid.CreateVersion7();
@@ -600,32 +686,36 @@ public class BasketTests
         var billing = BasketTestData.Address("CZ");
         var paymentMethodId = Guid.CreateVersion7();
 
+        // Act
         var result = basket.Checkout(orderId, shipping, billing, paymentMethodId, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
             basket.Version.Should().Be(versionBefore + 1);
-            var evt = basket.PopDomainEvents().Should()
+            var raisedEvent = basket.PopDomainEvents().Should()
                 .ContainSingle()
                 .Which.Should().BeOfType<BasketCheckedOutDomainEvent>()
                 .Subject;
-            evt.UserId.Should().Be(basket.UserId);
-            evt.OrderId.Should().Be(orderId);
-            evt.Snapshot.Items.Should().ContainSingle();
-            evt.Snapshot.Total.Amount.Amount.Should().Be(30m);
-            evt.ShippingAddress.Should().Be(shipping);
-            evt.BillingAddress.Should().Be(billing);
-            evt.PaymentMethodId.Should().Be(paymentMethodId);
+            raisedEvent.UserId.Should().Be(basket.UserId);
+            raisedEvent.OrderId.Should().Be(orderId);
+            raisedEvent.Snapshot.Items.Should().ContainSingle();
+            raisedEvent.Snapshot.Total.Amount.Amount.Should().Be(30m);
+            raisedEvent.ShippingAddress.Should().Be(shipping);
+            raisedEvent.BillingAddress.Should().Be(billing);
+            raisedEvent.PaymentMethodId.Should().Be(paymentMethodId);
         }
     }
 
     [Fact]
     public void Checkout_WhenOrderIdEmpty_ThrowsDataIntegrityException()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, UtcNow);
 
+        // Act
         var act = () => basket.Checkout(
             Guid.Empty,
             BasketTestData.Address(),
@@ -633,6 +723,7 @@ public class BasketTests
             Guid.CreateVersion7(),
             UtcNow);
 
+        // Assert
         act.Should().Throw<DataIntegrityException>()
             .WithMessage("*OrderId*");
     }
@@ -640,9 +731,11 @@ public class BasketTests
     [Fact]
     public void Checkout_WhenPaymentMethodIdEmpty_ThrowsDataIntegrityException()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, UtcNow);
 
+        // Act
         var act = () => basket.Checkout(
             Guid.CreateVersion7(),
             BasketTestData.Address(),
@@ -650,6 +743,7 @@ public class BasketTests
             Guid.Empty,
             UtcNow);
 
+        // Assert
         act.Should().Throw<DataIntegrityException>()
             .WithMessage("*PaymentMethodId*");
     }
@@ -659,44 +753,55 @@ public class BasketTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void Total_ComputesSumOfLineValuesInBasketCurrency()
+    public void Total_WhenMultipleLines_ComputesSumOfLineValuesInBasketCurrency()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(amount: 10m), 2, UtcNow);
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(amount: 3.50m, sku: "SKU-2"), 4, UtcNow);
 
-        basket.Total.Should().NotBeNull();
-        basket.Total!.Amount.Amount.Should().Be(34m);
-        basket.Total.Amount.Currency.Should().Be(CurrencyCode.Usd);
+        // Assert
+        using (new AssertionScope())
+        {
+            basket.Total.Should().NotBeNull();
+            basket.Total!.Amount.Amount.Should().Be(34m);
+            basket.Total.Amount.Currency.Should().Be(CurrencyCode.Usd);
+        }
     }
 
     [Fact]
     public void LastModifiedAtUtc_AdvancesOnEverySuccessfulMutation()
     {
+        // Arrange
         var basket = NewEmptyBasket();
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(1));
-        var t1 = UtcNow;
-        basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, t1);
+        var utcAtAdd = UtcNow;
+        basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(), 1, utcAtAdd);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
-        var t2 = UtcNow;
+        var utcAtClear = UtcNow;
 
-        basket.Clear(t2);
+        // Act
+        basket.Clear(utcAtClear);
 
-        basket.LastModifiedAtUtc.Should().Be(t2);
+        // Assert
+        basket.LastModifiedAtUtc.Should().Be(utcAtClear);
     }
 
     [Fact]
     public void Version_IsMonotonicAcrossAllSuccessfulMutations()
     {
+        // Arrange
         var basket = NewEmptyBasket();
-        var p1 = Guid.CreateVersion7();
+        var productA = Guid.CreateVersion7();
 
-        basket.AddItem(p1, BasketTestData.Snapshot(), 1, UtcNow);      // v1
-        basket.ChangeQuantity(p1, 2, UtcNow);                            // v2
+        // Act
+        basket.AddItem(productA, BasketTestData.Snapshot(), 1, UtcNow);      // v1
+        basket.ChangeQuantity(productA, 2, UtcNow);                            // v2
         basket.AddItem(Guid.CreateVersion7(), BasketTestData.Snapshot(sku: "SKU-2"), 1, UtcNow); // v3
-        basket.RemoveItem(p1, UtcNow);                                   // v4
-        basket.Clear(UtcNow);                                            // v5
+        basket.RemoveItem(productA, UtcNow);                                   // v4
+        basket.Clear(UtcNow);                                                  // v5
 
+        // Assert
         basket.Version.Should().Be(5);
     }
 

@@ -8,8 +8,10 @@ public class BasketErrorsTests
     [Fact]
     public void EmptyBasket_ReturnsConflictErrorWithEntityNameAndCode()
     {
+        // Act
         var error = BasketErrors.EmptyBasket();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ConflictError>();
@@ -22,8 +24,10 @@ public class BasketErrorsTests
     [Fact]
     public void MaxItemsReached_ReturnsConflictErrorWithEntityNameAndCode()
     {
+        // Act
         var error = BasketErrors.MaxItemsReached(max: 50);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ConflictError>();
@@ -36,8 +40,10 @@ public class BasketErrorsTests
     [Fact]
     public void InvalidQuantity_ReturnsValidationErrorWithPropertyNameAndCode()
     {
+        // Act
         var error = BasketErrors.InvalidQuantity();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ValidationError>();
@@ -49,8 +55,10 @@ public class BasketErrorsTests
     [Fact]
     public void CurrencyMismatch_ReturnsValidationErrorWithPropertyNameAndCode()
     {
+        // Act
         var error = BasketErrors.CurrencyMismatch();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ValidationError>();
@@ -62,10 +70,13 @@ public class BasketErrorsTests
     [Fact]
     public void ItemNotFound_ReturnsNotFoundErrorWithEntityNameAndCode()
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
 
+        // Act
         var error = BasketErrors.ItemNotFound(productId);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<NotFoundError>();
@@ -79,10 +90,13 @@ public class BasketErrorsTests
     [Fact]
     public void Corruption_ReturnsValidationErrorWithPropertyNameAndCode()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
 
+        // Act
         var error = BasketErrors.Corruption(userId);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ValidationError>();

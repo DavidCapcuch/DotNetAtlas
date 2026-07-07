@@ -8,10 +8,13 @@ public class BasketConcurrencyErrorTests
     [Fact]
     public void Constructor_PopulatesFieldsAndCanonicalShape()
     {
+        // Arrange
         var userId = Guid.CreateVersion7();
 
+        // Act
         var error = new BasketConcurrencyError(userId, expected: 3, actual: 5);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeAssignableTo<ConflictError>();

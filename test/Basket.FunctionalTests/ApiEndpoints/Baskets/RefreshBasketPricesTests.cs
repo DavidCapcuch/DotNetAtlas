@@ -13,13 +13,16 @@ namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
 [Collection<FunctionalTestCollection>]
 public class RefreshBasketPricesTests : BaseApiTest
 {
+    private static readonly DateTimeOffset FixedCapturedAt =
+        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
+
     public RefreshBasketPricesTests(ApiTestFixture app)
         : base(app)
     {
     }
 
     [Fact]
-    public async Task WhenBasketExists_ReturnsNoContent()
+    public async Task RefreshPrices_WhenBasketExists_ReturnsNoContent()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -35,7 +38,7 @@ public class RefreshBasketPricesTests : BaseApiTest
             sku: "SKU",
             name: "Product",
             price: Money.Create(11m, "EUR").Value,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: FixedCapturedAt);
         Catalog.GetManyAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok<IReadOnlyList<(Guid, ProductSnapshot)>>(
             [
@@ -53,23 +56,28 @@ public class RefreshBasketPricesTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenNoBasket_ReturnsNoContent_Idempotent()
+    public async Task RefreshPrices_WhenNoBasket_ReturnsNoContent_Idempotent()
     {
         // The M4 handler treats "no basket" as 204 — diverges from use-cases.md § 2.1.4
         // (404). Documented as a doc/code follow-up in the M8 session summary.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
 
+        // Act
         var response = await client.PostAsync(
             "/api/v1/basket/refresh-prices",
             content: null,
             TestContext.Current.CancellationToken);
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task WhenCatalogUnavailable_Returns503()
+    [Trait("Category", "resilience")]
+    public async Task RefreshPrices_WhenCatalogUnavailable_Returns503()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -100,7 +108,7 @@ public class RefreshBasketPricesTests : BaseApiTest
             sku: "SKU",
             name: "Product",
             price: Money.Create(price, "EUR").Value,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: FixedCapturedAt);
         Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok(snapshot));
     }

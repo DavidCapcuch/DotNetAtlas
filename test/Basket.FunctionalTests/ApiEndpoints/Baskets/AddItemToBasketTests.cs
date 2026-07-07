@@ -13,13 +13,17 @@ namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
 [Collection<FunctionalTestCollection>]
 public class AddItemToBasketTests : BaseApiTest
 {
+    private static readonly DateTimeOffset FixedCapturedAt =
+        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
+
     public AddItemToBasketTests(ApiTestFixture app)
         : base(app)
     {
     }
 
     [Fact]
-    public async Task WhenValidRequest_ReturnsNoContent_AndItemReadable()
+    [Trait("Category", "critical-path")]
+    public async Task AddItem_WhenValidRequest_ReturnsNoContent_AndItemReadable()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -48,7 +52,8 @@ public class AddItemToBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenNotAuthenticated_ReturnsUnauthorized()
+    [Trait("Category", "security")]
+    public async Task AddItem_WhenNotAuthenticated_ReturnsUnauthorized()
     {
         // Arrange
         var request = new AddItemToBasketRequest { ProductId = Guid.CreateVersion7(), Quantity = 1 };
@@ -62,7 +67,7 @@ public class AddItemToBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenCatalogReturnsProductNotFound_Returns404()
+    public async Task AddItem_WhenCatalogReturnsProductNotFound_Returns404()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -86,7 +91,7 @@ public class AddItemToBasketTests : BaseApiTest
     }
 
     [Fact]
-    public async Task WhenIdempotencyKeyMissing_StillSucceeds_DoubleClickGuardOnly()
+    public async Task AddItem_WhenIdempotencyKeyMissing_StillSucceeds_DoubleClickGuardOnly()
     {
         // basket.md § ADR-0013 makes Idempotency-Key OPTIONAL on /items (double-click
         // guard semantics) — REQUIRED only on /checkout. FastEndpoints 7.0.1's bare
@@ -94,6 +99,8 @@ public class AddItemToBasketTests : BaseApiTest
         // this BC's wiring; it only enables response caching when the header is sent.
         // Pinning that observation so a future FE minor that flips the default fails
         // loudly here instead of silently breaking double-click semantics.
+
+        // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
         StubCatalogProduct(productId);
@@ -101,13 +108,16 @@ public class AddItemToBasketTests : BaseApiTest
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         var request = new AddItemToBasketRequest { ProductId = productId, Quantity = 1 };
 
+        // Act
         var response = await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(request);
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task WhenQuantityIsZero_ReturnsValidationError()
+    [Trait("Category", "boundary")]
+    public async Task AddItem_WhenQuantityIsZero_ReturnsValidationError()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -128,7 +138,7 @@ public class AddItemToBasketTests : BaseApiTest
             sku: $"SKU-{productId:N}".Substring(0, 12),
             name: $"Widget-{productId:N}".Substring(0, 12),
             price: Money.Create(price, currency).Value,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: FixedCapturedAt);
 
         Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
             .Returns(Result.Ok(snapshot));

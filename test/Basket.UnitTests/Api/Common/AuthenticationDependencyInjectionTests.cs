@@ -13,36 +13,50 @@ namespace Basket.UnitTests.Api.Common;
 public class AuthenticationDependencyInjectionTests
 {
     [Fact]
+    [Trait("Category", "security")]
     public void AssertDeployedJwtBearerOptions_WhenAllStrictFlagsTrue_DoesNotThrow()
     {
+        // Arrange
         var options = MakeOptions(requireSigned: true, validateSigningKey: true, requireHttps: true);
 
+        // Act
         var act = () => AuthenticationDependencyInjection.AssertDeployedJwtBearerOptions(options);
 
+        // Assert
         act.Should().NotThrow();
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void AssertDeployedJwtBearerOptions_WhenRequireSignedTokensFalse_Throws()
     {
+        // Arrange
         var options = MakeOptions(requireSigned: false, validateSigningKey: true, requireHttps: true);
 
+        // Act
         var act = () => AuthenticationDependencyInjection.AssertDeployedJwtBearerOptions(options);
 
+        // Assert
         act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void AssertDeployedJwtBearerOptions_WhenValidateIssuerSigningKeyFalse_Throws()
     {
+        // Arrange
         var options = MakeOptions(requireSigned: true, validateSigningKey: false, requireHttps: true);
 
+        // Act
         var act = () => AuthenticationDependencyInjection.AssertDeployedJwtBearerOptions(options);
 
+        // Assert
         act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
+    [Trait("Category", "security")]
+    [Trait("Category", "regression")]
     public void AssertDeployedJwtBearerOptions_WhenRequireHttpsMetadataFalse_Throws()
     {
         // sum1.HIGH-3 guard: appsettings.json ships RequireHttpsMetadata=false for local
@@ -50,10 +64,14 @@ public class AuthenticationDependencyInjectionTests
         // flips it back), the JWT signing-key discovery (OIDC metadata endpoint) is
         // served over plain HTTP — a real downgrade-attack vector. Make the guard
         // refuse to construct the host with this combination.
+
+        // Arrange
         var options = MakeOptions(requireSigned: true, validateSigningKey: true, requireHttps: false);
 
+        // Act
         var act = () => AuthenticationDependencyInjection.AssertDeployedJwtBearerOptions(options);
 
+        // Assert
         act.Should().Throw<InvalidOperationException>();
     }
 
