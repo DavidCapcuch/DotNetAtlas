@@ -40,6 +40,7 @@ public sealed class HappyPathIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task SagaDrivesOrderEndToEnd_AllStatusesAndTwoOutboxEvents()
     {
         var correlationId = Guid.CreateVersion7();

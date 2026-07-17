@@ -48,6 +48,7 @@ public class CreateOrderCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Validate_NegativeQuantity_FailsOnItem()
     {
         var c = Valid() with { Items = [new CreateOrderItemInput(Guid.CreateVersion7(), "S", "N", 0, 1m)] };

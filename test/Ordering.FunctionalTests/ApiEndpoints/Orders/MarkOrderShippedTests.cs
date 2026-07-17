@@ -21,6 +21,7 @@ public class MarkOrderShippedTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var response = await HttpClientRegistry.NonAuthClient
@@ -36,6 +37,7 @@ public class MarkOrderShippedTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAuthenticatedAsBuyer_ReturnsForbidden()
     {
         var response = await HttpClientRegistry.BuyerClient
@@ -66,6 +68,7 @@ public class MarkOrderShippedTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenOrderConfirmed_ReturnsNoContentAndStatusShipped()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
@@ -93,6 +96,7 @@ public class MarkOrderShippedTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenTokenCarriesOnlyKeycloakFlatRolesClaim_AdminAuthSucceeds()
     {
         // Pins the platform's Keycloak-roles auth contract (#234 close-out).

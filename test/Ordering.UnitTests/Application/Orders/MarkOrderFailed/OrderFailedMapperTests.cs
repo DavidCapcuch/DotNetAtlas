@@ -24,15 +24,16 @@ public class OrderFailedMapperTests
     {
         var actual = OrderFailedMapper.MapStatus(name);
 
-        Assert.Equal(expected, actual);
+        actual.Should().Be(expected);
     }
 
     [Fact]
     public void MapStatus_Confirmed_ThrowsBecauseConfirmedToFailedIsFsmForbidden()
     {
-        var ex = Assert.Throws<DataIntegrityException>(() => OrderFailedMapper.MapStatus("Confirmed"));
+        var act = () => OrderFailedMapper.MapStatus("Confirmed");
 
-        Assert.Equal("Order.InvalidAtStatusForFailure", ex.ErrorCode);
+        act.Should().ThrowExactly<DataIntegrityException>()
+            .Which.ErrorCode.Should().Be("Order.InvalidAtStatusForFailure");
     }
 
     [Theory]
@@ -43,6 +44,8 @@ public class OrderFailedMapperTests
     [InlineData("Unknown")]
     public void MapStatus_UnreachableOrUnknown_Throws(string name)
     {
-        Assert.Throws<DataIntegrityException>(() => OrderFailedMapper.MapStatus(name));
+        var act = () => OrderFailedMapper.MapStatus(name);
+
+        act.Should().ThrowExactly<DataIntegrityException>();
     }
 }

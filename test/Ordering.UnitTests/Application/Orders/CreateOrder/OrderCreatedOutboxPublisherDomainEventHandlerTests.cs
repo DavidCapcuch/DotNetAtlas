@@ -44,10 +44,14 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
             Arg.Any<ISpecificRecord>());
         var call = Outbox.ReceivedCalls().Single();
         var avro = (OrderCreatedEvent)call.GetArguments()[2]!;
-        avro.OrderId.Should().Be(orderId);
-        avro.BuyerId.Should().Be(buyerId);
-        avro.PaymentMethodId.Should().Be(paymentMethodId);
-        avro.Currency.Should().Be("USD");
-        avro.Items.Count.Should().Be(1);
+
+        using (new AssertionScope())
+        {
+            avro.OrderId.Should().Be(orderId);
+            avro.BuyerId.Should().Be(buyerId);
+            avro.PaymentMethodId.Should().Be(paymentMethodId);
+            avro.Currency.Should().Be("USD");
+            avro.Items.Count.Should().Be(1);
+        }
     }
 }

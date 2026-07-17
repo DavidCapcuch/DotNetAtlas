@@ -221,6 +221,7 @@ public class OrderTransitionTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public void HappyPath_CreatedThroughDelivered_RaisesSixEventsInOrder()
     {
         // Arrange

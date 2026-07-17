@@ -23,6 +23,8 @@ public class GetOrdersByBuyerQueryHandlerTests : HandlerTestBase
     [InlineData(1, 0)] // PageSize=0 → Take(0) silent-empty-page bug class
     [InlineData(1, -5)] // PageSize<0 → Take(<0) undefined behaviour
     [InlineData(1, 101)] // PageSize above MaxPageSize=100 → unbounded query
+    [Trait("Category", "boundary")]
+    [Trait("Category", "regression")]
     public async Task Handle_OutOfRangePageNumberOrPageSize_ThrowsDataIntegrityException(int pageNumber, int pageSize)
     {
         var query = new GetOrdersByBuyerQuery

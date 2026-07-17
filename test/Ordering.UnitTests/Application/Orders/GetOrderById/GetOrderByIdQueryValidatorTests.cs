@@ -28,6 +28,7 @@ public class GetOrderByIdQueryValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void Validate_AdminWithEmptyBuyerId_Passes()
     {
         var q = new GetOrderByIdQuery
@@ -40,6 +41,7 @@ public class GetOrderByIdQueryValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void Validate_BuyerWithEmptyBuyerId_Fails()
     {
         var q = new GetOrderByIdQuery

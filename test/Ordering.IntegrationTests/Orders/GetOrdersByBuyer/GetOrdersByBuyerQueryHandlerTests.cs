@@ -47,20 +47,24 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().ContainSingle();
         var dto = result.Value.Items[0];
-        dto.OrderId.Should().Be(seeded.Id);
-        dto.Status.Should().Be(OrderStatus.Created.Name);
-        dto.TotalAmount.Should().Be(19.98m);
-        dto.Currency.Should().Be(CurrencyCode.Eur.Name);
-        dto.ItemCount.Should().Be(1);
-        // Postgres timestamptz truncates the .NET DateTimeOffset's 100-ns precision
-        // to microseconds, so compare with a sub-second tolerance rather than equality.
-        dto.CreatedAtUtc.Should().BeCloseTo(seeded.CreatedAtUtc, TimeSpan.FromSeconds(1));
-        // LastStatusChangeAtUtc falls back to CreatedAtUtc — no later
-        // transition timestamps populated.
-        dto.LastStatusChangeAtUtc.Should().BeCloseTo(seeded.CreatedAtUtc, TimeSpan.FromSeconds(1));
+        using (new AssertionScope())
+        {
+            dto.OrderId.Should().Be(seeded.Id);
+            dto.Status.Should().Be(OrderStatus.Created.Name);
+            dto.TotalAmount.Should().Be(19.98m);
+            dto.Currency.Should().Be(CurrencyCode.Eur.Name);
+            dto.ItemCount.Should().Be(1);
+            // Postgres timestamptz truncates the .NET DateTimeOffset's 100-ns precision
+            // to microseconds, so compare with a sub-second tolerance rather than equality.
+            dto.CreatedAtUtc.Should().BeCloseTo(seeded.CreatedAtUtc, TimeSpan.FromSeconds(1));
+            // LastStatusChangeAtUtc falls back to CreatedAtUtc — no later
+            // transition timestamps populated.
+            dto.LastStatusChangeAtUtc.Should().BeCloseTo(seeded.CreatedAtUtc, TimeSpan.FromSeconds(1));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_only_callers_orders()
     {
         var buyerId = Guid.CreateVersion7();
@@ -82,10 +86,13 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         var result = await ExecuteHandlerAsync(buyerId, ct);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Total.Should().Be(2);
-        result.Value.Items.Select(i => i.OrderId).Should()
-            .BeEquivalentTo(new[] { ownA.Id, ownB.Id });
-        result.Value.Items.Should().NotContain(i => i.OrderId == someoneElses.Id);
+        using (new AssertionScope())
+        {
+            result.Value.Total.Should().Be(2);
+            result.Value.Items.Select(i => i.OrderId).Should()
+                .BeEquivalentTo(new[] { ownA.Id, ownB.Id });
+            result.Value.Items.Should().NotContain(i => i.OrderId == someoneElses.Id);
+        }
     }
 
     [Fact]
@@ -108,15 +115,18 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         var page3 = await ExecuteHandlerAsync(buyerId, ct, pageNumber: 3, pageSize: 2);
 
         page1.IsSuccess.Should().BeTrue();
-        page1.Value.Total.Should().Be(5);
-        page1.Value.PageNumber.Should().Be(1);
-        page1.Value.PageSize.Should().Be(2);
-        page1.Value.Items.Should().HaveCount(2);
-
         page3.IsSuccess.Should().BeTrue();
-        page3.Value.Total.Should().Be(5);
-        page3.Value.PageNumber.Should().Be(3);
-        page3.Value.Items.Should().HaveCount(1);
+        using (new AssertionScope())
+        {
+            page1.Value.Total.Should().Be(5);
+            page1.Value.PageNumber.Should().Be(1);
+            page1.Value.PageSize.Should().Be(2);
+            page1.Value.Items.Should().HaveCount(2);
+
+            page3.Value.Total.Should().Be(5);
+            page3.Value.PageNumber.Should().Be(3);
+            page3.Value.Items.Should().HaveCount(1);
+        }
     }
 
     [Fact]
@@ -140,10 +150,13 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         var result = await ExecuteHandlerAsync(buyerId, ct, status: OrderStatus.Cancelled.Name);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Total.Should().Be(1);
         result.Value.Items.Should().ContainSingle();
-        result.Value.Items[0].OrderId.Should().Be(cancelledOrder.Id);
-        result.Value.Items[0].Status.Should().Be(OrderStatus.Cancelled.Name);
+        using (new AssertionScope())
+        {
+            result.Value.Total.Should().Be(1);
+            result.Value.Items[0].OrderId.Should().Be(cancelledOrder.Id);
+            result.Value.Items[0].Status.Should().Be(OrderStatus.Cancelled.Name);
+        }
     }
 
     [Theory]
@@ -168,8 +181,11 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().ContainSingle();
-        result.Value.Items[0].LastStatusChangeAtUtc.Should().Be(expected);
-        result.Value.Items[0].Status.Should().Be(ExpectedStatus(target).Name);
+        using (new AssertionScope())
+        {
+            result.Value.Items[0].LastStatusChangeAtUtc.Should().Be(expected);
+            result.Value.Items[0].Status.Should().Be(ExpectedStatus(target).Name);
+        }
     }
 
     /// <summary>
@@ -182,6 +198,7 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
     /// <c>CreatedAtUtc</c>, hiding the cancellation from the buyer's list view.
     /// </summary>
     [Fact]
+    [Trait("Category", "regression")]
     public async Task Handle_LastStatusChangeAtUtc_uses_CancelledAtUtc_when_order_cancelled_directly_from_Created()
     {
         var buyerId = Guid.CreateVersion7();
@@ -206,9 +223,12 @@ public sealed class GetOrdersByBuyerQueryHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().ContainSingle();
         var dto = result.Value.Items[0];
-        dto.Status.Should().Be(OrderStatus.Cancelled.Name);
-        dto.LastStatusChangeAtUtc.Should().Be(seeded.Cancellation!.CancelledAtUtc);
-        dto.LastStatusChangeAtUtc.Should().NotBe(seeded.CreatedAtUtc);
+        using (new AssertionScope())
+        {
+            dto.Status.Should().Be(OrderStatus.Cancelled.Name);
+            dto.LastStatusChangeAtUtc.Should().Be(seeded.Cancellation!.CancelledAtUtc);
+            dto.LastStatusChangeAtUtc.Should().NotBe(seeded.CreatedAtUtc);
+        }
     }
 
     private async Task<FluentResults.Result<GetOrdersByBuyerResponse>> ExecuteHandlerAsync(

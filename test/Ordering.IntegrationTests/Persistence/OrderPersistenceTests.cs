@@ -83,31 +83,34 @@ public sealed class OrderPersistenceTests
             .FirstOrDefaultAsync(o => o.Id == order.Id, TestContext.Current.CancellationToken);
 
         loaded.Should().NotBeNull();
-        loaded!.BuyerId.Should().Be(buyerId);
-        loaded.PaymentMethodId.Should().Be(paymentMethodId);
-        loaded.Status.Should().Be(OrderStatus.Created);
-        loaded.Total.Amount.Should().Be(39.98m);
-        loaded.Total.Currency.Should().Be(CurrencyCode.Eur);
+        using (new AssertionScope())
+        {
+            loaded!.BuyerId.Should().Be(buyerId);
+            loaded.PaymentMethodId.Should().Be(paymentMethodId);
+            loaded.Status.Should().Be(OrderStatus.Created);
+            loaded.Total.Amount.Should().Be(39.98m);
+            loaded.Total.Currency.Should().Be(CurrencyCode.Eur);
 
-        loaded.ShippingAddress.Street1.Should().Be("221B Baker Street");
-        loaded.ShippingAddress.CountryCode.Should().Be("GB");
-        loaded.BillingAddress.PostalCode.Should().Be("SW1A 2AA");
+            loaded.ShippingAddress.Street1.Should().Be("221B Baker Street");
+            loaded.ShippingAddress.CountryCode.Should().Be("GB");
+            loaded.BillingAddress.PostalCode.Should().Be("SW1A 2AA");
 
-        loaded.Items.Should().ContainSingle()
-            .Which.Should().BeEquivalentTo(new
-            {
-                ProductId = productId,
-                Quantity = 2,
-                UnitPrice = new { Amount = 19.99m, Currency = CurrencyCode.Eur },
-                LineTotal = new { Amount = 39.98m, Currency = CurrencyCode.Eur },
-                ProductSnapshot = new { Sku = "SKU-42", Name = "Acme Widget" },
-            });
+            loaded.Items.Should().ContainSingle()
+                .Which.Should().BeEquivalentTo(new
+                {
+                    ProductId = productId,
+                    Quantity = 2,
+                    UnitPrice = new { Amount = 19.99m, Currency = CurrencyCode.Eur },
+                    LineTotal = new { Amount = 39.98m, Currency = CurrencyCode.Eur },
+                    ProductSnapshot = new { Sku = "SKU-42", Name = "Acme Widget" },
+                });
 
-        // Audit-interceptor stamps come from TimeProvider.System; allow a
-        // small wall-clock slack to absorb the interceptor's clock read vs
-        // the snapshot captured before the act phase.
-        loaded.CreatedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
-        loaded.LastModifiedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
+            // Audit-interceptor stamps come from TimeProvider.System; allow a
+            // small wall-clock slack to absorb the interceptor's clock read vs
+            // the snapshot captured before the act phase.
+            loaded.CreatedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
+            loaded.LastModifiedUtc.Should().BeCloseTo(nowSnapshot, TimeSpan.FromSeconds(5));
+        }
     }
 
     /// <summary>

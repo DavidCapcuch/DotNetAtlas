@@ -58,6 +58,7 @@ public class FailureInfoTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_ErrorCodeTooLong_ReturnsErrorCodeTooLongError()
     {
         var tooLong = new string('x', FailureInfo.MaxErrorCodeLength + 1);
@@ -73,6 +74,7 @@ public class FailureInfoTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_ErrorMessageTooLong_ReturnsErrorMessageTooLongError()
     {
         var tooLong = new string('x', FailureInfo.MaxErrorMessageLength + 1);

@@ -17,6 +17,7 @@ public class MarkOrderDeliveredTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAuthenticatedAsBuyer_ReturnsForbidden()
     {
         var response = await HttpClientRegistry.BuyerClient
@@ -37,6 +38,7 @@ public class MarkOrderDeliveredTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenOrderShipped_ReturnsNoContentAndStatusDelivered()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);

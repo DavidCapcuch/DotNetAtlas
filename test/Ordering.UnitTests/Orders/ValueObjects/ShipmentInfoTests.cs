@@ -55,6 +55,7 @@ public class ShipmentInfoTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_CarrierTooLong_ReturnsCarrierTooLongError()
     {
         var result = ShipmentInfo.Create(
@@ -71,6 +72,7 @@ public class ShipmentInfoTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_TrackingNumberTooLong_ReturnsTrackingNumberTooLongError()
     {
         var result = ShipmentInfo.Create(

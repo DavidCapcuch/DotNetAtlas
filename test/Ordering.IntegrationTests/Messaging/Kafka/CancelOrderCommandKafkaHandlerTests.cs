@@ -29,6 +29,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
     /// Session 2 Example 1 — cancel before stock reservation.
     /// </summary>
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task CancelFromCreated_EmitsOrderCancelledEvent_AtStatusCreated()
     {
         Guid orderId;
@@ -68,6 +69,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
     /// Session 2 Example 2 — admin cancels a confirmed order.
     /// </summary>
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task CancelFromConfirmed_EmitsOrderCancelledEvent_AtStatusConfirmed()
     {
         Guid orderId;

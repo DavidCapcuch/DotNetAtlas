@@ -27,6 +27,7 @@ public class CancelOrderCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void Validate_AdminWithEmptyBuyerId_HasNoErrors()
     {
         var c = new CancelOrderCommand
@@ -40,6 +41,7 @@ public class CancelOrderCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void Validate_BuyerWithEmptyBuyerId_Fails()
     {
         var c = new CancelOrderCommand
@@ -79,6 +81,7 @@ public class CancelOrderCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Validate_ReasonOver500Chars_Fails()
     {
         var c = new CancelOrderCommand

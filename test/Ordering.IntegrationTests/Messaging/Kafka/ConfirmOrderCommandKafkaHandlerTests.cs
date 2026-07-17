@@ -32,6 +32,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task HappyPath_ConfirmedFromPaymentCompleted_EmitsOrderConfirmedEvent()
     {
         var fakeOutbox = _fixture.GetFakeOutbox();
