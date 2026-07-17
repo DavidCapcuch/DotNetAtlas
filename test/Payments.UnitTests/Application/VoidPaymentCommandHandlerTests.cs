@@ -29,14 +29,17 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_AuthorizedAggregate_HappyPath_TransitionsToVoided()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new VoidResponse(GatewayResponseCode.Create("ok", "Voided"))));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -49,16 +52,20 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_GatewayFailure_ReturnsGatewayUnavailable()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<VoidResponse>("infra-error"));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -70,12 +77,15 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_AlreadyVoided_IsIdempotentNoOp()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Voided(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -87,16 +97,20 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_PaymentNotFound_ReturnsFailure()
     {
+        // Arrange
         var command = BuildCommand();
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
     public async Task Handle_CompletedAggregate_FsmRejectsBeforeGatewayCall()
     {
+        // Arrange
         // H-Cond-2: a Void issued against a Completed aggregate (saga ordering bug) must
         // throw the FSM source-state guard BEFORE the gateway is contacted — a real PSP
         // would otherwise see a Void on an already-captured authorization (undefined behaviour).
@@ -104,17 +118,23 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
+        // Act
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
-        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
-        thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
-        await Gateway.DidNotReceive().VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        existing.Status.Should().Be(PaymentStatus.Completed);
+        // Assert
+        using (new AssertionScope())
+        {
+            var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+            thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
+            await Gateway.DidNotReceive().VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            existing.Status.Should().Be(PaymentStatus.Completed);
+        }
     }
 
     [Fact]
     public async Task Handle_AuthorizationIdMismatch_ThrowsAndDoesNotCallGateway()
     {
+        // Arrange
         // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // is bug-class (stale-token replay / saga bug). Must throw before the gateway is touched
         // so the message routes to DLT for operator inspection.
@@ -122,11 +142,16 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, authorizationId: "wrong-token");
 
+        // Act
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
-        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
-        thrown.Which.ErrorCode.Should().Be("Payments.AuthorizationIdMismatch");
-        await Gateway.DidNotReceive().VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        existing.Status.Should().Be(PaymentStatus.Authorized);
+        // Assert
+        using (new AssertionScope())
+        {
+            var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+            thrown.Which.ErrorCode.Should().Be("Payments.AuthorizationIdMismatch");
+            await Gateway.DidNotReceive().VoidAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            existing.Status.Should().Be(PaymentStatus.Authorized);
+        }
     }
 }

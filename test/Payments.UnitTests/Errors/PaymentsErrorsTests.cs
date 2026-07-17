@@ -8,10 +8,13 @@ public class PaymentsErrorsTests
     [Fact]
     public void PaymentNotFound_ReturnsNotFoundError()
     {
+        // Arrange
         var paymentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
+        // Act
         var error = PaymentsErrors.PaymentNotFound(paymentId);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<NotFoundError>();
@@ -25,8 +28,10 @@ public class PaymentsErrorsTests
     [Fact]
     public void InvalidAmount_ExactMessageAndCode()
     {
+        // Arrange & Act
         var error = PaymentsErrors.InvalidAmount();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ValidationError>();
@@ -39,8 +44,10 @@ public class PaymentsErrorsTests
     [Fact]
     public void InvalidPaymentMethod_ExactMessageAndCode()
     {
+        // Arrange & Act
         var error = PaymentsErrors.InvalidPaymentMethod();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ValidationError>();
@@ -53,8 +60,10 @@ public class PaymentsErrorsTests
     [Fact]
     public void GatewayUnavailable_ReturnsServiceUnavailableError()
     {
+        // Arrange & Act
         var error = PaymentsErrors.GatewayUnavailable();
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeOfType<ServiceUnavailableError>();
@@ -67,8 +76,10 @@ public class PaymentsErrorsTests
     [Fact]
     public void GatewayDeclinedError_WithGatewayCode_FormatsMessageAndInheritsConflictError()
     {
+        // Arrange & Act
         var error = new GatewayDeclinedError("insufficient_funds", "insufficient_funds");
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeAssignableTo<ConflictError>();
@@ -83,8 +94,10 @@ public class PaymentsErrorsTests
     [Fact]
     public void GatewayDeclinedError_WithoutGatewayCode_FormatsMessageAndInheritsConflictError()
     {
+        // Arrange & Act
         var error = new GatewayDeclinedError("insufficient_funds", gatewayCode: null);
 
+        // Assert
         using (new AssertionScope())
         {
             error.Should().BeAssignableTo<ConflictError>();

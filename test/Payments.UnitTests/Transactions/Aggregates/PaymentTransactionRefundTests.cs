@@ -15,10 +15,13 @@ public class PaymentTransactionRefundTests
     [Fact]
     public void Refund_FromCompleted_TransitionsToRefundedAndRaisesEvent()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Completed(UtcNow);
 
+        // Act
         var result = tx.Refund("customer_cancelled", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -37,12 +40,15 @@ public class PaymentTransactionRefundTests
     [Fact]
     public void Refund_WhenAlreadyRefunded_ReturnsOkAndDoesNotRaiseEvent()
     {
+        // Arrange
         var t0 = UtcNow;
         var tx = PaymentTransactionFactory.Refunded(t0);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
+        // Act
         var result = tx.Refund("customer_cancelled", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -54,20 +60,26 @@ public class PaymentTransactionRefundTests
     [Fact]
     public void Refund_FromAuthorized_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
+        // Act
         var action = () => tx.Refund("customer_cancelled", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
     [Fact]
     public void Refund_FromRequested_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
 
+        // Act
         var action = () => tx.Refund("customer_cancelled", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
@@ -76,6 +88,7 @@ public class PaymentTransactionRefundTests
     [InlineData(nameof(PaymentStatus.Voided))]
     public void Refund_WhenTerminalOtherThanRefunded_ThrowsDataIntegrityException(string statusName)
     {
+        // Arrange
         var tx = statusName switch
         {
             nameof(PaymentStatus.Failed) => PaymentTransactionFactory.Failed(UtcNow),
@@ -83,18 +96,23 @@ public class PaymentTransactionRefundTests
             _ => throw new InvalidOperationException(statusName),
         };
 
+        // Act
         var action = () => tx.Refund("customer_cancelled", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
     [Fact]
     public void Refund_WithEmptyReason_ThrowsArgumentException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Completed(UtcNow);
 
+        // Act
         var action = () => tx.Refund("", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<ArgumentException>();
     }
 }

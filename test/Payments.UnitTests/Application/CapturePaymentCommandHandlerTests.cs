@@ -5,7 +5,6 @@ using NSubstitute;
 using Payments.Application.Abstractions;
 using Payments.Application.Transactions.CapturePayment;
 using Payments.Domain.Errors;
-using Payments.Domain.Transactions;
 using Payments.Domain.Transactions.Events;
 using Payments.Domain.Transactions.ValueObjects;
 using Payments.UnitTests.Application.Common;
@@ -32,14 +31,17 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_AuthorizedAggregate_HappyPath_CapturesAndCompletes()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new CaptureResponse(PaymentTransactionFactory.DefaultGatewayTransactionId, GatewayResponseCode.Create("ok", "Captured"))));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -56,14 +58,17 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_GatewayDeclineOnCapture_TransitionsToFailedAndReturnsOk()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new GatewayDeclinedError("declined", "fraud_suspected")));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -78,16 +83,20 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_GatewayInfrastructureError_ReturnsGatewayUnavailable()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
         Gateway.CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<CaptureResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -101,10 +110,13 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_PaymentNotFound_ReturnsNotFoundError()
     {
+        // Arrange
         var command = BuildCommand();
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -116,12 +128,15 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_AlreadyCompleted_IsIdempotentNoOp()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -133,6 +148,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_VoidedAggregate_FsmRejectsBeforeGatewayCall()
     {
+        // Arrange
         // H-Cond-2: a Capture issued against a Voided aggregate (saga ordering bug) must throw
         // the FSM source-state guard BEFORE the gateway is contacted — a real PSP would error
         // (or worse, silently re-process) on a Capture against a voided authorization.
@@ -140,28 +156,39 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, existing.GatewayTransactionId);
 
+        // Act
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
-        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
-        thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
-        await Gateway.DidNotReceive().CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>());
-        existing.Status.Should().Be(PaymentStatus.Voided);
+        // Assert
+        using (new AssertionScope())
+        {
+            var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+            thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
+            await Gateway.DidNotReceive().CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>());
+            existing.Status.Should().Be(PaymentStatus.Voided);
+        }
     }
 
     [Fact]
     public async Task Handle_AuthorizationIdMismatch_ThrowsAndDoesNotCallGateway()
     {
+        // Arrange
         // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // is bug-class — must throw before the gateway is touched.
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.OrderId, authorizationId: "wrong-token");
 
+        // Act
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
-        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
-        thrown.Which.ErrorCode.Should().Be("Payments.AuthorizationIdMismatch");
-        await Gateway.DidNotReceive().CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>());
-        existing.Status.Should().Be(PaymentStatus.Authorized);
+        // Assert
+        using (new AssertionScope())
+        {
+            var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+            thrown.Which.ErrorCode.Should().Be("Payments.AuthorizationIdMismatch");
+            await Gateway.DidNotReceive().CaptureAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<CancellationToken>());
+            existing.Status.Should().Be(PaymentStatus.Authorized);
+        }
     }
 }

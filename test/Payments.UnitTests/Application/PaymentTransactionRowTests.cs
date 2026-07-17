@@ -8,29 +8,36 @@ namespace Payments.UnitTests.Application;
 /// way out of the application layer. The DB (and the projected row) still hold the full value; only
 /// the HTTP response is masked.
 /// </summary>
+[Trait("Category", "security")]
 public class PaymentTransactionRowTests
 {
     [Fact]
     public void ToResponse_MasksPaymentMethodId_ToLastFour()
     {
+        // Arrange & Act
         var response = Row(paymentMethodId: "tok_visa_4242").ToResponse();
 
+        // Assert
         response.PaymentMethodId.Should().Be("****4242");
     }
 
     [Fact]
     public void ToResponse_MasksGatewayTransactionId_WhenPresent()
     {
+        // Arrange & Act
         var response = Row(gatewayTransactionId: "gw-tx-abc123").ToResponse();
 
+        // Assert
         response.GatewayTransactionId.Should().Be("****c123");
     }
 
     [Fact]
     public void ToResponse_KeepsGatewayTransactionIdNull_WhenSourceIsNull()
     {
+        // Arrange & Act
         var response = Row(gatewayTransactionId: null).ToResponse();
 
+        // Assert
         response.GatewayTransactionId.Should().BeNull();
     }
 
@@ -45,6 +52,7 @@ public class PaymentTransactionRowTests
     [InlineData("gw-tx-abc123", "****c123")]
     public void MaskTrailing_LongInputs_ReturnLastFourPrefixedByFourStars(string input, string expected)
     {
+        // Arrange & Act & Assert
         PaymentTransactionRow.MaskTrailing(input).Should().Be(expected);
     }
 

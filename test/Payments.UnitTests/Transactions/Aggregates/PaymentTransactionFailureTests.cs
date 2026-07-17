@@ -18,12 +18,15 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkAuthorizationFailed_FromRequested_TransitionsToFailedAndRaisesBothEventsInOrder()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
         tx.PopDomainEvents();
         var failureInfo = BuildFailureInfo();
 
+        // Act
         var result = tx.MarkAuthorizationFailed(failureInfo, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -45,13 +48,16 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkAuthorizationFailed_WhenAlreadyFailed_ReturnsOkAndDoesNotRaiseEvents()
     {
+        // Arrange
         var t0 = UtcNow;
         var tx = PaymentTransactionFactory.Failed(t0);
         var failureInfoBefore = tx.FailureInfo;
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
+        // Act
         var result = tx.MarkAuthorizationFailed(BuildFailureInfo(), UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -65,6 +71,7 @@ public class PaymentTransactionFailureTests
     [InlineData(nameof(PaymentStatus.Refunded))]
     public void MarkAuthorizationFailed_WhenTerminalOtherThanFailed_ThrowsDataIntegrityException(string statusName)
     {
+        // Arrange
         var tx = statusName switch
         {
             nameof(PaymentStatus.Voided) => PaymentTransactionFactory.Voided(UtcNow),
@@ -72,20 +79,25 @@ public class PaymentTransactionFailureTests
             _ => throw new InvalidOperationException(statusName),
         };
 
+        // Act
         var action = () => tx.MarkAuthorizationFailed(BuildFailureInfo(), UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
     [Fact]
     public void MarkCaptureFailed_FromAuthorized_TransitionsToFailedAndRaisesBothEventsInOrder()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
         var existingGatewayTransactionId = tx.GatewayTransactionId;
         var failureInfo = BuildFailureInfo();
 
+        // Act
         var result = tx.MarkCaptureFailed(failureInfo, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -106,11 +118,14 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkCaptureFailed_FromRequested_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
         tx.PopDomainEvents();
 
+        // Act
         var action = () => tx.MarkCaptureFailed(BuildFailureInfo(), UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*MarkCaptureFailed is only valid from 'Authorized'*");
     }
@@ -118,10 +133,13 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkAuthorizationFailed_FromAuthorized_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
+        // Act
         var action = () => tx.MarkAuthorizationFailed(BuildFailureInfo(), UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*MarkAuthorizationFailed is only valid from 'Requested'*");
     }
@@ -129,13 +147,16 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkCaptureFailed_WhenAlreadyFailed_ReturnsOkAndDoesNotRaiseEvents()
     {
+        // Arrange
         var t0 = UtcNow;
         var tx = PaymentTransactionFactory.Failed(t0);
         var failureInfoBefore = tx.FailureInfo;
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
+        // Act
         var result = tx.MarkCaptureFailed(BuildFailureInfo(), UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -147,10 +168,13 @@ public class PaymentTransactionFailureTests
     [Fact]
     public void MarkCaptureFailed_FromCompleted_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Completed(UtcNow);
 
+        // Act
         var action = () => tx.MarkCaptureFailed(BuildFailureInfo(), UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 }
