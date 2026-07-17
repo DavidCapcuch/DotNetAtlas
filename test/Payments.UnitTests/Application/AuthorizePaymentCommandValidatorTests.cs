@@ -20,6 +20,7 @@ public class AuthorizePaymentCommandValidatorTests
     [Fact]
     public void Validate_ValidCommand_Passes()
     {
+        // Arrange & Act & Assert
         _validator.Validate(Valid()).IsValid.Should().BeTrue();
     }
 
@@ -28,7 +29,10 @@ public class AuthorizePaymentCommandValidatorTests
     [InlineData(-1)]
     public void Validate_NonPositiveAmount_Fails(decimal amount)
     {
+        // Arrange
         var cmd = Valid() with { Amount = amount };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
@@ -38,28 +42,41 @@ public class AuthorizePaymentCommandValidatorTests
     [InlineData("USDD")]
     public void Validate_BadCurrency_Fails(string currency)
     {
+        // Arrange
         var cmd = Valid() with { Currency = currency };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Validate_TooLongPaymentMethod_Fails()
     {
+        // Arrange
         var cmd = Valid() with { PaymentMethodId = new string('x', 65) };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Validate_EmptyPaymentId_Fails()
     {
+        // Arrange
         var cmd = Valid() with { PaymentId = Guid.Empty };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Validate_EmptyIdempotencyKey_Fails()
     {
+        // Arrange
         var cmd = Valid() with { IdempotencyKey = string.Empty };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 }

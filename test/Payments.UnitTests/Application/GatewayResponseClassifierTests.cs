@@ -13,8 +13,10 @@ public class GatewayResponseClassifierTests
     [InlineData("cancelled_by_user", nameof(FailureReason.Cancelled))]
     public void Classify_MapsKnownCodesToExpectedFailureReason(string code, string expectedReasonName)
     {
+        // Arrange & Act
         var actual = GatewayResponseClassifier.Classify(code);
 
+        // Assert
         actual.Name.Should().Be(expectedReasonName);
     }
 
@@ -25,8 +27,10 @@ public class GatewayResponseClassifierTests
     [InlineData("INSUFFICIENT_FUNDS")] // case-sensitive — uppercase is unknown
     public void Classify_MapsUnknownOrBlankCodeToUnknown(string? code)
     {
+        // Arrange & Act
         var actual = GatewayResponseClassifier.Classify(code);
 
+        // Assert
         actual.Should().Be(FailureReason.Unknown);
     }
 }

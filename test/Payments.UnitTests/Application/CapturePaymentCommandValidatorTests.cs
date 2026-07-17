@@ -6,24 +6,36 @@ public class CapturePaymentCommandValidatorTests
 {
     private readonly CapturePaymentCommandValidator _validator = new();
 
+    private static CapturePaymentCommand Valid() => new()
+    {
+        OrderId = Guid.CreateVersion7(),
+        AuthorizationId = "gw-tx-abc",
+    };
+
     [Fact]
     public void Validate_ValidCommand_Passes()
     {
-        var cmd = new CapturePaymentCommand { OrderId = Guid.CreateVersion7(), AuthorizationId = "gw-tx-abc" };
-        _validator.Validate(cmd).IsValid.Should().BeTrue();
+        // Arrange & Act & Assert
+        _validator.Validate(Valid()).IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_EmptyOrderId_Fails()
     {
-        var cmd = new CapturePaymentCommand { OrderId = Guid.Empty, AuthorizationId = "gw-tx-abc" };
+        // Arrange
+        var cmd = Valid() with { OrderId = Guid.Empty };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
     [Fact]
     public void Validate_EmptyAuthorizationId_Fails()
     {
-        var cmd = new CapturePaymentCommand { OrderId = Guid.CreateVersion7(), AuthorizationId = string.Empty };
+        // Arrange
+        var cmd = Valid() with { AuthorizationId = string.Empty };
+
+        // Act & Assert
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 }

@@ -13,8 +13,10 @@ public class PaymentMethodIdTests
     [InlineData("tok_visa_4242")]
     public void Create_WhenValid_ReturnsOk(string value)
     {
+        // Arrange & Act
         var result = PaymentMethodId.Create(value);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -24,12 +26,16 @@ public class PaymentMethodIdTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_AtMaxLength_ReturnsOk()
     {
+        // Arrange
         var value = new string('x', 64);
 
+        // Act
         var result = PaymentMethodId.Create(value);
 
+        // Assert
         result.Should().BeSuccess();
     }
 
@@ -40,8 +46,10 @@ public class PaymentMethodIdTests
     [InlineData("   ")]
     public void Create_WhenNullOrWhitespace_ReturnsInvalidPaymentMethod(string? value)
     {
+        // Arrange & Act
         var result = PaymentMethodId.Create(value!);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -52,12 +60,16 @@ public class PaymentMethodIdTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_AboveMaxLength_ReturnsInvalidPaymentMethod()
     {
+        // Arrange
         var value = new string('x', 65);
 
+        // Act
         var result = PaymentMethodId.Create(value);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -68,19 +80,13 @@ public class PaymentMethodIdTests
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public void Type_IsMarkedAsPii()
     {
+        // Arrange & Act
         var piiAttribute = typeof(PaymentMethodId).GetCustomAttribute<PiiAttribute>();
 
+        // Assert
         piiAttribute.Should().NotBeNull("PaymentMethodId carries tokenised payment instrument data (ADR-0011)");
-    }
-
-    [Fact]
-    public void Equality_IsByValue()
-    {
-        var first = PaymentMethodId.Create("tok_visa_4242").Value;
-        var second = PaymentMethodId.Create("tok_visa_4242").Value;
-
-        first.Should().Be(second);
     }
 }

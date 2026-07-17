@@ -14,11 +14,13 @@ namespace Payments.UnitTests.Infrastructure.Messaging.Kafka.PaymentCommands;
 /// CorrelationId. Mapping the two onto the same value was a v1 collapse that broke the
 /// "v7 PK" guarantee documented on <c>PaymentTransaction.Id</c>.
 /// </summary>
+[Trait("Category", "regression")]
 public class SagaCommandMappersTests
 {
     [Fact]
     public void ToAppCommand_AuthorizePayment_UsesAvroPaymentTransactionId_AsPaymentId()
     {
+        // Arrange
         var orderId = Guid.CreateVersion7();
         var paymentTransactionId = Guid.CreateVersion7();
         paymentTransactionId.Should().NotBe(orderId,
@@ -36,8 +38,10 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
+        // Act
         var app = avro.ToAppCommand();
 
+        // Assert
         using (new AssertionScope())
         {
             app.PaymentId.Should().Be(paymentTransactionId,
@@ -52,6 +56,7 @@ public class SagaCommandMappersTests
     [Fact]
     public void ToAppCommand_AuthorizePayment_CopiesAllOtherFieldsVerbatim()
     {
+        // Arrange
         var paymentTransactionId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
@@ -68,8 +73,10 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
+        // Act
         var app = avro.ToAppCommand();
 
+        // Assert
         using (new AssertionScope())
         {
             app.OrderId.Should().Be(orderId);
@@ -84,6 +91,7 @@ public class SagaCommandMappersTests
     [Fact]
     public void ToAppCommand_CapturePayment_ResolvesByOrderId()
     {
+        // Arrange
         // Capture carries no PaymentTransactionId, so the handler resolves the aggregate by OrderId
         // (the saga key, ADR-0029). The mapper sources it from the OrderId wire field.
         var orderId = Guid.CreateVersion7();
@@ -96,8 +104,10 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
+        // Act
         var app = avro.ToAppCommand();
 
+        // Assert
         using (new AssertionScope())
         {
             app.OrderId.Should().Be(orderId);
@@ -108,6 +118,7 @@ public class SagaCommandMappersTests
     [Fact]
     public void ToAppCommand_VoidPayment_ResolvesByOrderId()
     {
+        // Arrange
         var orderId = Guid.CreateVersion7();
         var avro = new AvroVoidPaymentCommand
         {
@@ -118,8 +129,10 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
+        // Act
         var app = avro.ToAppCommand();
 
+        // Assert
         using (new AssertionScope())
         {
             app.OrderId.Should().Be(orderId);
@@ -131,6 +144,7 @@ public class SagaCommandMappersTests
     [Fact]
     public void ToAppCommand_RequestRefund_UsesWirePaymentTransactionId_AsPaymentId()
     {
+        // Arrange
         // RequestRefund targets a specific transaction by id, so the handler resolves the aggregate
         // by primary key.
         var paymentTransactionId = Guid.CreateVersion7();
@@ -142,8 +156,10 @@ public class SagaCommandMappersTests
             RequestedAtUtc = new DateTime(2026, 5, 24, 12, 0, 0, DateTimeKind.Utc),
         };
 
+        // Act
         var app = avro.ToAppCommand();
 
+        // Assert
         using (new AssertionScope())
         {
             app.PaymentId.Should().Be(paymentTransactionId);

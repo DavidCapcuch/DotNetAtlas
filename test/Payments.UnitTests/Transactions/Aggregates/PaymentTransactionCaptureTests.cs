@@ -2,7 +2,6 @@ using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using Payments.Domain.Transactions.Events;
 using Payments.Domain.Transactions.ValueObjects;
-using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
 
 namespace Payments.UnitTests.Transactions.Aggregates;
@@ -16,13 +15,16 @@ public class PaymentTransactionCaptureTests
     [Fact]
     public void Capture_FromAuthorized_TransitionsToCompletedAndRaisesBothEventsInOrder()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
+        // Act
         var result = tx.Capture(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -47,15 +49,18 @@ public class PaymentTransactionCaptureTests
     [Fact]
     public void Capture_WhenAlreadyCompleted_ReturnsOkAndDoesNotRaiseAdditionalEvents()
     {
+        // Arrange
         var t0 = UtcNow;
         var tx = PaymentTransactionFactory.Completed(t0);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
+        // Act
         var result = tx.Capture(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -69,10 +74,13 @@ public class PaymentTransactionCaptureTests
     [Fact]
     public void Capture_FromRequested_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
 
+        // Act
         var action = () => tx.Capture("gw-tx-abc", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*Invalid payment status transition*");
     }
@@ -83,6 +91,7 @@ public class PaymentTransactionCaptureTests
     [InlineData(nameof(PaymentStatus.Refunded))]
     public void Capture_WhenTerminal_ThrowsDataIntegrityException(string statusName)
     {
+        // Arrange
         var tx = statusName switch
         {
             nameof(PaymentStatus.Failed) => PaymentTransactionFactory.Failed(UtcNow),
@@ -91,21 +100,26 @@ public class PaymentTransactionCaptureTests
             _ => throw new InvalidOperationException(statusName),
         };
 
+        // Act
         var action = () => tx.Capture(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
             UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
     [Fact]
     public void Capture_WhenDifferentGatewayTransactionId_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
+        // Act
         var action = () => tx.Capture("gw-tx-DIFFERENT", PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*GatewayTransactionId is append-only*");
     }

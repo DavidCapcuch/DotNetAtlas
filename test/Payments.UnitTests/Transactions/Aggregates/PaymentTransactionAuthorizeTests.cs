@@ -17,11 +17,14 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_FromRequested_TransitionsToAuthorizedAndRaisesEvent()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
         tx.PopDomainEvents();
 
+        // Act
         var result = tx.Authorize("gw-tx-abc", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -41,16 +44,19 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_WhenAlreadyAuthorized_ReturnsOkAndDoesNotRaiseEvent()
     {
+        // Arrange
         var t0 = UtcNow;
         var tx = PaymentTransactionFactory.Authorized(t0);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
+        // Act
         var result = tx.Authorize(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
             ExpiresAt,
             UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -63,10 +69,13 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_WhenDifferentGatewayTransactionId_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
+        // Act
         var action = () => tx.Authorize("gw-tx-OTHER", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*GatewayTransactionId is append-only*");
     }
@@ -77,6 +86,7 @@ public class PaymentTransactionAuthorizeTests
     [InlineData(nameof(PaymentStatus.Refunded))]
     public void Authorize_WhenTerminal_ThrowsDataIntegrityException(string statusName)
     {
+        // Arrange
         var tx = statusName switch
         {
             nameof(PaymentStatus.Failed) => PaymentTransactionFactory.Failed(UtcNow),
@@ -88,8 +98,11 @@ public class PaymentTransactionAuthorizeTests
         // Use the stored gateway-transaction-id (if any) so the append-only guard (I-4) does not
         // shadow the FSM check. Failed state has no stored id, so we send a fresh one.
         var gatewayId = tx.GatewayTransactionId ?? "gw-tx-new";
+
+        // Act
         var action = () => tx.Authorize(gatewayId, PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*Invalid payment status transition*");
     }
@@ -97,14 +110,17 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_FromCompleted_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Completed(UtcNow);
 
+        // Act
         var action = () => tx.Authorize(
             PaymentTransactionFactory.DefaultGatewayTransactionId,
             PaymentTransactionFactory.SuccessResponse,
             ExpiresAt,
             UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>()
             .WithMessage("*Invalid payment status transition*");
     }
@@ -112,10 +128,13 @@ public class PaymentTransactionAuthorizeTests
     [Fact]
     public void Authorize_WithEmptyGatewayTransactionId_ThrowsArgumentException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
 
+        // Act
         var action = () => tx.Authorize("", PaymentTransactionFactory.SuccessResponse, ExpiresAt, UtcNow);
 
+        // Assert
         action.Should().Throw<ArgumentException>();
     }
 }

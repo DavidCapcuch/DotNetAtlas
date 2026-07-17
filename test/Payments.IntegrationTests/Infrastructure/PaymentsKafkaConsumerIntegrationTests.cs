@@ -53,8 +53,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task Authorize_HappyPath_PersistsAggregate_AndOutboxesPaymentAuthorizedEvent()
     {
+        // Arrange
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         var avro = NewAvroAuthorize(correlationId, orderId, amount: 100.00m);
@@ -62,10 +64,12 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
 
+        // Act
         await handler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
+        // Assert
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
@@ -89,6 +93,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     [Fact]
     public async Task Authorize_DeclineRule_TransitionsAggregateToFailed_AndOutboxesAuthorizationFailedAndTerminalFailedEvents()
     {
+        // Arrange
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         // Stub gateway rule: amount ending .99 declines (per M3 docs).
@@ -97,10 +102,12 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
 
+        // Act
         await handler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
+        // Assert
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
@@ -127,8 +134,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task Capture_AfterAuthorize_TransitionsToCompleted_AndOutboxesCapturedAndTerminalCompletedEvents()
     {
+        // Arrange
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
 
@@ -143,6 +152,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         var outbox = _fixture.GetFakeOutbox();
         outbox.Clear();
 
+        // Act
         await captureHandler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             new AvroCapturePaymentCommand
@@ -154,6 +164,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 RequestedAtUtc = DateTime.UtcNow,
             });
 
+        // Assert
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
@@ -179,6 +190,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     [Fact]
     public async Task Void_AfterAuthorize_TransitionsToVoided_AndOutboxesPaymentVoidedEvent()
     {
+        // Arrange
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
 
@@ -192,6 +204,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         _fixture.GetFakeOutbox().Clear();
 
+        // Act
         await voidHandler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             new AvroVoidPaymentCommand
@@ -203,6 +216,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 RequestedAtUtc = DateTime.UtcNow,
             });
 
+        // Assert
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
@@ -219,6 +233,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     [Fact]
     public async Task Refund_AfterCapture_TransitionsToRefunded_AndOutboxesPaymentRefundedEvent()
     {
+        // Arrange
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         // Capture / Void resolve the aggregate by OrderId; RequestRefund resolves it by
@@ -250,6 +265,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
         _fixture.GetFakeOutbox().Clear();
 
+        // Act
         await refundHandler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             new AvroRequestRefundCommand
@@ -260,6 +276,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                 RequestedAtUtc = DateTime.UtcNow,
             });
 
+        // Assert
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregate = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
@@ -274,8 +291,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task Capture_WithoutPriorAuthorize_AggregateInRequested_ThrowsDataIntegrityException()
     {
+        // Arrange
         // Example 1.2 in docs/bc-design/example-mapping/payments.md: skipping Authorize is a
         // saga-ordering bug. Seed an aggregate in Requested status (no GatewayTransactionId)
         // and drive Capture directly — handler's FSM CanTransitionTo pre-check (H-Cond-2) fires
@@ -318,11 +337,13 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             RequestedAtUtc = DateTime.UtcNow,
         };
 
+        // Act
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
             await captureHandler.Handle(
                 FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
                 avroCapture));
 
+        // Assert
         var aggregateAfter = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
@@ -338,8 +359,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task AuthorizeRetry_AggregateInFailedStatus_IsIdempotent_GatewayNotCalled_NoNewOutbox()
     {
+        // Arrange
         // Example 2.2 in docs/bc-design/example-mapping/payments.md: a declined aggregate is
         // terminal; replaying the same AuthorizePaymentCommand must short-circuit before the
         // gateway is touched and emit no new domain events / outbox rows.
@@ -368,10 +391,12 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         _fixture.GetFakeOutbox().Clear();
         _fixture.GetGateway().Reset();
 
+        // Act
         await authorizeHandler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
+        // Assert
         var afterRetry = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
@@ -391,8 +416,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task Void_AfterCapture_AggregateInCompleted_ThrowsDataIntegrityException_NoGatewayCall_NoStateChange()
     {
+        // Arrange
         // Example 3.3 in docs/bc-design/example-mapping/payments.md: void post-capture is a
         // saga bug-class. The aggregate FSM rejects the Completed → Voided transition with a
         // DataIntegrityException; aggregate state, emitted events, AND the gateway stay clean
@@ -430,6 +457,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         _fixture.GetFakeOutbox().Clear();
         _fixture.GetGateway().Reset();
 
+        // Act
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
             await voidHandler.Handle(
                 FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
@@ -442,6 +470,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                     RequestedAtUtc = DateTime.UtcNow,
                 }));
 
+        // Assert
         var afterVoidAttempt = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
 
@@ -458,8 +487,10 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public async Task Void_AuthorizationIdMismatch_ThrowsDataIntegrityException_NoGatewayCall()
     {
+        // Arrange
         // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // (saga bug, stale-token replay) must throw before the gateway is touched. The
         // KafkaFlow retry middleware classifies DataIntegrityException as poison and routes
@@ -478,6 +509,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         _fixture.GetFakeOutbox().Clear();
         _fixture.GetGateway().Reset();
 
+        // Act
         var thrown = await Assert.ThrowsAsync<DataIntegrityException>(async () =>
             await voidHandler.Handle(
                 FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
@@ -490,6 +522,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
                     RequestedAtUtc = DateTime.UtcNow,
                 }));
 
+        // Assert
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var aggregateAfter = await dbContext.Transactions.AsNoTracking()
             .FirstOrDefaultAsync(t => t.OrderId == orderId, TestContext.Current.CancellationToken);
@@ -507,6 +540,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     [Fact]
     public async Task Authorize_PropagatesIdempotencyKey_FromWireToGateway()
     {
+        // Arrange
         // H-4: the saga-issued IdempotencyKey on the Avro wire command must flow through the
         // application command record and reach IPaymentGateway.AuthorizeAsync, where a v2 real
         // adapter will forward it as the gateway's Idempotency-Key header.
@@ -517,10 +551,12 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<AuthorizePaymentCommandKafkaHandler>();
 
+        // Act
         await handler.Handle(
             FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
             avro);
 
+        // Assert
         _fixture.GetGateway().LastAuthorizeIdempotencyKey.Should().Be(avro.IdempotencyKey);
     }
 

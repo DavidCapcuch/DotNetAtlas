@@ -31,8 +31,10 @@ public sealed class GetPaymentByIdQueryHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_ExistingAuthorizedPayment_ReturnsMaskedResponse()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var utcNow = DateTimeOffset.UtcNow;
         var paymentId = await SeedAuthorizedAsync(utcNow, ct);
@@ -41,8 +43,10 @@ public sealed class GetPaymentByIdQueryHandlerTests
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetPaymentByIdQuery, GetPaymentByIdResponse>>();
 
+        // Act
         var result = await handler.HandleAsync(new GetPaymentByIdQuery(paymentId), ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -58,20 +62,24 @@ public sealed class GetPaymentByIdQueryHandlerTests
     [Fact]
     public async Task Handle_MissingPayment_ReturnsNotFound()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
 
         using var scope = _fixture.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetPaymentByIdQuery, GetPaymentByIdResponse>>();
 
+        // Act
         var result = await handler.HandleAsync(new GetPaymentByIdQuery(Guid.CreateVersion7()), ct);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
     public async Task Handle_FailedPayment_IncludesFailureInfo()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var paymentId = await SeedFailedAsync(DateTimeOffset.UtcNow, ct);
 
@@ -79,8 +87,10 @@ public sealed class GetPaymentByIdQueryHandlerTests
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetPaymentByIdQuery, GetPaymentByIdResponse>>();
 
+        // Act
         var result = await handler.HandleAsync(new GetPaymentByIdQuery(paymentId), ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

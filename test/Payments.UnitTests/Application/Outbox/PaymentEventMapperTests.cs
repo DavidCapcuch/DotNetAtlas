@@ -26,6 +26,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentAuthorizedMapper_ProjectsExpiresAtUtcFromDomainEvent_NotSynthesized()
     {
+        // Arrange
         // H-6: the mapper must source ExpiresAtUtc from the gateway response (carried through the
         // domain event) — not synthesize AuthorizedAtUtc + 7 days inline. Test passes a deliberately
         // out-of-band ExpiresAtUtc so a regression that re-introduces inline synthesis fails loudly.
@@ -42,8 +43,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentAuthorizedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -59,6 +62,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentAuthorizationFailedMapper_MapsErrorCodeFromGatewayCodeWhenAvailable()
     {
+        // Arrange
         var failureInfo = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", Now);
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
@@ -69,8 +73,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentAuthorizationFailedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -84,6 +90,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentAuthorizationFailedMapper_FallsBackToReasonNameWhenGatewayCodeMissing()
     {
+        // Arrange
         var failureInfo = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, Now);
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
         {
@@ -94,8 +101,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentAuthorizationFailedEvent();
 
+        // Assert
         avro.ErrorCode.Should().Be("Unknown");
     }
 
@@ -114,6 +123,7 @@ public class PaymentEventMapperTests
     public void PaymentAuthorizationFailedMapper_ProjectsIsRetryableFromFailureReason(
         int reasonValue, bool expectedIsRetryable)
     {
+        // Arrange
         var reason = FailureReason.FromValue(reasonValue);
         var failureInfo = FailureInfo.Create(reason, gatewayCode: null, Now);
         var domainEvent = new PaymentAuthorizationFailedDomainEvent
@@ -125,8 +135,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentAuthorizationFailedEvent();
 
+        // Assert
         avro.IsRetryable.Should().Be(expectedIsRetryable);
     }
 
@@ -135,6 +147,7 @@ public class PaymentEventMapperTests
     public void PaymentCaptureFailedMapper_ProjectsIsRetryableFromFailureReason(
         int reasonValue, bool expectedIsRetryable)
     {
+        // Arrange
         var reason = FailureReason.FromValue(reasonValue);
         var failureInfo = FailureInfo.Create(reason, gatewayCode: null, Now);
         var domainEvent = new PaymentCaptureFailedDomainEvent
@@ -147,14 +160,17 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentCaptureFailedEvent();
 
+        // Assert
         avro.IsRetryable.Should().Be(expectedIsRetryable);
     }
 
     [Fact]
     public void PaymentCapturedMapper_MapsAggregateIdToPaymentTransactionId()
     {
+        // Arrange
         var domainEvent = new PaymentCapturedDomainEvent
         {
             PaymentId = PaymentId,
@@ -166,8 +182,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentCapturedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -183,6 +201,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentCaptureFailedMapper_PopulatesAuthorizationIdFromDomainEvent()
     {
+        // Arrange
         var failureInfo = FailureInfo.Create(FailureReason.GatewayDeclined, "card_declined", Now);
         var domainEvent = new PaymentCaptureFailedDomainEvent
         {
@@ -194,8 +213,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentCaptureFailedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -207,8 +228,10 @@ public class PaymentEventMapperTests
     }
 
     [Fact]
+    [Trait("Category", "regression")]
     public void PaymentRefundedMapper_GeneratesFreshRefundTransactionIdDistinctFromPaymentTransactionId()
     {
+        // Arrange
         // #246: RefundTransactionId is a fresh UUID v7 — downstream consumers (Notifications
         // refund email, Invoicing credit-note pairing) key off it as a distinct identifier and
         // would alias-collide if it equalled PaymentTransactionId. Two calls also produce
@@ -225,9 +248,11 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentRefundedEvent();
         var second = domainEvent.ToPaymentRefundedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -245,6 +270,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentCompletedMapper_MapsAggregateIdToPaymentTransactionId()
     {
+        // Arrange
         // ADR-0026: Payments owns its terminal events. PaymentCompletedDomainEvent (co-raised
         // with PaymentCapturedDomainEvent on Capture) now has a Payments-side outbox publisher,
         // so the aggregate id projects to PaymentTransactionId and BuyerId -> UserId, identical
@@ -259,8 +285,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentCompletedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -275,6 +303,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentFailedMapper_MapsErrorCodeFromGatewayCodeWhenAvailable()
     {
+        // Arrange
         // ADR-0026: Payments owns its terminal events. PaymentFailedDomainEvent (co-raised on
         // both MarkAuthorizationFailed and MarkCaptureFailed) now has a Payments-side outbox
         // publisher. ErrorCode prefers the raw gateway code, ErrorMessage carries the canonical
@@ -290,8 +319,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentFailedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);
@@ -305,6 +336,7 @@ public class PaymentEventMapperTests
     [Fact]
     public void PaymentFailedMapper_FallsBackToReasonNameWhenGatewayCodeMissing()
     {
+        // Arrange
         var failureInfo = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, Now);
         var domainEvent = new PaymentFailedDomainEvent
         {
@@ -316,14 +348,17 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentFailedEvent();
 
+        // Assert
         avro.ErrorCode.Should().Be("Unknown");
     }
 
     [Fact]
     public void PaymentVoidedMapper_MapsAllFieldsIncludingReason()
     {
+        // Arrange
         var domainEvent = new PaymentVoidedDomainEvent
         {
             PaymentId = PaymentId,
@@ -335,8 +370,10 @@ public class PaymentEventMapperTests
             OccurredOnUtc = Now,
         };
 
+        // Act
         var avro = domainEvent.ToPaymentVoidedEvent();
 
+        // Assert
         using (new AssertionScope())
         {
             avro.OrderId.Should().Be(OrderId);

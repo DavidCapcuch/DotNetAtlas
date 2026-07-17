@@ -4,35 +4,27 @@ namespace Payments.UnitTests.Transactions.ValueObjects;
 
 public class FailureInfoTests
 {
-    [Fact]
-    public void Equality_IsByValue()
-    {
-        var recordedAt = DateTimeOffset.UtcNow;
-        var first = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
-        var second = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
-
-        first.Should().Be(second);
-    }
+    // The former Equality_IsByValue / Inequality_WhenReasonDiffers pair tested compiler-synthesized
+    // record equality (FailureInfo is a bare sealed record : ValueObject; the base declares no
+    // equality members) — a language guarantee, not domain logic, so neither needs a dedicated test.
+    // Value equality is incidentally relied on by PaymentTransactionFailureTests'
+    // tx.FailureInfo.Should().Be(failureInfo) assertions.
 
     [Fact]
-    public void Inequality_WhenReasonDiffers()
+    public void Create_WhenGatewayCodeNull_AcceptsAndPreservesReason()
     {
-        var recordedAt = DateTimeOffset.UtcNow;
-        var first = FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAt);
-        var second = FailureInfo.Create(FailureReason.FraudSuspected, "insufficient_funds", recordedAt);
+        // Arrange
+        var recordedAtUtc = new DateTimeOffset(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
 
-        first.Should().NotBe(second);
-    }
+        // Act
+        var info = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, recordedAtUtc);
 
-    [Fact]
-    public void NullGatewayCode_IsAccepted()
-    {
-        var info = FailureInfo.Create(FailureReason.Unknown, gatewayCode: null, DateTimeOffset.UtcNow);
-
+        // Assert
         using (new AssertionScope())
         {
             info.Reason.Should().Be(FailureReason.Unknown);
             info.GatewayCode.Should().BeNull();
+            info.RecordedAtUtc.Should().Be(recordedAtUtc);
         }
     }
 }

@@ -27,14 +27,17 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_CompletedAggregate_HappyPath_TransitionsToRefunded()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.Id);
         Gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new RefundResponse(GatewayResponseCode.Create("ok", "Refunded"))));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -47,16 +50,20 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_GatewayFailure_ReturnsGatewayUnavailable()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Completed(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.Id);
         Gateway.RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<RefundResponse>("gateway-error"));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -68,12 +75,15 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_AlreadyRefunded_IsIdempotentNoOp()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Refunded(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(existing.Id);
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -85,16 +95,20 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_PaymentNotFound_ReturnsFailure()
     {
+        // Arrange
         var command = BuildCommand();
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         result.Should().BeFailure();
     }
 
     [Fact]
     public async Task Handle_AuthorizedAggregate_FsmRejectsBeforeGatewayCall()
     {
+        // Arrange
         // H-Cond-2: a Refund issued against an Authorized (not-yet-Captured) aggregate must
         // throw the FSM source-state guard BEFORE the gateway is contacted — a real PSP would
         // reject the refund or, worse, double-process. The Refund/Void asymmetry is a saga bug.
@@ -102,11 +116,16 @@ public class RequestRefundCommandHandlerTests : PaymentsHandlerTestBase
         await SeedAsync(existing);
         var command = BuildCommand(existing.Id);
 
+        // Act
         var act = async () => await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
-        var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
-        thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
-        await Gateway.DidNotReceive().RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        existing.Status.Should().Be(PaymentStatus.Authorized);
+        // Assert
+        using (new AssertionScope())
+        {
+            var thrown = await act.Should().ThrowAsync<DataIntegrityException>();
+            thrown.Which.ErrorCode.Should().Be("Payments.InvalidStatusTransition");
+            await Gateway.DidNotReceive().RefundAsync(Arg.Any<string>(), Arg.Any<Money>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            existing.Status.Should().Be(PaymentStatus.Authorized);
+        }
     }
 }

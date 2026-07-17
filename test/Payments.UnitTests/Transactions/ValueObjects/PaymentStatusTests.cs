@@ -26,6 +26,8 @@ public class PaymentStatusTests
                 (PaymentStatus.Completed, PaymentStatus.Refunded),
             };
 
+            // The full From×To grid — every self-transition (From == To) is present and expected
+            // false, so a dedicated "self-transitions rejected" test would be redundant.
             var data = new TheoryData<PaymentStatus, PaymentStatus, bool>();
             foreach (var from in PaymentStatus.List)
             {
@@ -43,7 +45,11 @@ public class PaymentStatusTests
     [MemberData(nameof(TransitionMatrix))]
     public void CanTransitionTo_MatchesMatrix(PaymentStatus from, PaymentStatus to, bool expected)
     {
-        from.CanTransitionTo(to).Should().Be(expected);
+        // Arrange & Act
+        var canTransition = from.CanTransitionTo(to);
+
+        // Assert
+        canTransition.Should().Be(expected);
     }
 
     [Theory]
@@ -52,8 +58,10 @@ public class PaymentStatusTests
     [InlineData(nameof(PaymentStatus.Refunded))]
     public void IsFinal_ReturnsTrue_ForCompensationTerminals(string statusName)
     {
+        // Arrange
         var status = PaymentStatus.FromName(statusName);
 
+        // Act & Assert
         status.IsFinal.Should().BeTrue();
     }
 
@@ -64,25 +72,20 @@ public class PaymentStatusTests
     [InlineData(nameof(PaymentStatus.Completed))]
     public void IsFinal_ReturnsFalse_ForNonFinalStates(string statusName)
     {
+        // Arrange
         var status = PaymentStatus.FromName(statusName);
 
+        // Act & Assert
         status.IsFinal.Should().BeFalse();
     }
 
     [Fact]
-    public void CanTransitionTo_Null_Throws()
+    public void CanTransitionTo_WhenTargetNull_Throws()
     {
+        // Arrange
         var action = () => PaymentStatus.Requested.CanTransitionTo(null!);
 
+        // Act & Assert
         action.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
-    public void SelfTransitions_AreAlwaysRejected()
-    {
-        foreach (var status in PaymentStatus.List)
-        {
-            status.CanTransitionTo(status).Should().BeFalse($"self-transition from {status.Name} is not allowed");
-        }
     }
 }

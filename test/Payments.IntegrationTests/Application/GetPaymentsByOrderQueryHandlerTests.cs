@@ -28,6 +28,7 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
     [Fact]
     public async Task Handle_OrderWithPayment_ReturnsSingletonList()
     {
+        // Arrange
         // ADR-0029: one payment per order (unique ux_payment_transactions_order_id), so the
         // by-order projection returns at most one row.
         var ct = TestContext.Current.CancellationToken;
@@ -38,8 +39,10 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetPaymentsByOrderQuery, GetPaymentsByOrderResponse>>();
 
+        // Act
         var result = await handler.HandleAsync(new GetPaymentsByOrderQuery(orderId), ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -51,6 +54,7 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
     [Fact]
     public async Task Handle_OrderWithNoPayments_ReturnsEmptyList()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var orderId = Guid.CreateVersion7();
 
@@ -58,8 +62,10 @@ public sealed class GetPaymentsByOrderQueryHandlerTests
         var handler = scope.ServiceProvider
             .GetRequiredService<IQueryHandler<GetPaymentsByOrderQuery, GetPaymentsByOrderResponse>>();
 
+        // Act
         var result = await handler.HandleAsync(new GetPaymentsByOrderQuery(orderId), ct);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

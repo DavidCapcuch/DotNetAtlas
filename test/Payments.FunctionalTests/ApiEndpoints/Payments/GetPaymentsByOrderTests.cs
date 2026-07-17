@@ -3,7 +3,6 @@ using FastEndpoints;
 using Payments.Api.Endpoints.Payments.GetPaymentsByOrder;
 using Payments.Application.Transactions.GetPaymentsByOrder;
 using Payments.FunctionalTests.Common;
-using Payments.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Payments.FunctionalTests.ApiEndpoints.Payments;
 
@@ -16,36 +15,45 @@ public class GetPaymentsByOrderTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
+        // Arrange & Act
         var response = await HttpClientRegistry.NonAuthClient
             .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(
                 new GetPaymentsByOrderRequest { OrderId = Guid.CreateVersion7() });
 
+        // Assert
         response.Response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAuthenticatedWithoutAdminRole_ReturnsForbidden()
     {
+        // Arrange & Act
         var response = await HttpClientRegistry.UserClient
             .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(
                 new GetPaymentsByOrderRequest { OrderId = Guid.CreateVersion7() });
 
+        // Assert
         response.Response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]
     public async Task WhenAdminAndNoPaymentsForOrder_ReturnsOkWithEmptyList()
     {
+        // Arrange
         // Handler intentionally returns an empty list rather than 404 — orders
         // can exist before any payment is requested.
         var orderId = Guid.CreateVersion7();
 
+        // Act
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(
                 new GetPaymentsByOrderRequest { OrderId = orderId });
 
+        // Assert
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -55,15 +63,19 @@ public class GetPaymentsByOrderTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenAdminAndOnePaymentForOrder_ReturnsOkWithOnePayment()
     {
+        // Arrange
         var orderId = Guid.CreateVersion7();
         var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
 
+        // Act
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentsByOrderEndpoint, GetPaymentsByOrderRequest, GetPaymentsByOrderResponse>(
                 new GetPaymentsByOrderRequest { OrderId = orderId });
 
+        // Assert
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);

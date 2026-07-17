@@ -36,12 +36,15 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_NewPayment_HappyPath_CreatesAuthorizesAndSaves()
     {
+        // Arrange
         var command = BuildCommand();
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", GatewayResponseCode.Create("ok", "Approved"), TimeProvider.GetUtcNow().AddDays(7))));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -63,14 +66,17 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_NewPayment_PersistsRequestedBeforeGatewayCall()
     {
+        // Arrange
         // H-3 ordering pin: the first SaveChangesAsync MUST happen before the gateway is
         // touched. NSubstitute's Received.InOrder block fails if the call sequence differs.
         var command = BuildCommand();
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", GatewayResponseCode.Create("ok", "Approved"), TimeProvider.GetUtcNow().AddDays(7))));
 
+        // Act
         await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         Received.InOrder(() =>
         {
             _ = Outbox.SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -82,6 +88,7 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_SagaRetry_AggregateAlreadyInRequested_CallsGatewayOnceAndSavesOnce()
     {
+        // Arrange
         // H-3 saga-retry scenario: simulates the case where the first attempt's gateway call
         // succeeded but the post-gateway SaveChanges failed and rolled back. The Requested
         // aggregate stayed durable (H-3 anchor); saga retry now finds it by PK, skips the
@@ -93,8 +100,10 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", GatewayResponseCode.Create("ok", "Approved"), TimeProvider.GetUtcNow().AddDays(7))));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -110,12 +119,15 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_GatewayDecline_TransitionsAggregateToFailedAndReturnsOk()
     {
+        // Arrange
         var command = BuildCommand();
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<AuthorizeResponse>(new GatewayDeclinedError("declined", "insufficient_funds")));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -131,14 +143,18 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task Handle_GatewayInfrastructureError_ReturnsGatewayUnavailable_AndPersistsRequestedState()
     {
+        // Arrange
         var command = BuildCommand();
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Fail<AuthorizeResponse>(new ValidationError("Gateway", "timeout", "Payments.GatewayUnavailable")));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -155,12 +171,15 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_AggregateAlreadyAuthorized_IsIdempotentNoOp()
     {
+        // Arrange
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
         var command = BuildCommand(paymentId: existing.Id);
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -174,10 +193,13 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_InvalidAmount_ReturnsValidationFailureBeforeGateway()
     {
+        // Arrange
         var command = BuildCommand(amount: 0m);
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -189,6 +211,7 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     [Fact]
     public async Task Handle_NewPayment_PropagatesIdempotencyKeyToGateway()
     {
+        // Arrange
         // H-4: the saga-issued idempotency key MUST reach IPaymentGateway.AuthorizeAsync so a
         // real PSP adapter can forward it as the gateway's Idempotency-Key header. Verifies
         // the wire field is no longer dropped (was: AuthorizePaymentCommand.IdempotencyKey
@@ -198,8 +221,10 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok(new AuthorizeResponse("gw-tx-1", GatewayResponseCode.Create("ok", "Approved"), TimeProvider.GetUtcNow().AddDays(7))));
 
+        // Act
         var result = await BuildHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

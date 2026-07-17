@@ -11,6 +11,7 @@ public class PaymentTransactionCreateTests
     [Fact]
     public void Create_WhenValid_ReturnsOkAndRaisesNoDomainEvents()
     {
+        // Arrange
         // ADR-0023 follow-up: PaymentTransaction.Create no longer raises a domain event. The
         // wire-level "requested" signal is RequestPaymentCommand (renamed from PaymentRequestedEvent
         // and moved to payments.payment-commands), produced by the Checkout saga — not by Payments.
@@ -21,9 +22,11 @@ public class PaymentTransactionCreateTests
         var orderId = Guid.CreateVersion7();
         var amount = Money.Create(100m, "USD").Value;
 
+        // Act
         var result = PaymentTransaction.Create(
             paymentId, buyerId, orderId, amount, "tok_visa_4242");
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -49,15 +52,18 @@ public class PaymentTransactionCreateTests
     [InlineData(-100)]
     public void Create_WhenAmountNotPositive_ReturnsInvalidAmount(decimal amount)
     {
+        // Arrange
         // School B: Money is a signed quantity; positivity is the Payments BC's invariant
         // and lives at PaymentTransaction.Create. Confirm the local guard catches
         // zero/negative amounts and surfaces Payments.InvalidAmount.
         var nonPositiveAmount = Money.Create(amount, "USD").Value;
 
+        // Act
         var result = PaymentTransaction.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
             nonPositiveAmount, "tok_visa_4242");
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -73,12 +79,15 @@ public class PaymentTransactionCreateTests
     [InlineData(null)]
     public void Create_WhenPaymentMethodIdEmpty_ReturnsInvalidPaymentMethod(string? paymentMethodId)
     {
+        // Arrange
         var amount = Money.Create(100m, "USD").Value;
 
+        // Act
         var result = PaymentTransaction.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
             amount, paymentMethodId!);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();
@@ -89,15 +98,19 @@ public class PaymentTransactionCreateTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_WhenPaymentMethodIdTooLong_ReturnsInvalidPaymentMethod()
     {
+        // Arrange
         var amount = Money.Create(100m, "USD").Value;
         var tooLong = new string('x', 65);
 
+        // Act
         var result = PaymentTransaction.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
             amount, tooLong);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeFailure();

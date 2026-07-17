@@ -3,7 +3,6 @@ using FastEndpoints;
 using Payments.Api.Endpoints.Payments.GetPaymentById;
 using Payments.Application.Transactions.GetPaymentById;
 using Payments.FunctionalTests.Common;
-using Payments.FunctionalTests.Common.TestClientInfrastructure;
 
 namespace Payments.FunctionalTests.ApiEndpoints.Payments;
 
@@ -16,44 +15,55 @@ public class GetPaymentByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
+        // Arrange & Act
         var response = await HttpClientRegistry.NonAuthClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
                 new GetPaymentByIdRequest { PaymentId = Guid.CreateVersion7() });
 
+        // Assert
         response.Response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAuthenticatedWithoutAdminRole_ReturnsForbidden()
     {
+        // Arrange & Act
         var response = await HttpClientRegistry.UserClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
                 new GetPaymentByIdRequest { PaymentId = Guid.CreateVersion7() });
 
+        // Assert
         response.Response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAdminRoleButMissingPaymentsReadScope_ReturnsForbidden()
     {
+        // Arrange & Act
         // Proves the PaymentsAdmin policy enforces BOTH the realm role AND the
         // `payments.read` scope claim per ADR-0010.
         var response = await HttpClientRegistry.AdminWithoutScopeClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
                 new GetPaymentByIdRequest { PaymentId = Guid.CreateVersion7() });
 
+        // Assert
         response.Response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]
     public async Task WhenAdminAndPaymentDoesNotExist_ReturnsNotFound()
     {
+        // Arrange & Act
         var (response, problem) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, ProblemDetails>(
                 new GetPaymentByIdRequest { PaymentId = Guid.CreateVersion7() });
 
+        // Assert
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -66,14 +76,19 @@ public class GetPaymentByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
+    [Trait("Category", "security")]
     public async Task WhenAdminAndPaymentExists_ReturnsOkWithPayment()
     {
+        // Arrange
         var seeded = await PaymentSeed.InsertRequestedAsync(DbContext);
 
+        // Act
         var (response, payload) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
                 new GetPaymentByIdRequest { PaymentId = seeded.Id });
 
+        // Assert
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);

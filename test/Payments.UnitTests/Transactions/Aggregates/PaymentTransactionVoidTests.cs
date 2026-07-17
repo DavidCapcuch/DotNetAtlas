@@ -15,10 +15,13 @@ public class PaymentTransactionVoidTests
     [Fact]
     public void Void_FromAuthorized_TransitionsToVoidedAndRaisesSingleEvent()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Authorized(UtcNow);
 
+        // Act
         var result = tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -38,12 +41,15 @@ public class PaymentTransactionVoidTests
     [Fact]
     public void Void_WhenAlreadyVoided_ReturnsOkAndDoesNotRaiseEvent()
     {
+        // Arrange
         var t0 = UtcNow;
         var tx = PaymentTransactionFactory.Voided(t0);
         _fakeTimeProvider.Advance(TimeSpan.FromMinutes(5));
 
+        // Act
         var result = tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         using (new AssertionScope())
         {
             result.Should().BeSuccess();
@@ -55,10 +61,13 @@ public class PaymentTransactionVoidTests
     [Fact]
     public void Void_FromRequested_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Requested();
 
+        // Act
         var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
@@ -67,6 +76,7 @@ public class PaymentTransactionVoidTests
     [InlineData(nameof(PaymentStatus.Refunded))]
     public void Void_WhenTerminalOtherThanVoided_ThrowsDataIntegrityException(string statusName)
     {
+        // Arrange
         var tx = statusName switch
         {
             nameof(PaymentStatus.Failed) => PaymentTransactionFactory.Failed(UtcNow),
@@ -74,18 +84,23 @@ public class PaymentTransactionVoidTests
             _ => throw new InvalidOperationException(statusName),
         };
 
+        // Act
         var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 
     [Fact]
     public void Void_FromCompleted_ThrowsDataIntegrityException()
     {
+        // Arrange
         var tx = PaymentTransactionFactory.Completed(UtcNow);
 
+        // Act
         var action = () => tx.Void(PaymentTransactionFactory.DefaultVoidReason, PaymentTransactionFactory.SuccessResponse, UtcNow);
 
+        // Assert
         action.Should().Throw<DataIntegrityException>();
     }
 }
