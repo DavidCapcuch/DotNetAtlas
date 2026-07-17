@@ -16,6 +16,7 @@ public class GetOrderByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var response = await HttpClientRegistry.NonAuthClient
@@ -26,6 +27,7 @@ public class GetOrderByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerReadsOwnOrder_ReturnsOk()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
@@ -45,6 +47,7 @@ public class GetOrderByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAdminReadsAnotherBuyersOrder_ReturnsOk()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
@@ -62,6 +65,7 @@ public class GetOrderByIdTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenOtherBuyerReadsAnothersOrder_ReturnsNotFound()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);

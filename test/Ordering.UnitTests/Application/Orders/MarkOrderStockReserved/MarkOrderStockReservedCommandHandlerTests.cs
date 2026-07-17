@@ -24,8 +24,11 @@ public class MarkOrderStockReservedCommandHandlerTests : HandlerTestBase
             new MarkOrderStockReservedCommand { OrderId = order.Id, ReservationId = Guid.CreateVersion7() },
             TestContext.Current.CancellationToken);
 
-        result.Should().BeSuccess();
-        order.Status.Should().Be(OrderStatus.StockReserved);
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            order.Status.Should().Be(OrderStatus.StockReserved);
+        }
     }
 
     [Fact]
@@ -37,9 +40,12 @@ public class MarkOrderStockReservedCommandHandlerTests : HandlerTestBase
             new MarkOrderStockReservedCommand { OrderId = missingOrderId, ReservationId = Guid.CreateVersion7() },
             TestContext.Current.CancellationToken);
 
-        result.Should().BeFailure();
-        result.Errors.Should().ContainSingle(e =>
-            e.Message == OrderingErrors.OrderNotFound(missingOrderId).Message);
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e =>
+                e.Message == OrderingErrors.OrderNotFound(missingOrderId).Message);
+        }
     }
 
     [Fact]

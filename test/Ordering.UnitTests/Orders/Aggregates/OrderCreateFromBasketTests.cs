@@ -87,6 +87,7 @@ public class OrderCreateFromBasketTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void CreateFromBasket_ItemWithZeroQuantity_ThrowsDataIntegrityException()
     {
         // Arrange
@@ -110,6 +111,7 @@ public class OrderCreateFromBasketTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void CreateFromBasket_ItemWithNegativeUnitPrice_ThrowsDataIntegrityException()
     {
         // Arrange

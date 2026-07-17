@@ -45,6 +45,7 @@ public class MarkOrderShippedCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Validate_CarrierOver100Chars_Fails()
     {
         var c = new MarkOrderShippedCommand

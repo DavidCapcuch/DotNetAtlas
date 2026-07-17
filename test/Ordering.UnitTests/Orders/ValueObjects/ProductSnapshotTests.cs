@@ -36,6 +36,7 @@ public class ProductSnapshotTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_SkuTooLong_ReturnsSkuTooLongError()
     {
         var result = ProductSnapshot.Create(new string('x', ProductSnapshot.MaxSkuLength + 1), "Widget");
@@ -65,6 +66,7 @@ public class ProductSnapshotTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_NameTooLong_ReturnsNameTooLongError()
     {
         var result = ProductSnapshot.Create("SKU-001", new string('x', ProductSnapshot.MaxNameLength + 1));

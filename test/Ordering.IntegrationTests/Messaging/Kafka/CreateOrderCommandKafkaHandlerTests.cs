@@ -36,6 +36,7 @@ public sealed class CreateOrderCommandKafkaHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task HappyPath_AvroCommandTranslatedAndOrderCreatedWithOutboxRow()
     {
         var avro = NewValidAvroCommand();

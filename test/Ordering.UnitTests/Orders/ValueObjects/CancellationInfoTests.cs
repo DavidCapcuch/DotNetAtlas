@@ -40,6 +40,7 @@ public class CancellationInfoTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Create_ReasonTooLong_ReturnsReasonTooLongError()
     {
         var tooLong = new string('x', CancellationInfo.MaxReasonLength + 1);

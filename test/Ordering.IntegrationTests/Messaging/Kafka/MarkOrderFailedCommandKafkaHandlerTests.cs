@@ -29,6 +29,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task HappyPath_FromCreated_TransitionsToFailedAndEmitsEvent()
     {
         Guid orderId;

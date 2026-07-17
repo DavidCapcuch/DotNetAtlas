@@ -37,6 +37,7 @@ public class CancelOrderTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         // Sending the Idempotency-Key header so the policy lets the request
@@ -68,6 +69,7 @@ public class CancelOrderTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerCancelsOwnCreatedOrder_ReturnsNoContent()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
@@ -89,6 +91,7 @@ public class CancelOrderTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAnotherBuyerTriesToCancel_ReturnsNotFound()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
@@ -173,6 +176,7 @@ public class CancelOrderTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenSameIdempotencyKeyUsedByDifferentBuyer_HandlerStillRuns()
     {
         // Pins ADR-0013's cross-buyer-partition guarantee against

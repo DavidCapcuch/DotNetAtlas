@@ -47,6 +47,7 @@ public class OrderItemTests
     [Theory]
     [InlineData(0)]
     [InlineData(-3)]
+    [Trait("Category", "boundary")]
     public void Create_NonPositiveQuantity_ReturnsQuantityNotPositiveError(int quantity)
     {
         var unitPrice = Money.Create(1m, CurrencyCode.Usd).Value;

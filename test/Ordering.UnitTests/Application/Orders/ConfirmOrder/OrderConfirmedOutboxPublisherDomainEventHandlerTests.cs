@@ -46,30 +46,33 @@ public class OrderConfirmedOutboxPublisherDomainEventHandlerTests : HandlerTestB
         var call = Outbox.ReceivedCalls().Single();
         var avro = (OrderConfirmedEvent)call.GetArguments()[2]!;
 
-        avro.OrderId.Should().Be(order.Id);
-        avro.BuyerId.Should().Be(order.BuyerId);
-        avro.ConfirmedAtUtc.Should().Be(TestAggregate.UtcNow.UtcDateTime);
+        using (new AssertionScope())
+        {
+            avro.OrderId.Should().Be(order.Id);
+            avro.BuyerId.Should().Be(order.BuyerId);
+            avro.ConfirmedAtUtc.Should().Be(TestAggregate.UtcNow.UtcDateTime);
 
-        avro.Items.Should().HaveCount(order.Items.Count);
-        var firstItem = avro.Items.Single();
-        var sourceItem = order.Items.Single();
-        firstItem.ProductId.Should().Be(sourceItem.ProductId);
-        firstItem.Sku.Should().Be(sourceItem.ProductSnapshot.Sku);
-        firstItem.Name.Should().Be(sourceItem.ProductSnapshot.Name);
-        firstItem.Quantity.Should().Be(sourceItem.Quantity);
-        ((decimal)firstItem.UnitPriceAmount).Should().Be(sourceItem.UnitPrice.Amount);
-        ((decimal)firstItem.LineTotalAmount).Should().Be(sourceItem.LineTotal.Amount);
+            avro.Items.Should().HaveCount(order.Items.Count);
+            var firstItem = avro.Items.Single();
+            var sourceItem = order.Items.Single();
+            firstItem.ProductId.Should().Be(sourceItem.ProductId);
+            firstItem.Sku.Should().Be(sourceItem.ProductSnapshot.Sku);
+            firstItem.Name.Should().Be(sourceItem.ProductSnapshot.Name);
+            firstItem.Quantity.Should().Be(sourceItem.Quantity);
+            ((decimal)firstItem.UnitPriceAmount).Should().Be(sourceItem.UnitPrice.Amount);
+            ((decimal)firstItem.LineTotalAmount).Should().Be(sourceItem.LineTotal.Amount);
 
-        avro.TotalAmount.Should().NotBeNull();
-        ((decimal)avro.TotalAmount!.Value).Should().Be(order.Total.Amount);
-        avro.Currency.Should().Be(order.Total.Currency.Name);
+            avro.TotalAmount.Should().NotBeNull();
+            ((decimal)avro.TotalAmount!.Value).Should().Be(order.Total.Amount);
+            avro.Currency.Should().Be(order.Total.Currency.Name);
 
-        avro.BillingAddress.Should().NotBeNull();
-        avro.BillingAddress!.Street1.Should().Be(order.BillingAddress.Street1);
-        avro.BillingAddress.Street2.Should().Be(order.BillingAddress.Street2);
-        avro.BillingAddress.City.Should().Be(order.BillingAddress.City);
-        avro.BillingAddress.State.Should().Be(order.BillingAddress.State);
-        avro.BillingAddress.PostalCode.Should().Be(order.BillingAddress.PostalCode);
-        avro.BillingAddress.CountryCode.Should().Be(order.BillingAddress.CountryCode);
+            avro.BillingAddress.Should().NotBeNull();
+            avro.BillingAddress!.Street1.Should().Be(order.BillingAddress.Street1);
+            avro.BillingAddress.Street2.Should().Be(order.BillingAddress.Street2);
+            avro.BillingAddress.City.Should().Be(order.BillingAddress.City);
+            avro.BillingAddress.State.Should().Be(order.BillingAddress.State);
+            avro.BillingAddress.PostalCode.Should().Be(order.BillingAddress.PostalCode);
+            avro.BillingAddress.CountryCode.Should().Be(order.BillingAddress.CountryCode);
+        }
     }
 }

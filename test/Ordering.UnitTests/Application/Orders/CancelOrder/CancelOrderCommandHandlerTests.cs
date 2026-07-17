@@ -28,11 +28,15 @@ public class CancelOrderCommandHandlerTests : HandlerTestBase
             },
             TestContext.Current.CancellationToken);
 
-        result.Should().BeSuccess();
-        order.Status.Should().Be(OrderStatus.Cancelled);
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            order.Status.Should().Be(OrderStatus.Cancelled);
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_BuyerCancelsAnotherBuyersOrder_ReturnsNotFoundNotForbidden()
     {
         var owner = Guid.CreateVersion7();
@@ -51,12 +55,16 @@ public class CancelOrderCommandHandlerTests : HandlerTestBase
             },
             TestContext.Current.CancellationToken);
 
-        result.Should().BeFailure();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(order.Id.ToString()));
-        order.Status.Should().Be(OrderStatus.Created);
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(order.Id.ToString()));
+            order.Status.Should().Be(OrderStatus.Created);
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_AdminCancelsAnotherBuyersOrder_Succeeds()
     {
         var owner = Guid.CreateVersion7();
@@ -75,8 +83,11 @@ public class CancelOrderCommandHandlerTests : HandlerTestBase
             },
             TestContext.Current.CancellationToken);
 
-        result.Should().BeSuccess();
-        order.Status.Should().Be(OrderStatus.Cancelled);
+        using (new AssertionScope())
+        {
+            result.Should().BeSuccess();
+            order.Status.Should().Be(OrderStatus.Cancelled);
+        }
     }
 
     [Fact]
@@ -97,8 +108,11 @@ public class CancelOrderCommandHandlerTests : HandlerTestBase
             },
             TestContext.Current.CancellationToken);
 
-        result.Should().BeFailure();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(OrderStatus.Shipped.Name));
-        order.Status.Should().Be(OrderStatus.Shipped);
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(OrderStatus.Shipped.Name));
+            order.Status.Should().Be(OrderStatus.Shipped);
+        }
     }
 }

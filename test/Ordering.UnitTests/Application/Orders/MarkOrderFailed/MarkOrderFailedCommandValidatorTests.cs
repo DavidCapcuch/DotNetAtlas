@@ -45,6 +45,7 @@ public class MarkOrderFailedCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Validate_ErrorCodeOver100Chars_Fails()
     {
         var c = new MarkOrderFailedCommand
@@ -57,6 +58,7 @@ public class MarkOrderFailedCommandValidatorTests
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public void Validate_ErrorMessageOver1000Chars_Fails()
     {
         var c = new MarkOrderFailedCommand

@@ -32,6 +32,7 @@ public class GetOrdersByBuyerQueryValidatorTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
+    [Trait("Category", "boundary")]
     public void Validate_PageNumberBelowMin_Fails(int pageNumber)
     {
         var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), PageNumber = pageNumber, PageSize = 20 };
@@ -41,6 +42,7 @@ public class GetOrdersByBuyerQueryValidatorTests
     [Theory]
     [InlineData(0)]
     [InlineData(101)]
+    [Trait("Category", "boundary")]
     public void Validate_PageSizeOutOfRange_Fails(int pageSize)
     {
         var q = new GetOrdersByBuyerQuery { BuyerId = Guid.CreateVersion7(), PageNumber = 1, PageSize = pageSize };

@@ -30,9 +30,12 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
         var result = await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
         result.Should().BeSuccess();
-        result.Value.Should().NotBeEmpty();
-        (await DbContext.Orders.FindAsync([result.Value], TestContext.Current.CancellationToken))
-            .Should().NotBeNull();
+        using (new AssertionScope())
+        {
+            result.Value.Should().NotBeEmpty();
+            (await DbContext.Orders.FindAsync([result.Value], TestContext.Current.CancellationToken))
+                .Should().NotBeNull();
+        }
     }
 
     /// <summary>
@@ -49,10 +52,13 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
         var result = await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
         result.Should().BeSuccess();
-        result.Value.Should().Be(orderId);
         var saved = await DbContext.Orders.FindAsync([orderId], TestContext.Current.CancellationToken);
         saved.Should().NotBeNull();
-        saved!.Id.Should().Be(orderId);
+        using (new AssertionScope())
+        {
+            result.Value.Should().Be(orderId);
+            saved!.Id.Should().Be(orderId);
+        }
     }
 
     [Fact]
@@ -67,8 +73,11 @@ public class CreateOrderCommandHandlerTests : HandlerTestBase
         var second = await CreateHandler().HandleAsync(command, TestContext.Current.CancellationToken);
 
         second.Should().BeSuccess();
-        second.Value.Should().Be(first.Value);
-        DbContext.Orders.Should().HaveCount(1);
+        using (new AssertionScope())
+        {
+            second.Value.Should().Be(first.Value);
+            DbContext.Orders.Should().HaveCount(1);
+        }
     }
 
     [Fact]

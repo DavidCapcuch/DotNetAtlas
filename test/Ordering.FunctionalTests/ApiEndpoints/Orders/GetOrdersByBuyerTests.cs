@@ -16,6 +16,7 @@ public class GetOrdersByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenNotAuthenticated_ReturnsUnauthorized()
     {
         var response = await HttpClientRegistry.NonAuthClient
@@ -26,6 +27,7 @@ public class GetOrdersByBuyerTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task WhenBuyerHasOrders_ReturnsOnlyOwnOrdersAndPagingEnvelope()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);

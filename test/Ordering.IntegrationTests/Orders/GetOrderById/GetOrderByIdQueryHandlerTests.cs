@@ -31,6 +31,7 @@ public sealed class GetOrderByIdQueryHandlerTests
     }
 
     [Fact]
+    [Trait("Category", "critical-path")]
     public async Task Handle_returns_order_with_no_optional_VOs_when_order_is_active()
     {
         var buyerId = Guid.CreateVersion7();
@@ -48,17 +49,20 @@ public sealed class GetOrderByIdQueryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         var dto = result.Value;
-        dto.OrderId.Should().Be(seeded.Id);
-        dto.BuyerId.Should().Be(buyerId);
-        dto.Status.Should().Be(OrderStatus.Created.Name);
-        dto.Cancellation.Should().BeNull();
-        dto.Failure.Should().BeNull();
-        dto.Shipment.Should().BeNull();
-        dto.Items.Should().ContainSingle();
-        dto.ShippingAddress.City.Should().Be("Prague");
-        dto.BillingAddress.PostalCode.Should().Be("11000");
-        dto.TotalAmount.Should().Be(19.98m);
-        dto.Currency.Should().Be(Platform.SharedKernel.ValueObjects.CurrencyCode.Eur.Name);
+        using (new AssertionScope())
+        {
+            dto.OrderId.Should().Be(seeded.Id);
+            dto.BuyerId.Should().Be(buyerId);
+            dto.Status.Should().Be(OrderStatus.Created.Name);
+            dto.Cancellation.Should().BeNull();
+            dto.Failure.Should().BeNull();
+            dto.Shipment.Should().BeNull();
+            dto.Items.Should().ContainSingle();
+            dto.ShippingAddress.City.Should().Be("Prague");
+            dto.BillingAddress.PostalCode.Should().Be("11000");
+            dto.TotalAmount.Should().Be(19.98m);
+            dto.Currency.Should().Be(Platform.SharedKernel.ValueObjects.CurrencyCode.Eur.Name);
+        }
     }
 
     [Fact]
@@ -83,14 +87,17 @@ public sealed class GetOrderByIdQueryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         var dto = result.Value;
-        dto.Status.Should().Be(OrderStatus.Cancelled.Name);
-        dto.Cancellation.Should().NotBeNull();
-        dto.Cancellation!.Reason.Should().Be(reason);
-        dto.Cancellation.AtStatus.Should().Be(OrderStatus.Created.Name);
-        // Postgres timestamptz truncates 100-ns precision to microseconds.
-        dto.Cancellation.CancelledAtUtc.Should().BeCloseTo(cancelledAtUtc, TimeSpan.FromSeconds(1));
-        dto.Failure.Should().BeNull();
-        dto.Shipment.Should().BeNull();
+        using (new AssertionScope())
+        {
+            dto.Status.Should().Be(OrderStatus.Cancelled.Name);
+            dto.Cancellation.Should().NotBeNull();
+            dto.Cancellation!.Reason.Should().Be(reason);
+            dto.Cancellation.AtStatus.Should().Be(OrderStatus.Created.Name);
+            // Postgres timestamptz truncates 100-ns precision to microseconds.
+            dto.Cancellation.CancelledAtUtc.Should().BeCloseTo(cancelledAtUtc, TimeSpan.FromSeconds(1));
+            dto.Failure.Should().BeNull();
+            dto.Shipment.Should().BeNull();
+        }
     }
 
     [Fact]
@@ -116,15 +123,18 @@ public sealed class GetOrderByIdQueryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         var dto = result.Value;
-        dto.Status.Should().Be(OrderStatus.Failed.Name);
-        dto.Failure.Should().NotBeNull();
-        dto.Failure!.ErrorCode.Should().Be(errorCode);
-        dto.Failure.ErrorMessage.Should().Be(errorMessage);
-        dto.Failure.AtStatus.Should().Be(OrderStatus.Created.Name);
-        // Postgres timestamptz truncates 100-ns precision to microseconds.
-        dto.Failure.FailedAtUtc.Should().BeCloseTo(failedAtUtc, TimeSpan.FromSeconds(1));
-        dto.Cancellation.Should().BeNull();
-        dto.Shipment.Should().BeNull();
+        using (new AssertionScope())
+        {
+            dto.Status.Should().Be(OrderStatus.Failed.Name);
+            dto.Failure.Should().NotBeNull();
+            dto.Failure!.ErrorCode.Should().Be(errorCode);
+            dto.Failure.ErrorMessage.Should().Be(errorMessage);
+            dto.Failure.AtStatus.Should().Be(OrderStatus.Created.Name);
+            // Postgres timestamptz truncates 100-ns precision to microseconds.
+            dto.Failure.FailedAtUtc.Should().BeCloseTo(failedAtUtc, TimeSpan.FromSeconds(1));
+            dto.Cancellation.Should().BeNull();
+            dto.Shipment.Should().BeNull();
+        }
     }
 
     [Fact]
@@ -145,18 +155,22 @@ public sealed class GetOrderByIdQueryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         var dto = result.Value;
-        dto.Status.Should().Be(OrderStatus.Shipped.Name);
-        dto.Shipment.Should().NotBeNull();
-        dto.Shipment!.Carrier.Should().Be("DHL");
-        dto.Shipment.TrackingNumber.Should().Be("1Z999AA10123456784");
-        // Round-trip the seeded shipped-at timestamp through the projection.
-        // Postgres timestamptz truncates 100-ns precision to microseconds.
-        dto.Shipment.ShippedAtUtc.Should().BeCloseTo(seeded.Shipment!.ShippedAtUtc, TimeSpan.FromSeconds(1));
-        dto.Cancellation.Should().BeNull();
-        dto.Failure.Should().BeNull();
+        using (new AssertionScope())
+        {
+            dto.Status.Should().Be(OrderStatus.Shipped.Name);
+            dto.Shipment.Should().NotBeNull();
+            dto.Shipment!.Carrier.Should().Be("DHL");
+            dto.Shipment.TrackingNumber.Should().Be("1Z999AA10123456784");
+            // Round-trip the seeded shipped-at timestamp through the projection.
+            // Postgres timestamptz truncates 100-ns precision to microseconds.
+            dto.Shipment.ShippedAtUtc.Should().BeCloseTo(seeded.Shipment!.ShippedAtUtc, TimeSpan.FromSeconds(1));
+            dto.Cancellation.Should().BeNull();
+            dto.Failure.Should().BeNull();
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_NotFound_when_buyer_requests_another_buyers_order()
     {
         var owner = Guid.CreateVersion7();
@@ -173,11 +187,15 @@ public sealed class GetOrderByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(seeded.Id, intruder, isAdmin: false, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(seeded.Id.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(seeded.Id.ToString()));
+        }
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Handle_returns_order_for_admin_regardless_of_buyer()
     {
         var owner = Guid.CreateVersion7();
@@ -195,8 +213,11 @@ public sealed class GetOrderByIdQueryHandlerTests
         var result = await InvokeHandlerAsync(seeded.Id, admin, isAdmin: true, ct);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.OrderId.Should().Be(seeded.Id);
-        result.Value.BuyerId.Should().Be(owner);
+        using (new AssertionScope())
+        {
+            result.Value.OrderId.Should().Be(seeded.Id);
+            result.Value.BuyerId.Should().Be(owner);
+        }
     }
 
     [Fact]
@@ -207,8 +228,11 @@ public sealed class GetOrderByIdQueryHandlerTests
 
         var result = await InvokeHandlerAsync(missing, Guid.CreateVersion7(), isAdmin: true, ct);
 
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e.Message.Contains(missing.ToString()));
+        using (new AssertionScope())
+        {
+            result.IsFailed.Should().BeTrue();
+            result.Errors.Should().ContainSingle(e => e.Message.Contains(missing.ToString()));
+        }
     }
 
     private async Task<FluentResults.Result<GetOrderByIdResponse>> InvokeHandlerAsync(
