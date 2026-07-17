@@ -51,6 +51,7 @@ public class NotificationBroadcastHubTests : BaseApiTest
     ];
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task ClientWithMultiValuedAudienceContainingNotificationsService_Connects_AndReceivesBroadcast()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -68,6 +69,7 @@ public class NotificationBroadcastHubTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task ClientWithValidAudienceButNoSubjectClaim_IsConnectedThenDroppedByTheHub()
     {
         // A token can carry aud=notifications-service yet still be unusable by the bell if it has no
@@ -86,6 +88,7 @@ public class NotificationBroadcastHubTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task ClientWhoseMultiValuedAudienceOmitsNotificationsService_IsRejected()
     {
         // A token audienced for other BCs but NOT notifications-service must not reach the bell —
@@ -102,6 +105,7 @@ public class NotificationBroadcastHubTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task Broadcast_IsScopedToTheRecipientGroup_OtherUsersDoNotReceiveIt()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -122,6 +126,7 @@ public class NotificationBroadcastHubTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task UnauthenticatedClient_IsRejected()
     {
         await SignalRClientFactory.Invoking(factory => factory.ConnectUnauthenticatedAsync())

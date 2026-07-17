@@ -45,9 +45,12 @@ public sealed class ChannelTypeTests
     [Fact]
     public void FromName_RoundTripsTheChannel()
     {
-        ChannelType.FromName("Email").Should().BeSameAs(ChannelType.Email);
-        ChannelType.FromName("Sms").Should().BeSameAs(ChannelType.Sms);
-        ChannelType.FromName("Bell").Should().BeSameAs(ChannelType.Bell);
+        using (new AssertionScope())
+        {
+            ChannelType.FromName("Email").Should().BeSameAs(ChannelType.Email);
+            ChannelType.FromName("Sms").Should().BeSameAs(ChannelType.Sms);
+            ChannelType.FromName("Bell").Should().BeSameAs(ChannelType.Bell);
+        }
     }
 
     [Fact]

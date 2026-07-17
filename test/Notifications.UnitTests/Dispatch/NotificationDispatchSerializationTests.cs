@@ -18,7 +18,7 @@ public sealed class NotificationDispatchSerializationTests
     [Fact]
     public void NotificationDispatch_RoundTrips_ThroughHangfireSerializer()
     {
-        // Mirror the production serializer configuration (BackgroundJobsDependencyInjection).
+        // Arrange — mirror the production serializer configuration (BackgroundJobsDependencyInjection).
         GlobalConfiguration.Configuration.UseRecommendedSerializerSettings();
 
         var original = new NotificationDispatch
@@ -34,13 +34,18 @@ public sealed class NotificationDispatchSerializationTests
             },
         };
 
+        // Act
         var json = SerializationHelper.Serialize(original, SerializationOption.User);
         var restored = SerializationHelper.Deserialize<NotificationDispatch>(json, SerializationOption.User);
 
+        // Assert — NotBeNull first: the field asserts below dereference restored, so a null must fail here.
         restored.Should().NotBeNull();
-        restored!.NotificationId.Should().Be(original.NotificationId);
-        restored.RecipientUserId.Should().Be(original.RecipientUserId);
-        restored.TemplateKey.Should().Be(original.TemplateKey);
-        restored.Payload.Should().BeEquivalentTo(original.Payload);
+        using (new AssertionScope())
+        {
+            restored!.NotificationId.Should().Be(original.NotificationId);
+            restored.RecipientUserId.Should().Be(original.RecipientUserId);
+            restored.TemplateKey.Should().Be(original.TemplateKey);
+            restored.Payload.Should().BeEquivalentTo(original.Payload);
+        }
     }
 }

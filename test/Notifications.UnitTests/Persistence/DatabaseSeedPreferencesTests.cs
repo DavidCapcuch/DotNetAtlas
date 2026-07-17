@@ -31,8 +31,11 @@ public sealed class DatabaseSeedPreferencesTests
     {
         var preferences = DatabaseSeedExtensions.BuildSeedPreferences();
 
-        preferences.Single(p => p.UserId == DCapcuchSub).Email.Should().Be("d.capcuch@gmail.com");
-        preferences.Single(p => p.UserId == AdminSub).Email.Should().Be("admin@dotnetatlas.com");
+        using (new AssertionScope())
+        {
+            preferences.Single(p => p.UserId == DCapcuchSub).Email.Should().Be("d.capcuch@gmail.com");
+            preferences.Single(p => p.UserId == AdminSub).Email.Should().Be("admin@dotnetatlas.com");
+        }
     }
 
     [Fact]
@@ -41,8 +44,11 @@ public sealed class DatabaseSeedPreferencesTests
         var preferences = DatabaseSeedExtensions.BuildSeedPreferences();
 
         var pleb = preferences.Single(p => p.UserId == PlebSub);
-        pleb.EnabledChannels.Should().NotContain(ChannelType.Sms);
-        pleb.EnabledChannels.Should().Contain([ChannelType.Email, ChannelType.Bell]);
+        using (new AssertionScope())
+        {
+            pleb.EnabledChannels.Should().NotContain(ChannelType.Sms);
+            pleb.EnabledChannels.Should().Contain([ChannelType.Email, ChannelType.Bell]);
+        }
     }
 
     [Fact]
@@ -60,20 +66,20 @@ public sealed class DatabaseSeedPreferencesTests
         }
     }
 
-    [Fact]
-    public void BuildSeedPreferences_AdminAndDevHaveNoQuietHours()
+    public static TheoryData<Guid> UsersWithoutQuietHours => new() { AdminSub, DevSub };
+
+    [Theory]
+    [MemberData(nameof(UsersWithoutQuietHours))]
+    public void BuildSeedPreferences_UserWithoutQuietHours_HasNoWindowAndAllChannels(Guid userSub)
     {
         var preferences = DatabaseSeedExtensions.BuildSeedPreferences();
 
+        var preference = preferences.Single(p => p.UserId == userSub);
         using (new AssertionScope())
         {
-            foreach (var sub in new[] { AdminSub, DevSub })
-            {
-                var preference = preferences.Single(p => p.UserId == sub);
-                preference.QuietHoursStart.Should().BeNull();
-                preference.QuietHoursEnd.Should().BeNull();
-                preference.EnabledChannels.Should().Contain([ChannelType.Email, ChannelType.Sms, ChannelType.Bell]);
-            }
+            preference.QuietHoursStart.Should().BeNull();
+            preference.QuietHoursEnd.Should().BeNull();
+            preference.EnabledChannels.Should().Contain([ChannelType.Email, ChannelType.Sms, ChannelType.Bell]);
         }
     }
 }

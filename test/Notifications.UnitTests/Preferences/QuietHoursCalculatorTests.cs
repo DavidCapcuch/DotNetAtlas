@@ -156,23 +156,36 @@ public sealed class QuietHoursCalculatorTests
         result.Should().Be(new DateTimeOffset(2026, 10, 25, 1, 30, 0, TimeSpan.Zero));
     }
 
+    // The two tests below pin that the fall-back repeated hour is classified by instant, not wall
+    // clock: during the 2026-10-25 fall-back, wall-clock 02:45 happens twice in Prague — first as
+    // CEST (00:45Z), then as CET (01:45Z). The window 22:00–02:30 ends at 01:30Z (standard-offset
+    // resolution), so the two occurrences fall on opposite sides of that end instant even though a
+    // wall-clock comparison would classify them identically.
     [Fact]
-    public void NextAllowedUtc_FallBackRepeatedHour_ClassifiesTheTwoOccurrencesByInstantNotWallClock()
+    public void NextAllowedUtc_FallBackFirstOccurrenceBeforeWindowEnd_DefersToTheWindowEnd()
     {
-        // Arrange — during the 2026-10-25 fall-back, wall-clock 02:45 happens twice in Prague:
-        // first as CEST (00:45Z), then as CET (01:45Z). The window 22:00–02:30 ends at 01:30Z
-        // (standard-offset resolution), so the FIRST occurrence is still quiet while the SECOND
-        // is already past the end — a wall-clock comparison would classify both identically.
-        var windowEndUtc = new DateTimeOffset(2026, 10, 25, 1, 30, 0, TimeSpan.Zero);
-
-        // Act + Assert — first occurrence (CEST) precedes the window's true end instant.
+        // Arrange — first occurrence (CEST) precedes the window's true end instant.
         var firstOccurrence = new DateTimeOffset(2026, 10, 25, 0, 45, 0, TimeSpan.Zero);
-        QuietHoursCalculator.NextAllowedUtc(firstOccurrence, new TimeOnly(22, 0), new TimeOnly(2, 30), Prague)
-            .Should().Be(windowEndUtc, "02:45 CEST precedes the window's true end instant");
 
-        // Act + Assert — second occurrence (CET) is already past the window's true end instant.
+        // Act
+        var result = QuietHoursCalculator.NextAllowedUtc(
+            firstOccurrence, new TimeOnly(22, 0), new TimeOnly(2, 30), Prague);
+
+        // Assert
+        result.Should().Be(new DateTimeOffset(2026, 10, 25, 1, 30, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public void NextAllowedUtc_FallBackSecondOccurrenceAfterWindowEnd_ReturnsNowUnchanged()
+    {
+        // Arrange — second occurrence (CET) is already past the window's true end instant.
         var secondOccurrence = new DateTimeOffset(2026, 10, 25, 1, 45, 0, TimeSpan.Zero);
-        QuietHoursCalculator.NextAllowedUtc(secondOccurrence, new TimeOnly(22, 0), new TimeOnly(2, 30), Prague)
-            .Should().Be(secondOccurrence, "02:45 CET is after the window's true end instant");
+
+        // Act
+        var result = QuietHoursCalculator.NextAllowedUtc(
+            secondOccurrence, new TimeOnly(22, 0), new TimeOnly(2, 30), Prague);
+
+        // Assert
+        result.Should().Be(secondOccurrence);
     }
 }
