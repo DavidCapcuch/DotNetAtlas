@@ -519,14 +519,17 @@ Reused unchanged from existing services (`Platform.ServiceDefaults`):
 
 ### 11.4 Testing Layers (per service)
 
+Per-BC taxonomy is exactly three projects — no `FunctionalTests`. The handler-level and HTTP suites are one `IntegrationTests` project with a single derived fixture per BC (state reset between tests).
+
 | Layer | Framework | Purpose |
 |-------|-----------|---------|
-| UnitTests | xUnit | Domain logic, handlers in isolation (mock repositories) |
-| IntegrationTests | xUnit + Testcontainers | Handlers + DB + messaging (real Postgres, real Kafka, real Redis where applicable). Uses [Platform.Test.Framework](../platform/Platform.Test.Framework/). |
-| ArchitectureTests | xUnit + NetArchTest (or similar) | Enforce layering rules: Domain has no external refs, Application only references Domain+Platform.CQRS, Infrastructure depends on Application, Api on both. Also enforce "no cross-BC direct references". |
-| FunctionalTests | xUnit + WebApplicationFactory + Testcontainers | Full HTTP stack end-to-end (FastEndpoints → handlers → DB/Kafka). |
+| `{Bc}.UnitTests` | xUnit | Pure domain logic and any logic extracted out of handlers, tested exhaustively as leaf units. Thin handlers get no unit tests; a ports-faked handler test is a justified fallback only when the orchestration itself is the logic under test. |
+| `{Bc}.IntegrationTests` | xUnit + Testcontainers (+ in-memory `WebApplicationFactory` for the HTTP edge) | Slice tests entered through the slice's public entrance — HTTP, the Kafka message (real Avro contract type), or the event stream — asserting the response plus persisted state and the outbox row where events publish. Real Postgres / Kafka / Redis where applicable. A capped `Journeys/` folder holds one happy path per use case (updated, not accumulated; never cross-BC). Uses [Platform.Test.Framework](../platform/Platform.Test.Framework/). |
+| `{Bc}.ArchitectureTests` | xUnit + NetArchTest | Layering rules (Domain has no external refs; Application → Domain + Platform.CQRS; Infrastructure → Application; Api → both) plus slice independence: no slice references a sibling slice, and no BC reaches into another BC's internals. |
 
-Saga-specific: MassTransit `SagaTestHarness<CheckoutSagaState>` for state machine tests; integration tests use Testcontainers with real Kafka + Postgres + saga binary.
+**Saga** keeps a pair: `SagaOrchestrators.UnitTests` (in-memory MassTransit `ITestHarness` — the official unit tier for the state machine) and `SagaOrchestrators.IntegrationTests` (real Kafka + Postgres + saga binary; there is no in-memory Kafka).
+
+**E2E is the deployed system, driven from outside** — compose/Aspire-hosted separate processes, public-API/browser-driven, all managed dependencies real (real Kafka consumers + outbox relay), only third parties stubbed. A `WebApplicationFactory` test is never E2E. **Zero E2E tests is a valid state**; a compose-driven suite appears only when cross-service journeys warrant it.
 
 ### 11.5 Package Version Policy
 
@@ -651,7 +654,6 @@ Standard DI registration used by every service:
 test/{Bc}.UnitTests/
 test/{Bc}.IntegrationTests/
 test/{Bc}.ArchitectureTests/
-test/{Bc}.FunctionalTests/
 ```
 
 Each references `Platform.Test.Framework` for shared fixtures (Testcontainers setup, WebApplicationFactory).

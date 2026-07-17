@@ -674,11 +674,12 @@ Pattern: existing `saga/SagaOrchestrators.UnitTests/` uses `ITestHarness` + `Get
 
 ### 12.2 Integration tests (Testcontainers)
 
-Existing pattern in `saga/SagaOrchestrators.IntegrationTests/` uses Testcontainers for Postgres + Kafka + Schema Registry. For Checkout:
+Existing pattern in `saga/SagaOrchestrators.IntegrationTests/` uses Testcontainers for Postgres + Kafka + Schema Registry. The saga is the system under test on real Kafka; downstream services (Ordering, Inventory, Payments) are **faked via test-harness subscribers** that emit the appropriate response events — the saga rides the real transport, not the full running stack. For Checkout:
 
-- Full flow E2E: publish `BasketCheckoutInitiatedEvent` on `basket.sessions` → assert `CheckoutCompletedEvent` on `checkout.sagas` after all downstream services (Ordering, Inventory, Payments) process.
-- Requires the full services compose: Ordering, Inventory, Payments must run as Testcontainers (or be mocked via test-harness subscribers that emit the appropriate events). For the reference solution, the Stage 5 integration tests run the full docker-compose stack.
-- Compensation scenarios: introduce a fault (Inventory rejects reservation, Payment fails) and assert compensation completes — ensure the tombstone event arrives on `checkout.sagas` with `CompensationTriggered=true`.
+- Happy path: publish `BasketCheckoutInitiatedEvent` on `basket.sessions` → the fake subscribers emit the reservation / authorization / confirmation events → assert `CheckoutCompletedEvent` on `checkout.sagas`.
+- Compensation scenarios: a fake subscriber injects a fault (Inventory rejects reservation, Payment fails) → assert compensation completes and the tombstone event arrives on `checkout.sagas` with `CompensationTriggered=true`.
+
+Running the flow with **every downstream service live** (compose-hosted, driven from outside) is **E2E, not integration** — see [master design § 11.4](../eshop-master-design.md). It is the one cross-service journey that earns the E2E tier; zero such suites is a valid state until it does.
 
 ### 12.3 Architecture tests
 

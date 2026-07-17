@@ -177,11 +177,10 @@ The nWave methodology provides the most structured path. Each bounded context is
 
 ## Verification
 
-- Each BC has 4 test projects: UnitTests, IntegrationTests, ArchitectureTests, FunctionalTests
+- Each BC has 3 test projects: UnitTests, IntegrationTests, ArchitectureTests
 - Architecture tests enforce no cross-BC direct references
-- Integration tests use Testcontainers (PostgreSQL, Redis, Kafka)
-- Functional tests use WebApplicationFactory for full HTTP stack
-- Checkout saga tested with MassTransit test harness
+- Integration tests use Testcontainers (PostgreSQL, Redis, Kafka) and drive the public entrance (HTTP / Kafka message) through `WebApplicationFactory`
+- Checkout saga tested with MassTransit test harness — in-memory `ITestHarness` in `SagaOrchestrators.UnitTests`, real Kafka in `SagaOrchestrators.IntegrationTests`
 - `dotnet build -m` and `dotnet format` must pass (CI-enforced)
 
 ---

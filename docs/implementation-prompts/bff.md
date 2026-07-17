@@ -164,12 +164,12 @@ Per `_shared.md § 10`. Suggested commit milestones:
 6. Kafka invalidator consumer (group `bff-group`) + tag-map + invalidation integration test
 7. `bff.home-page-eager-cache-warm` feature flag + startup warmer + both-state tests
 8. Fail-safe / stale-data integration tests (kill upstream containers mid-flight)
-9. Architecture tests + functional tests
+9. Architecture tests + integration tests
 10. docker-compose smoke + session summary
 </session_management>
 
 <verification>
-Run the **non-negotiable gates** in [`docs/verification-gates.md`](../verification-gates.md) (build / restore / format / the four `EShop.BFF.*Tests` projects / compose health), then the BFF smoke below. **Paste the actual output** into the session summary.
+Run the **non-negotiable gates** in [`docs/verification-gates.md`](../verification-gates.md) (build / restore / format / the three `EShop.BFF.*Tests` projects / compose health), then the BFF smoke below. **Paste the actual output** into the session summary.
 
 ```bash
 # BFF smoke, after the standard gates:

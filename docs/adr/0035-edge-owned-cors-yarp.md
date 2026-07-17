@@ -15,7 +15,7 @@ The four existing browser-facing BCs (Basket, Catalog, Inventory, Weather) each 
 1. **Single origin-policy point** — allowed-origin lists duplicated across 5+ BCs drift; one edge policy cannot.
 2. **CORS is not an API security boundary** — it protects *browsers*, not APIs (non-browser clients ignore it entirely); each BC's own JWT validation ([ADR-0010](0010-service-to-service-auth.md)) is the actual gate, so per-BC CORS duplication buys maintenance, not security.
 3. **Reference-minimal coherence** — the repo should demonstrate one clear topology, not two overlapping CORS regimes.
-4. **Nothing is blocked today** — no SPA exists until the BFF/YARP slice; in-process functional tests are origin-less.
+4. **Nothing is blocked today** — no SPA exists until the BFF/YARP slice; in-process integration tests are origin-less.
 
 ## Considered Options
 
