@@ -881,7 +881,7 @@ One table combining the four **read** endpoints' behavior under common failure s
 | Integration | Kafka cache-invalidation handlers against Testcontainers Kafka, verifying each topic → tag mapping. |
 | Integration | `POST /api/v1/bff/checkout` idempotency: first call forwards to Basket and returns `202 { orderId }`; replay with same `Idempotency-Key` + same body returns the cached `202` without re-calling Basket; same key + different body → 409 (ADR-0013). |
 | Architecture | No direct references to `Catalog.*`, `Basket.*`, `Ordering.*`, `Inventory.*` assemblies from either BFF project. No `DbSet<>` / no Kafka producer. BFF cache + idempotency store resolve only `Redis:Cache`, **never** `Redis:Basket` ([ADR-0016](../adr/0016-redis-topology.md)). |
-| Functional | Full HTTP stack via `WebApplicationFactory` with Testcontainers for Redis + Kafka, using WireMock for upstream services; exercise all five endpoints end-to-end including stale-fail-over and checkout idempotent replay. |
+| Integration | Full HTTP surface via `WebApplicationFactory` with Testcontainers for Redis + Kafka and WireMock for upstream services; exercise all five endpoints — including stale-fail-over and checkout idempotent replay — as slice tests through the HTTP entrance. |
 
 ---
 

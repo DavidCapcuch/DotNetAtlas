@@ -331,7 +331,7 @@ Bug-class typed exceptions (live in `Invoicing.Application.Common.Exceptions`, i
   - **Duplicate events**: fire `OrderConfirmedEvent` twice — projection is idempotent, only one invoice issued.
   - **Gap-free number**: simulate a rollback between allocator-select and insert; verify no gap.
   - **Credit note**: issue invoice, then fire `OrderCancelledEvent` + `PaymentRefundedEvent` → credit note issued.
-- **Functional tests** — HTTP endpoints with Testcontainers (Postgres + Azurite); verify Azure SAS URLs are retrievable via nginx-cdn.
+  - **HTTP surface**: drive the invoice/credit-note endpoints through `WebApplicationFactory` (Testcontainers Postgres + Azurite); verify Azure SAS URLs are retrievable via nginx-cdn.
 
 Full example-mapping sessions in [`example-mapping/invoicing.md`](example-mapping/invoicing.md).
 

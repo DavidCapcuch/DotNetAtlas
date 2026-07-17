@@ -271,8 +271,7 @@ FSM guard violations (bug-class) throw `DataIntegrityException`, not `Result.Fai
 
 - **Unit tests** (`test/Payments.UnitTests/`) — `PaymentTransaction` state transitions, factory validation, invariants (I-1 through I-6), SmartEnum transition table.
 - **Architecture tests** (`test/Payments.ArchitectureTests/`) — no cross-BC references; no direct `StackExchange.Redis` imports in `Payments.Domain`; aggregates have private ctor + static factory; enforced `*DomainEvent` suffix on internal events.
-- **Integration tests** (`test/Payments.IntegrationTests/`) — Testcontainers Postgres + Kafka. Tests the outbox publisher chain: command → domain event → outbox row → Kafka message (with Avro schema registry stub); the one-payment-per-order unique index (I-7).
-- **Functional tests** (`test/Payments.FunctionalTests/`) — `WebApplicationFactory`-based full-stack admin HTTP endpoints with auth.
+- **Integration tests** (`test/Payments.IntegrationTests/`) — Testcontainers Postgres + Kafka. Tests the outbox publisher chain: command → domain event → outbox row → Kafka message (with Avro schema registry stub); the one-payment-per-order unique index (I-7); and the admin HTTP endpoints (with auth) driven through `WebApplicationFactory`.
 - **Gateway stub** (`StubPaymentGateway`) — deterministic responses in test mode; swap via DI using options.
 
 Full example-mapping sessions in [`example-mapping/payments.md`](example-mapping/payments.md).

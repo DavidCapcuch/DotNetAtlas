@@ -705,7 +705,7 @@ Basket:
 | Unit | `Basket` aggregate invariants; VO construction/equality; Money arithmetic |
 | Integration | `RedisBasketRepository` against Testcontainers Redis; `ProductCatalogHttpAdapter` against WireMock; full outbox-write round-trip against Testcontainers Postgres |
 | Architecture | Layer boundary enforcement (§ 14.1) |
-| Functional | Full HTTP stack via `WebApplicationFactory` — at minimum one full lifecycle: add → refresh → checkout → verify outbox row → verify Redis deletion |
+| Integration | Full HTTP surface via `WebApplicationFactory` — at minimum one lifecycle journey: add → refresh → checkout → verify outbox row → verify Redis deletion |
 
 ---
 

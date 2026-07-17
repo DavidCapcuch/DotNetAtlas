@@ -68,7 +68,7 @@ The general, repo-wide "done" bar for any AI-assisted change. It complements —
 - [ ] Tests land in the taxonomy — `{Bc}.UnitTests` / `{Bc}.IntegrationTests` / `{Bc}.ArchitectureTests` — using the BC's shared collection fixture with state reset between tests; no per-test containers or hosts.
 - [ ] Explicit assertions for happy and edge/failure paths; a rejection asserts both halves (status code + nothing persisted).
 - [ ] Tests are deterministic — injected `TimeProvider`, no sleeps; poll-with-deadline only where a real broker sits between act and outcome.
-- [ ] Tests follow the project conventions (AAA, `Method_Scenario_ExpectedResult`, FluentAssertions — `conventions.md § 9`).
+- [ ] Tests follow project conventions (AAA, `Method_Scenario_ExpectedResult`, FluentAssertions — `conventions.md § 9`).
 
 ### Code Quality  *(delegates to `daca-dotnet-refactoring-reviewer`; smell taxonomy + ranking SSOT: the `daca-dotnet-refactoring` skill)*
 - [ ] **Self-documenting** — names and control flow convey intent; comments justify *why*, not *what*.

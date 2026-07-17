@@ -1,6 +1,6 @@
 # Platform.Test.Framework
 
-TestContainers‑based components for simplifying spinning up infrastructure setup and state management in integration and functional tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
+TestContainers‑based components for simplifying spinning up infrastructure setup and state management in integration tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
 
 - **PostgreSQL**: SQL-script migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
 - **Redis**: flush-all resets, pre-configured ConfigurationOptions.
@@ -103,7 +103,7 @@ consumer.Dispose();
 - Exposes TraceId for propagating context to the SUT (e.g., via HTTP headers).
 
 **Where to use it:**
-- Wrap each integration/functional test, or create/dispose in your fixture's setup/teardown.
+- Wrap each integration test, or create/dispose in your fixture's setup/teardown.
 - Pass your test DI ServiceProvider so it uses the same tracing pipeline as the app under test.
 ```csharp
 using Platform.Test.Framework.Tracing;
@@ -130,7 +130,7 @@ The same `V*.sql` files are consumed by two different runners (#269):
 
 | Runner | Where | Tracking |
 |---|---|---|
-| **Evolve** | `PostgreSqlTestContainer` in integration / functional tests | `changelog` table + per-file checksum |
+| **Evolve** | `PostgreSqlTestContainer` in integration tests | `changelog` table + per-file checksum |
 | **Flyway** | Single one-shot `flyway` service in `docker-compose.yaml` (loops over all BC schemas incl. saga) | `flyway_schema_history` table per schema + per-file checksum |
 
 Both tools refuse to re-apply a `V*.sql` file whose **content has changed** after it was first recorded. This is intentional — a changed checksum is the only reliable signal that production and tests have diverged. Once a `Vnnn__Name.sql` has been merged, treat it as **immutable**.
@@ -147,7 +147,7 @@ Both tools refuse to re-apply a `V*.sql` file whose **content has changed** afte
 | Local dev DB (compose) | `docker compose down -v` + `up -d` to wipe the postgres volume, OR `docker run --rm ... flyway/flyway:11-alpine repair` | Local data is throwaway. Wipe-and-resync is simplest. |
 | Shared dev / staging | `flyway repair` against the shared DB | Preserves data. Requires the new checksum to actually match what production will apply. |
 | Production | **Incident.** Escalate. Never repair without a deliberate rollback / forward-fix plan reviewed by whoever owns the data. | Drift in prod means tests and prod are no longer reading the same migration text. |
-| Integration / functional tests | Re-emit the script from the EF migration: `dotnet ef migrations script <from> <to> --idempotent --output ...SqlScripts/Vnnn__Name.sql`. Testcontainers are throwaway, so checksum mismatch in tests is always a "regenerate the file" situation, never a "repair" situation. | |
+| Integration tests | Re-emit the script from the EF migration: `dotnet ef migrations script <from> <to> --idempotent --output ...SqlScripts/Vnnn__Name.sql`. Testcontainers are throwaway, so checksum mismatch in tests is always a "regenerate the file" situation, never a "repair" situation. | |
 
 ### Prevention
 

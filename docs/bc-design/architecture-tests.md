@@ -427,7 +427,7 @@ Implementation agents tick these off as they author the architecture-tests proje
 
 ## 6. Cross-References
 
-- [master design § 11.4 Testing Layers](../eshop-master-design.md) — architecture tests are the third of four layers
+- [master design § 11.4 Testing Layers](../eshop-master-design.md) — architecture tests are the third of the three layers
 - [master design § Appendix B.2](../eshop-master-design.md) — authoritative layer-reference table that § 1.1 mirrors
 - [error-taxonomy.md § 2](error-taxonomy.md) — the categorization `§ 1.5` enforces
 - [kafka-dlt-strategy.md § 2](kafka-dlt-strategy.md) — the consumer-handler anti-rethrow rule referenced by § 1.5

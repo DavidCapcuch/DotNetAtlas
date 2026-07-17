@@ -53,9 +53,11 @@ Do not introduce new libraries without documenting rationale + asking. When an a
 
 Seven convention-current BCs exist. **Read the closest one for the shape; copy the structure, not the domain.** Mirroring-by-eye is what let cross-BC consistency drift; the rules below, not a file list, are the source of truth.
 
+**One exception — test-project structure:** the built BCs' test-project layout is not yet the target taxonomy, so take the test projects from [master design § 11.4](../eshop-master-design.md) (`{Bc}.UnitTests` / `.IntegrationTests` / `.ArchitectureTests`), not from the closest built BC.
+
 | Your unit's shape | Golden reference | Why it's the model |
 |---|---|---|
-| Standard 4-layer, EF Core + outbox (default) | **Catalog** (`services/Catalog/`) | Clean aggregate BC: domain events, projections, `DispatchDomainEventsInterceptor`, FastEndpoints, the 4 test projects |
+| Standard 4-layer, EF Core + outbox (default) | **Catalog** (`services/Catalog/`) | Clean aggregate BC: domain events, projections, `DispatchDomainEventsInterceptor`, FastEndpoints, the 3 test projects |
 | Event-sourced aggregate | **Inventory** (`services/Inventory/`) | `IEventStore` + append-only `EventStoreRepository`; domain-event dispatch inside `AppendAsync` |
 | Redis-primary aggregate | **Basket** (`services/Basket/`) | Redis-backed persistence, dispatch in handler after `SaveAsync`, `ProductCatalog` ACL HTTP adapter |
 | PII / external gateway | **Payments** (`services/Payments/`) | `_enc` column convention (ADR-0011), outbox-only publish path (arch-tested) |
@@ -105,7 +107,7 @@ A dispatch runs the same lifecycle whether the unit is a BC or a cross-cutting w
 |---|---|---|
 | Session start | `superpowers:using-superpowers` | auto — establishes how you find and use skills |
 | **0 — sharpen the design** | `grill-with-docs` | before writing the spec/code: stress-test the unit's design against its `bc-design` chapter, glossary, and the applicable ADRs; sharpen terminology, kill ambiguity. (Replaces a generic brainstorm — it grounds the open-interior design in the documented model.) |
-| **1 — decompose** | `to-prd` → `to-issues` | turn the sharpened design into a PRD, then into independently-grabbable **tracer-bullet** issues (thin vertical slices, each demoable end-to-end). Decomposition lives here, not in a separate roadmap tool. |
+| **1 — decompose** | `to-spec` → `to-tickets` | turn the sharpened design into a spec, then into independently-grabbable **tracer-bullet** tickets (thin vertical slices, each demoable end-to-end). Decomposition lives here, not in a separate roadmap tool. |
 | **2 — dispatch** | this kit (`_template.md` / the unit's prompt) | the spec the build session executes |
 | **3 — build loop** | `tdd` | red → green → refactor per **behaviour** (not per step); deep-module + interface-design discipline. Each test responds to what the previous cycle taught you. |
 | When stuck | `superpowers:systematic-debugging` | unexpected behaviour, flaky test, inconsistent reproduction |

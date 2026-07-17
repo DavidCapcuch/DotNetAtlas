@@ -16,7 +16,7 @@ A dispatch is a phased pipeline, not just a build session. The authoritative pha
 
 ```
 0. sharpen design   grill-with-docs                ← stress-test the bc-design chapter vs glossary + ADRs
-1. decompose        to-prd → to-issues             ← tracer-bullet vertical slices, each demoable
+1. decompose        to-spec → to-tickets           ← tracer-bullet vertical slices, each demoable
 2. dispatch         _template.md / bff.md          ← the locked-contract spec the build session runs
 3. build loop       tdd                            ← red → green → refactor, per behaviour
 4. gate             verification-before-completion ← the four hard gates, actual output pasted
@@ -36,7 +36,7 @@ Session notes (optional — add delta context for this run):
 - <e.g. "Focus on search endpoint first; rest in next session">
 - <e.g. "I've already scaffolded Catalog.Domain; pick up from there">
 - <e.g. "Apply PR #42's caching suggestion on search endpoint">
-- <e.g. "Skip FunctionalTests this session — Wave 3 dependency">
+- <e.g. "Skip IntegrationTests this session — Wave 3 dependency">
 
 Follow the prompt's <thinking_first> directive — your first response is the plan, not code.
 ````
@@ -51,7 +51,7 @@ Waves 0–2 are **built** (platform + the six Wave-1 BCs + the checkout saga). T
 
 When an agent reports completion, the agent MUST have already run the three-role review stack (`_shared.md § 11`): Opus pre-commit review, the gates with pasted output, and `daca-dod-reviewer` (which delegates drift → `daca-bc-consistency-reviewer` and docs → `daca-documentation-reviewer`). Re-verify:
 
-1. All [verification gates](../verification-gates.md) green (build / restore `--locked-mode` / format / the four test projects / compose health) — actual output, not a summary.
+1. All [verification gates](../verification-gates.md) green (build / restore `--locked-mode` / format / the three test projects / compose health) — actual output, not a summary.
 2. Docs self-corrected if needed (`docs/bc-design/{bc}.md`, glossary, example-mapping).
 3. `daca-dod-reviewer` blockers fixed; `docs/DoD.md` Self-attested bucket attested.
 4. Session-summary posted with the full template from `_template.md § session_summary` — ADR notes, pasted verification output, and review-stack findings.
@@ -103,7 +103,7 @@ The kit is built to defeat the common agent-dispatch failure modes. Each maps to
 |---|---|
 | **Context drift** (long session contradicts itself) | Context-window discipline + handoff at ~80% (`_shared.md § 9–10`); one unit per dispatch |
 | **Over-editing** (touches unmentioned things) | `<boundaries>` file ownership + the migration `permissions.deny` (`.claude/settings.json`) |
-| **Vague scoping** | Locked `<contract>` + `<mission>`/`<dod>`; phase-1 `to-issues` tracer-bullet slices |
+| **Vague scoping** | Locked `<contract>` + `<mission>`/`<dod>`; phase-1 `to-tickets` tracer-bullet slices |
 | **Missing test coverage** | "Every new behaviour ships a new test" (`_shared.md § 12`); `tdd` build loop |
 | **Architecture drift** | `conventions.md` + CI-blocking `architecture-tests.md` (NetArchTest); `daca-bc-consistency-reviewer` (via `daca-dod-reviewer`) at DoD |
 | **Stale docs** | Doc self-correction *in the same session* (`_shared.md § 8`) |

@@ -166,7 +166,7 @@ Redis instance is `redis-cache` (volatile, `allkeys-lru` eviction). Loss of an e
   - Second call same key + different body → 409
   - Concurrent calls same key → only one handler invocation
   - Expired entry → fresh handler invocation
-- Functional test: smoke-test all four protected endpoints' idempotency in `WebApplicationFactory`-based suites.
+- Integration test (HTTP entrance): smoke-test all four protected endpoints' idempotency in `WebApplicationFactory`-based suites.
 
 ### Distinction from Kafka inbox dedup (for docs)
 

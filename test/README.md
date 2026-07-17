@@ -102,7 +102,7 @@ Shared code coverage configuration for Coverlet:
 
 ## Test Collections
 
-Integration and Functional tests that have infrastructure dependencies (Database, Kafka, Redis, etc.) share a single collection per assembly, backed by a single Fixture that hosts the required dependencies.
+Integration tests that have infrastructure dependencies (Database, Kafka, Redis, etc.) share a single collection per assembly, backed by a single Fixture that hosts the required dependencies.
 
 **Within a collection, tests run sequentially. This ensures:**
 
@@ -113,7 +113,6 @@ Integration and Functional tests that have infrastructure dependencies (Database
 Each assembly has exactly one collection:
 
 - `Catalog.IntegrationTests` → `IntegrationTestCollection` (backed by `IntegrationTestFixture`)
-- `Catalog.FunctionalTests` → `FunctionalTestCollection` (backed by `ApiTestFixture`)
 - `SagaOrchestrators.IntegrationTests` → `SagaTestCollection` (backed by `SagaIntegrationTestFixture`)
 
 ## Choosing the Right Test Level (Harness Rules)
@@ -128,8 +127,7 @@ that never bound `TopicsOptions`, so the handler emitted a `null` Kafka topic at
 | Level | Harness | Rule |
 | --- | --- | --- |
 | `*.UnitTests` | None | Construct the SUT directly with explicit deps/stubs (NSubstitute, fakes). No DI container, no infrastructure. |
-| `*.IntegrationTests` | Shared `AppFixture<Program>` fixture | Ride the per-assembly fixture (real composition root on Testcontainers). Swap **only** external seams via `ConfigureTestServices(... services.Replace(...) ...)` — repositories, HTTP adapters, `IOutboxWriter`→`FakeOutboxWriter`, `TimeProvider`. Resolve the SUT from the fixture (or construct it directly with the fixture's *real* `DbContext` + a stubbed port). |
-| `*.FunctionalTests` | Shared API fixture (`AppFixture<Program>`) | Drive the real HTTP surface through the fixture. |
+| `*.IntegrationTests` | Shared `AppFixture<Program>` fixture | Ride the per-assembly fixture (real composition root on Testcontainers). Drive the slice's public entrance — an HTTP request or the Kafka message — through the fixture; resolve the SUT directly (the fixture's *real* `DbContext` + a stubbed port) only for behaviour with no outer entrance. Swap **only** external seams via `ConfigureTestServices(... services.Replace(...) ...)` — repositories, HTTP adapters, `IOutboxWriter`→`FakeOutboxWriter`, `TimeProvider`. |
 
 If a "unit" test needs real wiring/infra, it is an integration test — move it onto the fixture.
 If an "integration" test only exercises in-process logic with stubs and a directly-constructed SUT
