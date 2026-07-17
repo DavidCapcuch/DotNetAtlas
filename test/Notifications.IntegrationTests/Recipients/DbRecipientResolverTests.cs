@@ -39,8 +39,11 @@ public sealed class DbRecipientResolverTests : BaseIntegrationTest
 
         var contact = await resolver.ResolveAsync(userId, ct);
 
-        contact.Email.Should().Be("invoice-buyer@dotnetatlas.test");
-        contact.PhoneNumber.Should().Be("+420600000042");
+        using (new AssertionScope())
+        {
+            contact.Email.Should().Be("invoice-buyer@dotnetatlas.test");
+            contact.PhoneNumber.Should().Be("+420600000042");
+        }
     }
 
     [Fact]

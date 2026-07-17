@@ -15,10 +15,13 @@ public sealed class NotificationDeliveryTests
     {
         var delivery = NotificationDelivery.Record(Guid.CreateVersion7(), ChannelType.Email, DeliveryStatus.Failed, T0);
 
-        delivery.IsDispatched.Should().BeFalse();
-        delivery.Status.Should().Be(DeliveryStatus.Failed);
-        delivery.CreatedAtUtc.Should().Be(T0);
-        delivery.UpdatedAtUtc.Should().Be(T0);
+        using (new AssertionScope())
+        {
+            delivery.IsDispatched.Should().BeFalse();
+            delivery.Status.Should().Be(DeliveryStatus.Failed);
+            delivery.CreatedAtUtc.Should().Be(T0);
+            delivery.UpdatedAtUtc.Should().Be(T0);
+        }
     }
 
     [Fact]
@@ -28,10 +31,13 @@ public sealed class NotificationDeliveryTests
 
         delivery.MarkDispatched(T1);
 
-        delivery.IsDispatched.Should().BeTrue();
-        delivery.Status.Should().Be(DeliveryStatus.Dispatched);
-        delivery.CreatedAtUtc.Should().Be(T0);
-        delivery.UpdatedAtUtc.Should().Be(T1);
+        using (new AssertionScope())
+        {
+            delivery.IsDispatched.Should().BeTrue();
+            delivery.Status.Should().Be(DeliveryStatus.Dispatched);
+            delivery.CreatedAtUtc.Should().Be(T0);
+            delivery.UpdatedAtUtc.Should().Be(T1);
+        }
     }
 
     [Fact]

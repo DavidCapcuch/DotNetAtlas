@@ -10,6 +10,7 @@ namespace Notifications.UnitTests.Bell;
 /// three branches: the Keycloak <c>sub</c> claim, the <see cref="ClaimTypes.NameIdentifier"/>
 /// fallback (when <c>MapInboundClaims</c> has rewritten <c>sub</c>), and the no-identity case.
 /// </summary>
+[Trait("Category", "security")]
 public sealed class SubClaimUserIdProviderTests
 {
     [Fact]
