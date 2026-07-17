@@ -15,9 +15,11 @@ The general, repo-wide "done" bar for any AI-assisted change. It complements —
 - [ ] All assumptions and ambiguous / newly-surfaced requirements were **clarified with the user**, not guessed.
 - [ ] The final summary **lists the underlying implementation assumptions** that were made.
 - [ ] Input / boundary / state **edge cases were considered** (their tests live under *Testing*, below).
+- [ ] **Post-green refactor pass ran** — after each slice went green, a dedicated refactor pass (RPP L1–L6, the `daca-dotnet-refactoring` skill) ran under green tests — never amid red; what it changed (or `fast-path: <30 LOC`) is noted in the summary.
 - [ ] **Unknown-unknowns probed** — ran the `daca-blind-spots-pre-mortem` divergent pass over the change (didn't just self-attest it); its findings + how each was dispositioned are in the summary. Hidden side-effects, implicit dependencies, and misread intent surface here, not in the rubric.
 - [ ] **Existing codebase patterns were evaluated first**, before introducing any novel abstraction.
 - [ ] **Operational impact considered** — whether a feature flag is needed to isolate blast radius, and whether monitoring rules / alert thresholds / dashboards need updating for this change.
+- [ ] **Nothing rides on manual verification** — any behaviour checked by hand this session (a poked endpoint, an eyeballed log line, a manual compose check) now has a test or gate that owns it, or the gap is explicitly surfaced in the summary. What was verified only by attention is unprotected the moment the session ends.
 
 ---
 
@@ -46,6 +48,7 @@ The general, repo-wide "done" bar for any AI-assisted change. It complements —
 - [ ] Consumers are **idempotent** — naturally, *or* via inbox dedup where the handler has non-idempotent side-effects (don't add an inbox where the logic is already idempotent); they tolerate **at-least-once** redelivery.
 - [ ] Saga steps the change touches have correct **compensation** and **timeouts** for steps that can hang, and failures map to the right outcome events.
 - [ ] Topic and consumer-group names follow the conventions.
+- [ ] **Observable behaviour is the contract (Hyrum's Law)** — a change to a published surface (event schema, BFF/API response) is judged by what a consumer can observe, not by what the contract documents: field semantics, enum meaning, population timing, ordering, nullability-in-practice. Schema-compatible is not consumer-compatible; anything observable that changed is called out and reviewed as a contract change.
 
 ### Data, Persistence & Concurrency
 - [ ] The aggregate write and its outbox row commit in the **same transaction** (no dual-write).
@@ -60,16 +63,17 @@ The general, repo-wide "done" bar for any AI-assisted change. It complements —
 - [ ] Routes are versioned under `/api/v1` (ADR-0012); mutating endpoints carry an `Idempotency-Key` (ADR-0013).
 
 ### Testing  *(delegates to `daca-dotnet-testing-reviewer`; test-quality bar: the `daca-dotnet-effective-testing` skill)*
-- [ ] Unit tests for every new or modified logical branch.
-- [ ] Integration tests for modified database or external-infrastructure boundaries.
-- [ ] End-to-end / functional paths updated if the core workflow changed.
-- [ ] Explicit assertions for both happy paths and edge / failure paths.
-- [ ] Tests are deterministic — no race conditions or timing flakiness.
+- [ ] Every new or changed slice has a slice test through its public entrance (HTTP / message), asserting the response plus persisted state — and the outbox row where events publish.
+- [ ] Real domain logic is extracted into the domain and unit-tested exhaustively; no mocked unit tests on thin handlers.
+- [ ] Tests land in the taxonomy — `{Bc}.UnitTests` / `{Bc}.IntegrationTests` / `{Bc}.ArchitectureTests` — using the BC's shared collection fixture with state reset between tests; no per-test containers or hosts.
+- [ ] Explicit assertions for happy and edge/failure paths; a rejection asserts both halves (status code + nothing persisted).
+- [ ] Tests are deterministic — injected `TimeProvider`, no sleeps; poll-with-deadline only where a real broker sits between act and outcome.
 - [ ] Tests follow the project conventions (AAA, `Method_Scenario_ExpectedResult`, FluentAssertions — `conventions.md § 9`).
 
-### Code Quality
+### Code Quality  *(delegates to `daca-dotnet-refactoring-reviewer`; smell taxonomy + ranking SSOT: the `daca-dotnet-refactoring` skill)*
 - [ ] **Self-documenting** — names and control flow convey intent; comments justify *why*, not *what*.
 - [ ] **No structural anti-patterns** — no god class / SRP break, deep nesting, or over-long methods.
+- [ ] **No unaddressed design smells** — the diff is clean against the ranked Fowler/RPP smell taxonomy (`daca-dotnet-refactoring`), audited by `daca-dotnet-refactoring-reviewer`: top-ranked first (duplicated code, long method / large class, primitive obsession, divergent change / shotgun surgery, mysterious name), then feature envy, data clumps, repeated switches, mutable/global data, speculative generality, message chains, middle man. Objective smells (dead code, clone duplication, commented-out blocks, how-comments) are BLOCKERs; the rest are labelled judgment calls (WARNING), and a documented repo convention overrides them.
 - [ ] Matches the project's naming conventions and directory hierarchy.
 - [ ] Eliminates duplicate logic; extracts shared expressions.
 - [ ] Removes dead code, commented-out blocks, and unused imports.

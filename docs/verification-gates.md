@@ -11,13 +11,12 @@ dotnet format whitespace --no-restore --verify-no-changes
 dotnet format style --no-restore --verify-no-changes
 ```
 
-**Tests — the projects covering what you changed.** A BC dispatch runs the full four-project quartet; a cross-cutting change runs the relevant set.
+**Tests — the projects covering what you changed.** A BC dispatch runs the unit's full test-project set (`UnitTests`, `ArchitectureTests`, `IntegrationTests`); a cross-cutting change runs the relevant set.
 
 ```bash
 dotnet test test/{Unit}.UnitTests/
 dotnet test test/{Unit}.ArchitectureTests/
 dotnet test test/{Unit}.IntegrationTests/
-dotnet test test/{Unit}.FunctionalTests/
 ```
 
 **Compose health — only for changes that touch a container's runtime** (matching `.claude/rules.md`'s "for containerized changes"); a docs- or config-only change skips it.
