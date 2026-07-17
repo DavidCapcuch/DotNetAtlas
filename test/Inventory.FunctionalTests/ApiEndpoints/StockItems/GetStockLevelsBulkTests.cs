@@ -48,6 +48,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public async Task WhenEmptyList_Returns422()
     {
         var response = await Fixture.HttpClientRegistry.NonAuthClient
@@ -57,6 +58,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public async Task WhenExceedsMaxProductIds_Returns422()
     {
         var ids = Enumerable.Range(0, GetStockLevelsBulkQueryValidator.MaxProductIds + 1)
@@ -105,6 +107,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task CorruptCachedPayload_DegradesToProjection_NotError()
     {
         var productId = Guid.CreateVersion7();

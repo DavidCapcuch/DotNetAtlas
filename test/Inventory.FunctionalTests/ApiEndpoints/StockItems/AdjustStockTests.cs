@@ -19,6 +19,7 @@ public sealed class AdjustStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAnonymous_Returns401()
     {
         var productId = Guid.CreateVersion7();
@@ -30,6 +31,7 @@ public sealed class AdjustStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenReadOnlyScope_Returns403()
     {
         var productId = Guid.CreateVersion7();
@@ -79,6 +81,7 @@ public sealed class AdjustStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task WhenSameIdempotencyKeyReplayed_BothCallsReturn200()
     {
         // M9 attempted strengthening (carried from M7 → M8 → M9 per

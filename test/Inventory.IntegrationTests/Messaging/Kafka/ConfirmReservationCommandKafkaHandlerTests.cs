@@ -89,6 +89,7 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task WhenReservationAlreadyReleased_ThrowsSagaCommandDispatchException()
     {
         // ReservationNotActive is NOT in SagaCommandHandlerBase.BusinessExpectedErrorCodes
@@ -140,6 +141,7 @@ public sealed class ConfirmReservationCommandKafkaHandlerTests : BaseIntegration
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task WhenReservationIdUnknown_ThrowsDataIntegrityException()
     {
         // The aggregate raises DataIntegrityException("Inventory.ReservationUnknown",
