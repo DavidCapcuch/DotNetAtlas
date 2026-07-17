@@ -46,6 +46,7 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
     /// <see cref="SagaCommandDispatchException"/> specifically.
     /// </summary>
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task ResultFailWithNonBusinessErrorCode_ThrowsSagaCommandDispatchException()
     {
         var productId = Guid.NewGuid();
@@ -84,6 +85,7 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
     /// swallow or wrap.
     /// </summary>
     [Fact]
+    [Trait("Category", "resilience")]
     public async Task UnhandledExceptionPropagatesUnchanged()
     {
         var productId = Guid.NewGuid();

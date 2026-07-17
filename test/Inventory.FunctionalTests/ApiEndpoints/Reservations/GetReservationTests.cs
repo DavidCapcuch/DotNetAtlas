@@ -27,6 +27,7 @@ public sealed class GetReservationTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAnonymous_Returns401()
     {
         var reservationId = Guid.CreateVersion7();
@@ -38,6 +39,7 @@ public sealed class GetReservationTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenReadOnlyScope_WithoutAdminRole_Returns403()
     {
         // inventory.read alone no longer reaches reservation-audit data — the admin-role half
@@ -51,6 +53,7 @@ public sealed class GetReservationTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenWriteScope_WithoutAdminRole_Returns403()
     {
         // Proves the gate is the role, not the scope: a write-scoped token without the admin

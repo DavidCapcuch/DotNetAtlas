@@ -16,6 +16,7 @@ public sealed class ReceiveStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenAnonymous_Returns401()
     {
         var productId = Guid.CreateVersion7();
@@ -27,6 +28,7 @@ public sealed class ReceiveStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenReadOnlyScope_Returns403()
     {
         var productId = Guid.CreateVersion7();
@@ -38,6 +40,7 @@ public sealed class ReceiveStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "security")]
     public async Task WhenWriteScopeButNotAdmin_Returns403()
     {
         // Defense-in-depth: WritePolicy requires the admin role AND the inventory.write
@@ -74,6 +77,7 @@ public sealed class ReceiveStockTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "boundary")]
     public async Task WhenInvalidQuantity_Returns422()
     {
         var productId = Guid.CreateVersion7();
