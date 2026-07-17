@@ -183,7 +183,7 @@ The **structural deliverables** unique to a dispatch. The repo-wide quality bar 
 - [ ] DbContext + naming conventions scaffolded (migration user-generated per CLAUDE.md)
 - [ ] Messaging DI: outbox, inbox, Kafka consumers per BC
 - [ ] docker-compose delta: topics + outbox-relay-{bc} container
-- [ ] 4 test projects exist + pass; architecture tests enforce the rules in `architecture-tests.md § {your BC}`
+- [ ] The unit's test projects exist + pass; architecture tests enforce the rules in `architecture-tests.md § {your BC}`
 - [ ] Docs self-corrected if needed
 - [ ] **Quality bar cleared** — `docs/DoD.md` Reviewer-audited bucket has no open blockers (Role 3), Self-attested bucket attested, all [verification gates](../verification-gates.md) green with pasted output (Role 2)
 - [ ] Review stack (§ 11) run end-to-end (Role 1 → Role 2 → Role 3)
