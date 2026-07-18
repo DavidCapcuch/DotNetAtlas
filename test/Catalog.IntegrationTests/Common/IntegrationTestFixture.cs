@@ -1,13 +1,20 @@
 using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Persistence.Database;
+using Catalog.IntegrationTests.Common.TestClientInfrastructure;
 using FastEndpoints.Testing;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using NSubstitute;
+using NSubstitute.ClearExtensions;
+using OpenFeature;
+using OpenTelemetry;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
@@ -22,19 +29,34 @@ namespace Catalog.IntegrationTests.Common;
 internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
 /// <summary>
-/// Boots the real <c>Program.cs</c> host inside an <see cref="AppFixture{TEntryPoint}"/>
-/// against Postgres + Redis + Kafka Testcontainers (containers mirror what
-/// <see cref="Common.MessagingDependencyInjection"/> validates at startup; the
-/// KafkaFlow consumer block is registered but Catalog's <c>Program.cs</c> intentionally
-/// omits the <c>kafkaBus.StartAsync()</c> call so no consumer poll loop runs in tests).
-/// Schema comes from the same idempotent V*.sql scripts Flyway runs in compose (#269).
-/// Replaces the production <see cref="IOutboxWriter"/> with <see cref="FakeOutboxWriter"/>
-/// so command-handler outbox assertions don't require a Schema Registry round-trip.
-/// Per ADR-0015, <c>TimeProvider</c> is NOT replaced — production code resolves
-/// <c>TimeProvider.System</c> from the Generic Host. Tests that need deterministic time
-/// construct <c>FakeTimeProvider</c> locally and inject it into a directly-constructed
-/// SUT (see ADR-0015 line 104).
+/// The single Catalog integration fixture: one real <c>Program.cs</c> host on Postgres + Redis +
+/// Kafka Testcontainers, shared by the whole <see cref="IntegrationTestCollection"/> (one instance,
+/// state reset between tests). Both entrances run against it — the HTTP edge via
+/// <see cref="HttpClientRegistry"/> and, for cross-cutting machinery with no outer entrance, a DI
+/// scope off <see cref="AppFixture{TEntryPoint}.Services"/>.
+/// <para>
+/// Schema is provisioned by the same idempotent <c>V*.sql</c> scripts Flyway runs in compose
+/// (#269) — never a test-only <c>MigrateAsync</c>/<c>EnsureCreated</c>, so the tested schema
+/// matches the deployed one. The production Avro+SchemaRegistry <see cref="IOutboxWriter"/> is
+/// replaced with <see cref="FakeOutboxWriter"/> so outbox assertions don't need a Schema Registry
+/// round-trip; the fake leaves the <c>AvroPayload</c> empty, so byte-level Avro fidelity is a
+/// deferred follow-up (see <c>Contracts/OutboxPublisherRoutingTests</c>, which pins the routing —
+/// topic + CLR type — but not the bytes). <see cref="IFeatureClient"/> is an NSubstitute mock so
+/// tests flip <c>catalog.show-discontinued-in-search</c> per scenario, and the
+/// <see cref="FakeTokenSigner"/>'s RSA key is trusted via
+/// <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
+/// </para>
+/// <para>
+/// Per ADR-0015 the host's <c>TimeProvider.System</c> singleton is left in place — tests that need
+/// deterministic time construct <c>FakeTimeProvider</c> locally and inject it into a
+/// directly-constructed SUT (ADR-0015 line 104).
+/// </para>
 /// </summary>
+// [DisableWafCache] is kept through the merge (not dropped): the deferred Avro byte-fidelity fixture
+// (Kafka + Schema Registry) that Contracts/OutboxPublisherRoutingTests flags as a Wave-0 follow-up
+// will be a SECOND AppFixture<Program>, and FastEndpoints caches the WebApplicationFactory by entry
+// point — so without this the two hosts' ConfigureTestServices would cross-wire. Redundant with a
+// single fixture today, cheap defense-in-depth for tomorrow, and matches every sibling BC fixture.
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>
 {
@@ -49,6 +71,16 @@ public class IntegrationTestFixture : AppFixture<Program>
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
 
+    private readonly FakeTokenSigner _signer = new(audience: "catalog-service");
+
+    /// <summary>
+    /// Test-controlled <see cref="IFeatureClient"/>. Defaults all flags to <c>false</c>; tests
+    /// override per-scenario by calling <c>Fixture.FeatureClient.GetBooleanValueAsync(...).Returns(...)</c>.
+    /// </summary>
+    public IFeatureClient FeatureClient { get; } = Substitute.For<IFeatureClient>();
+
+    public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
+
     protected override async ValueTask PreSetupAsync()
     {
         // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
@@ -57,6 +89,12 @@ public class IntegrationTestFixture : AppFixture<Program>
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
+    }
+
+    protected override ValueTask SetupAsync()
+    {
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -93,22 +131,38 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a
-                // fake. Avro byte fidelity is asserted in AvroByteFidelityTests with its own
-                // Schema-Registry container; the rest of the suite stays fast.
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a fake so
+                // command-handler outbox assertions stay fast (no Schema Registry round-trip).
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
+
+                // Replace the OpenFeature client so per-test feature-flag flips don't depend on a
+                // JSON file on disk (e.g. catalog.show-discontinued-in-search, ADR-0014).
+                services.Replace(ServiceDescriptor.Singleton(FeatureClient));
+
+                // Relax the OIDC scheme's HTTPS-metadata requirement BEFORE the framework's
+                // default IPostConfigureOptions<OpenIdConnectOptions> runs. Using Configure
+                // (IConfigureNamedOptions) ensures ordering: all IConfigureOptions run before
+                // any IPostConfigureOptions, so the default post-configure sees
+                // RequireHttpsMetadata=false and skips the HTTPS-authority throw.
+                // PostConfigure would fire too late (after the default already threw).
+                services.Configure<OpenIdConnectOptions>(
+                    OpenIdConnectDefaults.AuthenticationScheme,
+                    options => options.RequireHttpsMetadata = false);
+
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps every
+                // TokenValidationParameters flag at its production default of TRUE. See
+                // Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
-
-    /// <summary>Creates a per-test DI scope; caller disposes.</summary>
-    public IServiceScope CreateScope() => Services.CreateScope();
-
-    /// <summary>Connection string for tests that bypass the DbContext.</summary>
-    public string ConnectionString => _dbContainer.ConnectionString;
 
     /// <summary>Wipes every table in the Catalog schema between tests and flushes Redis.</summary>
     public async Task ResetFixtureStateAsync()
     {
+        using var _ = SuppressInstrumentationScope.Begin();
+
+        FeatureClient.ClearSubstitute(ClearOptions.All);
+
         await Task.WhenAll(
             _dbContainer.CleanDataAsync(),
             _redisContainer.CleanDataAsync()
@@ -117,6 +171,7 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _kafkaContainer.DisposeAsync();

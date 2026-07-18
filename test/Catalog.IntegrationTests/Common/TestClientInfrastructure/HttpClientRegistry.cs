@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using FastEndpoints.Testing;
 
-namespace Catalog.FunctionalTests.Common.TestClientInfrastructure;
+namespace Catalog.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Pre-builds three <see cref="HttpClient"/> instances — one per <see cref="ClientType"/> —

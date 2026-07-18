@@ -1,18 +1,32 @@
 using Catalog.Infrastructure.Persistence.Database;
+using Catalog.IntegrationTests.Common.TestClientInfrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using OpenFeature;
 using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
 namespace Catalog.IntegrationTests.Common;
 
+/// <summary>
+/// Base for every Catalog integration test. Exposes the HTTP edge (<see cref="HttpClientRegistry"/>,
+/// <see cref="FeatureClient"/>) for slice tests that enter through the endpoint, and a per-test DI
+/// scope with its <see cref="CatalogDbContext"/> for arranging fixture state and asserting persisted
+/// outcomes. State is reset between tests via the fixture's <c>ResetFixtureStateAsync</c>.
+/// </summary>
 public abstract class BaseIntegrationTest : IAsyncLifetime
 {
     private readonly TestCaseTracer _testCaseTracer;
     private readonly Func<Task> _resetFixtureStateAsync;
 
     protected IntegrationTestFixture Fixture { get; }
+
     protected IServiceScope Scope { get; }
-    protected CatalogDbContext CatalogDbContext { get; }
+
+    protected CatalogDbContext DbContext { get; }
+
+    protected HttpClientRegistry<Program> HttpClientRegistry { get; }
+
+    protected IFeatureClient FeatureClient => Fixture.FeatureClient;
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
     {
@@ -22,7 +36,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
 
         _resetFixtureStateAsync = app.ResetFixtureStateAsync;
         Scope = app.Services.CreateScope();
-        CatalogDbContext = Scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        DbContext = Scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        HttpClientRegistry = app.HttpClientRegistry;
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
         // Inspired by https://github.com/martinjt/unittest-with-otel/tree/main
@@ -33,10 +48,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             testType: "integration");
     }
 
-    public ValueTask InitializeAsync()
-    {
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
     public async ValueTask DisposeAsync()
     {

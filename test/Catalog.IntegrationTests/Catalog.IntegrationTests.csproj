@@ -10,6 +10,7 @@
         <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
         <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="Respawn" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
