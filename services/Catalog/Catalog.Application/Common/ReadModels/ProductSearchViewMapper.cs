@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Application.Common.ReadModels;
 

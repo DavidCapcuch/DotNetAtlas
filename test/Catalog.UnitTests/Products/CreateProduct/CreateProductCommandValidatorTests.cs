@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.CreateProduct;
 
 namespace Catalog.UnitTests.Products.CreateProduct;

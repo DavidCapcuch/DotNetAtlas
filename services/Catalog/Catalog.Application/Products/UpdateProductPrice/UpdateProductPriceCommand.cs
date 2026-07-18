@@ -1,4 +1,4 @@
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 using Platform.CQRS;
 
 namespace Catalog.Application.Products.UpdateProductPrice;

@@ -2,8 +2,7 @@ using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.GetProductById;
-using Catalog.Application.Products.CreateProduct;
-using Catalog.Application.Products.GetProductById;
+using Catalog.Application.Common.Contracts;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 
@@ -28,7 +27,7 @@ public class GetProductByIdTests : BaseIntegrationTest
             .POSTAsync<CreateProductEndpoint, CreateProductRequest, CreateProductResponse>(createReq);
 
         var (response, body) = await HttpClientRegistry.ReadClient
-            .GETAsync<GetProductByIdEndpoint, GetProductByIdRequest, GetProductByIdResponse>(
+            .GETAsync<GetProductByIdEndpoint, GetProductByIdRequest, ProductDetailResponse>(
                 new GetProductByIdRequest { Id = created.ProductId });
 
         using (new AssertionScope())
@@ -72,7 +71,7 @@ public class GetProductByIdTests : BaseIntegrationTest
         await seeder.SeedRowsAsync(ct, row);
 
         var (response, body) = await HttpClientRegistry.ReadClient
-            .GETAsync<GetProductByIdEndpoint, GetProductByIdRequest, GetProductByIdResponse>(
+            .GETAsync<GetProductByIdEndpoint, GetProductByIdRequest, ProductDetailResponse>(
                 new GetProductByIdRequest { Id = row.ProductId });
 
         using (new AssertionScope())

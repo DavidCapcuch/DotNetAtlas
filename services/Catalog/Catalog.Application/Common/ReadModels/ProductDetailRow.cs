@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
-using Catalog.Application.Products.CreateProduct;
-using Catalog.Application.Products.GetProductById;
+using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Application.Common.ReadModels;
 
@@ -46,7 +45,7 @@ internal sealed record ProductDetailRow(
             row.CreatedAtUtc,
             row.LastUpdatedAtUtc);
 
-    public GetProductByIdResponse ToResponse() =>
+    public ProductDetailResponse ToResponse() =>
         new()
         {
             ProductId = ProductId,

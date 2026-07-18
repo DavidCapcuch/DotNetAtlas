@@ -1,4 +1,4 @@
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Api.Endpoints.Products.UpdateProductPrice;
 

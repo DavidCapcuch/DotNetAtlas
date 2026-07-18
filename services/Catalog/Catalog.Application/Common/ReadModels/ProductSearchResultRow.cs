@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
-using Catalog.Application.Products.CreateProduct;
-using Catalog.Application.Products.SearchProducts;
+using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Application.Common.ReadModels;
 

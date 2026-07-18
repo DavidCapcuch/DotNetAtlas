@@ -1,5 +1,5 @@
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.ReadModels;
-using Catalog.Application.Products.CreateProduct;
 using Catalog.Domain.Products.ValueObjects;
 
 namespace Catalog.UnitTests.Common;

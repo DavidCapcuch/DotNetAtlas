@@ -1,6 +1,6 @@
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
-using Catalog.Application.Products.SearchProducts;
 using Catalog.Domain.Products.ValueObjects;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;

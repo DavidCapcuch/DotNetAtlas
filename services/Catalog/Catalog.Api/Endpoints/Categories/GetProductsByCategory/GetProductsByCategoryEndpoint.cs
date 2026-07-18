@@ -1,7 +1,7 @@
 using System.Net;
 using Catalog.Api.Common.Authorization;
 using Catalog.Application.Categories.GetProductsByCategory;
-using Catalog.Application.Products.SearchProducts;
+using Catalog.Application.Common.Contracts;
 using FastEndpoints;
 using Platform.Api.Extensions;
 

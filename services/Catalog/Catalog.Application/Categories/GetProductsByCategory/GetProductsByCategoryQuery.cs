@@ -1,4 +1,4 @@
-using Catalog.Application.Products.SearchProducts;
+using Catalog.Application.Common.Contracts;
 using Platform.CQRS;
 
 namespace Catalog.Application.Categories.GetProductsByCategory;

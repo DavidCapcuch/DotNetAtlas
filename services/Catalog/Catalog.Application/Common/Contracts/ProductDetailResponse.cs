@@ -1,9 +1,11 @@
-using Catalog.Application.Products.CreateProduct;
+namespace Catalog.Application.Common.Contracts;
 
-namespace Catalog.Application.Products.GetProductById;
-
-/// <summary>Response DTO for <see cref="GetProductByIdQuery"/>.</summary>
-public sealed class GetProductByIdResponse
+/// <summary>
+/// Denormalized product-detail view returned by the single-product read (<c>GetProductById</c>) and,
+/// as the element type, by the batch read (<c>GetProductsByIds</c>). Lives in
+/// <c>Common.Contracts</c> so neither slice owns a type the other depends on.
+/// </summary>
+public sealed class ProductDetailResponse
 {
     public required Guid ProductId { get; set; }
 

@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
-using Catalog.Application.Products.SearchProducts;
+using Catalog.Application.Common.Contracts;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 

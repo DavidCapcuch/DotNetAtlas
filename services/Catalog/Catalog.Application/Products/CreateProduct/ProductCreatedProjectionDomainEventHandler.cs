@@ -1,7 +1,7 @@
 using Catalog.Application.Categories.Common.Services;
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
-using Catalog.Application.Products.CreateProduct;
 using Catalog.Domain.Products.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
