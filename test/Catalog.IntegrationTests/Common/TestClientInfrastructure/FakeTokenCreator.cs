@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Platform.Test.Framework.Auth;
 
-namespace Catalog.FunctionalTests.Common.TestClientInfrastructure;
+namespace Catalog.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Maps a <see cref="ClientType"/> to the claim set the Catalog scope-based

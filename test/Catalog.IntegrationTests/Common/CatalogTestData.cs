@@ -2,10 +2,10 @@ using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Application.Products.CreateProduct;
 
-namespace Catalog.FunctionalTests.Common;
+namespace Catalog.IntegrationTests.Common;
 
 /// <summary>
-/// Canonical request payloads used across functional tests. Keeps test bodies focused on the
+/// Canonical request payloads used across integration tests. Keeps test bodies focused on the
 /// behaviour under test rather than fiddly DTO construction.
 /// </summary>
 internal static class CatalogTestData

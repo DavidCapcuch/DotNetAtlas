@@ -1,4 +1,4 @@
-namespace Catalog.FunctionalTests.Common.TestClientInfrastructure;
+namespace Catalog.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Token shapes mirrored against the Catalog scope-policy pair (ADR-0010).
