@@ -52,12 +52,11 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// directly-constructed SUT (ADR-0015 line 104).
 /// </para>
 /// </summary>
-// [DisableWafCache] is kept through the merge (not dropped): the deferred Avro byte-fidelity fixture
-// (Kafka + Schema Registry) that Contracts/OutboxPublisherRoutingTests flags as a Wave-0 follow-up
-// will be a SECOND AppFixture<Program>, and FastEndpoints caches the WebApplicationFactory by entry
-// point — so without this the two hosts' ConfigureTestServices would cross-wire. Redundant with a
-// single fixture today, cheap defense-in-depth for tomorrow, and matches every sibling BC fixture.
-[DisableWafCache]
+// No [DisableWafCache]: FastEndpoints caches the WebApplicationFactory by entry point, and this
+// is the only AppFixture<Program> in the project, so nothing can cross-wire onto its cached host.
+// Re-add it only if a second AppFixture<Program> is introduced (e.g. a real-SchemaRegistry
+// byte-fidelity fixture for Contracts/) — two subtypes sharing this entry point would otherwise
+// reuse the first-built host and its containers.
 public class IntegrationTestFixture : AppFixture<Program>
 {
     private readonly PostgreSqlTestContainer _dbContainer = new(
