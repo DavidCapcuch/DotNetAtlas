@@ -110,7 +110,7 @@ The rule was originally pinned per-BC with a NetArchTest fact asserting `Types.T
 
 ### Risks
 
-- **Owned-collection projection translation regressions.** Some EF Core projection shapes (`.Select(...).ToList()` on owned collections, conditional projection of nullable owned VOs) translate cleanly on EF Core 10 but might regress on a future major version. Mitigation: the per-handler integration characterisation tests in `*.IntegrationTests` exercise the SQL path end-to-end against a real Postgres container, so any translation regression fails at CI time, not in production. (Note: InMemory provider tests cannot verify these projections — see the deleted [pre-#277 unit test](../../test/Ordering.UnitTests/Application/Orders/GetOrderById) whose own docstring flagged this limitation.)
+- **Owned-collection projection translation regressions.** Some EF Core projection shapes (`.Select(...).ToList()` on owned collections, conditional projection of nullable owned VOs) translate cleanly on EF Core 10 but might regress on a future major version. Mitigation: the per-handler integration characterisation tests in `*.IntegrationTests` exercise the SQL path end-to-end against a real Postgres container, so any translation regression fails at CI time, not in production. (Note: InMemory provider tests cannot verify these projections — an integration test against real Postgres is the only place this path is exercised.)
 - **Drift between paged-list and single-detail projections of the same aggregate.** Where two handlers genuinely return the same response shape (Invoicing's three invoice queries), the projection is shared via an EF expression property (`InvoiceRow.Projection`); drift between consumers is mitigated by a comment in each handler pointing at the sibling and by integration tests pinning the wire shape. Ordering's `GetOrdersByBuyer` and `GetOrderById` deliberately return **different** shapes — a narrower `OrderSummaryDto` for the list endpoint vs the full `GetOrderByIdResponse` for the detail endpoint, per [use-cases.md § 3.4.1 / § 3.4.2](../bc-design/use-cases.md) — so this drift risk does not apply to that pair. The two Ordering projections are intentionally divergent, not duplication waiting to be refactored.
 
 ## Implementation Notes
@@ -137,7 +137,7 @@ This preserves the SQL-side-projection contract (no full-aggregate materialisati
 
 ### Out of scope for this ADR
 
-- Weather BC and the other non-`services/*` BCs (Catalog, Basket, Inventory, Payments, Notifications) per the #277 boundary statement. Weather has a single read-side spec usage but lives outside the `services/*` boundary and was excluded from this rollout. When Weather is migrated into the `services/*` tier, the arch-test fact will be added at that time.
+- Weather BC and the other BCs outside `services/*` at the time (Catalog, Basket, Inventory, Payments, Notifications) per the #277 boundary statement. Weather had a single read-side spec usage but lived outside the `services/*` boundary and was excluded from this rollout; it has since been removed with the reference service, so the exclusion is moot. The other five were outside the #277 boundary and untouched by this rollout, despite their present place under `services/*`.
 - Promoting the per-BC arch-test rule into a shared helper in `Platform.Test.Framework`. The four-line fact is below the threshold where indirection pays off; the per-BC duplication is intentional and reads cleanly in isolation.
 
 ## Related Decisions

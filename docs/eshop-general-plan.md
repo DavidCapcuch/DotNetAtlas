@@ -1,10 +1,12 @@
 # eShop Reference Solution — General Plan
 
+> **Status — as-planned.** The original planning document for the Weather→eShop conversion; its future-tense sections describe the plan *as written*, not pending work. The system has since been built — for current design and state see [eshop-master-design.md](eshop-master-design.md) and [diagrams/context-map.md](diagrams/context-map.md).
+
 ## Context
 
-DotNetAtlas is a .NET 10 microservices reference solution currently built around a Weather domain. The goal is to replace Weather with an **eShop reference solution** that showcases additional DDD/microservice patterns not yet covered: product catalog, shopping basket, inventory management (event sourced), checkout saga, BFF aggregation, and YARP reverse proxy.
+DotNetAtlas is a .NET 10 microservices reference solution. It was originally built around a Weather domain, since replaced by this **eShop reference solution**, which showcases additional DDD/microservice patterns: product catalog, shopping basket, inventory management (event sourced), checkout saga, BFF aggregation, and YARP reverse proxy.
 
-Existing services (Payments/Payments, Notifications) are cross-functional and will be **reused**. The Order service will be **evolved** into an eShop Ordering service. All existing platform libraries (Platform.CQRS, Platform.SharedKernel, Platform.ReliableMessaging, etc.) remain unchanged and are consumed by the new services.
+Existing services (Payments, Notifications) are cross-functional and were **reused** as-is. The former Weather-specific Order service was **deleted**; the eShop **Ordering** service is greenfield. All existing platform libraries (Platform.CQRS, Platform.SharedKernel, Platform.ReliableMessaging, etc.) remain unchanged and are consumed by the new services.
 
 ---
 
@@ -35,7 +37,7 @@ DotNetAtlas/
 │   │   └── Basket.Infrastructure/
 │   │
 │   ├── Ordering/                     # Order Lifecycle BC (new — greenfield; former services/Order/ deleted)
-│   │   ├── Ordering.Api/             # (rename from Ordering.Api)
+│   │   ├── Ordering.Api/
 │   │   ├── Ordering.Application/
 │   │   ├── Ordering.Domain/
 │   │   └── Ordering.Infrastructure/
