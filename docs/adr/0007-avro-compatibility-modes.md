@@ -8,7 +8,7 @@ Accepted (2026-04-18)
 
 The eShop reference solution uses Confluent Schema Registry to govern Avro schemas for all cross-service Kafka events and commands. Schema Registry supports seven compatibility modes: `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, `FULL_TRANSITIVE`. The default (`BACKWARD`) is rarely the right choice for a system where producers and consumers evolve on independent deployment cycles.
 
-The existing DotNetAtlas codebase (Weather / Payments / Order sagas) does not yet have an explicit compatibility mode documented. Schemas are registered at first publish with whatever the Schema Registry defaults to. For a reference solution that introduces 23 new schemas across 8 new topics — some carrying audit-critical events with infinite retention — we must make the policy explicit and record the decision.
+At the time, the DotNetAtlas codebase (Weather / Payments / Order sagas) had no explicit compatibility mode documented; schemas were registered at first publish with whatever the Schema Registry defaulted to. For a reference solution that introduces 23 new schemas across 8 new topics — some carrying audit-critical events with infinite retention — we must make the policy explicit and record the decision.
 
 Two structural differences across topics shape the choice:
 

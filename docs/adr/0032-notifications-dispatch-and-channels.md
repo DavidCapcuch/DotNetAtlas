@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-06-03) — builds on [ADR-0031](0031-notify-user-command-and-notification-id.md) (the `NotifyUserCommand` contract + `NotificationId` identity this ADR consumes). **Reverses** the in-app-bell transport decision of the Notifications v2 PRD ([#304](https://github.com/DavidCapcuch/DotNetAtlas/issues/304)): that PRD specified a *durable* bell (feed table + HTTP poll + unseen-count + mark-read + optional SSE replay, "SignalR is not used"); this ADR ships an **ephemeral SignalR live push with durability deferred**. Uses the Hangfire wiring and SignalR pattern currently shown in `src/Weather` (slated for deletion) as the template, giving both patterns a permanent home. Aligns with [ADR-0015](0015-time-timezone-policy.md) (TimeProvider/timezone) and [ADR-0025](0025-kafka-consumer-retry-dlt-policy.md) (retry/DLT).
+Accepted (2026-06-03) — builds on [ADR-0031](0031-notify-user-command-and-notification-id.md) (the `NotifyUserCommand` contract + `NotificationId` identity this ADR consumes). **Reverses** the in-app-bell transport decision of the Notifications v2 PRD ([#304](https://github.com/DavidCapcuch/DotNetAtlas/issues/304)): that PRD specified a *durable* bell (feed table + HTTP poll + unseen-count + mark-read + optional SSE replay, "SignalR is not used"); this ADR ships an **ephemeral SignalR live push with durability deferred**. Uses the Hangfire wiring and SignalR pattern from the former `src/Weather` reference service (since removed) as the template, giving both patterns a permanent home. Aligns with [ADR-0015](0015-time-timezone-policy.md) (TimeProvider/timezone) and [ADR-0025](0025-kafka-consumer-retry-dlt-policy.md) (retry/DLT).
 
 ## Context
 
@@ -14,7 +14,7 @@ The forces:
 - **Channels fail independently.** A flaky SMTP server must not stall or re-drive the bell or SMS.
 - **Split-time delivery.** One intent can need email *now* and SMS *later* (quiet hours): `order.shipped` to a user asleep in `Europe/Prague` should email immediately but defer SMS to `07:00` local.
 - **At-least-once must become at-most-once-*per-channel*.** Kafka redelivery + background-job retries must not spam a channel.
-- **Reference-minimal.** The repo already demonstrates Hangfire (`src/Weather`, `Inventory`) and SignalR (`src/Weather`); reuse, don't invent.
+- **Reference-minimal.** The repo already demonstrated Hangfire (`src/Weather` and `Inventory`) and SignalR (`src/Weather`); reuse, don't invent.
 
 This is a non-production reference solution; breaking changes are free (root `CLAUDE.md`).
 
@@ -23,7 +23,7 @@ This is a non-production reference solution; breaking changes are free (root `CL
 1. **Per-channel idempotency correctness** — redelivery and job retries must never double-send a durable channel beyond a rare, documented window.
 2. **Failure & latency isolation** — no channel can block the Kafka partition or another channel.
 3. **Split-time scheduling** — defer per channel (quiet hours) without sleeping on the consumer thread.
-4. **Reuse repo patterns** — Hangfire + SignalR as already wired in `src/Weather`.
+4. **Reuse repo patterns** — Hangfire + SignalR as wired in `src/Weather`.
 5. **Reference-minimal** — no machinery beyond what the above require.
 
 ## Considered Options
@@ -72,7 +72,7 @@ Adopt **Option 2**.
 
 ## Rationale
 
-Always-enqueue keeps the consumer's work cheap and bounded (resolve + enqueue + commit), so a slow SMTP server or a deferred SMS never blocks the partition (Drivers 2, 3), and `Schedule(delay)` expresses quiet-hours deferral without sleeping a consumer thread. The inbox already prevents duplicate *processing*; the per-channel ledger turns the residual at-least-once delivery into at-most-once-per-channel beyond a narrow, accepted send→record window (Driver 1) — and because external email/SMS sends cannot be transactional with a DB write, at-least-once is the honest ceiling, which a duplicate email/fake-SMS tolerates. The sweep (Opt 3) was tempting but the inbox-after-handler + independently-durable-enqueue combination already closes the loss window, so a sweeper would be ceremony. The bell is deliberately the odd one out: its value is *immediacy*, it has no retry value (an offline user is missed regardless), and giving it a ledger or a durable feed is exactly the scope ([#304](https://github.com/DavidCapcuch/DotNetAtlas/issues/304)) deferred — SignalR live push is the minimal honest shape, and it rehouses the SignalR pattern currently stuck in throwaway `src/Weather`.
+Always-enqueue keeps the consumer's work cheap and bounded (resolve + enqueue + commit), so a slow SMTP server or a deferred SMS never blocks the partition (Drivers 2, 3), and `Schedule(delay)` expresses quiet-hours deferral without sleeping a consumer thread. The inbox already prevents duplicate *processing*; the per-channel ledger turns the residual at-least-once delivery into at-most-once-per-channel beyond a narrow, accepted send→record window (Driver 1) — and because external email/SMS sends cannot be transactional with a DB write, at-least-once is the honest ceiling, which a duplicate email/fake-SMS tolerates. The sweep (Opt 3) was tempting but the inbox-after-handler + independently-durable-enqueue combination already closes the loss window, so a sweeper would be ceremony. The bell is deliberately the odd one out: its value is *immediacy*, it has no retry value (an offline user is missed regardless), and giving it a ledger or a durable feed is exactly the scope ([#304](https://github.com/DavidCapcuch/DotNetAtlas/issues/304)) deferred — SignalR live push is the minimal honest shape, and it rehouses the SignalR pattern formerly stuck in throwaway `src/Weather`.
 
 ## Consequences
 
@@ -81,7 +81,7 @@ Always-enqueue keeps the consumer's work cheap and bounded (resolve + enqueue + 
 - Channels are isolated: independent retry, independent latency, no partition blocking.
 - Quiet-hours deferral is a first-class `Schedule(executeAt)`, demoable via the seeded `Europe/Prague` user.
 - Idempotency is provable and minimal (inbox + ledger; no sweep, no transactional-enqueue requirement).
-- Reuses Weather's Hangfire + SignalR wiring; gives both a permanent, production-grade home.
+- Rehouses Weather's Hangfire + SignalR wiring; gives both a permanent, production-grade home.
 
 ### Negative
 
@@ -97,9 +97,9 @@ Always-enqueue keeps the consumer's work cheap and bounded (resolve + enqueue + 
 
 ## Implementation Notes
 
-- **Hangfire:** wire per `src/Weather` (`AddHangfire` + `Hangfire.PostgreSql` on the `notifications` connection string, `AddHangfireServer`, `IRecurringJobManager`/`IBackgroundJobClientV2`). Dispatchers in Keyed DI by `ChannelType`. Per-message jobs (not recurring); the only recurring job, if any, is a future ledger sweep (not built).
+- **Hangfire:** wired per `src/Weather` (`AddHangfire` + `Hangfire.PostgreSql` on the `notifications` connection string, `AddHangfireServer`, `IRecurringJobManager`/`IBackgroundJobClientV2`). Dispatchers in Keyed DI by `ChannelType`. Per-message jobs (not recurring); the only recurring job, if any, is a future ledger sweep (not built).
 - **Ledger:** `notifications` table keyed `(NotificationId, Channel)` (unique), `Status`, timestamps; written by durable-channel jobs. Bell writes nothing.
-- **SignalR:** `INotificationBroadcaster` in Application, hub `/hubs/v1/notifications` in Api (versioned per the Weather `BasePaths` convention; Keycloak JWT; group = `RecipientUserId` via `Context.UserIdentifier`, joined in `OnConnectedAsync` / left in `OnDisconnectedAsync` — no client subscribe RPC, unlike Weather's per-location model). In-memory backplane only (omit Weather's mandatory `AddStackExchangeRedis`; Redis backplane is the multi-instance seam). `Notifications.IntegrationTests` ports Weather's `SignalRClientFactory` + hub test client (the Weather one is bound to `WeatherAlertHub` — re-implement, not reference).
+- **SignalR:** `INotificationBroadcaster` in Application, hub `/hubs/v1/notifications` in Api (versioned per Weather's `BasePaths` convention; Keycloak JWT; group = `RecipientUserId` via `Context.UserIdentifier`, joined in `OnConnectedAsync` / left in `OnDisconnectedAsync` — no client subscribe RPC, unlike Weather's per-location model). In-memory backplane only (Weather's mandatory `AddStackExchangeRedis` omitted; Redis backplane is the multi-instance seam). `Notifications.IntegrationTests` ported Weather's `SignalRClientFactory` + hub test client (the Weather one was bound to `WeatherAlertHub` — re-implemented, not referenced).
 - **Email:** `MailKit` (new package, `services/Directory.Packages.props`); `mailpit` compose service (`core` profile, SMTP 1025 / UI 8025); integration tests via Testcontainers `axllent/mailpit` asserting on Mailpit's REST API.
 - **Quiet hours:** pure `QuietHoursCalculator` (`TimeProvider` + `TimeZoneInfo`, no NodaTime per ADR-0015); `TimeOnly`/Postgres `time` for the civil-time window.
 - **Tests:** unit (`QuietHoursCalculator`, `ChannelType`, resolution rule, `TemplateRenderer`); integration (fan-out + ledger idempotency, quiet-hours deferral, Mailpit assertion, SignalR bell, Invoicing `issued→delivered` round-trip); arch (standard layering + ADR-0015 guards).
