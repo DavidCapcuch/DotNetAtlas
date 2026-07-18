@@ -8,7 +8,7 @@ Solution: `DotNetAtlas.slnx`. Four source trees plus tests:
 
 - **`services/<BC>/`** — 7 bounded contexts (Basket, Catalog, Inventory, Invoicing, Notifications, Ordering, Payments); each is 4-layer `.Domain` / `.Application` / `.Infrastructure` / `.Api`.
 - **`platform/`** — shared libraries (SharedKernel, ServiceDefaults, CQRS, reliable-messaging Inbox/Outbox, KafkaFlow extensions, `SchemaRegistry.Contracts`, Test.Framework).
-- **`src/`** — `DotNetAtlas.*` reference service (4-layer) and `EShop.BFF/` (`.Api` / `.Infrastructure`); also infra config dirs (keycloak, postgres, grafana, prometheus, otel-collector, nginx-cdn).
+- **`src/`** — `EShop.BFF/` (`.Api` / `.Infrastructure`); also infra config dirs (keycloak, postgres, grafana, prometheus, otel-collector, nginx-cdn).
 - **`saga/`** — `SagaOrchestrators` (centralized checkout saga).
 - **`test/`** — one trio per unit: `{Unit}.UnitTests` / `.IntegrationTests` / `.ArchitectureTests` (saga keeps its `SagaOrchestrators.UnitTests` / `.IntegrationTests` pair).
 

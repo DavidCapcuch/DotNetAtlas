@@ -178,7 +178,7 @@ We will use **Option 1** (Spirit interpretation):
 - **Consumer:** `PaymentRequestedConsumer.cs` renamed to [`RequestPaymentCommandConsumer.cs`](../../saga/SagaOrchestrators/Payments/PaymentProcessingSaga/Consumers/RequestPaymentCommandConsumer.cs); still maps to internal `PaymentInitiatedSagaEvent` (semantic name preserved — the imperative-to-declarative boundary is intentional).
 - **DI wiring:** [`PaymentProcessingSagaDependencyInjection.cs`](../../saga/SagaOrchestrators/Common/SagasDependencyInjection/PaymentProcessingSagaDependencyInjection.cs) — new `TopicEndpoint` block subscribing PaymentProcessingSaga to `payments.payment-commands` (consumer group `saga-payment-processing` shared with the existing `payments.transactions` subscription).
 - **Tests:** saga unit + integration tests + Payments integration tests updated in lockstep. Topic targets for the renamed command swapped to `PaymentsPaymentCommands`.
-- **Weather dev scaffolding:** `PublishPaymentRequestedEvent` folder + endpoints renamed to `PublishRequestPaymentCommand`; producer method renamed and points to `_paymentCommandsTopic`. (Reference scaffolding only; per [`CLAUDE.md`](../../CLAUDE.md) Weather is not production code.)
+- **Weather dev scaffolding:** `PublishPaymentRequestedEvent` folder + endpoints renamed to `PublishRequestPaymentCommand`; producer method renamed and pointed to `_paymentCommandsTopic`. (Reference scaffolding only, in the since-removed Weather reference service.)
 
 ### Bundled doc corrections (same PR)
 

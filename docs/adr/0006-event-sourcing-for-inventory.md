@@ -12,8 +12,8 @@ The eShop reference solution (v1) showcases multiple persistence and architectur
 - **Basket** — Redis-backed aggregate with an SQL fallback
 - **Ordering** — rich status FSM on a traditional OLTP aggregate
 - **Inventory** — **Event Sourcing** with projections (this ADR)
-- **Payments** — traditional OLTP (existing from Weather, reused)
-- **Notifications** — event-driven consumer (existing from Weather, reused)
+- **Payments** — traditional OLTP (carried over from the former Weather reference service, reused)
+- **Notifications** — event-driven consumer (carried over from the former Weather reference service, reused)
 
 Per `docs/eshop-general-plan.md` § "New Patterns Showcased (vs Weather)", Inventory is the **single Event-Sourced example** in the entire solution. Every other BC uses traditional ORM-backed aggregates with the platform outbox pattern. This is deliberate — the reference solution illustrates that ES is a specialized tool, not a default.
 
@@ -32,7 +32,7 @@ But because this is a *reference* solution, it must ALSO teach readers *when NOT
 - Catalog (CQRS read projections over OLTP is sufficient; product data is read-dominated)
 - Basket (ephemeral session state; ES adds no value over Redis)
 - Ordering (a rich status FSM on OLTP gives the same auditability without replay tooling)
-- Payments (existing OLTP from Weather, reused without modification)
+- Payments (pre-existing OLTP from the former Weather reference service, reused without modification)
 - Notifications (pure downstream consumer with no domain state)
 
 If a future bounded context in this solution requests ES, it must justify the fit against the drivers and anti-indications below and file its own ADR — ES should never be adopted by inertia.

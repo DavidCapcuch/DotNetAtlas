@@ -8,7 +8,7 @@ Accepted (2026-06-10)
 
 [#316](https://github.com/DavidCapcuch/DotNetAtlas/issues/316) gave Notifications its first browser-facing surface — the in-app bell SignalR hub at `/hubs/v1/notifications` ([ADR-0032](0032-notifications-dispatch-and-channels.md)) — and shipped it **without** a CORS policy. That forced a question the repo had never decided explicitly: **who owns CORS?**
 
-The four existing browser-facing BCs (Basket, Catalog, Inventory, Weather) each carry their own `Cors` config + `UseCors(...)` with explicit pinned origins and `AllowCredentials` (the SPA origin `https://app.example.com` in the eShop BCs; localhost dev origins in Weather) — a per-BC convention that grew while the planned **YARP edge** ([eshop-general-plan.md](../eshop-general-plan.md): SSL termination, path routing, rate limiting; not yet built) remained on the roadmap. SignalR sharpens the fork: its negotiate request is CORS-subject, a credentialed SignalR client requires `WithOrigins(...) + AllowCredentials()` (wildcard is rejected), and WebSockets raise the question of whether the hub must bypass the edge.
+The four then-existing browser-facing BCs (Basket, Catalog, Inventory, Weather) each carried their own `Cors` config + `UseCors(...)` with explicit pinned origins and `AllowCredentials` (the SPA origin `https://app.example.com` in the eShop BCs; localhost dev origins in Weather) — a per-BC convention that grew while the planned **YARP edge** ([eshop-general-plan.md](../eshop-general-plan.md): SSL termination, path routing, rate limiting; not yet built) remained on the roadmap. SignalR sharpens the fork: its negotiate request is CORS-subject, a credentialed SignalR client requires `WithOrigins(...) + AllowCredentials()` (wildcard is rejected), and WebSockets raise the question of whether the hub must bypass the edge.
 
 ## Decision Drivers (ranked)
 
@@ -57,7 +57,7 @@ Drivers 1–3 all point at the edge, and driver 4's cost is zero in practice —
 ### Positive
 
 - One place to maintain allowed origins; adding a browser surface to a BC requires no CORS work.
-- The four existing per-BC `Cors` configs and their wiring (Basket, Catalog, Inventory, Weather) simplify away when YARP lands.
+- The remaining per-BC `Cors` configs and their wiring (Basket, Catalog, Inventory — Weather's already gone with the reference service) simplify away when YARP lands.
 
 ### Negative
 
@@ -70,7 +70,7 @@ Drivers 1–3 all point at the edge, and driver 4's cost is zero in practice —
 ## Implementation Notes
 
 - **SignalR through YARP:** session affinity is required once Notifications runs multi-replica (negotiate + upgrade must land on the same instance) — or WebSockets-only with skip-negotiation; pairs with the [ADR-0016](0016-redis-topology.md) Redis backplane, deferred together. SignalR's 15 s keepalives traverse YARP's streamed proxying without idle-timeout tuning.
-- **Transitional inventory (remove in the YARP slice):** the `Cors` appsettings sections in all four BCs; `CorsDependencyInjection` + `*CorsOptions` in `services/Basket`, `services/Catalog`, `services/Inventory`; `ApiDependencyInjection.AddCorsInternal` + `CorsPolicyOptions` in `src/Weather` (slated for deletion anyway); and the CORS test artifacts (`test/Basket.UnitTests/Api/Common/CorsDependencyInjectionTests.cs` plus the CORS comment reference in `test/Basket.ArchitectureTests/BaseTest.cs`).
+- **Transitional inventory (remove in the YARP slice):** the `Cors` appsettings sections in Basket, Catalog, and Inventory; `CorsDependencyInjection` + `*CorsOptions` in `services/Basket`, `services/Catalog`, `services/Inventory`; and the CORS test artifacts (`test/Basket.UnitTests/Api/Common/CorsDependencyInjectionTests.cs` plus the CORS comment reference in `test/Basket.ArchitectureTests/BaseTest.cs`).
 
 ## Related Decisions
 

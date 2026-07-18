@@ -58,7 +58,7 @@ The producer assigns an opaque `NotificationId` (GUID) — the identity of the n
 
 Adopt **Option 4**. Concretely:
 
-1. **Supersede `SendEmailNotificationCommand`** with channel-agnostic **`NotifyUserCommand`** on **`notifications.notify-commands`** (partition key `RecipientUserId`). Notifications + Invoicing migrate off the v1 command; the v1 `.avsc` + `notifications.email-*` topics stay **orphaned** (still referenced only by the to-be-deleted `src/Weather`) and are physically removed with Weather in the final cleanup issue (#318) — **not** deleted by the v2 build itself:
+1. **Supersede `SendEmailNotificationCommand`** with channel-agnostic **`NotifyUserCommand`** on **`notifications.notify-commands`** (partition key `RecipientUserId`). Notifications + Invoicing migrate off the v1 command; the v1 `.avsc` + `notifications.email-*` topics stayed **orphaned** (at the time still referenced only by `src/Weather`) and were physically removed with the Weather reference service in the final cleanup issue (#318) — **not** deleted by the v2 build itself:
 
    ```
    NotifyUserCommand
@@ -103,7 +103,7 @@ Adopt **Option 4**. Concretely:
 
 ## Implementation Notes
 
-- **Contract (additive — v1 stays orphaned for Weather, deleted in #318):** new `NotifyUserCommand.avsc` (FULL_TRANSITIVE per [ADR-0007](0007-avro-compatibility-modes.md)) + new `NotificationDeliveryStatusChangedEvent.avsc` (FORWARD_TRANSITIVE), both in namespace `Notifications`; regenerated bindings via `generate-avro.ps1` (commit `.avsc` + `.cs` together; `git checkout --` the EOL-only sibling churn). **Add** topics `notifications.notify-commands` / `notifications.notify-events` (+ their `.Notifications.DLT` / `.Invoicing.DLT`) in `docker-compose.yaml`. The v1 `SendEmailNotificationCommand.avsc` / `EmailNotificationSentEvent.avsc` + the `notifications.email-*` topics + DLTs are left in place (orphaned; Weather still builds the command type) and removed with Weather in #318 — **not** renamed/retired here.
+- **Contract (additive — v1 stayed orphaned for Weather, deleted in #318):** new `NotifyUserCommand.avsc` (FULL_TRANSITIVE per [ADR-0007](0007-avro-compatibility-modes.md)) + new `NotificationDeliveryStatusChangedEvent.avsc` (FORWARD_TRANSITIVE), both in namespace `Notifications`; regenerated bindings via `generate-avro.ps1` (commit `.avsc` + `.cs` together; `git checkout --` the EOL-only sibling churn). **Add** topics `notifications.notify-commands` / `notifications.notify-events` (+ their `.Notifications.DLT` / `.Invoicing.DLT`) in `docker-compose.yaml`. The v1 `SendEmailNotificationCommand.avsc` / `EmailNotificationSentEvent.avsc` + the `notifications.email-*` topics + DLTs were left in place (orphaned; Weather still built the command type) and removed with the Weather reference service in #318 — **not** renamed/retired here.
 - **Inbox:** unchanged — keeps deduping on `message.id`. Whitelist `NotifyUserCommand` via `.AddInbox(typeof(NotifyUserCommand))`.
 - **Per-channel ledger:** a `notifications` table keyed `(NotificationId, Channel)` recording `Status`; mechanics (write order vs the external send) are decided in the dispatch ADR.
 - **Invoicing producer:** assign `NotificationId` (GUID v7) when emitting `NotifyUserCommand`; persist it on the invoice. **Invoicing consumer:** correlate on `NotificationId`; delete `TryParseInvoiceIdFromIdempotencyKey`.

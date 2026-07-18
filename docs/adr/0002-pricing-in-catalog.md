@@ -29,7 +29,7 @@ For v1 of the reference solution, we must decide whether to introduce a Pricing 
 
 ## Decision Drivers (ranked)
 
-1. **Minimize BC count in v1** — the reference solution already introduces 4 new BCs plus a new Checkout saga on top of the existing Weather/Alerts/Order/Payments estate. Adding Pricing nearly doubles the cross-BC coordination surface without teaching a fundamentally new DDD or integration pattern that is not already demonstrated elsewhere in the solution.
+1. **Minimize BC count in v1** — the reference solution already introduces 4 new BCs plus a new Checkout saga on top of the then-existing Weather/Alerts/Order/Payments estate. Adding Pricing nearly doubles the cross-BC coordination surface without teaching a fundamentally new DDD or integration pattern that is not already demonstrated elsewhere in the solution.
 2. **Avoid teaching the wrong pattern** — learners must see *when* Pricing is a genuine BC and when it is not. A premature split in a simple, flat-priced catalog obscures the decision criteria and risks being cargo-culted into future projects where it is equally unjustified.
 3. **Keep critical paths short** — every `AddItemToBasketCommand` and every `Order.CreateFromBasket` is a price touchpoint. An additional synchronous hop to a Pricing service (or an eventually-consistent price book) adds latency, new failure modes, and a snapshot-drift window between Pricing's view and Catalog's view of the same product.
 4. **Keep the option to split later** — Catalog's price is already encapsulated in a `Money` VO and surfaced to the outside world via `ProductPriceChangedEvent` (Avro, topic `catalog.products`). Extracting Pricing later is a targeted refactor behind a stable contract, not a rewrite.
