@@ -1,14 +1,14 @@
 using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using Catalog.Products;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.Core;
 using Platform.Test.Framework.Assertions;
 
-namespace Catalog.FunctionalTests.EndToEnd;
+namespace Catalog.IntegrationTests.Contracts;
 
 /// <summary>
 /// Verifies the domain-event handler chain routes an outbox row to the right Avro contract
@@ -25,10 +25,10 @@ namespace Catalog.FunctionalTests.EndToEnd;
 /// forbids platform-code edits except <c>.avsc</c>). Until that lands, the
 /// integration-test slice owns Avro serialisation correctness.
 /// </remarks>
-[Collection<FunctionalTestCollection>]
-public class OutboxPublisherRoutingTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class OutboxPublisherRoutingTests : BaseIntegrationTest
 {
-    public OutboxPublisherRoutingTests(ApiTestFixture app)
+    public OutboxPublisherRoutingTests(IntegrationTestFixture app)
         : base(app)
     {
     }

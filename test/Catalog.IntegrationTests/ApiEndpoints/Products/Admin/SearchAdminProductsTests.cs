@@ -4,23 +4,23 @@ using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.DiscontinueProduct;
 using Catalog.Application.Products.SearchProducts;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Products.Admin;
+namespace Catalog.IntegrationTests.ApiEndpoints.Products.Admin;
 
 /// <summary>
-/// Functional coverage for the admin search endpoint added in #172. Asserts:
+/// Integration coverage for the admin search endpoint added in #172. Asserts:
 ///   - admins can see Discontinued products without the show-discontinued feature flag,
 ///   - read-only callers cannot reach the endpoint (403),
 ///   - unauthenticated callers get 401.
 /// </summary>
-[Collection<FunctionalTestCollection>]
-public class SearchAdminProductsTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class SearchAdminProductsTests : BaseIntegrationTest
 {
     private const string AdminUrl = "/api/v1/catalog/admin/products";
 
-    public SearchAdminProductsTests(ApiTestFixture app)
+    public SearchAdminProductsTests(IntegrationTestFixture app)
         : base(app)
     {
     }

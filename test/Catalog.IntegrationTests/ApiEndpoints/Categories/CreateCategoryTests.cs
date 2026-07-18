@@ -1,16 +1,16 @@
 using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.Core;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Categories;
+namespace Catalog.IntegrationTests.ApiEndpoints.Categories;
 
-[Collection<FunctionalTestCollection>]
-public class CreateCategoryTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class CreateCategoryTests : BaseIntegrationTest
 {
-    public CreateCategoryTests(ApiTestFixture app)
+    public CreateCategoryTests(IntegrationTestFixture app)
         : base(app)
     {
     }
