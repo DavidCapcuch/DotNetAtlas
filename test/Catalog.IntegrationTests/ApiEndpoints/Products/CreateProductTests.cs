@@ -1,17 +1,19 @@
 using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
-using Catalog.FunctionalTests.Common;
+using Catalog.Domain.Products.ValueObjects;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.Core;
+using Platform.Test.Framework.Assertions;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Products;
+namespace Catalog.IntegrationTests.ApiEndpoints.Products;
 
-[Collection<FunctionalTestCollection>]
-public class CreateProductTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class CreateProductTests : BaseIntegrationTest
 {
-    public CreateProductTests(ApiTestFixture app)
+    public CreateProductTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -19,27 +21,52 @@ public class CreateProductTests : BaseApiTest
     [Fact]
     public async Task WhenValidRequest_Returns201_AndOutboxRow_AndProjectionRow()
     {
+        var ct = TestContext.Current.CancellationToken;
         var categoryId = await SeedCategoryAsync();
         var request = CatalogTestData.ValidCreateProductRequest(categoryId);
 
         var (response, body) = await HttpClientRegistry.WriteClient
             .POSTAsync<CreateProductEndpoint, CreateProductRequest, CreateProductResponse>(request);
 
+        // Folded from CreateProductPipelineIntegrationTests (catalog.md § 9): a single SaveChangesAsync
+        // commits the write-model aggregate, the product_search_view projection, AND the outbox row
+        // atomically. Assert all three through the HTTP entrance so the EF mappings round-trip
+        // end-to-end (OwnsOne VOs, owned image collection, Money + currency converter).
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.Created);
             body.ProductId.Should().NotBeEmpty();
 
-            // The DispatchDomainEventsInterceptor fires both the projection handler AND the
-            // outbox publisher in the same SaveChangesAsync — assert both wrote rows.
-            var projectionRowExists = await DbContext.ProductSearchView
-                .AnyAsync(r => r.ProductId == body.ProductId, TestContext.Current.CancellationToken);
-            projectionRowExists.Should().BeTrue("projection handler runs in the same UoW as the write");
+            // Write-model — every OwnsOne VO round-trips through Postgres.
+            var product = await DbContext.Products.AsNoTracking()
+                .FirstAsync(p => p.Id == body.ProductId, ct);
+            product.Sku.Value.Should().Be(request.Sku);
+            product.Name.Value.Should().Be(request.Name);
+            product.Description.Value.Should().Be(request.Description);
+            product.Brand.Value.Should().Be(request.Brand);
+            product.Price.Amount.Should().Be(request.Price.Amount);
+            product.Price.Currency.Name.Should().Be(request.Price.Currency);
+            product.Status.Should().Be(ProductStatus.Active);
+            product.Dimensions.Should().NotBeNull();
+            product.Images.Should().HaveCount(1);
 
+            // Projection — populated by the in-process domain-event handler in the same UoW as the write.
+            var projection = await DbContext.ProductSearchView.AsNoTracking()
+                .FirstAsync(r => r.ProductId == body.ProductId, ct);
+            projection.Sku.Should().Be(request.Sku);
+            projection.CategoryId.Should().Be(categoryId);
+            projection.PriceAmount.Should().Be(request.Price.Amount);
+            projection.PriceCurrency.Should().Be(request.Price.Currency);
+            projection.Status.Should().Be(ProductStatus.Active.Name);
+            projection.IsSellable.Should().BeTrue("post-#177 products are Active on create and therefore sellable");
+
+            // Outbox — exactly one row, on the products topic, carrying the Avro CLR type name.
             var outboxRows = await DbContext.Set<OutboxMessage>()
                 .Where(m => m.KafkaKey == body.ProductId.ToString())
-                .CountAsync(TestContext.Current.CancellationToken);
-            outboxRows.Should().BeGreaterThanOrEqualTo(1, "ProductCreatedEvent must hit the outbox");
+                .ToListAsync(ct);
+            outboxRows.Should().ContainSingle()
+                .Which.TopicName.Should().Be("catalog.products");
+            outboxRows[0].Type.Should().BeMessageType<Catalog.Products.ProductCreatedEvent>();
         }
     }
 

@@ -3,15 +3,15 @@ using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.GetProductsByIds;
 using Catalog.Application.Products.GetProductsByIds;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Products;
+namespace Catalog.IntegrationTests.ApiEndpoints.Products;
 
-[Collection<FunctionalTestCollection>]
-public class GetProductsByIdsTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class GetProductsByIdsTests : BaseIntegrationTest
 {
-    public GetProductsByIdsTests(ApiTestFixture app)
+    public GetProductsByIdsTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -36,6 +36,26 @@ public class GetProductsByIdsTests : BaseApiTest
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             body.Products.Should().ContainSingle(p => p.ProductId == foundProduct.ProductId);
             body.MissingProductIds.Should().ContainSingle().Which.Should().Be(missingId);
+        }
+    }
+
+    [Fact]
+    public async Task WhenAllIdsUnknown_ReturnsEmptyProductsAndAllMissing()
+    {
+        // Folded from GetProductsByIdsQueryHandlerTests: a distinct branch from the mixed case above —
+        // every requested id is absent, so Products is empty and every id surfaces as missing.
+        var a = Guid.CreateVersion7();
+        var b = Guid.CreateVersion7();
+
+        var (response, body) = await HttpClientRegistry.ReadClient
+            .GETAsync<GetProductsByIdsEndpoint, GetProductsByIdsRequest, GetProductsByIdsResponse>(
+                new GetProductsByIdsRequest { Ids = [a, b] });
+
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            body.Products.Should().BeEmpty();
+            body.MissingProductIds.Should().BeEquivalentTo([a, b]);
         }
     }
 

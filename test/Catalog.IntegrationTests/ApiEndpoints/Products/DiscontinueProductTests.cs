@@ -2,17 +2,18 @@ using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.DiscontinueProduct;
-using Catalog.FunctionalTests.Common;
+using Catalog.Domain.Products.ValueObjects;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.Core;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Products;
+namespace Catalog.IntegrationTests.ApiEndpoints.Products;
 
-[Collection<FunctionalTestCollection>]
-public class DiscontinueProductTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class DiscontinueProductTests : BaseIntegrationTest
 {
-    public DiscontinueProductTests(ApiTestFixture app)
+    public DiscontinueProductTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -40,6 +41,15 @@ public class DiscontinueProductTests : BaseApiTest
                 .Select(r => r.Status)
                 .SingleAsync(TestContext.Current.CancellationToken);
             status.Should().Be("Discontinued");
+
+            // Folded from DiscontinueProductIntegrationTests: assert the WRITE-model aggregate
+            // transitioned (the status check above reads the projection). The tight handler↔interceptor
+            // clock threading for LastModifiedUtc is owned by the unit tier
+            // (DiscontinueProductClockSourceTests, FakeTimeProvider) per ADR-0015 — a wall-clock
+            // BeCloseTo here can't distinguish a re-stamp from the create-time stamp.
+            var persisted = await DbContext.Products.AsNoTracking()
+                .FirstAsync(p => p.Id == productId, TestContext.Current.CancellationToken);
+            persisted.Status.Should().Be(ProductStatus.Discontinued);
 
             var discontinuedRows = await DbContext.Set<OutboxMessage>()
                 .Where(m => m.KafkaKey == productId.ToString()

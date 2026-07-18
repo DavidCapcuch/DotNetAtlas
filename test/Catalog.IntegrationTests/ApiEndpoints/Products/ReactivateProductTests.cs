@@ -3,16 +3,16 @@ using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.DiscontinueProduct;
 using Catalog.Api.Endpoints.Products.ReactivateProduct;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Products;
+namespace Catalog.IntegrationTests.ApiEndpoints.Products;
 
-[Collection<FunctionalTestCollection>]
-public class ReactivateProductTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class ReactivateProductTests : BaseIntegrationTest
 {
-    public ReactivateProductTests(ApiTestFixture app)
+    public ReactivateProductTests(IntegrationTestFixture app)
         : base(app)
     {
     }

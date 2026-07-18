@@ -2,20 +2,20 @@ using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Categories.GetCategoryTree;
 using Catalog.Application.Categories.GetCategoryTree;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 
-namespace Catalog.FunctionalTests.CrossCutting;
+namespace Catalog.IntegrationTests.CrossCutting;
 
 /// <summary>
 /// Verifies the ADR-0010 scope policy pair (<c>catalog.read</c> / <c>catalog.write</c>) is
 /// honoured. Read endpoints accept either scope; write endpoints reject the read-only token.
 /// </summary>
-[Collection<FunctionalTestCollection>]
+[Collection<IntegrationTestCollection>]
 [Trait("Category", "security")]
-public class JwtScopeAuthorizationTests : BaseApiTest
+public class JwtScopeAuthorizationTests : BaseIntegrationTest
 {
-    public JwtScopeAuthorizationTests(ApiTestFixture app)
+    public JwtScopeAuthorizationTests(IntegrationTestFixture app)
         : base(app)
     {
     }

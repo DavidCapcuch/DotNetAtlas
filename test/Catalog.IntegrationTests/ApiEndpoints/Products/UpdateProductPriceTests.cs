@@ -3,17 +3,17 @@ using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.UpdateProductPrice;
 using Catalog.Application.Products.CreateProduct;
-using Catalog.FunctionalTests.Common;
+using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Platform.ReliableMessaging.Outbox.Core;
 
-namespace Catalog.FunctionalTests.ApiEndpoints.Products;
+namespace Catalog.IntegrationTests.ApiEndpoints.Products;
 
-[Collection<FunctionalTestCollection>]
-public class UpdateProductPriceTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class UpdateProductPriceTests : BaseIntegrationTest
 {
-    public UpdateProductPriceTests(ApiTestFixture app)
+    public UpdateProductPriceTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -21,7 +21,7 @@ public class UpdateProductPriceTests : BaseApiTest
     [Fact]
     public async Task WhenValidRequest_Returns204_AndProjectionPriceUpdated_AndOutboxRow()
     {
-        var (categoryId, productId) = await SeedCategoryAndProductAsync(originalAmount: 19.99m);
+        var (_, productId) = await SeedCategoryAndProductAsync(originalAmount: 19.99m);
 
         var request = new UpdateProductPriceRequest
         {
@@ -48,8 +48,6 @@ public class UpdateProductPriceTests : BaseApiTest
                 .CountAsync(TestContext.Current.CancellationToken);
             priceChangedRows.Should().Be(1);
         }
-
-        _ = categoryId;
     }
 
     [Fact]
