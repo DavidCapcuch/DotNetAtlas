@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Contracts;
 using Platform.CQRS;
 
 namespace Catalog.Application.Products.SearchProducts;

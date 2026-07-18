@@ -1,6 +1,6 @@
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 
 namespace Catalog.IntegrationTests.Common;
 

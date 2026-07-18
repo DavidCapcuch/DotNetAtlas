@@ -1,8 +1,8 @@
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Api.Endpoints.Products.CreateProduct;
 
-/// <summary>HTTP body for <see cref="CreateProductEndpoint"/>; mirrors <see cref="CreateProductCommand"/>.</summary>
+/// <summary>HTTP body for <see cref="CreateProductEndpoint"/>; mirrors <see cref="Catalog.Application.Products.CreateProduct.CreateProductCommand"/>.</summary>
 public sealed class CreateProductRequest
 {
     public required string Sku { get; set; }

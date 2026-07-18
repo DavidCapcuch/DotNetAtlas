@@ -1,4 +1,4 @@
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.UpdateProductPrice;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;

@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.FeatureFlags;
 using Catalog.Application.Common.ReadModels;

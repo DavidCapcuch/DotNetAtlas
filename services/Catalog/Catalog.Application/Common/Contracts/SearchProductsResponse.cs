@@ -1,7 +1,10 @@
-using Catalog.Application.Products.CreateProduct;
+namespace Catalog.Application.Common.Contracts;
 
-namespace Catalog.Application.Products.SearchProducts;
-
+/// <summary>
+/// Paginated product-search page returned by the <c>SearchProducts</c> slice and reused verbatim by
+/// <c>GetProductsByCategory</c> (which projects the same view). Lives in <c>Common.Contracts</c> so
+/// neither slice owns a type the other depends on.
+/// </summary>
 public sealed class SearchProductsResponse
 {
     public required int Total { get; set; }

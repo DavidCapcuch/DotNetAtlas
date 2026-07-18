@@ -2,7 +2,7 @@ using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.UpdateProductPrice;
-using Catalog.Application.Products.CreateProduct;
+using Catalog.Application.Common.Contracts;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;

@@ -1,5 +1,6 @@
 using System.Net;
 using Catalog.Api.Common.Authorization;
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.SearchProducts;
 using FastEndpoints;
 using Platform.Api.Extensions;

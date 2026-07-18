@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.CreateProduct;
 using Catalog.Domain.Products;
 using Catalog.Domain.Products.Events;
