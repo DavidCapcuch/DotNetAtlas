@@ -37,7 +37,7 @@ namespace Payments.Infrastructure.ExternalServices.PaymentGateway;
 /// registered as a singleton — see
 /// <see cref="PaymentGatewayDependencyInjection.AddPaymentGateway"/>. The stub uses the time
 /// provider to set <see cref="AuthorizeResponse.ExpiresAtUtc"/> as <c>now + 7 days</c>; a real
-/// PSP adapter (v2) reads the actual expiry off the gateway response (H-6).
+/// PSP adapter (v2) reads the actual expiry off the gateway response.
 /// </para>
 /// </remarks>
 internal sealed class StubPaymentGateway : IPaymentGateway

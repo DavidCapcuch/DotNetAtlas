@@ -31,7 +31,7 @@ public sealed record PaymentAuthorizedDomainEvent : DomainEvent
     /// response (carried through <c>AuthorizeResponse.ExpiresAtUtc</c>); v1 stub returns
     /// <c>AuthorizedAtUtc + 7 days</c>. Surfaced on the wire <c>PaymentAuthorizedEvent</c> so
     /// downstream consumers (capture-deadline alerting) see a truthful value rather than a
-    /// synthesized placeholder (H-6).
+    /// synthesized placeholder.
     /// </summary>
     public required DateTimeOffset ExpiresAtUtc { get; init; }
 }
