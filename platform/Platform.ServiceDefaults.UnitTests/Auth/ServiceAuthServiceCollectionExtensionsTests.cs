@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Options;
 using Platform.ServiceDefaults.Auth;
 
@@ -64,6 +66,9 @@ public class ServiceAuthServiceCollectionExtensionsTests
         services.AddSingleton<IConfiguration>(config);
         services.AddLogging();
         services.AddSingleton(TimeProvider.System);
+        // AddServiceAuth's deployed-Authority guard resolves IHostEnvironment when ServiceAuthOptions
+        // materializes; Development keeps the guard a no-op so these registration assertions stand.
+        services.AddSingleton<IHostEnvironment>(new HostingEnvironment { EnvironmentName = "Development" });
         return services;
     }
 }

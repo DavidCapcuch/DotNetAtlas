@@ -332,3 +332,21 @@ token was not end-to-end proof.
   token's audience.) The BFF therefore fronts the full basket surface — read, item mutations, and
   checkout — see [bff.md § 2.5 / § 3.6 / § 4.2](../bc-design/bff.md).
 - BFF endpoint spec: [bff.md § 2.3 / § 3.5](../bc-design/bff.md).
+
+## Amendment 2026-07-19 — Deployed-environment HTTPS guard on the outbound Authority
+
+`ServiceAuthOptions.Authority` feeds the Keycloak token endpoint that receives this service's
+client-credentials `client_secret` and its RFC 8693 exchanged user tokens. A plaintext `http://`
+Authority in a deployed host POSTs those secrets in the clear — the outbound mirror of the inbound
+`RequireHttpsMetadata` MITM surface.
+
+`AddServiceAuth` therefore fails closed: in a deployed environment
+(`IHostEnvironment.IsDeployedEnvironment()`) a non-`https://` `Authority` fails options validation on
+the existing `ValidateOnStart` chain, so the host **refuses to boot**. No-op in Development / Testing
+(local http Keycloak). The guard lives once in the platform `AddServiceAuth`, covering both the
+`ClientCredentialsTokenHandler` and `TokenExchangeHandler` paths (both bind the same
+`ServiceAuthOptions`). An internal-plaintext-metadata topology stays out of scope — relax the platform
+guard to accept it.
+
+The operator "taking to production" checklist for both auth backchannels (inbound JWT + outbound
+service token) is [ADR-0009 item 10](0009-reference-solution-target-profile.md).
