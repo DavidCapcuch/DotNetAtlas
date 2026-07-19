@@ -141,7 +141,7 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
             // (i.e. one we did NOT expect) is still discoverable from the test output.
             Console.WriteLine(
                 $"[SagaIntegrationTestFixture] Swallowed expected ChannelClosedException during dispose " +
-                $"(OpenFeature SDK static-singleton shutdown race after M8 wired AddFeatureFlags into the saga host): {ex.GetType().FullName}: {ex.Message}");
+                $"(OpenFeature SDK static-singleton shutdown race from AddFeatureFlags wiring in the saga host): {ex.GetType().FullName}: {ex.Message}");
         }
 
         await _dbContainer.DisposeAsync();
