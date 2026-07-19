@@ -64,11 +64,17 @@ public class OrderCancelledOutboxPublisherDomainEventHandlerTests : HandlerTestB
             firstItem.Sku.Should().Be(sourceItem.ProductSnapshot.Sku);
             firstItem.Name.Should().Be(sourceItem.ProductSnapshot.Name);
             firstItem.Quantity.Should().Be(sourceItem.Quantity);
+            // Value via the cast, scale asserted separately: the (decimal) cast erases scale, so
+            // it alone would not notice an amount emitted at the domain decimal's own scale
+            // instead of the schema's 4 — which Avro rejects at encode time.
             ((decimal)firstItem.UnitPriceAmount).Should().Be(sourceItem.UnitPrice.Amount);
+            firstItem.UnitPriceAmount.Scale.Should().Be(MoneyScale);
             ((decimal)firstItem.LineTotalAmount).Should().Be(sourceItem.LineTotal.Amount);
+            firstItem.LineTotalAmount.Scale.Should().Be(MoneyScale);
 
             avro.TotalAmount.Should().NotBeNull();
             ((decimal)avro.TotalAmount!.Value).Should().Be(order.Total.Amount);
+            avro.TotalAmount!.Value.Scale.Should().Be(MoneyScale);
             avro.Currency.Should().Be(order.Total.Currency.Name);
 
             avro.BillingAddress.Should().NotBeNull();

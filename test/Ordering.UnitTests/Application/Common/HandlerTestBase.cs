@@ -16,6 +16,12 @@ namespace Ordering.UnitTests.Application.Common;
 /// </summary>
 public abstract class HandlerTestBase : IDisposable
 {
+    /// <summary>
+    /// Scale pinned by every money field across the <c>ordering.orders</c> Avro contracts
+    /// (<c>decimal(19,4)</c>). Asserted explicitly because a <c>(decimal)</c> cast erases scale.
+    /// </summary>
+    protected const int MoneyScale = 4;
+
     protected HandlerTestBase()
     {
         TimeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 4, 22, 10, 0, 0, TimeSpan.Zero));
