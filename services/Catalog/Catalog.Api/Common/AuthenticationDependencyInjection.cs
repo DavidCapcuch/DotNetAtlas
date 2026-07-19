@@ -1,8 +1,4 @@
 using Catalog.Api.Common.Authorization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
-using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.Auth;
 
 namespace Catalog.Api.Common;
@@ -18,34 +14,19 @@ internal static class AuthenticationDependencyInjection
     /// BC client, add a <c>ServiceAuth</c> section + <c>services.AddServiceAuth(...)</c> here.
     /// </summary>
     /// <remarks>
-    /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
-    /// post-configure guard wired with <c>ValidateOnStart</c> runs at host startup: a misconfigured
-    /// deployed host <b>fails to boot</b> rather than 500-ing on the first authenticated request
-    /// (named <c>JwtBearerOptions</c> otherwise materialize lazily on that first request). The guard
-    /// asserts <c>RequireSignedTokens</c>, <c>ValidateIssuerSigningKey</c>, and
-    /// <c>RequireHttpsMetadata</c> remain enabled; in practice only <c>RequireHttpsMetadata</c> can
-    /// still be off here, because the platform floor (<see cref="JwtBearerConfigurator"/>) re-pins
-    /// the two <c>TokenValidationParameters</c> booleans to <c>true</c> before this guard runs.
-    /// <c>appsettings.json</c> ships <c>RequireHttpsMetadata: false</c> for local dev, so the guard
-    /// fails closed in any deployed environment that inherits that default without an
-    /// environment-specific override.
+    /// The deployed-environment JWT hardening — fail-closed at host boot when
+    /// <c>RequireHttpsMetadata</c> is off — is owned by the platform
+    /// <see cref="JwtBearerConfigurator"/> and applies to every inbound-JWT edge uniformly; there is
+    /// no Catalog-specific auth guard (ADR-0009 item 10).
     /// </remarks>
     public static IServiceCollection AddCatalogAuthentication(
         this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+        IConfiguration configuration)
     {
         services.AddPlatformJwtBearer(options =>
         {
             configuration.Bind(JwtBearerConfigSection, options);
         });
-
-        if (environment.IsDeployedEnvironment())
-        {
-            services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-                .PostConfigure(AssertDeployedJwtBearerOptions)
-                .ValidateOnStart();
-        }
 
         // Reads are delegated service-to-service access (scope only); writes are
         // human-admin product / category mutations hardened with the admin role AND
@@ -64,25 +45,6 @@ internal static class AuthenticationDependencyInjection
         services.AddHttpContextAccessor();
 
         return services;
-    }
-
-    /// <summary>
-    /// Throws <see cref="InvalidOperationException"/> if any of the three strict-validation
-    /// flags required in deployed environments has been flipped off. Extracted from the
-    /// <c>PostConfigure</c> registration so the security invariant can be unit-tested
-    /// without an ASP.NET options pipeline.
-    /// </summary>
-    internal static void AssertDeployedJwtBearerOptions(JwtBearerOptions options)
-    {
-        if (!options.TokenValidationParameters.RequireSignedTokens
-            || !options.TokenValidationParameters.ValidateIssuerSigningKey
-            || !options.RequireHttpsMetadata)
-        {
-            throw new InvalidOperationException(
-                "JWT validation must require signed tokens, validate the signing key, and require " +
-                "HTTPS metadata in deployed environments. Check 'Authentication:JwtBearer' " +
-                "configuration overrides.");
-        }
     }
 
     private const string JwtBearerConfigSection = "Authentication:JwtBearer";

@@ -72,7 +72,7 @@ public class AuthenticationDeployedBootTests
             ["Authentication:JwtBearer:RequireHttpsMetadata"] = requireHttpsMetadata ? "true" : "false",
         });
 
-        builder.Services.AddCatalogAuthentication(builder.Configuration, builder.Environment);
+        builder.Services.AddCatalogAuthentication(builder.Configuration);
 
         return builder.Build();
     }

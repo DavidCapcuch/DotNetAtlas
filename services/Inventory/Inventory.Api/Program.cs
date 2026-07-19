@@ -25,7 +25,7 @@ try
 
     builder.Services
         .AddApi(builder.Configuration)
-        .AddInventoryAuthentication(builder.Configuration, builder.Environment)
+        .AddInventoryAuthentication(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 

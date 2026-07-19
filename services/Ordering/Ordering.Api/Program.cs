@@ -1,5 +1,4 @@
 using KafkaFlow;
-using Microsoft.Extensions.Hosting;
 using Ordering.Api.Common;
 using Ordering.Application.Common;
 using Ordering.Infrastructure.Common;
@@ -25,7 +24,7 @@ try
 
     builder.Services
         .AddApi(builder.Configuration)
-        .AddOrderingAuthentication(builder.Configuration, builder.Environment)
+        .AddOrderingAuthentication(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 

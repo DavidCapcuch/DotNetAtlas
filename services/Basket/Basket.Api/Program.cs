@@ -23,7 +23,7 @@ try
 
     builder.Services
         .AddApi(builder.Configuration)
-        .AddBasketAuthentication(builder.Configuration, builder.Environment)
+        .AddBasketAuthentication(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
