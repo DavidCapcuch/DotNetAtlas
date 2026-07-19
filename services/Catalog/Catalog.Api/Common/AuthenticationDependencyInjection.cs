@@ -19,12 +19,16 @@ internal static class AuthenticationDependencyInjection
     /// </summary>
     /// <remarks>
     /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
-    /// post-configure guard asserts <c>RequireSignedTokens</c>, <c>ValidateIssuerSigningKey</c>,
-    /// and <c>RequireHttpsMetadata</c> remain enabled. The <c>configuration.Bind</c> call below
-    /// otherwise lets a misconfigured env-var silently relax these flags, and
-    /// <c>appsettings.json</c> ships <c>RequireHttpsMetadata: false</c> for local dev — so the
-    /// guard's job is to fail fast in any deployed environment that inherits that default without
-    /// an environment-specific override.
+    /// post-configure guard wired with <c>ValidateOnStart</c> runs at host startup: a misconfigured
+    /// deployed host <b>fails to boot</b> rather than 500-ing on the first authenticated request
+    /// (named <c>JwtBearerOptions</c> otherwise materialize lazily on that first request). The guard
+    /// asserts <c>RequireSignedTokens</c>, <c>ValidateIssuerSigningKey</c>, and
+    /// <c>RequireHttpsMetadata</c> remain enabled; in practice only <c>RequireHttpsMetadata</c> can
+    /// still be off here, because the platform floor (<see cref="JwtBearerConfigurator"/>) re-pins
+    /// the two <c>TokenValidationParameters</c> booleans to <c>true</c> before this guard runs.
+    /// <c>appsettings.json</c> ships <c>RequireHttpsMetadata: false</c> for local dev, so the guard
+    /// fails closed in any deployed environment that inherits that default without an
+    /// environment-specific override.
     /// </remarks>
     public static IServiceCollection AddCatalogAuthentication(
         this IServiceCollection services,
@@ -39,7 +43,8 @@ internal static class AuthenticationDependencyInjection
         if (environment.IsDeployedEnvironment())
         {
             services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-                .PostConfigure(AssertDeployedJwtBearerOptions);
+                .PostConfigure(AssertDeployedJwtBearerOptions)
+                .ValidateOnStart();
         }
 
         // Reads are delegated service-to-service access (scope only); writes are

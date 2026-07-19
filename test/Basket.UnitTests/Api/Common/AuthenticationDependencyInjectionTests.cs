@@ -62,8 +62,9 @@ public class AuthenticationDependencyInjectionTests
         // sum1.HIGH-3 guard: appsettings.json ships RequireHttpsMetadata=false for local
         // dev. If a deployed environment forgets to override (or an env-var injection
         // flips it back), the JWT signing-key discovery (OIDC metadata endpoint) is
-        // served over plain HTTP — a real downgrade-attack vector. Make the guard
-        // refuse to construct the host with this combination.
+        // served over plain HTTP — a real downgrade-attack vector. This test pins the
+        // predicate in isolation; that the wired guard actually fails host startup in a
+        // deployed environment (ValidateOnStart) is covered by AuthenticationDeployedBootTests.
 
         // Arrange
         var options = MakeOptions(requireSigned: true, validateSigningKey: true, requireHttps: false);
