@@ -12,9 +12,9 @@ namespace Invoicing.IntegrationTests.Common;
 /// inside the inbox transaction in production (see <c>OrderConfirmedInvoiceProjectionKafkaHandler</c>),
 /// but the tests inject these stubs to keep their assertions on
 /// <c>pending_invoices.IssuedInvoiceId IS NULL</c> / <c>pending_credit_notes.IssuedCreditNoteId IS NULL</c>
-/// stable. own integration tests exercise the full flow with the real handler.
+/// stable. The BC's own integration tests exercise the full flow with the real handler.
 /// </summary>
-internal static class M7CommandHandlerStubs
+internal static class ProjectionTestCommandHandlerStubs
 {
     public static ICommandHandler<IssueInvoiceCommand, Guid> NoOpIssueInvoiceHandler()
     {
