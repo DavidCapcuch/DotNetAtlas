@@ -19,8 +19,7 @@ namespace Catalog.Application.Categories.ReparentCategory;
 /// <para>
 /// This handler stays in the dispatcher so the seam remains visible to logs / traces
 /// (a reparent fired through the projection pipeline). Recomputing the breadcrumb across
-/// descendants used to be deferred (CAT-RV-H07); #175 moved it inside the same UoW so the
-/// breadcrumb never lags the path.
+/// descendants runs inside the same UoW (CAT-RV-H07) so the breadcrumb never lags the path.
 /// </para>
 /// </remarks>
 public sealed class CategoryReparentedProjectionDomainEventHandler

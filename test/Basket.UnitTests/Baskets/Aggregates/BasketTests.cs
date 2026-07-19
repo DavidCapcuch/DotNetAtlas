@@ -511,12 +511,11 @@ public class BasketTests
     [Trait("Category", "regression")]
     public void RefreshPrices_WhenAllPricesEqualButMetadataChanged_DoesNotMutateInMemoryItems()
     {
-        // sum1.HIGH-1 regression guard. Previously the aggregate swapped Sku/Name/
-        // CapturedAt in place on the equal-price branch but did NOT call Touch() —
-        // the handler then short-circuited on events.Count == 0 and skipped SaveAsync.
-        // Net effect: in-memory state diverged from Redis (silent metadata loss on
-        // next load). The fix preserves the frozen snapshot strictly when prices are
-        // unchanged.
+        // sum1.HIGH-1 regression guard. On the equal-price re-add branch the aggregate must
+        // preserve the frozen snapshot strictly — it must NOT mutate Sku/Name/CapturedAt in
+        // place without calling Touch(). If it did, the handler would short-circuit on
+        // events.Count == 0 and skip SaveAsync, so in-memory state would diverge from Redis
+        // (silent metadata loss on the next load).
 
         // Arrange
         var basket = NewEmptyBasket();

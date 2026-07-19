@@ -134,11 +134,9 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // the port, but DB-backed integration tests don't exercise the HTTP roundtrip.
                 services.Replace(ServiceDescriptor.Singleton<IProductCatalogQueryPort>(Catalog));
 
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a
-                // fake that writes a stub OutboxMessage row directly. M6 owns "the right
-                // outbox row hits Postgres" — Avro byte-level fidelity is decoupled (matches
-                // Inventory + Ordering precedent of not standing up Schema Registry just
-                // for outbox shape assertions).
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with the
+                // fake so these tests need no Schema Registry; assertions target the
+                // captured outbox row (topic, key, event type).
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
             });
     }

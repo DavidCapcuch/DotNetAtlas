@@ -48,8 +48,8 @@ public class ApiTestFixture : AppFixture<Program>
     /// <summary>
     /// Test-controlled <see cref="IProductCatalogQueryPort"/>. Tests call
     /// <c>fixture.Catalog</c> to stub Catalog responses without spinning a real Catalog
-    /// service. WireMock'd HTTP would exercise the adapter end-to-end — that's a
-    /// proposed Follow-up.
+    /// service. The port is faked here, so the production HTTP adapter is not exercised
+    /// end-to-end by this suite.
     /// </summary>
     public IProductCatalogQueryPort Catalog { get; } = Substitute.For<IProductCatalogQueryPort>();
 
@@ -122,15 +122,13 @@ public class ApiTestFixture : AppFixture<Program>
                 // a Catalog service running. Use Replace so the production HTTP-adapter
                 // registration in Basket.Infrastructure is removed — AddSingleton(instance)
                 // would only add a second descriptor with the NSubstitute proxy's runtime
-                // type, leaving the real adapter live for resolution. Real adapter exercise
-                // stays in M9 follow-up.
+                // type, leaving the real adapter live for resolution. The real adapter is
+                // not exercised by this functional suite.
                 services.Replace(ServiceDescriptor.Singleton<IProductCatalogQueryPort>(Catalog));
 
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a
-                // fake that writes a stub OutboxMessage row directly. Avro byte-level
-                // fidelity is asserted in Basket.IntegrationTests; functional tests only
-                // need to verify "the right outbox row landed". Avoids exercising the
-                // KafkaTestContainer's Schema Registry just for outbox shape assertions.
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with the
+                // fake so these tests need no Schema Registry; the functional suite only
+                // checks the outbox row landed (one row per checkout), not its topic/key/type.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
                 // Wire the JwtBearer scheme to trust _signer's RSA key — keeps

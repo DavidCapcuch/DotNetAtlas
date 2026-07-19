@@ -21,8 +21,8 @@ namespace Basket.Application.Baskets.Checkout;
 ///   <item>Calls <c>basket.Checkout(...)</c>, which raises <c>BasketCheckedOutDomainEvent</c>
 ///     carrying the snapshot plus the three pass-through courier fields.</item>
 ///   <item>Persists the (bumped) basket via <see cref="IBasketRepository.SaveAsync"/> under
-///     optimistic concurrency. This is the C-1 fix: two parallel checkouts for the same
-///     user no longer race past one another to both write the outbox row. The loser of
+///     optimistic concurrency, so two parallel checkouts for the same user cannot both
+///     write the outbox row. The loser of
 ///     the CAS race retries once (per <c>basket.md § 5.4</c>) and, on a second loss,
 ///     surfaces <see cref="BasketConcurrencyError"/> (mapped to HTTP 409 at the API
 ///     boundary).</item>

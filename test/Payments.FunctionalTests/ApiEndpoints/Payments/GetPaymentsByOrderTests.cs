@@ -86,6 +86,6 @@ public class GetPaymentsByOrderTests : BaseApiTest
     }
 
     // ADR-0029 establishes one payment per order (unique ux_payment_transactions_order_id), so a
-    // "multiple payments for one order" scenario is no longer representable — the admin projection
+    // "multiple payments for one order" scenario is not representable — the admin projection
     // returns at most the single payment (covered by WhenAdminAndOnePaymentForOrder above).
 }

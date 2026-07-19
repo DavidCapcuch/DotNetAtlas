@@ -122,8 +122,8 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
 
         KafkaProducer.Dispose();
 
-        // M9: defensive catch of OpenFeature SDK's process-global state cleanup race. After M8
-        // wired AddFeatureFlags into the saga host, the WebApplicationFactory's host stop sequence
+        // Defensive catch of OpenFeature SDK's process-global state cleanup race. The saga host
+        // wires AddFeatureFlags, so the WebApplicationFactory's host stop sequence
         // calls HostedFeatureLifecycleService.StoppedAsync → Api.Instance.ShutdownAsync(), which
         // closes the static EventExecutor channel. If anything in the dispose chain re-enters the
         // shutdown (or if the channel is already closed by a prior in-process WAF instance), the

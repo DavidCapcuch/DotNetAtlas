@@ -16,8 +16,10 @@ namespace Basket.UnitTests.Baskets.Persistence;
 /// Covers <see cref="RedisBasketRepository.GetByUserIdAsync"/>'s
 /// transport / serialization-failure contract: per
 /// <see cref="Basket.Application.Abstractions.IBasketRepository.GetByUserIdAsync"/>
-/// XML doc, "Transport / serialization failures surface as Result.Fail." A
-/// since-removed currency code stored in Redis previously threw out of the mapper.
+/// XML doc, "Transport / serialization failures surface as Result.Fail." A currency
+/// code not present in the <c>CurrencyCode</c> SmartEnum (e.g. removed after the basket
+/// was persisted) is one such failure — it surfaces as <c>Result.Fail</c> rather than
+/// throwing out of the mapper.
 /// </summary>
 public class RedisBasketRepositoryGetByUserIdAsyncTests
 {

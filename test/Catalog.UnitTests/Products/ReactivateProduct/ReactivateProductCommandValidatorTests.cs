@@ -24,7 +24,7 @@ public class ReactivateProductCommandValidatorTests
     public void Validate_AdminFlagFalse_PassesInputValidation()
     {
         // Arrange
-        // The AdminReactivation business rule is now enforced by the aggregate
+        // The AdminReactivation business rule is enforced by the aggregate
         // (Product.Reactivate returns ProductErrors.ReactivationRequiresAdminFlag → ForbiddenError
         // → 403), not by FluentValidation pre-handler. The validator only checks input shape.
         var cmd = new ReactivateProductCommand

@@ -85,7 +85,7 @@ public sealed class Basket : AggregateRoot<Guid>
             }
 
             // sum is strictly positive: every basket item has Quantity >= 1 and Snapshot.Price.Amount > 0
-            // (enforced by ProductSnapshot.Create — Basket-local invariant since Money no longer enforces positivity).
+            // (enforced by ProductSnapshot.Create — Basket-local invariant, since Money does not enforce positivity).
             return BasketTotal.From(Money.Create(sum, currency).Value);
         }
     }

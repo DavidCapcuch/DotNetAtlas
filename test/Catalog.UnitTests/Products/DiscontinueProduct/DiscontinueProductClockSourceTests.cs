@@ -21,11 +21,9 @@ namespace Catalog.UnitTests.Products.DiscontinueProduct;
 /// a stale fake) would silently desynchronise audit trails and emitted events.
 /// </summary>
 /// <remarks>
-/// Restores coverage that was previously embedded in
-/// <c>Catalog.IntegrationTests.Products.DiscontinueProductIntegrationTests</c>
-/// before ADR-0015's "tests construct FakeTimeProvider locally" pattern made
-/// the integration-level frozen-clock assertion non-trivial. This unit-of-collaboration
-/// test holds the property at the cheapest tier.
+/// A unit-of-collaboration test that holds this shared-clock property at the cheapest
+/// tier. Per ADR-0015 ("tests construct FakeTimeProvider locally"), the collaboration
+/// test — not an integration-level frozen-clock assertion — is the natural home for it.
 /// </remarks>
 public class DiscontinueProductClockSourceTests
 {

@@ -15,7 +15,7 @@ namespace Payments.Domain.Transactions.Events;
 /// <c>payments.transactions</c> — symmetric with the AuthorizationFailed / CaptureFailed
 /// publishers. Co-raised on both <see cref="PaymentAuthorizationFailedDomainEvent"/> and
 /// <see cref="PaymentCaptureFailedDomainEvent"/>; the Checkout saga consumes the external event to
-/// fast-fail on an authorization decline. PaymentProcessingSaga no longer publishes this event.
+/// fast-fail on an authorization decline. PaymentProcessingSaga does not publish this event.
 /// </remarks>
 public sealed record PaymentFailedDomainEvent : DomainEvent
 {

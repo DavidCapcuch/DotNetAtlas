@@ -1,9 +1,9 @@
 namespace Basket.Infrastructure.ExternalServices.Catalog;
 
 /// <summary>
-/// Private projection of Catalog's <c>GetProductByIdResponse</c> HTTP contract —
-/// contains only the fields Basket needs (<c>ProductId</c>, <c>Sku</c>,
-/// <c>Name</c>, <c>Price</c>). Additional fields on Catalog's wire response
+/// Private projection of Catalog's product-detail HTTP contract
+/// (<c>GET /api/v1/catalog/products/{id}</c>) — contains only the fields Basket
+/// needs (<c>ProductId</c>, <c>Sku</c>, <c>Name</c>, <c>Price</c>). Additional fields on Catalog's wire response
 /// (<c>Description</c>, <c>CategoryId</c>, <c>CategoryPath</c>,
 /// <c>CategoryBreadcrumb</c>, <c>BrandName</c>, <c>Status</c>,
 /// <c>Dimensions</c>, <c>Images</c>, <c>CreatedAtUtc</c>,

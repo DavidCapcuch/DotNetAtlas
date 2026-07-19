@@ -67,8 +67,8 @@ try
     // Skip the Kafka cluster boot in the test host: integration tests register the
     // InventoryStockEvents typed handler in DI and invoke it directly via
     // FakeKafkaMessageContext (test/Catalog.IntegrationTests/Messaging/Kafka). Booting the
-    // consumer in-test would require Kafka + Schema Registry containers — the wire path is a
-    // deferred end-to-end follow-up.
+    // consumer in-test would require Kafka + Schema Registry containers — the wire path is
+    // not exercised end-to-end here.
     if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();

@@ -13,18 +13,10 @@ namespace Catalog.IntegrationTests.Contracts;
 /// <summary>
 /// Verifies the domain-event handler chain routes an outbox row to the right Avro contract
 /// type and Kafka topic. This pins the wiring (handler registered, publisher fires, row
-/// lands with the correct CLR type FQN + topic name) but DOES NOT verify byte-level Avro
-/// fidelity — the hybrid fixture uses <see cref="FakeOutboxWriter"/> to bypass Schema
-/// Registry, so the AvroPayload column is empty.
+/// lands with the correct CLR type FQN + topic name). The fixture uses
+/// <see cref="FakeOutboxWriter"/> to bypass Schema Registry, so the AvroPayload column is
+/// empty — this pins the routing, not the serialized bytes.
 /// </summary>
-/// <remarks>
-/// End-to-end Avro byte-fidelity (round-trip serialize → produce → deserialize against a
-/// real Schema Registry container) is a Wave 0 follow-up: extracting
-/// <c>Platform.Kafka.Common</c> with reusable Kafka + SchemaRegistry test containers will
-/// make a single fidelity test class cheap to add (<c>catalog.md &lt;boundaries&gt;</c>
-/// forbids platform-code edits except <c>.avsc</c>). Until that lands, the
-/// integration-test slice owns Avro serialisation correctness.
-/// </remarks>
 [Collection<IntegrationTestCollection>]
 public class OutboxPublisherRoutingTests : BaseIntegrationTest
 {
