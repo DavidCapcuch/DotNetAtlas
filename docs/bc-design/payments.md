@@ -1,10 +1,10 @@
 # Payments Bounded Context
 
-> **Status:** Authored 2026-04-19. Extracted from `eshop-master-design.md § 5.5` + [ADR-0001](../adr/0001-centralized-saga-orchestration.md) + [ADR-0004](../adr/0004-checkout-saga-topology.md) to match the chapter structure used by Catalog, Basket, Ordering, Inventory.
+> **Status:** Authored 2026-04-19. Extracted from `eshop-master-design.md § 5.5` + [ADR-0001](../adr/0001-centralized-saga-orchestration.md) + [ADR-0004](../adr/0004-checkout-saga-topology.md).
 > **Scope:** Payment transaction lifecycle — authorize, capture, refund, void. Integrates with a payment gateway (stubbed for the reference solution).
 > **Pattern showcased:** **Saga sub-orchestration** — `PaymentProcessingSaga` is a standalone orchestrator the Checkout saga delegates to via `RequestPaymentCommand` on `payments.payment-commands` (renamed from `PaymentRequestedEvent` per [ADR-0023](../adr/0023-payments-event-vs-command-classification.md)). Also: **PCI scope minimization** — cardholder data (PAN, CVV) never enters our services; Payments holds gateway-issued `PaymentTransactionId` tokens only.
 > **Storage:** PostgreSQL, schema `payments`.
-> **Folder:** `services/Payments/` (renamed from `services/Finance/` in Wave 0).
+> **Folder:** `services/Payments/`.
 
 ---
 
