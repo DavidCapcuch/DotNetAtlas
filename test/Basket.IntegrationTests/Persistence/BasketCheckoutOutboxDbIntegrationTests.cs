@@ -28,9 +28,9 @@ namespace Basket.IntegrationTests.Persistence;
 /// <item><see cref="BasketDbContext"/>'s <c>SaveChangesAsync</c> commits
 /// the outbox row atomically with the rest of the unit-of-work.</item>
 /// </list>
-/// Avro byte-level fidelity is intentionally NOT asserted here — see
-/// <see cref="FakeOutboxWriter"/> for the rationale (matches Inventory + Ordering
-/// precedent of decoupling outbox tests from Schema Registry).
+/// The <see cref="FakeOutboxWriter"/> writes the row with an empty Avro payload, so
+/// this suite needs no Schema Registry; the assertions target the captured outbox
+/// row (topic, key, event type).
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class BasketCheckoutOutboxDbIntegrationTests : BaseIntegrationTest

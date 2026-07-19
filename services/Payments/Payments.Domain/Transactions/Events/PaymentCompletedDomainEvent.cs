@@ -13,7 +13,7 @@ namespace Payments.Domain.Transactions.Events;
 /// fans this domain event out to the external <c>PaymentCompletedEvent</c> on
 /// <c>payments.transactions</c> — symmetric with the Authorized / Captured / Voided / Refunded
 /// publishers. Co-raised with <see cref="PaymentCapturedDomainEvent"/> on a successful capture;
-/// PaymentProcessingSaga no longer publishes this event (it orchestrates only).
+/// PaymentProcessingSaga does not publish this event (it orchestrates only).
 /// </remarks>
 public sealed record PaymentCompletedDomainEvent : DomainEvent
 {

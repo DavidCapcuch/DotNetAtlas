@@ -39,9 +39,8 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// (#269) — never a test-only <c>MigrateAsync</c>/<c>EnsureCreated</c>, so the tested schema
 /// matches the deployed one. The production Avro+SchemaRegistry <see cref="IOutboxWriter"/> is
 /// replaced with <see cref="FakeOutboxWriter"/> so outbox assertions don't need a Schema Registry
-/// round-trip; the fake leaves the <c>AvroPayload</c> empty, so byte-level Avro fidelity is a
-/// deferred follow-up (see <c>Contracts/OutboxPublisherRoutingTests</c>, which pins the routing —
-/// topic + CLR type — but not the bytes). <see cref="IFeatureClient"/> is an NSubstitute mock so
+/// round-trip; the fake leaves the <c>AvroPayload</c> empty and captures topic + CLR type.
+/// <see cref="IFeatureClient"/> is an NSubstitute mock so
 /// tests flip <c>catalog.show-discontinued-in-search</c> per scenario, and the
 /// <see cref="FakeTokenSigner"/>'s RSA key is trusted via
 /// <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
@@ -55,7 +54,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 // No [DisableWafCache]: FastEndpoints caches the WebApplicationFactory by entry point, and this
 // is the only AppFixture<Program> in the project, so nothing can cross-wire onto its cached host.
 // Re-add it only if a second AppFixture<Program> is introduced (e.g. a real-SchemaRegistry
-// byte-fidelity fixture for Contracts/) — two subtypes sharing this entry point would otherwise
+// fixture for Contracts/) — two subtypes sharing this entry point would otherwise
 // reuse the first-built host and its containers.
 public class IntegrationTestFixture : AppFixture<Program>
 {

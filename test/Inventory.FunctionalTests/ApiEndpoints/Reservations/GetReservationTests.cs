@@ -42,7 +42,7 @@ public sealed class GetReservationTests : BaseApiTest
     [Trait("Category", "security")]
     public async Task WhenReadOnlyScope_WithoutAdminRole_Returns403()
     {
-        // inventory.read alone no longer reaches reservation-audit data — the admin-role half
+        // inventory.read alone does not reach reservation-audit data — the admin-role half
         // of AdminReadPolicy gates it (least privilege over the OrderId-bearing rows).
         var reservationId = Guid.CreateVersion7();
 

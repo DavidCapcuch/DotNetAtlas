@@ -155,8 +155,7 @@ public sealed class StockItemSeed
     /// </summary>
     /// <remarks>
     /// When <paramref name="onHand"/> is <c>0</c>, only <c>Initialize</c> is
-    /// emitted — matches the behaviour the inline seeds used to short-circuit
-    /// the receive step.
+    /// emitted — the receive step is skipped (there is nothing to receive).
     /// </remarks>
     public async Task ProductWithOnHandAsync(
         Guid productId,

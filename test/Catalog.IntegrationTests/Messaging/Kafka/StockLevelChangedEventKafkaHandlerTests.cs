@@ -24,8 +24,8 @@ namespace Catalog.IntegrationTests.Messaging.Kafka;
 /// Out of scope, by design: the Kafka transport ahead of the handler (topic subscription, Avro
 /// Schema-Registry deserialization, inbox dedup) is bypassed — the handler is driven directly with the
 /// real contract type, the repo's sanctioned message entrance. The 30s <c>PerMessageBudget</c> expiry
-/// is also unverified: <c>CancelAfter</c> runs on the system timer, so a deterministic test needs the
-/// adapter to build its CTS from an injected <c>TimeProvider</c> (follow-up).
+/// is also unverified: <c>CancelAfter</c> runs on the system timer, so a deterministic test would need
+/// the adapter to build its CTS from an injected <c>TimeProvider</c>.
 /// </para>
 /// </summary>
 [Collection<IntegrationTestCollection>]

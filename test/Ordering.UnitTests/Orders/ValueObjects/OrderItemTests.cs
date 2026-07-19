@@ -65,8 +65,8 @@ public class OrderItemTests
     [Fact]
     public void Create_NonPositiveUnitPriceViaDirectConstruction_ReturnsUnitPriceNotPositiveError()
     {
-        // Defense-in-depth: positivity is now an Ordering-local concern (Money is permissive
-        // post-School-B refactor). The VO must reject zero/negative unit prices itself, since
+        // Defense-in-depth: positivity is an Ordering-local concern (Money is permissive —
+        // School B). The VO must reject zero/negative unit prices itself, since
         // Money.Create returns a successful negative Money and EF Core can also materialise
         // any signed amount.
         var nonPositive = Money.Create(-1m, CurrencyCode.Usd).Value;

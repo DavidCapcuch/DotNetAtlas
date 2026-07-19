@@ -27,9 +27,9 @@ namespace Payments.IntegrationTests.Infrastructure;
 /// End-to-end integration tests for the Kafka consumer wiring. Each scenario produces an
 /// Avro saga-command, invokes the corresponding consumer handler directly via a
 /// <see cref="FakeKafkaMessageContext"/> stub, and verifies the persisted aggregate state in
-/// Postgres + the captured outbox emissions in <c>FakeOutboxWriter</c>. The full Avro byte-level
-/// roundtrip against a real Schema Registry is exercised by the docker-compose smoke test;
-/// the purpose is to prove the Infrastructure layer composes correctly.
+/// Postgres + the captured outbox emissions in <c>FakeOutboxWriter</c>. The fake captures
+/// topic + key + CLR type without standing up a Schema Registry; the purpose is to prove the
+/// Infrastructure layer composes correctly.
 /// </summary>
 /// <remarks>
 /// ADR-0029 keys the saga on <c>OrderId</c> with <c>CorrelationId == OrderId</c>, so every
@@ -96,7 +96,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // Arrange
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
-        // Stub gateway rule: amount ending .99 declines (per M3 docs).
+        // Stub gateway rule: amount ending .99 declines.
         var avro = NewAvroAuthorize(correlationId, orderId, amount: 9.99m);
 
         using var scope = _fixture.CreateScope();
@@ -122,7 +122,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
             // ADR-0026: Payments owns ALL its lifecycle events, including the terminal
             // PaymentFailedEvent — co-raised with PaymentAuthorizationFailedEvent on a decline so
-            // the Checkout saga can fast-fail. PaymentProcessingSaga no longer publishes it.
+            // the Checkout saga can fast-fail. PaymentProcessingSaga does not publish it.
             outbox.HasMessage<AvroPaymentAuthorizationFailedEvent>().Should().BeTrue();
             outbox.HasMessage<AvroPaymentFailedEvent>().Should().BeTrue();
             outbox.HasMessage<AvroPaymentAuthorizedEvent>().Should().BeFalse();
@@ -175,7 +175,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             // Aggregate auto-advances Captured -> Completed (v1 single-step flow per
             // payments.md § 4). ADR-0026: Payments owns ALL its lifecycle events — both
             // PaymentCapturedEvent and the terminal PaymentCompletedEvent are emitted by the
-            // Payments-side outbox; PaymentProcessingSaga no longer publishes the terminal.
+            // Payments-side outbox; PaymentProcessingSaga does not publish the terminal.
             aggregate!.Status.Should().Be(PaymentStatus.Completed);
             outbox.HasMessage<AvroPaymentCapturedEvent>().Should().BeTrue();
             outbox.HasMessage<AvroPaymentCompletedEvent>().Should().BeTrue();
@@ -298,9 +298,9 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
         // Example 1.2 in docs/bc-design/example-mapping/payments.md: skipping Authorize is a
         // saga-ordering bug. Seed an aggregate in Requested status (no GatewayTransactionId)
         // and drive Capture directly — handler's FSM CanTransitionTo pre-check (H-Cond-2) fires
-        // BEFORE any gateway call and throws `Payments.InvalidStatusTransition`. The legacy
-        // `Payments.MissingGatewayTransactionId` null-guard was removed in #250 — the aggregate's
-        // FSM is the single source of truth and the handler-level guard was unreachable.
+        // BEFORE any gateway call and throws `Payments.InvalidStatusTransition`. There is no separate
+        // `Payments.MissingGatewayTransactionId` null-guard — the aggregate's FSM is the single source
+        // of truth, which makes any handler-level guard unreachable.
         var correlationId = Guid.CreateVersion7();
         var orderId = correlationId; // ADR-0029: CorrelationId == OrderId (see class remarks).
         var paymentId = correlationId;
@@ -316,7 +316,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             amount,
             paymentMethodId: "tok_visa_4242").Value;
 
-        // ADR-0023 follow-up: PaymentTransaction.Create raises no domain events, so PopDomainEvents()
+        // Per ADR-0023, PaymentTransaction.Create raises no domain events, so PopDomainEvents()
         // here returns an empty collection. The call is retained defensively to make the "no events
         // leak into the seed save" invariant explicit for future readers.
         _ = tx.PopDomainEvents();
@@ -561,7 +561,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     }
 
     // Stub gateway derives gateway-transaction-id deterministically as $"stub-{tx.Id:N}";
-    // tx.Id is set to correlationId in the M5 mapper, so the stored value is exactly this.
+    // tx.Id is set to correlationId in the mapper, so the stored value is exactly this.
     // Saga-side wire commands must echo this value, otherwise the H-8 AuthorizationId validation
     // in the handlers rejects them as stale-token / saga-bug replays.
     private static string StoredGatewayTransactionId(Guid correlationId) => $"stub-{correlationId:N}";
@@ -569,7 +569,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     private AvroAuthorizePaymentCommand NewAvroAuthorize(Guid correlationId, Guid orderId, decimal amount) =>
         new()
         {
-            // Cross-cutting wave1-followup #255: the production saga mints a fresh v7
+            // Cross-cutting #255: the production saga mints a fresh v7
             // PaymentTransactionId at initial state and the Payments mapper uses it as the
             // aggregate PK. For this integration-test helper we deliberately collapse the two
             // ids onto the same value so the existing test assertions that derive the stored
@@ -580,8 +580,8 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
             PaymentTransactionId = correlationId,
             OrderId = orderId,
             UserId = Guid.CreateVersion7(),
-            // Real-PSP-shaped token (Stripe-style 'pm_*' string) per C-2 closeout — the Avro
-            // contract is now plain string, not logicalType:uuid.
+            // Real-PSP-shaped token (Stripe-style 'pm_*' string) — the Avro contract for
+            // PaymentMethodId is a plain string, not logicalType:uuid.
             PaymentMethodId = $"pm_{Guid.CreateVersion7():N}",
             Amount = new Avro.AvroDecimal(amount),
             Currency = "USD",

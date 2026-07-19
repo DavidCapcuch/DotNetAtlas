@@ -14,7 +14,7 @@
         <!-- SmartEnum EF conversion -->
         <PackageReference Include="Ardalis.SmartEnum.EFCore"/>
 
-        <!-- KafkaFlow (consumers for OrderConfirmed/OrderCancelled/PaymentCaptured/PaymentRefunded in M6) -->
+        <!-- KafkaFlow (consumers for OrderConfirmed/OrderCancelled/PaymentCaptured/PaymentRefunded) -->
         <PackageReference Include="KafkaFlow.Retry"/>
         <PackageReference Include="KafkaFlow.LogHandler.Microsoft"/>
         <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection"/>

@@ -461,7 +461,7 @@ public sealed class Invoice : AggregateRoot<Guid>
 
         var totalAmount = subtotalAmount + vatTotal;
 
-        // I-1: Subtotal, VatLines, and Total self-consistent. Money.Create no longer rejects
+        // I-1: Subtotal, VatLines, and Total self-consistent. Money.Create does not reject
         // zero/negative \u2014 positivity is enforced upstream by InvoiceLine.UnitPrice > 0 and
         // VatRate >= 0, so subtotal/total are guaranteed non-negative here.
         var subtotal = Money.Create(subtotalAmount, currency).Value;

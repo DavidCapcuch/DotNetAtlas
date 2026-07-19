@@ -76,8 +76,8 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(ProductErrors.CategoryIdRequired());
         }
 
-        // Catalog-local invariant I-1: Price.Amount > 0. Previously inherited from
-        // Money.Create; Money is now a signed quantity (School B), so the rule lives here.
+        // Catalog-local invariant I-1: Price.Amount > 0. Money is a signed quantity (School B),
+        // so this rule lives in the aggregate rather than in Money.Create.
         if (price.Amount <= 0)
         {
             return Result.Fail(ProductErrors.PriceMustBePositive());

@@ -213,9 +213,8 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     {
         // Arrange
         // H-4: the saga-issued idempotency key MUST reach IPaymentGateway.AuthorizeAsync so a
-        // real PSP adapter can forward it as the gateway's Idempotency-Key header. Verifies
-        // the wire field is no longer dropped (was: AuthorizePaymentCommand.IdempotencyKey
-        // documented in schema but ignored).
+        // real PSP adapter can forward it as the gateway's Idempotency-Key header. Verifies the
+        // key propagates to the gateway rather than being dropped on the AuthorizePaymentCommand.
         const string Key = "saga-key-123";
         var command = BuildCommand(idempotencyKey: Key);
         Gateway.AuthorizeAsync(Arg.Any<PaymentTransaction>(), Arg.Any<string>(), Arg.Any<CancellationToken>())

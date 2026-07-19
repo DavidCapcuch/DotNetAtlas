@@ -93,7 +93,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         {
             webBuilder
                 .UseSetting("ConnectionStrings:Invoicing", _dbContainer.ConnectionString)
-                // Pin the buyer-portal base URL so M7's ViewInvoiceUrl assertion
+                // Pin the buyer-portal base URL so the ViewInvoiceUrl assertion
                 // (`https://invoicing.test/invoices/{invoiceId}`) is independent of the
                 // production appsettings value (`invoicing.example.com`).
                 .UseSetting("BuyerPortal:BaseUrl", "https://invoicing.test");
@@ -122,17 +122,17 @@ public class IntegrationTestFixture : AppFixture<Program>
             .ConfigureTestServices(services =>
             {
                 // Replace the real Azurite-backed adapter with the NSubstitute stub. The
-                // real adapter is exercised by the M3 integration tests in AzuriteFixture.
+                // real adapter is exercised by the integration tests in AzuriteFixture.
                 services.RemoveAll<IBlobStore>();
                 services.AddSingleton(BlobStoreSubstitute);
 
                 // Replace the real QuestPdf-backed adapter with the NSubstitute stub. The
-                // real adapter is exercised by the M4 QuestPdfInvoiceGeneratorTests.
+                // real adapter is exercised by QuestPdfInvoiceGeneratorTests.
                 services.RemoveAll<IPdfGenerator>();
                 services.AddSingleton(PdfGeneratorSubstitute);
 
                 // Replace the platform Scoped TransactionalOutbox with our NSubstitute stub
-                // so M7 tests can assert which Avro events the handlers enqueue without
+                // so tests can assert which Avro events the handlers enqueue without
                 // standing up a Schema Registry container. Singleton lifetime matches the
                 // pre-AppFixture wiring; KafkaFlow's typed handlers resolve it from the
                 // request scope, which honours the singleton descriptor.
@@ -249,7 +249,7 @@ public class IntegrationTestFixture : AppFixture<Program>
         const decimal totalAmount = 100.00m;
         const string currency = "EUR";
 
-        // M7 invoice — prerequisite for the credit-note flow. Each step gets its own DI
+        // Issue the invoice — prerequisite for the credit-note flow. Each step gets its own DI
         // scope (matching SeedDeliveredInvoiceAsync's pattern) so the invoice handler's
         // SaveChanges-time domain-event dispatcher completes before the credit-note scope
         // opens its own DbContext / outbox publisher chain.

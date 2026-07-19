@@ -12,11 +12,10 @@ public class PaymentTransactionCreateTests
     public void Create_WhenValid_ReturnsOkAndRaisesNoDomainEvents()
     {
         // Arrange
-        // ADR-0023 follow-up: PaymentTransaction.Create no longer raises a domain event. The
-        // wire-level "requested" signal is RequestPaymentCommand (renamed from PaymentRequestedEvent
-        // and moved to payments.payment-commands), produced by the Checkout saga — not by Payments.
-        // The Payments-internal PaymentRequestedDomainEvent had no in-process handler and no
-        // outbox publisher; it was scaffolding and has been removed.
+        // Per ADR-0023, PaymentTransaction.Create raises no domain events. The wire-level
+        // "requested" signal is RequestPaymentCommand (on payments.payment-commands), produced by the
+        // Checkout saga — not by Payments. A Payments-internal "requested" domain event would have no
+        // in-process handler and no outbox publisher, so none is raised.
         var paymentId = Guid.CreateVersion7();
         var buyerId = Guid.CreateVersion7();
         var orderId = Guid.CreateVersion7();
@@ -42,7 +41,7 @@ public class PaymentTransactionCreateTests
             tx.FailureInfo.Should().BeNull();
 
             tx.PopDomainEvents().Should().BeEmpty(
-                "ADR-0023 follow-up: PaymentTransaction.Create raises no domain events");
+                "per ADR-0023, PaymentTransaction.Create raises no domain events");
         }
     }
 
