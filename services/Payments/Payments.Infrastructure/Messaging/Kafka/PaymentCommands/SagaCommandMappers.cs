@@ -47,7 +47,7 @@ internal static class SagaCommandMappers
     /// <see cref="AppCapturePaymentCommand"/>. <c>OrderId</c> comes from the wire payload field
     /// (ADR-0029/0030) so the handler resolves the aggregate via the unique <c>order_id</c> index;
     /// <c>AuthorizationId</c> propagated for handler-side validation against the stored
-    /// <c>GatewayTransactionId</c> (H-8).
+    /// <c>GatewayTransactionId</c>.
     /// </summary>
     internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro) =>
         new()
@@ -59,9 +59,8 @@ internal static class SagaCommandMappers
     /// <summary>
     /// Maps <see cref="AvroVoidPaymentCommand"/> to the application-layer
     /// <see cref="AppVoidPaymentCommand"/>. <c>OrderId</c> comes from the wire payload field
-    /// (ADR-0029/0030); <c>AuthorizationId</c> propagated for handler-side validation
-    /// (H-8); <c>Reason</c> propagated for aggregate persistence + outbound audit
-    /// (H-5).
+    /// (ADR-0029/0030); <c>AuthorizationId</c> propagated for handler-side validation;
+    /// <c>Reason</c> propagated for aggregate persistence + outbound audit.
     /// </summary>
     internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro) =>
         new()

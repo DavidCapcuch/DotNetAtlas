@@ -38,7 +38,7 @@ public interface IPaymentGateway
     /// <param name="idempotencyKey">Saga-issued idempotency key — a v2 real adapter (Stripe,
     /// Adyen) forwards this as the gateway's <c>Idempotency-Key</c> header so the gateway-side
     /// dedups duplicate authorize attempts during the "SaveChanges fails post-gateway"
-    /// recovery path. H-4.</param>
+    /// recovery path.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Authorize response with the gateway-issued transaction id.</returns>
     Task<Result<AuthorizeResponse>> AuthorizeAsync(PaymentTransaction tx, string idempotencyKey, CancellationToken ct);

@@ -57,7 +57,7 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
             return Result.Fail(PaymentsErrors.PaymentNotFound(command.OrderId));
         }
 
-        // H-8: when an authorization token is on file, the wire AuthorizationId MUST match it.
+        // When an authorization token is on file, the wire AuthorizationId MUST match it.
         // See the analogous comment in VoidPaymentCommandHandler.
         if (tx.GatewayTransactionId is not null
             && !string.Equals(tx.GatewayTransactionId, command.AuthorizationId, StringComparison.Ordinal))

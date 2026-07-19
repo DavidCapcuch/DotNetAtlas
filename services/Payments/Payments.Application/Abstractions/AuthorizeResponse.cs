@@ -7,8 +7,7 @@ namespace Payments.Application.Abstractions;
 /// gateway-issued transaction id (immutable once set per invariant I-4), the raw response code
 /// stored verbatim on the aggregate for forensics, and the gateway-stated authorization expiry
 /// window. The expiry MUST be sourced from the gateway response so the wire-shape
-/// <c>PaymentAuthorizedEvent.ExpiresAtUtc</c> is truthful rather than a synthesized placeholder
-/// (H-6).
+/// <c>PaymentAuthorizedEvent.ExpiresAtUtc</c> is truthful rather than a synthesized placeholder.
 /// </summary>
 /// <param name="GatewayTransactionId">Gateway-issued token (non-empty).</param>
 /// <param name="ResponseCode">Raw gateway response.</param>

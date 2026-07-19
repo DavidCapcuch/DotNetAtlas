@@ -83,7 +83,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     public DateTimeOffset? VoidedAtUtc { get; private set; }
 
     /// <summary>
-    /// Saga-supplied reason for the void. Null until <see cref="Void"/> succeeds (H-5).
+    /// Saga-supplied reason for the void. Null until <see cref="Void"/> succeeds.
     /// </summary>
     public string? VoidReason { get; private set; }
 
@@ -156,7 +156,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <param name="gatewayResponseCode">Gateway response.</param>
     /// <param name="expiresAtUtc">Gateway-stated authorization expiry — sourced from the
     /// <c>AuthorizeResponse</c> and flowed onto <see cref="PaymentAuthorizedDomainEvent.ExpiresAtUtc"/>
-    /// so the outbound Avro event is truthful (H-6).</param>
+    /// so the outbound Avro event is truthful.</param>
     /// <param name="utcNow">Current UTC time.</param>
     /// <exception cref="DataIntegrityException">Invalid FSM transition (I-3/I-5) or mismatched
     /// <c>GatewayTransactionId</c> (I-4).</exception>
@@ -372,7 +372,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <see cref="PaymentVoidedDomainEvent"/>. Idempotent when already <see cref="PaymentStatus.Voided"/>.
     /// </summary>
     /// <param name="reason">Saga-supplied reason for the void (audit trail; persisted on the
-    /// aggregate and surfaced on <c>PaymentVoidedEvent.Reason</c>). H-5.</param>
+    /// aggregate and surfaced on <c>PaymentVoidedEvent.Reason</c>).</param>
     /// <param name="gatewayResponseCode">Gateway response from the void call.</param>
     /// <param name="utcNow">Current UTC time.</param>
     /// <exception cref="DataIntegrityException">Invalid FSM transition.</exception>

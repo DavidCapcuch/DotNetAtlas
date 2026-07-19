@@ -30,8 +30,7 @@ public sealed record AuthorizePaymentCommand : ICommand<Guid>
     /// so a real PSP adapter (Stripe / Adyen) can forward it as the gateway's
     /// <c>Idempotency-Key</c> header. Even though the Payments-side inbox already dedups Kafka
     /// replays, this gives the gateway-side an independent safety net for the
-    /// "SaveChanges fails after gateway succeeded" recovery path (H-3 partial mitigation,
-    /// H-4).
+    /// "SaveChanges fails after gateway succeeded" recovery path.
     /// </summary>
     public required string IdempotencyKey { get; init; }
 }
