@@ -1,3 +1,4 @@
+using Avro;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.Messaging;
 using Catalog.Application.Products.UpdateProductPrice;
@@ -14,6 +15,9 @@ namespace Catalog.UnitTests.Products.UpdateProductPrice;
 
 public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
 {
+    /// <summary>Scale pinned by the money fields in <c>ProductPriceChangedEvent.avsc</c>.</summary>
+    private const int MoneyScale = 4;
+
     private static TopicsOptions DefaultTopics() => new()
     {
         CatalogProducts = "catalog.products",
@@ -64,8 +68,12 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
             avro.ProductId.Should().Be(product.Id);
             avro.Sku.Should().Be(product.Sku.Value);
             avro.Currency.Should().Be("USD");
-            ((decimal)avro.OldPriceAmount).Should().Be(9.99m);
-            ((decimal)avro.NewPriceAmount).Should().Be(14.50m);
+            // Scale-comparing oracle, not a (decimal) cast — the cast erases scale, hiding an
+            // amount emitted at the input's own scale rather than the schema's 4.
+            avro.OldPriceAmount.Should().Be(new AvroDecimal(9.9900m));
+            avro.OldPriceAmount.Scale.Should().Be(MoneyScale);
+            avro.NewPriceAmount.Should().Be(new AvroDecimal(14.5000m));
+            avro.NewPriceAmount.Scale.Should().Be(MoneyScale);
             avro.ChangedAtUtc.Should().Be(occurredOn.UtcDateTime);
         }
     }

@@ -1,6 +1,7 @@
 using Avro;
 using Basket.Domain.Baskets.Events;
 using Basket.Domain.Baskets.ValueObjects;
+using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.Application.Baskets.Checkout;
@@ -20,6 +21,13 @@ namespace Basket.Application.Baskets.Checkout;
 internal static class BasketCheckoutInitiatedMapper
 {
     /// <summary>
+    /// Scale pinned by every money field in <c>BasketCheckoutInitiatedEvent.avsc</c>
+    /// (<c>decimal(19,4)</c>). Avro rejects a datum whose scale differs from the schema's, so
+    /// amounts must be normalised here rather than inheriting the .NET decimal's own scale.
+    /// </summary>
+    private const int MoneyScale = 4;
+
+    /// <summary>
     /// Projects a <see cref="BasketCheckedOutDomainEvent"/> onto the Avro integration event.
     /// The basket-wide currency is read from <see cref="BasketTotal.Amount"/> — that's the
     /// authoritative single-currency value computed by the aggregate (uniformity invariant 5
@@ -37,7 +45,7 @@ internal static class BasketCheckoutInitiatedMapper
             OrderId = src.OrderId,
             UserId = src.UserId,
             Items = snapshot.Items.Select(MapItem).ToList(),
-            TotalAmount = new AvroDecimal(snapshot.Total.Amount.Amount),
+            TotalAmount = snapshot.Total.Amount.Amount.ToAvroDecimal(MoneyScale),
             Currency = snapshot.Total.Amount.Currency.Name,
             ShippingAddress = MapAddress(src.ShippingAddress),
             BillingAddress = MapAddress(src.BillingAddress),
@@ -56,10 +64,10 @@ internal static class BasketCheckoutInitiatedMapper
             ProductId = item.ProductId,
             Sku = item.Snapshot.Sku,
             Name = item.Snapshot.Name,
-            UnitPriceAmount = new AvroDecimal(unitAmount),
+            UnitPriceAmount = unitAmount.ToAvroDecimal(MoneyScale),
             UnitPriceCurrency = item.Snapshot.Price.Currency.Name,
             Quantity = item.Quantity,
-            LineTotal = new AvroDecimal(lineTotal),
+            LineTotal = lineTotal.ToAvroDecimal(MoneyScale),
         };
     }
 

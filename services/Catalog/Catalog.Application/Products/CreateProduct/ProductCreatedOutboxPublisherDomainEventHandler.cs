@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
 using AvroProductCreatedEvent = Catalog.Products.ProductCreatedEvent;
@@ -24,6 +25,13 @@ namespace Catalog.Application.Products.CreateProduct;
 public sealed class ProductCreatedOutboxPublisherDomainEventHandler : IDomainEventHandler<ProductCreatedDomainEvent>
 {
     private const int MaxDescriptionLength = 1000;
+
+    /// <summary>
+    /// Scale pinned by <c>PriceAmount</c> in <c>ProductCreatedEvent.avsc</c> (<c>decimal(19,4)</c>).
+    /// Avro rejects a datum whose scale differs from the schema's, so the amount must be normalised
+    /// rather than inheriting the .NET decimal's own scale.
+    /// </summary>
+    private const int MoneyScale = 4;
 
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
@@ -63,7 +71,7 @@ public sealed class ProductCreatedOutboxPublisherDomainEventHandler : IDomainEve
             CategoryId = product.CategoryId,
             CategoryPath = category.Path.Value,
             BrandName = product.Brand.Value,
-            PriceAmount = new Avro.AvroDecimal(product.Price.Amount),
+            PriceAmount = product.Price.Amount.ToAvroDecimal(MoneyScale),
             PriceCurrency = product.Price.Currency.Name,
             Status = ToAvroStatus(product.Status),
             CreatedAtUtc = product.CreatedUtc.UtcDateTime,

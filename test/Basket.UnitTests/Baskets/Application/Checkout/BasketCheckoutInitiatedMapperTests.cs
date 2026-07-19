@@ -15,6 +15,9 @@ namespace Basket.UnitTests.Baskets.Application.Checkout;
 /// </summary>
 public class BasketCheckoutInitiatedMapperTests
 {
+    /// <summary>Scale pinned by every money field in <c>BasketCheckoutInitiatedEvent.avsc</c>.</summary>
+    private const int MoneyScale = 4;
+
     [Fact]
     public void ToAvroEvent_WhenFullyPopulatedEvent_PopulatesEveryFieldCorrectly()
     {
@@ -27,11 +30,14 @@ public class BasketCheckoutInitiatedMapperTests
         var capturedAt = new DateTimeOffset(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
         var occurredAt = new DateTimeOffset(2026, 04, 23, 12, 00, 00, TimeSpan.Zero);
 
-        var snapshot = ProductSnapshot.Create("SKU-42", "Widget", Money.Create(19.9900m, CurrencyCode.Usd).Value, capturedAt);
+        // Two-decimal money is what actually reaches the mapper (prices round-trip through the
+        // Redis basket as JSON), so the arrange must not pre-scale to 4 — otherwise the mapper's
+        // scale normalisation is never exercised and a raw `new AvroDecimal(x)` passes by accident.
+        var snapshot = ProductSnapshot.Create("SKU-42", "Widget", Money.Create(19.99m, CurrencyCode.Usd).Value, capturedAt);
         var item = BasketItem.BuildUnchecked(productId, snapshot, 3);
         var basketSnapshot = BasketSnapshot.Create(
             ImmutableArray.Create(item),
-            BasketTotal.From(Money.Create(59.9700m, CurrencyCode.Usd).Value));
+            BasketTotal.From(Money.Create(59.97m, CurrencyCode.Usd).Value));
 
         var shipping = Address.Create("1 Main St", "Apt 2", "Springfield", "IL", "62704", "US").Value;
         var billing = Address.Create("Hlavní 10", null, "Praha", null, "11000", "CZ").Value;
@@ -58,6 +64,7 @@ public class BasketCheckoutInitiatedMapperTests
             avro.PaymentMethodId.Should().Be(paymentMethodId);
             avro.Currency.Should().Be("USD");
             avro.TotalAmount.Should().Be(new AvroDecimal(59.9700m));
+            avro.TotalAmount.Scale.Should().Be(MoneyScale);
             avro.InitiatedAtUtc.Should().Be(occurredAt.UtcDateTime);
 
             avro.Items.Should().ContainSingle();
@@ -66,9 +73,11 @@ public class BasketCheckoutInitiatedMapperTests
             line.Sku.Should().Be("SKU-42");
             line.Name.Should().Be("Widget");
             line.UnitPriceAmount.Should().Be(new AvroDecimal(19.9900m));
+            line.UnitPriceAmount.Scale.Should().Be(MoneyScale);
             line.UnitPriceCurrency.Should().Be("USD");
             line.Quantity.Should().Be(3);
-            line.LineTotal.Should().Be(new AvroDecimal(19.9900m * 3));
+            line.LineTotal.Should().Be(new AvroDecimal(59.9700m));
+            line.LineTotal.Scale.Should().Be(MoneyScale);
 
             // Shipping
             avro.ShippingAddress.Street1.Should().Be("1 Main St");
@@ -121,10 +130,15 @@ public class BasketCheckoutInitiatedMapperTests
         // Assert
         using (new AssertionScope())
         {
+            // Scale-comparing oracle, not a (decimal) cast — the cast erases scale, so a mapper
+            // emitting the input's own scale instead of the schema's 4 would pass unnoticed.
             avro.Items.Should().HaveCount(2);
-            ((decimal)avro.Items[0].LineTotal).Should().Be(20m);
-            ((decimal)avro.Items[1].LineTotal).Should().Be(22.0m);
-            ((decimal)avro.TotalAmount).Should().Be(42m);
+            avro.Items[0].LineTotal.Should().Be(new AvroDecimal(20.0000m));
+            avro.Items[0].LineTotal.Scale.Should().Be(MoneyScale);
+            avro.Items[1].LineTotal.Should().Be(new AvroDecimal(22.0000m));
+            avro.Items[1].LineTotal.Scale.Should().Be(MoneyScale);
+            avro.TotalAmount.Should().Be(new AvroDecimal(42.0000m));
+            avro.TotalAmount.Scale.Should().Be(MoneyScale);
         }
     }
 }
