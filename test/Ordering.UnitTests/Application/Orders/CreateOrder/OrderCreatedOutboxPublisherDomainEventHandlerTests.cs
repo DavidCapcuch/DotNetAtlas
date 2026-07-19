@@ -1,3 +1,4 @@
+using Avro;
 using Avro.Specific;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -52,6 +53,18 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
             avro.PaymentMethodId.Should().Be(paymentMethodId);
             avro.Currency.Should().Be("USD");
             avro.Items.Count.Should().Be(1);
+
+            // Money was previously unasserted here, so a wrong amount or a wrong scale shipped
+            // silently. Scale-comparing oracle: AvroDecimal equality covers Scale as well as the
+            // unscaled value, and the schema pins every money field at 4.
+            avro.TotalAmount.Should().Be(new AvroDecimal(20.0000m));
+            avro.TotalAmount.Scale.Should().Be(MoneyScale);
+
+            var item = avro.Items[0];
+            item.UnitPriceAmount.Should().Be(new AvroDecimal(10.0000m));
+            item.UnitPriceAmount.Scale.Should().Be(MoneyScale);
+            item.LineTotalAmount.Should().Be(new AvroDecimal(20.0000m));
+            item.LineTotalAmount.Scale.Should().Be(MoneyScale);
         }
     }
 }
