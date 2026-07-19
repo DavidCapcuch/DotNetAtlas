@@ -11,7 +11,6 @@ using Invoicing.Application.Pdf;
 using Invoicing.Domain.Common.ValueObjects;
 using Invoicing.Infrastructure.Messaging.Kafka.Notifications;
 using Invoicing.Infrastructure.Persistence.Database;
-using KafkaFlow;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +22,7 @@ using Platform.CQRS;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -43,7 +43,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// (#269). Tests resolve handlers from <see cref="Services"/> and invoke them directly;
 /// Kafka consumers are skipped (Program.cs guards <c>CreateKafkaBus().StartAsync()</c> with
 /// <c>!app.Environment.IsTesting()</c>) and the <see cref="NotificationDeliveryStatusChangedEventKafkaHandler"/>
-/// is invoked synchronously via <c>TestKafkaMessageContext</c> instead of through a real broker.
+/// is invoked synchronously via <see cref="FakeKafkaMessageContext"/> instead of through a real broker.
 /// </summary>
 [DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>
@@ -207,10 +207,7 @@ public class IntegrationTestFixture : AppFixture<Program>
 
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
 
-        var ctx = Substitute.For<IMessageContext>();
-        var consumerCtx = Substitute.For<IConsumerContext>();
-        consumerCtx.WorkerStopped.Returns(ct);
-        ctx.ConsumerContext.Returns(consumerCtx);
+        var ctx = FakeKafkaMessageContext.Create(cancellationToken: ct);
 
         await handler.Handle(ctx, new Notifications.NotificationDeliveryStatusChangedEvent
         {

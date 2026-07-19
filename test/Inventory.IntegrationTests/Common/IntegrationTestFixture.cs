@@ -37,8 +37,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// registration still happens at DI time (<c>AddInfrastructure</c> calls
 /// <c>AddKafka</c>), but the broker URL points at an unreachable host so a
 /// stray production code path would fail loudly instead of leaking onto a
-/// real broker. Avro byte-level fidelity is validated functional tests
-/// alongside the Kafka consumer wiring.
+/// real broker.
 /// </para>
 /// <para>
 /// <see cref="IOutboxWriter"/> is swapped for <see cref="FakeOutboxWriter"/>
@@ -110,10 +109,9 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter
-                // with the fake. Avro byte-fidelity is validated in M7 functional
-                // tests; integration tests only need to verify "the right outbox
-                // row landed".
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with
+                // the fake so these tests need no Schema Registry; assertions target the
+                // captured outbox row (topic, key, event type).
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
                 // Replace the FusionCache/redis-cache stock-level cache with an in-memory

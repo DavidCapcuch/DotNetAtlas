@@ -33,7 +33,6 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
     private readonly PostgreSqlTestContainer _dbContainer;
     private readonly KafkaTestContainer _kafkaContainer = new();
 
-    public FakeOutboxWriter FakeOutboxWriter { get; } = new();
     public KafkaTestProducer KafkaProducer { get; private set; } = null!;
 
     private IBusControl? _busControl;
