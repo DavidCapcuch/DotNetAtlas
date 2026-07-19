@@ -112,6 +112,11 @@ A reader who later needs production shape gets the best of both: the pattern is 
 7. Implement GDPR Article 17 tombstone + crypto-shredding per ADR-0011.
 8. Add rate-limit breakglass audit sink (file log is v1; real deployments need an audit log system).
 9. Schema-compat CI gate (ADR-0007 follow-up) becomes mandatory, not advisory.
+10. **Auth (deployed JWT-bearer):** Catalog and Basket **fail closed** in any deployed environment (the published image defaults to `Production`): the host refuses all authenticated traffic until *both* of these override the local-dev defaults in the base `appsettings.json`:
+    - `Authentication__JwtBearer__RequireHttpsMetadata=true` — base ships `false`.
+    - `Authentication__JwtBearer__Authority` → a reachable `https://` OIDC endpoint whose TLS chain the service trusts — base ships `http://localhost`.
+
+    Overriding only one still fails (the guard trips on `RequireHttpsMetadata=false`; an `http://` authority under `RequireHttpsMetadata=true` is rejected at OIDC-metadata retrieval), so verify with a real authenticated request, not a health probe. `RequireHttpsMetadata` gates the service→Keycloak metadata/JWKS *backchannel* — not inbound request TLS, which you terminate at your ingress (the planned YARP edge is not yet built; see ADR-0035). An internal-plaintext-metadata topology (Keycloak reachable only over cluster-internal `http://`) is **out of scope**: the guard admits no exception, so an adopter who needs it relaxes the per-BC guard themselves, accepting the plaintext metadata/JWKS MITM surface. Only Catalog and Basket enforce `RequireHttpsMetadata` in deployed environments; the other inbound-JWT BCs rely on the platform validation floor only.
 
 ## Related Decisions
 
