@@ -65,7 +65,9 @@ public class AuthenticationDependencyInjectionTests
         // explicit override would fetch OIDC signing-key metadata over plain HTTP: a real
         // downgrade-attack vector. This guard is the only line that catches it — it throws for
         // this combination so a misconfigured deployed host fails closed rather than fetching
-        // signing keys over plain HTTP.
+        // signing keys over plain HTTP. This test pins the predicate in isolation; that the wired
+        // guard actually fails host startup in a deployed environment (ValidateOnStart) is covered
+        // by AuthenticationDeployedBootTests.
 
         // Arrange
         var options = MakeOptions(requireSigned: true, validateSigningKey: true, requireHttps: false);
