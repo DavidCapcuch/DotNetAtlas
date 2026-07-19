@@ -45,7 +45,7 @@ public class SagaCommandMappersTests
         using (new AssertionScope())
         {
             app.PaymentId.Should().Be(paymentTransactionId,
-                "wave1-followup #255: PaymentId is the saga-issued PaymentTransactionId field");
+                "#255: PaymentId is the saga-issued PaymentTransactionId field");
             app.PaymentId.Should().NotBe(orderId,
                 "regression net for the v1 collapse where PaymentId = OrderId");
             app.OrderId.Should().Be(orderId,

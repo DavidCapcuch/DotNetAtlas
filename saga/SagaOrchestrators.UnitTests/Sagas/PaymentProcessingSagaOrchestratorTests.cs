@@ -575,7 +575,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         {
             awaitingAuthorizationSagaState.Should().NotBeNull();
             awaitingAuthorizationSagaState.PaymentTransactionId.Should().NotBeNull(
-                "the saga issues PaymentTransactionId up front per wave1-followup #255");
+                "the saga issues PaymentTransactionId up front per #255");
             awaitingAuthorizationSagaState.PaymentTransactionId!.Value.Should().NotBeEmpty();
             awaitingAuthorizationSagaState.PaymentTransactionId.Value.Should().NotBe(orderId,
                 "PaymentTransactionId must be distinct from the saga key (OrderId) — no v1 collapse");
@@ -748,6 +748,6 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
         return saga.PaymentTransactionId
             ?? throw new InvalidOperationException(
                 $"Saga {orderId} has no minted PaymentTransactionId — "
-                + "wave1-followup #255 invariant violation");
+                + "#255 invariant violation");
     }
 }

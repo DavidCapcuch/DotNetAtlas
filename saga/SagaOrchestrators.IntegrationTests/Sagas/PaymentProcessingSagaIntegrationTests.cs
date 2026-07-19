@@ -683,6 +683,6 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
         return state?.PaymentTransactionId
             ?? throw new InvalidOperationException(
                 $"Saga {orderId} not found or PaymentTransactionId not minted — "
-                + "wave1-followup #255 invariant violation");
+                + "#255 invariant violation");
     }
 }

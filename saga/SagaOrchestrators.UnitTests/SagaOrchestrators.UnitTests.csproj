@@ -23,7 +23,7 @@
 
     <ItemGroup>
         <!--
-          M7 CheckoutTimeoutInvariantTests reads the production Saga:CheckoutTimeouts:* values
+          CheckoutTimeoutInvariantTests reads the production Saga:CheckoutTimeouts:* values
           straight from saga/SagaOrchestrators/appsettings.json (NOT the Testing overlay) to
           assert the F4/ADR-0004 cross-BC timeout invariant. Explicit Link guards against
           transitive-copy fragility - if the SagaOrchestrators csproj ever stops copying its
