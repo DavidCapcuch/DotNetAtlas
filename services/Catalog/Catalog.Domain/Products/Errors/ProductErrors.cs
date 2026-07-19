@@ -52,7 +52,7 @@ public static class ProductErrors
             message: $"A product with SKU '{sku}' already exists.",
             errorCode: "Product.SkuAlreadyExists");
 
-    // CAT-RV-M03 (Wave-1 closeout): user-actionable state-transition rejections surface as
+    // CAT-RV-M03: user-actionable state-transition rejections surface as
     // 409 Result.Fail rather than 500 DataIntegrityException. The exception path remains for
     // genuinely impossible states (UI-bug paths), but client-driven retries against a product
     // whose status has changed concurrently should not produce an internal error.

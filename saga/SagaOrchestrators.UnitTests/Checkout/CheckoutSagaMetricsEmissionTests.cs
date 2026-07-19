@@ -63,7 +63,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
             .AddSingleton(sagaOptions)
             .AddSingleton(topicsOptions)
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
-            // M8: M7 metric assertions hinge on the default stock-then-payment compensation
+            // Metric assertions hinge on the default stock-then-payment compensation
             // surface — pin the topology-swap flag OFF here too.
             .AddSingleton<IFeatureClient>(CheckoutFeatureClientStub.WithPaymentThenStock(false))
             .AddSagaOutboxTestServices(testDbName, _fakeOutboxWriter)
@@ -237,7 +237,7 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
         return listener;
     }
 
-    // ===== helpers (mirror the M3 — M6 test class to keep this test file self-contained) =====
+    // ===== helpers (mirror the sibling test class to keep this test file self-contained) =====
 
     private async Task PublishInitiated(Guid correlationId, params CheckoutItemSnapshot[] items)
     {

@@ -29,7 +29,7 @@ public sealed class GetOrdersByBuyerQueryHandler
         // constructed directly outside the CQRS scope): PageSize=0 would
         // silently return an empty page, PageNumber<1 would push the EF
         // offset (PageNumber-1)*PageSize to <= 0 (undefined across providers),
-        // and PageSize > MaxPageSize would defeat the wave-1 100-row cap.
+        // and PageSize > MaxPageSize would defeat the 100-row cap.
         if (query.PageNumber < 1 || query.PageSize <= 0 || query.PageSize > MaxPageSize)
         {
             throw new DataIntegrityException(

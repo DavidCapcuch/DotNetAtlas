@@ -144,7 +144,7 @@ internal sealed class IssueCreditNoteCommandHandler : ICommandHandler<IssueCredi
         var utcNow = _timeProvider.GetUtcNow();
 
         // ADR-0018 — the allocator demands an enclosing transaction. When dispatched from
-        // the M6 consumer, the inbox middleware already owns a transaction; in that case
+        // the consumer, the inbox middleware already owns a transaction; in that case
         // we must NOT begin a nested one. See IssueInvoiceCommandHandler for the same
         // rationale.
         var ownsTransaction = _db.Database.CurrentTransaction is null;

@@ -28,9 +28,8 @@ public class ProductStatusTests
         }
     }
 
-    // CAT-TST / Wave-1 closeout #200 (table reduced to 2×2 by #177 — Draft removed):
-    // 4 cells × 2 admin flag = 8 tuples pin every reachable boolean mutation in
-    // CanTransitionTo against the post-#177 lifecycle (Active ↔ Discontinued).
+    // CAT-TST #200: 4 cells × 2 admin flag = 8 tuples pin every reachable boolean mutation in
+    // CanTransitionTo across the Active ↔ Discontinued lifecycle.
     [Theory]
     [InlineData(nameof(ProductStatus.Active), nameof(ProductStatus.Active), false, false)]
     [InlineData(nameof(ProductStatus.Active), nameof(ProductStatus.Active), true, false)]

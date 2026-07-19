@@ -100,7 +100,7 @@ public class ImageReferenceTests
     [InlineData("ftp://example.com/img.png")]
     public void Create_WhenUrlSchemeNotHttpOrHttps_ReturnsFailureWithInvalidUrl(string url)
     {
-        // Per CAT-SEC-005 (Wave-1 closeout): an image URL is stored and rendered downstream
+        // Per CAT-SEC-005: an image URL is stored and rendered downstream
         // (BFF / web UI). Accepting javascript:, data:, file: opens a stored-XSS-via-image-src
         // path; ftp: is just a misconfigure. Allow-list http and https only.
         var result = ImageReference.Create(url, "Alt", 0);

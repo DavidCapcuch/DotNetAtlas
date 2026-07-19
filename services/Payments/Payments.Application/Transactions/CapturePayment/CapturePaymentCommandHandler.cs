@@ -90,8 +90,8 @@ internal sealed class CapturePaymentCommandHandler : ICommandHandler<CapturePaym
         // GatewayTransactionId is set by Authorize and is append-only per I-4. The
         // CanTransitionTo(Captured) pre-check above proves the aggregate is in Authorized, so the
         // bang here is safe — the aggregate's FSM is the single source of truth for the
-        // invariant. The handler-level null-guard the closeout (#250) used to carry was genuinely
-        // unreachable after the FSM pre-check landed and is removed.
+        // invariant. No separate handler-level null-guard is needed; the FSM pre-check makes
+        // one unreachable.
         var gatewayTransactionId = tx.GatewayTransactionId!;
 
         var gatewayResult = await _gateway.CaptureAsync(gatewayTransactionId, tx.Amount, ct);

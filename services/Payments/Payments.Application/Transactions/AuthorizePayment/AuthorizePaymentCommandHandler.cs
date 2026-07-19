@@ -16,7 +16,7 @@ namespace Payments.Application.Transactions.AuthorizePayment;
 /// Handles <see cref="AuthorizePaymentCommand"/> — the saga's entry point into the Payments
 /// BC. Loads (or creates) the aggregate, persists it in <c>Requested</c>, calls the gateway,
 /// transitions the aggregate to <c>Authorized</c>/<c>Failed</c>, then flushes outbox rows in a
-/// second SaveChanges (H-3 closeout).
+/// second SaveChanges (H-3).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -101,7 +101,7 @@ internal sealed class AuthorizePaymentCommandHandler : ICommandHandler<Authorize
             // H-3: persist the Requested aggregate + inbox-dedup row BEFORE the gateway call.
             // If SaveChanges below fails, saga retry re-enters via the `existing is null` branch
             // and re-creates — but the gateway has not been touched yet, so no double-authorize
-            // is possible. (Create raises no domain events per ADR-0023 follow-up.)
+            // is possible. (Create raises no domain events per ADR-0023.)
             await _outbox.SaveChangesAsync(ct);
         }
         else

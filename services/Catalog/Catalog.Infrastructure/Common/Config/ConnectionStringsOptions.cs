@@ -4,8 +4,7 @@ namespace Catalog.Infrastructure.Common.Config;
 
 /// <summary>
 /// Connection strings bound from the <c>ConnectionStrings</c> section.
-/// Catalog owns a single Postgres database (no Redis primary store; ADR-0016 Redis cache
-/// arrives in a later milestone).
+/// Catalog owns a single Postgres database (no Redis store).
 /// </summary>
 public sealed class ConnectionStringsOptions
 {

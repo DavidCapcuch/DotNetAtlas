@@ -27,7 +27,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// order-cancel-first, refund-first, duplicate idempotency.
 /// </summary>
 /// <remarks>
-/// As of Wave 1.6 / ADR-0020 the consumed Avro <c>OrderCancelledEvent</c> is
+/// Per ADR-0020 the consumed Avro <c>OrderCancelledEvent</c> is
 /// a Summary Event — Items, TotalAmount, Currency, BillingAddress all travel
 /// with it and are persisted into <c>pending_credit_notes.OrderPayload</c>
 /// to read. Each test asserts the round-trip through the jsonb column.
@@ -275,7 +275,7 @@ public sealed class PendingCreditNoteProjectionTests
 
         var firstEvent = BuildOrderCancelledEvent(orderId, buyerId, CancelArrivalUtc);
         // Second arrival deliberately differs so the assertion proves the row
-        // keeps the FIRST payload — locks in ADR-0020 / Wave 1.6 contract:
+        // keeps the FIRST payload — locks in the ADR-0020 contract:
         // first-arrival wins, second arrival never overwrites OrderPayload.
         var secondEvent = BuildOrderCancelledEvent(
             orderId, buyerId, CancelArrivalUtc, totalOverride: 999.99m);

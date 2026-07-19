@@ -75,9 +75,9 @@ public class CreateProductCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
-    // CAT-SEC-004 (Wave-1 closeout): existing heuristic only matched "<letter", letting these
-    // shapes through. Any downstream renderer that decodes entities or honours processing
-    // instructions / CDATA would then re-expose the markup. Reject up front.
+    // CAT-SEC-004: a naive "<letter" heuristic would let these shapes through. Any downstream
+    // renderer that decodes entities or honours processing instructions / CDATA would then
+    // re-expose the markup. Reject up front.
     [Theory]
     [Trait("Category", "security")]
     [InlineData("<!-- xss -->")]
@@ -175,7 +175,7 @@ public class CreateProductCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
-    // Per CAT-SEC-005 (Wave-1 closeout): scheme allow-list mirrored at the API surface so a
+    // Per CAT-SEC-005: scheme allow-list mirrored at the API surface so a
     // hostile image URL is rejected before the command reaches the domain factory.
     [Theory]
     [Trait("Category", "security")]
@@ -198,7 +198,7 @@ public class CreateProductCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeFalse();
     }
 
-    // CAT-SEC-006 (Wave-1 closeout): MaximumLength counts UTF-16 code units, so a surrogate
+    // CAT-SEC-006: MaximumLength counts UTF-16 code units, so a surrogate
     // pair (any non-BMP emoji) is 2 chars. MaximumRuneLength counts Unicode scalars instead,
     // so 200 emoji = 200 runes = valid even though it's 400 chars.
     [Fact]

@@ -34,10 +34,9 @@ public class ProductTests
             images: [],
             UtcNow);
 
-        // Assert — CAT-TST / Wave-1 closeout #201: pin the full factory-side-effect surface so
+        // Assert — CAT-TST #201: pin the full factory-side-effect surface so
         // mutation testing can't leave constructor-body assignments unchecked. Every assignment
-        // in the Product.Create body must be observable here. Post-#177: Status is set to Active
-        // on create (Draft removed entirely).
+        // in the Product.Create body must be observable here. Status is set to Active on create.
         using (new AssertionScope())
         {
             result.Should().BeSuccess();

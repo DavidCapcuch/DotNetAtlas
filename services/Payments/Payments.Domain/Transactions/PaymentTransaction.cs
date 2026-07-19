@@ -20,8 +20,8 @@ namespace Payments.Domain.Transactions;
 /// <see cref="Create"/> deliberately does NOT raise a domain event — the Payments BC is invoked
 /// through <c>AuthorizePaymentCommand</c> from PaymentProcessingSaga, and the wire-level
 /// <c>RequestPaymentCommand</c> (per ADR-0023) is produced by the Checkout saga, not by Payments.
-/// Raising a Payments-internal "requested" event with no in-process handler and no outbox
-/// publisher was pure scaffolding; it was removed in the ADR-0023 follow-up.
+/// A Payments-internal "requested" event would have no in-process handler and no outbox
+/// publisher, so none is raised.
 /// <list type="bullet">
 /// <item><see cref="PaymentAuthorizedDomainEvent"/>: on successful <see cref="Authorize"/>.</item>
 /// <item><see cref="PaymentAuthorizationFailedDomainEvent"/> + <see cref="PaymentFailedDomainEvent"/>:
@@ -83,7 +83,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     public DateTimeOffset? VoidedAtUtc { get; private set; }
 
     /// <summary>
-    /// Saga-supplied reason for the void. Null until <see cref="Void"/> succeeds (H-5 closeout).
+    /// Saga-supplied reason for the void. Null until <see cref="Void"/> succeeds (H-5).
     /// </summary>
     public string? VoidReason { get; private set; }
 
@@ -107,7 +107,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <returns>Ok with the new aggregate, or failure with <see cref="PaymentsErrors.InvalidAmount"/>
     /// / <see cref="PaymentsErrors.InvalidPaymentMethod"/>.</returns>
     /// <remarks>
-    /// ADR-0023 follow-up: raises no domain events. The aggregate's creation moment is signalled
+    /// Per ADR-0023, raises no domain events. The aggregate's creation moment is signalled
     /// to the saga via <c>RequestPaymentCommand</c> (Checkout-saga produced, on
     /// <c>payments.payment-commands</c>), not via a Payments-internal domain event. No
     /// timestamp parameter is needed — the mutator methods (<see cref="Authorize"/>,
@@ -156,7 +156,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <param name="gatewayResponseCode">Gateway response.</param>
     /// <param name="expiresAtUtc">Gateway-stated authorization expiry — sourced from the
     /// <c>AuthorizeResponse</c> and flowed onto <see cref="PaymentAuthorizedDomainEvent.ExpiresAtUtc"/>
-    /// so the outbound Avro event is truthful (H-6 closeout).</param>
+    /// so the outbound Avro event is truthful (H-6).</param>
     /// <param name="utcNow">Current UTC time.</param>
     /// <exception cref="DataIntegrityException">Invalid FSM transition (I-3/I-5) or mismatched
     /// <c>GatewayTransactionId</c> (I-4).</exception>
@@ -372,7 +372,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <see cref="PaymentVoidedDomainEvent"/>. Idempotent when already <see cref="PaymentStatus.Voided"/>.
     /// </summary>
     /// <param name="reason">Saga-supplied reason for the void (audit trail; persisted on the
-    /// aggregate and surfaced on <c>PaymentVoidedEvent.Reason</c>). H-5 closeout follow-up.</param>
+    /// aggregate and surfaced on <c>PaymentVoidedEvent.Reason</c>). H-5.</param>
     /// <param name="gatewayResponseCode">Gateway response from the void call.</param>
     /// <param name="utcNow">Current UTC time.</param>
     /// <exception cref="DataIntegrityException">Invalid FSM transition.</exception>

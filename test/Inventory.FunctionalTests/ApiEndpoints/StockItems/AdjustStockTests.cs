@@ -84,38 +84,27 @@ public sealed class AdjustStockTests : BaseApiTest
     [Trait("Category", "resilience")]
     public async Task WhenSameIdempotencyKeyReplayed_BothCallsReturn200()
     {
-        // M9 attempted strengthening (carried from M7 → M8 → M9 per
-        // inventory.md:516-518):
-        // (1) Strengthen the replay assertion: count `StockAdjustedDomainEvent`
-        //     rows in `stock_events` before/after each POST and assert the
-        //     second POST does NOT append a second event.
-        // (2) Inspect Redis after the first POST: assert at least one Redis
-        //     key exists (proves AddIdempotencyKeyOutputCache → Redis is
-        //     wired and writing).
-        //
-        // OUTCOME: neither (1) nor (2) is reliably observable through
-        // WebApplicationFactory in this BC against FE 7.0.1 +
-        // StackExchangeRedisOutputCache (instance prefix `inventory:idem:`).
-        // Two observations:
-        //   - Polling Redis for up to 2s after the first POST yields zero
-        //     keys via SCAN, even though the platform's
-        //     AddIdempotencyKeyOutputCache is unconditionally registered
+        // This test asserts only that both calls return 200. Two stronger
+        // signals are NOT reliably observable through WebApplicationFactory in
+        // this BC against FE 7.0.1 + StackExchangeRedisOutputCache (instance
+        // prefix `inventory:idem:`):
+        //   - Counting `StockAdjustedDomainEvent` rows in `stock_events`
+        //     before/after each POST to prove the replay appends no second
+        //     event: the handler likely re-executes on the replay, so this is
+        //     not a clean signal.
+        //   - Inspecting Redis after the first POST to prove the cache write
+        //     fired: polling for up to 2s yields zero keys via SCAN, even
+        //     though AddIdempotencyKeyOutputCache is unconditionally registered
         //     (ApiDependencyInjection.cs:31) and Program.cs wires
         //     UseOutputCache() ahead of UseFastEndpoints (Program.cs:61).
-        //   - The handler likely re-executes on the replay (so no second
-        //     event would be a stronger signal — but the cache write itself
-        //     is the upstream gate, and we cannot observe it).
-        // Matches the Basket M8/M9 follow-up wording at
-        // test/Basket.FunctionalTests/ApiEndpoints/Baskets/CheckoutBasketTests.cs:86-95
-        // — production verification of the .Idempotency() filter stays
-        // manual until the FE/output-cache combination becomes transparent
-        // in the test host. Carried forward to M10+ in the wave_progress.
         //
-        // What this test still does prove: the .Idempotency() filter wiring
-        // does not crash on a same-key replay and both calls return 200 —
-        // the outer contract of ADR-0013's pipeline (AddIdempotencyKeyOutputCache
-        // Redis-backed, UseOutputCache before UseFastEndpoints,
-        // .Idempotency() on the endpoint).
+        // What this test proves: the .Idempotency() filter wiring does not
+        // crash on a same-key replay and both calls return 200 — the outer
+        // contract of ADR-0013's pipeline (AddIdempotencyKeyOutputCache
+        // Redis-backed, UseOutputCache before UseFastEndpoints, .Idempotency()
+        // on the endpoint). Production verification of the filter stays manual
+        // until the FE/output-cache combination becomes transparent in the
+        // test host.
         //
         // Diagnostic counts + Redis key snapshot are written to the test
         // output below for human inspection on every run.

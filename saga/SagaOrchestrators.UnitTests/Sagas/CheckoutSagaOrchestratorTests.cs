@@ -50,8 +50,8 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
             .AddSingleton(sagaOptions)
             .AddSingleton(topicsOptions)
             .AddSingleton<TimeProvider>(_fakeTimeProvider)
-            // M8: every Checkout-saga flag-key resolves to OFF in this fixture so the M2 — M7
-            // tests continue to assert the default stock-then-payment topology unchanged.
+            // Every Checkout-saga flag-key resolves to OFF in this fixture so the tests
+            // continue to assert the default stock-then-payment topology unchanged.
             .AddSingleton<IFeatureClient>(CheckoutFeatureClientStub.WithPaymentThenStock(false))
             .AddSagaOutboxTestServices(testDbName, _fakeOutboxWriter)
             .AddMassTransitTestHarness(cfg =>
@@ -72,7 +72,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         await _provider.DisposeAsync();
     }
 
-    // ===== M2 structural smoke tests (kept) =====
+    // ===== structural smoke tests =====
 
     [Fact]
     public void Constructor_ShouldDeclareAllExplicitStates()
@@ -778,7 +778,7 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
     // A mid-compensation state-snapshot assertion follows. Once OrderCancelled lands on top of
     // releases-complete, the gate triggers terminal Compensated, and we cannot capture the
     // post-NullOutAddresses, pre-Finalize state in a unit test deterministically. Integration
-    // tests (M9, against the real EF repo) will assert the persisted row's address columns are
+    // tests against the real EF repo assert the persisted row's address columns are
     // null after the saga finalises.
 
     [Fact]
@@ -803,15 +803,15 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         }
     }
 
-    // ===== § 7 timeouts (M5) =====
+    // ===== § 7 timeouts =====
     //
     // Test discipline (ADR-0015 "MassTransit saga scheduler - known seam"): we drive the
     // timeout-fired branches by publishing the *TimeoutExpired record directly via
     // _testHarness.Bus.Publish(...). FakeTimeProvider.Advance does NOT advance the saga
     // scheduler's clock, so attempts to wait for a real-clock fire would hang. Direct
     // publish exercises the same .Schedule() correlation rule the scheduler would dispatch
-    // through. The unschedule-on-success paths are validated indirectly: M4 tests for the
-    // happy paths still pass after this milestone (we did not regress them).
+    // through. The unschedule-on-success paths are validated indirectly: the happy-path
+    // tests still pass.
 
     [Fact]
     public async Task AwaitingOrderCreation_OnOrderCreationTimeout_TransitionsToFailed_AndPublishesCheckoutFailedAndMarkOrderFailed()

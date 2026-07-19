@@ -19,7 +19,7 @@ namespace Basket.Infrastructure.Common;
 /// Per-probe timeouts come from <see cref="HealthChecksOptions"/>; the
 /// <c>AddDbContextCheck</c> EF Core extension does not expose a direct timeout
 /// parameter, so the DB readiness probe runs under EF's command-timeout default
-/// (mirrors Catalog's M10 decision — operators who need a tighter DB-level timeout
+/// (mirrors Catalog's decision — operators who need a tighter DB-level timeout
 /// switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into <c>EfCoreOptions</c>).
 /// Two dependencies are deliberately NOT readiness probes: (1) the Kafka broker — Basket
 /// has no in-process Kafka client (publish is 100% through the transactional outbox +

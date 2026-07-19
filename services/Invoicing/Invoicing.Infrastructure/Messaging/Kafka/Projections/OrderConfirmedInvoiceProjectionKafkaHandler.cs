@@ -118,7 +118,7 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
 
         if (convergedNow)
         {
-            // M7 — dispatch the issuance command inside the inbox transaction so the
+            // Dispatch the issuance command inside the inbox transaction so the
             // pending_invoices update, the new Invoice aggregate, and the outbox row
             // commit atomically. Failures bubble up; the inbox middleware rolls back.
             // The command handler is idempotent on IssuedInvoiceId so a retry that
@@ -141,18 +141,18 @@ internal sealed class OrderConfirmedInvoiceProjectionKafkaHandler
         // Avro class exposes a Schema property of type Avro.Schema that breaks
         // System.Text.Json reflection serialisation. Listing the data fields explicitly
         // also future-proofs against avrogen reshaping the record (a regenerated class
-        // with new internals would still produce stable JSON for M7 hydration).
+        // with new internals would still produce stable JSON for hydration).
         //
-        // Per ADR-0020 (Wave 1.5) the Avro event is a Summary Event — Items, TotalAmount,
+        // Per ADR-0020 the Avro event is a Summary Event — Items, TotalAmount,
         // Currency and BillingAddress travel with it. Persisting them into OrderPayload
-        // jsonb means M7's IssueInvoiceCommandHandler can construct Invoice.Create(...)
+        // jsonb means IssueInvoiceCommandHandler can construct Invoice.Create(...)
         // from the converged pending_invoices row without an HTTP round-trip.
         //
-        // Wave-1 deferral (closeout1 M10, issue #133): BillingAddress lands here as
-        // plaintext while the Invoice aggregate's _enc columns reserve the contract
-        // for v2 DEK encryption. Dropping the address would break M7's hydration; the
-        // proper fix is v2 parity (encrypted jsonb or a separate _enc projection table)
-        // which requires a migration the user generates.
+        // BillingAddress lands here as plaintext (issue #133) while the Invoice
+        // aggregate's _enc columns reserve the contract for v2 DEK encryption. Dropping
+        // the address would break hydration; the proper fix is v2 parity (encrypted
+        // jsonb or a separate _enc projection table) which requires a migration the
+        // user generates.
         return JsonSerializer.Serialize(new
         {
             message.OrderId,

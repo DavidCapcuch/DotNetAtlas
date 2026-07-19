@@ -82,8 +82,8 @@ public class GetInvoicesByBuyerTests : BaseApiTest
     [Trait("Category", "security")]
     public async Task WhenAdminPassesBuyerIdQuery_ReturnsThatBuyersInvoices()
     {
-        // M6 / closeout1: admin override. Admin tooling can list a specific buyer's
-        // invoices by passing ?buyerId={guid}. Mirrors the IsAdmin relaxation that
+        // Admin override: admin tooling can list a specific buyer's invoices by
+        // passing ?buyerId={guid}. Mirrors the IsAdmin relaxation that
         // GetInvoiceById / GetInvoiceByOrderId / GetCreditNoteById already honour.
         var seed = new InvoiceSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var targetInvoice = await seed.CreateIssuedInvoiceAsync(TestUsers.BuyerId);

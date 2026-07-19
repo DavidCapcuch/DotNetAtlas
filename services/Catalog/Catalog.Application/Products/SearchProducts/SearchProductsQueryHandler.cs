@@ -77,7 +77,7 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
                 r.CategoryPath == prefix || r.CategoryPath.StartsWith(prefixWithSeparator));
         }
 
-        // CAT-RV-M02 (Wave-1 closeout): lift the currency filter above the min/max branches —
+        // CAT-RV-M02: lift the currency filter above the min/max branches —
         // when a price filter is present, the validator guarantees Currency is also present.
         if (query.MinPrice.HasValue || query.MaxPrice.HasValue)
         {

@@ -5,8 +5,8 @@ namespace Inventory.ArchitectureTests.Application;
 
 /// <summary>
 /// Inventory's read-side multiplexes both projections + outbox emission inside a single class
-/// per projection table — see wave_progress decision "ONE multiplexed handler per projection".
-/// there are two: <c>CurrentStockLevelsProjectionDomainEventHandler</c> (writes
+/// per projection table.
+/// There are two: <c>CurrentStockLevelsProjectionDomainEventHandler</c> (writes
 /// <c>current_stock_levels</c> + emits <c>StockLevelChanged</c>) and
 /// <c>ReservationLifecycleDomainEventHandler</c> (writes <c>reservation_audit</c> + emits the
 /// three <c>inventory.reservations</c> events). Both implement <see cref="IDomainEventHandler{T}"/>

@@ -20,7 +20,7 @@ public sealed record CapturePaymentCommand : ICommand
     /// Authorization id sourced from the Avro wire command. The handler asserts this equals
     /// the stored <c>GatewayTransactionId</c> before contacting the gateway, catching saga
     /// bugs / stale-token replays that would otherwise call the PSP with the wrong token
-    /// (H-8 closeout follow-up).
+    /// (H-8).
     /// </summary>
     public required string AuthorizationId { get; init; }
 }

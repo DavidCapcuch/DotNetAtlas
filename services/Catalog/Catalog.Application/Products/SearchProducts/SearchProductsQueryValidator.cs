@@ -13,7 +13,7 @@ public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuer
 
         // CAT-SEC-001 / CAT-RV-H03: bound user-supplied free-text search to keep LIKE scans
         // pinned; the handler additionally escapes wildcard metacharacters before substitution.
-        // CAT-SEC-006 (Wave-1 closeout): count runes rather than UTF-16 code units so emoji
+        // CAT-SEC-006: count runes rather than UTF-16 code units so emoji
         // do not get truncated mid-surrogate.
         RuleFor(x => x.Text)
             .MaximumRuneLength(100)

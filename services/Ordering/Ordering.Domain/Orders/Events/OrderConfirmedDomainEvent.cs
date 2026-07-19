@@ -11,7 +11,7 @@ namespace Ordering.Domain.Orders.Events;
 /// Invoicing reads the embedded summary to issue the invoice.
 /// </summary>
 /// <remarks>
-/// As of Wave 1.5 / ADR-0020 this is a Summary Event: it carries the order's
+/// Per ADR-0020 this is a Summary Event: it carries the order's
 /// full state at the confirmation transition (<see cref="Items"/>,
 /// <see cref="Total"/>, <see cref="BillingAddress"/>) so downstream consumers
 /// — particularly Invoicing under 10-year retention — can rebuild state

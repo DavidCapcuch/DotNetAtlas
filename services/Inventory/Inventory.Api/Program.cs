@@ -32,8 +32,8 @@ try
     // The reservation-expiry worker boots WITH the host. Skip it in the
     // Testing environment so functional tests can run EF migrations after
     // the host starts (the worker's eager startup tick would otherwise
-    // crash querying reservation_audit before the table exists). M6
-    // integration tests resolve the worker directly from DI without the
+    // crash querying reservation_audit before the table exists).
+    // Integration tests resolve the worker directly from DI without the
     // hosted-service loop.
     if (!builder.Environment.IsTesting())
     {
@@ -70,10 +70,10 @@ try
 
     // Skip the Kafka cluster boot in the test host. Functional / integration
     // tests register the typed Kafka handlers directly and invoke them with
-    // synthetic message contexts (matches the Ordering M5 precedent at
+    // synthetic message contexts (matches the Ordering precedent at
     // test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20).
     // Booting the consumers in-test would require Kafka + Schema Registry
-    // containers — deferred to M10's end-to-end smoke.
+    // containers.
     if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();

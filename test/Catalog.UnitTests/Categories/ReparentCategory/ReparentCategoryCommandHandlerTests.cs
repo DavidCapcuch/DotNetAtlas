@@ -172,7 +172,7 @@ public class ReparentCategoryCommandHandlerTests
     }
 
     /// <summary>
-    /// CAT-RV-H05 (Wave-1 closeout): RewriteDescendantPathsAsync issues a bulk SQL
+    /// CAT-RV-H05: RewriteDescendantPathsAsync issues a bulk SQL
     /// <c>ExecuteUpdate</c> that bypasses the change tracker, so any descendant <c>Category</c>
     /// entities materialized in the same scope still hold the pre-update <c>Path</c>. A caller
     /// reading after the reparent in the same scope sees stale entities. The handler must

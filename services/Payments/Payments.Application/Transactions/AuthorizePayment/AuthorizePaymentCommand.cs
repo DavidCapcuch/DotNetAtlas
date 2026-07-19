@@ -31,7 +31,7 @@ public sealed record AuthorizePaymentCommand : ICommand<Guid>
     /// <c>Idempotency-Key</c> header. Even though the Payments-side inbox already dedups Kafka
     /// replays, this gives the gateway-side an independent safety net for the
     /// "SaveChanges fails after gateway succeeded" recovery path (H-3 partial mitigation,
-    /// H-4 closeout follow-up).
+    /// H-4).
     /// </summary>
     public required string IdempotencyKey { get; init; }
 }

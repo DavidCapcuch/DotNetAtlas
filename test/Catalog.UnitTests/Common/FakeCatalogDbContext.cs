@@ -41,7 +41,7 @@ public class FakeCatalogDbContext : DbContext, ICatalogDbContext
             // Postgres uses Database.EnsureTransactionAsync (e.g. ReparentCategoryCommandHandler).
             // Tell the provider to silently ignore the transaction so unit tests still exercise
             // the same handler code path; the SQL-level transactional semantics are covered by
-            // Catalog.IntegrationTests against a Postgres Testcontainer in M4.
+            // Catalog.IntegrationTests against a Postgres Testcontainer.
             .ConfigureWarnings(b => b.Ignore(InMemoryEventId.TransactionIgnoredWarning));
 
         if (interceptors.Length > 0)

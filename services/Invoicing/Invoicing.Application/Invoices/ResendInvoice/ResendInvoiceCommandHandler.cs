@@ -19,17 +19,15 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// double-clicks before this handler ever runs again.
 /// </para>
 /// <para>
-/// Deferred to a later milestone: a real re-send mints a fresh <c>NotificationId</c> and emits
-/// another <c>NotifyUserCommand</c> (ADR-0031) so the delivery is retried as a new notification
-/// intent. For now the resend is a no-op observability event with the 204 representing
-/// acknowledgement rather than work performed.
+/// The resend is a no-op observability event: it logs an acknowledgement and returns 204
+/// without performing delivery. A real re-send would mint a fresh <c>NotificationId</c> and
+/// emit another <c>NotifyUserCommand</c> (ADR-0031) so the delivery is retried as a new
+/// notification intent; the 204 represents acknowledgement rather than work performed.
 /// </para>
 /// <para>
-/// Wave 1 closeout follow-up H2: the v1-stub disclosure now also flows into the
-/// OpenAPI <c>Description</c> on <c>ResendInvoiceEndpoint</c> so admin tooling
-/// reading the spec cannot misinterpret 204 as completed delivery. See the
-/// followups summary in
-/// <c>docs/implementation-prompts/session-summaries/invoicing-followups.md</c>.
+/// The v1-stub disclosure also flows into the OpenAPI <c>Description</c> on
+/// <c>ResendInvoiceEndpoint</c> so admin tooling reading the spec cannot misinterpret
+/// 204 as completed delivery.
 /// </para>
 /// </remarks>
 internal sealed class ResendInvoiceCommandHandler : ICommandHandler<ResendInvoiceCommand>

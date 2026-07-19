@@ -124,7 +124,7 @@ public class CheckoutSagaOrchestratorFlagTests
             paymentRequested.Should().ContainSingle("ON branch dispatches RequestPaymentCommand immediately after OrderCreated");
             paymentRequested[0].IntegrationEvent.OrderId.Should().Be(orderId);
             paymentRequested[0].IntegrationEvent.UserId.Should().Be(userId);
-            // C-2 closeout: Payments wire shape is string. CheckoutSaga stringifies at the boundary.
+            // C-2: Payments wire shape is string. CheckoutSaga stringifies at the boundary.
             paymentRequested[0].IntegrationEvent.PaymentMethodId.Should().Be(paymentMethodId.ToString());
             paymentRequested[0].IntegrationEvent.IdempotencyKey.Should().Be(correlationId.ToString());
         }

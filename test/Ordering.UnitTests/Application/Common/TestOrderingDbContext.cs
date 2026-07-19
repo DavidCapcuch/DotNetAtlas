@@ -47,7 +47,7 @@ public sealed class TestOrderingDbContext : DbContext, IOrderingDbContext
         // Complex VO / SmartEnum / owned-type properties are ignored at the
         // EF mapping level. InMemory keeps them as live CLR references on the
         // tracked entity, which is enough for handler tests. The production
-        // DbContext in M4 configures them fully with PII column naming per
+        // DbContext configures them fully with PII column naming per
         // ADR-0011.
         builder.Ignore(o => o.Total);
         builder.Ignore(o => o.ShippingAddress);

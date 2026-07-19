@@ -154,7 +154,7 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
         var deliveryChannel = DeliveryChannel.Email; // Issuance fans out NotifyUserCommand via InvoiceDeliveryRequestedOutboxPublisher (ADR-0031).
 
         // ADR-0018 — the allocator demands an enclosing transaction. When dispatched from
-        // the M6 consumer, the inbox middleware already owns a transaction (it wraps the
+        // the consumer, the inbox middleware already owns a transaction (it wraps the
         // consumer's Handle() body so dedup + projection write commit atomically); in that
         // case we must NOT begin a nested one. When called standalone (e.g. integration
         // tests, future scheduled worker) we own the transaction here.
@@ -377,9 +377,9 @@ internal sealed class IssueInvoiceCommandHandler : ICommandHandler<IssueInvoiceC
 
     private static class JsonOptions
     {
-        // Match the M6 producer-side handler: System.Text.Json default casing (PascalCase
+        // Match the producer-side handler: System.Text.Json default casing (PascalCase
         // properties), which is what OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload
-        // emits. Centralised so M7 deserialisation tracks any future M6 producer changes.
+        // emits. Centralised so deserialisation tracks any future producer-side changes.
         internal static readonly JsonSerializerOptions Default = new()
         {
             PropertyNameCaseInsensitive = true,

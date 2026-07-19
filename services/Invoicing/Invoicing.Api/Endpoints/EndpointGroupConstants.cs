@@ -10,7 +10,7 @@ namespace Invoicing.Api.Endpoints;
 /// (configured in <c>Invoices/InvoicesGroup.cs</c>) and as the Swagger tag the FE
 /// SDK generator buckets endpoints by. Renaming the constant without updating the
 /// matching <c>Group</c> route prefix (or vice versa) breaks tag continuity for any
-/// downstream consumer that pins on the OpenAPI tag (closeout1 L3).
+/// downstream consumer that pins on the OpenAPI tag.
 /// </para>
 /// </remarks>
 internal static class EndpointGroupConstants

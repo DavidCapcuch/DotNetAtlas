@@ -113,16 +113,16 @@ public class ApiTestFixture : AppFixture<Program>
             {
                 // Replace the real Azurite-backed adapter with the NSubstitute fake so
                 // GET endpoints can exercise SAS-URL minting without standing up
-                // Azurite. The real roundtrip is M3's territory.
+                // Azurite. The real roundtrip is covered elsewhere.
                 services.RemoveAll<IBlobStore>();
                 services.AddSingleton(BlobStoreSubstitute);
 
                 // Replace the schema-registry-backed outbox writer with an in-memory
                 // fake. The seed helper invokes Invoice.Issue which raises
-                // InvoiceIssuedDomainEvent; the M7 outbox publisher domain-event
+                // InvoiceIssuedDomainEvent; the outbox publisher domain-event
                 // handler picks that up and would otherwise serialise the Avro event
-                // against a non-existent registry. Asserting on Kafka messages is M7's
-                // job; M8 only needs the HTTP surface to round-trip.
+                // against a non-existent registry. These HTTP tests only need the
+                // surface to round-trip, not the Kafka message.
                 services.RemoveAll<IOutboxWriter>();
                 services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
 
@@ -168,7 +168,7 @@ public class ApiTestFixture : AppFixture<Program>
                 return new Uri($"https://test.blob.local/{container}/{blobName}?sv=stub-fresh-sas");
             });
 
-        // Upload + Download are not exercised by M8 endpoints, but seed helpers may
+        // Upload + Download are not exercised by these endpoints, but seed helpers may
         // (defensively) end up here if a future test path expands; provide a sane stub.
         stub.UploadAsync(
                 Arg.Any<string>(),

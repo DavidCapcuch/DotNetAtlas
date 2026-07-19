@@ -9,7 +9,7 @@ namespace Ordering.Application.Orders.CancelOrder;
 
 /// <summary>
 /// Maps <see cref="OrderCancelledDomainEvent"/> → Avro
-/// <see cref="OrderCancelledEvent"/>. Per ADR-0020 / Wave 1.6 the Avro event
+/// <see cref="OrderCancelledEvent"/>. Per ADR-0020 the Avro event
 /// is a Summary Event — Items, Total, and BillingAddress travel with it
 /// alongside the original Reason / AtStatus delta payload. Scale-4 decimal
 /// conversion via <see cref="AvroDecimalExtensions.ToAvroDecimal"/> is

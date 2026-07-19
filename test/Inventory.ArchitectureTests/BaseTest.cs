@@ -12,7 +12,7 @@ namespace Inventory.ArchitectureTests;
 /// </summary>
 /// <remarks>
 /// Mirrors <c>Catalog.ArchitectureTests.BaseTest</c> verbatim except for the namespace + assembly
-/// anchors. Inventory's milestone introduces the same Mono.Cecil-backed IL-scanning rules
+/// anchors. This BC applies the same Mono.Cecil-backed IL-scanning rules
 /// (no static UtcNow, only-throws, does-not-throw, handler-returns-result) so the rule set is
 /// portable across BCs.
 /// </remarks>
@@ -298,7 +298,7 @@ public abstract class BaseTest
     /// sourced and its canonical static factory is <c>StockItem.Fold(events)</c> — left-fold
     /// over the rehydrated event stream — which is the established ES convention. Renaming
     /// it to <c>From</c> would lose the ES semantics; the rule adapts instead per the
-    /// "adapt or drop, document the divergence" guidance from the wave1 rollout.
+    /// "adapt or drop, document the divergence" guidance.
     /// </remarks>
     protected sealed class HasPublicStaticFactoryMethodRule : ICustomRule
     {

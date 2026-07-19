@@ -43,10 +43,10 @@ public sealed class CheckoutSagaState : ISagaStateInstance, IAuditableEntity
 
     /// <summary>
     /// Saved payment method id — passed through to PaymentProcessingSaga and CreateOrderCommand
-    /// (both of which still consume it as <c>Guid</c> in Wave-1). The boundary conversion to the
+    /// (both of which consume it as <c>Guid</c>). The boundary conversion to the
     /// gateway-token-shaped string happens at <c>BuildRequestPaymentCommand</c> when emitting the
-    /// Payments-side wire command (C-2 closeout — Payments-side schema changed; Basket + Ordering
-    /// wire shapes deferred).
+    /// Payments-side wire command, whose shape is a string while the Basket + Ordering
+    /// wire shapes use <c>Guid</c>.
     /// </summary>
     public Guid PaymentMethodId { get; set; }
 

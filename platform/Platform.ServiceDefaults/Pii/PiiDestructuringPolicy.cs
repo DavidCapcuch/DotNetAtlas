@@ -14,7 +14,7 @@ namespace Platform.ServiceDefaults.Pii;
 /// <para>
 /// Applies to destructured captures only (<c>log.LogInformation("... {@Prop}", prop)</c>).
 /// Raw primitive parameters (<c>log.LogInformation("... {Email}", email)</c>) are not wrapped —
-/// that surface is the Wave 1 architecture-test concern per ADR-0011.
+/// that surface is the architecture-test concern per ADR-0011.
 /// </para>
 /// <para>
 /// Wired into <see cref="Serilog.LoggerConfiguration"/> from

@@ -93,9 +93,8 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // Replace the production Avro/SchemaRegistry-backed IOutboxWriter with
                 // an in-memory fake. The outbox publisher domain-event handlers fire on
                 // every SaveChanges; without this they would attempt to talk to a
-                // non-existent schema registry. Byte-level Avro fidelity is covered by
-                // the docker-compose smoke (M8); integration tests assert on the topic
-                // + key + CLR instance captured by the fake.
+                // non-existent schema registry. Assertions read the captured CLR event
+                // (type + payload fields) via the fake.
                 services.RemoveAll<IOutboxWriter>();
                 services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
             });

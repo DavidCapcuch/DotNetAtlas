@@ -104,8 +104,8 @@ internal sealed class PaymentCapturedInvoiceProjectionKafkaHandler
 
         if (convergedNow)
         {
-            // M7 — see OrderConfirmedInvoiceProjectionKafkaHandler for the convergence
-            // dispatch rationale (inbox-transaction join + idempotent M7 handler).
+            // See OrderConfirmedInvoiceProjectionKafkaHandler for the convergence
+            // dispatch rationale (inbox-transaction join + idempotent handler).
             var result = await _issueInvoiceHandler.HandleAsync(
                 new IssueInvoiceCommand { OrderId = orderId },
                 ct);

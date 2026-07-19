@@ -113,11 +113,10 @@ public class ResendInvoiceTests : BaseApiTest
         var second = await PostResendAsync(HttpClientRegistry.AdminClient, invoice.Id, key);
 
         // Both return 204; the second is served from the Redis-backed output cache.
-        // Pre-cancellation the assertion is structural — for a richer "handler invoked
-        // exactly once" check, M9+ can introduce a counter (e.g., a custom middleware
-        // wrapper). The current minimal handler is a no-op anyway, so a counter would
-        // not differentiate. The 204+204 pair is sufficient evidence that the cache
-        // path returns the right shape.
+        // The assertion is structural: a richer "handler invoked exactly once" check
+        // would need a counter, but the current minimal handler is a no-op anyway, so
+        // a counter would not differentiate. The 204+204 pair is sufficient evidence
+        // that the cache path returns the right shape.
         using (new AssertionScope())
         {
             first.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -128,13 +127,12 @@ public class ResendInvoiceTests : BaseApiTest
     [Fact]
     public async Task OpenApiDescription_DisclosesV1StubBehaviour()
     {
-        // Wave 1 closeout follow-up H2: the resend endpoint returns 204 + caches
-        // the no-op result under Idempotency-Key for 24 h, while the actual
-        // invoice_delivery_log insert + outbox row are deferred (see
-        // ResendInvoiceCommandHandler xmldoc). Admin tooling reading the OpenAPI
-        // spec must see this disclosure so a future maintainer cannot interpret
-        // 204 as "delivery performed". The v1-stub marker `(v1 stub)` is the
-        // stable contract surface; removing it should fail this test.
+        // The resend endpoint returns 204 + caches the no-op result under
+        // Idempotency-Key for 24 h, while the actual invoice_delivery_log insert +
+        // outbox row are not yet implemented (see ResendInvoiceCommandHandler xmldoc).
+        // Admin tooling reading the OpenAPI spec must see this disclosure so a future
+        // maintainer cannot interpret 204 as "delivery performed". The v1-stub marker
+        // `(v1 stub)` is the stable contract surface; removing it should fail this test.
         using var response = await HttpClientRegistry.AdminClient.GetAsync(
             "/swagger/v1/swagger.json",
             TestContext.Current.CancellationToken);

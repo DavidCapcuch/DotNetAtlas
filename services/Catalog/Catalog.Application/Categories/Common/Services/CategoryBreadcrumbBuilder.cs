@@ -24,7 +24,7 @@ public static class CategoryBreadcrumbBuilder
         return string.Join(" > ", segments.Select(ToHumanReadableSegment));
     }
 
-    // CAT-RV-L01 (Wave-1 closeout): category slug segments contain hyphens between words
+    // CAT-RV-L01: category slug segments contain hyphens between words
     // ("electronics-toys"). Title-case each space-delimited token, not just the first
     // character of the whole segment, so "electronics-toys" -> "Electronics Toys" rather
     // than "Electronics-toys".

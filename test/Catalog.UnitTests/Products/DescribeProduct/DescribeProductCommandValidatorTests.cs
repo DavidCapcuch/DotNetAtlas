@@ -64,9 +64,8 @@ public class DescribeProductCommandValidatorTests
         _validator.Validate(cmd).IsValid.Should().BeTrue();
     }
 
-    // CAT-SEC-004 (Wave-1 closeout): the original "<letter" heuristic let comments, doctypes,
-    // processing instructions, CDATA, and encoded entities through. Mirror the hardened
-    // CreateProduct heuristic.
+    // CAT-SEC-004: a naive "<letter" heuristic would let comments, doctypes, processing
+    // instructions, CDATA, and encoded entities through. Mirror the CreateProduct heuristic.
     [Theory]
     [Trait("Category", "security")]
     [InlineData("<!-- xss -->")]

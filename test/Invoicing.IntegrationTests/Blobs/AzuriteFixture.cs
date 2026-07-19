@@ -74,9 +74,9 @@ public sealed class AzuriteFixture : IAsyncLifetime
         {
             // Azurite container disposal can race the docker daemon's cleanup at the
             // tail of an integration test pipeline (Testcontainers raises a
-            // TestPipelineException AFTER the test slice has already exited 0 — see
-            // closeout1 M9). Log to stderr but don't propagate: failing fixture
-            // teardown shouldn't fail a green test run.
+            // TestPipelineException AFTER the test slice has already exited 0).
+            // Log to stderr but don't propagate: failing fixture teardown shouldn't
+            // fail a green test run.
             await Console.Error.WriteLineAsync($"AzuriteFixture disposal warning: {ex.GetType().Name}: {ex.Message}");
         }
     }

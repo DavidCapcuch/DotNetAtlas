@@ -98,12 +98,9 @@ public class ApiTestFixture : AppFixture<Program>
                 // state across tests in the shared collection (SetUtcNow can only move
                 // forward) and is removed.
 
-                // Replace the real Avro/SchemaRegistry-backed outbox writer
-                // with an in-memory fake. Without this, any seed helper that
-                // touches the outbox would attempt to talk to a non-existent
-                // schema registry. The M6 functional slice exercises only
-                // the HTTP read surface, so capturing emitted messages is not
-                // asserted here — Kafka emission fidelity lives in M5.
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with the
+                // fake so seed helpers that touch the outbox need no Schema Registry; this
+                // suite asserts the HTTP surface, not the emitted outbox messages.
                 services.RemoveAll<IOutboxWriter>();
                 services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
 

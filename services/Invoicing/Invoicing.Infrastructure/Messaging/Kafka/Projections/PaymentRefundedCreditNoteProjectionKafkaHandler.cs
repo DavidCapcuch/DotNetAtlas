@@ -105,7 +105,7 @@ internal sealed class PaymentRefundedCreditNoteProjectionKafkaHandler
 
         if (convergedNow)
         {
-            // M7 — see OrderCancelledCreditNoteProjectionKafkaHandler for the convergence
+            // See OrderCancelledCreditNoteProjectionKafkaHandler for the convergence
             // dispatch rationale. Same Result.Fail-vs-throw split.
             var result = await _issueCreditNoteHandler.HandleAsync(
                 new IssueCreditNoteCommand { OrderId = orderId },

@@ -38,9 +38,9 @@ namespace SagaOrchestrators.IntegrationTests.Sagas;
 [Collection(nameof(SagaTestCollection))]
 public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
 {
-    // Bias to 15s (vs M6's 10s) for the longer M9 chains: BasketCheckoutInitiated → OrderCreated
+    // Bias to 15s for the longer chains: BasketCheckoutInitiated → OrderCreated
     // → 3× StockReserved → PaymentCompleted → OrderConfirmed crosses 5 saga consume cycles, each
-    // doing one DB write + one Kafka publish. M5/M6 race pre-mortems show ~5–10s p99 for shorter
+    // doing one DB write + one Kafka publish. Race pre-mortems show ~5–10s p99 for shorter
     // chains; the extra 5s headroom keeps genuine deadlocks catchable without flake.
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
 
@@ -173,7 +173,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
         }
     }
 
-    // ----- helpers (M9-local; M6's own helpers stay private to that file to keep blast radius small) -----
+    // ----- helpers (kept local to this file to keep blast radius small) -----
 
     private async Task<CheckoutSagaState> DriveToAwaitingStockReservationAsync(
         Guid correlationId,
@@ -242,7 +242,7 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
     private async Task PublishOrderConfirmedAsync(Guid buyerId, Guid orderId)
     {
         // The saga's OrderConfirmedConsumer reads only OrderId + ConfirmedAtUtc;
-        // the Items / TotalAmount / Currency / BillingAddress enrichment fields (Wave 1.5/1.6 ADR-0020)
+        // the Items / TotalAmount / Currency / BillingAddress enrichment fields (ADR-0020)
         // are nullable for FORWARD_TRANSITIVE compatibility and are unused on the saga side.
         var orderConfirmed = new OrderConfirmedEvent
         {

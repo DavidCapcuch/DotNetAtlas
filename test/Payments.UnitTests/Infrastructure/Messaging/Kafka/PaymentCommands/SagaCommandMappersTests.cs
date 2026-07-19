@@ -9,10 +9,10 @@ namespace Payments.UnitTests.Infrastructure.Messaging.Kafka.PaymentCommands;
 
 /// <summary>
 /// Field-level mapping tests for <see cref="SagaCommandMappers"/>. Pins the cross-cutting
-/// wave1-followup #255 fix: the Payments aggregate's primary key MUST be the saga-issued
+/// #255 invariant: the Payments aggregate's primary key MUST be the saga-issued
 /// <c>PaymentTransactionId</c> (UUID v7 minted by the saga at initial state), not the saga
-/// CorrelationId. Mapping the two onto the same value was a v1 collapse that broke the
-/// "v7 PK" guarantee documented on <c>PaymentTransaction.Id</c>.
+/// CorrelationId — collapsing the two onto one value breaks the "v7 PK" guarantee
+/// documented on <c>PaymentTransaction.Id</c>.
 /// </summary>
 [Trait("Category", "regression")]
 public class SagaCommandMappersTests
