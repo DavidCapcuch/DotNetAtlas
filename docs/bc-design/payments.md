@@ -46,7 +46,7 @@ One aggregate, keyed by `PaymentId : Guid` (UUID v7). The aggregate wraps a sing
 | `RefundedAtUtc` | `DateTimeOffset?` | Set on `Refunded` |
 | `VoidedAtUtc` | `DateTimeOffset?` | Set on `Voided` |
 | `FailureInfo` | `FailureInfo?` | Populated on any terminal failure — reason + gateway code |
-| `VoidReason` | `string?` | Saga-supplied reason on `Voided` (Wave-1 closeout H-5; nullable until `Void` succeeds). |
+| `VoidReason` | `string?` | Saga-supplied reason on `Voided` (nullable until `Void` succeeds). |
 | `RowVersion` | `uint` | Optimistic concurrency token |
 
 ### 2.2 Invariants

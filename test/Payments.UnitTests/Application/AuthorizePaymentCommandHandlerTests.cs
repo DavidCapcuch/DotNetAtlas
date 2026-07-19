@@ -212,7 +212,7 @@ public class AuthorizePaymentCommandHandlerTests : PaymentsHandlerTestBase
     public async Task Handle_NewPayment_PropagatesIdempotencyKeyToGateway()
     {
         // Arrange
-        // H-4: the saga-issued idempotency key MUST reach IPaymentGateway.AuthorizeAsync so a
+        // The saga-issued idempotency key MUST reach IPaymentGateway.AuthorizeAsync so a
         // real PSP adapter can forward it as the gateway's Idempotency-Key header. Verifies the
         // key propagates to the gateway rather than being dropped on the AuthorizePaymentCommand.
         const string Key = "saga-key-123";

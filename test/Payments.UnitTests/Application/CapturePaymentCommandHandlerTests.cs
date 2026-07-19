@@ -173,7 +173,7 @@ public class CapturePaymentCommandHandlerTests : PaymentsHandlerTestBase
     public async Task Handle_AuthorizationIdMismatch_ThrowsAndDoesNotCallGateway()
     {
         // Arrange
-        // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
+        // A wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // is bug-class — must throw before the gateway is touched.
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
         await SeedAsync(existing);
