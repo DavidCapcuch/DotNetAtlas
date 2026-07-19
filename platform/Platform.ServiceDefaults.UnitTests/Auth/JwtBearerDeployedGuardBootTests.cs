@@ -74,15 +74,47 @@ public class JwtBearerDeployedGuardBootTests
         await boot.Should().NotThrowAsync();
     }
 
+    [Fact]
+    [Trait("Category", "security")]
+    public async Task AddPlatformJwtBearer_WhenDeployedAndHttpsRequiredButAuthorityIsHttp_HostFailsToStart()
+    {
+        // RequireHttpsMetadata=true but an http:// Authority: the platform guard passes (it only
+        // trips on RequireHttpsMetadata=false), so the framework's own JwtBearerPostConfigureOptions
+        // is what rejects the plaintext metadata address — and, because ValidateOnStart forces
+        // materialization at boot, it does so at startup, not lazily on the first request. Pins the
+        // ADR-0009 item 10 claim that this second misconfig also fails closed at boot. The framework's
+        // distinct "*must use HTTPS*" message (vs the platform guard's "*HTTPS metadata*") proves it
+        // is the framework guard firing here, not ours.
+
+        // Act
+        var boot = async () =>
+        {
+            using var host = BuildHost(
+                environmentName: "Staging",
+                requireHttpsMetadata: true,
+                authority: "http://id.example.test/realms/dotnetatlas");
+            await host.StartAsync(TestContext.Current.CancellationToken);
+        };
+
+        // Assert
+        (await boot.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*must use HTTPS*");
+    }
+
     /// <summary>
     /// Builds a headless host wired through <see cref="JwtBearerConfigurator.AddPlatformJwtBearer"/>
-    /// in <paramref name="environmentName"/>. <see cref="ServiceAuthOptions"/> seeds Authority /
-    /// ValidIssuer inside the platform Configure step; the https authority keeps the framework's own
-    /// metadata-address guard satisfied so <paramref name="requireHttpsMetadata"/> is the single knob
-    /// under test. The configure delegate stands in for a BC's appsettings bind — including flipping
-    /// <c>RequireHttpsMetadata</c> back to the local-dev default, the exact production foot-gun.
+    /// in <paramref name="environmentName"/>. <see cref="ServiceAuthOptions"/> seeds
+    /// <paramref name="authority"/> (the JwtBearer Authority / ValidIssuer) inside the platform
+    /// Configure step; an https authority keeps the framework's own metadata-address guard satisfied
+    /// so <paramref name="requireHttpsMetadata"/> is the knob under test, while an http authority
+    /// exercises that framework guard. The configure delegate stands in for a BC's appsettings bind —
+    /// including flipping <c>RequireHttpsMetadata</c> back to the local-dev default, the exact
+    /// production foot-gun.
     /// </summary>
-    private static IHost BuildHost(string environmentName, bool requireHttpsMetadata)
+    private static IHost BuildHost(
+        string environmentName,
+        bool requireHttpsMetadata,
+        string authority = "https://id.example.test/realms/dotnetatlas")
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -91,7 +123,7 @@ public class JwtBearerDeployedGuardBootTests
 
         builder.Services.Configure<ServiceAuthOptions>(options =>
         {
-            options.Authority = "https://id.example.test/realms/dotnetatlas";
+            options.Authority = authority;
             options.ClientId = "platform-tests";
             options.ClientSecret = "dev-secret";
             options.ServiceName = "platform-tests-service";
