@@ -10,7 +10,7 @@ namespace Catalog.UnitTests.Categories.ReparentCategory;
 public class CategoryReparentedProjectionDomainEventHandlerTests
 {
     [Fact]
-    public async Task Handle_IsNoOp_InM3_UntilDescendantCascadeShips()
+    public async Task Handle_IsNoOp_LeavesProjectionCategoryPathUnchanged()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
