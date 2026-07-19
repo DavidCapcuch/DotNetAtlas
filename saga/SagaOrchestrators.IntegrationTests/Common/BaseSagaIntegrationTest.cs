@@ -22,7 +22,6 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
     protected IServiceScope Scope { get; }
     protected SagaDbContext SagaDbContext { get; }
     protected TimeProvider TimeProvider { get; }
-    protected FakeOutboxWriter FakeOutboxWriter { get; }
     protected KafkaTestProducer KafkaTestProducer { get; }
 
     /// <summary>
@@ -42,7 +41,6 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
         SagaDbContext = Scope.ServiceProvider.GetRequiredService<SagaDbContext>();
         TimeProvider = Scope.ServiceProvider.GetRequiredService<TimeProvider>();
         TopicsOptions = Scope.ServiceProvider.GetRequiredService<IOptions<SagaTopicsOptions>>().Value;
-        FakeOutboxWriter = fixture.FakeOutboxWriter;
         KafkaTestProducer = fixture.KafkaProducer;
 
         // In local Jaeger, you will see a trace operation with the name of each test method that you can examine.
@@ -71,7 +69,6 @@ public abstract class BaseSagaIntegrationTest : IAsyncLifetime
 
         _testCaseTracer.Dispose();
         await _fixture.ResetDatabaseAsync();
-        FakeOutboxWriter.Clear();
         Scope.Dispose();
     }
 

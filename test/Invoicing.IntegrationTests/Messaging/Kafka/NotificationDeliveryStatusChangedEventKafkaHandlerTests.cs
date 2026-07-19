@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications;
 using NSubstitute;
+using Platform.Test.Framework.Kafka;
 using Xunit;
 
 namespace Invoicing.IntegrationTests.Messaging.Kafka;
@@ -40,7 +41,7 @@ public sealed class NotificationDeliveryStatusChangedEventKafkaHandlerTests
         _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
-        await handler.Handle(TestKafkaMessageContext.Create(ct: ct), Delivered(notificationId, buyerId));
+        await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), Delivered(notificationId, buyerId));
 
         using (new AssertionScope())
         {
@@ -69,7 +70,7 @@ public sealed class NotificationDeliveryStatusChangedEventKafkaHandlerTests
         _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
-        await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new NotificationDeliveryStatusChangedEvent
+        await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), new NotificationDeliveryStatusChangedEvent
         {
             NotificationId = notificationId,
             RecipientUserId = buyerId,
@@ -99,7 +100,7 @@ public sealed class NotificationDeliveryStatusChangedEventKafkaHandlerTests
         _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
-        await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new NotificationDeliveryStatusChangedEvent
+        await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), new NotificationDeliveryStatusChangedEvent
         {
             NotificationId = notificationId,
             RecipientUserId = buyerId,
@@ -129,7 +130,7 @@ public sealed class NotificationDeliveryStatusChangedEventKafkaHandlerTests
         _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
-        await handler.Handle(TestKafkaMessageContext.Create(ct: ct), Delivered(notificationId, buyerId));
+        await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), Delivered(notificationId, buyerId));
 
         await using var assert = _fixture.CreateScope();
         var db = assert.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
@@ -149,7 +150,7 @@ public sealed class NotificationDeliveryStatusChangedEventKafkaHandlerTests
 
         var handler = scope.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
         var act = async () => await handler.Handle(
-            TestKafkaMessageContext.Create(ct: ct),
+            FakeKafkaMessageContext.Create(cancellationToken: ct),
             Delivered(Guid.CreateVersion7(), Guid.CreateVersion7()));
 
         await act.Should().ThrowAsync<Platform.SharedKernel.Exceptions.DataIntegrityException>()

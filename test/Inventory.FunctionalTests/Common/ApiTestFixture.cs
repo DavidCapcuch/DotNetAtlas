@@ -129,9 +129,9 @@ public class ApiTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter
-                // with the fake. Avro byte-fidelity is tested in IntegrationTests;
-                // functional tests only need to verify "the right outbox row landed".
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with
+                // the fake so this suite needs no Schema Registry; the functional tests
+                // assert the HTTP surface, not the outbox row.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
                 // Wire the JwtBearer scheme to trust _signer's RSA key — keeps

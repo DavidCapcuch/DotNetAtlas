@@ -10,6 +10,7 @@ using Notifications.FunctionalTests.Common;
 using Notifications.FunctionalTests.Common.TestClientInfrastructure;
 using Notifications.Infrastructure.NotifyUser;
 using Notifications.Infrastructure.Persistence.Database;
+using Platform.Test.Framework.Kafka;
 
 namespace Notifications.FunctionalTests.Dispatch;
 
@@ -158,7 +159,7 @@ public class BellDispatchEndToEndTests : BaseApiTest
             OccurredOnUtc = new DateTime(2026, 6, 10, 0, 0, 0, DateTimeKind.Utc),
         };
 
-        await handler.Handle(TestKafkaMessageContext.Create(ct), cmd);
+        await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), cmd);
     }
 
     private async Task ArrangeOrderShippedTemplateAsync(bool withSmsChannel, CancellationToken ct)

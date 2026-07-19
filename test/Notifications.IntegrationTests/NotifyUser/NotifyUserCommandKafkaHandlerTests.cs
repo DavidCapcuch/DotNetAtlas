@@ -13,6 +13,7 @@ using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common;
 using NSubstitute;
 using Platform.SharedKernel.Exceptions;
+using Platform.Test.Framework.Kafka;
 using Xunit;
 
 namespace Notifications.IntegrationTests.NotifyUser;
@@ -224,7 +225,7 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
             OccurredOnUtc = new DateTime(2026, 6, 9, 0, 0, 0, DateTimeKind.Utc),
         };
 
-        await handler.Handle(TestKafkaMessageContext.Create(ct), cmd);
+        await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), cmd);
     }
 
     private async Task ArrangeInvoiceTemplateAsync(CancellationToken ct)

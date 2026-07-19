@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Notifications;
 using NSubstitute;
 using Platform.CQRS;
+using Platform.Test.Framework.Kafka;
 using Xunit;
 
 namespace Invoicing.IntegrationTests.EndToEnd;
@@ -78,7 +79,7 @@ public sealed class InvoiceDeliveryFlowTests
             _fixture.OutboxSubstitute.Database.Returns(dbContext.Database);
 
             var handler = s.ServiceProvider.GetRequiredService<NotificationDeliveryStatusChangedEventKafkaHandler>();
-            await handler.Handle(TestKafkaMessageContext.Create(ct: ct), new NotificationDeliveryStatusChangedEvent
+            await handler.Handle(FakeKafkaMessageContext.Create(cancellationToken: ct), new NotificationDeliveryStatusChangedEvent
             {
                 NotificationId = notificationId,
                 RecipientUserId = buyerId,
