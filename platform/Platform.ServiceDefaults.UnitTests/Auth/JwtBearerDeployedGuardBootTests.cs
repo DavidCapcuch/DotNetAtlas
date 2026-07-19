@@ -12,8 +12,8 @@ namespace Platform.ServiceDefaults.UnitTests.Auth;
 /// request (named <c>JwtBearerOptions</c> otherwise materialize lazily on that first request).
 /// Boots a real headless host so the wiring — not just a predicate — is exercised: dropping either
 /// the guard or its <c>ValidateOnStart</c> makes the deployed-plaintext case boot cleanly and fail
-/// this test. The env-gate is pinned too (Testing must boot untouched) so the guard can never
-/// regress into failing the whole test suite at boot.
+/// this test. Both disjuncts of the env-gate are pinned too (Development and Testing must boot
+/// untouched) so the guard can never regress into failing every laptop run and test host at boot.
 /// </summary>
 public class JwtBearerDeployedGuardBootTests
 {
@@ -99,6 +99,27 @@ public class JwtBearerDeployedGuardBootTests
         // Assert
         (await boot.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("*must use HTTPS*");
+    }
+
+    [Fact]
+    [Trait("Category", "security")]
+    public async Task AddPlatformJwtBearer_WhenDevelopmentEnvironmentAndRequireHttpsMetadataFalse_HostStarts()
+    {
+        // Env-gate, IsDevelopment() disjunct — the second half of
+        // IsDeployedEnvironment() = !(IsDevelopment() || IsTesting()). Without this case a mutation
+        // dropping IsDevelopment() survives the whole suite, yet would fail every laptop `dotnet run`
+        // and docker-compose boot (base appsettings ships RequireHttpsMetadata=false + http Authority).
+
+        // Act
+        var boot = async () =>
+        {
+            using var host = BuildHost(environmentName: "Development", requireHttpsMetadata: false);
+            await host.StartAsync(TestContext.Current.CancellationToken);
+            await host.StopAsync(TestContext.Current.CancellationToken);
+        };
+
+        // Assert
+        await boot.Should().NotThrowAsync();
     }
 
     /// <summary>
