@@ -73,7 +73,7 @@ public class StubPaymentGatewayTests
     public async Task AuthorizeAsync_PopulatesExpiresAtUtc_AsNowPlusSevenDays()
     {
         // Arrange
-        // H-6: ExpiresAtUtc lives on the adapter (real PSPs return their own value); the v1
+        // ExpiresAtUtc lives on the adapter (real PSPs return their own value); the v1
         // stub reads from TimeProvider so the value is deterministic in tests.
         var tx = PaymentTransactionFactory.Requested(amount: 100m);
 
@@ -124,7 +124,7 @@ public class StubPaymentGatewayTests
     public async Task AuthorizeAsync_WithBlankIdempotencyKey_ThrowsArgumentException(string? key)
     {
         // Arrange
-        // H-4: a real PSP adapter would reject a blank Idempotency-Key header; the stub mirrors
+        // A real PSP adapter would reject a blank Idempotency-Key header; the stub mirrors
         // that behaviour so the contract is enforced uniformly across implementations.
         var tx = PaymentTransactionFactory.Requested(amount: 50m);
         var act = async () => await _sut.AuthorizeAsync(tx, key!, TestContext.Current.CancellationToken);

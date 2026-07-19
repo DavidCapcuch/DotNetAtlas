@@ -491,7 +491,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Void_AuthorizationIdMismatch_ThrowsDataIntegrityException_NoGatewayCall()
     {
         // Arrange
-        // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
+        // A wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // (saga bug, stale-token replay) must throw before the gateway is touched. The
         // KafkaFlow retry middleware classifies DataIntegrityException as poison and routes
         // the message to the `payments.payment-commands` DLT for operator inspection.
@@ -541,7 +541,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
     public async Task Authorize_PropagatesIdempotencyKey_FromWireToGateway()
     {
         // Arrange
-        // H-4: the saga-issued IdempotencyKey on the Avro wire command must flow through the
+        // The saga-issued IdempotencyKey on the Avro wire command must flow through the
         // application command record and reach IPaymentGateway.AuthorizeAsync, where a v2 real
         // adapter will forward it as the gateway's Idempotency-Key header.
         var correlationId = Guid.CreateVersion7();
@@ -562,7 +562,7 @@ public sealed class PaymentsKafkaConsumerIntegrationTests
 
     // Stub gateway derives gateway-transaction-id deterministically as $"stub-{tx.Id:N}";
     // tx.Id is set to correlationId in the mapper, so the stored value is exactly this.
-    // Saga-side wire commands must echo this value, otherwise the H-8 AuthorizationId validation
+    // Saga-side wire commands must echo this value, otherwise the AuthorizationId validation
     // in the handlers rejects them as stale-token / saga-bug replays.
     private static string StoredGatewayTransactionId(Guid correlationId) => $"stub-{correlationId:N}";
 

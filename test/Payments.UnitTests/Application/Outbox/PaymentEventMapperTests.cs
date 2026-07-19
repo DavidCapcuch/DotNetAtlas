@@ -27,7 +27,7 @@ public class PaymentEventMapperTests
     public void PaymentAuthorizedMapper_ProjectsExpiresAtUtcFromDomainEvent_NotSynthesized()
     {
         // Arrange
-        // H-6: the mapper must source ExpiresAtUtc from the gateway response (carried through the
+        // The mapper must source ExpiresAtUtc from the gateway response (carried through the
         // domain event) — not synthesize AuthorizedAtUtc + 7 days inline. Test passes a deliberately
         // out-of-band ExpiresAtUtc so a regression that re-introduces inline synthesis fails loudly.
         var gatewayExpiry = Now.AddDays(14);

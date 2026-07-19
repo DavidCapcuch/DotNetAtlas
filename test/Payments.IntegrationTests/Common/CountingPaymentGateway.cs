@@ -40,7 +40,7 @@ public sealed class CountingPaymentGateway : IPaymentGateway
     public int RefundCount => Volatile.Read(ref _refundCount);
 
     /// <summary>
-    /// Last <c>idempotencyKey</c> the spy saw on <see cref="AuthorizeAsync"/>. Used by H-4
+    /// Last <c>idempotencyKey</c> the spy saw on <see cref="AuthorizeAsync"/>. Used by
     /// integration tests to assert the saga-issued key flowed through the application command
     /// and into the gateway port.
     /// </summary>

@@ -135,7 +135,7 @@ public class VoidPaymentCommandHandlerTests : PaymentsHandlerTestBase
     public async Task Handle_AuthorizationIdMismatch_ThrowsAndDoesNotCallGateway()
     {
         // Arrange
-        // H-8: a wire AuthorizationId that disagrees with the stored GatewayTransactionId
+        // A wire AuthorizationId that disagrees with the stored GatewayTransactionId
         // is bug-class (stale-token replay / saga bug). Must throw before the gateway is touched
         // so the message routes to DLT for operator inspection.
         var existing = PaymentTransactionFactory.Authorized(TimeProvider.GetUtcNow());
