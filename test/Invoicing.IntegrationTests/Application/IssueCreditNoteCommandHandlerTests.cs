@@ -51,8 +51,8 @@ public sealed class IssueCreditNoteCommandHandlerTests
         const decimal Total = 152.00m;
         const string Currency = "EUR";
 
-        // Seed a real Invoice via the M7 handler so the credit-note path operates
-        // against production-shape state.
+        // Seed a real Invoice via the issue-invoice handler so the credit-note path
+        // operates against production-shape state.
         var invoiceId = await IssueInvoiceAsync(
             orderId, paymentId, buyerId, Total, Currency, ct);
 

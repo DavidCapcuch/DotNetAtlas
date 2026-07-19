@@ -16,7 +16,7 @@ namespace Invoicing.Infrastructure.Pdf;
 /// </summary>
 internal sealed class CreditNoteDocument(CreditNote creditNote, PdfGenerationOptions options) : IDocument
 {
-    private const string DefaultFontFamily = "Lato"; // TODO(M10): Swap to "Inter" once Dockerfile embeds fonts per ADR-0019 § Font embedding.
+    private const string DefaultFontFamily = "Lato"; // TODO: Swap to "Inter" once Dockerfile embeds fonts per ADR-0019 § Font embedding.
     private const string MetadataCreator = "Atlas Invoicing";
     private const string MetadataProducer = "Atlas Invoicing";
 

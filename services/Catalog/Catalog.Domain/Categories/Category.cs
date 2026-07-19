@@ -17,7 +17,7 @@ namespace Catalog.Domain.Categories;
 /// <remarks>
 /// Descendant path rewriting on rename / reparent is a domain-service operation that
 /// touches multiple aggregates within the same transaction — it is intentionally
-/// outside this aggregate's boundary and arrives in a later milestone.
+/// outside this aggregate's boundary.
 ///
 /// This aggregate can raise the following domain events:
 /// <list type="bullet">

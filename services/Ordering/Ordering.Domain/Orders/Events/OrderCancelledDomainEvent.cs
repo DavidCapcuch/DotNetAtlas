@@ -12,7 +12,7 @@ namespace Ordering.Domain.Orders.Events;
 /// projection captures the embedded summary fields for credit-note issuance.
 /// </summary>
 /// <remarks>
-/// As of Wave 1.6 / ADR-0020 this is a Summary Event: it carries the order's
+/// Per ADR-0020 this is a Summary Event: it carries the order's
 /// state at the cancellation transition (<see cref="Items"/>,
 /// <see cref="Total"/>, <see cref="BillingAddress"/>) so downstream consumers
 /// — particularly Invoicing under 10-year retention — can rebuild state

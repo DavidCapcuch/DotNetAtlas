@@ -20,7 +20,7 @@ public static class FeatureFlagsServiceCollectionExtensions
     /// JSON flag file at <see cref="FeatureFlagsOptions.FilePath"/>.
     /// </summary>
     /// <remarks>
-    /// Opt-in — not wired into <c>AddServiceDefaults()</c>. Wave 1 BCs call this explicitly from
+    /// Opt-in — not wired into <c>AddServiceDefaults()</c>. Consuming BCs call this explicitly from
     /// their <c>Program.cs</c> after <c>AddServiceDefaults()</c>. Production adopters replace
     /// <c>AddInMemoryProvider</c> with a SaaS provider (LaunchDarkly / Split / ConfigCat) — call
     /// sites using <see cref="IFeatureClient"/> remain unchanged.

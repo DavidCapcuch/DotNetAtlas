@@ -132,7 +132,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
 
         await TransitionSagaToAwaitingCapture(orderId, userId, authorizationId);
 
-        // Wave1-followup #255: echo the saga-minted PaymentTransactionId on the capture event.
+        // #255: echo the saga-minted PaymentTransactionId on the capture event.
         var sagaMintedPaymentTransactionId = await ReadSagaMintedPaymentTransactionIdAsync(orderId);
 
         // Act - Capture the payment
@@ -575,7 +575,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
             // ADR-0029: CorrelationId == OrderId — the saga is keyed on OrderId.
             OrderId = orderId,
             UserId = userId,
-            // C-2 closeout: Payments wire shape is string. Default to a Stripe-style token.
+            // C-2: Payments wire shape is string. Default to a Stripe-style token.
             PaymentMethodId = paymentMethodId ?? $"pm_{Guid.CreateVersion7():N}",
             Amount = amount.ToAvroDecimal(4),
             Currency = currency,
@@ -672,7 +672,7 @@ public class PaymentProcessingSagaIntegrationTests : BaseSagaIntegrationTest
     /// <summary>
     /// Reads the saga's PaymentTransactionId from the persisted state. Must be called after the
     /// saga has reached at least <c>AwaitingAuthorization</c> (the Initial transition mints it
-    /// per wave1-followup #255). Used by tests that echo the value back on a downstream capture
+    /// per #255). Used by tests that echo the value back on a downstream capture
     /// event the saga's mismatch-guard would otherwise throw on.
     /// </summary>
     private async Task<Guid> ReadSagaMintedPaymentTransactionIdAsync(Guid orderId)

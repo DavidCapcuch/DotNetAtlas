@@ -99,7 +99,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
                     ctx.Saga.Currency = ctx.Message.Currency;
                     ctx.Saga.IdempotencyKey = ctx.Message.IdempotencyKey;
                     ctx.Saga.InitiatedAtUtc = ctx.Message.InitiatedAtUtc;
-                    // Cross-cutting wave1-followup #255: mint the Payments aggregate's PK up front
+                    // Cross-cutting #255: mint the Payments aggregate's PK up front
                     // so the AuthorizePaymentCommand wire contract carries it, retries reuse it, and
                     // the v7 PK guarantee on PaymentTransaction.Id is genuine. PaymentTransactionId
                     // stays distinct from the saga key (OrderId) — one-payment-per-order is enforced
@@ -295,7 +295,7 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
             When(PaymentCapturedEvent)
                 .Then(ctx =>
                 {
-                    // Wave1-followup #255: PaymentTransactionId was minted in the Initial state and
+                    // #255: PaymentTransactionId was minted in the Initial state and
                     // travelled out on AuthorizePaymentCommand. Payments echoes the same id back on
                     // PaymentCapturedEvent. They MUST be equal — any divergence is a Payments-side bug
                     // or a wire-shape skew. Fail loud rather than overwrite.

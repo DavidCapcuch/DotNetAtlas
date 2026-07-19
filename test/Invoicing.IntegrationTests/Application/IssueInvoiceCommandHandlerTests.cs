@@ -208,8 +208,8 @@ public sealed class IssueInvoiceCommandHandlerTests
     [Fact]
     public async Task JoinsAmbientTransaction_DoesNotNest_When_Outer_BeginTransaction_Already_Open()
     {
-        // Locks down the M7 transaction-shape contract that the M6 consumers depend on:
-        // when the inbox middleware has already opened a transaction, the M7 handler must
+        // Locks down the transaction-shape contract that the consumers depend on:
+        // when the inbox middleware has already opened a transaction, the handler must
         // detect Database.CurrentTransaction != null and SKIP its own BeginTransactionAsync
         // (Npgsql doesn't support nested transactions; nesting would throw). The handler must
         // also leave the outer transaction open — the test commits explicitly so the
@@ -318,7 +318,7 @@ public sealed class IssueInvoiceCommandHandlerTests
         await using var scope = _fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IInvoicingDbContext>();
 
-        // Mirror the JSON shape that the M6 producer-side handlers persist.
+        // Mirror the JSON shape that the producer-side handlers persist.
         var orderPayload = JsonSerializer.Serialize(new
         {
             OrderId = orderId,

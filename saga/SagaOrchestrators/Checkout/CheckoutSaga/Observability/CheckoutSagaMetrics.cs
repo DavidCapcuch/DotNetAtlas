@@ -20,7 +20,7 @@ public static class CheckoutSagaMetrics
 {
     private static readonly Meter Meter = new(ApplicationInfo.AppName, ApplicationInfo.Version);
 
-    // Counters (M4 - event-driven surface only; timeout counters defer to M5)
+    // Counters (event-driven surface only; timeout counters are grouped below)
     private static readonly Counter<long> Initiated =
         Meter.CreateCounter<long>("saga.checkout.initiated", "count",
             "Number of checkout sagas initiated");
@@ -49,7 +49,7 @@ public static class CheckoutSagaMetrics
         Meter.CreateCounter<long>("saga.checkout.payment_failed", "count",
             "Number of payment failures (by reason)");
 
-    // Timeout counters (M5 - one per § 7 timeout kind, tag CheckoutSagaActivityTags.LastState
+    // Timeout counters (one per § 7 timeout kind, tag CheckoutSagaActivityTags.LastState
     // for compensation timeout per § 11.2)
     private static readonly Counter<long> OrderCreationTimeout =
         Meter.CreateCounter<long>("saga.checkout.order_creation_timeout", "count",

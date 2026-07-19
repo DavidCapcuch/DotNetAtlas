@@ -61,9 +61,8 @@ public class RemoveItemFromBasketTests : BaseApiTest
     [Fact]
     public async Task RemoveItem_WhenBasketAbsent_ReturnsNoContent_Idempotent()
     {
-        // The M4 handler treats "no basket" as a successful idempotent no-op (204),
-        // diverging from use-cases.md § 2.1.2 which prescribed 404. Documented as a
-        // doc/code follow-up in the M8 session summary.
+        // The handler treats "no basket" as a successful idempotent no-op (204),
+        // diverging from use-cases.md § 2.1.2 which prescribes 404.
 
         // Arrange
         var userId = Guid.CreateVersion7();

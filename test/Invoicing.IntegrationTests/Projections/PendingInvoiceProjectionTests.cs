@@ -26,7 +26,7 @@ namespace Invoicing.IntegrationTests.Projections;
 /// by Platform.KafkaFlow.Inbox.EFCore's own tests.
 /// </summary>
 /// <remarks>
-/// As of Wave 1.5 / ADR-0020 the consumed Avro <c>OrderConfirmedEvent</c> is
+/// Per ADR-0020 the consumed Avro <c>OrderConfirmedEvent</c> is
 /// a Summary Event — Items, TotalAmount, Currency, BillingAddress all travel
 /// with it and are persisted into <c>pending_invoices.OrderPayload</c> for
 /// to read. Each test asserts the round-trip through the jsonb column.
@@ -224,7 +224,7 @@ public sealed class PendingInvoiceProjectionTests
 
         var firstEvent = BuildOrderConfirmedEvent(orderId, buyerId);
         // Second arrival deliberately differs so the assertion proves the row
-        // keeps the FIRST payload — locks in ADR-0020 / Wave 1.5 contract:
+        // keeps the FIRST payload — locks in the ADR-0020 contract:
         // first-arrival wins, second arrival never overwrites OrderPayload.
         var secondEvent = BuildOrderConfirmedEvent(
             orderId, buyerId, totalOverride: 999.99m);

@@ -269,7 +269,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
 
         await PublishApprovedAndWaitForAwaitingCapture(orderId, userId, authorizationId);
 
-        // Wave1-followup #255: PaymentTransactionId is minted by the saga in Initial state and
+        // #255: PaymentTransactionId is minted by the saga in Initial state and
         // echoed back by Payments on PaymentCapturedEvent. The saga throws on mismatch instead of
         // overwriting, so the test must read the saga's minted value rather than fabricating one.
         var sagaMintedPaymentTransactionId = GetSagaMintedPaymentTransactionId(orderId);
@@ -552,7 +552,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
     [Fact]
     public async Task WhenPaymentInitiated_SagaStateCarriesFreshPaymentTransactionId()
     {
-        // Cross-cutting wave1-followup #255:
+        // Cross-cutting #255:
         // The saga must mint a fresh UUID v7 PaymentTransactionId at initial state — this becomes
         // the Payments aggregate's primary key on the outbound AuthorizePaymentCommand. The id is
         // distinct from the saga key (OrderId); the v1 collapse where they coincided is being unwound.
@@ -587,7 +587,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
     [Fact]
     public async Task WhenPaymentInitiated_PublishedAuthorizeCommand_CarriesPaymentTransactionId()
     {
-        // Cross-cutting wave1-followup #255:
+        // Cross-cutting #255:
         // The Avro AuthorizePaymentCommand must carry the saga-issued PaymentTransactionId so the
         // Payments-side mapper can use it as the aggregate PK (AppAuthorizePaymentCommand.PaymentId).
         var orderId = Guid.CreateVersion7();
@@ -615,7 +615,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
     [Fact]
     public async Task WhenAuthorizationFailedRetryable_RetriedAuthorizeCommand_ReusesPaymentTransactionId()
     {
-        // Cross-cutting wave1-followup #255:
+        // Cross-cutting #255:
         // The saga must stick with the originally-minted PaymentTransactionId on retry so the
         // Payments aggregate can identify the existing row (one-payment-per-order, idempotent retry).
         var orderId = Guid.CreateVersion7();
@@ -738,7 +738,7 @@ public class PaymentProcessingSagaOrchestratorTests : IAsyncLifetime
 
     /// <summary>
     /// Reads the saga's PaymentTransactionId from the in-memory test harness state regardless of
-    /// the current state. The saga mints this in <c>Initial</c> (wave1-followup #255); callers
+    /// the current state. The saga mints this in <c>Initial</c> (#255); callers
     /// need it whenever they construct a downstream event whose PaymentTransactionId must echo it.
     /// </summary>
     private Guid GetSagaMintedPaymentTransactionId(Guid orderId)

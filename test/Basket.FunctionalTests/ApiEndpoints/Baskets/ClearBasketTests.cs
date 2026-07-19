@@ -44,8 +44,8 @@ public class ClearBasketTests : BaseApiTest
     [Fact]
     public async Task Clear_WhenNoBasket_ReturnsNoContent_Idempotent()
     {
-        // The M4 handler treats "no basket" as 204 — diverges from use-cases.md § 2.1.5
-        // (404). Documented as a doc/code follow-up in the M8 session summary.
+        // The handler treats "no basket" as 204 — diverges from use-cases.md § 2.1.5
+        // (404).
 
         // Arrange
         var userId = Guid.CreateVersion7();

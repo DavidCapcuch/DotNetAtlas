@@ -18,8 +18,7 @@ namespace Invoicing.Infrastructure.Pdf;
 internal sealed class InvoiceDocument(Invoice invoice, PdfGenerationOptions options) : IDocument
 {
     // Deferred — Inter font swap blocked on Dockerfile font-embedding work
-    // (ADR-0019 § Font embedding; tracked as issue #134). The M10 marker is
-    // removed because M10 has shipped; closeout1 L1.
+    // (ADR-0019 § Font embedding; tracked as issue #134).
     private const string DefaultFontFamily = "Lato";
     private const string MetadataCreator = "Atlas Invoicing";
     private const string MetadataProducer = "Atlas Invoicing";

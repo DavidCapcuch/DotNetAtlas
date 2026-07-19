@@ -10,7 +10,7 @@ using Ordering.UnitTests.Application.Common;
 namespace Ordering.UnitTests.Application.Orders.CancelOrder;
 
 /// <summary>
-/// Confirms the Wave 1.6 / ADR-0020 Summary-Event contract: every
+/// Confirms the ADR-0020 Summary-Event contract: every
 /// <see cref="OrderCancelledDomainEvent"/> emitted by Ordering carries
 /// the order's Items, TotalAmount, Currency, and BillingAddress through
 /// the outbox publisher onto the wire alongside the original Reason /

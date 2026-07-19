@@ -53,7 +53,7 @@ public sealed class GetCategoryTreeQueryHandler
             .Select(c => new CategoryNodeRow(c.Id, c.Name, c.Path.Value, c.ParentCategoryId))
             .ToListAsync(ct);
 
-        // CAT-RV-H06 (Wave-1 closeout): without this filter the GROUP BY scanned every
+        // CAT-RV-H06: without this filter the GROUP BY scanned every
         // product_search_view row on every call (O(catalog), full-table scan at scale).
         // Constrain the count query to the categories we just loaded — EF Core translates
         // HashSet<Guid>.Contains into a parameterised IN (...) clause.

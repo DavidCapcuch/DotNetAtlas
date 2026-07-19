@@ -71,7 +71,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
         builder.Property(i => i.OrderId)
             .HasComment("Reference to the Ordering Order the invoice settles.");
-        // Unique — at most one Invoice per Order (M7 idempotency contract).
+        // Unique — at most one Invoice per Order (idempotency contract).
         builder.HasIndex(i => i.OrderId)
             .IsUnique()
             .HasDatabaseName("ux_invoices_order_id");

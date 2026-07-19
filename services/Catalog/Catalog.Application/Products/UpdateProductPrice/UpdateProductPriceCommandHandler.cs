@@ -19,8 +19,8 @@ public sealed class UpdateProductPriceCommandHandler : ICommandHandler<UpdatePro
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<UpdateProductPriceCommandHandler> _logger;
 
-    // CAT-RV-L01 / #208 (Wave-1 closeout): ctor parameter order realigned to the M4.3
-    // convention `(db, TimeProvider, ILogger<T>)` used by every other Catalog command handler.
+    // CAT-RV-L01 / #208: ctor parameter order follows the `(db, TimeProvider, ILogger<T>)`
+    // convention shared by every Catalog command handler.
     public UpdateProductPriceCommandHandler(
         ICatalogDbContext db,
         TimeProvider timeProvider,

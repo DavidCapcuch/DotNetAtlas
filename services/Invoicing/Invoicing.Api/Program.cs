@@ -60,8 +60,8 @@ try
 
     await app.MigrateOnStartupIfDevelopmentAsync<InvoicingDbContext>();
 
-    // Skip the Kafka enrichment-projection consumers in the test host. M6's
-    // integration tests exercise the consumer slice against a real broker; M8's
+    // Skip the Kafka enrichment-projection consumers in the test host. The
+    // integration tests exercise the consumer slice against a real broker; the
     // functional tests exercise the HTTP surface only and do not need Kafka up.
     if (!app.Environment.IsTesting())
     {

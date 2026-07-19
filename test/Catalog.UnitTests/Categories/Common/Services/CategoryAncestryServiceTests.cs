@@ -124,7 +124,7 @@ public class CategoryAncestryServiceTests
     {
         // Arrange
         // /electronics is NOT a descendant of /electronics-toys (segment-bounded match).
-        // Regression of M3's H2 segment-bounded prefix fix.
+        // Regression guard for the segment-bounded prefix fix (H2).
         await using var db = FakeCatalogDbContext.Create();
         var elec = CatalogFactories.RootCategory("Electronics");
         var toys = CatalogFactories.RootCategory("Electronics Toys");

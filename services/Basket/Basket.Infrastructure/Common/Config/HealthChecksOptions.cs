@@ -6,7 +6,7 @@ namespace Basket.Infrastructure.Common.Config;
 /// Configuration options for Basket readiness-probe timeouts. Mirrors the platform
 /// reference at
 /// <c>platform/Platform.OutboxRelay.WorkerService/Common/Config/HealthChecksOptions.cs</c>
-/// and the Catalog M10 precedent: <c>AddDbContextCheck</c> does not expose a direct
+/// and the Catalog precedent: <c>AddDbContextCheck</c> does not expose a direct
 /// timeout parameter, so no DB timeout is carried here. Operators who need a DB-level
 /// readiness timeout switch to <c>AddNpgSql</c> or wire <c>CommandTimeout</c> into
 /// <c>EfCoreOptions</c>. No <c>KafkaTimeout</c> — Basket has no in-process Kafka client and

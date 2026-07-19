@@ -31,8 +31,8 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
 
     /// <summary>
     /// Gateway-issued opaque payment-method token (Stripe 'pm_*', Adyen alphanumeric, …);
-    /// 1-64 chars. Changed from <c>Guid</c> in the Wave-1 closeout C-2 fix so the saga can carry
-    /// real PSP tokens once a non-stub adapter ships.
+    /// 1-64 chars. Held as a string so the saga can carry real PSP tokens once a live
+    /// gateway adapter ships.
     /// </summary>
     public string PaymentMethodId { get; set; } = string.Empty;
 

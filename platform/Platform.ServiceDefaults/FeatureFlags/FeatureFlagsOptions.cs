@@ -10,7 +10,7 @@ public sealed class FeatureFlagsOptions
 
     /// <summary>
     /// Path to the JSON flag file. Defaults to <c>flags.json</c> (at the service content root /
-    /// container mount per the Wave 0 contract). Absent files are tolerated by returning an empty
+    /// container mount). Absent files are tolerated by returning an empty
     /// flag set so unit tests aren't required to create the file on disk.
     /// </summary>
     public string FilePath { get; set; } = "flags.json";

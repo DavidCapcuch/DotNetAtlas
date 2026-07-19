@@ -60,7 +60,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     public State Failed { get; private set; }
     public State CompensationStuck { get; private set; }
 
-    // Initiator event - missing-instance handling deferred to M4 Initially(...).
+    // Initiator event - missing-instance handling via Initially(...).
     public Event<BasketCheckoutInitiatedSagaEvent> BasketCheckoutInitiatedEvent { get; private set; }
 
     // Ordering events
@@ -82,7 +82,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     public Event<PaymentCompletedSagaEvent> PaymentCompletedEvent { get; private set; }
     public Event<PaymentFailedSagaEvent> PaymentFailedEvent { get; private set; }
 
-    // Timeout schedules (M5 — checkout-saga.md § 7). Tokens persist on CheckoutSagaState
+    // Timeout schedules (checkout-saga.md § 7). Tokens persist on CheckoutSagaState
     // so the same saga instance can Unschedule a previously-armed timeout across hops.
     public Schedule<CheckoutSagaState, OrderCreationTimeoutExpired> OrderCreationTimeout { get; private set; } = null!;
     public Schedule<CheckoutSagaState, StockReservationTimeoutExpired> StockReservationTimeout { get; private set; } = null!;
@@ -181,12 +181,10 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                 // Split / ConfigCat). The InMemory provider used by Platform.ServiceDefaults
                 // happens to complete synchronously which would mask the bug at test time.
                 //
-                // M9: IFeatureClient is registered as Scoped by Platform.ServiceDefaults
+                // IFeatureClient is registered as Scoped by Platform.ServiceDefaults
                 // .AddFeatureFlags (OpenFeature SDK convention); MassTransit state machines
-                // are Singleton. Constructor-injecting IFeatureClient was a captive-dependency
-                // violation that DI-validation rejected on host startup (caught when M9
-                // integration tests first booted the WebApplicationFactory; M8 unit tests had
-                // masked it by registering a Singleton stub). Resolve per-consume from the
+                // are Singleton. Constructor-injecting IFeatureClient would be a captive-dependency
+                // violation that host-startup DI-validation rejects. Resolve per-consume from the
                 // BehaviorContext's IServiceScope payload — same pattern this orchestrator
                 // already uses for SagaDbContext + IOutboxWriter via GetOutboxDependencies.
                 .ThenAsync(async ctx =>
@@ -204,8 +202,7 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
                         // per ADR-0014 line 116; see CheckoutSagaFeatureFlags.PaymentThenStock for
                         // limits). Skips stock reservation entirely; downstream AwaitingPayment
                         // handlers still assume stock has been reserved, so a happy-path under this
-                        // branch is unsupported until the alternative topology is wired in a future
-                        // milestone.
+                        // branch is unsupported.
                         .Then(ctx =>
                         {
                             ctx.Saga.PaymentRequestedAtUtc = _timeProvider.GetUtcNow();
@@ -1051,9 +1048,9 @@ public sealed class CheckoutSagaOrchestrator : MassTransitStateMachine<CheckoutS
     {
         OrderId = saga.CorrelationId,
         UserId = saga.UserId,
-        // C-2 closeout: Payments-side PaymentMethodId is now a plain string token (was uuid).
-        // CheckoutSaga still tracks it as Guid (Basket + Ordering wire shapes unchanged), so
-        // stringify here at the BC boundary. Future cross-cutting wave can swap upstream BCs.
+        // C-2: Payments-side PaymentMethodId is a plain string token, while CheckoutSaga
+        // tracks it as Guid (Basket + Ordering wire shapes use Guid), so stringify here
+        // at the BC boundary.
         PaymentMethodId = saga.PaymentMethodId.ToString(),
         Amount = saga.TotalAmount.ToAvroDecimal(4),
         Currency = saga.Currency,

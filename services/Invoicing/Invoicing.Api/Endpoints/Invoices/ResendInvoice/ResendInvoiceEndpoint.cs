@@ -25,7 +25,7 @@ namespace Invoicing.Api.Endpoints.Invoices.ResendInvoice;
 /// bearer token, so two admins reusing the same UUID never share responses.
 /// </para>
 /// <para>
-/// <b>v1 stub behaviour (Wave 1 closeout follow-up H2):</b> the 204 represents
+/// <b>v1 stub behaviour:</b> the 204 represents
 /// acknowledgement, not delivery. <see cref="ResendInvoiceCommandHandler"/> validates
 /// state but does NOT yet insert the <c>invoice_delivery_log</c> row or emit an
 /// outbox event — both deferred per <c>invoicing.md § 12</c> until a downstream

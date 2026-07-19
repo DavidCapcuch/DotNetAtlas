@@ -19,7 +19,7 @@ public sealed record PaymentVoidedDomainEvent : DomainEvent
     public required DateTimeOffset VoidedAtUtc { get; init; }
 
     /// <summary>
-    /// Saga-supplied reason for the void (H-5 closeout).
+    /// Saga-supplied reason for the void (H-5).
     /// </summary>
     public required string Reason { get; init; }
 }

@@ -48,8 +48,8 @@ public class SearchProductsTests : BaseIntegrationTest
     [Fact]
     public async Task WhenShowDiscontinuedFlagFlippedOnAtRuntime_DiscontinuedProductSurfacesInSearch()
     {
-        // Closes the M5 follow-up "verify the catalog.show-discontinued-in-search flag changes
-        // search results without restart" (ADR-0014). The observable outcome: with the flag ON,
+        // Verifies the catalog.show-discontinued-in-search flag changes search results without
+        // restart (ADR-0014). The observable outcome: with the flag ON,
         // a discontinued product surfaces in the default (no explicit status filter) public
         // search — so a mutation that consults the flag but ignores its value (keeps hiding
         // discontinued rows) fails here, where the prior mock-only "was the flag read?" check

@@ -25,7 +25,7 @@ public class CommandTests : BaseTest
     }
 
     /// <summary>
-    /// Per CAT-ARCH-C05 (Wave-1 closeout), command + query types must be sealed records.
+    /// Per CAT-ARCH-C05, command + query types must be sealed records.
     /// Public-class commands with mutable setters allow consumers to mutate the input after
     /// the validation pipeline has run; sealed records with init-only setters lock it down.
     /// </summary>

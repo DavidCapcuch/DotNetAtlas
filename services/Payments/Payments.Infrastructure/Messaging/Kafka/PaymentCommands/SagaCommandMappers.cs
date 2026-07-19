@@ -24,9 +24,9 @@ internal static class SagaCommandMappers
     /// Maps <see cref="AvroAuthorizePaymentCommand"/> to the application-layer
     /// <see cref="AppAuthorizePaymentCommand"/>. Field renames: <c>UserId</c> → <c>BuyerId</c>;
     /// PaymentId comes from the saga-issued <c>PaymentTransactionId</c> Avro field (cross-cutting
-    /// wave1-followup #255 — the v1 collapse where PaymentId was reused as the saga key was unwound
-    /// to make the "v7 PK" guarantee on the Payments aggregate genuine). One-payment-per-order stays
-    /// enforced by the unique index on <c>payment_transactions.order_id</c> (ADR-0029).
+    /// #255): a distinct v7 id, not the saga key, so the Payments aggregate PK stays a genuine
+    /// UUID v7. One-payment-per-order stays enforced by the unique index on
+    /// <c>payment_transactions.order_id</c> (ADR-0029).
     /// </summary>
     internal static AppAuthorizePaymentCommand ToAppCommand(this AvroAuthorizePaymentCommand avro) =>
         new()
@@ -36,8 +36,8 @@ internal static class SagaCommandMappers
             BuyerId = avro.UserId,
             Amount = (decimal)avro.Amount,
             Currency = avro.Currency,
-            // C-2 closeout: AvroAuthorizePaymentCommand.PaymentMethodId is now `string` (was
-            // `Guid` via logicalType:uuid). No `.ToString()` needed.
+            // AvroAuthorizePaymentCommand.PaymentMethodId is a plain `string` (not a
+            // logicalType:uuid `Guid`), so no `.ToString()` is needed.
             PaymentMethodId = avro.PaymentMethodId,
             IdempotencyKey = avro.IdempotencyKey,
         };
@@ -47,7 +47,7 @@ internal static class SagaCommandMappers
     /// <see cref="AppCapturePaymentCommand"/>. <c>OrderId</c> comes from the wire payload field
     /// (ADR-0029/0030) so the handler resolves the aggregate via the unique <c>order_id</c> index;
     /// <c>AuthorizationId</c> propagated for handler-side validation against the stored
-    /// <c>GatewayTransactionId</c> (H-8 closeout).
+    /// <c>GatewayTransactionId</c> (H-8).
     /// </summary>
     internal static AppCapturePaymentCommand ToAppCommand(this AvroCapturePaymentCommand avro) =>
         new()
@@ -60,8 +60,8 @@ internal static class SagaCommandMappers
     /// Maps <see cref="AvroVoidPaymentCommand"/> to the application-layer
     /// <see cref="AppVoidPaymentCommand"/>. <c>OrderId</c> comes from the wire payload field
     /// (ADR-0029/0030); <c>AuthorizationId</c> propagated for handler-side validation
-    /// (H-8 closeout); <c>Reason</c> propagated for aggregate persistence + outbound audit
-    /// (H-5 closeout).
+    /// (H-8); <c>Reason</c> propagated for aggregate persistence + outbound audit
+    /// (H-5).
     /// </summary>
     internal static AppVoidPaymentCommand ToAppCommand(this AvroVoidPaymentCommand avro) =>
         new()

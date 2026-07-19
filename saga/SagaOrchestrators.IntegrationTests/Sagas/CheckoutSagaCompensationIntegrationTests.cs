@@ -37,7 +37,7 @@ namespace SagaOrchestrators.IntegrationTests.Sagas;
 [Collection(nameof(SagaTestCollection))]
 public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
 {
-    // Bias to 15s (vs M6's 10s) for the longer M9 chains. The OrderConfirmationFails test
+    // Bias to 15s for the longer chains. The OrderConfirmationFails test
     // crosses 8 saga consume cycles (initiate → order → 3× stock → payment → confirm-fail →
     // refund → 3× release → cancel) and observably runs ~10s end-to-end; the extra headroom
     // keeps genuine deadlocks catchable without flake.
@@ -271,7 +271,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             correlationId, x => x.CompensatingStockReservations, DefaultTimeout);
 
         // Act — withhold the ReservationReleasedEvent and OrderCancelledEvent; instead publish
-        // the CompensationTimeoutExpired schedule event directly. Same tactic as the M7 unit-level
+        // the CompensationTimeoutExpired schedule event directly. Same tactic as the unit-level
         // metric tests; avoids waiting Saga:CheckoutTimeouts:CompensationSeconds (=60s in Testing).
         await Bus.Publish(new CompensationTimeoutExpired { CorrelationId = correlationId });
 

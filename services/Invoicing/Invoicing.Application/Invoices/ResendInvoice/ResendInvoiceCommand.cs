@@ -8,7 +8,7 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// (otherwise 404 / 409). Idempotency for HTTP double-clicks is provided at the transport
 /// layer by FastEndpoints' <c>.Idempotency()</c> filter (ADR-0013); the
 /// <c>invoice_delivery_log</c> table + outbox publisher described in
-/// <c>invoicing.md § 12</c> are deferred to a later milestone (the table requires a
+/// <c>invoicing.md § 12</c> are not part of v1 (the table requires a
 /// user-generated EF migration per CLAUDE.md).
 /// </summary>
 public sealed record ResendInvoiceCommand : ICommand

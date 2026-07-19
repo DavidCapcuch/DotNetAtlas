@@ -60,11 +60,11 @@ try
 
     await app.MigrateOnStartupIfDevelopmentAsync<OrderingDbContext>();
 
-    // Skip the Kafka saga-command consumer in the test host. M5's
+    // Skip the Kafka saga-command consumer in the test host. The
     // functional-test slice exercises the HTTP surface only; the consumer
-    // is integration-tested in M4 / M7 against a real broker. Booting the
+    // is integration-tested against a real broker elsewhere. Booting the
     // consumer in tests would require a Kafka + schema-registry container
-    // pair that isn't part of M5's scope.
+    // pair the HTTP-surface tests don't need.
     if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();

@@ -55,8 +55,8 @@ public class CheckoutBasketTests : BaseApiTest
             var redisKeyExists = await Fixture.RedisBasketDb.KeyExistsAsync($"basket:{userId}");
             redisKeyExists.Should().BeFalse("post-checkout cleanup deletes the Redis aggregate key");
 
-            // Outbox row exists (one OutboxMessage per checkout). Persistence-layer test
-            // already asserts the Avro payload — here we only verify the row landed.
+            // Outbox row exists (one OutboxMessage per checkout). The persistence-layer
+            // integration test pins topic/key/type; here we only verify the row landed.
             var outboxRows = await DbContext.Set<Platform.ReliableMessaging.Outbox.Core.OutboxMessage>()
                 .Where(m => m.KafkaKey == userId.ToString())
                 .CountAsync(TestContext.Current.CancellationToken);
@@ -96,7 +96,7 @@ public class CheckoutBasketTests : BaseApiTest
         // error because the basket was already deleted on first checkout. Either path
         // satisfies the "no second outbox row" invariant. Full proof of cached-response
         // replay is documented as a follow-up — FE 7.0.0's body-hash cache key behavior
-        // wasn't reliably observed in the test host for this BC; M9 can revisit.
+        // wasn't reliably observed in the test host for this BC.
 
         // Arrange
         var userId = Guid.CreateVersion7();

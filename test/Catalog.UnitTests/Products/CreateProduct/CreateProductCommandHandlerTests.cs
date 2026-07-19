@@ -104,11 +104,10 @@ public class CreateProductCommandHandlerTests
     }
 
     /// <summary>
-    /// CAT-RV-H04 (Wave-1 closeout): the AnyAsync precheck is racy. Under concurrency two
+    /// CAT-RV-H04: the AnyAsync precheck is racy. Under concurrency two
     /// commands can both pass the check before either SaveChanges; the unique index
     /// (UX_Products_Sku) then surfaces a UniqueConstraintException from the second call.
-    /// Without this fix it propagated as a generic 500; the handler must translate it to
-    /// the contract-documented 409 ProductErrors.SkuAlreadyExists.
+    /// The handler must translate it to the contract-documented 409 ProductErrors.SkuAlreadyExists.
     /// </summary>
     [Fact]
     [Trait("Category", "regression")]

@@ -104,7 +104,7 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
 
         if (convergedNow)
         {
-            // M7 — dispatch the credit-note issuance command inside the inbox transaction.
+            // Dispatch the credit-note issuance command inside the inbox transaction.
             // Validation-style failures (e.g., already-cancelled invoice) come back as
             // Result.Fail and are logged; the inbox row still commits so we don't loop.
             // Bug-class failures throw and roll back the whole transaction.
@@ -126,9 +126,9 @@ internal sealed class OrderCancelledCreditNoteProjectionKafkaHandler
         // See OrderConfirmedInvoiceProjectionKafkaHandler.SerializePayload for the rationale
         // on the hand-rolled DTO. The AtStatus enum is explicitly stringified for jsonb readability.
         //
-        // Per ADR-0020 (Wave 1.6) the Avro event is a Summary Event — Items, TotalAmount,
+        // Per ADR-0020 the Avro event is a Summary Event — Items, TotalAmount,
         // Currency and BillingAddress travel with it. Persisting them into OrderPayload
-        // jsonb means M8's IssueCreditNoteCommandHandler can construct the credit note
+        // jsonb means IssueCreditNoteCommandHandler can construct the credit note
         // from the converged pending_credit_notes row without an HTTP round-trip.
         return JsonSerializer.Serialize(new
         {

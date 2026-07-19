@@ -76,7 +76,7 @@ public sealed class InvoicingDbContext : DbContext, IInvoicingDbContext, IInboxD
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
-        // Now load-bearing: M7's Invoice.Status / DeliveryChannel and CreditNote.Status / Reason
+        // Load-bearing: Invoice.Status / DeliveryChannel and CreditNote.Status / Reason
         // columns rely on the SmartEnum<T> conversion the convention installs.
         configurationBuilder.ConfigureSmartEnum();
     }

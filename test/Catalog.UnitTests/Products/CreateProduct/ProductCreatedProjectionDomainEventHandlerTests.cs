@@ -53,7 +53,7 @@ public class ProductCreatedProjectionDomainEventHandlerTests
         }
     }
 
-    // CAT-RV-L01 (Wave-1 closeout): category slug segments containing hyphens between words
+    // CAT-RV-L01: category slug segments containing hyphens between words
     // ("electronics-toys") must title-case each space-delimited token, producing
     // "Electronics Toys" rather than the broken "Electronics-toys".
     [Fact]
@@ -92,9 +92,8 @@ public class ProductCreatedProjectionDomainEventHandlerTests
     [Fact]
     public async Task Handle_MissingProduct_ThrowsDataIntegrityException()
     {
-        // CAT-TST-M02 (Wave-1 closeout): build the event from a single product instance so
-        // Sku / Name / Price come from the same aggregate — the previous version called
-        // CatalogFactories.ActiveProduct() three times, returning three diverging instances.
+        // CAT-TST-M02: build the event from a single product instance so
+        // Sku / Name / Price come from the same aggregate.
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var handler = new ProductCreatedProjectionDomainEventHandler(

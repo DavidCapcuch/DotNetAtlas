@@ -75,8 +75,8 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
         // GatewayTransactionId is set by Authorize and is append-only per I-4. The
         // CanTransitionTo(Refunded) pre-check above proves the aggregate is in Captured or
         // Completed, so the bang here is safe — the aggregate's FSM is the single source of truth
-        // for the invariant. The handler-level null-guard the closeout (#250) used to carry was
-        // genuinely unreachable after the FSM pre-check landed and is removed.
+        // for the invariant. No separate handler-level null-guard is needed; the FSM pre-check
+        // makes one unreachable.
         var gatewayTransactionId = tx.GatewayTransactionId!;
 
         var gatewayResult = await _gateway.RefundAsync(gatewayTransactionId, tx.Amount, command.Reason, ct);
@@ -84,8 +84,9 @@ internal sealed class RequestRefundCommandHandler : ICommandHandler<RequestRefun
 
         if (gatewayResult.IsFailed)
         {
-            // Refunds are reversal operations — declines here are infrastructure-class. Bubble up
-            // for saga retry (gateway-side fraud / hold quirks become Path-B follow-ups).
+            // Refunds are reversal operations. Every gateway failure here is treated as
+            // infrastructure-class and bubbled up for saga retry — hard declines (fraud / holds)
+            // are not distinguished from transient failures.
             _logger.LogWarning(
                 "Gateway refund call for {PaymentId} did not succeed; saga must retry.",
                 tx.Id);
