@@ -83,7 +83,28 @@ public class JwtBearerConfiguratorTests
             "for a claim the inbound mapping has already renamed (#234, JwtBearerConfigurator.cs)");
     }
 
-    private static JwtBearerOptions BuildPlatformJwtBearerOptions()
+    [Fact]
+    [Trait("Category", "security")]
+    public void AddPlatformJwtBearer_WhenConfigureDelegateDisablesSignatureValidation_FloorRePinsItTrue()
+    {
+        // The #223 immutable floor: even if a BC's configuration.Bind (simulated here by the
+        // configure delegate) flips the signed-token / signing-key validation booleans off, the
+        // platform PostConfigure re-pins them to true — a typo'd appsettings override cannot silently
+        // disable signature validation on a deployed host. (ValidateIssuer/Audience/Lifetime are
+        // re-pinned by the same floor but cannot be probed here without tripping the CA5404 analyzer;
+        // the flat-roles token-validation test above exercises them through a real validation.)
+        var options = BuildPlatformJwtBearerOptions(o =>
+        {
+            o.TokenValidationParameters.RequireSignedTokens = false;
+            o.TokenValidationParameters.ValidateIssuerSigningKey = false;
+        });
+
+        using var _ = new AssertionScope();
+        options.TokenValidationParameters.RequireSignedTokens.Should().BeTrue();
+        options.TokenValidationParameters.ValidateIssuerSigningKey.Should().BeTrue();
+    }
+
+    private static JwtBearerOptions BuildPlatformJwtBearerOptions(Action<JwtBearerOptions>? extraConfigure = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -98,7 +119,12 @@ public class JwtBearerConfiguratorTests
         });
 
         // SUT — the BC's configure delegate pins ValidAudience, exactly as appsettings binding does.
-        services.AddPlatformJwtBearer(o => o.TokenValidationParameters.ValidAudience = TestAudience);
+        // extraConfigure lets a test simulate a hostile bind (e.g. flipping validation booleans off).
+        services.AddPlatformJwtBearer(o =>
+        {
+            o.TokenValidationParameters.ValidAudience = TestAudience;
+            extraConfigure?.Invoke(o);
+        });
 
         using var provider = services.BuildServiceProvider();
         return provider.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()

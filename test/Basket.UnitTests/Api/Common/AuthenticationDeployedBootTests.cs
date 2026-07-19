@@ -74,7 +74,7 @@ public class AuthenticationDeployedBootTests
             ["Authentication:JwtBearer:RequireHttpsMetadata"] = requireHttpsMetadata ? "true" : "false",
         });
 
-        builder.Services.AddBasketAuthentication(builder.Configuration, builder.Environment);
+        builder.Services.AddBasketAuthentication(builder.Configuration);
 
         return builder.Build();
     }

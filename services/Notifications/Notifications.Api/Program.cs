@@ -34,7 +34,7 @@ try
     // In-app bell transport (#316): JWT bearer auth host + the SignalR hub the bell channel
     // dispatcher (#317) pushes through via INotificationBroadcaster. ADR-0032.
     builder.Services
-        .AddNotificationsAuthentication(builder.Configuration, builder.Environment)
+        .AddNotificationsAuthentication(builder.Configuration)
         .AddNotificationsSignalR();
 
     var app = builder.Build();

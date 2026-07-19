@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Hosting;
 using Notifications.Api.Common.Constants;
-using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.Auth;
 
 namespace Notifications.Api.Common;
@@ -11,8 +9,8 @@ namespace Notifications.Api.Common;
 /// consumer plus the in-app bell SignalR hub) with no UI surface, so — like Ordering / Catalog /
 /// Invoicing — it wires JWT bearer only (no Cookie / OIDC schemes). Uses the platform
 /// <see cref="JwtBearerConfigurator.AddPlatformJwtBearer"/> so the Keycloak flat-<c>roles</c>
-/// mapping, the immutable validation floor (#223), and the per-environment HTTPS-metadata toggle
-/// are centralised; the BC pins its audience via the <c>Authentication:JwtBearer</c> section in
+/// mapping, the immutable validation floor (#223), and the deployed HTTPS-metadata guard are
+/// centralised; the BC pins its audience via the <c>Authentication:JwtBearer</c> section in
 /// appsettings (ADR-0010).
 /// </summary>
 internal static class AuthenticationDependencyInjection
@@ -28,16 +26,14 @@ internal static class AuthenticationDependencyInjection
     /// wired (no <c>ServiceAuth</c> section in appsettings).
     /// </summary>
     /// <remarks>
-    /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
-    /// post-configure guard asserts <c>RequireSignedTokens</c> and <c>ValidateIssuerSigningKey</c>
-    /// remain enabled — protects against a misconfigured env-var silently relaxing JWT validation
-    /// in production. HTTPS-metadata gating is handled by <see cref="JwtBearerConfigurator"/> based
-    /// on <c>ASPNETCORE_ENVIRONMENT</c>.
+    /// The deployed-environment JWT hardening — fail-closed at host boot when
+    /// <c>RequireHttpsMetadata</c> is off — is owned by the platform
+    /// <see cref="JwtBearerConfigurator"/> and applies to every inbound-JWT edge uniformly; there is
+    /// no Notifications-specific auth guard (ADR-0009 item 10).
     /// </remarks>
     public static IServiceCollection AddNotificationsAuthentication(
         this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -64,22 +60,6 @@ internal static class AuthenticationDependencyInjection
                 }
             };
         });
-
-        if (environment.IsDeployedEnvironment())
-        {
-            services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-                .PostConfigure(options =>
-                {
-                    if (!options.TokenValidationParameters.RequireSignedTokens
-                        || !options.TokenValidationParameters.ValidateIssuerSigningKey)
-                    {
-                        throw new InvalidOperationException(
-                            "JWT validation must require signed tokens and validate the signing " +
-                            "key in deployed environments. Check 'Authentication:JwtBearer' " +
-                            "configuration overrides.");
-                    }
-                });
-        }
 
         services.AddAuthorization();
         services.AddHttpContextAccessor();

@@ -3,7 +3,6 @@ using Invoicing.Application.Common;
 using Invoicing.Infrastructure.Common;
 using Invoicing.Infrastructure.Persistence.Database;
 using KafkaFlow;
-using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults;
 using Serilog;
 
@@ -25,7 +24,7 @@ try
 
     builder.Services
         .AddApi(builder.Configuration)
-        .AddInvoicingAuthentication(builder.Configuration, builder.Environment)
+        .AddInvoicingAuthentication(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 

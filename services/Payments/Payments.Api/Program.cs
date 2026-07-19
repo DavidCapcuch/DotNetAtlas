@@ -1,5 +1,4 @@
 using KafkaFlow;
-using Microsoft.Extensions.Hosting;
 using Payments.Api.Common;
 using Payments.Application.Common;
 using Payments.Infrastructure.Common;
@@ -25,7 +24,7 @@ try
 
     builder.Services
         .AddApi(builder.Configuration)
-        .AddPaymentsAuthentication(builder.Configuration, builder.Environment)
+        .AddPaymentsAuthentication(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 

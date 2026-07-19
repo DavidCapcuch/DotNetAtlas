@@ -28,7 +28,7 @@ try
 
     builder.Services
         .AddApi(builder.Configuration)
-        .AddCatalogAuthentication(builder.Configuration, builder.Environment)
+        .AddCatalogAuthentication(builder.Configuration)
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 

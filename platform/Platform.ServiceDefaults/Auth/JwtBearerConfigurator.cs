@@ -29,7 +29,7 @@ public static class JwtBearerConfigurator
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Three-phase contract (defense-in-depth):
+    /// Four-phase contract (defense-in-depth):
     /// </para>
     /// <list type="number">
     /// <item><description>
@@ -56,6 +56,15 @@ public static class JwtBearerConfigurator
     /// ValidateIssuerSigningKey / RequireSignedTokens</c>) to <c>true</c>. This
     /// is the immutable security floor — no appsettings, env var, or BC-specific
     /// override can opt out of validation, per #223.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Deployed guard</b> (<c>ValidateOnStart</c>) asserts <c>RequireHttpsMetadata</c> in
+    /// <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments — the one
+    /// invariant the floor cannot cover, because <c>RequireHttpsMetadata</c> is a
+    /// <see cref="JwtBearerOptions"/> property (not a <see cref="TokenValidationParameters"/>
+    /// boolean) that the BC's <c>Bind</c> can flip back to the local-dev default of <c>false</c>.
+    /// A deployed host that would fetch OIDC metadata / JWKS over plain HTTP <b>fails to boot</b>
+    /// (ADR-0009 item 10); no-op in Development / Testing.
     /// </description></item>
     /// </list>
     /// <para>
@@ -140,6 +149,31 @@ public static class JwtBearerConfigurator
             options.TokenValidationParameters.RequireSignedTokens = true;
         });
 
+        // Fourth contract phase (see the doc-comment above): the deployed RequireHttpsMetadata guard.
+        // PostConfigure runs after the BC's Bind, so it observes the post-bind value; ValidateOnStart
+        // forces the check at boot rather than lazily on the first authenticated request.
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .PostConfigure<IHostEnvironment>(AssertDeployedRequireHttpsMetadata)
+            .ValidateOnStart();
+
         return builder;
+    }
+
+    /// <summary>
+    /// Throws <see cref="InvalidOperationException"/> when a deployed host would fetch OIDC metadata
+    /// / JWKS over plain HTTP (<c>RequireHttpsMetadata = false</c>) — a MITM surface on the
+    /// token-validation trust anchor. No-op in Development / Testing, which run against a local http
+    /// Keycloak. Registered with <c>ValidateOnStart</c> so the failure is at boot, not per request.
+    /// </summary>
+    private static void AssertDeployedRequireHttpsMetadata(JwtBearerOptions options, IHostEnvironment environment)
+    {
+        if (environment.IsDeployedEnvironment() && !options.RequireHttpsMetadata)
+        {
+            throw new InvalidOperationException(
+                "JWT validation must require HTTPS metadata in deployed environments so OIDC " +
+                "discovery and JWKS are fetched over TLS. Set " +
+                "'Authentication:JwtBearer:RequireHttpsMetadata' to true and point 'Authority' at an " +
+                "https:// OIDC endpoint. See ADR-0009 'Taking this to production'.");
+        }
     }
 }

@@ -1,8 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Payments.Api.Common.Authorization;
-using Platform.ServiceDefaults;
 using Platform.ServiceDefaults.Auth;
 
 namespace Payments.Api.Common;
@@ -23,15 +19,14 @@ internal static class AuthenticationDependencyInjection
     /// in one go.
     /// </summary>
     /// <remarks>
-    /// In <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments a
-    /// post-configure guard asserts <c>RequireSignedTokens</c> and <c>ValidateIssuerSigningKey</c>
-    /// remain enabled — protects against a misconfigured env-var silently relaxing JWT validation
-    /// in production.
+    /// The deployed-environment JWT hardening — fail-closed at host boot when
+    /// <c>RequireHttpsMetadata</c> is off — is owned by the platform
+    /// <see cref="JwtBearerConfigurator"/> and applies to every inbound-JWT edge uniformly; there is
+    /// no Payments-specific auth guard (ADR-0009 item 10).
     /// </remarks>
     public static IServiceCollection AddPaymentsAuthentication(
         this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -40,22 +35,6 @@ internal static class AuthenticationDependencyInjection
         {
             configuration.Bind(JwtBearerConfigSection, options);
         });
-
-        if (environment.IsDeployedEnvironment())
-        {
-            services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-                .PostConfigure(options =>
-                {
-                    if (!options.TokenValidationParameters.RequireSignedTokens
-                        || !options.TokenValidationParameters.ValidateIssuerSigningKey)
-                    {
-                        throw new InvalidOperationException(
-                            "JWT validation must require signed tokens and validate the signing " +
-                            "key in deployed environments. Check 'Authentication:JwtBearer' " +
-                            "configuration overrides.");
-                    }
-                });
-        }
 
         // Admin-tooling endpoints: admin role AND payments.read scope (defense in depth).
         // RequireAnyScope adds RequireAuthenticatedUser + the space-separated scope-claim
