@@ -66,7 +66,7 @@ public sealed class PendingInvoiceProjectionTests
             var db = orderScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var orderHandler = new OrderConfirmedInvoiceProjectionKafkaHandler(
                 db,
-                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                ProjectionTestCommandHandlerStubs.NoOpIssueInvoiceHandler(),
                 orderClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
@@ -90,7 +90,7 @@ public sealed class PendingInvoiceProjectionTests
                 midRow.PaymentPayload.Should().BeNull();
                 midRow.FirstSeenAtUtc.Should().Be(OrderArrivalUtc);
                 midRow.CompletedAtUtc.Should().BeNull("payment half has not arrived");
-                midRow.IssuedInvoiceId.Should().BeNull("M7 owns issuance");
+                midRow.IssuedInvoiceId.Should().BeNull("issuance fires only on convergence");
             }
         }
 
@@ -100,7 +100,7 @@ public sealed class PendingInvoiceProjectionTests
             var db = paymentScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var paymentHandler = new PaymentCapturedInvoiceProjectionKafkaHandler(
                 db,
-                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                ProjectionTestCommandHandlerStubs.NoOpIssueInvoiceHandler(),
                 paymentClock,
                 NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
 
@@ -124,7 +124,7 @@ public sealed class PendingInvoiceProjectionTests
                 converged.PaymentPayload.Should().NotBeNullOrEmpty();
                 converged.FirstSeenAtUtc.Should().Be(OrderArrivalUtc, "first-seen never overwrites");
                 converged.CompletedAtUtc.Should().Be(PaymentArrivalUtc);
-                converged.IssuedInvoiceId.Should().BeNull("M7 owns issuance");
+                converged.IssuedInvoiceId.Should().BeNull("the no-op issue stub never sets IssuedInvoiceId");
             }
         }
     }
@@ -146,7 +146,7 @@ public sealed class PendingInvoiceProjectionTests
             var db = paymentScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var paymentHandler = new PaymentCapturedInvoiceProjectionKafkaHandler(
                 db,
-                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                ProjectionTestCommandHandlerStubs.NoOpIssueInvoiceHandler(),
                 paymentClock,
                 NullLogger<PaymentCapturedInvoiceProjectionKafkaHandler>.Instance);
 
@@ -184,7 +184,7 @@ public sealed class PendingInvoiceProjectionTests
             var db = orderScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var orderHandler = new OrderConfirmedInvoiceProjectionKafkaHandler(
                 db,
-                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                ProjectionTestCommandHandlerStubs.NoOpIssueInvoiceHandler(),
                 orderClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
@@ -235,7 +235,7 @@ public sealed class PendingInvoiceProjectionTests
             var db = firstScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new OrderConfirmedInvoiceProjectionKafkaHandler(
                 db,
-                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                ProjectionTestCommandHandlerStubs.NoOpIssueInvoiceHandler(),
                 firstClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
@@ -248,7 +248,7 @@ public sealed class PendingInvoiceProjectionTests
             var db = secondScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             var handler = new OrderConfirmedInvoiceProjectionKafkaHandler(
                 db,
-                M7CommandHandlerStubs.NoOpIssueInvoiceHandler(),
+                ProjectionTestCommandHandlerStubs.NoOpIssueInvoiceHandler(),
                 secondClock,
                 NullLogger<OrderConfirmedInvoiceProjectionKafkaHandler>.Instance);
 
