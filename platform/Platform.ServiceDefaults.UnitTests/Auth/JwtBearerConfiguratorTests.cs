@@ -104,11 +104,38 @@ public class JwtBearerConfiguratorTests
         options.TokenValidationParameters.ValidateIssuerSigningKey.Should().BeTrue();
     }
 
-    private static JwtBearerOptions BuildPlatformJwtBearerOptions(Action<JwtBearerOptions>? extraConfigure = null)
+    [Theory]
+    [Trait("Category", "security")]
+    [InlineData("Development", false)]
+    [InlineData("Testing", false)]
+    [InlineData("Production", true)]
+    public void AddPlatformJwtBearer_DefaultsRequireHttpsMetadata_ToDeployedTiersOnly(
+        string environmentName,
+        bool expectedRequireHttpsMetadata)
+    {
+        // The default is keyed on IsDeployedEnvironment() = !(IsDevelopment() || IsTesting()), NOT on
+        // !IsDevelopment(): Testing is a non-deployed tier that talks to a local http Keycloak (or a
+        // cleared authority + FakeTokenSigner), so requiring HTTPS metadata there pairs a `true` flag
+        // with the http:// Authority in base appsettings — a combination the framework's own
+        // JwtBearerPostConfigureOptions rejects the moment ValidateOnStart materializes the options at
+        // boot. Each case kills a distinct mutant: dropping either disjunct of the env-gate, or
+        // inverting the default outright.
+
+        // Act
+        var options = BuildPlatformJwtBearerOptions(environmentName: environmentName);
+
+        // Assert
+        options.RequireHttpsMetadata.Should().Be(expectedRequireHttpsMetadata);
+    }
+
+    private static JwtBearerOptions BuildPlatformJwtBearerOptions(
+        Action<JwtBearerOptions>? extraConfigure = null,
+        string? environmentName = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
+        services.AddSingleton<IHostEnvironment>(
+            new StubHostEnvironment { EnvironmentName = environmentName ?? Environments.Production });
         // Authority drives ValidIssuer; reuse it as the token issuer below.
         services.Configure<ServiceAuthOptions>(o =>
         {
@@ -146,7 +173,7 @@ public class JwtBearerConfiguratorTests
 
     private sealed class StubHostEnvironment : IHostEnvironment
     {
-        // HTTPS so the configurator's RequireHttpsMetadata (= !IsDevelopment) is satisfied.
+        // HTTPS so the configurator's RequireHttpsMetadata (= IsDeployedEnvironment) is satisfied.
         public const string Issuer = "https://tests.dotnetatlas.local/realms/dotnetatlas";
 
         public string ApplicationName { get; set; } = "Platform.ServiceDefaults.UnitTests";
