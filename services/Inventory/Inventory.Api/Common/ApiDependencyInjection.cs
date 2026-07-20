@@ -11,13 +11,6 @@ internal static class ApiDependencyInjection
     /// <see cref="AuthenticationDependencyInjection"/> and are wired explicitly from
     /// Program.cs.
     /// </summary>
-    /// <remarks>
-    /// Inventory v1 has no outbound HTTP calls to other services, so the outbound
-    /// service-auth host registration (<c>AddServiceAuth</c>) is intentionally NOT
-    /// wired in <see cref="AuthenticationDependencyInjection"/>. The
-    /// <c>ServiceAuth.ClientId</c> + <c>ClientSecret</c> entries in <c>appsettings.json</c>
-    /// are pre-provisioned for the day Inventory grows an outbound HTTP client.
-    /// </remarks>
     public static IServiceCollection AddApi(
         this IServiceCollection services,
         IConfiguration configuration)
