@@ -80,7 +80,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 ## Implementation Notes
 
 - **Realm setup** (in `keycloak/realm-export.json`):
-  - One client per HTTP-callable service: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `bff`. (The Checkout saga and Notifications worker have no Keycloak client — they have no inbound HTTP and interact only over Kafka, which carries no service token.)
+  - One client per service reachable over authenticated HTTP: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `bff`. Two BCs are deliberately absent from that list: the Checkout saga, which exposes only unauthenticated health probes and otherwise interacts over Kafka (which carries no service token); and `Notifications`, whose bell hub does validate `notifications-service` but which nothing calls service-to-service — an audience value with no client and no scope behind it ([service-scope-matrix.md](../../src/keycloak/service-scope-matrix.md) § `notifications`).
   - All are `publicClient: false`. The four outbound-active clients (`catalog-service`, `basket-service`, `ordering-service`, `bff`) set `serviceAccountsEnabled: true` with a client secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`; the three inbound-only clients (`inventory-service`, `payments-service`, `invoicing-service`) are `serviceAccountsEnabled: false` with no secret — their `aud: <bc>-service` is stamped by the resource client-scope's `oidc-audience-mapper`, not a service account (see the 2026-05-27 amendment's outbound-active vs inbound-only table).
   - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.read`, `inventory.write`, etc.
   - Service-to-scope matrix is documented in `keycloak/service-scope-matrix.md` (co-authored with this ADR).
@@ -176,10 +176,7 @@ This amendment caught Inventory's silent breakage during its own implementation:
 - Audit a BC's category in 30 seconds: grep its `AuthenticationDependencyInjection.cs` for `services.AddServiceAuth(serviceName:`. Yes → outbound-active. No → inbound-only.
 - A BC that exposes inbound HTTP without setting `ValidAudience` cannot accept any token. The platform layer no longer hides the misconfiguration behind a fallback.
 - The `service-scope-matrix.md` companion document still lists every service's outbound scopes; what it does NOT do is imply that every entry corresponds to a wired `AddServiceAuth(...)` call. Wire it explicitly per service.
-
-### Out of scope (deferred)
-
-- Worker BCs (`Notifications`, `OutboxRelay`, `SagaOrchestrators`) have no inbound HTTP audience to validate today. `SagaOrchestrators` has a seeded `ServiceAuth` section pre-provisioned for the deferred outbound-auth wiring; per the rule above this section should be removed and re-added together with the `AddServiceAuth(...)` call when the outbound path lands.
+- Neither shape covers a BC whose only HTTP surface is the unauthenticated health/metrics endpoints: `OutboxRelay` and `SagaOrchestrators` carry all business traffic over Kafka, so there is no inbound `ValidAudience` to pin and no outbound `ServiceAuth` section to add.
 
 ## Amendment 2026-05-30 — Role vs scope canonical model
 
