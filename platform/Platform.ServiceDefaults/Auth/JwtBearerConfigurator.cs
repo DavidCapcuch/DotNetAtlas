@@ -90,11 +90,18 @@ public static class JwtBearerConfigurator
             {
                 var opts = serviceAuth.Value;
                 jwt.Authority = opts.Authority;
-                // Development tier (laptop dotnet run + docker-compose, per
-                // HostEnvironmentExtensions taxonomy) talks to Keycloak over plain HTTP on
-                // localhost:9011, so the JwtBearer metadata-discovery handshake must accept HTTP.
-                // Every other tier (Testing fixtures, deployed clusters) requires HTTPS metadata.
-                jwt.RequireHttpsMetadata = !env.IsDevelopment();
+                // Non-deployed tiers (Development laptop/compose runs and the Testing fixtures, per
+                // the HostEnvironmentExtensions taxonomy) reach Keycloak over plain HTTP on
+                // localhost:9011 or run against a cleared authority, so the metadata-discovery
+                // handshake must accept HTTP there; only deployed clusters require HTTPS metadata.
+                // This value only survives for a caller that does NOT bind
+                // "Authentication:JwtBearer": every shipped edge binds it through the configure
+                // callback below, so each service's appsettings overlay is what actually supplies
+                // its tier value. Keyed on IsDeployedEnvironment() rather than !IsDevelopment() so
+                // that unbound fallback still separates Testing from a deployed cluster — pairing
+                // RequireHttpsMetadata=true with an http:// Authority is rejected by the framework's
+                // own JwtBearerPostConfigureOptions when ValidateOnStart materializes it at boot.
+                jwt.RequireHttpsMetadata = env.IsDeployedEnvironment();
                 // RoleClaimType is INTENTIONALLY left at its default
                 // (ClaimTypes.Role). #234 proposed setting it to "roles" to
                 // match Keycloak's flat realm-role claim shape — that change

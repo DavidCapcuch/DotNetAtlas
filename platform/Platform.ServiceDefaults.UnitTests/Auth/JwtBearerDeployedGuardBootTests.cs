@@ -108,7 +108,8 @@ public class JwtBearerDeployedGuardBootTests
         // Env-gate, IsDevelopment() disjunct — the second half of
         // IsDeployedEnvironment() = !(IsDevelopment() || IsTesting()). Without this case a mutation
         // dropping IsDevelopment() survives the whole suite, yet would fail every laptop `dotnet run`
-        // and docker-compose boot (base appsettings ships RequireHttpsMetadata=false + http Authority).
+        // and docker-compose boot (base appsettings ships RequireHttpsMetadata=true alongside an
+        // http Authority; the appsettings.Development.json overlay is what relaxes it).
 
         // Act
         var boot = async () =>
