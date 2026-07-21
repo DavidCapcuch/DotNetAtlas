@@ -136,7 +136,7 @@ class AuthForwardingHandler : DelegatingHandler {
 }
 ```
 
-Registered before the resilience handler so retry copies of the request preserve the Authorization header. For public BFF endpoints (home page, product page) the handler has nothing to forward — upstream anonymous endpoints accept calls without `Authorization`. For authed upstreams the raw user JWT is **not** a standalone credential (no BC accepts the user-token audience); it is the **subject token** consumed by the buyer-scoped token exchange described next.
+Registered before the resilience handler so retry copies of the request preserve the Authorization header. For public BFF endpoints (home page, product page) the handler has nothing to forward — upstream anonymous endpoints accept calls without `Authorization`. For authed upstreams the raw user JWT is **not** a standalone credential (no BFF-fronted BC accepts the user-token audience — each needs a service or exchanged token); it is the **subject token** consumed by the buyer-scoped token exchange described next.
 
 **Upstream auth — decided ([ADR-0010 § BFF token exchange](../adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees); [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323)).** Every BC validates its own `aud`, so a plain-forwarded user JWT authenticates at *no* BC. Two outbound shapes cover every BFF call:
 
